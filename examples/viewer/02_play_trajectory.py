@@ -28,7 +28,7 @@ READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4
 def optimize_trajectory(model: br.Model) -> torch.Tensor:
     """``(KNOTS, nq)`` smooth motion from the ready pose to a shifted hand pose."""
     frame_id = model.frame_id(FRAME)
-    q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_pos_limit, model.upper_pos_limit)
+    q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_position_limit, model.upper_position_limit)
     pose_start = forward_kinematics_state(model, q_start[None]).frame_pose[0, frame_id]
     pose_goal = pose_start.clone()
     pose_goal[:3] += torch.tensor([0.10, 0.25, 0.20], dtype=torch.float64)
@@ -39,7 +39,7 @@ def optimize_trajectory(model: br.Model) -> torch.Tensor:
     problem = optim.Problem(
         {"q": q_start.repeat(1, KNOTS, 1)},
         manifolds={"q": terms.RobotManifold(model)},
-        bounds={"q": (model.lower_pos_limit, model.upper_pos_limit)},
+        bounds={"q": (model.lower_position_limit, model.upper_position_limit)},
         data={"target": target},
         time=("q",),
     )

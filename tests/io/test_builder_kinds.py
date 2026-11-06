@@ -39,8 +39,8 @@ def _assert_fk_runs(model) -> None:
     state = forward_kinematics_state(model, model.q_neutral)
     assert state.joint_pose.shape == (model.njoints, 7)
     assert torch.isfinite(state.joint_pose).all()
-    assert model.lower_pos_limit.shape == (model.nq,)
-    assert model.upper_pos_limit.shape == (model.nq,)
+    assert model.lower_position_limit.shape == (model.nq,)
+    assert model.upper_position_limit.shape == (model.nq,)
     assert model.velocity_limit.shape == (model.nv,)
     assert model.effort_limit.shape == (model.nv,)
 
@@ -91,7 +91,7 @@ def test_named_joint_methods_build_and_run_fk(method, kwargs, expected_kind):
 
     model = build_model(builder.finalize())
 
-    assert model.joint_models[2].kind == expected_kind
+    assert model.joints[2].kind == expected_kind
     _assert_fk_runs(model)
 
 
@@ -102,7 +102,7 @@ def test_add_free_flyer_root_builds_and_runs_fk():
 
     model = build_model(builder.finalize())
 
-    assert model.joint_models[1].kind == "free_flyer"
+    assert model.joints[1].kind == "free_flyer"
     _assert_fk_runs(model)
 
 
@@ -172,8 +172,8 @@ def test_joint_model_instances_round_trip_and_run_fk(
 
     model = build_model(builder.finalize())
 
-    assert model.joint_models[2] is joint_model
-    assert model.joint_models[2].kind == expected_kind
+    assert model.joints[2] is joint_model
+    assert model.joints[2].kind == expected_kind
     _assert_fk_runs(model)
 
 
@@ -193,8 +193,8 @@ def test_named_helical_preserves_pitch_in_fk():
     q = torch.tensor([0.4])
     state = forward_kinematics_state(model, q)
 
-    assert isinstance(model.joint_models[2], JointHelical)
-    assert model.joint_models[2].pitch == pytest.approx(0.25)
+    assert isinstance(model.joints[2], JointHelical)
+    assert model.joints[2].pitch == pytest.approx(0.25)
     assert state.joint_pose[2, 2].item() == pytest.approx(0.1)
 
 

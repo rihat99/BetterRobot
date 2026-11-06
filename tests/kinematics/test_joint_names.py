@@ -10,6 +10,8 @@ from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics import (
     forward_kinematics_state,
+    subtree,
+    support,
     joint_jacobian,
     joint_jacobian_time_variation,
 )
@@ -36,12 +38,12 @@ def test_joint_names_match_ids() -> None:
         joint_jacobian_time_variation(model, state, v=v, joint="j2"),
         joint_jacobian_time_variation(model, state, v=v, joint=joint),
     )
-    assert model.get_subtree("j1") == model.get_subtree(model.joint_id("j1"))
-    assert model.get_support("j2") == model.get_support(joint)
+    assert subtree(model, joint="j1") == subtree(model, joint=model.joint_id("j1"))
+    assert support(model, joint="j2") == support(model, joint=joint)
 
 
 @pytest.mark.parametrize("resolver", ["joint_id", "frame_id", "body_id"])
 def test_unknown_name_raises_typed_error(resolver: str) -> None:
     model = _two_link()
     with pytest.raises(UnknownNameError):
-        getattr(model.structure, resolver)("no_such_name")
+        getattr(model, resolver)("no_such_name")

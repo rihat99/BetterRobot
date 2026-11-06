@@ -15,7 +15,7 @@ from robot_descriptions import g1_description
 from better_robot.kinematics import forward_kinematics_state
 
 model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
-print(model.joint_names[:3], type(model.joint_models[1]).__name__)
+print(model.joint_names[:3], type(model.joints[1]).__name__)
 print("nq =", model.nq, "nv =", model.nv)  # 36, 35
 ```
 ```output

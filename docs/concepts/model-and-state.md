@@ -4,24 +4,21 @@ After this page you can build a `Model`, swap its differentiable values with `wi
 every field of the `KinematicState` that forward kinematics returns. You will also know which objects
 you may change (none) and how to get a changed copy instead.
 
-![A Model holds static structure and differentiable values; each query produces an immutable KinematicState.](../figures/model_values_state.svg)
+![A Model holds static fields and tensor fields; each query produces an immutable KinematicState.](../figures/model_values_state.svg)
 
-## A model is structure plus values
+## A model is one flat record
 
-`Model` is a frozen dataclass with four stored fields:
+`Model` is a frozen dataclass with two kinds of fields:
 
-| Field | Holds | Changes when |
-|-------|-------|--------------|
-| `structure` | `ModelStructure`: topology, names, joint models, index tables (`nq`, `nv`, `idx_qs`, `parents`, ...) | never |
-| `values` | `ModelValues`: tensors (placements, inertias, limits, gravity, `q_neutral`, ...) | you call `with_values` or `to` |
-| `reference_configurations` | named `q` tensors such as a home pose | never |
-| `meta` | loader metadata | never |
+| Kind | Fields | Changes when |
+|------|--------|--------------|
+| static | `name`, `joint_names`, `body_names`, `frame_names`, `joints`, `parents`, the index tables (`nqs`, `nvs`, `idx_qs`, `idx_vs`, ...), the mimic chain, `meta` | never |
+| tensor | `joint_placements (njoints, 7)`, `body_inertias (nbodies, 10)`, `frame_placements (nframes, 7)`, the limit vectors, `armature`, `damping`, `gravity (6,)`, `q_neutral (nq,)` | you call `with_values` or `to` |
 
-`ModelStructure` is plain Python data: integers, tuples and index tensors. Nothing in it carries a
-gradient. `ModelValues` holds every tensor you might want to differentiate or batch, for example
-`joint_placements (njoints, 7)`, `body_inertias (nbodies, 10)`, `frame_placements`, the limit
-vectors and `gravity (6,)`. `Model` re-exports both sides as flat properties, so `model.nq` and
-`model.joint_placements` work without reaching into the parts.
+The static fields are plain Python data: strings, tuples and joint objects. Nothing in them carries a
+gradient. The tensor fields hold everything you might want to differentiate or batch. Counts such as
+`model.nq`, `model.nv` and `model.njoints` are derived from the static fields, and `model.dtype` and
+`model.device` are those of the tensor fields.
 
 The example below builds a two-joint arm with the dependency-free [`ModelBuilder`](io.md).
 
@@ -40,11 +37,11 @@ builder.add_frame("tool", parent_body="link2",
 model = build_model(builder.finalize())
 
 print(model.nq, model.nv, model.joint_names)   # 2 2 ('universe', 'root_joint', 'j1', 'j2')
-print(type(model.structure).__name__, type(model.values).__name__)
+print(model.njoints, tuple(model.joint_placements.shape))
 ```
 ```output
 2 2 ('universe', 'root_joint', 'j1', 'j2')
-ModelStructure ModelValues
+4 (4, 7)
 ```
 
 Joint 0 is always `universe`. A fixed-base model gets a fixed `root_joint`; a floating-base model gets
@@ -52,15 +49,15 @@ a free-flyer there instead (see [Joints, bodies and frames](joints-bodies-frames
 
 ## You never mutate a model
 
-`Model`, `ModelStructure` and `ModelValues` are frozen dataclasses. Assigning a field raises
-`FrozenInstanceError`. Treat the contained tensors and dictionaries as read-only too: the dataclass
-freeze is shallow, and an in-place write would change every model and state that shares the tensor.
+`Model` is a frozen dataclass. Assigning a field raises `FrozenInstanceError`. Treat the contained
+tensors and dictionaries as read-only too: the dataclass freeze is shallow, and an in-place write would
+change every model and state that shares the tensor.
 
 ```python
 import dataclasses
 
 try:
-    model.values = model.values
+    model.joint_placements = model.joint_placements
 except dataclasses.FrozenInstanceError:
     print("models are frozen")
 ```
@@ -70,9 +67,9 @@ models are frozen
 
 ## `with_values` returns a changed copy
 
-`with_values(joint_placements=..., body_inertias=..., frame_placements=..., armature=...)` pairs the same
-structure with new tensors. It checks each tensor's trailing shape, dtype and device against the current values
-and normalizes the quaternion part of placements. Any argument you leave out keeps its current tensor.
+`with_values(joint_placements=..., body_inertias=..., frame_placements=..., armature=...)` replaces the tensor
+fields you pass and keeps every other field. It checks each tensor's trailing shape, dtype and device against the
+model's and normalizes the quaternion part of placements. Any argument you leave out keeps its current tensor.
 `armature (nv,)`, the motor inertia that [dynamics](dynamics.md) adds per coordinate, takes no batch axes.
 
 Values may carry leading batch axes. A batch of 8 models with different link lengths is one `Model`:
@@ -148,9 +145,9 @@ print(torch.allclose(model.difference(q, q_next), v))    # True
 True
 ```
 
-Other helpers on `Model`: `random_configuration()`, `q_neutral`, `frame_id(name)`, `joint_id(name)`,
-`body_id(name)`, `get_subtree(joint_id)`, `get_support(joint_id)`. The full list is in the
-[model API reference](../reference/api/model.md).
+Other helpers on `Model`: `random_configuration(generator=...)`, `q_neutral`, `frame_id(name)`,
+`joint_id(name)`, `body_id(name)`; tree queries are `kinematics.subtree(model, joint=...)` and
+`kinematics.support(model, joint=...)`. The full list is in the [model API reference](../reference/api/model.md).
 
 ## Where next
 

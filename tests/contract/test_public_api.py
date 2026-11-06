@@ -20,12 +20,6 @@ REQUIRED: frozenset[str] = frozenset(
     {
         # model
         "Model",
-        "ModelStructure",
-        "ModelValues",
-        "Frame",
-        "Joint",
-        "Body",
-        "Trajectory",
         # io
         "load",
         "ModelBuilder",

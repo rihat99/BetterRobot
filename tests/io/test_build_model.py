@@ -14,6 +14,7 @@ import torch
 import better_robot.io as br_io
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.kinematics import subtree
 from better_robot.exceptions import ModelError
 from better_robot.model.joint_models import JointFreeFlyer
 
@@ -48,21 +49,21 @@ def test_frozen():
 def test_universe_joint_zero():
     model = build_model(_simple_arm_ir())
     assert model.joint_names[0] == "universe"
-    assert model.joint_models[0].kind == "universe"
+    assert model.joints[0].kind == "universe"
     assert model.parents[0] == -1
 
 
 def test_root_joint_is_fixed_by_default():
     model = build_model(_simple_arm_ir())
     assert model.joint_names[1] == "root_joint"
-    assert model.joint_models[1].kind == "fixed"
+    assert model.joints[1].kind == "fixed"
     assert model.parents[1] == 0
 
 
 def test_limits():
     model = build_model(_simple_arm_ir())
-    assert abs(float(model.lower_pos_limit[0]) - (-math.pi)) < 1e-5
-    assert abs(float(model.upper_pos_limit[0]) - math.pi) < 1e-5
+    assert abs(float(model.lower_position_limit[0]) - (-math.pi)) < 1e-5
+    assert abs(float(model.upper_position_limit[0]) - math.pi) < 1e-5
     assert abs(float(model.velocity_limit[0]) - 2.0) < 1e-5
     assert abs(float(model.effort_limit[0]) - 100.0) < 1e-5
 
@@ -101,7 +102,7 @@ def test_frames_created(make_model, expected_frames):
     model = make_model()
     for name in expected_frames:
         assert name in set(model.frame_names)
-        assert name in model.frame_name_to_id
+        assert name in model.frame_names
 
 
 def test_name_to_id_dicts():
@@ -113,13 +114,10 @@ def test_name_to_id_dicts():
     assert model.body_id("link1") == 2
 
 
-def test_topo_order_parent_before_child():
+def test_parents_precede_children():
     model = build_model(_simple_arm_ir())
-    order = model.topo_order
-    for i, j in enumerate(order):
-        p = model.parents[j]
-        if p >= 0:
-            assert order.index(p) < i
+    assert model.parents[0] == -1
+    assert all(parent < joint for joint, parent in enumerate(model.parents) if joint)
 
 
 def _branching_tree_ir():
@@ -166,11 +164,9 @@ def test_idx_qs_dfs_order_on_branching_tree():
     # Four revolute joints → idx_qs increments 1 per joint after the fixed root
     assert model.idx_qs == (0, 0, 0, 1, 2, 3)
     assert model.idx_vs == (0, 0, 0, 1, 2, 3)
-    # DFS signature: topo_order is the identity tuple
-    assert model.topo_order == (0, 1, 2, 3, 4, 5)
-    # DFS signature: each subtree is a contiguous range of topo_order positions
-    assert model.subtrees[2] == (2, 3)  # left_j1 subtree = {left_j1, left_j2}
-    assert model.subtrees[4] == (4, 5)  # right_j1 subtree = {right_j1, right_j2}
+    # DFS signature: each subtree is a contiguous range of joint ids
+    assert subtree(model, joint=2) == (2, 3)  # left_j1 subtree = {left_j1, left_j2}
+    assert subtree(model, joint=4) == (4, 5)  # right_j1 subtree = {right_j1, right_j2}
 
 
 def _unaligned_model():
@@ -235,7 +231,7 @@ def _spherical_model():
 )
 def test_joint_kind_mapping(make_model, joint_index, kind, nq, nv):
     model = make_model()
-    assert model.joint_models[joint_index].kind == kind
+    assert model.joints[joint_index].kind == kind
     assert model.nq == nq
     assert model.nv == nv
 
@@ -280,12 +276,12 @@ def _mimic_ir(*, multiplier: float = 1.0, offset: float = 0.0):
 def test_non_identity_mimic_joint_builds_reduced_map(multiplier, offset):
     model = build_model(_mimic_ir(multiplier=multiplier, offset=offset))
     target = model.joint_id("mimic_j")
-    full_row = model.idx_qs_full[target]
 
     assert model.nq == model.nv == 1
     assert model.nq_full == model.nv_full == 2
-    assert model.q_expansion[full_row, 0].item() == pytest.approx(multiplier)
-    assert model.q_offset[full_row].item() == pytest.approx(offset)
+    assert model.mimic_source_ids[target] == model.joint_id("main_j")
+    assert model.mimic_multipliers[target] == pytest.approx(multiplier)
+    assert model.mimic_offsets[target] == pytest.approx(offset)
 
 
 def test_identity_mimic_joint_preserves_metadata_and_reduces_dofs():
@@ -293,9 +289,9 @@ def test_identity_mimic_joint_preserves_metadata_and_reduces_dofs():
     main_j_midx = model.joint_id("main_j")
     mimic_j_midx = model.joint_id("mimic_j")
 
-    assert model.mimic_source[mimic_j_midx] == main_j_midx
-    assert model.mimic_multiplier[mimic_j_midx].item() == pytest.approx(1.0)
-    assert model.mimic_offset[mimic_j_midx].item() == pytest.approx(0.0)
+    assert model.mimic_source_ids[mimic_j_midx] == main_j_midx
+    assert model.mimic_multipliers[mimic_j_midx] == pytest.approx(1.0)
+    assert model.mimic_offsets[mimic_j_midx] == pytest.approx(0.0)
     assert model.nqs[main_j_midx] == model.nvs[main_j_midx] == 1
     assert model.nqs[mimic_j_midx] == model.nvs[mimic_j_midx] == 0
     assert model.nqs_full[main_j_midx] == model.nqs_full[mimic_j_midx] == 1
@@ -318,4 +314,4 @@ def test_device_dtype_kwarg():
     ir = _simple_arm_ir()
     model = build_model(ir, dtype=torch.float64)
     assert model.joint_placements.dtype == torch.float64
-    assert model.lower_pos_limit.dtype == torch.float64
+    assert model.lower_position_limit.dtype == torch.float64

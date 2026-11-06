@@ -118,7 +118,9 @@ def _spheres(model):
 
 def test_centers_match_manual_fk_and_pairs(panda):
     spheres = _spheres(panda)
-    q = panda.lower_pos_limit + torch.rand(5, panda.nq, dtype=DT) * (panda.upper_pos_limit - panda.lower_pos_limit)
+    q = panda.lower_position_limit + torch.rand(5, panda.nq, dtype=DT) * (
+        panda.upper_position_limit - panda.lower_position_limit
+    )
     state = forward_kinematics_state(panda, q)
     centers = spheres.centers(state)
     for s, frame in enumerate(spheres.frame_ids.tolist()):
@@ -273,7 +275,7 @@ def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
     g1 = br.load(g1_urdf(), free_flyer=True, dtype=DT)
     capsules = collision.RobotCapsules.from_frames(g1, G1_CAPSULES)
     names = [g1.frame_names[frame].removeprefix("body_") for frame in capsules.frame_ids.tolist()]
-    q = torch.stack([g1.random_configuration(torch.Generator().manual_seed(seed)) for seed in range(3)])
+    q = torch.stack([g1.random_configuration(generator=torch.Generator().manual_seed(seed)) for seed in range(3)])
     state = forward_kinematics_state(g1, q)
     starts, ends = capsules.segments(state)
     for c, frame in enumerate(capsules.frame_ids.tolist()):

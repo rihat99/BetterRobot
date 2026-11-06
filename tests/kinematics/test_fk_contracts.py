@@ -64,8 +64,8 @@ def test_matrix_fk_matches_hand_computed_two_link_chain() -> None:
     q = torch.tensor([theta1, theta2], dtype=torch.float32)
     result = forward_kinematics_state(model, q)
 
-    j1 = model.structure.joint_id("j1")
-    j2 = model.structure.joint_id("j2")
+    j1 = model.joint_id("j1")
+    j2 = model.joint_id("j2")
     world1 = result.joint_pose[j1]
     world2 = result.joint_pose[j2]
 
@@ -124,7 +124,7 @@ def test_matrix_fk_batched_joint_placements_forward_and_grad() -> None:
     # Per-element translation offsets keep placement quaternions unit-valid.
     offsets = torch.zeros(batch, njoints, 7)
     offsets[..., 0] = torch.linspace(0.0, 0.15, batch).unsqueeze(-1)
-    batched_placements = model.values.joint_placements.unsqueeze(0) + offsets
+    batched_placements = model.joint_placements.unsqueeze(0) + offsets
 
     placements = batched_placements.detach().clone().requires_grad_()
     result = forward_kinematics_state(model.with_values(joint_placements=placements), q)

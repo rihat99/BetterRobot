@@ -21,7 +21,7 @@ from robot_descriptions import panda_description
 from better_robot.viewer import Viewer, robot_layers, RobotView
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-q_rest = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
+q_rest = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
 clip = q_rest.repeat(30, 1)                       # (T, nq)
 clip[:, 0] = torch.linspace(-1.0, 1.0, 30, dtype=torch.float64)
 ```

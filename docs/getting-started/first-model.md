@@ -54,9 +54,9 @@ finger joint; the second finger mimics the first, so it does not get its own ent
 
 ```python
 print(model.q_neutral)
-print(model.lower_pos_limit)
-print(model.upper_pos_limit)
-q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
+print(model.lower_position_limit)
+print(model.upper_position_limit)
+q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
 ```
 ```output
 tensor([0., 0., 0., 0., 0., 0., 0., 0.], dtype=torch.float64)

@@ -62,7 +62,7 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
 def test_panda_layers_follow_forward_kinematics() -> None:
     """The tracked Panda ships its collision meshes only, so the mesh layer draws those."""
     model = br.load(panda_urdf())
-    q = torch.stack([model.random_configuration(torch.Generator().manual_seed(i)) for i in range(5)])
+    q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(5)])
     tau = torch.randn(5, model.nv)
     options = {"visual": False, "collision": True, "skeleton": True, "tau": tau, "frames": ["body_panda_hand"]}
     layers = {layer.name: layer for layer in robot_layers(model, q, **options)}
@@ -95,7 +95,7 @@ def test_robot_view_update_rewrites_layer_arrays_in_place() -> None:
     from better_robot.viewer.robot import RobotView  # noqa: PLC0415
 
     model = br.load(panda_urdf())
-    q0, q1 = (model.random_configuration(torch.Generator().manual_seed(i)) for i in range(2))
+    q0, q1 = (model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2))
     view = RobotView(model, q0, visual=False, skeleton=True, frames=["body_panda_hand"])
     server = FakeServer()
     viewer = Viewer(server=server)
@@ -379,7 +379,7 @@ def test_robot_skeleton_shows_the_joint_load_in_colour_and_thickness_at_a_fixed_
     from better_robot.viewer._math import colormap, rgb_uint8  # noqa: PLC0415
 
     model = _g1()
-    limits = model.values.effort_limit.numpy()
+    limits = model.effort_limit.numpy()
     half, over, idle = 3, 4, 5  # revolute joints (layer entries 2, 3, 4)
     tau = np.zeros((2, model.nv))
     tau[:, :6] = 1e6  # free-flyer "torques": no effort limit, plain look
@@ -429,7 +429,7 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     builder.add_revolute_x("wrist", parent=upper, child=hand, origin=origin, effort_limit=10.0)
     builder.add_frame("palm", parent_body=hand, placement=torch.from_numpy(_random_poses((), seed=2)))
     model = br.load(builder.finalize, dtype=torch.float64)
-    q = torch.stack([model.random_configuration(torch.Generator().manual_seed(i)) for i in range(2)])
+    q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2)])
     state = br.forward_kinematics_state(model, q)
     point = torch.tensor([0.05, -0.02, 0.1], dtype=torch.float64)
     tau = np.full((2, model.nv), 20.0)  # past the limits

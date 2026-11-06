@@ -1,7 +1,5 @@
 """Robot terms: analytic Jacobians equal autodiff; IK reaches reachable targets inside the limits."""
 
-from dataclasses import replace
-
 import pytest
 import torch
 
@@ -44,7 +42,7 @@ def test_ik_with_restarts_reaches_every_target_inside_limits(panda):
     q = result.x["q"]
     reached = forward_kinematics_state(panda, q).frame_pose[:, panda.frame_id(FRAME)]
     assert float((reached[:, :3] - goal[:, :3]).norm(dim=-1).max()) < 1e-6
-    assert bool(((q >= panda.lower_pos_limit) & (q <= panda.upper_pos_limit)).all())
+    assert bool(((q >= panda.lower_position_limit) & (q <= panda.upper_position_limit)).all())
 
 
 def test_result_getitem_and_ik_problem_state_handle(panda):
@@ -87,7 +85,7 @@ def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1)
     excess = (speed.abs() - 0.1 * g1.velocity_limit).clamp_min(0.0)
     torch.testing.assert_close(limit.fn(q), speed.sign() * excess)
     assert bool((excess[..., 6:] > 0).any()) and bool((limit.fn(q)[..., :6] == 0).all())  # root: no limit
-    unset = replace(g1, values=replace(g1.values, velocity_limit=torch.zeros_like(g1.velocity_limit)))  # MJCF stores 0
+    unset = g1.with_values(velocity_limit=torch.zeros_like(g1.velocity_limit))  # MJCF stores 0
     assert bool((terms.velocity_limit(unset, dt=dt).fn(q) == 0).all())  # a stored 0 is no limit, not a zero one
     problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(g1)}, time=("q",))
     problem.residual("jerk", term)

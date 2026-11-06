@@ -21,7 +21,7 @@ SEED = 20250717
 
 def _loop_integrate(model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
     parts: list[torch.Tensor] = []
-    for joint_id, joint in enumerate(model.joint_models):
+    for joint_id, joint in enumerate(model.joints):
         nq_joint = model.nqs[joint_id]
         if nq_joint == 0:
             continue
@@ -38,7 +38,7 @@ def _loop_integrate(model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
 
 def _loop_difference(model, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
     parts: list[torch.Tensor] = []
-    for joint_id, joint in enumerate(model.joint_models):
+    for joint_id, joint in enumerate(model.joints):
         nq_joint = model.nqs[joint_id]
         if nq_joint == 0:
             continue

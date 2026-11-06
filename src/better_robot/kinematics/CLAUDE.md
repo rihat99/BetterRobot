@@ -11,13 +11,16 @@
   (the `local_world_aligned` linear rows moved to each point)
 - `frame_jacobian_time_variation(model, state, *, v, frame, reference=...)` and
   `joint_jacobian_time_variation(model, state, *, v, joint, reference=...)` — `J̇` for the same references
+- `full_configuration(model, q)` — `q` with the mimic targets filled in (`configuration.py`, with the mimic
+  plan and the reductions `dynamics/` uses); `subtree(model, joint)` and `support(model, joint)` (`tree.py`)
 - Raw kernels below them (`_fk_lean.py`, `_jacobian_columns.py`, `jacobian.py::*_time_variation_raw`)
-  take `(structure, values, ...)` and trust validated inputs; `dynamics/` reuses them
+  take `(model, ...)` and trust validated inputs; `dynamics/` reuses them
 
-All passes use one execution batch: the right-aligned broadcast of `q` with
-the joint-placement, body-inertia, and frame-placement value tables. Callers
-must add semantic singleton axes explicitly (for example `(B, 1, njoints, 7)`
-alongside `(B, T, nq)`); no auto-unsqueeze is performed.
+Public entries validate through `model/_checks.py` (`check_tensor`, then
+`batch_shape`/`expand_batch`): one batch per pass, the right-aligned broadcast
+of `q` with the joint-placement, body-inertia, and frame-placement tables.
+Callers must add semantic singleton axes explicitly (for example
+`(B, 1, njoints, 7)` alongside `(B, T, nq)`); no auto-unsqueeze is performed.
 
 ## Jacobian Reference Frames (critical)
 
@@ -59,12 +62,13 @@ features of `q` (`sin`/`cos` of revolute angles, quaternion products, translatio
 coordinates), so one `addmm` with a constant matrix built from topology and joint axes gives
 all joint transforms; the world chain is one matmul per tree level. Transforms are `[R | p]`
 matrices `(N, njoints, 3, 4)`; nothing is converted to quaternions inside the pass. Rare kinds
-(planar, translation, helical, composite) go through `joint_dispatch.joint_placement` one by
-one. The plan is memoised on the structure per dtype/device (`_fk_lean_plans`).
+(planar, translation, helical, composite) call the joint's own `joint_placement` one by one
+(helical reads the plan's device-resident axis and pitch). The plan is built by
+`Model._plan("fk", ...)` once per model, dtype and device.
 
 Placements stay differentiable and may be batched. Unbatched placements are folded into the
-affine map (cost independent of batch size); their `4x4` form is cached on the `ModelValues`
-instance unless they require grad or are wrapped by `torch.func`.
+affine map (cost independent of batch size); their `4x4` form is converted on every call
+(`placement_matrices`, record 0011: no cache keyed by tensor versions, so each call owns its graph).
 
 `forward_kinematics_state` stores the `joint_transform` and `frame_transform` matrices; `joint_pose` /
 `frame_pose` are converted on first use with canonical-sign quaternions (Shepperd selection via
@@ -90,10 +94,10 @@ supports-derived mask broadcasts that table into per-joint
 Jacobians, and mimic reduction is applied last on full-width columns. This drops
 launches from ~50 per joint to a constant ~52 for the whole pass, independent of
 joint count (203-joint model, batch 256: forward 47.3 to 0.84 ms). The plan
-(owner map, gather index, support mask) is a pure function of `ModelStructure`,
-memoised on the structure instance (`_joint_jacobian_plan`) exactly like
-`_fk_lean_plans`; `ModelStructure.to` mints a fresh instance, so a moved model
-rebuilds its plan.
+(owner map, gather index, support mask) is a pure function of the model's
+static fields, built by `Model._plan("jacobian", ...)` per dtype and device
+like the FK plan; `Model.to` and `with_values` return a record with no plans,
+so a moved model rebuilds its plan.
 
 `joint_jacobians_time_variation_raw` reuses that same column table and owner
 map. `J̇` is transport-only (constant local motion subspaces, no `dS/dt` term):

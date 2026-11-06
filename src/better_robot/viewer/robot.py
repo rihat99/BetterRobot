@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
+from ..model.joint_dispatch import joint_axes
 from ._math import colormap, rotate
 from .layer import Layer
 from .layers.frames import FramesLayer
@@ -185,9 +186,9 @@ def _end_poses(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Poses ``(T, E, 7)`` of ``end_points`` (frame -> point in it) over ``joint_poses (T, njoints, 7)``, oriented as
     the frames' parent joints, and those joints ``(E,)``."""
-    frames = [model.frames[model.frame_id(frame) if isinstance(frame, str) else int(frame)] for frame in end_points]
-    joints = np.array([frame.parent_joint for frame in frames], dtype=np.int64)
-    placement = np.stack([frame.joint_placement.detach().cpu().numpy() for frame in frames]).astype(np.float32)
+    frame_ids = [model.frame_id(frame) for frame in end_points]
+    joints = np.array([model.frame_parent_joint_ids[frame_id] for frame_id in frame_ids], dtype=np.int64)
+    placement = model.frame_placements[..., frame_ids, :].detach().cpu().numpy().astype(np.float32)
     local = placement[:, :3] + rotate(placement[:, 3:], np.asarray(list(end_points.values()), dtype=np.float32))
     rotations = joint_poses[:, joints, 3:]
     return np.concatenate([joint_poses[:, joints, :3] + rotate(rotations, local), rotations], axis=-1), joints
@@ -197,9 +198,9 @@ def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
     """Joint kinds and axes ``(njoints - 1, 3)`` (joint frame; ``+z`` for joints without one) of joints 1..,
     for ``SkeletonLayer(kinds=, axes=)``."""
     # The packed table, not ``joint.axis``: JointRX/RY/RZ and PX/PY/PZ keep their axis in a ClassVar (axis None).
-    axes = model.structure.joint_axes[1:].detach().cpu().numpy().astype(np.float32)
+    axes = joint_axes(model.joints)[1:].numpy().astype(np.float32)
     axes[~np.any(axes, axis=-1)] = (0.0, 0.0, 1.0)  # zero rows: spherical, free-flyer, planar, fixed, ...
-    return [joint.kind for joint in model.joint_models[1:]], axes
+    return [joint.kind for joint in model.joints[1:]], axes
 
 
 def spread_offsets(
@@ -300,7 +301,7 @@ def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarra
     tau = tau.reshape(-1, model.nv)
     if tau.shape[0] not in (1, nsteps):
         raise ValueError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
-    limits = model.values.effort_limit.detach().cpu().numpy().reshape(-1)
+    limits = model.effort_limit.detach().cpu().numpy().reshape(-1)
     # Dofs without a finite effort limit (free-flyer, unbounded URDF joints) contribute a ratio of 0.
     finite = np.isfinite(limits) & (limits > 0)
     limits = np.where(finite, limits, np.inf)
@@ -326,9 +327,9 @@ def robot_meshes(model: Model, *, collision: bool = False, default_color: Any = 
     resolver = model.meta.get("asset_resolver")
     specs: list[MeshSpec] = []
     for ir_body in ir.bodies:
-        body = model.body_name_to_id.get(ir_body.name)
-        if body is None:
+        if ir_body.name not in model.body_names:
             continue
+        body = model.body_id(ir_body.name)
         for geom in ir_body.collision_geoms if collision else ir_body.visual_geoms:
             spec = _load_geom(geom, body, resolver, default_color)
             if spec is not None:

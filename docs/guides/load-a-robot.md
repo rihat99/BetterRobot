@@ -29,7 +29,7 @@ Any URDF path on disk works the same way.
 ## Load an MJCF file
 
 MJCF parsing goes through MuJoCo's own compiler, so it needs the `io-mjcf` extra
-(`pip install "better-robot[io-mjcf]"`). Without it, `load` raises `BackendNotAvailableError`.
+(`pip install "better-robot[io-mjcf]"`). Without it, `load` raises `OptionalDependencyError`.
 
 ```python { .no-run }
 model = br.load("scene.xml")              # .xml / .mjcf picks the MJCF parser
@@ -84,12 +84,12 @@ print(pendulum.joint_names)
 
 ## Look up joints and frames by name
 
-`model.structure` holds the static topology (names, parents, index tables). `model.values` holds the
-differentiable tensors (joint placements, body inertias, frame placements). Names resolve to integer
-ids once, outside any hot loop.
+The model's static fields hold the topology (names, parents, index tables); its tensor fields hold the
+differentiable data (joint placements, body inertias, frame placements). Names resolve to integer ids
+once, outside any hot loop.
 
 ```python
-print(model.structure.joint_names[:3])
+print(model.joint_names[:3])
 hand = model.frame_id("body_panda_hand")
 joint = model.joint_id("panda_joint4")
 print(hand, joint, model.frame_names[hand])
@@ -100,7 +100,7 @@ print(hand, joint, model.frame_names[hand])
 ```
 
 The URDF parser names the frame of each link `body_<link name>`; print `model.frame_names` to see
-them all. An unknown name raises `KeyError`. Functions that take a frame, such as `frame_jacobian`,
+them all. An unknown name raises `UnknownNameError` (a `KeyError`). Functions that take a frame, such as `frame_jacobian`,
 accept either the id or the name.
 
 ## Meshes
@@ -112,16 +112,14 @@ than primitives need the `meshes` extra (`pip install "better-robot[meshes]"`, w
 ## Common errors
 
 Errors raised by the library's own checks derive from `better_robot.exceptions.BetterRobotError` and
-from the matching built-in (`ValueError`, `ImportError`, `RuntimeError`), so `except ValueError` keeps
-working. Loading also lets plain Python errors through: a missing file is a `FileNotFoundError`, a
-description the parser cannot interpret is an `IRError` (a `ValueError` from `better_robot.io.ir`). The
+from the matching built-in (`ValueError`, `KeyError`, `ImportError`), so `except ValueError` keeps
+working. Loading also lets plain Python errors through: a missing file is a `FileNotFoundError`. The
 ones you meet when loading or first using a model:
 
 | Error | Raised when |
 |-------|-------------|
-| `BackendNotAvailableError` | an optional package (`mujoco`, `trimesh`, `viser`) is missing; the message names the extra to install |
-| `IRError` | the description cannot be mapped to a model: an unknown joint kind, a cycle in the tree, a mimic chain that loops |
-| `ModelInconsistencyError` | the joint order is not parent-before-child, or the joints' `nq` / `nv` do not add up to the model's |
+| `OptionalDependencyError` | an optional package (`mujoco`, `trimesh`, `viser`) is missing; the message names the install command |
+| `ModelError` | the description cannot be mapped to a model: an unknown joint kind, a cycle in the tree, a mimic chain that loops, joints whose `nq` / `nv` do not add up |
 | `ShapeError` | a tensor's trailing axes do not match the model, e.g. `q` is not `(B..., nq)` |
 | `DtypeMismatchError` / `DeviceMismatchError` | an input tensor's dtype or device differs from the model's |
 

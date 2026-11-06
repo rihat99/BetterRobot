@@ -33,7 +33,7 @@ model = build_model(ir)
 
 print(model.joint_names)   # ('universe', 'root_joint', 'j1', 'j2')
 print(model.parents)       # (-1, 0, 1, 2)
-print([type(jm).__name__ for jm in model.joint_models])
+print([type(jm).__name__ for jm in model.joints])
 # ['JointUniverse', 'JointFixed', 'JointRZ', 'JointRY']
 ```
 ```output

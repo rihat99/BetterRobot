@@ -32,8 +32,8 @@ def _model(dtype: torch.dtype = torch.float64):
 
 
 def _value_batch(model, batch_shape: tuple[int, ...]):
-    placements = model.values.joint_placements.expand(*batch_shape, model.njoints, 7).clone()
-    frames = model.values.frame_placements.expand(*batch_shape, model.nframes, 7).clone()
+    placements = model.joint_placements.expand(*batch_shape, model.njoints, 7).clone()
+    frames = model.frame_placements.expand(*batch_shape, model.nframes, 7).clone()
     offsets = torch.linspace(
         0.01,
         0.03,
@@ -99,7 +99,7 @@ def test_person_time_broadcast_requires_explicit_singleton_axis() -> None:
 
 def test_frame_only_batch_expands_data_and_jacobian_uses_frame_table() -> None:
     model = _model()
-    frames = model.values.frame_placements.repeat(2, 1, 1)
+    frames = model.frame_placements.repeat(2, 1, 1)
     frames[:, -1, 0] += torch.tensor([0.1, 0.4], dtype=frames.dtype)
     rebound = model.with_values(frame_placements=frames)
     state = forward_kinematics_state(rebound, model.q_neutral)
@@ -122,10 +122,10 @@ def test_batched_joint_placement_autograd_reaches_leaf() -> None:
         2,
         model.njoints,
         7,
-        dtype=model.values.joint_placements.dtype,
+        dtype=model.joint_placements.dtype,
         requires_grad=True,
     )
-    placements = model.values.joint_placements + delta
+    placements = model.joint_placements + delta
     rebound = model.with_values(joint_placements=placements)
     state = forward_kinematics_state(rebound, model.q_neutral)
     loss = state.joint_pose[..., 2, :3].square().sum()

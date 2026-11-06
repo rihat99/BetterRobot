@@ -20,7 +20,7 @@ model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 hand = model.frame_id(FRAME)
 generator = torch.Generator().manual_seed(0)
 
-q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(32, -1)
+q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(32, -1)
 q_goal = terms.random_start(model, q0, generator=generator)
 target = forward_kinematics_state(model, q_goal).frame_pose[:, hand]  # (32, 7)
 ```

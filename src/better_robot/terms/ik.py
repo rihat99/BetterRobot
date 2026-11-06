@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 import torch
 
+from ..model._manifold import manifold_plan
 from ..model.model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
 from ..optim.solvers import select
@@ -31,7 +32,7 @@ def ik_problem(
     problem = Problem(
         {"q": q0},
         manifolds={"q": RobotManifold(model)},
-        bounds={"q": (model.lower_pos_limit, model.upper_pos_limit)},
+        bounds={"q": (model.lower_position_limit, model.upper_position_limit)},
         data={f"target/{frame}": pose for frame, pose in targets.items()},
     )
     state = problem.cached(kinematic_state(model), name="state")
@@ -46,8 +47,8 @@ def ik_problem(
 
 def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator | None = None) -> torch.Tensor:
     """Copy of ``q0: (B, nq)`` with every vector-space joint that has finite limits sampled uniformly."""
-    index = model.structure.manifold_euclidean_q_indices
-    lower, upper = model.lower_pos_limit[index], model.upper_pos_limit[index]
+    index = manifold_plan(model, dtype=model.dtype, device=model.device).euclidean_q
+    lower, upper = model.lower_position_limit[index], model.upper_position_limit[index]
     sample = torch.rand(q0.shape[0], index.numel(), generator=generator, dtype=q0.dtype).to(q0.device)
     sample = lower + (upper - lower) * sample
     out = q0.clone()

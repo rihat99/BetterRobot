@@ -61,7 +61,7 @@ def _sample_qs(model, n: int, *, seed: int) -> torch.Tensor:
     rng = torch.Generator().manual_seed(seed)
     nq = model.nq
     out = torch.zeros(n, nq, dtype=torch.float64)
-    free_flyer = model.joint_models[1].kind == "free_flyer" if model.njoints > 1 else False
+    free_flyer = model.joints[1].kind == "free_flyer" if model.njoints > 1 else False
     if free_flyer:
         out[:, 0:3] = (torch.rand(n, 3, generator=rng, dtype=torch.float64) - 0.5) * 0.4
         quats = torch.randn(n, 4, generator=rng, dtype=torch.float64)

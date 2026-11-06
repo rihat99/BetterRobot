@@ -305,9 +305,9 @@ def test_frames_appended_after_the_automatic_body_frames():
     # 4 automatic body frames (universe + a + b + c), then the two user frames.
     assert model.nframes == 6
     assert model.frame_names[4:] == ("tip_c", "tip_a")
-    assert model.frames[4].parent_joint == model.body_name_to_id["c"]
-    assert model.frames[5].parent_joint == model.body_name_to_id["a"]
-    assert torch.allclose(model.values.frame_placements[4:], placements)
+    assert model.frame_parent_joint_ids[4] == model.body_id("c")
+    assert model.frame_parent_joint_ids[5] == model.body_id("a")
+    assert torch.allclose(model.frame_placements[4:], placements)
 
 
 def test_frames_unknown_parent_body_raises():

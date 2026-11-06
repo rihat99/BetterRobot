@@ -1,64 +1,37 @@
-"""Static joint dispatch shared by whole-pass torch implementations."""
+"""Static per-joint tables read by the kinematics plans and the viewer."""
 
 from __future__ import annotations
 
 import torch
 
-from ..lie import se3
 from .joint_models.base import JointModel
-from .joint_models.helical import _helical_transform
-from .joint_models.prismatic import _prismatic_transform
-from .joint_models.revolute import _revolute_transform, _revolute_unbounded_transform
-from .model_structure import JOINT_KIND_CODES
 
-
-_FIXED_CODES = {
-    JOINT_KIND_CODES["universe"],
-    JOINT_KIND_CODES["fixed"],
-    JOINT_KIND_CODES["mimic"],
-}
-_REVOLUTE_CODES = {
-    JOINT_KIND_CODES["revolute_rx"],
-    JOINT_KIND_CODES["revolute_ry"],
-    JOINT_KIND_CODES["revolute_rz"],
-    JOINT_KIND_CODES["revolute_unaligned"],
-}
-_PRISMATIC_CODES = {
-    JOINT_KIND_CODES["prismatic_px"],
-    JOINT_KIND_CODES["prismatic_py"],
-    JOINT_KIND_CODES["prismatic_pz"],
-    JOINT_KIND_CODES["prismatic_unaligned"],
+_ALIGNED_AXES = {
+    "revolute_rx": (1.0, 0.0, 0.0),
+    "revolute_ry": (0.0, 1.0, 0.0),
+    "revolute_rz": (0.0, 0.0, 1.0),
+    "prismatic_px": (1.0, 0.0, 0.0),
+    "prismatic_py": (0.0, 1.0, 0.0),
+    "prismatic_pz": (0.0, 0.0, 1.0),
 }
 
 
-def joint_placement(
-    joint: JointModel,
-    kind_code: int,
-    axis: torch.Tensor,
-    pitch: torch.Tensor,
-    q_slice: torch.Tensor,
-) -> torch.Tensor:
-    """Evaluate one joint without per-call axis transfers.
-
-    Non-axis joint kinds retain their statically-specialized implementation;
-    axis-based kinds consume the already-device-resident packed tables.
-    """
-
-    if kind_code in _FIXED_CODES:
-        return se3.identity(
-            batch_shape=tuple(q_slice.shape[:-1]),
-            device=q_slice.device,
-            dtype=q_slice.dtype,
-        )
-    if kind_code in _REVOLUTE_CODES:
-        return _revolute_transform(axis, q_slice)
-    if kind_code == JOINT_KIND_CODES["revolute_unbounded"]:
-        return _revolute_unbounded_transform(axis, q_slice)
-    if kind_code in _PRISMATIC_CODES:
-        return _prismatic_transform(axis, q_slice)
-    if kind_code == JOINT_KIND_CODES["helical"]:
-        return _helical_transform(axis, pitch, q_slice)
-    return joint.joint_placement(q_slice)
+def joint_axes(joints: tuple[JointModel, ...]) -> torch.Tensor:
+    """Axis of every joint, ``(njoints, 3)`` float64 on the CPU; zero for joints without one."""
+    rows = []
+    for joint in joints:
+        if joint.kind in _ALIGNED_AXES:
+            rows.append(_ALIGNED_AXES[joint.kind])
+        elif joint.axis is None:
+            rows.append((0.0, 0.0, 0.0))
+        else:
+            rows.append(tuple(joint.axis.detach().to(device="cpu", dtype=torch.float64).tolist()))
+    return torch.tensor(rows, dtype=torch.float64).reshape(len(joints), 3)
 
 
-__all__ = ["joint_placement"]
+def joint_pitches(joints: tuple[JointModel, ...]) -> torch.Tensor:
+    """Helical pitch of every joint, ``(njoints,)`` float64 on the CPU; zero for other kinds."""
+    return torch.tensor([float(getattr(joint, "pitch", 0.0)) for joint in joints], dtype=torch.float64)
+
+
+__all__ = ["joint_axes", "joint_pitches"]

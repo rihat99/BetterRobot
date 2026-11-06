@@ -87,7 +87,7 @@ ceiling = start[:, elbow, 2:3] - 0.03
 problem = optim.Problem(
     {"q": q_start},
     manifolds={"q": terms.RobotManifold(model)},
-    bounds={"q": (model.lower_pos_limit, model.upper_pos_limit)},
+    bounds={"q": (model.lower_position_limit, model.upper_position_limit)},
     data={"goal": goal, "ceiling": ceiling, "q_start": q_start},
 )
 problem.cached(terms.kinematic_state(model), name="state")

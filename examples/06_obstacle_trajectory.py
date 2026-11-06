@@ -54,7 +54,7 @@ def main() -> None:
     problem = optim.Problem(
         {"q": straight[None].clone()},
         manifolds={"q": terms.RobotManifold(model)},
-        bounds={"q": (model.lower_pos_limit, model.upper_pos_limit)},
+        bounds={"q": (model.lower_position_limit, model.upper_position_limit)},
         data={"ends": ends},
         time=("q",),
     )

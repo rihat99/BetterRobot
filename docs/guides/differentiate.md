@@ -16,7 +16,7 @@ from robot_descriptions import panda_description
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 hand = model.frame_id("body_panda_hand")
-q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(4, -1).clone()
+q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(4, -1).clone()
 q.requires_grad_()
 
 state = kinematics.forward_kinematics_state(model, q)
@@ -67,12 +67,12 @@ torch.Size([4, 8])
 
 ## Gradients with respect to model parameters
 
-`model.values` holds the differentiable model tensors: `joint_placements`, `body_inertias` and
-`frame_placements`. `model.with_values(...)` returns a new `Model` with the same topology and the
+The model's tensor fields `joint_placements`, `body_inertias` and `frame_placements` are
+differentiable. `model.with_values(...)` returns a new `Model` with the same topology and the
 tensors you pass, checked for shape, dtype and device. The original model is unchanged.
 
 ```python
-placements = model.values.joint_placements.clone().requires_grad_()
+placements = model.joint_placements.clone().requires_grad_()
 tuned = model.with_values(joint_placements=placements)
 q_fixed = q.detach()
 reach = kinematics.forward_kinematics_state(tuned, q_fixed).frame_translation[:, hand].norm(dim=-1)
@@ -109,7 +109,7 @@ True
 batch element; `dyn.mass_matrix(model, state)` computes it directly and is cheaper.
 
 !!! note "What is not differentiable"
-    Integer topology in `model.structure` (parents, index tables, names) has no gradient by design.
+    The static fields (parents, index tables, names) have no gradient by design.
     Gradients through `q` on a floating base flow through the quaternion entries; take steps with
     `model.integrate(q, dv)` so the quaternion stays on the unit sphere.
 

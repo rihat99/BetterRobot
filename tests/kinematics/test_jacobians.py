@@ -78,12 +78,8 @@ def chain():
 
 
 def test_joint_jacobian_plan_rebuilds_after_to(chain):
-    """The memoised batched-Jacobian plan follows ``ModelStructure.to``.
-
-    The column pass caches a static plan on the structure instance; :meth:`ModelStructure.to`
-    mints a fresh instance, so a moved model must not reuse a stale plan.
-    """
-    from better_robot.kinematics import _jacobian_columns  # noqa: PLC0415
+    """The Jacobian plan lives on the model instance; ``Model.to`` mints a record with no plans."""
+    from better_robot.kinematics._jacobian_columns import jacobian_plan  # noqa: PLC0415
 
     def world_jacobians(model):
         state = forward_kinematics_state(model, model.q_neutral)
@@ -92,16 +88,15 @@ def test_joint_jacobian_plan_rebuilds_after_to(chain):
         )
 
     reference = world_jacobians(chain)
-    assert getattr(chain.structure, "_joint_jacobian_plan", None) is not None
+    assert any(kind == "jacobian" for kind, _, _ in chain._plans)
 
     moved = chain.to()
-    assert getattr(moved.structure, "_joint_jacobian_plan", None) is None
+    assert moved._plans == {}
 
     moved_jacobians = world_jacobians(moved)
-    plan = _jacobian_columns.get_plan(moved.structure)
-    device = moved.structure.idx_vs_full_tensor.device
-    assert plan.column_subspace.device == device
-    assert plan.support_mask.device == device
+    plan = jacobian_plan(moved, dtype=moved.dtype, device=moved.device)
+    assert plan.column_subspace.device == moved.device
+    assert plan.support_mask.device == moved.device
     torch.testing.assert_close(moved_jacobians, reference)
 
 
@@ -120,7 +115,7 @@ def test_get_joint_jacobian_matches_coincident_frame(arm, chain, reference):
             q[index] = 0.3 * (index + 1)
         state = forward_kinematics_state(model, q)
         frame_id = model.frame_id(frame_name)
-        joint_id = model.structure.frame_parent_joints[frame_id].item()
+        joint_id = model.frame_parent_joint_ids[frame_id]
         J_joint = joint_jacobian(model, state, joint=joint_id, reference=reference)
         J_frame = frame_jacobian(model, state, frame=frame_id, reference=reference)
         torch.testing.assert_close(J_joint, J_frame)

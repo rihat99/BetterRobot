@@ -13,8 +13,9 @@ from better_robot.model.joint_models import (
     JointRX,
     JointTranslation,
 )
-from better_robot.exceptions import DeviceMismatchError, ShapeError
+from better_robot.exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
 from better_robot.io import ModelBuilder, build_model, load
+from better_robot.model._manifold import manifold_plan
 from tests.support.branching_tree import make_branching_tree_model
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -26,7 +27,7 @@ def _loop_integrate(model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
     q = q.to(dtype=dtype)
     v = v.to(dtype=dtype)
     parts: list[torch.Tensor] = []
-    for joint_id, joint in enumerate(model.joint_models):
+    for joint_id, joint in enumerate(model.joints):
         nq_joint = model.nqs[joint_id]
         nv_joint = model.nvs[joint_id]
         if nq_joint == 0:
@@ -53,7 +54,7 @@ def _loop_difference(model, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
     q0 = q0.to(dtype=dtype)
     q1 = q1.to(dtype=dtype)
     parts: list[torch.Tensor] = []
-    for joint_id, joint in enumerate(model.joint_models):
+    for joint_id, joint in enumerate(model.joints):
         nq_joint = model.nqs[joint_id]
         if nq_joint == 0:
             continue
@@ -209,26 +210,27 @@ def _mixed_manifold_model():
 
 def test_mixed_groups_flatten_scalar_and_translation_and_fallback_exactly() -> None:
     model = _mixed_manifold_model()
-    structure = model.structure
-    euclidean_ids = set(structure.manifold_euclidean_joint_ids)
-    fallback_ids = set(structure.manifold_fallback_joint_ids)
+    plan = manifold_plan(model, dtype=model.dtype, device=model.device)
+    euclidean_columns = set(plan.euclidean_q.tolist())
+    fallback_ids = {joint_id for joint_id, _, _ in plan.fallback}
 
-    assert model.joint_id("scalar") in euclidean_ids
-    assert model.joint_id("translation") in euclidean_ids
-    assert structure.manifold_euclidean_q_indices.numel() == 5  # scalar + xyz + helical
+    assert model.idx_qs[model.joint_id("scalar")] in euclidean_columns
+    assert model.idx_qs[model.joint_id("translation")] in euclidean_columns
+    assert plan.euclidean_q.numel() == 5  # scalar + xyz + helical
     assert model.joint_id("composite") in fallback_ids
     assert model.joint_id("custom") in fallback_ids
-    assert structure.manifold_spherical_q_indices.shape == (1, 4)
-    assert structure.manifold_free_flyer_q_indices.shape == (1, 7)
-    assert structure.manifold_unbounded_q_indices.shape == (1, 2)
-    assert structure.manifold_planar_q_indices.shape == (1, 4)
+    assert plan.spherical_q.shape == (1, 4)
+    assert plan.free_flyer_q.shape == (1, 7)
+    assert plan.unbounded_q.shape == (1, 2)
+    assert plan.planar_q.shape == (1, 4)
 
-    # Mixed q/v dtypes follow torch promotion, including both fallback joints.
-    q = model.q_neutral.to(dtype=torch.float32).expand(4, -1).clone()
+    # A q or v in another dtype than the model's is an error, never a silent promotion.
+    q = model.q_neutral.expand(4, -1).clone()
     v = torch.randn(4, model.nv, dtype=torch.float64) * 0.02
+    with pytest.raises(DtypeMismatchError, match="q.dtype"):
+        model.integrate(q.to(dtype=torch.float32), v)
     expected_q = _loop_integrate(model, q, v)
     actual_q = model.integrate(q, v)
-    assert actual_q.dtype == torch.float64
     _assert_manifold_close(actual_q, expected_q)
     _assert_manifold_close(
         model.difference(q, expected_q),
@@ -254,9 +256,9 @@ def test_reduced_mimic_target_is_not_a_public_manifold_group() -> None:
 
     source_id = model.joint_id("source_joint")
     target_id = model.joint_id("target_joint")
-    assert source_id in model.structure.manifold_euclidean_joint_ids
-    assert target_id not in model.structure.manifold_euclidean_joint_ids
-    assert target_id not in model.structure.manifold_fallback_joint_ids
+    plan = manifold_plan(model, dtype=model.dtype, device=model.device)
+    assert plan.euclidean_q.tolist() == [model.idx_qs[source_id]]
+    assert plan.fallback == ()
     assert model.nqs[target_id] == model.nvs[target_id] == 0
 
     q = torch.tensor([0.2], dtype=torch.float64)
@@ -264,27 +266,27 @@ def test_reduced_mimic_target_is_not_a_public_manifold_group() -> None:
     _assert_manifold_close(model.difference(q, model.integrate(q, v)), v)
 
 
-def test_zero_dof_models_still_broadcast_and_promote_dtype() -> None:
+def test_zero_dof_models_still_broadcast() -> None:
     builder = ModelBuilder("zero_dof")
     builder.add_body("base")
     model = build_model(builder.finalize())
-    q0 = torch.empty(2, 1, 0, dtype=torch.float32)
-    q1 = torch.empty(3, 0, dtype=torch.float64)
+    q0 = torch.empty(2, 1, 0)
+    q1 = torch.empty(3, 0)
 
     integrated = model.integrate(q0, q1)
     difference = model.difference(q0, q1)
     assert integrated.shape == (2, 3, 0)
     assert difference.shape == (2, 3, 0)
-    assert integrated.dtype == difference.dtype == torch.float64
+    assert integrated.dtype == difference.dtype == model.dtype
 
 
 def test_trailing_dimension_and_device_errors_are_explicit() -> None:
     model = make_branching_tree_model()
-    with pytest.raises(ShapeError, match=r"q has shape .* trailing dimension 99"):
+    with pytest.raises(ShapeError, match=r"q\.shape must end in \(99,\)"):
         model.integrate(torch.zeros(model.nq - 1), torch.zeros(model.nv))
-    with pytest.raises(ShapeError, match=r"v has shape .* trailing dimension 75"):
+    with pytest.raises(ShapeError, match=r"v\.shape must end in \(75,\)"):
         model.integrate(torch.zeros(model.nq), torch.zeros(model.nv + 1))
-    with pytest.raises(ShapeError, match=r"q1 has shape .* trailing dimension 99"):
+    with pytest.raises(ShapeError, match=r"q1\.shape must end in \(99,\)"):
         model.difference(torch.zeros(model.nq), torch.zeros(model.nq + 1))
 
     q_meta = torch.empty(model.nq, device="meta")
@@ -292,5 +294,5 @@ def test_trailing_dimension_and_device_errors_are_explicit() -> None:
         model.integrate(q_meta, torch.zeros(model.nv))
 
     moved = model.to(dtype=torch.float64)
-    assert moved.structure.manifold_euclidean_q_indices.dtype == torch.long
-    assert moved.structure.manifold_spherical_q_indices.dtype == torch.long
+    plan = manifold_plan(moved, dtype=moved.dtype, device=moved.device)
+    assert plan.euclidean_q.dtype == plan.spherical_q.dtype == torch.long

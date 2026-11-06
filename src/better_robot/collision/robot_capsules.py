@@ -41,7 +41,6 @@ class RobotCapsules:
         cls, model: Model, capsules: Mapping[str | int, Sequence[tuple[Sequence[float], Sequence[float], float]]]
     ) -> RobotCapsules:
         """Build from ``{frame name or id: [(start xyz, end xyz, radius), ...]}``, in the model's dtype and device."""
-        like = model.lower_pos_limit
         frame_ids, starts, ends, radii = [], [], [], []
         for frame, entries in capsules.items():
             for start, end, radius in entries:
@@ -50,10 +49,10 @@ class RobotCapsules:
                 ends.append(list(end))
                 radii.append(radius)
         return cls(
-            frame_ids=torch.tensor(frame_ids, dtype=torch.long, device=like.device),
-            starts=torch.tensor(starts, dtype=like.dtype, device=like.device).reshape(-1, 3),
-            ends=torch.tensor(ends, dtype=like.dtype, device=like.device).reshape(-1, 3),
-            radii=torch.tensor(radii, dtype=like.dtype, device=like.device),
+            frame_ids=torch.tensor(frame_ids, dtype=torch.long, device=model.device),
+            starts=torch.tensor(starts, dtype=model.dtype, device=model.device).reshape(-1, 3),
+            ends=torch.tensor(ends, dtype=model.dtype, device=model.device).reshape(-1, 3),
+            radii=torch.tensor(radii, dtype=model.dtype, device=model.device),
         )
 
     def segments(self, state: KinematicState) -> tuple[torch.Tensor, torch.Tensor]:

@@ -14,7 +14,7 @@ from robot_descriptions import panda_description
 from better_robot.kinematics import forward_kinematics_state, frame_jacobian
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
+q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
 hand = model.frame_id("body_panda_hand")
 
 state = forward_kinematics_state(model, q)
@@ -61,7 +61,7 @@ Every public function takes arbitrary leading batch axes. A `(4, 10, nq)` tensor
 
 ```python
 generator = torch.Generator().manual_seed(0)
-low, high = model.lower_pos_limit, model.upper_pos_limit
+low, high = model.lower_position_limit, model.upper_position_limit
 q_batch = low + (high - low) * torch.rand(4, 10, model.nq, generator=generator, dtype=torch.float64)
 
 batch_state = forward_kinematics_state(model, q_batch)

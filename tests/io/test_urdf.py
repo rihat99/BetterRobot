@@ -4,7 +4,7 @@ Phase 3 pass criteria:
  - ``br.load("panda.urdf")`` returns a ``Model`` equivalent to the current
    ``RobotModel`` (joint count, body count, limits).
  - ``br.load("g1.urdf", free_flyer=True)`` returns a ``Model`` whose
-   ``joint_models[1]`` is ``JointFreeFlyer`` and whose ``nq`` is 7 + 29 = 36.
+   ``joints[1]`` is ``JointFreeFlyer`` and whose ``nq`` is 7 + 29 = 36.
 """
 
 from __future__ import annotations
@@ -59,9 +59,9 @@ def test_panda_identity_mimic_is_accepted_with_metadata(panda_model, panda_ir):
         assert joint.mimic_offset == 0.0
         joint_id = panda_model.joint_id(joint.name)
         source_id = panda_model.joint_id(joint.mimic_source)
-        assert panda_model.mimic_source[joint_id] == source_id
-        assert panda_model.mimic_multiplier[joint_id].item() == pytest.approx(1.0)
-        assert panda_model.mimic_offset[joint_id].item() == pytest.approx(0.0)
+        assert panda_model.mimic_source_ids[joint_id] == source_id
+        assert panda_model.mimic_multipliers[joint_id] == pytest.approx(1.0)
+        assert panda_model.mimic_offsets[joint_id] == pytest.approx(0.0)
         assert panda_model.nqs[joint_id] == 0
         assert panda_model.nvs[joint_id] == 0
         assert panda_model.nqs_full[joint_id] == 1
@@ -70,14 +70,14 @@ def test_panda_identity_mimic_is_accepted_with_metadata(panda_model, panda_ir):
 
 def test_panda_limits_finite_for_actuated(panda_model):
     # All 7 actuated revolute joints should have finite limits
-    assert torch.all(torch.isfinite(panda_model.lower_pos_limit))
-    assert torch.all(torch.isfinite(panda_model.upper_pos_limit))
+    assert torch.all(torch.isfinite(panda_model.lower_position_limit))
+    assert torch.all(torch.isfinite(panda_model.upper_position_limit))
 
 
 def test_panda_joint_kinds(panda_model):
     """Panda joints should only be revolute, prismatic, or fixed."""
     for j in range(2, panda_model.njoints):
-        kind = panda_model.joint_models[j].kind
+        kind = panda_model.joints[j].kind
         assert kind.startswith("revolute") or kind.startswith("prismatic") or kind == "fixed", (
             f"Unexpected joint kind {kind!r} at index {j}"
         )
@@ -85,12 +85,12 @@ def test_panda_joint_kinds(panda_model):
 
 def test_panda_name_to_id_has_all_joints(panda_model, panda_ir):
     for j in panda_ir.joints:
-        assert j.name in panda_model.joint_name_to_id
+        assert j.name in panda_model.joint_names
 
 
 def test_panda_body_frame_names(panda_model, panda_ir):
     for body in panda_ir.bodies:
-        assert f"body_{body.name}" in panda_model.frame_name_to_id
+        assert f"body_{body.name}" in panda_model.frame_names
 
 
 def test_load_accepts_yourdfpy_object():
@@ -111,7 +111,7 @@ def g1_model():
 
 
 def test_g1_root_joint_is_free_flyer(g1_model):
-    assert g1_model.joint_models[1].kind == "free_flyer"
+    assert g1_model.joints[1].kind == "free_flyer"
 
 
 @pytest.mark.parametrize(
@@ -127,8 +127,8 @@ def test_g1_dims(g1_model, attr, expected):
 
 def test_load_dtype_and_device_kwargs():
     model = load(panda_urdf(), dtype=torch.float64, device=torch.device("cpu"))
-    assert model.values.joint_placements.dtype == torch.float64
-    assert model.values.joint_placements.device.type == "cpu"
+    assert model.joint_placements.dtype == torch.float64
+    assert model.joint_placements.device.type == "cpu"
 
 
 def test_inertia_is_rotated_from_inertial_frame_into_link_frame(tmp_path):

@@ -1,7 +1,4 @@
-"""``build_model(ir, root_joint=...)`` — IR → frozen ``Model`` factory.
-
-See ``docs/concepts/parsers_and_ir.md §3`` for the 10 responsibilities.
-"""
+"""``build_model(ir, root_joint=...)`` — IR → frozen ``Model`` factory."""
 
 from __future__ import annotations
 
@@ -10,7 +7,6 @@ from dataclasses import dataclass
 
 import torch
 
-from ..model.frame import Frame
 from ..exceptions import ModelError
 from ..model.joint_models import (
     JointFixed,
@@ -32,9 +28,6 @@ from ..model.joint_models import (
 )
 from ..model.joint_models.base import JointModel
 from ..model.model import Model
-from ..model.model_structure import JOINT_KIND_CODES, ModelStructure, _flatten_rows
-from ..model.model_values import ModelValues
-from ..model.topology import build_children, build_subtrees, build_supports, topo_sort
 from .ir import IRBody, IRJoint, IRModel
 
 # ──────────────────────────────── constants ──────────────────────────────────
@@ -55,25 +48,15 @@ _SUPPORTED_MIMIC_JOINTS = (
     JointPrismaticUnaligned,
     JointHelical,
 )
-_EUCLIDEAN_MANIFOLD_TYPES = frozenset(
-    {
-        JointRX,
-        JointRY,
-        JointRZ,
-        JointRevoluteUnaligned,
-        JointPX,
-        JointPY,
-        JointPZ,
-        JointPrismaticUnaligned,
-        JointTranslation,
-        JointHelical,
-    }
-)
 
 
 @dataclass(frozen=True, slots=True)
 class _MimicReduction:
-    """Named build-time result for reduced mimic coordinates."""
+    """Named build-time result for reduced mimic coordinates.
+
+    ``source_ids``, ``multipliers`` and ``offsets`` hold each joint's resolved chain: the public root joint, the
+    total scale and the total offset (a joint that is not a mimic target maps to itself with 1 and 0).
+    """
 
     nqs: tuple[int, ...]
     nvs: tuple[int, ...]
@@ -81,16 +64,14 @@ class _MimicReduction:
     idx_vs: tuple[int, ...]
     nq: int
     nv: int
-    q_expansion: torch.Tensor
-    q_offset: torch.Tensor
-    v_expansion: torch.Tensor
-    lower_pos_limit: torch.Tensor
-    upper_pos_limit: torch.Tensor
+    source_ids: tuple[int, ...]
+    multipliers: tuple[float, ...]
+    offsets: tuple[float, ...]
+    lower_position_limit: torch.Tensor
+    upper_position_limit: torch.Tensor
     velocity_limit: torch.Tensor
     effort_limit: torch.Tensor
-    rotor_inertia: torch.Tensor
     armature: torch.Tensor
-    friction: torch.Tensor
     damping: torch.Tensor
 
 
@@ -154,57 +135,13 @@ def _cumulative_layout(widths: tuple[int, ...]) -> tuple[tuple[int, ...], int]:
     return tuple(indices), offset
 
 
-def _matrix_slice_indices(
-    joint_ids: tuple[int, ...],
-    starts: tuple[int, ...],
-    width: int,
-    *,
-    device: torch.device,
-) -> torch.Tensor:
-    indices = [starts[joint_id] + offset for joint_id in joint_ids for offset in range(width)]
-    return torch.tensor(indices, device=device, dtype=torch.long).reshape(len(joint_ids), width)
-
-
-def _flat_slice_indices(
-    joint_ids: tuple[int, ...],
-    starts: tuple[int, ...],
-    widths: tuple[int, ...],
-    *,
-    device: torch.device,
-) -> tuple[tuple[int, ...], torch.Tensor]:
-    offsets = [0]
-    indices: list[int] = []
-    for joint_id in joint_ids:
-        indices.extend(range(starts[joint_id], starts[joint_id] + widths[joint_id]))
-        offsets.append(len(indices))
-    return tuple(offsets), torch.tensor(indices, device=device, dtype=torch.long)
-
-
-def _joint_axis(joint: JointModel) -> tuple[float, float, float]:
-    aligned = {
-        "revolute_rx": (1.0, 0.0, 0.0),
-        "revolute_ry": (0.0, 1.0, 0.0),
-        "revolute_rz": (0.0, 0.0, 1.0),
-        "prismatic_px": (1.0, 0.0, 0.0),
-        "prismatic_py": (0.0, 1.0, 0.0),
-        "prismatic_pz": (0.0, 0.0, 1.0),
-    }
-    if joint.kind in aligned:
-        return aligned[joint.kind]
-    axis = getattr(joint, "axis", None)
-    if axis is None:
-        return (0.0, 0.0, 0.0)
-    values = axis.detach().to(device="cpu", dtype=torch.float64).tolist()
-    return (float(values[0]), float(values[1]), float(values[2]))
-
-
 def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time policy boundary
     *,
     joint_models: tuple[JointModel, ...],
     joint_names: tuple[str, ...],
     mimic_source: tuple[int, ...],
-    mimic_multiplier: torch.Tensor,
-    mimic_offset: torch.Tensor,
+    mimic_multiplier: tuple[float, ...],
+    mimic_offset: tuple[float, ...],
     mimic_targets: set[int],
     nqs_full: tuple[int, ...],
     nvs_full: tuple[int, ...],
@@ -214,12 +151,10 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
     upper_full: torch.Tensor,
     velocity_full: torch.Tensor,
     effort_full: torch.Tensor,
-    rotor_full: torch.Tensor,
     armature_full: torch.Tensor,
-    friction_full: torch.Tensor,
     damping_full: torch.Tensor,
 ) -> _MimicReduction:
-    """Build public layouts, affine maps, and reduced scalar limits."""
+    """Build public layouts, resolved mimic chains, and reduced scalar limits."""
 
     for target in mimic_targets:
         source = mimic_source[target]
@@ -239,12 +174,6 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
     public_nvs = tuple(0 if joint_id in mimic_targets else width for joint_id, width in enumerate(nvs_full))
     public_idx_qs, nq = _cumulative_layout(public_nqs)
     public_idx_vs, nv = _cumulative_layout(public_nvs)
-    nq_full = sum(nqs_full)
-    nv_full = sum(nvs_full)
-
-    q_expansion = lower_full.new_zeros((nq_full, nq))
-    q_offset_full = lower_full.new_zeros((nq_full,))
-    v_expansion = velocity_full.new_zeros((nv_full, nv))
 
     state = [0] * len(joint_models)
     resolved: list[tuple[int, float, float] | None] = [None] * len(joint_models)
@@ -274,37 +203,13 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         state[joint_id] = 2
         return result
 
-    for joint_id, (nq_joint, nv_joint) in enumerate(zip(nqs_full, nvs_full)):
-        full_iq = idx_qs_full[joint_id]
-        full_iv = idx_vs_full[joint_id]
-        if joint_id in mimic_targets:
-            root, scale, offset = resolve(joint_id)
-            reduced_iq = public_idx_qs[root]
-            reduced_iv = public_idx_vs[root]
-            q_expansion[full_iq, reduced_iq] = scale
-            q_offset_full[full_iq] = offset
-            v_expansion[full_iv, reduced_iv] = scale
-            continue
-        reduced_iq = public_idx_qs[joint_id]
-        reduced_iv = public_idx_vs[joint_id]
-        if nq_joint:
-            q_expansion[
-                full_iq : full_iq + nq_joint,
-                reduced_iq : reduced_iq + nq_joint,
-            ] = torch.eye(nq_joint, dtype=lower_full.dtype, device=lower_full.device)
-        if nv_joint:
-            v_expansion[
-                full_iv : full_iv + nv_joint,
-                reduced_iv : reduced_iv + nv_joint,
-            ] = torch.eye(nv_joint, dtype=velocity_full.dtype, device=velocity_full.device)
+    chains = [resolve(joint_id) for joint_id in range(len(joint_models))]
 
     lower = lower_full.new_empty((nq,))
     upper = upper_full.new_empty((nq,))
     velocity = velocity_full.new_empty((nv,))
     effort = effort_full.new_empty((nv,))
-    rotor = rotor_full.new_empty((nv,))
     armature = armature_full.new_empty((nv,))
-    friction = friction_full.new_empty((nv,))
     damping = damping_full.new_empty((nv,))
     for joint_id, (nq_joint, nv_joint) in enumerate(zip(nqs_full, nvs_full)):
         if joint_id in mimic_targets:
@@ -317,9 +222,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         upper[reduced_iq : reduced_iq + nq_joint] = upper_full[full_iq : full_iq + nq_joint]
         velocity[reduced_iv : reduced_iv + nv_joint] = velocity_full[full_iv : full_iv + nv_joint]
         effort[reduced_iv : reduced_iv + nv_joint] = effort_full[full_iv : full_iv + nv_joint]
-        rotor[reduced_iv : reduced_iv + nv_joint] = rotor_full[full_iv : full_iv + nv_joint]
         armature[reduced_iv : reduced_iv + nv_joint] = armature_full[full_iv : full_iv + nv_joint]
-        friction[reduced_iv : reduced_iv + nv_joint] = friction_full[full_iv : full_iv + nv_joint]
         damping[reduced_iv : reduced_iv + nv_joint] = damping_full[full_iv : full_iv + nv_joint]
 
     for target in mimic_targets:
@@ -351,9 +254,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         absolute_scale = abs(scale)
         velocity[reduced_iv] = torch.minimum(velocity[reduced_iv], velocity_full[full_iv] / absolute_scale)
         effort[reduced_iv] = effort[reduced_iv] + absolute_scale * effort_full[full_iv]
-        rotor[reduced_iv] = rotor[reduced_iv] + scale**2 * rotor_full[full_iv]
         armature[reduced_iv] = armature[reduced_iv] + scale**2 * armature_full[full_iv]
-        friction[reduced_iv] = friction[reduced_iv] + absolute_scale * friction_full[full_iv]
         damping[reduced_iv] = damping[reduced_iv] + scale**2 * damping_full[full_iv]
 
     return _MimicReduction(
@@ -363,16 +264,14 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
         idx_vs=public_idx_vs,
         nq=nq,
         nv=nv,
-        q_expansion=q_expansion,
-        q_offset=q_offset_full,
-        v_expansion=v_expansion,
-        lower_pos_limit=lower,
-        upper_pos_limit=upper,
+        source_ids=tuple(root for root, _, _ in chains),
+        multipliers=tuple(scale for _, scale, _ in chains),
+        offsets=tuple(offset for _, _, offset in chains),
+        lower_position_limit=lower,
+        upper_position_limit=upper,
         velocity_limit=velocity,
         effort_limit=effort,
-        rotor_inertia=rotor,
         armature=armature,
-        friction=friction,
         damping=damping,
     )
 
@@ -585,15 +484,14 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
 
     1.  Replace the root body's parent joint with ``root_joint`` if supplied
         (default: ``JointFixed``).
-    2.  Resolve mimic edges to ``mimic_source/multiplier/offset`` arrays.
+    2.  Resolve mimic chains to each joint's public root, total multiplier and offset.
     3.  Topologically sort joints so parents precede children.
     4.  Assign ``idx_q``/``idx_v`` by accumulating ``nq_i``/``nv_i``.
     5.  Select concrete ``JointModel`` instances from ``IRJoint.kind`` + axis.
-    6.  Pack per-joint numeric buffers.
+    6.  Pack per-joint limits, armature and damping.
     7.  Pack per-body inertias into the 10-vector form.
     8.  Build frames (including ``body_<name>`` defaults).
-    9.  Build name → id dicts.
-    10. Return the frozen model wrapper.
+    9.  Return the frozen ``Model``, moved to ``device`` when one is given.
 
     **World-sentinel convention**: an ``IRJoint`` with ``parent_body="world"``
     signals that the joint connects to the universe (joint 0) directly.  That
@@ -681,12 +579,6 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         parent_body = ir.joints[ir_ji].parent_body
         parents_list.append(body_to_mjidx[parent_body])
     parents = tuple(parents_list)
-
-    # ── 6. Topology ───────────────────────────────────────────────────────────
-    topo_order = topo_sort(parents)
-    children = build_children(parents)
-    subtrees = build_subtrees(parents)
-    supports = build_supports(parents)
 
     # ── 7. Joint models ───────────────────────────────────────────────────────
     joint_models_list: list[JointModel] = [JointUniverse(), _root_jm]
@@ -782,17 +674,16 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     upper_pos_limit = torch.tensor(upper_pos, dtype=dtype)
     velocity_limit = torch.tensor(vel_lim, dtype=dtype)
     effort_limit = torch.tensor(eff_lim, dtype=dtype)
-    rotor_inertia = torch.zeros(nv_full, dtype=dtype)
     # Scalar IR joint dynamics apply to every velocity coordinate of the joint, like the limits above.
     joint_dynamics = [
-        (ir_j.armature, ir_j.friction, ir_j.damping) if (ir_j := _ir_joint_for(j_idx)) is not None else (0.0, 0.0, 0.0)
+        (ir_j.armature, ir_j.damping) if (ir_j := _ir_joint_for(j_idx)) is not None else (0.0, 0.0)
         for j_idx in range(len(joint_models_list))
     ]
-    armature, friction, damping = (
+    armature, damping = (
         torch.tensor(
             [row[k] for row, jm in zip(joint_dynamics, joint_models_list) for _ in range(jm.nv)], dtype=dtype
         ).reshape(nv_full)
-        for k in range(3)
+        for k in range(2)
     )
 
     # ── 11. Body inertias ─────────────────────────────────────────────────────
@@ -813,37 +704,20 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
             inertia_rows.append(torch.zeros(10, dtype=dtype))
     body_inertias = torch.stack(inertia_rows, dim=0)
 
-    # ── 12. Frames ────────────────────────────────────────────────────────────
-    frames_list: list[Frame] = []
-    for midx, bname in enumerate(body_names_list):
-        frames_list.append(
-            Frame(
-                name=f"body_{bname}",
-                parent_joint=midx,
-                joint_placement=identity_se3.clone(),
-                frame_type="body",
-            )
-        )
+    # ── 12. Frames: one ``body_<name>`` frame per body, then the IR frames ───
+    frame_names_list = [f"body_{bname}" for bname in body_names_list]
+    frame_parent_ids = list(range(len(body_names_list)))
+    frame_placement_rows = [identity_se3.clone() for _ in body_names_list]
     for ir_frame in ir.frames:
-        parent_midx = body_to_mjidx.get(ir_frame.parent_body, 1)
-        frames_list.append(
-            Frame(
-                name=ir_frame.name,
-                parent_joint=parent_midx,
-                joint_placement=ir_frame.placement.to(dtype=dtype),
-                frame_type=ir_frame.frame_type,  # type: ignore[arg-type]
-            )
-        )
-    frames = tuple(frames_list)
-    nframes = len(frames)
-    frame_names = tuple(f.name for f in frames)
+        frame_names_list.append(ir_frame.name)
+        frame_parent_ids.append(body_to_mjidx.get(ir_frame.parent_body, 1))
+        frame_placement_rows.append(ir_frame.placement.to(dtype=dtype))
+    frame_placements = torch.stack(frame_placement_rows, dim=0)
 
-    # ── 13. Name → id dicts ───────────────────────────────────────────────────
-    joint_name_to_id: dict[str, int] = {n: i for i, n in enumerate(joint_names_list)}
-    body_name_to_id: dict[str, int] = {n: i for i, n in enumerate(body_names_list)}
-    frame_name_to_id: dict[str, int] = {n: i for i, n in enumerate(frame_names)}
+    # ── 13. Names ─────────────────────────────────────────────────────────────
     joint_names = tuple(joint_names_list)
     body_names = tuple(body_names_list)
+    frame_names = tuple(frame_names_list)
 
     # ── 14. Mimic ─────────────────────────────────────────────────────────────
     ir_joint_name_to_mjidx: dict[str, int] = {}
@@ -852,8 +726,8 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     for offset, ir_ji in enumerate(sorted_ir_indices):
         ir_joint_name_to_mjidx[ir.joints[ir_ji].name] = offset + 2
 
-    mimic_mult = torch.ones(n_model_joints, dtype=dtype)
-    mimic_off = torch.zeros(n_model_joints, dtype=dtype)
+    mimic_mult = [1.0] * n_model_joints
+    mimic_off = [0.0] * n_model_joints
     mimic_src_list: list[int] = list(range(n_model_joints))
     mimic_targets: set[int] = set()
 
@@ -869,17 +743,17 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
                 raise ModelError(f"Mimic source {ir_j.mimic_source!r} not found (referenced by joint {ir_j.name!r})")
             mimic_targets.add(mjidx)
             mimic_src_list[mjidx] = src
-            mimic_mult[mjidx] = ir_j.mimic_multiplier
-            mimic_off[mjidx] = ir_j.mimic_offset
+            mimic_mult[mjidx] = float(ir_j.mimic_multiplier)
+            mimic_off[mjidx] = float(ir_j.mimic_offset)
 
     mimic_source = tuple(mimic_src_list)
 
-    mimic_reduction = _build_mimic_reduction(
+    reduction = _build_mimic_reduction(
         joint_models=joint_models,
         joint_names=joint_names,
         mimic_source=mimic_source,
-        mimic_multiplier=mimic_mult,
-        mimic_offset=mimic_off,
+        mimic_multiplier=tuple(mimic_mult),
+        mimic_offset=tuple(mimic_off),
         mimic_targets=mimic_targets,
         nqs_full=nqs_full,
         nvs_full=nvs_full,
@@ -889,28 +763,15 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         upper_full=upper_pos_limit,
         velocity_full=velocity_limit,
         effort_full=effort_limit,
-        rotor_full=rotor_inertia,
         armature_full=armature,
-        friction_full=friction,
         damping_full=damping,
     )
-    nqs = mimic_reduction.nqs
-    nvs = mimic_reduction.nvs
-    idx_qs = mimic_reduction.idx_qs
-    idx_vs = mimic_reduction.idx_vs
-    nq_total = mimic_reduction.nq
-    nv_total = mimic_reduction.nv
-    q_expansion = mimic_reduction.q_expansion
-    q_offset = mimic_reduction.q_offset
-    v_expansion = mimic_reduction.v_expansion
-    lower_pos_limit = mimic_reduction.lower_pos_limit
-    upper_pos_limit = mimic_reduction.upper_pos_limit
-    velocity_limit = mimic_reduction.velocity_limit
-    effort_limit = mimic_reduction.effort_limit
-    rotor_inertia = mimic_reduction.rotor_inertia
-    armature = mimic_reduction.armature
-    friction = mimic_reduction.friction
-    damping = mimic_reduction.damping
+    nqs = reduction.nqs
+    nvs = reduction.nvs
+    idx_qs = reduction.idx_qs
+    idx_vs = reduction.idx_vs
+    nq_total = reduction.nq
+    nv_total = reduction.nv
 
     # ── 15. q_neutral ─────────────────────────────────────────────────────────
     neutral_parts: list[torch.Tensor] = []
@@ -924,31 +785,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     # ── 16. Gravity ───────────────────────────────────────────────────────────
     gravity = ir.gravity.to(dtype=dtype)
 
-    # ── 17. Move to device ────────────────────────────────────────────────────
-    if device is not None:
-
-        def _dev(t: torch.Tensor) -> torch.Tensor:
-            return t.to(device=device)
-
-        joint_placements = _dev(joint_placements)
-        body_inertias = _dev(body_inertias)
-        lower_pos_limit = _dev(lower_pos_limit)
-        upper_pos_limit = _dev(upper_pos_limit)
-        velocity_limit = _dev(velocity_limit)
-        effort_limit = _dev(effort_limit)
-        rotor_inertia = _dev(rotor_inertia)
-        armature = _dev(armature)
-        friction = _dev(friction)
-        damping = _dev(damping)
-        mimic_mult = _dev(mimic_mult)
-        mimic_off = _dev(mimic_off)
-        q_expansion = _dev(q_expansion)
-        q_offset = _dev(q_offset)
-        v_expansion = _dev(v_expansion)
-        q_neutral = _dev(q_neutral)
-        gravity = _dev(gravity)
-
-    # ── 18. Enforce topology invariants (docs/conventions/contracts.md §1.5) ───────────
+    # ── 17. Enforce topology invariants (docs/conventions/contracts.md §1.5) ───────────
     _check_topology_invariants(
         parents=parents,
         nqs=nqs,
@@ -968,123 +805,15 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         nv_total=nv_full,
     )
 
-    # ── 19. Pack the one canonical structure/value pair ───────────────────────
-    model_device = joint_placements.device
-    codes = tuple(JOINT_KIND_CODES.get(joint.kind, -1) for joint in joint_models)
-    axes = torch.tensor(
-        [_joint_axis(joint) for joint in joint_models],
-        device=model_device,
-        dtype=dtype,
-    )
-    pitches = torch.tensor(
-        [float(getattr(joint, "pitch", 0.0)) for joint in joint_models],
-        device=model_device,
-        dtype=dtype,
-    )
-    max_nv = max(nvs_full, default=0)
-    motion_subspaces = torch.zeros(
-        (n_model_joints, 6, max_nv),
-        device=model_device,
-        dtype=dtype,
-    )
-    for index, joint in enumerate(joint_models):
-        if joint.nv == 0:
-            continue
-        neutral = joint.neutral().to(device=model_device, dtype=dtype)
-        subspace = joint.joint_motion_subspace(neutral).to(device=model_device, dtype=dtype)
-        motion_subspaces[index, :, : joint.nv] = subspace
-
-    child_offsets, child_indices = _flatten_rows(children)
-    subtree_offsets, subtree_indices = _flatten_rows(subtrees)
-    support_offsets, support_indices = _flatten_rows(supports)
-
-    manifold_groups: dict[str, list[int]] = {
-        "euclidean": [],
-        "spherical": [],
-        "free_flyer": [],
-        "unbounded": [],
-        "planar": [],
-        "fallback": [],
-    }
-    for joint_id, joint in enumerate(joint_models):
-        public_nq = nqs[joint_id]
-        public_nv = nvs[joint_id]
-        if public_nq == 0 and public_nv == 0:
-            continue
-        if public_nq != joint.nq or public_nv != joint.nv:
-            manifold_groups["fallback"].append(joint_id)
-            continue
-
-        joint_type = type(joint)
-        if joint_type in _EUCLIDEAN_MANIFOLD_TYPES:
-            manifold_groups["euclidean"].append(joint_id)
-        elif joint_type is JointSpherical:
-            manifold_groups["spherical"].append(joint_id)
-        elif joint_type is JointFreeFlyer:
-            manifold_groups["free_flyer"].append(joint_id)
-        elif joint_type is JointRevoluteUnbounded:
-            manifold_groups["unbounded"].append(joint_id)
-        elif joint_type is JointPlanar:
-            manifold_groups["planar"].append(joint_id)
-        else:
-            manifold_groups["fallback"].append(joint_id)
-
-    euclidean_ids = tuple(manifold_groups["euclidean"])
-    spherical_ids = tuple(manifold_groups["spherical"])
-    free_flyer_ids = tuple(manifold_groups["free_flyer"])
-    unbounded_ids = tuple(manifold_groups["unbounded"])
-    planar_ids = tuple(manifold_groups["planar"])
-    fallback_ids = tuple(manifold_groups["fallback"])
-
-    _, euclidean_q_indices = _flat_slice_indices(euclidean_ids, idx_qs, nqs, device=model_device)
-    _, euclidean_v_indices = _flat_slice_indices(euclidean_ids, idx_vs, nvs, device=model_device)
-    spherical_q_indices = _matrix_slice_indices(spherical_ids, idx_qs, 4, device=model_device)
-    spherical_v_indices = _matrix_slice_indices(spherical_ids, idx_vs, 3, device=model_device)
-    free_flyer_q_indices = _matrix_slice_indices(free_flyer_ids, idx_qs, 7, device=model_device)
-    free_flyer_v_indices = _matrix_slice_indices(free_flyer_ids, idx_vs, 6, device=model_device)
-    unbounded_q_indices = _matrix_slice_indices(unbounded_ids, idx_qs, 2, device=model_device)
-    unbounded_v_indices = _matrix_slice_indices(unbounded_ids, idx_vs, 1, device=model_device)
-    planar_q_indices = _matrix_slice_indices(planar_ids, idx_qs, 4, device=model_device)
-    planar_v_indices = _matrix_slice_indices(planar_ids, idx_vs, 3, device=model_device)
-    fallback_q_offsets, fallback_q_indices = _flat_slice_indices(
-        fallback_ids,
-        idx_qs,
-        nqs,
-        device=model_device,
-    )
-    fallback_v_offsets, fallback_v_indices = _flat_slice_indices(
-        fallback_ids,
-        idx_vs,
-        nvs,
-        device=model_device,
-    )
-
-    def i32(values: list[int] | tuple[int, ...]) -> torch.Tensor:
-        return torch.tensor(values, device=model_device, dtype=torch.int32)
-
-    frame_parent_joint_ids = tuple(frame.parent_joint for frame in frames)
-    structure = ModelStructure(
-        njoints=n_model_joints,
-        nbodies=n_model_joints,
-        nframes=nframes,
-        nq=nq_total,
-        nv=nv_total,
-        nq_full=nq_full,
-        nv_full=nv_full,
+    # ── 18. The record ────────────────────────────────────────────────────────
+    model = Model(
         name=ir.name,
         joint_names=joint_names,
         body_names=body_names,
         frame_names=frame_names,
-        joint_name_to_id=joint_name_to_id,
-        body_name_to_id=body_name_to_id,
-        frame_name_to_id=frame_name_to_id,
-        frame_parent_joint_ids=frame_parent_joint_ids,
-        frame_types=tuple(frame.frame_type for frame in frames),
+        joints=joint_models,
         parents=parents,
-        children=children,
-        subtrees=subtrees,
-        supports=supports,
-        topo_order=topo_order,
+        frame_parent_joint_ids=tuple(frame_parent_ids),
         nqs=nqs,
         nvs=nvs,
         idx_qs=idx_qs,
@@ -1093,83 +822,20 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         nvs_full=nvs_full,
         idx_qs_full=idx_qs_full,
         idx_vs_full=idx_vs_full,
-        joint_models=joint_models,
-        joint_kind_codes=codes,
-        mimic_source=mimic_source,
-        has_mimic=bool(mimic_targets),
-        manifold_euclidean_joint_ids=euclidean_ids,
-        manifold_spherical_joint_ids=spherical_ids,
-        manifold_free_flyer_joint_ids=free_flyer_ids,
-        manifold_unbounded_joint_ids=unbounded_ids,
-        manifold_planar_joint_ids=planar_ids,
-        manifold_fallback_joint_ids=fallback_ids,
-        manifold_fallback_q_offsets=fallback_q_offsets,
-        manifold_fallback_v_offsets=fallback_v_offsets,
-        joint_kind_tensor=torch.tensor(codes, device=model_device, dtype=torch.int8),
-        parents_tensor=i32(parents),
-        topo_order_tensor=i32(topo_order),
-        nqs_tensor=i32(nqs),
-        nvs_tensor=i32(nvs),
-        idx_qs_tensor=i32(idx_qs),
-        idx_vs_tensor=i32(idx_vs),
-        nqs_full_tensor=i32(nqs_full),
-        nvs_full_tensor=i32(nvs_full),
-        idx_qs_full_tensor=i32(idx_qs_full),
-        idx_vs_full_tensor=i32(idx_vs_full),
-        children_offsets=i32(child_offsets),
-        children_indices=i32(child_indices),
-        subtree_offsets=i32(subtree_offsets),
-        subtree_indices=i32(subtree_indices),
-        support_offsets=i32(support_offsets),
-        support_indices=i32(support_indices),
-        frame_parent_joints=i32(frame_parent_joint_ids),
-        mimic_source_tensor=i32(mimic_source),
-        q_expansion=q_expansion,
-        q_offset=q_offset,
-        v_expansion=v_expansion,
-        manifold_euclidean_q_indices=euclidean_q_indices,
-        manifold_euclidean_v_indices=euclidean_v_indices,
-        manifold_spherical_q_indices=spherical_q_indices,
-        manifold_spherical_v_indices=spherical_v_indices,
-        manifold_free_flyer_q_indices=free_flyer_q_indices,
-        manifold_free_flyer_v_indices=free_flyer_v_indices,
-        manifold_unbounded_q_indices=unbounded_q_indices,
-        manifold_unbounded_v_indices=unbounded_v_indices,
-        manifold_planar_q_indices=planar_q_indices,
-        manifold_planar_v_indices=planar_v_indices,
-        manifold_fallback_q_indices=fallback_q_indices,
-        manifold_fallback_v_indices=fallback_v_indices,
-        joint_axes=axes,
-        joint_pitches=pitches,
-        joint_motion_subspaces=motion_subspaces,
-    )
-    frame_placements = (
-        torch.stack(
-            [frame.joint_placement.to(device=model_device, dtype=dtype) for frame in frames],
-            dim=0,
-        )
-        if frames
-        else joint_placements.new_empty((0, 7))
-    )
-    values = ModelValues(
+        mimic_source_ids=reduction.source_ids,
+        mimic_multipliers=reduction.multipliers,
+        mimic_offsets=reduction.offsets,
         joint_placements=joint_placements,
         body_inertias=body_inertias,
         frame_placements=frame_placements,
-        lower_pos_limit=lower_pos_limit,
-        upper_pos_limit=upper_pos_limit,
-        velocity_limit=velocity_limit,
-        effort_limit=effort_limit,
-        rotor_inertia=rotor_inertia,
-        armature=armature,
-        friction=friction,
-        damping=damping,
+        lower_position_limit=reduction.lower_position_limit,
+        upper_position_limit=reduction.upper_position_limit,
+        velocity_limit=reduction.velocity_limit,
+        effort_limit=reduction.effort_limit,
+        armature=reduction.armature,
+        damping=reduction.damping,
         gravity=gravity,
-        mimic_multiplier=mimic_mult,
-        mimic_offset=mimic_off,
         q_neutral=q_neutral,
+        meta={"ir": ir, **ir.meta},
     )
-    return Model(
-        structure=structure,
-        values=values,
-        meta={"ir": ir, **dict(getattr(ir, "meta", {}) or {})},
-    )
+    return model if device is None else model.to(device=device)

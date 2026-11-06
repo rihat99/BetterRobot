@@ -12,7 +12,7 @@ from tests.support.robots import panda_urdf
 def test_state_matches_data_api_and_autograd():
     model = br.load(panda_urdf(), dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
-    q = torch.stack([model.random_configuration(generator) for _ in range(4)])
+    q = torch.stack([model.random_configuration(generator=generator) for _ in range(4)])
     frame = "body_panda_hand"
 
     state = kinematics.forward_kinematics_state(model, q)
@@ -42,9 +42,8 @@ def test_state_matches_data_api_and_autograd():
 
 def test_state_is_differentiable_in_model_values_and_under_torch_func():
     model = br.load(panda_urdf(), dtype=torch.float64)
-    q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(2, -1)
+    q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(2, -1)
     hand = model.frame_id("body_panda_hand")
-    kinematics.forward_kinematics_state(model, q)  # fills the constant-placement cache
 
     def hand_position(placements: torch.Tensor) -> torch.Tensor:
         moved = model.with_values(joint_placements=placements)
@@ -68,7 +67,7 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
         joint_placements=torch.cat(
             [model.joint_placements[None, :, :3] * scale, model.joint_placements[None, :, 3:].expand(2, -1, -1)], -1
         ),
-        frame_placements=model.values.frame_placements[None].expand(2, -1, -1),
+        frame_placements=model.frame_placements[None].expand(2, -1, -1),
     )
     state = kinematics.forward_kinematics_state(batched, q)
     state = br.forward_kinematics_state(batched, q)
@@ -105,7 +104,7 @@ def test_state_review_regressions():
     torch.testing.assert_close(rotation, so3.to_matrix(state.joint_pose[..., 3:]), atol=1e-14, rtol=0.0)
 
     with torch.no_grad():
-        model.values.joint_placements[-1, 0] += 1.0
+        model.joint_placements[-1, 0] += 1.0
     moved = kinematics.forward_kinematics_state(model, q)
     torch.testing.assert_close(moved.joint_translation[:, -1, 0], state.joint_translation[:, -1, 0].detach() + 1.0)
 

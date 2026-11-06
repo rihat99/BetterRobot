@@ -27,7 +27,7 @@ def position_error(model: br.Model, q: torch.Tensor, target: torch.Tensor) -> to
 def main() -> None:
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
-    q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(256, -1)
+    q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(256, -1)
     q_goal = terms.random_start(model, q0, generator=generator)
     target = forward_kinematics_state(model, q_goal).frame_pose[:, model.frame_id(FRAME)]
 

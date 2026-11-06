@@ -25,7 +25,7 @@ READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4
 def main() -> None:
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     frame_id = model.frame_id(FRAME)
-    q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_pos_limit, model.upper_pos_limit)
+    q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_position_limit, model.upper_position_limit)
     pose_start = forward_kinematics_state(model, q_start[None]).frame_pose[0, frame_id]
     pose_goal = pose_start.clone()
     pose_goal[:3] += torch.tensor([0.10, 0.15, 0.15], dtype=torch.float64)
@@ -39,7 +39,7 @@ def main() -> None:
     problem = optim.Problem(
         {"q": q_start.repeat(1, KNOTS, 1)},
         manifolds={"q": terms.RobotManifold(model)},
-        bounds={"q": (model.lower_pos_limit, model.upper_pos_limit)},
+        bounds={"q": (model.lower_position_limit, model.upper_position_limit)},
         data={"target": target},
         time=("q",),
     )
@@ -60,7 +60,7 @@ def main() -> None:
     )
     print(
         f"peak joint speed {float(((q[1:] - q[:-1]) / DT).abs().max()):.2f} rad/s, "
-        f"inside limits: {bool(((q >= model.lower_pos_limit) & (q <= model.upper_pos_limit)).all())}"
+        f"inside limits: {bool(((q >= model.lower_position_limit) & (q <= model.upper_position_limit)).all())}"
     )
 
 

@@ -45,7 +45,6 @@ class RobotSpheres:
         cls, model: Model, spheres: Mapping[str | int, Sequence[tuple[Sequence[float], float]]]
     ) -> RobotSpheres:
         """Build from ``{frame name or id: [(offset xyz, radius), ...]}``, in the model's dtype and device."""
-        like = model.lower_pos_limit
         frame_ids, offsets, radii = [], [], []
         for frame, entries in spheres.items():
             frame_id = model.frame_id(frame) if isinstance(frame, str) else frame
@@ -54,9 +53,9 @@ class RobotSpheres:
                 offsets.append(list(offset))
                 radii.append(radius)
         return cls(
-            frame_ids=torch.tensor(frame_ids, dtype=torch.long, device=like.device),
-            offsets=torch.tensor(offsets, dtype=like.dtype, device=like.device).reshape(-1, 3),
-            radii=torch.tensor(radii, dtype=like.dtype, device=like.device),
+            frame_ids=torch.tensor(frame_ids, dtype=torch.long, device=model.device),
+            offsets=torch.tensor(offsets, dtype=model.dtype, device=model.device).reshape(-1, 3),
+            radii=torch.tensor(radii, dtype=model.dtype, device=model.device),
         )
 
     def to(self, *, device: torch.device | str | None = None, dtype: torch.dtype | None = None) -> RobotSpheres:
@@ -90,16 +89,15 @@ def self_collision_pairs(
     frame id), e.g. links whose meshes overlap at every reachable ``q``.
     """
     ignored = {frozenset((model.frame_id(a), model.frame_id(b))) for a, b in (ignore or ())}
-    structure = model.structure
     parents = model.parents
 
     def body(joint: int) -> int:
         # The nearest ancestor joint with coordinates; fixed joints do not separate bodies.
-        while joint > 0 and structure.nvs_full[joint] == 0:
+        while joint > 0 and model.nvs_full[joint] == 0:
             joint = parents[joint]
         return joint
 
-    body_of = [body(joint) for joint in structure.frame_parent_joint_ids]
+    body_of = [body(joint) for joint in model.frame_parent_joint_ids]
     pairs = []
     frame_ids = spheres.frame_ids.tolist()
     for i, frame_i in enumerate(frame_ids):

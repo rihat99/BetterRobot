@@ -81,7 +81,7 @@ def load_model(name: str, device: str) -> br.Model:
 def make_inputs(model: br.Model, batch: int, device: str) -> dict[str, torch.Tensor]:
     """Seeded inputs: q (B, nq) tiled from 16 random configurations, v / a / tau (B, nv)."""
     gen = torch.Generator().manual_seed(1)
-    base = torch.stack([model.to(device="cpu").random_configuration(gen) for _ in range(16)])
+    base = torch.stack([model.to(device="cpu").random_configuration(generator=gen) for _ in range(16)])
     q = base[torch.arange(batch) % 16].to(device=device, dtype=DTYPE)
     v, a, tau = (torch.randn(batch, model.nv, generator=gen).to(device=device, dtype=DTYPE) for _ in range(3))
     return {"q": q, "v": v, "a": a, "tau": tau}

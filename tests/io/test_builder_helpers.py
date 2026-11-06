@@ -40,7 +40,7 @@ def test_axis_named_helpers_select_correct_joint_kind(helper_name, expected_kind
     ir, _ = _three_link_axis(helper_name)
     model = build_model(ir)
     # Joint 0 is universe, 1 is auto root, 2 is the test joint.
-    assert model.joint_models[2].kind == expected_kind
+    assert model.joints[2].kind == expected_kind
 
 
 def test_add_revolute_with_explicit_axis():
@@ -55,7 +55,7 @@ def test_add_revolute_with_explicit_axis():
     )
     model = build_model(b.finalize())
     # Y-axis revolute resolves to JointRY.
-    assert model.joint_models[2].kind == "revolute_ry"
+    assert model.joints[2].kind == "revolute_ry"
 
 
 def test_add_free_flyer_root():
@@ -66,7 +66,7 @@ def test_add_free_flyer_root():
     b.add_revolute_z("j2", parent=base, child=tip)
     model = build_model(b.finalize())
     # Joint 1 is the free-flyer root.
-    assert model.joint_models[1].kind == "free_flyer"
+    assert model.joints[1].kind == "free_flyer"
 
 
 def test_legacy_string_kind_raises_with_helper_pointer():

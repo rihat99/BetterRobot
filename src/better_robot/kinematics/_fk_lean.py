@@ -19,18 +19,17 @@ from dataclasses import dataclass
 
 import torch
 
-from ..model.joint_dispatch import joint_placement
-from ..model.model_structure import JOINT_KIND_CODES, ModelStructure
-from ..model.model_values import ModelValues
 from ..lie import se3
+from ..model.joint_dispatch import joint_axes, joint_pitches
+from ..model.joint_models.helical import _helical_transform
+from ..model.model import Model
 
-_K = JOINT_KIND_CODES
-_FIXED = {_K["universe"], _K["fixed"], _K["mimic"]}
-_REVOLUTE = {_K["revolute_rx"], _K["revolute_ry"], _K["revolute_rz"], _K["revolute_unaligned"]}
-_UNBOUNDED = {_K["revolute_unbounded"]}
-_PRISMATIC = {_K["prismatic_px"], _K["prismatic_py"], _K["prismatic_pz"], _K["prismatic_unaligned"]}
-#: kind code -> offset of ``[qx, qy, qz, qw]`` inside the joint's configuration block.
-_QUATERNION = {_K["spherical"]: 0, _K["free_flyer"]: 3}
+_FIXED = {"universe", "fixed", "mimic"}
+_REVOLUTE = {"revolute_rx", "revolute_ry", "revolute_rz", "revolute_unaligned"}
+_UNBOUNDED = {"revolute_unbounded"}
+_PRISMATIC = {"prismatic_px", "prismatic_py", "prismatic_pz", "prismatic_unaligned"}
+#: kind -> offset of ``[qx, qy, qz, qw]`` inside the joint's configuration block.
+_QUATERNION = {"spherical": 0, "free_flyer": 3}
 
 # vec(R(q)) = vec(q qᵀ) · C / |q|² for q = [x, y, z, w]; entry (a, b, k) adds k · q_a q_b to R[row].
 _QUATERNION_TERMS = {
@@ -73,15 +72,18 @@ class LeanPlan:
     fallbacks: tuple[
         tuple[torch.Tensor, int, int, int], ...
     ]  #: ``(slot (1,), joint id, q start, q width)`` of rare kinds.
+    frame_parents: torch.Tensor  #: ``(nframes,)`` long: parent joint of each frame.
+    axes: torch.Tensor  #: ``(njoints, 3)`` joint axes in the plan's dtype on its device (the helical fallback).
+    pitches: torch.Tensor  #: ``(njoints,)`` helical pitches, likewise.
 
 
-def _tree_levels(structure: ModelStructure) -> list[list[int]]:
+def _tree_levels(model: Model) -> list[list[int]]:
     """Joint ids grouped by depth in the tree; parents come before children."""
-    parents = structure.parents
-    depth = [0] * structure.njoints
-    for joint in structure.topo_order:
+    parents = model.parents
+    depth = [0] * model.njoints
+    for joint in range(model.njoints):  # parents[i] < i, so index order is a topological order
         depth[joint] = 0 if parents[joint] < 0 else depth[parents[joint]] + 1
-    return [[j for j in range(structure.njoints) if depth[j] == d] for d in range(max(depth) + 1)]
+    return [[j for j in range(model.njoints) if depth[j] == d] for d in range(max(depth) + 1)]
 
 
 def _feature_map(
@@ -129,31 +131,31 @@ def _feature_map(
     return feature_index, weight, bias
 
 
-def build_plan(structure: ModelStructure, dtype: torch.dtype, device: torch.device) -> LeanPlan:
-    """Derive the constants from static topology and joint axes."""
-    nj, parents = structure.njoints, structure.parents
-    codes, starts, widths = structure.joint_kind_codes, structure.idx_qs_full, structure.nqs_full
-    levels = _tree_levels(structure)
+def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> LeanPlan:
+    """Derive the constants from the static topology and the joint axes."""
+    nj, parents = model.njoints, model.parents
+    kinds, starts, widths = [joint.kind for joint in model.joints], model.idx_qs_full, model.nqs_full
+    levels = _tree_levels(model)
     order = [j for level in levels for j in level]
     slot = {joint: index for index, joint in enumerate(order)}
-    axes = structure.joint_axes.detach().to(dtype=torch.float64, device="cpu")
+    axes = joint_axes(model.joints)
     unit = torch.eye(3, dtype=torch.float64)
 
     angles, circles, quaternions, fallbacks = [], [], [], []
     linear: list[tuple[int, int, torch.Tensor]] = []  # (joint, column, direction)
     for joint in range(nj):
-        code, start = codes[joint], starts[joint]
-        if code in _FIXED:
+        kind, start = kinds[joint], starts[joint]
+        if kind in _FIXED:
             continue
-        if code in _REVOLUTE:
+        if kind in _REVOLUTE:
             angles.append((joint, start))
-        elif code in _UNBOUNDED:
+        elif kind in _UNBOUNDED:
             circles.append((joint, start))
-        elif code in _PRISMATIC:
+        elif kind in _PRISMATIC:
             linear.append((joint, start, axes[joint]))
-        elif code in _QUATERNION:
-            quaternions.append((joint, start + _QUATERNION[code]))
-            if _QUATERNION[code]:
+        elif kind in _QUATERNION:
+            quaternions.append((joint, start + _QUATERNION[kind]))
+            if _QUATERNION[kind]:
                 linear += [(joint, start + k, unit[k]) for k in range(3)]
         else:
             fallbacks.append((torch.tensor([slot[joint]], device=device), joint, start, widths[joint]))
@@ -191,56 +193,41 @@ def build_plan(structure: ModelStructure, dtype: torch.dtype, device: torch.devi
         level_slices=tuple(level_slices),
         parent_position=tuple(parent_position),
         fallbacks=tuple(fallbacks),
+        frame_parents=torch.tensor(model.frame_parent_joint_ids, dtype=torch.long, device=device),
+        axes=axes.to(dtype=dtype, device=device),
+        pitches=joint_pitches(model.joints).to(dtype=dtype, device=device),
     )
 
 
-def get_plan(structure: ModelStructure, dtype: torch.dtype, device: torch.device) -> LeanPlan:
-    """Memoised `build_plan`; the cache lives on the structure instance."""
-    cache = getattr(structure, "_fk_lean_plans", None)
-    if cache is None:
-        cache = {}
-        object.__setattr__(structure, "_fk_lean_plans", cache)
-    key = (dtype, device)
-    if key not in cache:
-        with torch.inference_mode(False):  # inference tensors in the plan would break later autograd calls
-            cache[key] = build_plan(structure, dtype, device)
-    return cache[key]
+def fk_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> LeanPlan:
+    """The model's `LeanPlan` in ``dtype`` on ``device`` (built once per model, dtype and device)."""
+    return model._plan("fk", build_plan, dtype=dtype, device=device)
 
 
-def placement_matrices(values: ModelValues) -> tuple[torch.Tensor, torch.Tensor]:
-    """Joint and frame placements as ``4x4`` matrices, ``(..., njoints, 4, 4)`` and ``(..., nframes, 4, 4)``.
+def placement_matrices(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
+    """Joint and frame placements as ``4x4`` matrices, ``(I..., njoints, 4, 4)`` and ``(I..., nframes, 4, 4)``.
 
-    Constant placements are converted once and kept on the values object; an in-place edit of
-    the tensors invalidates the copy. Placements that require grad, or that are being
-    transformed by ``torch.func``, or calls in inference mode, convert on every call so each
-    call owns its graph. Under ``torch.compile`` the conversion is traced into the graph.
+    Design note (record 0011, A3): converted on every call, so each call owns its graph and the model carries
+    no cache keyed by tensor versions.
     """
-    joints, frames = values.joint_placements, values.frame_placements
-    if torch.compiler.is_compiling():  # tensor-version reads and attribute writes break a fullgraph trace
-        return se3.to_matrix(joints), se3.to_matrix(frames)
-    wrapped = torch._C._functorch.is_functorch_wrapped_tensor
-    if joints.requires_grad or frames.requires_grad or wrapped(joints) or wrapped(frames):
-        return se3.to_matrix(joints), se3.to_matrix(frames)
-    if torch.is_inference_mode_enabled() or joints.is_inference() or frames.is_inference():
-        return se3.to_matrix(joints), se3.to_matrix(frames)
-    versions = (joints._version, frames._version)
-    cached = getattr(values, "_fk_placement_matrices", None)
-    if cached is None or cached[0] != versions:
-        cached = (versions, se3.to_matrix(joints), se3.to_matrix(frames))
-        object.__setattr__(values, "_fk_placement_matrices", cached)
-    return cached[1], cached[2]
+    return se3.to_matrix(model.joint_placements), se3.to_matrix(model.frame_placements)
 
 
-def lean_core(
-    structure: ModelStructure, q_full: torch.Tensor, placement: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+def _fallback_pose(model: Model, plan: LeanPlan, joint_id: int, q_slice: torch.Tensor) -> torch.Tensor:
+    """Pose ``(N, 7)`` of a rare-kind joint; helical reads the plan's device-resident axis and pitch."""
+    if model.joints[joint_id].kind == "helical":
+        return _helical_transform(plan.axes[joint_id], plan.pitches[joint_id], q_slice)
+    return model.joints[joint_id].joint_placement(q_slice)
+
+
+def lean_core(model: Model, q_full: torch.Tensor, placement: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """World and parent-relative joint transforms.
 
     ``q_full: (N, nq_full)`` is the mimic-expanded configuration; ``placement`` holds the joint
     placements as matrices, ``(njoints, 4, 4)`` or ``(N, njoints, 4, 4)``. Returns ``(world, local)``, each
     ``(N, njoints, 3, 4)`` as ``[R | p]`` in joint order.
     """
-    plan = get_plan(structure, placement.dtype, placement.device)
+    plan = fk_plan(model, dtype=placement.dtype, device=placement.device)
     nj, count = plan.njoints, q_full.shape[0]
     features = []
     n_circle = plan.circle_columns.shape[0]
@@ -278,13 +265,7 @@ def lean_core(
     else:
         joint = plan.bias + torch.einsum("njf,jfab->njab", gathered, plan.weight)
         for slot, joint_id, start, width in plan.fallbacks:
-            pose = joint_placement(
-                structure.joint_models[joint_id],
-                structure.joint_kind_codes[joint_id],
-                structure.joint_axes[joint_id],
-                structure.joint_pitches[joint_id],
-                q_full[:, start : start + width],
-            )
+            pose = _fallback_pose(model, plan, joint_id, q_full[:, start : start + width])
             joint = joint.index_copy(1, slot, se3.to_matrix(pose).unsqueeze(1))
         local = placement @ joint  # (N, nj, 4, 4), level order
     first_start, first_stop = plan.level_slices[0]
@@ -300,4 +281,4 @@ def lean_core(
     return world, local
 
 
-__all__ = ["LeanPlan", "build_plan", "get_plan", "lean_core", "placement_matrices"]
+__all__ = ["LeanPlan", "build_plan", "fk_plan", "lean_core", "placement_matrices"]

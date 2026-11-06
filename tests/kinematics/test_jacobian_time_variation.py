@@ -151,7 +151,7 @@ def test_world_and_lwa_are_non_degenerate(chain):
 def test_raw_matches_workspace(chain):
     q, v = _q_v(chain)
     poses = forward_kinematics_state(chain, q).joint_pose
-    raw = joint_jacobians_time_variation_raw(chain.structure, q, v, poses)
+    raw = joint_jacobians_time_variation_raw(chain, q, v, poses)
 
     state = forward_kinematics_state(chain, q)
     torch.testing.assert_close(
@@ -175,20 +175,17 @@ def test_reuse_path_matches_fresh(chain):
     poses = forward_kinematics_state(chain, q).joint_pose
     frame_id = chain.frame_id("tool")
 
-    fresh = joint_jacobians_time_variation_raw(chain.structure, q, v, poses)
+    fresh = joint_jacobians_time_variation_raw(chain, q, v, poses)
     state = forward_kinematics_state(chain, q)
     joint_jacobians = torch.stack(
         [joint_jacobian(chain, state, joint=j, reference="world") for j in range(chain.njoints)], -3
     )
-    reused = joint_jacobians_time_variation_raw(chain.structure, q, v, poses, joint_jacobians=joint_jacobians)
+    reused = joint_jacobians_time_variation_raw(chain, q, v, poses, joint_jacobians=joint_jacobians)
     torch.testing.assert_close(fresh.joint_jacobians_dot, reused.joint_jacobians_dot)
 
-    frame_fresh = frame_jacobian_time_variation_raw(
-        chain.structure, chain.values, q, v, poses, frame_id, reference="local"
-    )
+    frame_fresh = frame_jacobian_time_variation_raw(chain, q, v, poses, frame_id, reference="local")
     frame_reused = frame_jacobian_time_variation_raw(
-        chain.structure,
-        chain.values,
+        chain,
         q,
         v,
         poses,
@@ -211,7 +208,7 @@ def test_jacrev_equals_jacfwd_through_raw(chain):
 
     def evaluate(q_value, v_value):
         poses = forward_kinematics_state(chain, q_value).joint_pose
-        return joint_jacobians_time_variation_raw(chain.structure, q_value, v_value, poses).joint_jacobians_dot
+        return joint_jacobians_time_variation_raw(chain, q_value, v_value, poses).joint_jacobians_dot
 
     for argnums in (0, 1):
         reverse = torch.func.jacrev(evaluate, argnums=argnums)(q, v)
@@ -226,7 +223,7 @@ def test_raw_compiles_fullgraph(chain):
     poses = forward_kinematics_state(chain, q).joint_pose
 
     def evaluate(q_value, v_value, joint_poses):
-        return joint_jacobians_time_variation_raw(chain.structure, q_value, v_value, joint_poses).joint_jacobians_dot
+        return joint_jacobians_time_variation_raw(chain, q_value, v_value, joint_poses).joint_jacobians_dot
 
     compiled = torch.compile(evaluate, fullgraph=True, backend="eager")
     torch.testing.assert_close(compiled(q, v, poses), evaluate(q, v, poses))

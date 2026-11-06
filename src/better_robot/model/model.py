@@ -1,318 +1,316 @@
-"""Frozen robot model composed from topology and differentiable values."""
+"""``Model``: one flat frozen record of a robot (decision records 0009, 0010, 0011)."""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING
+import dataclasses
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
+from typing import Any
 
 import torch
+from torch.utils import _pytree
 
-from ._checks import check_tensor
-from ..exceptions import ShapeError
+from ..exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from ..lie import se3
-from .frame import Frame
+from ._checks import check_tensor
 from .joint_models.base import JointModel
 
-if TYPE_CHECKING:
-    from ..spatial.inertia import Inertia
-    from .model_structure import ModelStructure
-    from .model_values import ModelValues
+_TENSOR_FIELDS = (
+    "joint_placements",
+    "body_inertias",
+    "frame_placements",
+    "lower_position_limit",
+    "upper_position_limit",
+    "velocity_limit",
+    "effort_limit",
+    "armature",
+    "damping",
+    "gravity",
+    "q_neutral",
+)
+_BATCHED_FIELDS = ("joint_placements", "body_inertias", "frame_placements")
 
 
-def _checked_value(
-    name: str,
-    value: torch.Tensor | None,
-    current: torch.Tensor,
-    event_shape: tuple[int, ...],
-    exemplar: torch.Tensor,
-    *,
-    normalize_pose: bool = False,
-) -> torch.Tensor:
-    if value is None:
-        return current
-    tensor = check_tensor(
-        name,
-        value,
-        shape=event_shape,
-        floating=True,
-        dtype=exemplar.dtype,
-        device=exemplar.device,
-    )
-    return se3.normalize(tensor) if normalize_pose else tensor
+def _joint_key(joint: JointModel) -> tuple:
+    axis = None if joint.axis is None else tuple(joint.axis.detach().cpu().tolist())
+    children = tuple(_joint_key(sub) for sub in getattr(joint, "sub_joints", ()))
+    return (type(joint).__name__, joint.kind, axis, float(getattr(joint, "pitch", 0.0)), children)
 
 
-def _move_tensor(
-    tensor: torch.Tensor,
-    device: torch.device | str | None,
-    dtype: torch.dtype | None,
-) -> torch.Tensor:
-    target_dtype = dtype if tensor.is_floating_point() else tensor.dtype
-    return tensor.to(device=device, dtype=target_dtype)
-
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False, repr=False)
 class Model:
-    """Shallowly frozen robot description with one owner per datum.
+    """A robot: static topology plus the tensors that parametrize it. Build one with ``better_robot.load``.
 
-    The four stored fields wrap immutable topology and differentiable values.
-    Explicit properties preserve flat access without copying either part.
-    Contained tensors and dictionaries must be treated as read-only.
+    Static fields (plain Python, hashed into ``structure_key``) and tensor fields (differentiable, moved by ``to``,
+    replaced by ``with_values``); ``I...`` is an optional batch of robots sharing one topology:
+
+    | field | kind | shape / type |
+    |---|---|---|
+    | ``name`` | static | ``str`` |
+    | ``joint_names``, ``body_names``, ``frame_names`` | static | ``tuple[str, ...]`` |
+    | ``joints`` | static | ``tuple[JointModel, ...]``, joint 0 is the universe |
+    | ``parents`` | static | ``tuple[int, ...]``, ``parents[0] == -1``, ``parents[i] < i`` |
+    | ``frame_parent_joint_ids`` | static | ``tuple[int, ...]`` |
+    | ``nqs``, ``nvs``, ``idx_qs``, ``idx_vs`` | static | public width and start of each joint's ``q``/``v`` slice |
+    | ``nqs_full``, ``nvs_full``, ``idx_qs_full``, ``idx_vs_full`` | static | the same over every joint's coordinates |
+    | ``mimic_source_ids`` | static | public joint driving each joint (itself when not a mimic target) |
+    | ``mimic_multipliers``, ``mimic_offsets`` | static | ``q_full[j] = multiplier * q[source] + offset`` |
+    | ``meta`` | static, until 0016 | ``dict`` (the IR and parser extras) |
+    | ``joint_placements`` | tensor | ``(I..., njoints, 7)`` pose of each joint in its parent joint frame |
+    | ``body_inertias`` | tensor | ``(I..., nbodies, 10)`` mass, centre of mass, symmetric inertia |
+    | ``frame_placements`` | tensor | ``(I..., nframes, 7)`` pose of each frame in its parent joint frame |
+    | ``lower_position_limit``, ``upper_position_limit`` | tensor | ``(nq,)`` |
+    | ``velocity_limit``, ``effort_limit``, ``armature``, ``damping`` | tensor | ``(nv,)`` |
+    | ``gravity`` | tensor | ``(6,)`` spatial gravity ``[linear, angular]`` |
+    | ``q_neutral`` | tensor | ``(nq,)`` |
     """
 
-    structure: ModelStructure
-    values: ModelValues
-    reference_configurations: dict[str, torch.Tensor] = field(default_factory=dict)
+    name: str
+    joint_names: tuple[str, ...]
+    body_names: tuple[str, ...]
+    frame_names: tuple[str, ...]
+    joints: tuple[JointModel, ...]
+    parents: tuple[int, ...]
+    frame_parent_joint_ids: tuple[int, ...]
+    nqs: tuple[int, ...]
+    nvs: tuple[int, ...]
+    idx_qs: tuple[int, ...]
+    idx_vs: tuple[int, ...]
+    nqs_full: tuple[int, ...]
+    nvs_full: tuple[int, ...]
+    idx_qs_full: tuple[int, ...]
+    idx_vs_full: tuple[int, ...]
+    mimic_source_ids: tuple[int, ...]
+    mimic_multipliers: tuple[float, ...]
+    mimic_offsets: tuple[float, ...]
+    joint_placements: torch.Tensor
+    body_inertias: torch.Tensor
+    frame_placements: torch.Tensor
+    lower_position_limit: torch.Tensor
+    upper_position_limit: torch.Tensor
+    velocity_limit: torch.Tensor
+    effort_limit: torch.Tensor
+    armature: torch.Tensor
+    damping: torch.Tensor
+    gravity: torch.Tensor
+    q_neutral: torch.Tensor
     meta: dict = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        self.values.validate(self.structure)
-
-    # These deliberately compact one-line properties keep the compatibility
-    # facade explicit and typed without obscuring the four stored fields.
-    # fmt: off
-    # Counts and names.
-    @property
-    def njoints(self) -> int: return self.structure.njoints
-    @property
-    def nbodies(self) -> int: return self.structure.nbodies
-    @property
-    def nframes(self) -> int: return self.structure.nframes
-    @property
-    def nq(self) -> int: return self.structure.nq
-    @property
-    def nv(self) -> int: return self.structure.nv
-    @property
-    def nq_full(self) -> int: return self.structure.nq_full
-    @property
-    def nv_full(self) -> int: return self.structure.nv_full
-    @property
-    def name(self) -> str: return self.structure.name
-    @property
-    def joint_names(self) -> tuple[str, ...]: return self.structure.joint_names
-    @property
-    def body_names(self) -> tuple[str, ...]: return self.structure.body_names
-    @property
-    def frame_names(self) -> tuple[str, ...]: return self.structure.frame_names
-    @property
-    def joint_name_to_id(self) -> dict[str, int]: return self.structure.joint_name_to_id
-    @property
-    def body_name_to_id(self) -> dict[str, int]: return self.structure.body_name_to_id
-    @property
-    def frame_name_to_id(self) -> dict[str, int]: return self.structure.frame_name_to_id
-
-    # Topology and indexing.
-    @property
-    def parents(self) -> tuple[int, ...]: return self.structure.parents
-    @property
-    def children(self) -> tuple[tuple[int, ...], ...]: return self.structure.children
-    @property
-    def subtrees(self) -> tuple[tuple[int, ...], ...]: return self.structure.subtrees
-    @property
-    def supports(self) -> tuple[tuple[int, ...], ...]: return self.structure.supports
-    @property
-    def topo_order(self) -> tuple[int, ...]: return self.structure.topo_order
-    @property
-    def joint_models(self) -> tuple[JointModel, ...]: return self.structure.joint_models
-    @property
-    def nqs(self) -> tuple[int, ...]: return self.structure.nqs
-    @property
-    def nvs(self) -> tuple[int, ...]: return self.structure.nvs
-    @property
-    def idx_qs(self) -> tuple[int, ...]: return self.structure.idx_qs
-    @property
-    def idx_vs(self) -> tuple[int, ...]: return self.structure.idx_vs
-    @property
-    def nqs_full(self) -> tuple[int, ...]: return self.structure.nqs_full
-    @property
-    def nvs_full(self) -> tuple[int, ...]: return self.structure.nvs_full
-    @property
-    def idx_qs_full(self) -> tuple[int, ...]: return self.structure.idx_qs_full
-    @property
-    def idx_vs_full(self) -> tuple[int, ...]: return self.structure.idx_vs_full
-
-    # Differentiable values.
-    @property
-    def joint_placements(self) -> torch.Tensor: return self.values.joint_placements
-    @property
-    def body_inertias(self) -> torch.Tensor: return self.values.body_inertias
-    @property
-    def lower_pos_limit(self) -> torch.Tensor: return self.values.lower_pos_limit
-    @property
-    def upper_pos_limit(self) -> torch.Tensor: return self.values.upper_pos_limit
-    @property
-    def velocity_limit(self) -> torch.Tensor: return self.values.velocity_limit
-    @property
-    def effort_limit(self) -> torch.Tensor: return self.values.effort_limit
-    @property
-    def rotor_inertia(self) -> torch.Tensor: return self.values.rotor_inertia
-    @property
-    def armature(self) -> torch.Tensor: return self.values.armature
-    @property
-    def friction(self) -> torch.Tensor: return self.values.friction
-    @property
-    def damping(self) -> torch.Tensor: return self.values.damping
-    @property
-    def gravity(self) -> torch.Tensor: return self.values.gravity
-    @property
-    def mimic_multiplier(self) -> torch.Tensor: return self.values.mimic_multiplier
-    @property
-    def mimic_offset(self) -> torch.Tensor: return self.values.mimic_offset
-    @property
-    def q_neutral(self) -> torch.Tensor: return self.values.q_neutral
-
-    # Reduced-coordinate topology.
-    @property
-    def mimic_source(self) -> tuple[int, ...]: return self.structure.mimic_source
-    @property
-    def q_expansion(self) -> torch.Tensor: return self.structure.q_expansion
-    @property
-    def q_offset(self) -> torch.Tensor: return self.structure.q_offset
-    @property
-    def v_expansion(self) -> torch.Tensor: return self.structure.v_expansion
-    @property
-    def has_mimic(self) -> bool: return self.structure.has_mimic
-    # fmt: on
+    # Plans (constant tensors derived from the static fields) keyed by (kind, dtype, device); never copied.
+    _plans: dict = field(default_factory=dict, init=False, repr=False, compare=False)
 
     @property
-    def frames(self) -> tuple[Frame, ...]:
-        """Return frame metadata paired with the current placement values."""
+    def nq(self) -> int:
+        """Width of a public configuration ``q``."""
+        return sum(self.nqs)
 
-        static_frames = zip(
-            self.structure.frame_names,
-            self.structure.frame_parent_joint_ids,
-            self.structure.frame_types,
-            strict=True,
+    @property
+    def nv(self) -> int:
+        """Width of a public tangent ``v``."""
+        return sum(self.nvs)
+
+    @property
+    def nq_full(self) -> int:
+        """Width of the configuration over every joint, mimic targets included."""
+        return sum(self.nqs_full)
+
+    @property
+    def nv_full(self) -> int:
+        """Width of the tangent over every joint, mimic targets included."""
+        return sum(self.nvs_full)
+
+    @property
+    def njoints(self) -> int:
+        """Number of joints, the universe included."""
+        return len(self.joints)
+
+    @property
+    def nbodies(self) -> int:
+        """Number of bodies, the universe included (one per joint)."""
+        return len(self.body_names)
+
+    @property
+    def nframes(self) -> int:
+        """Number of frames."""
+        return len(self.frame_names)
+
+    @property
+    def dtype(self) -> torch.dtype:
+        """dtype of every tensor field."""
+        return self.joint_placements.dtype
+
+    @property
+    def device(self) -> torch.device:
+        """Device of every tensor field."""
+        return self.joint_placements.device
+
+    @property
+    def structure_key(self) -> tuple:
+        """Hashable value of the static fields: two models with equal keys share every plan and index table."""
+        return (
+            self.name,
+            self.joint_names,
+            self.body_names,
+            self.frame_names,
+            tuple(_joint_key(joint) for joint in self.joints),
+            self.parents,
+            self.frame_parent_joint_ids,
+            self.nqs,
+            self.nvs,
+            self.idx_qs,
+            self.idx_vs,
+            self.nqs_full,
+            self.nvs_full,
+            self.idx_qs_full,
+            self.idx_vs_full,
+            self.mimic_source_ids,
+            self.mimic_multipliers,
+            self.mimic_offsets,
         )
-        return tuple(
-            Frame(name, parent_joint, self.values.frame_placements[..., frame_id, :], frame_type)
-            for frame_id, (name, parent_joint, frame_type) in enumerate(static_frames)
-        )
+
+    def __repr__(self) -> str:
+        dtype = str(self.dtype).removeprefix("torch.")
+        return f"Model({self.name!r}, nq={self.nq}, nv={self.nv}, njoints={self.njoints}, {dtype}, {self.device})"
+
+    def _id(self, kind: str, names: tuple[str, ...], value: int | str) -> int:
+        if isinstance(value, str):
+            if value not in names:
+                raise UnknownNameError(kind, value, names)
+            return names.index(value)
+        if not 0 <= value < len(names):
+            raise ArgumentError(f"{kind} id {value} out of range [0, {len(names)})")
+        return value
 
     def joint_id(self, joint: int | str) -> int:
-        """Return the integer id of a joint given by name, or range-check and return an int id."""
-        return self.structure.joint_id(joint)
+        """Id of a joint given by name or by a range-checked id."""
+        return self._id("joint", self.joint_names, joint)
 
     def frame_id(self, frame: int | str) -> int:
-        """Return the integer id of a frame given by name, or range-check and return an int id."""
-        return self.structure.frame_id(frame)
+        """Id of a frame given by name or by a range-checked id."""
+        return self._id("frame", self.frame_names, frame)
 
     def body_id(self, body: int | str) -> int:
-        """Return the integer id of a body given by name, or range-check and return an int id."""
-        return self.structure.body_id(body)
-
-    def get_subtree(self, joint_id: int | str) -> tuple[int, ...]:
-        """Return the subtree rooted at ``joint_id`` (id or name)."""
-        return self.structure.get_subtree(joint_id)
-
-    def get_support(self, joint_id: int | str) -> tuple[int, ...]:
-        """Return the joint chain from joint 0 to ``joint_id`` (id or name)."""
-        return self.structure.get_support(joint_id)
+        """Id of a body given by name or by a range-checked id."""
+        return self._id("body", self.body_names, body)
 
     def q_permutation(self, other_joint_order: Sequence[str]) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return q/v gather indices from an external joint-slice order."""
-        return self.structure.q_permutation(other_joint_order)
+        """Gather indices ``(perm_q (nq,), perm_v (nv,))`` from vectors laid out in ``other_joint_order``.
 
-    def body_inertia(self, body_id: int) -> Inertia:
-        """Return the packed inertia of one body as a typed value."""
-        return self.values.body_inertia(body_id)
+        The external vectors concatenate this model's public per-joint slices in the given order; names of
+        zero-width joints may be omitted. ``q_model = q_external[..., perm_q]``.
+        """
+        order = tuple(other_joint_order)
+        duplicates = sorted({name for name in order if order.count(name) > 1})
+        if duplicates:
+            raise ArgumentError(f"other_joint_order contains duplicate joint names: {duplicates}")
+        joint_ids = [self.joint_id(name) for name in order]
+        missing = [
+            name
+            for joint_id, name in enumerate(self.joint_names)
+            if (self.nqs[joint_id] or self.nvs[joint_id]) and joint_id not in joint_ids
+        ]
+        if missing:
+            raise ArgumentError(f"other_joint_order is missing joints with public q/v slices: {missing}")
+        q_start, v_start = {}, {}
+        q_offset = v_offset = 0
+        for joint_id in joint_ids:
+            q_start[joint_id], v_start[joint_id] = q_offset, v_offset
+            q_offset += self.nqs[joint_id]
+            v_offset += self.nvs[joint_id]
+        perm_q = [q_start[j] + k for j in range(self.njoints) if self.nqs[j] for k in range(self.nqs[j])]
+        perm_v = [v_start[j] + k for j in range(self.njoints) if self.nvs[j] for k in range(self.nvs[j])]
+        return (
+            torch.tensor(perm_q, dtype=torch.long, device=self.device),
+            torch.tensor(perm_v, dtype=torch.long, device=self.device),
+        )
 
-    def spatial_inertias(self) -> torch.Tensor:
-        """Expand the current packed body inertias to spatial matrices."""
-        return self.values.spatial_inertias()
+    def random_configuration(self, *, generator: torch.Generator) -> torch.Tensor:
+        """A configuration ``(nq,)`` drawn inside the position limits (revolute joints without limits: ``[-pi, pi]``)."""
+        parts = []
+        for joint_id, joint in enumerate(self.joints):
+            width, start = self.nqs[joint_id], self.idx_qs[joint_id]
+            if width:
+                lower = self.lower_position_limit[start : start + width]
+                upper = self.upper_position_limit[start : start + width]
+                parts.append(joint.random_configuration(generator, lower, upper))
+        if not parts:
+            return torch.zeros(self.nq, dtype=self.dtype, device=self.device)
+        sample = torch.cat(parts, dim=-1).to(dtype=self.dtype, device=self.device)
+        if not bool(torch.isfinite(sample).all()):  # one host sync per call, off the hot path
+            unlimited = [
+                self.joint_names[j]
+                for j, start in enumerate(self.idx_qs)
+                if self.nqs[j] and not bool(torch.isfinite(sample[start : start + self.nqs[j]]).all())
+            ]
+            raise ModelError(f"joints without finite position limits: {unlimited}; set limits before sampling")
+        return sample
+
+    def with_values(self, **fields: torch.Tensor) -> Model:
+        """Copy with the given tensor fields replaced (``joint_placements=``, ``body_inertias=``, ...).
+
+        Placements are normalised. ``joint_placements``, ``body_inertias`` and ``frame_placements`` may carry a
+        batch ``I...`` that broadcasts across the three; the other fields have exactly their event shape.
+        """
+        unknown = sorted(set(fields) - set(_TENSOR_FIELDS))
+        if unknown:
+            raise ArgumentError(f"with_values: unknown tensor fields {unknown}; valid: {list(_TENSOR_FIELDS)}")
+        checked = {}
+        for name, value in fields.items():
+            current = getattr(self, name)
+            event = tuple(current.shape[-2:]) if name in _BATCHED_FIELDS else tuple(current.shape)
+            tensor = check_tensor(name, value, shape=event, dtype=self.dtype, device=self.device)
+            if name not in _BATCHED_FIELDS and tensor.ndim != len(event):
+                raise ShapeError(f"{name}.shape must be {event}, got {tuple(tensor.shape)}")
+            checked[name] = se3.normalize(tensor) if name.endswith("placements") else tensor
+        batches = {name: tuple(checked.get(name, getattr(self, name)).shape[:-2]) for name in _BATCHED_FIELDS}
+        try:
+            torch.broadcast_shapes(*batches.values())
+        except RuntimeError as error:
+            raise ShapeError(f"value batches do not broadcast: {batches}") from error
+        return dataclasses.replace(self, **checked)
+
+    def to(self, device: torch.device | str | None = None, dtype: torch.dtype | None = None) -> Model:
+        """Copy with every tensor field on ``device`` in ``dtype`` (plans are rebuilt there on demand)."""
+        moved = {name: getattr(self, name).to(device=device, dtype=dtype) for name in _TENSOR_FIELDS}
+        return dataclasses.replace(self, **moved)
 
     def integrate(self, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-        """Compute the universal manifold retraction ``q ⊕ v``."""
-        return self.structure.integrate(q, v)
+        """``q ⊕ v``: step ``q: (B..., nq)`` along ``v: (B..., nv)`` on the configuration manifold."""
+        from ._manifold import integrate  # noqa: PLC0415 - the manifold module reads Model
+
+        return integrate(self, q, v)
 
     def difference(self, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
-        """Compute the universal tangent ``q1 ⊖ q0``."""
-        return self.structure.difference(q0, q1)
+        """``q1 ⊖ q0``: the tangent ``(B..., nv)`` from ``q0`` to ``q1``."""
+        from ._manifold import difference  # noqa: PLC0415 - the manifold module reads Model
 
-    def expand_configuration(self, q: torch.Tensor) -> torch.Tensor:
-        """Map ``q: (..., nq)`` to the full configuration ``(..., nq_full)`` with mimic joints filled in."""
-        from .reduced_coordinates import expand_configuration
+        return difference(self, q0, q1)
 
-        return expand_configuration(self.structure, q)
-
-    def random_configuration(self, generator: torch.Generator | None = None) -> torch.Tensor:
-        """Return a random valid configuration of shape ``(nq,)``."""
-        parts: list[torch.Tensor] = []
-        for joint_id in range(self.njoints):
-            joint_nq = self.nqs[joint_id]
-            if joint_nq == 0:
-                continue
-            q_index = self.idx_qs[joint_id]
-            lower = self.lower_pos_limit[q_index : q_index + joint_nq]
-            upper = self.upper_pos_limit[q_index : q_index + joint_nq]
-            sample = self.joint_models[joint_id].random_configuration(generator, lower, upper)
-            if not bool(torch.isfinite(sample).all()):
-                raise ValueError(
-                    f"joint '{self.joint_names[joint_id]}' has no finite position limits; "
-                    "set limits before sampling a random configuration"
-                )
-            parts.append(sample)
-        exemplar = self.joint_placements
-        if not parts:
-            return torch.zeros(self.nq, dtype=exemplar.dtype, device=exemplar.device)
-        return torch.cat(parts, dim=-1).to(dtype=exemplar.dtype, device=exemplar.device)
-
-    def with_values(
+    def _plan(
         self,
+        kind: str,
+        build: Callable[[Model, torch.dtype, torch.device], Any],
         *,
-        joint_placements: torch.Tensor | None = None,
-        body_inertias: torch.Tensor | None = None,
-        frame_placements: torch.Tensor | None = None,
-        armature: torch.Tensor | None = None,
-    ) -> Model:
-        """Pair this topology with checked values; placements and inertias may be batched, ``armature (nv,)`` not."""
-        current = self.values
-        exemplar = current.joint_placements
-        rebound = replace(
-            current,
-            joint_placements=_checked_value(
-                "joint_placements",
-                joint_placements,
-                current.joint_placements,
-                (self.njoints, 7),
-                exemplar,
-                normalize_pose=True,
-            ),
-            body_inertias=_checked_value(
-                "body_inertias",
-                body_inertias,
-                current.body_inertias,
-                (self.nbodies, 10),
-                exemplar,
-            ),
-            frame_placements=_checked_value(
-                "frame_placements",
-                frame_placements,
-                current.frame_placements,
-                (self.nframes, 7),
-                exemplar,
-                normalize_pose=True,
-            ),
-            armature=_checked_value("armature", armature, current.armature, (self.nv,), exemplar),
-        )
-        if rebound.armature.ndim != 1:
-            raise ShapeError(f"armature.shape must be ({self.nv},), got {tuple(rebound.armature.shape)}")
-        rebound._execution_batch_shape(rebound.q_neutral)
-        return replace(self, values=rebound)
+        dtype: torch.dtype,
+        device: torch.device,
+    ) -> Any:
+        """The ``kind`` plan for ``dtype`` and ``device``, built by ``build(model, dtype, device)`` on first use."""
+        key = (kind, dtype, device)
+        if key not in self._plans:
+            with torch.inference_mode(False):  # an inference tensor in a plan would break later autograd calls
+                self._plans[key] = build(self, dtype, device)
+        return self._plans[key]
 
-    def to(
-        self,
-        device: torch.device | str | None = None,
-        dtype: torch.dtype | None = None,
-    ) -> Model:
-        """Return a model whose tensor buffers live on ``device``/``dtype``."""
-        references = {name: _move_tensor(value, device, dtype) for name, value in self.reference_configurations.items()}
-        return replace(
-            self,
-            structure=self.structure.to(device=device, dtype=dtype),
-            values=self.values.to(device=device, dtype=dtype),
-            reference_configurations=references,
-        )
 
+def _flatten(model: Model) -> tuple[list[torch.Tensor], tuple]:
+    static = tuple(getattr(model, f.name) for f in dataclasses.fields(model) if f.init and f.name not in _TENSOR_FIELDS)
+    return [getattr(model, name) for name in _TENSOR_FIELDS], static
+
+
+def _unflatten(leaves: list, context: tuple) -> Model:
+    names = [f.name for f in dataclasses.fields(Model) if f.init and f.name not in _TENSOR_FIELDS]
+    return Model(**dict(zip(names, context, strict=True)), **dict(zip(_TENSOR_FIELDS, leaves, strict=True)))
+
+
+_pytree.register_pytree_node(Model, _flatten, _unflatten)
 
 __all__ = ["Model"]

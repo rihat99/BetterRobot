@@ -43,7 +43,7 @@ hand = model.frame_id("body_panda_hand")
 
 # A batch of 64 reachable hand poses, made from random configurations.
 generator = torch.Generator().manual_seed(0)
-q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(64, -1)
+q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(64, -1)
 targets = br.forward_kinematics_state(model, terms.random_start(model, q0, generator=generator)).frame_pose[:, hand]
 
 # Solve all 64 inverse-kinematics problems at once, then check them with forward kinematics.

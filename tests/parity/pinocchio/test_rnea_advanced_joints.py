@@ -106,9 +106,9 @@ def test_rnea_spherical_populates_tangent_fields_correctly():
     br_m, _, _ = _build_spherical_chain()
     assert br_m.nv == 4
     assert br_m.nq == 5  # 4 quat + 1 angle
-    assert br_m.joint_models[1].kind == "fixed"  # synthetic base
-    assert br_m.joint_models[2].kind == "spherical"
-    assert br_m.joint_models[3].kind == "revolute_rz"
+    assert br_m.joints[1].kind == "fixed"  # synthetic base
+    assert br_m.joints[2].kind == "spherical"
+    assert br_m.joints[3].kind == "revolute_rz"
     q = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)
     v = torch.tensor([0.1, 0.2, 0.3, 0.4], dtype=torch.float64)
     a = torch.tensor([0.05, -0.1, 0.2, 0.3], dtype=torch.float64)

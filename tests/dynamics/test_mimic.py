@@ -6,10 +6,7 @@ import dataclasses
 
 import torch
 
-from better_robot.model.reduced_coordinates import (
-    expand_configuration,
-    expand_tangent,
-)
+from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
 from better_robot.dynamics.state import (
     centroidal_map,
     centroidal_momentum,
@@ -62,10 +59,10 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
     q = torch.tensor([[-0.2], [0.3]], dtype=torch.float64)
     v = torch.tensor([[0.1], [-0.15]], dtype=torch.float64)
     acceleration = torch.tensor([[0.25], [-0.3]], dtype=torch.float64)
-    q_full = expand_configuration(constrained.structure, q)
-    v_full = expand_tangent(constrained.structure, v)
-    acceleration_full = expand_tangent(constrained.structure, acceleration)
-    expansion = constrained.v_expansion
+    q_full = full_configuration(constrained, q)
+    v_full = full_tangent(constrained, v)
+    acceleration_full = full_tangent(constrained, acceleration)
+    expansion = mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
 
     state = forward_kinematics_state(constrained, q)
     state_full = forward_kinematics_state(full, q_full)
@@ -100,9 +97,9 @@ def test_projected_aba_matches_reduced_mass_and_bias_solve() -> None:
     q = torch.tensor([0.25], dtype=torch.float64)
     v = torch.tensor([-0.12], dtype=torch.float64)
     tau = torch.tensor([0.7], dtype=torch.float64)
-    q_full = expand_configuration(constrained.structure, q)
-    v_full = expand_tangent(constrained.structure, v)
-    expansion = constrained.v_expansion
+    q_full = full_configuration(constrained, q)
+    v_full = full_tangent(constrained, v)
+    expansion = mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
 
     state_full = forward_kinematics_state(full, q_full)
     mass_full = mass_matrix(full, state_full)

@@ -18,7 +18,7 @@ def g1() -> br.Model:
 
 def _inputs(model: br.Model, batch: tuple[int, ...], seed: int = 0):
     generator = torch.Generator().manual_seed(seed)
-    q = torch.stack([model.random_configuration(generator) for _ in range(int(torch.tensor(batch).prod()))])
+    q = torch.stack([model.random_configuration(generator=generator) for _ in range(int(torch.tensor(batch).prod()))])
     q = q.view(*batch, model.nq)
     v = torch.randn(*batch, model.nv, dtype=torch.float64, generator=generator)
     fext = torch.randn(*batch, model.njoints, 6, dtype=torch.float64, generator=generator)
@@ -79,13 +79,13 @@ def test_state_reuse_sees_edited_inertias_and_other_models(g1: br.Model) -> None
     a = torch.zeros(1, g1.nv, dtype=torch.float64)
     state = forward_kinematics_state(g1, q)
     before = inverse_dynamics(g1, state, v=v, a=a)
-    g1.values.body_inertias[..., 0].mul_(2.0)
+    g1.body_inertias[..., 0].mul_(2.0)
     try:
         edited = inverse_dynamics(g1, state, v=v, a=a)
         assert not torch.allclose(edited, before)
         torch.testing.assert_close(edited, inverse_dynamics(g1, forward_kinematics_state(g1, q), v=v, a=a))
     finally:
-        g1.values.body_inertias[..., 0].mul_(0.5)
+        g1.body_inertias[..., 0].mul_(0.5)
     torch.testing.assert_close(inverse_dynamics(g1, state, v=v, a=a), before)
 
 

@@ -1,4 +1,4 @@
-"""URDF ``<dynamics>`` and MJCF ``damping``/``frictionloss``/``armature`` reach ``ModelValues``."""
+"""URDF ``<dynamics>`` and MJCF ``damping``/``armature`` reach the model's ``damping`` and ``armature``."""
 
 from __future__ import annotations
 
@@ -18,22 +18,20 @@ MJCF = """<mujoco><worldbody><body name="b1"><inertial pos="0 0 0" mass="1" diag
 </body></worldbody></mujoco>"""
 
 
-def test_urdf_dynamics_reach_model_values(tmp_path: Path) -> None:
+def test_urdf_dynamics_reach_the_model(tmp_path: Path) -> None:
     path = tmp_path / "a.urdf"
     path.write_text(URDF)
-    values = load(path, dtype=torch.float64).values
-    torch.testing.assert_close(values.damping, torch.tensor([0.5], dtype=torch.float64))
-    torch.testing.assert_close(values.friction, torch.tensor([0.2], dtype=torch.float64))
-    torch.testing.assert_close(values.armature, torch.zeros(1, dtype=torch.float64))
+    model = load(path, dtype=torch.float64)
+    torch.testing.assert_close(model.damping, torch.tensor([0.5], dtype=torch.float64))
+    torch.testing.assert_close(model.armature, torch.zeros(1, dtype=torch.float64))
 
 
-def test_mjcf_dynamics_reach_model_values(tmp_path: Path) -> None:
+def test_mjcf_dynamics_reach_the_model(tmp_path: Path) -> None:
     path = tmp_path / "a.xml"
     path.write_text(MJCF)
-    values = load(path, dtype=torch.float64).values
-    torch.testing.assert_close(values.damping, torch.tensor([0.5], dtype=torch.float64))
-    torch.testing.assert_close(values.friction, torch.tensor([0.2], dtype=torch.float64))
-    torch.testing.assert_close(values.armature, torch.tensor([0.1], dtype=torch.float64))
+    model = load(path, dtype=torch.float64)
+    torch.testing.assert_close(model.damping, torch.tensor([0.5], dtype=torch.float64))
+    torch.testing.assert_close(model.armature, torch.tensor([0.1], dtype=torch.float64))
 
 
 def test_parse_returns_ir_that_build_model_consumes(tmp_path: Path) -> None:
@@ -53,7 +51,6 @@ MJCF_DEFAULTS = """<mujoco><default><joint damping="0.3" armature="0.05"/></defa
 def test_mjcf_default_class_inheritance_and_ball_joint_per_dof(tmp_path: Path) -> None:
     path = tmp_path / "b.xml"
     path.write_text(MJCF_DEFAULTS)
-    values = load(path, dtype=torch.float64).values
-    torch.testing.assert_close(values.damping, torch.full((4,), 0.3, dtype=torch.float64))
-    torch.testing.assert_close(values.friction, torch.tensor([0.0, 0.4, 0.4, 0.4], dtype=torch.float64))
-    torch.testing.assert_close(values.armature, torch.full((4,), 0.05, dtype=torch.float64))
+    model = load(path, dtype=torch.float64)
+    torch.testing.assert_close(model.damping, torch.full((4,), 0.3, dtype=torch.float64))
+    torch.testing.assert_close(model.armature, torch.full((4,), 0.05, dtype=torch.float64))

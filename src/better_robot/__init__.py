@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from . import exceptions as exceptions, io as io, spatial as spatial, testing as testing
 from ._version import __version__ as __version__
-from .model import Body, Frame, Joint, Model, ModelStructure, ModelValues, Trajectory
+from .model import Model
 from .io import ModelBuilder, load
 from .dynamics.state import (
     center_of_mass,
@@ -44,12 +44,6 @@ from .lie.types import SE3
 __all__ = [
     # model
     "Model",
-    "ModelStructure",
-    "ModelValues",
-    "Frame",
-    "Joint",
-    "Body",
-    "Trajectory",
     # io
     "load",
     "ModelBuilder",

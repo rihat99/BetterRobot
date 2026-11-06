@@ -27,7 +27,7 @@ def main() -> None:
     args = parser.parse_args()
 
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-    q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)[None]
+    q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)[None]
     pose = forward_kinematics_state(model, q).frame_pose[0, model.frame_id(FRAME)]
 
     viewer = Viewer()

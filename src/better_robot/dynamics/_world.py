@@ -25,15 +25,47 @@ from dataclasses import dataclass
 
 import torch
 
-from ..model.model_structure import ModelStructure
-from ..model.model_values import ModelValues, inertia_about_com, packed_inertias_to_6x6, spatial_inertia_matrix
-from ..kinematics import jacobian_columns
+from ..kinematics import _jacobian_columns as jacobian_columns
 from ..lie.tangents import hat_so3
+from ..model.model import Model
+from ..model.topology import build_supports
+
+
+def inertia_about_com(sym: torch.Tensor) -> torch.Tensor:
+    """Expand packed ``(..., 6)`` symmetric entries ``[ixx, iyy, izz, ixy, ixz, iyz]`` to ``(..., 3, 3)``."""
+    ixx, iyy, izz, ixy, ixz, iyz = sym.unbind(dim=-1)
+    row0 = torch.stack((ixx, ixy, ixz), dim=-1)
+    row1 = torch.stack((ixy, iyy, iyz), dim=-1)
+    row2 = torch.stack((ixz, iyz, izz), dim=-1)
+    return torch.stack((row0, row1, row2), dim=-2)
+
+
+def spatial_inertia_matrix(mass: torch.Tensor, com: torch.Tensor, inertia_com: torch.Tensor) -> torch.Tensor:
+    """Linear-first ``(..., 6, 6)`` spatial inertia from ``mass (...)``, ``com (..., 3)`` and ``inertia_com (..., 3, 3)``.
+
+    ``com`` and ``inertia_com`` are expressed in the frame the result refers to; ``com`` is the centre of mass
+    relative to that frame's origin.
+    """
+    hat_com = hat_so3(com)
+    inertia_origin = inertia_com - mass[..., None, None] * (hat_com @ hat_com)
+    eye = torch.eye(3, dtype=mass.dtype, device=mass.device)
+    mass_eye = mass[..., None, None] * eye
+    mass_hat = mass[..., None, None] * hat_com
+    top = torch.cat((mass_eye, -mass_hat), dim=-1)
+    bottom = torch.cat((mass_hat, inertia_origin), dim=-1)
+    return torch.cat((top, bottom), dim=-2)
+
+
+def packed_inertias_to_6x6(body_inertias: torch.Tensor) -> torch.Tensor:
+    """Expand ``(..., 10)`` packed inertias to linear-first ``(..., 6, 6)``."""
+    return spatial_inertia_matrix(
+        body_inertias[..., 0], body_inertias[..., 1:4], inertia_about_com(body_inertias[..., 4:10])
+    )
 
 
 @dataclass(frozen=True)
 class DynamicsPlan:
-    """Constant support masks derived from the topology (memoised on the structure)."""
+    """Constant support masks derived from the topology (a plan on the model)."""
 
     jacobian: jacobian_columns.JointJacobianPlan
     support: (
@@ -50,21 +82,21 @@ class DynamicsPlan:
     )  #: ``(nv_full, nv_full)`` bool — the transpose of ``upper`` minus the blocks ``upper`` already covers.
 
 
-def get_dynamics_plan(structure: ModelStructure) -> DynamicsPlan:
-    """Memoised `DynamicsPlan` for ``structure``."""
-    plan = getattr(structure, "_dynamics_plan", None)
-    if plan is None:
-        jacobian = jacobian_columns.get_plan(structure)
-        device = jacobian.column_owner.device
-        support = torch.zeros((structure.njoints, structure.njoints), dtype=torch.bool, device=device)
-        for joint in range(structure.njoints):
-            support[joint, list(structure.supports[joint])] = True
-        support[0, 0] = False  # the universe transmits its children's wrenches only, never its own fext
-        column_support = jacobian.support_mask.squeeze(-2)
-        upper = column_support.index_select(0, jacobian.column_owner).mT.contiguous()
-        plan = DynamicsPlan(jacobian, support, column_support, upper, upper.mT & ~upper)
-        object.__setattr__(structure, "_dynamics_plan", plan)
-    return plan
+def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> DynamicsPlan:
+    """Derive the support masks from the topology, on top of the Jacobian plan."""
+    jacobian = jacobian_columns.jacobian_plan(model, dtype=dtype, device=device)
+    support = torch.zeros((model.njoints, model.njoints), dtype=torch.bool, device=device)
+    for joint, chain in enumerate(build_supports(model.parents)):
+        support[joint, list(chain)] = True
+    support[0, 0] = False  # the universe transmits its children's wrenches only, never its own fext
+    column_support = jacobian.support_mask.squeeze(-2)
+    upper = column_support.index_select(0, jacobian.column_owner).mT.contiguous()
+    return DynamicsPlan(jacobian, support, column_support, upper, upper.mT & ~upper)
+
+
+def dynamics_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> DynamicsPlan:
+    """The model's `DynamicsPlan` in ``dtype`` on ``device`` (built once per model, dtype and device)."""
+    return model._plan("dynamics", build_plan, dtype=dtype, device=device)
 
 
 def cross_motion(v: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
@@ -155,44 +187,22 @@ class WorldKinematics:
         return spatial_inertia_matrix(mass.expand(com_world.shape[:-1]), com_world, inertia_com)
 
 
-def world_geometry(structure: ModelStructure, transform: torch.Tensor, plan: DynamicsPlan) -> WorldGeometry:
+def world_geometry(model: Model, transform: torch.Tensor, plan: DynamicsPlan) -> WorldGeometry:
     """Columns, rotations and shifted origins from world joint transforms ``(N, njoints, 3, 4)``."""
     rotation = transform[..., :3]
-    origin = transform[:, min(1, structure.njoints - 1), :, 3]
+    origin = transform[:, min(1, model.njoints - 1), :, 3]
     translation = transform[..., 3] - origin.unsqueeze(-2)
     columns = jacobian_columns.world_column_table_from_matrices(
-        structure, rotation, translation, plan.jacobian, device=transform.device, dtype=transform.dtype
+        rotation, translation, plan.jacobian, device=transform.device, dtype=transform.dtype
     )
     return WorldGeometry(columns, rotation, translation, origin)
 
 
-def spatial_inertias(values: ModelValues) -> torch.Tensor:
-    """``values.spatial_inertias()`` cached on the values object, invalidated by in-place edits.
-
-    Same policy as ``kinematics._fk_lean.placement_matrices``: no cache when the inertias require
-    grad, are ``torch.func``-wrapped or inference tensors, or under ``torch.compile``.
-    """
-    packed = values.body_inertias
-    if torch.compiler.is_compiling():  # see `placement_matrices`: no cache inside a traced graph
-        return packed_inertias_to_6x6(packed)
-    if packed.requires_grad or torch._C._functorch.is_functorch_wrapped_tensor(packed):
-        return packed_inertias_to_6x6(packed)
-    if torch.is_inference_mode_enabled() or packed.is_inference():
-        return packed_inertias_to_6x6(packed)
-    cached = getattr(values, "_spatial_inertias_cache", None)
-    if cached is None or cached[0] != packed._version:
-        cached = (packed._version, packed_inertias_to_6x6(packed))
-        object.__setattr__(values, "_spatial_inertias_cache", cached)
-    return cached[1]
-
-
-def world_kinematics(
-    geometry: WorldGeometry, values: ModelValues, batch: tuple[int, ...], structure: ModelStructure
-) -> WorldKinematics:
-    """Attach the model's inertias (broadcast to the flattened batch ``N``) to a `WorldGeometry`."""
-    packed, inertia = values.body_inertias, spatial_inertias(values)
+def world_kinematics(geometry: WorldGeometry, model: Model, batch: tuple[int, ...]) -> WorldKinematics:
+    """Attach the model's inertias (expanded per call, broadcast to the flattened batch ``N``) to a `WorldGeometry`."""
+    packed, inertia = model.body_inertias, packed_inertias_to_6x6(model.body_inertias)
     if packed.ndim > 2:
-        count, nj = math.prod(batch), structure.njoints
+        count, nj = math.prod(batch), model.njoints
         packed = packed.broadcast_to(*batch, nj, 10).reshape(count, nj, 10)
         inertia = inertia.broadcast_to(*batch, nj, 6, 6).reshape(count, nj, 6, 6)
     return WorldKinematics(geometry.columns, geometry.rotation, geometry.translation, geometry.origin, inertia, packed)
@@ -294,11 +304,13 @@ __all__ = [
     "centroidal_map_full",
     "cross_force",
     "cross_motion",
-    "get_dynamics_plan",
+    "dynamics_plan",
+    "inertia_about_com",
     "inverse_dynamics_full",
     "mass_matrix_full",
     "momentum_columns",
-    "spatial_inertias",
+    "packed_inertias_to_6x6",
+    "spatial_inertia_matrix",
     "world_geometry",
     "world_kinematics",
 ]

@@ -26,7 +26,7 @@ def _configuration(model) -> torch.Tensor:
 
 def _hand_frame(model) -> int:
     for name in ("body_panda_hand", "body_panda_link8", "body_panda_link7"):
-        if name in model.frame_name_to_id:
+        if name in model.frame_names:
             return model.frame_id(name)
     raise AssertionError("Panda hand frame is missing")
 
@@ -44,13 +44,13 @@ def _assert_gradients(output: torch.Tensor, *inputs: torch.Tensor) -> None:
 
 
 def _placement_model(model):
-    delta = torch.zeros_like(model.values.joint_placements, requires_grad=True)
-    return model.with_values(joint_placements=model.values.joint_placements + delta), delta
+    delta = torch.zeros_like(model.joint_placements, requires_grad=True)
+    return model.with_values(joint_placements=model.joint_placements + delta), delta
 
 
 def _inertia_model(model):
-    delta = torch.zeros_like(model.values.body_inertias, requires_grad=True)
-    return model.with_values(body_inertias=model.values.body_inertias + delta), delta
+    delta = torch.zeros_like(model.body_inertias, requires_grad=True)
+    return model.with_values(body_inertias=model.body_inertias + delta), delta
 
 
 def test_workspace_fk_and_public_jacobians_reach_q_and_model_values(panda) -> None:
@@ -74,14 +74,14 @@ def test_workspace_fk_and_public_jacobians_reach_q_and_model_values(panda) -> No
 def test_frame_jacobian_reaches_q_and_model_values(panda) -> None:
     q = _configuration(panda).requires_grad_()
     model, joint_placements = _placement_model(panda)
-    frame_placements = torch.zeros_like(model.values.frame_placements, requires_grad=True)
-    model = model.with_values(frame_placements=model.values.frame_placements + frame_placements)
+    frame_placements = torch.zeros_like(model.frame_placements, requires_grad=True)
+    model = model.with_values(frame_placements=model.frame_placements + frame_placements)
     jacobian = br.frame_jacobian(model, br.forward_kinematics_state(model, q), frame=_hand_frame(model))
     _assert_gradients(jacobian, q, joint_placements, frame_placements)
 
 
 def _dynamics_inputs(model) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    velocity = torch.linspace(0.03, 0.15, model.nv, dtype=model.values.q_neutral.dtype)
+    velocity = torch.linspace(0.03, 0.15, model.nv, dtype=model.q_neutral.dtype)
     acceleration = torch.linspace(-0.07, 0.11, model.nv, dtype=velocity.dtype)
     torque = torch.linspace(0.1, 0.3, model.nv, dtype=velocity.dtype)
     return velocity, acceleration, torque

@@ -6,7 +6,7 @@ import dataclasses
 
 import torch
 
-from better_robot.model.reduced_coordinates import expand_configuration, expand_tangent
+from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
 from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics import forward_kinematics_state, joint_jacobian, joint_jacobian_time_variation
 
@@ -49,7 +49,7 @@ def _model_pair():
 def test_batched_fk_and_jacobians_equal_full_twin_with_chain_rule() -> None:
     constrained, full = _model_pair()
     q = torch.linspace(-0.3, 0.3, 6, dtype=torch.float64).reshape(2, 3, 1)
-    q_full = expand_configuration(constrained.structure, q)
+    q_full = full_configuration(constrained, q)
 
     constrained_state = forward_kinematics_state(constrained, q)
     full_state = forward_kinematics_state(full, q_full)
@@ -67,7 +67,7 @@ def test_batched_fk_and_jacobians_equal_full_twin_with_chain_rule() -> None:
     )
     expected = (
         torch.stack([joint_jacobian(full, full_state, joint=j, reference="world") for j in range(full.njoints)], dim=-3)
-        @ constrained.v_expansion
+        @ mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
     )
     torch.testing.assert_close(
         torch.stack(
@@ -86,9 +86,9 @@ def test_batched_fk_and_jacobians_equal_full_twin_with_chain_rule() -> None:
 def test_batched_jacobian_time_variation_equals_full_twin_with_chain_rule() -> None:
     constrained, full = _model_pair()
     q = torch.linspace(-0.3, 0.3, 6, dtype=torch.float64).reshape(2, 3, 1)
-    q_full = expand_configuration(constrained.structure, q)
+    q_full = full_configuration(constrained, q)
     v = torch.linspace(0.4, -0.6, 6, dtype=torch.float64).reshape(2, 3, 1)
-    v_full = expand_tangent(constrained.structure, v)
+    v_full = full_tangent(constrained, v)
 
     constrained_state = forward_kinematics_state(constrained, q)
     full_state = forward_kinematics_state(full, q_full)
@@ -100,7 +100,7 @@ def test_batched_jacobian_time_variation_equals_full_twin_with_chain_rule() -> N
             ],
             dim=-3,
         )
-        @ constrained.v_expansion
+        @ mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
     )
     torch.testing.assert_close(
         torch.stack(

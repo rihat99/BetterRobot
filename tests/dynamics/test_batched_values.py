@@ -43,7 +43,7 @@ def _model(dtype: torch.dtype = torch.float64):
 
 
 def _inertia_batch(model, batch_shape: tuple[int, ...]) -> torch.Tensor:
-    inertias = model.values.body_inertias.expand(
+    inertias = model.body_inertias.expand(
         *batch_shape,
         model.nbodies,
         10,
@@ -106,10 +106,10 @@ def test_batched_inertia_autograd_reaches_leaf() -> None:
         2,
         model.nbodies,
         10,
-        dtype=model.values.body_inertias.dtype,
+        dtype=model.body_inertias.dtype,
         requires_grad=True,
     )
-    inertias = model.values.body_inertias + delta
+    inertias = model.body_inertias + delta
     rebound = model.with_values(body_inertias=inertias)
     q = torch.tensor([0.35], dtype=inertias.dtype)
     v = torch.tensor([0.1], dtype=inertias.dtype)

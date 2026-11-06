@@ -1,10 +1,8 @@
-"""``better_robot.kinematics`` — forward kinematics and Jacobians on a ``KinematicState``.
-
-See ``docs/concepts/kinematics_and_jacobians.md``.
-"""
+"""``better_robot.kinematics``: forward kinematics, Jacobians and tree queries on a ``Model``."""
 
 from __future__ import annotations
 
+from .configuration import full_configuration
 from .state import (
     KinematicState,
     forward_kinematics_state,
@@ -14,19 +12,17 @@ from .state import (
     joint_jacobian_time_variation,
     point_jacobian,
 )
-
-# Public-internal (C-DEP-1): the joint-Jacobian column plan shared with ``dynamics``.
-# Importable as ``better_robot.kinematics.jacobian_columns``; not part of ``__all__``.
-from . import _jacobian_columns
-
-jacobian_columns = _jacobian_columns
+from .tree import subtree, support
 
 __all__ = [
     "KinematicState",
     "forward_kinematics_state",
     "frame_jacobian",
     "frame_jacobian_time_variation",
+    "full_configuration",
     "joint_jacobian",
     "joint_jacobian_time_variation",
     "point_jacobian",
+    "subtree",
+    "support",
 ]

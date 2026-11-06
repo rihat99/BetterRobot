@@ -20,7 +20,7 @@ from better_robot.kinematics import forward_kinematics_state, frame_jacobian
 model = br.load(panda_description.URDF_PATH, dtype=torch.float32)
 hand = model.frame_id("body_panda_hand")
 
-q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
+q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
 q_batch = q.expand(8, 16, model.nq)  # 8 robots x 16 time steps
 state = forward_kinematics_state(model, q_batch)
 print(state.frame_pose.shape)                            # (8, 16, nframes, 7)
@@ -50,7 +50,7 @@ model64 = model.to(dtype=torch.float64)
 print(forward_kinematics_state(model64, q64).frame_pose.dtype)
 ```
 ```output
-DtypeMismatchError q.dtype=torch.float64 != model.dtype=torch.float32. Cast q or call model.to(dtype=q.dtype) before evaluation.
+DtypeMismatchError q.dtype=torch.float64 != model.dtype=torch.float32; cast q or call model.to(dtype=q.dtype)
 torch.float64
 ```
 

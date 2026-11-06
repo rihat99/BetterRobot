@@ -35,7 +35,7 @@ model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 
 # 64 reachable hand poses: forward kinematics of random configurations.
 generator = torch.Generator().manual_seed(0)
-q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(64, -1)
+q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(64, -1)
 targets = br.forward_kinematics_state(model, terms.random_start(model, q0, generator=generator)).frame_pose_of("body_panda_hand")
 
 # One batched solve, then check every answer with forward kinematics.

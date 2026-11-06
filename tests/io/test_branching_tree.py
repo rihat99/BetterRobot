@@ -13,11 +13,11 @@ from better_robot.io.ir import IRModel
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body
 
 
-def test_branching_model_structure():
+def test_branching_model():
     branching_model = load(make_branching_tree_body)
     assert branching_model is not None
-    assert branching_model.joint_models[1].kind == "free_flyer"
-    spherical_count = sum(1 for jm in branching_model.joint_models if jm.kind == "spherical")
+    assert branching_model.joints[1].kind == "free_flyer"
+    spherical_count = sum(1 for jm in branching_model.joints if jm.kind == "spherical")
     assert spherical_count == 23
     # universe + root_joint(free_flyer, from IR "root") + 23 spherical = 25
     assert branching_model.njoints == 25
@@ -25,14 +25,10 @@ def test_branching_model_structure():
     assert branching_model.nq == 99
     # free_flyer(6) + 23*spherical(3) = 6 + 69 = 75
     assert branching_model.nv == 75
-    assert "j0" in branching_model.body_name_to_id
+    assert "j0" in branching_model.body_names
     for bname in JOINT_NAMES:
-        assert bname in branching_model.body_name_to_id, f"Missing body: {bname}"
-    order = branching_model.topo_order
-    for pos, j in enumerate(order):
-        p = branching_model.parents[j]
-        if p >= 0:
-            assert list(order).index(p) < pos
+        assert bname in branching_model.body_names, f"Missing body: {bname}"
+    assert all(parent < joint for joint, parent in enumerate(branching_model.parents) if joint)
     assert branching_model.q_neutral.shape == (branching_model.nq,)
 
 

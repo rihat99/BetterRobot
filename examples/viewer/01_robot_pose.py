@@ -20,7 +20,7 @@ def main() -> None:
     args = parser.parse_args()
 
     model = br.load(panda_description.URDF_PATH)
-    q = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit)
+    q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
     viewer = Viewer()
     viewer.add(GroundLayer())
     for layer in robot_layers(model, q, skeleton=True, frames=["body_panda_hand"]):

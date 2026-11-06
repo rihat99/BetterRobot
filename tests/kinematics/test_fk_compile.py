@@ -10,7 +10,7 @@ from better_robot.dynamics.state import inverse_dynamics, mass_matrix
 from better_robot.exceptions import QuaternionNormError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics_state, full_configuration
 from better_robot.kinematics._fk_lean import lean_core, placement_matrices
 from tests.support.robots import panda_urdf
 
@@ -30,11 +30,11 @@ def free_flyer_model():
 def test_free_flyer_fk_kernel_compiles_fullgraph(free_flyer_model):
     """The FK kernel under ``forward_kinematics_state`` traces as one graph (the public wrapper validates and caches)."""
     q = free_flyer_model.q_neutral.unsqueeze(0).expand(2, -1).clone()
-    q_full = free_flyer_model.expand_configuration(q)
-    placements, _ = placement_matrices(free_flyer_model.values)
-    expected_world, expected_local = lean_core(free_flyer_model.structure, q_full, placements)
+    q_full = full_configuration(free_flyer_model, q)
+    placements, _ = placement_matrices(free_flyer_model)
+    expected_world, expected_local = lean_core(free_flyer_model, q_full, placements)
     compiled_core = torch.compile(lean_core, fullgraph=True)
-    actual_world, actual_local = compiled_core(free_flyer_model.structure, q_full, placements)
+    actual_world, actual_local = compiled_core(free_flyer_model, q_full, placements)
 
     torch.testing.assert_close(actual_world, expected_world)
     torch.testing.assert_close(actual_local, expected_local)

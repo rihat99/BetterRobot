@@ -7,6 +7,9 @@ import dataclasses
 import pytest
 import torch
 
+from better_robot.exceptions import ModelError
+from better_robot.io import ModelBuilder, build_model
+from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
 from better_robot.model.joint_models import (
     JointHelical,
     JointPrismaticUnaligned,
@@ -19,15 +22,9 @@ from better_robot.model.joint_models import (
     JointRZ,
     JointSpherical,
 )
-from better_robot.model.reduced_coordinates import (
-    expand_configuration,
-    expand_tangent,
-)
-from better_robot.exceptions import ModelError
-from better_robot.io import ModelBuilder, build_model
-
 
 _IDENTITY = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+_CPU = torch.device("cpu")
 
 
 def _mimic_ir(*, multiplier: float = -2.0, offset: float = 0.25):
@@ -66,25 +63,22 @@ def test_reduced_and_full_layouts_and_affine_expansion_are_explicit() -> None:
     source = model.joint_id("source_joint")
     target = model.joint_id("target_joint")
 
-    assert model.has_mimic is True
     assert model.nq == model.nv == 1
     assert model.nq_full == model.nv_full == 2
     assert model.nqs[source] == model.nvs[source] == 1
     assert model.nqs[target] == model.nvs[target] == 0
     assert model.nqs_full[target] == model.nvs_full[target] == 1
-    torch.testing.assert_close(
-        model.q_expansion,
-        torch.tensor([[1.0], [-2.0]], dtype=torch.float64),
-    )
-    torch.testing.assert_close(
-        model.q_offset,
-        torch.tensor([0.0, 0.25], dtype=torch.float64),
-    )
-    torch.testing.assert_close(model.v_expansion, model.q_expansion)
+    assert model.mimic_source_ids[target] == source
+    assert model.mimic_multipliers[target] == -2.0
+    assert model.mimic_offsets[target] == 0.25
+    plan = mimic_plan(model, dtype=torch.float64, device=_CPU)
+    torch.testing.assert_close(plan.q_expansion, torch.tensor([[1.0], [-2.0]], dtype=torch.float64))
+    torch.testing.assert_close(plan.q_offset, torch.tensor([0.0, 0.25], dtype=torch.float64))
+    torch.testing.assert_close(plan.v_expansion, plan.q_expansion)
 
     q = torch.tensor([[[-0.1], [0.2]]], dtype=torch.float64, requires_grad=True)
-    q_full = expand_configuration(model.structure, q)
-    v_full = expand_tangent(model.structure, torch.ones_like(q))
+    q_full = full_configuration(model, q)
+    v_full = full_tangent(model, torch.ones_like(q))
     assert q_full.shape == (1, 2, 2)
     torch.testing.assert_close(q_full[..., 1], -2.0 * q[..., 0] + 0.25)
     torch.testing.assert_close(v_full[..., 1], -2.0 * torch.ones_like(q[..., 0]))
@@ -145,15 +139,14 @@ def test_every_supported_concrete_scalar_kind_builds_a_reduced_map(factory) -> N
     assert model.nq == model.nv == 1
     assert model.nq_full == model.nv_full == 2
     assert model.nqs[target_id] == model.nvs[target_id] == 0
-    expanded = expand_configuration(model.structure, torch.tensor([0.4], dtype=torch.float64))
+    expanded = full_configuration(model, torch.tensor([0.4], dtype=torch.float64))
     torch.testing.assert_close(
         expanded[model.idx_qs_full[target_id]],
         torch.tensor(-0.2, dtype=torch.float64),
     )
 
 
-def test_mimic_chains_compose_multiplier_and_offset() -> None:
-    ir = _mimic_ir()
+def test_mimic_chains_resolve_to_the_public_root_with_composed_multiplier_and_offset() -> None:
     builder = ModelBuilder("chain")
     root = builder.add_body("root")
     a = builder.add_body("a")
@@ -181,12 +174,15 @@ def test_mimic_chains_compose_multiplier_and_offset() -> None:
         mimic_offset=-0.1,
     )
     model = build_model(builder.finalize(), dtype=torch.float64)
-    del ir
 
-    c_joint = model.joint_id("c_joint")
+    a_joint, c_joint = model.joint_id("a_joint"), model.joint_id("c_joint")
+    assert model.mimic_source_ids[c_joint] == a_joint
+    assert model.mimic_multipliers[c_joint] == pytest.approx(-1.0)
+    assert model.mimic_offsets[c_joint] == pytest.approx(0.025)
+    plan = mimic_plan(model, dtype=torch.float64, device=_CPU)
     c_row = model.idx_qs_full[c_joint]
-    assert model.q_expansion[c_row, 0].item() == pytest.approx(-1.0)
-    assert model.q_offset[c_row].item() == pytest.approx(0.025)
+    assert plan.q_expansion[c_row, 0].item() == pytest.approx(-1.0)
+    assert plan.q_offset[c_row].item() == pytest.approx(0.025)
 
 
 def test_cycles_and_unsupported_manifold_mimics_fail_at_build() -> None:
@@ -212,7 +208,7 @@ def test_cycles_and_unsupported_manifold_mimics_fail_at_build() -> None:
 
 def test_zero_multiplier_is_constant_only_when_offset_satisfies_target_limits() -> None:
     model = build_model(_mimic_ir(multiplier=0.0, offset=0.3))
-    q_full = expand_configuration(model.structure, torch.tensor([0.8]))
+    q_full = full_configuration(model, torch.tensor([0.8]))
     torch.testing.assert_close(q_full, torch.tensor([0.8, 0.3]))
 
     with pytest.raises(ModelError, match="outside its position limits"):
@@ -224,22 +220,22 @@ def test_identity_models_take_the_zero_copy_fast_path() -> None:
     ir.joints = [dataclasses.replace(joint, mimic_source=None) for joint in ir.joints]
     model = build_model(ir)
     q = torch.zeros(model.nq)
-    assert expand_configuration(model.structure, q) is q
-    assert expand_tangent(model.structure, q) is q
+    assert full_configuration(model, q) is q
+    assert full_tangent(model, q) is q
 
 
-def test_public_manifold_permutation_and_device_views_skip_mimic_targets() -> None:
+def test_public_manifold_permutation_and_plans_skip_mimic_targets() -> None:
     model = build_model(_mimic_ir(), dtype=torch.float64)
     q = torch.tensor([0.1], dtype=torch.float64)
     v = torch.tensor([-0.2], dtype=torch.float64)
     torch.testing.assert_close(model.difference(q, model.integrate(q, v)), v)
-    assert model.random_configuration().shape == (model.nq,)
+    assert model.random_configuration(generator=torch.Generator().manual_seed(0)).shape == (model.nq,)
 
     perm_q, perm_v = model.q_permutation(("target_joint", "source_joint"))
     torch.testing.assert_close(perm_q, torch.tensor([0]))
     torch.testing.assert_close(perm_v, torch.tensor([0]))
 
     moved = model.to(dtype=torch.float32)
-    assert moved.q_expansion is moved.structure.q_expansion
-    assert moved.v_expansion is moved.structure.v_expansion
-    assert moved.q_expansion.dtype == torch.float32
+    plan = mimic_plan(moved, dtype=torch.float32, device=_CPU)
+    assert plan.q_expansion.dtype == plan.v_expansion.dtype == torch.float32
+    assert mimic_plan(moved, dtype=torch.float32, device=_CPU) is plan

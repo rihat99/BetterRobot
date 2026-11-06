@@ -12,8 +12,9 @@ from collections.abc import Callable
 
 import torch
 
-from ..model.model import Model
 from ..exceptions import ArgumentError
+from ..model._manifold import manifold_plan
+from ..model.model import Model
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inv_se3
@@ -43,8 +44,8 @@ class RobotManifold:
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Step range of the vector-space joints; quaternion coordinates are unbounded."""
-        structure = self.model.structure
-        q_index, v_index = structure.manifold_euclidean_q_indices, structure.manifold_euclidean_v_indices
+        plan = manifold_plan(self.model, dtype=x.dtype, device=x.device)
+        q_index, v_index = plan.euclidean_q, plan.euclidean_v
         low = x.new_full((*x.shape[:-1], self.model.nv), -float("inf"))
         high = x.new_full((*x.shape[:-1], self.model.nv), float("inf"))
         low[..., v_index] = (lower - x)[..., q_index]
@@ -95,7 +96,7 @@ def _identity_jac(model: Model, q: str, sign_fn: Callable[[torch.Tensor], torch.
 
 def joint_limits(model: Model, *, q: str = "q") -> TermFn:
     """Violation of the position limits, zero inside them. Residual ``(B, nq)``."""
-    lower, upper = model.lower_pos_limit, model.upper_pos_limit
+    lower, upper = model.lower_position_limit, model.upper_position_limit
 
     def violation(value: torch.Tensor) -> torch.Tensor:
         return (value - upper).clamp_min(0.0) - (lower - value).clamp_min(0.0)
@@ -126,8 +127,8 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
     """
     if order < 1:
         raise ArgumentError(f"order must be at least 1, got {order}")
-    position_q = model.structure.manifold_free_flyer_q_indices[:, :3].reshape(-1)
-    position_v = model.structure.manifold_free_flyer_v_indices[:, :3].reshape(-1)
+    plan = manifold_plan(model, dtype=model.dtype, device=model.device)
+    position_q, position_v = plan.free_flyer_q[:, :3].reshape(-1), plan.free_flyer_v[:, :3].reshape(-1)
 
     def derivative(value: torch.Tensor) -> torch.Tensor:
         out = model.difference(value[:, :-1], value[:, 1:])

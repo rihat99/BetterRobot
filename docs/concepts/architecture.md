@@ -19,7 +19,7 @@ and fails on any other import.
 | 7 | `viewer` | interactive 3-D display; nothing imports it |
 | 6 | `terms` | robot cost terms (poses, limits, collision) and `solve_ik` |
 | 5 | `io`, `kinematics`, `dynamics`, `collision` | model building; FK and Jacobians; RNEA, CRBA, centroidal; distances |
-| 4 | `model` | `Model`, `ModelStructure`, `ModelValues`, joint models, bodies, frames |
+| 4 | `model` | `Model` (one flat frozen record), joint models, the input checks |
 | 3 | `spatial`, `optim` | 6-D motion, force and inertia algebra; robot-agnostic least squares |
 | 2 | `lie` | SO(3) and SE(3) formulas on plain tensors |
 
@@ -47,7 +47,7 @@ model = br.io.build_model(builder.finalize())
 
 q = torch.rand(4, model.nq)                        # a batch of 4 configurations
 state = br.forward_kinematics_state(model, q)
-print(model.nq, model.structure.njoints)
+print(model.nq, model.njoints)
 print(tuple(state.joint_transform.shape))
 print(tuple(state.frame_pose_of("body_lower").shape))
 ```
@@ -60,10 +60,10 @@ print(tuple(state.frame_pose_of("body_lower").shape))
 Two coordinates, but four joints: `universe` and a fixed `root_joint` that attaches `base` come before
 `shoulder` and `elbow`. Six steps happened, from the public boundary down to plain tensor algebra:
 
-1. `forward_kinematics_state` validates `q`: trailing size `nq`, dtype and device against `model.values`.
+1. `forward_kinematics_state` validates `q`: trailing size `nq`, dtype and device against the model's.
    This is the only check on the whole path.
 2. The leading batch axes of `q` and of the model's values broadcast together (here `(4,)`).
-3. `expand_configuration` fills mimic joints, giving the full configuration `q_full`.
+3. `full_configuration` fills mimic joints, giving the full configuration `q_full`.
 4. `placement_matrices` turns the joint placements $M_j$ and frame placements $F_f$ into 4×4 matrices.
 5. The raw pass `lean_core` (in `kinematics._fk_lean`, no checks) walks the tree in topological order:
 
@@ -105,8 +105,7 @@ ShapeError
 
 ## Public API is what `__all__` lists
 
-The root namespace is deliberately small. `better_robot.__all__` holds the core of most scripts: `Model`,
-`ModelStructure`, `ModelValues`, `Joint`, `Body`, `Frame`, `load`, `ModelBuilder`,
+The root namespace is deliberately small. `better_robot.__all__` holds the core of most scripts: `Model`, `load`, `ModelBuilder`,
 `forward_kinematics_state`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, their time variations,
 `center_of_mass`, `inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`,
 `centroidal_momentum` and `SE3`. The subpackages `br.io`, `br.spatial` and `br.exceptions` are attributes
@@ -121,7 +120,7 @@ documents each package's `__all__`.
 import better_robot.kinematics.state as kinematics_state
 
 print(br.forward_kinematics_state is kinematics_state.forward_kinematics_state)
-print("ModelValues" in br.__all__)
+print("Model" in br.__all__)
 ```
 ```output
 True

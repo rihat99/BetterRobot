@@ -121,8 +121,8 @@ from better_robot.viewer import RobotView, robot_layers
 
 model = br.load(panda_description.URDF_PATH)
 phase = torch.linspace(0.0, 2 * torch.pi, 30)[:, None]
-mid = (model.lower_pos_limit + model.upper_pos_limit) / 2
-half = (model.upper_pos_limit - model.lower_pos_limit) / 2
+mid = (model.lower_position_limit + model.upper_position_limit) / 2
+half = (model.upper_position_limit - model.lower_position_limit) / 2
 q = mid + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)   # q (30, nq)
 
 for layer in robot_layers(model, q, skeleton=True, frames=["body_panda_hand"]):

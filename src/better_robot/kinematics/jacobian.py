@@ -10,14 +10,13 @@ from typing import Literal
 
 import torch
 
-from ..model.execution_batch import broadcast_to_execution_batch
-from ..model.model_structure import ModelStructure
-from ..model.model_values import ModelValues
-from ..model.reduced_coordinates import reduce_jacobian
 from ..exceptions import ArgumentError
 from ..lie import se3
 from ..lie.tangents import hat_so3
-from ._jacobian_columns import get_plan, world_column_table
+from ..model._checks import expand_batch
+from ..model.model import Model
+from ._jacobian_columns import jacobian_plan, world_column_table
+from .configuration import reduced_columns
 
 _ReferenceFrame = Literal["world", "local", "local_world_aligned"]
 
@@ -38,7 +37,7 @@ class JointJacobiansTimeVariationResult:
 
 
 def joint_jacobians_time_variation_raw(
-    structure: ModelStructure,
+    model: Model,
     q: torch.Tensor,
     v: torch.Tensor,
     joint_pose_world: torch.Tensor,
@@ -70,14 +69,14 @@ def joint_jacobians_time_variation_raw(
     ``(B..., njoints, 6, nv)``.
     """
     batch = tuple(joint_pose_world.shape[:-2])
-    q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")
-    v = broadcast_to_execution_batch(v, batch, (structure.nv,), name="v")
+    q = expand_batch("q", q, batch, (model.nq,))
+    v = expand_batch("v", v, batch, (model.nv,))
     device, dtype = q.device, q.dtype
 
-    plan = get_plan(structure)
-    columns = world_column_table(structure, joint_pose_world, plan, device=device, dtype=dtype)
+    plan = jacobian_plan(model, dtype=dtype, device=device)
+    columns = world_column_table(joint_pose_world, plan, device=device, dtype=dtype)
     if joint_jacobians is None:
-        joint_jacobians = reduce_jacobian(structure, columns.unsqueeze(-3) * plan.support_mask)
+        joint_jacobians = reduced_columns(model, columns.unsqueeze(-3) * plan.support_mask)
 
     # WORLD spatial velocity of every joint (reduced J × reduced v).
     ov = torch.einsum("...jck,...k->...jc", joint_jacobians, v)  # (B..., njoints, 6)
@@ -94,7 +93,7 @@ def joint_jacobians_time_variation_raw(
     dot_full = dot_columns.unsqueeze(-3) * plan.support_mask
     return JointJacobiansTimeVariationResult(
         joint_jacobians=joint_jacobians,
-        joint_jacobians_dot=reduce_jacobian(structure, dot_full),
+        joint_jacobians_dot=reduced_columns(model, dot_full),
     )
 
 
@@ -159,8 +158,7 @@ def _time_variation_in_reference(
 
 
 def frame_jacobian_time_variation_raw(
-    structure: ModelStructure,
-    values: ModelValues,
+    model: Model,
     q: torch.Tensor,
     v: torch.Tensor,
     joint_pose_world: torch.Tensor,
@@ -181,22 +179,17 @@ def frame_jacobian_time_variation_raw(
     fresh `joint_jacobians_time_variation_raw` build.
     """
     batch = tuple(joint_pose_world.shape[:-2])
-    q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")
-    v = broadcast_to_execution_batch(v, batch, (structure.nv,), name="v")
+    q = expand_batch("q", q, batch, (model.nq,))
+    v = expand_batch("v", v, batch, (model.nv,))
     if joint_jacobians is None or joint_jacobians_dot is None:
-        result = joint_jacobians_time_variation_raw(structure, q, v, joint_pose_world, joint_jacobians=joint_jacobians)
+        result = joint_jacobians_time_variation_raw(model, q, v, joint_pose_world, joint_jacobians=joint_jacobians)
         joint_jacobians = result.joint_jacobians
         joint_jacobians_dot = result.joint_jacobians_dot
 
-    parent_index = structure.frame_parent_joints[frame_id : frame_id + 1]
+    parent_index = torch.tensor([model.frame_parent_joint_ids[frame_id]], device=joint_pose_world.device)
     j_parent = torch.index_select(joint_jacobians, -3, parent_index).squeeze(-3)
     dot_parent = torch.index_select(joint_jacobians_dot, -3, parent_index).squeeze(-3)
-    T_local = broadcast_to_execution_batch(
-        values.frame_placements[..., frame_id, :],
-        batch,
-        (7,),
-        name="frame_placements row",
-    )
+    T_local = expand_batch("frame_placements", model.frame_placements[..., frame_id, :], batch, (7,))
     T_parent = torch.index_select(joint_pose_world, -2, parent_index).squeeze(-2)
     T_frame = se3.compose(T_parent, T_local)
     return _time_variation_in_reference(j_parent, dot_parent, T_frame, v, reference)

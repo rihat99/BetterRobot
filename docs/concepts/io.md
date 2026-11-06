@@ -91,7 +91,7 @@ builder.add_revolute_z("shoulder", parent="base", child="link", lower=-1.5, uppe
 builder.add_frame("tip", parent_body="link",
                   placement=torch.tensor([0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 1.0]))
 model = build_model(builder.finalize())
-print(model.nq, model.nv, model.upper_pos_limit)
+print(model.nq, model.nv, model.upper_position_limit)
 ```
 ```output
 1 1 tensor([1.5000])

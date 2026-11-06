@@ -62,13 +62,3 @@ def build_supports(parents: tuple[int, ...]) -> tuple[tuple[int, ...], ...]:
         else:
             result[j] = result[p] + (j,)
     return tuple(result)
-
-
-def get_subtree(parents: tuple[int, ...], joint_id: int) -> tuple[int, ...]:
-    """Return the subtree rooted at ``joint_id`` (including itself)."""
-    return build_subtrees(parents)[joint_id]
-
-
-def get_support(parents: tuple[int, ...], joint_id: int) -> tuple[int, ...]:
-    """Return the joint chain from joint 0 to ``joint_id`` (inclusive)."""
-    return build_supports(parents)[joint_id]

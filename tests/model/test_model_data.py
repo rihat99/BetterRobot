@@ -4,9 +4,10 @@ import pytest
 import torch
 
 from better_robot.model.model import Model
-from better_robot.exceptions import ArgumentError
+from better_robot.exceptions import ArgumentError, ModelError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.kinematics import subtree, support
 
 
 def _make_simple_model() -> Model:
@@ -52,7 +53,7 @@ def test_model_integrate_difference():
 
 def test_model_random_configuration():
     model = _make_simple_model()
-    q = model.random_configuration()
+    q = model.random_configuration(generator=torch.Generator().manual_seed(0))
     assert q.shape == (2,)
     # Should be within limits
     assert (q >= -3.14).all()
@@ -69,13 +70,13 @@ def test_model_to_device():
 
 def test_model_subtree():
     model = _make_simple_model()
-    st = model.get_subtree(2)
+    st = subtree(model, joint=2)
     assert set(st) == {2, 3}
 
 
 def test_model_support():
     model = _make_simple_model()
-    sp = model.get_support(3)
+    sp = support(model, joint=3)
     assert sp == (0, 1, 2, 3)
 
 
@@ -93,14 +94,14 @@ def test_random_configuration_follows_model_dtype():
     builder = ModelBuilder("root_only")
     builder.add_free_flyer_root("root_joint", child=builder.add_body("root"))
     model = build_model(builder.finalize()).to(dtype=torch.float64)
-    assert model.random_configuration().dtype == torch.float64
+    assert model.random_configuration(generator=torch.Generator().manual_seed(0)).dtype == torch.float64
 
 
 def test_random_configuration_is_finite_for_unlimited_revolute():
     model = _make_floating_model(torch.float64)
-    assert not torch.isfinite(model.lower_pos_limit[-1])
+    assert not torch.isfinite(model.lower_position_limit[-1])
     generator = torch.Generator().manual_seed(0)
-    samples = torch.stack([model.random_configuration(generator) for _ in range(32)])
+    samples = torch.stack([model.random_configuration(generator=generator) for _ in range(32)])
     assert torch.isfinite(samples).all()
     assert (samples[:, -1].abs() <= torch.pi).all()
 
@@ -111,5 +112,5 @@ def test_random_configuration_rejects_unlimited_prismatic():
     link = builder.add_body("link")
     builder.add_prismatic_z("slide", parent=base, child=link)
     model = build_model(builder.finalize())
-    with pytest.raises(ValueError, match="slide"):
-        model.random_configuration()
+    with pytest.raises(ModelError, match="slide"):
+        model.random_configuration(generator=torch.Generator().manual_seed(0))

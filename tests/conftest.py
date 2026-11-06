@@ -43,7 +43,7 @@ def assert_value_batched_matches_loop(
     """Compare one value-batched pass call with scalar calls at every index.
 
     T3.2 supplies closures that bind the batched values and index a scalar
-    ``ModelValues`` respectively. Outputs may be one tensor or a tuple of
+    ``Model`` respectively. Outputs may be one tensor or a tuple of
     tensors (for example FK's world/local pair). ``execution_batch_shape``
     is the already-resolved q/value broadcast shape, keeping this test helper
     independent of the runtime broadcast implementation it is meant to test.

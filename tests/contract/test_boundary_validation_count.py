@@ -1,93 +1,55 @@
-"""Public passes trust attached model values and validate call inputs once."""
+"""Public passes validate each tensor input once, at their boundary, and trust the attached model (record 0021)."""
 
 from __future__ import annotations
-
-import importlib
-from collections.abc import Callable
 
 import pytest
 import torch
 
-from better_robot.model.model_values import ModelValues
-from better_robot.dynamics import (
-    centroidal_map,
-    centroidal_momentum,
-    forward_dynamics,
-    inverse_dynamics,
-    mass_matrix,
-)
-from better_robot.dynamics.state import center_of_mass
-from better_robot.io.build_model import build_model
-from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import forward_kinematics_state
+from better_robot import dynamics, kinematics
+from better_robot.model import _checks
+
+from ._public_ops import CASE_NAMES, build_case
+
+_CPU = torch.device("cpu")
+
+#: ``check_tensor`` calls per public call; a name absent here makes none (Jacobians read the state, lie/spatial
+#: take plain tensors). ``forward_dynamics`` checks ``v``, the zero acceleration of its bias call and ``tau``.
+EXPECTED_CHECKS = {
+    "forward_kinematics_state": 1,
+    "frame_jacobian_time_variation": 1,
+    "joint_jacobian_time_variation": 1,
+    "inverse_dynamics": 2,
+    "forward_dynamics": 3,
+    "centroidal_momentum": 1,
+}
 
 
-def _model():
-    builder = ModelBuilder("validation_count")
-    builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
-    builder.add_body("link", mass=1.0, inertia=torch.eye(3) * 0.2)
-    builder.add_revolute_z(
-        "joint",
-        parent="base",
-        child="link",
-        origin=torch.tensor([0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
-        lower=-1.0,
-        upper=1.0,
-    )
-    builder.add_frame(
-        "tip",
-        parent_body="link",
-        placement=torch.tensor([0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
-    )
-    return build_model(builder.finalize(), dtype=torch.float64)
+@pytest.fixture
+def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Names passed to ``check_tensor`` by the kinematics and dynamics boundaries during the test."""
+    names: list[str] = []
+    original = _checks.check_tensor
+
+    def counted(name: str, value: object, **kwargs: object) -> torch.Tensor:
+        names.append(name)
+        return original(name, value, **kwargs)
+
+    for module in (kinematics.state, dynamics.state):
+        monkeypatch.setattr(module, "check_tensor", counted)
+    return names
 
 
-def test_public_passes_trust_attached_values_and_validate_inputs_once(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    model = _model()
-    q = torch.tensor([0.2], dtype=torch.float64)
-    v = torch.tensor([0.1], dtype=torch.float64)
-    a = torch.tensor([-0.05], dtype=torch.float64)
-    tau = torch.tensor([0.3], dtype=torch.float64)
-    state = forward_kinematics_state(model, q)
+@pytest.mark.parametrize("name", CASE_NAMES)
+def test_each_public_call_validates_its_inputs_once(name: str, checked_names: list[str]) -> None:
+    fn, args, kwargs = build_case(name, torch.float64, _CPU)
+    checked_names.clear()  # building the case ran forward kinematics once
+    fn(*args, **kwargs)
+    assert len(checked_names) == EXPECTED_CHECKS.get(name, 0), checked_names
 
-    value_validation_count = 0
-    input_validation_count = 0
-    original_validate = ModelValues.validate
-    state_module = importlib.import_module("better_robot.kinematics.state")
-    original_validate_q = state_module._validate_q
 
-    def counted_validate(values: ModelValues, structure) -> None:
-        nonlocal value_validation_count
-        value_validation_count += 1
-        original_validate(values, structure)
-
-    def counted_validate_q(structure, values, q) -> None:
-        nonlocal input_validation_count
-        input_validation_count += 1
-        original_validate_q(structure, values, q)
-
-    monkeypatch.setattr(ModelValues, "validate", counted_validate)
-    monkeypatch.setattr(state_module, "_validate_q", counted_validate_q)
-
-    # q is validated once, at the forward-kinematics boundary; dynamics on a state trusts it.
-    public_calls: dict[str, tuple[Callable[[], object], int]] = {
-        "forward_kinematics_state": (lambda: forward_kinematics_state(model, q), 1),
-        "inverse_dynamics": (lambda: inverse_dynamics(model, state, v=v, a=a), 0),
-        "forward_dynamics": (lambda: forward_dynamics(model, state, v=v, tau=tau), 0),
-        "mass_matrix": (lambda: mass_matrix(model, state), 0),
-        "center_of_mass": (lambda: center_of_mass(model, state), 0),
-        "centroidal_map": (lambda: centroidal_map(model, state), 0),
-        "centroidal_momentum": (lambda: centroidal_momentum(model, state, v=v), 0),
-        "inverse_dynamics(forward_kinematics_state)": (
-            lambda: inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=a),
-            1,
-        ),
-    }
-
-    for name, (public_call, expected_input_checks) in public_calls.items():
-        inputs_before = input_validation_count
-        public_call()
-        assert value_validation_count == 0, name
-        assert input_validation_count == inputs_before + expected_input_checks, name
+def test_dynamics_on_a_fresh_state_validates_q_once_and_its_own_inputs(checked_names: list[str]) -> None:
+    _, (model, _), kwargs = build_case("inverse_dynamics", torch.float64, _CPU)
+    q = torch.tensor([0.3, -0.4], dtype=torch.float64)
+    checked_names.clear()
+    dynamics.inverse_dynamics(model, kinematics.forward_kinematics_state(model, q), **kwargs)
+    assert checked_names == ["q", "v", "a"]
