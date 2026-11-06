@@ -23,7 +23,8 @@ import torch
 
 from ..exceptions import ModelError, OptionalDependencyError
 from ..lie import se3, so3
-from .ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
+from ..model.geometry import Box, Capsule, Cylinder, Mesh, Shape, Sphere
+from .ir import IRBody, IRFrame, IRJoint, IRModel, IRShape
 
 
 def _pose(position: np.ndarray, quaternion_wxyz: np.ndarray) -> torch.Tensor:
@@ -71,34 +72,41 @@ def _joint(mujoco: ModuleType, compiled: Any, body: int, path: Path) -> IRJoint 
     )
 
 
-def _geoms(mujoco: ModuleType, compiled: Any, spec: Any, body: int, offset: np.ndarray, path: Path) -> list[IRGeom]:
-    """The geoms of ``body`` as IR primitives placed in the body's joint frame."""
+def _shapes(mujoco: ModuleType, compiled: Any, spec: Any, body: int, offset: np.ndarray, path: Path) -> list[IRShape]:
+    """The geoms of ``body`` as shapes placed in the body's joint frame; one that collides with nothing is display only."""
     meshes = {mesh.name: mesh for mesh in spec.meshes}
-    geoms: list[IRGeom] = []
+    name = compiled.body(body).name
+    shapes: list[IRShape] = []
     for geom in range(compiled.ngeom):
         if int(compiled.geom_bodyid[geom]) != body:
             continue
         geom_type = compiled.geom_type[geom]
         size = compiled.geom_size[geom]
-        placement = _pose(compiled.geom_pos[geom] - offset, compiled.geom_quat[geom])
-        rgba = tuple(float(value) for value in compiled.geom_rgba[geom])
+        tx, ty, tz, qx, qy, qz, qw = _pose(compiled.geom_pos[geom] - offset, compiled.geom_quat[geom]).tolist()
+        placement = (tx, ty, tz, qx, qy, qz, qw)
+        red, green, blue, alpha = (float(value) for value in compiled.geom_rgba[geom])
+        color = (red, green, blue, alpha)
+        shape: Shape
         if geom_type == mujoco.mjtGeom.mjGEOM_SPHERE:
-            kind, params = "sphere", {"radius": float(size[0])}
+            shape = Sphere(radius=float(size[0]), placement=placement, color=color)
         elif geom_type == mujoco.mjtGeom.mjGEOM_CAPSULE:
-            kind, params = "capsule", {"radius": float(size[0]), "length": 2.0 * float(size[1])}
+            shape = Capsule(radius=float(size[0]), length=2.0 * float(size[1]), placement=placement, color=color)
         elif geom_type == mujoco.mjtGeom.mjGEOM_CYLINDER:
-            kind, params = "cylinder", {"radius": float(size[0]), "length": 2.0 * float(size[1])}
+            shape = Cylinder(radius=float(size[0]), length=2.0 * float(size[1]), placement=placement, color=color)
         elif geom_type == mujoco.mjtGeom.mjGEOM_BOX:
-            kind, params = "box", {"size": [2.0 * float(value) for value in size]}
+            x, y, z = (2.0 * float(value) for value in size)
+            shape = Box(size=(x, y, z), placement=placement, color=color)
         elif geom_type == mujoco.mjtGeom.mjGEOM_MESH:
             mesh = meshes[compiled.mesh(int(compiled.geom_dataid[geom])).name]
             uri = str(Path(spec.meshdir) / mesh.file) if spec.meshdir else mesh.file
-            kind, params = "mesh", {"path": uri, "scale": [float(value) for value in mesh.scale]}
+            x, y, z = (float(value) for value in mesh.scale)
+            shape = Mesh(uri=uri, scale=(x, y, z), placement=placement, color=color)
         else:
-            body_name = compiled.body(body).name
-            raise ModelError(f"{path}: geom {geom} of body {body_name!r} has type {geom_type!r}, not a shape")
-        geoms.append(IRGeom(kind=kind, params=params, origin=placement, rgba=rgba))
-    return geoms
+            raise ModelError(f"{path}: geom {geom} of body {name!r} has type {geom_type!r}, not a shape")
+        # MuJoCo's collision filter: a geom with contype and conaffinity both 0 never collides.
+        collision = int(compiled.geom_contype[geom]) != 0 or int(compiled.geom_conaffinity[geom]) != 0
+        shapes.append(IRShape(body=name, shape=shape, collision=collision))
+    return shapes
 
 
 def parse_mjcf(path: str | Path) -> IRModel:
@@ -125,6 +133,7 @@ def parse_mjcf(path: str | Path) -> IRModel:
     bodies: list[IRBody] = []
     ir_joints: list[IRJoint] = []
     frames: list[IRFrame] = []
+    shapes: list[IRShape] = []
     for body in range(1, compiled.nbody):
         name = compiled.body(body).name
         parent = int(compiled.body_parentid[body])
@@ -148,9 +157,9 @@ def parse_mjcf(path: str | Path) -> IRModel:
                 mass=float(compiled.body_mass[body]),
                 com=torch.tensor(compiled.body_ipos[body] - offsets[body], dtype=torch.float64),
                 inertia=inertial_rotation @ torch.diag(torch.tensor(compiled.body_inertia[body])) @ inertial_rotation.T,
-                collision_geoms=_geoms(mujoco, compiled, spec, body, offsets[body], path),
             )
         )
+        shapes.extend(_shapes(mujoco, compiled, spec, body, offsets[body], path))
     for site in range(compiled.nsite):
         body = int(compiled.site_bodyid[site])
         frames.append(
@@ -161,4 +170,4 @@ def parse_mjcf(path: str | Path) -> IRModel:
             )
         )
     gravity = torch.cat([torch.tensor(compiled.opt.gravity, dtype=torch.float64), torch.zeros(3, dtype=torch.float64)])
-    return IRModel(name=spec.modelname, bodies=bodies, joints=ir_joints, frames=frames, gravity=gravity)
+    return IRModel(name=spec.modelname, bodies=bodies, joints=ir_joints, frames=frames, shapes=shapes, gravity=gravity)

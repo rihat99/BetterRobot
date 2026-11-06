@@ -97,7 +97,8 @@ print(model.nq, model.nv, model.upper_position_limit)
 Joint methods: `add_revolute` (any axis) and `add_revolute_x/y/z`, `add_prismatic` and
 `add_prismatic_x/y/z`, `add_spherical`, `add_planar`, `add_fixed`, `add_free_flyer_root`. Each takes the
 parent and child body names and an optional `origin` pose `[tx, ty, tz, qx, qy, qz, qw]` of the joint in
-the parent body. `add_collision_geom` attaches collision shapes.
+the parent body. `add_shape(body, shape, collision=True)` attaches a `model.Sphere`, `Box`, `Cylinder`,
+`Capsule` or `Mesh` (each with its placement in the body frame and an optional colour) to a body.
 
 `gravity=` is the world linear acceleration `(3,)`; the default is `(0, 0, -9.81)`. It becomes
 `model.gravity (6,)`, which the [dynamics](dynamics.md) functions read.

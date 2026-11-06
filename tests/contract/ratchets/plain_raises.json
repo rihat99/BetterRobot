@@ -7,7 +7,6 @@
   "src/better_robot/io/builders/kinematic_tree.py::build_kinematic_tree_body": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/builders/kinematic_tree.py::build_kinematic_tree_model": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/parsers/programmatic.py::add_body": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/parsers/programmatic.py::add_collision_geom": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/parsers/programmatic.py::_push_joint": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/parsers/programmatic.py::add_joint": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/io/parsers/programmatic.py::finalize": "raises a builtin; R6 rewrites io on the error tree (record 0020)",

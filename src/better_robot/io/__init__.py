@@ -12,6 +12,7 @@ from typing import Any, Callable, Literal
 
 import torch
 
+from ..model.geometry import Geometry
 from ..model.joints import JointModel
 from ..model.model import Model
 from .assets import (
@@ -21,13 +22,14 @@ from .assets import (
     FilesystemResolver,
     PackageResolver,
 )
+from .build_geometry import build_geometry
 from .build_model import build_model
 from .ir import (
     IRBody,
     IRFrame,
-    IRGeom,
     IRJoint,
     IRModel,
+    IRShape,
 )
 from .parsers import ModelBuilder, parse_mjcf, parse_urdf
 
@@ -116,16 +118,23 @@ def load(
     )
 
 
+def load_geometry(path: str | Path, model: Model) -> Geometry:
+    """The ``Geometry`` of the description at ``path`` for ``model``, which ``load(path)`` built (record 0016)."""
+    return build_geometry(parse(path), model)
+
+
 __all__ = [
     "parse",
     "load",
+    "load_geometry",
     "build_model",
+    "build_geometry",
     "register_parser",
     "IRModel",
     "IRBody",
     "IRJoint",
     "IRFrame",
-    "IRGeom",
+    "IRShape",
     "ModelBuilder",
     "AssetResolver",
     "FilesystemResolver",

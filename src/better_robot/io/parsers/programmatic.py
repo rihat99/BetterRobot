@@ -18,6 +18,8 @@ from collections.abc import Sequence
 
 import torch
 
+from ...exceptions import UnknownNameError
+from ...model.geometry import Shape
 from ...model.joints import (
     JointFixed,
     JointFreeFlyer,
@@ -30,7 +32,7 @@ from ...model.joints import (
     JointSpherical,
     JointTranslation,
 )
-from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
+from ..ir import IRBody, IRFrame, IRJoint, IRModel, IRShape
 
 
 # Named-kind names that the builder forbids passing as a string. The
@@ -107,6 +109,7 @@ class ModelBuilder:
         self._joints: list[IRJoint] = []
         self._joint_names: set[str] = set()
         self._frames: list[IRFrame] = []
+        self._shapes: list[IRShape] = []
 
     # ── bodies / frames / geoms ──────────────────────────────────────
 
@@ -151,20 +154,11 @@ class ModelBuilder:
         )
         return name
 
-    def add_collision_geom(
-        self,
-        body: str,
-        kind: str,
-        *,
-        params: dict,
-        origin: torch.Tensor,
-    ) -> None:
-        """Attach a collision primitive to a body."""
-        for b in self._bodies:
-            if b.name == body:
-                b.collision_geoms.append(IRGeom(kind=kind, params=params, origin=origin))
-                return
-        raise ValueError(f"Body {body!r} not found")
+    def add_shape(self, body: str, shape: Shape, *, collision: bool = True) -> None:
+        """Attach ``shape`` to ``body`` as collision geometry or, with ``collision=False``, for display only."""
+        if body not in self._body_names:
+            raise UnknownNameError("body", body, sorted(self._body_names))
+        self._shapes.append(IRShape(body=body, shape=shape, collision=collision))
 
     # ── private joint helper ─────────────────────────────────────────
 
@@ -465,10 +459,7 @@ class ModelBuilder:
         """
         if isinstance(kind, str):
             helper = _LEGACY_KIND_HELPER.get(kind, "the matching add_<kind> helper")
-            raise TypeError(
-                f"ModelBuilder.add_joint(kind={kind!r}, ...) is not supported. "
-                f"Use {helper!s} instead."
-            )
+            raise TypeError(f"ModelBuilder.add_joint(kind={kind!r}, ...) is not supported. Use {helper!s} instead.")
         if kind is None:
             raise TypeError(
                 "ModelBuilder.add_joint requires kind=<JointModel instance>; "
@@ -515,6 +506,7 @@ class ModelBuilder:
             bodies=list(self._bodies),
             joints=list(self._joints),
             frames=list(self._frames),
+            shapes=list(self._shapes),
             root_body=root_candidates[0],
         )
         if self._gravity is not None:

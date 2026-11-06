@@ -13,7 +13,6 @@
   "better_robot.io.build_model._MimicReduction": "R6 rewrites io",
   "better_robot.io.ir.IRBody": "R6 rewrites io",
   "better_robot.io.ir.IRFrame": "R6 rewrites io",
-  "better_robot.io.ir.IRGeom": "R6 rewrites io",
   "better_robot.io.ir.IRJoint": "R6 rewrites io",
   "better_robot.io.ir.IRModel": "R6 rewrites io",
   "better_robot.io.parsers.programmatic.ModelBuilder": "R6 rewrites io",

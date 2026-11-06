@@ -10,8 +10,10 @@ import math
 import pytest
 import torch
 
+from better_robot.exceptions import UnknownNameError
+from better_robot.io.ir import IRModel, IRShape
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.io.ir import IRModel
+from better_robot.model.geometry import Sphere
 
 
 def _identity_se3() -> torch.Tensor:
@@ -97,15 +99,17 @@ def test_add_frame():
     assert ir.frames[0].parent_body == "link1"
 
 
-def test_add_collision_geom():
+def test_add_shape():
     b = ModelBuilder("x")
     b.add_body("base")
     b.add_body("link1")
     b.add_fixed("j1", parent="base", child="link1", origin=_identity_se3())
-    b.add_collision_geom("link1", "sphere", params={"radius": 0.05}, origin=_identity_se3())
-    ir = b.finalize()
-    assert len(ir.bodies[1].collision_geoms) == 1
-    assert ir.bodies[1].collision_geoms[0].kind == "sphere"
+    sphere = Sphere(radius=0.05, placement=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0))
+    b.add_shape("link1", sphere)
+    b.add_shape("base", sphere, collision=False)
+    assert b.finalize().shapes == [IRShape("link1", sphere, collision=True), IRShape("base", sphere, collision=False)]
+    with pytest.raises(UnknownNameError, match="'link2'"):
+        b.add_shape("link2", sphere)
 
 
 def test_three_link_chain():

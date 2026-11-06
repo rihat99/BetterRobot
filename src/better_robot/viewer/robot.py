@@ -23,6 +23,7 @@ from ..model.joints import (
     JointSpherical,
     JointTranslation,
 )
+from ..model.geometry import Box, Cylinder, Mesh, Shape, Sphere
 from ._math import colormap, rotate
 from .layer import Layer
 from .layers.frames import FramesLayer
@@ -33,7 +34,6 @@ from .theme import LIGHT, Theme
 if TYPE_CHECKING:
     from ..collision.robot_spheres import RobotSpheres
     from ..model.model import Model
-    from ..io.ir import IRGeom
 
 
 class RobotView:
@@ -347,27 +347,22 @@ def robot_meshes(model: Model, *, collision: bool = False, default_color: Any = 
         return []
     resolver = model.meta.get("asset_resolver")
     specs: list[MeshSpec] = []
-    for ir_body in ir.bodies:
-        if ir_body.name not in model.body_names:
+    for ir_shape in ir.shapes:
+        if ir_shape.collision != collision or ir_shape.body not in model.body_names:
             continue
-        body = model.body_id(ir_body.name)
-        for geom in ir_body.collision_geoms if collision else ir_body.visual_geoms:
-            spec = _load_geom(geom, body, resolver, default_color)
-            if spec is not None:
-                specs.append(spec)
+        spec = _load_geom(ir_shape.shape, model.body_id(ir_shape.body), resolver, default_color)
+        if spec is not None:
+            specs.append(spec)
     return specs
 
 
-def _load_geom(geom: IRGeom, body: int, resolver: Any, default_color: Any) -> MeshSpec | None:
+def _load_geom(shape: Shape, body: int, resolver: Any, default_color: Any) -> MeshSpec | None:
     import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
-    origin = geom.origin.detach().cpu().numpy().astype(np.float32)
-    color = tuple(geom.rgba[:3]) if geom.rgba is not None else tuple(default_color)
-    kind, params = geom.kind, geom.params
-    if kind == "mesh":
-        path = params.get("path", "")
-        if not path:
-            return None
+    origin = np.asarray(shape.placement, dtype=np.float32)
+    color = shape.color[:3] if shape.color is not None else tuple(default_color)
+    if isinstance(shape, Mesh):
+        path = shape.uri
         if resolver is not None:
             try:
                 path = str(resolver.resolve(path))
@@ -379,18 +374,16 @@ def _load_geom(geom: IRGeom, body: int, resolver: Any, default_color: Any) -> Me
             return None
         if not isinstance(mesh, trimesh.Trimesh) or mesh.faces.shape[0] == 0:
             return None
-        mesh.apply_scale(params.get("scale", [1.0, 1.0, 1.0]))
+        mesh.apply_scale(shape.scale)
         source = mesh if _has_own_colors(mesh) else None
-    elif kind == "box":
-        mesh, source = trimesh.creation.box(extents=params["size"]), None
-    elif kind == "cylinder":
-        mesh, source = trimesh.creation.cylinder(radius=params["radius"], height=params["length"]), None
-    elif kind == "sphere":
-        mesh, source = trimesh.creation.icosphere(subdivisions=2, radius=params["radius"]), None
-    elif kind == "capsule":
-        mesh, source = trimesh.creation.capsule(radius=params["radius"], height=params["length"]), None
+    elif isinstance(shape, Box):
+        mesh, source = trimesh.creation.box(extents=shape.size), None
+    elif isinstance(shape, Cylinder):
+        mesh, source = trimesh.creation.cylinder(radius=shape.radius, height=shape.length), None
+    elif isinstance(shape, Sphere):
+        mesh, source = trimesh.creation.icosphere(subdivisions=2, radius=shape.radius), None
     else:
-        return None
+        mesh, source = trimesh.creation.capsule(radius=shape.radius, height=shape.length), None
     vertices = np.asarray(mesh.vertices, dtype=np.float32)
     faces = np.asarray(mesh.faces, dtype=np.uint32)
     return MeshSpec(vertices, faces, body, origin, color=color, trimesh=source)

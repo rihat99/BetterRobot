@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Model: `Geometry`, the shapes of a robot as a value beside `Model` (record 0016): final records `Sphere`,
+  `Box`, `Cylinder`, `Capsule` and `Mesh` (placement and colour), each attached to a body by `AttachedShape(body,
+  shape, collision)`; `io.build_geometry(ir, model)` and `io.load_geometry(path, model)` build one; the IR carries
+  `IRShape(body, shape, collision)` in `IRModel.shapes` (was `IRGeom` lists on `IRBody`); `ModelBuilder.add_shape(body,
+  shape, *, collision=True)` replaces `add_collision_geom`.
 - Dynamics: `model.armature (nv,)` (motor inertia; MJCF `armature`, zero from URDF) enters `inverse_dynamics`
   (`+ armature * a`) and `mass_matrix` (`+ diag(armature)`), so `forward_dynamics` too, as in Pinocchio; it was
   read but unused. `Model.with_values(armature=)` sets it (unbatched).

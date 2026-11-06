@@ -11,9 +11,11 @@ See ``docs/concepts/parsers_and_ir.md §2``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 import torch
+
+from ..model.geometry import Shape
 
 if TYPE_CHECKING:
     from ..model.joints import JointModel
@@ -50,14 +52,14 @@ class IRJoint:
     )
 
 
-@dataclass
-class IRGeom:
-    """A visual or collision primitive attached to a body."""
+@final
+@dataclass(frozen=True)
+class IRShape:
+    """A shape of the description fixed to the body named ``body``: collision geometry, or display only."""
 
-    kind: str
-    params: dict
-    origin: torch.Tensor
-    rgba: Optional[tuple[float, float, float, float]] = None
+    body: str
+    shape: Shape
+    collision: bool
 
 
 @dataclass
@@ -68,8 +70,6 @@ class IRBody:
     mass: float = 0.0
     com: torch.Tensor = field(default_factory=lambda: torch.zeros(3))
     inertia: torch.Tensor = field(default_factory=lambda: torch.zeros(3, 3))
-    visual_geoms: list[IRGeom] = field(default_factory=list)
-    collision_geoms: list[IRGeom] = field(default_factory=list)
 
 
 @dataclass
@@ -90,6 +90,7 @@ class IRModel:
     bodies: list[IRBody]
     joints: list[IRJoint]
     frames: list[IRFrame] = field(default_factory=list)
+    shapes: list[IRShape] = field(default_factory=list)
     root_body: str = ""
     gravity: torch.Tensor = field(
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0], dtype=torch.float64)

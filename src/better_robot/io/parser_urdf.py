@@ -19,8 +19,9 @@ import torch
 
 from ..exceptions import ModelError
 from ..lie import so3
+from ..model.geometry import Box, Color, Cylinder, Mesh, Pose, Shape, Sphere
 from .assets import FilesystemResolver
-from .ir import IRBody, IRGeom, IRJoint, IRModel
+from .ir import IRBody, IRJoint, IRModel, IRShape
 
 if TYPE_CHECKING:
     import yourdfpy
@@ -44,9 +45,13 @@ def _pose(origin: np.ndarray | None) -> torch.Tensor:
     return torch.cat([matrix[:3, 3], so3.from_matrix(matrix[:3, :3])])
 
 
-def _color(
-    material: yourdfpy.Material | None, materials: dict[str, yourdfpy.Material]
-) -> tuple[float, float, float, float] | None:
+def _placement(origin: np.ndarray | None) -> Pose:
+    """A URDF ``<origin>`` as a shape placement."""
+    tx, ty, tz, qx, qy, qz, qw = _pose(origin).tolist()
+    return tx, ty, tz, qx, qy, qz, qw
+
+
+def _color(material: yourdfpy.Material | None, materials: dict[str, yourdfpy.Material]) -> Color | None:
     """The RGBA of a visual's material: inline, else the robot-level ``<material>`` of that name, else ``None``."""
     if material is None:
         return None
@@ -58,28 +63,39 @@ def _color(
     return red, green, blue, alpha
 
 
-def _geom(
-    geometry: yourdfpy.Geometry, origin: np.ndarray | None, rgba: tuple[float, float, float, float] | None
-) -> IRGeom:
-    """One ``<visual>`` or ``<collision>`` as an IR primitive placed in the link frame (yourdfpy rejects any other shape)."""
+def _shape(geometry: yourdfpy.Geometry, origin: np.ndarray | None, color: Color | None, element: str) -> Shape:
+    """One ``<visual>`` or ``<collision>`` geometry placed in the link frame (yourdfpy rejects any other shape)."""
+    placement = _placement(origin)
     if geometry.sphere is not None:
-        kind, params = "sphere", {"radius": float(geometry.sphere.radius)}
-    elif geometry.box is not None:
-        kind, params = "box", {"size": [float(value) for value in geometry.box.size]}
-    elif geometry.cylinder is not None:
-        kind, params = (
-            "cylinder",
-            {"radius": float(geometry.cylinder.radius), "length": float(geometry.cylinder.length)},
-        )
-    else:
-        scale = geometry.mesh.scale  # None, one float for all axes, or (3,)
-        scale = np.ones(3) if scale is None else np.broadcast_to(np.asarray(scale, dtype=np.float64), (3,))
-        kind, params = "mesh", {"path": geometry.mesh.filename, "scale": scale.tolist()}
-    return IRGeom(kind=kind, params=params, origin=_pose(origin), rgba=rgba)
+        return Sphere(radius=float(geometry.sphere.radius), placement=placement, color=color)
+    if geometry.box is not None:
+        x, y, z = (float(value) for value in geometry.box.size)
+        return Box(size=(x, y, z), placement=placement, color=color)
+    if geometry.cylinder is not None:
+        radius, length = float(geometry.cylinder.radius), float(geometry.cylinder.length)
+        return Cylinder(radius=radius, length=length, placement=placement, color=color)
+    if geometry.mesh.filename is None:
+        raise ModelError(f"{element}: <mesh> has no filename")
+    scale = geometry.mesh.scale  # None, one float for all axes, or (3,)
+    x, y, z = (1.0, 1.0, 1.0) if scale is None else (float(value) for value in np.broadcast_to(scale, (3,)))
+    return Mesh(uri=geometry.mesh.filename, scale=(x, y, z), placement=placement, color=color)
 
 
-def _body(link: yourdfpy.Link, materials: dict[str, yourdfpy.Material]) -> IRBody:
-    """A ``<link>`` as an IR body: mass, centre of mass and inertia in the link frame, visual and collision geoms."""
+def _shapes(link: yourdfpy.Link, materials: dict[str, yourdfpy.Material], path: Path) -> list[IRShape]:
+    """The ``<visual>`` (display only) and ``<collision>`` shapes of ``link``, in file order."""
+    element = f"{path}: <link name={link.name!r}>"
+    visuals = [
+        IRShape(link.name, _shape(v.geometry, v.origin, _color(v.material, materials), element), collision=False)
+        for v in link.visuals
+    ]
+    collisions = [
+        IRShape(link.name, _shape(c.geometry, c.origin, None, element), collision=True) for c in link.collisions
+    ]
+    return visuals + collisions
+
+
+def _body(link: yourdfpy.Link) -> IRBody:
+    """A ``<link>`` as an IR body: mass, centre of mass and inertia in the link frame."""
     inertial = link.inertial
     mass = 0.0 if inertial is None or inertial.mass is None else float(inertial.mass)
     origin = np.eye(4) if inertial is None or inertial.origin is None else inertial.origin
@@ -95,8 +111,6 @@ def _body(link: yourdfpy.Link, materials: dict[str, yourdfpy.Material]) -> IRBod
         mass=mass,
         com=torch.tensor(origin[:3, 3], dtype=torch.float64),
         inertia=torch.tensor(rotation @ inertia @ rotation.T, dtype=torch.float64),
-        visual_geoms=[_geom(v.geometry, v.origin, _color(v.material, materials)) for v in link.visuals],
-        collision_geoms=[_geom(c.geometry, c.origin, None) for c in link.collisions],
     )
 
 
@@ -170,7 +184,8 @@ def parse_urdf(path: str | Path) -> IRModel:
         raise ModelError(f"{path}: {exc}") from exc
     robot = urdf.robot
     materials = {material.name: material for material in robot.materials}
-    bodies = [_body(link, materials) for link in robot.links]
+    bodies = [_body(link) for link in robot.links]
+    shapes = [shape for link in robot.links for shape in _shapes(link, materials, path)]
     links = {link.name for link in robot.links}
     joints = [_joint(joint, links, path) for joint in robot.joints]
     children = {joint.child_body for joint in joints}
@@ -179,6 +194,7 @@ def parse_urdf(path: str | Path) -> IRModel:
         name=robot.name,
         bodies=bodies,
         joints=joints,
+        shapes=shapes,
         root_body=root_body,
         meta={"asset_resolver": FilesystemResolver(base_path=path.parent)},
     )

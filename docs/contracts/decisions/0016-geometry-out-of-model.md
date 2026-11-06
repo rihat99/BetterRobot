@@ -42,3 +42,9 @@ kind round-trips into `Geometry`).
 
 ## Open questions
 None.
+
+## Notes
+2026-11-06: the per-shape "frame" and `collision: bool` of the Decision live on `AttachedShape(body, shape,
+collision)`, the records of `Geometry.shapes`; a shape record (`Sphere`, `Box`, `Cylinder`, `Capsule`, `Mesh`) carries
+its placement and colour only, so `ModelBuilder.add_shape(body, shape, *, collision=True)` (0007) takes the same
+record. `AttachedShape` is one more public name in `model`.
