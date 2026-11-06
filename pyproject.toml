@@ -63,7 +63,8 @@ filterwarnings = [
     "error",
     # torch 2.13 deprecates its own internals yet still calls them: torch.func.jvp's decompositions call
     # torch.jit.script, inductor's import of torch.utils.mkldnn calls torch.jit.script_method, and inductor's
-    # decomposition of diagonal calls torch._prims_common.check. No code here calls any of them.
+    # decomposition of diagonal calls torch._prims_common.check. No code here calls any of them: ruff's banned-api
+    # list rejects all three.
     "ignore:`torch.jit.script` is deprecated:DeprecationWarning",
     "ignore:`torch.jit.script_method` is deprecated:DeprecationWarning",
     "ignore:`torch._prims_common.check` is deprecated:FutureWarning",
@@ -104,6 +105,9 @@ ignore = ["E501", "PLR0913", "PLR2004"]
 "torch.manual_seed".msg = "C-DEP-3: no process-wide RNG seeding inside the library; take a generator"
 "torch.set_num_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
 "torch.set_num_interop_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
+"torch.jit.script".msg = "deprecated in torch 2.13; the pytest filter ignoring its DeprecationWarning holds only while no code here calls it"
+"torch.jit.script_method".msg = "deprecated in torch 2.13; the pytest filter ignoring its DeprecationWarning holds only while no code here calls it"
+"torch._prims_common.check".msg = "deprecated in torch 2.13; the pytest filter ignoring its FutureWarning holds only while no code here calls it"
 
 [tool.coverage.run]
 branch = true
