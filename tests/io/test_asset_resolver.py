@@ -55,10 +55,12 @@ def test_package_resolver_unknown_package_raises(asset_tree):
 
 
 def test_composite_resolver_first_hit_wins(asset_tree):
-    composite = CompositeResolver([
-        PackageResolver({"third_party_pkg": asset_tree / "third_party_pkg"}),
-        FilesystemResolver(base_path=asset_tree / "robot"),
-    ])
+    composite = CompositeResolver(
+        [
+            PackageResolver({"third_party_pkg": asset_tree / "third_party_pkg"}),
+            FilesystemResolver(base_path=asset_tree / "robot"),
+        ]
+    )
     # First resolver wins.
     out_pkg = composite.resolve("package://third_party_pkg/meshes/wheel.obj")
     assert out_pkg.name == "wheel.obj"
@@ -68,8 +70,10 @@ def test_composite_resolver_first_hit_wins(asset_tree):
 
 
 def test_composite_resolver_all_fail_raises(asset_tree):
-    composite = CompositeResolver([
-        FilesystemResolver(base_path=asset_tree / "robot"),
-    ])
+    composite = CompositeResolver(
+        [
+            FilesystemResolver(base_path=asset_tree / "robot"),
+        ]
+    )
     with pytest.raises(FileNotFoundError):
         composite.resolve("absent.stl")

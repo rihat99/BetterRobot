@@ -46,6 +46,4 @@ def test_integrate_difference_roundtrip(panda_both):
         q0, q1 = qs_a[i], qs_b[i]
         dv = br_model.difference(q0, q1)
         q1_reconstructed = br_model.integrate(q0, dv).detach().cpu().double().numpy()
-        np.testing.assert_allclose(
-            q1_reconstructed, q1.numpy(), atol=1e-12, rtol=1e-10
-        )
+        np.testing.assert_allclose(q1_reconstructed, q1.numpy(), atol=1e-12, rtol=1e-10)

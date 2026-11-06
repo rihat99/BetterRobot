@@ -180,7 +180,9 @@ class Problem:
 
     # ── registration ────────────────────────────────────────────────────
 
-    def cached(self, fn: Callable[..., Any], *, name: str | None = None, reads: tuple[str, ...] | None = None) -> CacheRef:
+    def cached(
+        self, fn: Callable[..., Any], *, name: str | None = None, reads: tuple[str, ...] | None = None
+    ) -> CacheRef:
         """Register a value shared by terms, computed at most once per evaluation.
 
         Usable as a decorator; the name defaults to the function name. Returns a `CacheRef`
@@ -236,7 +238,9 @@ class Problem:
         """
         self._add(name, fn, "scalar", weight, None, None, reads, None)
 
-    def with_(self, *, weights: Mapping[str, float] | None = None, free: Mapping[str, torch.Tensor] | None = None) -> "Problem":
+    def with_(
+        self, *, weights: Mapping[str, float] | None = None, free: Mapping[str, torch.Tensor] | None = None
+    ) -> "Problem":
         """Return a view of this problem with term weights overridden and/or coordinates frozen.
 
         ``weights[name] = 0`` switches a term off. ``free[variable]`` is a bool mask over that

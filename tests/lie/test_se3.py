@@ -1,4 +1,5 @@
 """Tests for lie/se3.py — SE3 group operations."""
+
 import math
 import torch
 from better_robot.lie import se3
@@ -31,10 +32,10 @@ def test_exp_log_roundtrip():
 
 def test_act_translation():
     """Pure translation shifts the point."""
-    T = torch.tensor([1., 0., 0., 0., 0., 0., 1.])  # translate by (1,0,0)
-    p = torch.tensor([0., 0., 0.])
+    T = torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])  # translate by (1,0,0)
+    p = torch.tensor([0.0, 0.0, 0.0])
     result = se3.act(T, p)
-    assert torch.allclose(result, torch.tensor([1., 0., 0.]), atol=1e-6)
+    assert torch.allclose(result, torch.tensor([1.0, 0.0, 0.0]), atol=1e-6)
 
 
 def test_adjoint_inv_is_inverse():
@@ -48,29 +49,29 @@ def test_adjoint_inv_is_inverse():
 
 def test_from_axis_angle_pure_rotation():
     """Pure rotation about Z by pi/2 maps (1,0,0) to (0,1,0)."""
-    axis = torch.tensor([0., 0., 1.])
+    axis = torch.tensor([0.0, 0.0, 1.0])
     angle = torch.tensor(math.pi / 2)
     T = se3.from_axis_angle(axis, angle)
-    p = torch.tensor([1., 0., 0.])
+    p = torch.tensor([1.0, 0.0, 0.0])
     result = se3.act(T, p)
-    expected = torch.tensor([0., 1., 0.])
+    expected = torch.tensor([0.0, 1.0, 0.0])
     assert torch.allclose(result, expected, atol=1e-5)
 
 
 def test_from_translation():
     """Pure translation."""
-    axis = torch.tensor([1., 0., 0.])
+    axis = torch.tensor([1.0, 0.0, 0.0])
     disp = torch.tensor(2.5)
     T = se3.from_translation(axis, disp)
-    p = torch.tensor([0., 0., 0.])
+    p = torch.tensor([0.0, 0.0, 0.0])
     result = se3.act(T, p)
-    expected = torch.tensor([2.5, 0., 0.])
+    expected = torch.tensor([2.5, 0.0, 0.0])
     assert torch.allclose(result, expected, atol=1e-6)
 
 
 def test_normalize():
     """Normalize bad quaternion → unit quaternion."""
-    T = torch.tensor([0., 0., 0., 0., 0., 0., 2.])  # qw=2, not normalized
+    T = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0])  # qw=2, not normalized
     T_norm = se3.normalize(T)
     q = T_norm[3:]
     assert torch.allclose(q.norm(), torch.tensor(1.0), atol=1e-6)

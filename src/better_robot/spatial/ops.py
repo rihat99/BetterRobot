@@ -19,13 +19,14 @@ from .motion import Motion
 def ad(v: Motion) -> torch.Tensor:
     """``ad(v)`` — 6×6 motion cross operator. ``(..., 6, 6)``."""
     from ..lie.tangents import hat_so3
-    vv = v.linear    # (..., 3)
-    wv = v.angular   # (..., 3)
-    Vhat = hat_so3(vv)    # (..., 3, 3)
-    What = hat_so3(wv)    # (..., 3, 3)
+
+    vv = v.linear  # (..., 3)
+    wv = v.angular  # (..., 3)
+    Vhat = hat_so3(vv)  # (..., 3, 3)
+    What = hat_so3(wv)  # (..., 3, 3)
     *batch, _, _ = What.shape
     zeros33 = torch.zeros(*batch, 3, 3, dtype=v.data.dtype, device=v.data.device)
-    top    = torch.cat([What, Vhat   ], dim=-1)
+    top = torch.cat([What, Vhat], dim=-1)
     bottom = torch.cat([zeros33, What], dim=-1)
     return torch.cat([top, bottom], dim=-2)
 

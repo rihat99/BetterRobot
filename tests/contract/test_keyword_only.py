@@ -55,18 +55,14 @@ def _positional_count(fn: object) -> int:
     params = list(inspect.signature(fn).parameters.values())
     if params and params[0].name in {"self", "cls"}:
         params = params[1:]
-    return sum(
-        p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD) for p in params
-    )
+    return sum(p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD) for p in params)
 
 
 CALLABLES = _public_callables()
 
 
 @pytest.mark.parametrize("qualname,fn", CALLABLES, ids=[q for q, _ in CALLABLES])
-def test_public_callable_is_keyword_only_after_second_argument(
-    qualname: str, fn: object
-) -> None:
+def test_public_callable_is_keyword_only_after_second_argument(qualname: str, fn: object) -> None:
     count = _positional_count(fn)
     allowed = KEYWORD_ONLY_ALLOWLIST.get(qualname, MAX_POSITIONAL)
     assert count <= allowed, (
@@ -97,8 +93,7 @@ def test_kinematics_dynamics_ids_are_keyword_only() -> None:
     offenders = [
         f"{qualname}({param.name})"
         for qualname, fn in CALLABLES
-        if qualname.startswith(("better_robot.kinematics.", "better_robot.dynamics."))
-        and qualname.count(".") == 2
+        if qualname.startswith(("better_robot.kinematics.", "better_robot.dynamics.")) and qualname.count(".") == 2
         for param in inspect.signature(fn).parameters.values()
         if param.name in ID_PARAMETERS and param.kind != param.KEYWORD_ONLY
     ]

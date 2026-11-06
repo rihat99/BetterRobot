@@ -72,9 +72,7 @@ def _sample_qs(model, n: int, *, seed: int) -> torch.Tensor:
     else:
         joint_offset = 0
     if nq > joint_offset:
-        out[:, joint_offset:] = (
-            torch.rand(n, nq - joint_offset, generator=rng, dtype=torch.float64) - 0.5
-        ) * 0.6
+        out[:, joint_offset:] = (torch.rand(n, nq - joint_offset, generator=rng, dtype=torch.float64) - 0.5) * 0.6
     return out
 
 

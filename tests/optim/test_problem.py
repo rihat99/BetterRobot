@@ -110,14 +110,20 @@ def test_time_local_terms_match_row_by_row_autodiff():
     problem = optim.Problem({"path": path, "scale": scale}, time=("path",))
     problem.cached(lambda path: path.sin(), name="warped")
     problem.residual("per_knot", lambda warped, path: warped * path.roll(1, -1), window=1)
-    problem.residual("accel", lambda path: (path[:, 2:] - 2 * path[:, 1:-1] + path[:, :-2]).tanh(), window=3,
-                     kernel=optim.Huber(delta=0.3), weight=4.0)
+    problem.residual(
+        "accel",
+        lambda path: (path[:, 2:] - 2 * path[:, 1:-1] + path[:, :-2]).tanh(),
+        window=3,
+        kernel=optim.Huber(delta=0.3),
+        weight=4.0,
+    )
     velocity = optim.TermFn(
         fn=lambda path: path[:, 1:] - path[:, :-1],
         reads=("path",),
         jac=lambda path: {
             "path": (torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None, None] * torch.eye(3, dtype=path.dtype))
-            .permute(1, 0, 2).expand(2, 6, 3, 2, 3)
+            .permute(1, 0, 2)
+            .expand(2, 6, 3, 2, 3)
         },
         window=2,
     )
@@ -146,8 +152,12 @@ def test_block_tridiagonal_path_equals_dense(knots):
         )
         problem.residual("anchor", lambda path, anchor: (path - anchor).sin(), window=1, weight=0.3)
         problem.residual("accel", lambda path: path[:, 2:] - 2 * path[:, 1:-1] + path[:, :-2], window=3)
-        problem.residual("push", lambda path, force: (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True) - force[:, :-1],
-                         window=2, kernel=optim.Huber(delta=0.5))
+        problem.residual(
+            "push",
+            lambda path, force: (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True) - force[:, :-1],
+            window=2,
+            kernel=optim.Huber(delta=0.5),
+        )
         problem.residual("effort", lambda force: force, window=1, weight=0.1)
         return problem
 
@@ -187,16 +197,20 @@ def test_shared_variables_border_the_band_and_equal_dense(knots):
             bounds={"shape": (torch.tensor(-0.4, dtype=torch.float64), torch.tensor(0.4, dtype=torch.float64))},
         )
         problem.cached(lambda path, shape: path * shape[:, None, :2].exp(), name="scaled")
-        problem.residual("anchor", lambda scaled, anchor: (scaled - anchor).sin(), window=1, kernel=optim.Huber(delta=0.7))
+        problem.residual(
+            "anchor", lambda scaled, anchor: (scaled - anchor).sin(), window=1, kernel=optim.Huber(delta=0.7)
+        )
         problem.residual("accel", lambda path: path[:, 2:] - 2 * path[:, 1:-1] + path[:, :-2], window=3)
         push = optim.TermFn(
-            fn=lambda path, force, shape: (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True)
-            - force[:, :-1] * shape[:, None, 2:],
+            fn=lambda path, force, shape: (
+                (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True) - force[:, :-1] * shape[:, None, 2:]
+            ),
             reads=("path", "force", "shape"),
             jac=lambda path, force, shape: {
                 "path": torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None].expand(*path[:, 1:, :1].shape, 2, 2),
-                "force": torch.stack([-shape[:, None, 2:].expand_as(force[:, :-1]), torch.zeros_like(force[:, :-1])], -2)
-                .unsqueeze(2),
+                "force": torch.stack(
+                    [-shape[:, None, 2:].expand_as(force[:, :-1]), torch.zeros_like(force[:, :-1])], -2
+                ).unsqueeze(2),
                 "shape": torch.cat([torch.zeros_like(path[:, 1:]), -force[:, :-1]], -1).unsqueeze(2),
             },
             window=2,
@@ -235,7 +249,9 @@ def _curve_problem(goal):
         data={"goal": goal},
         bounds={"x": (torch.full((3,), -5.0, dtype=goal.dtype), torch.tensor([5.0, 5.0, 0.3], dtype=goal.dtype))},
     )
-    problem.residual("fit", lambda x, goal: torch.cat([x + 0.2 * x.roll(1, -1) ** 2, x.sum(-1, keepdim=True)], -1) - goal)
+    problem.residual(
+        "fit", lambda x, goal: torch.cat([x + 0.2 * x.roll(1, -1) ** 2, x.sum(-1, keepdim=True)], -1) - goal
+    )
     return problem
 
 
@@ -257,7 +273,9 @@ def test_solve_layer_gradient_matches_finite_differences():
         problem = optim.Problem(
             {"x": torch.zeros(4, 3, dtype=torch.float64)},
             data={"goal": value},
-            bounds={"x": (torch.full((3,), -5.0, dtype=torch.float64), torch.tensor([5.0, 5.0, 0.3], dtype=torch.float64))},
+            bounds={
+                "x": (torch.full((3,), -5.0, dtype=torch.float64), torch.tensor([5.0, 5.0, 0.3], dtype=torch.float64))
+            },
         )
         problem.residual("fit", lambda x, goal: x + 0.2 * x.roll(1, -1) ** 2 - goal)
         return optim.solve_layer(problem, optim.LevenbergMarquardt(), iters=200).x["x"]
@@ -281,7 +299,9 @@ def test_solve_layer_gradient_matches_finite_differences():
 
 
 def test_review_regressions():
-    base = optim.Problem({"x": torch.zeros(2, 2, dtype=torch.float64)}, data={"a": torch.ones(2, 2, dtype=torch.float64)})
+    base = optim.Problem(
+        {"x": torch.zeros(2, 2, dtype=torch.float64)}, data={"a": torch.ones(2, 2, dtype=torch.float64)}
+    )
     base.residual("fit", lambda x, a: x - a)
     view = base.with_(weights={"fit": 2.0})
     view.residual("extra", lambda x: x)
@@ -291,7 +311,9 @@ def test_review_regressions():
     with pytest.raises(ValueError, match="weight of 'bad_weight'"):
         base.loss()
 
-    scalar = optim.Problem({"x": torch.zeros(2, 1, dtype=torch.float64)}, data={"a": torch.ones(2, 1, dtype=torch.float64)})
+    scalar = optim.Problem(
+        {"x": torch.zeros(2, 1, dtype=torch.float64)}, data={"a": torch.ones(2, 1, dtype=torch.float64)}
+    )
     scalar.scalar("bowl", lambda x, a: ((x - a) ** 2).sum(-1))
     with pytest.raises(ValueError, match="scalar"):
         optim.solve_layer(scalar, optim.LBFGS(), iters=5)
@@ -311,10 +333,20 @@ def test_phase_hooks_scheduler_and_per_knot_free_mask():
     )
     free = {"path": torch.tensor([True, False, True])}
     phases = [
-        optim.Phase(adam, iters=4, free=free, stop_every=0,
-                     on_step=lambda view, state: rates.append(state.extra["optimizer"].param_groups[0]["lr"])),
-        optim.Phase(optim.LevenbergMarquardt(), iters=10, free=free, on_start=retarget,
-                     on_step=lambda view, state: seen.append(view.losses(state.x)["fit"])),
+        optim.Phase(
+            adam,
+            iters=4,
+            free=free,
+            stop_every=0,
+            on_step=lambda view, state: rates.append(state.extra["optimizer"].param_groups[0]["lr"]),
+        ),
+        optim.Phase(
+            optim.LevenbergMarquardt(),
+            iters=10,
+            free=free,
+            on_start=retarget,
+            on_step=lambda view, state: seen.append(view.losses(state.x)["fit"]),
+        ),
     ]
     result = optim.run(problem, phases)
     assert rates == pytest.approx([0.1, 0.01, 0.01, 0.01])

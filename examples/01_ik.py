@@ -34,14 +34,18 @@ def main() -> None:
     # 1. Recipe: LM, hard joint limits, a few random restarts for the local minima.
     result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=8, generator=generator)
     error = position_error(model, result.x["q"], target)
-    print(f"recipe      : reached (<0.1 mm) {float((error < 1e-4).float().mean()):.3f}, median {float(error.median()):.1e} m")
+    print(
+        f"recipe      : reached (<0.1 mm) {float((error < 1e-4).float().mean()):.3f}, median {float(error.median()):.1e} m"
+    )
 
     # 2. Open problem: add a term that is just a function of named tensors. Its Jacobian is automatic.
     problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
     problem.data["preferred_elbow"] = torch.tensor(-1.8, dtype=torch.float64)
     problem.residual("elbow", lambda q, preferred_elbow: q[:, 3:4] - preferred_elbow, weight=1e-3)
     result = optim.solve(problem, optim.LevenbergMarquardt(), iters=100)
-    print(f"custom term : per-term loss {{{', '.join(f'{k}: {float(v.mean()):.2e}' for k, v in problem.losses(result.x).items())}}}")
+    print(
+        f"custom term : per-term loss {{{', '.join(f'{k}: {float(v.mean()):.2e}' for k, v in problem.losses(result.x).items())}}}"
+    )
 
     # 3. The same problem under any torch.optim optimizer.
     result = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iters=1500)

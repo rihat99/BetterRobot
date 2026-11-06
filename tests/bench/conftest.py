@@ -12,6 +12,7 @@ import better_robot as br
 def panda():
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import panda_description
+
     return br.load(panda_description.URDF_PATH, dtype=torch.float32)
 
 
@@ -19,6 +20,7 @@ def panda():
 def g1():
     pytest.importorskip("robot_descriptions")
     from robot_descriptions import g1_description
+
     return br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float32)
 
 

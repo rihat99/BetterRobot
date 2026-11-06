@@ -17,8 +17,10 @@ pytestmark = pytest.mark.bench
 
 @pytest.mark.parametrize("size", [1, 1024])
 def test_se3_compose(benchmark, size) -> None:
-    a = torch.randn(size, 7); a[..., 3:7] /= a[..., 3:7].norm(dim=-1, keepdim=True)
-    b = torch.randn(size, 7); b[..., 3:7] /= b[..., 3:7].norm(dim=-1, keepdim=True)
+    a = torch.randn(size, 7)
+    a[..., 3:7] /= a[..., 3:7].norm(dim=-1, keepdim=True)
+    b = torch.randn(size, 7)
+    b[..., 3:7] /= b[..., 3:7].norm(dim=-1, keepdim=True)
     benchmark(lambda: se3.compose(a, b))
 
 

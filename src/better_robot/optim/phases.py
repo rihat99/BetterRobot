@@ -82,7 +82,9 @@ def run(
         if warm is not None:
             # optim imports only torch, so a plain ValueError stands in for ShapeError here.
             if warm.done.shape != state.done.shape:
-                raise ValueError(f"warm-start state has batch {tuple(warm.done.shape)}, problem has {tuple(state.done.shape)}")
+                raise ValueError(
+                    f"warm-start state has batch {tuple(warm.done.shape)}, problem has {tuple(state.done.shape)}"
+                )
             kept = {key: warm.extra[key] for key in getattr(phase.solver, "warm_keys", ()) if key in warm.extra}
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []

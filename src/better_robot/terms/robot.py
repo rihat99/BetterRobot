@@ -70,7 +70,9 @@ def frame_pose(model: Model, *, frame: int | str, target: str, state: CacheRef |
     return TermFn(fn=error, reads=(str(state), target), jac=jac)
 
 
-def frame_position(model: Model, *, frame: int | str, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
+def frame_position(
+    model: Model, *, frame: int | str, target: str, state: CacheRef | str = "state", q: str = "q"
+) -> TermFn:
     """Position error of ``frame`` against data ``target: (B, 3)``. Residual ``(B, 3)``."""
     frame_id = model.frame_id(frame)
 
@@ -112,9 +114,7 @@ def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
     return TermFn(fn=offset, reads=(q,), jac=_identity_jac(model, q, torch.ones_like))
 
 
-def finite_difference(
-    model: Model, *, order: int, dt: float, q: str = "q", world_translation: bool = False
-) -> TermFn:
+def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", world_translation: bool = False) -> TermFn:
     """Time derivative of order ``order`` of a trajectory ``q: (B, T, nq)`` in tangent space, by finite differences.
 
     The steps ``model.difference(q[t], q[t + 1]) / dt`` are differenced ``order - 1`` more times (the binomial

@@ -15,7 +15,7 @@ from better_robot.io.ir import IRModel
 
 
 def _identity_se3() -> torch.Tensor:
-    return torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
 
 def _simple_arm() -> IRModel:
@@ -24,9 +24,12 @@ def _simple_arm() -> IRModel:
     b.add_body("base", mass=0.0)
     b.add_body("link1", mass=1.0)
     b.add_revolute_x(
-        "j1", parent="base", child="link1",
-        origin=torch.tensor([0., 0., 0.1, 0., 0., 0., 1.]),
-        lower=-math.pi, upper=math.pi,
+        "j1",
+        parent="base",
+        child="link1",
+        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
+        lower=-math.pi,
+        upper=math.pi,
     )
     return b.finalize()
 
@@ -62,16 +65,17 @@ def _add_base_link1_and_j1(b):
 @pytest.mark.parametrize(
     ("setup", "action", "match"),
     [
-        pytest.param(lambda b: b.add_body("base"), lambda b: b.add_body("base"),
-                     "already exists", id="duplicate_body"),
+        pytest.param(lambda b: b.add_body("base"), lambda b: b.add_body("base"), "already exists", id="duplicate_body"),
         pytest.param(
             _add_base_link1_and_j1,
             lambda b: b.add_revolute_z("j1", parent="base", child="link1", origin=_identity_se3()),
-            "already exists", id="duplicate_joint",
+            "already exists",
+            id="duplicate_joint",
         ),
         # No joints → 2 root candidates
-        pytest.param(lambda b: (b.add_body("a"), b.add_body("b")), lambda b: b.finalize(),
-                     "root body", id="multiple_root_bodies"),
+        pytest.param(
+            lambda b: (b.add_body("a"), b.add_body("b")), lambda b: b.finalize(), "root body", id="multiple_root_bodies"
+        ),
     ],
 )
 def test_builder_invalid_structure_raises(setup, action, match):
@@ -86,8 +90,7 @@ def test_add_frame():
     b.add_body("base")
     b.add_body("link1")
     b.add_fixed("j1", parent="base", child="link1", origin=_identity_se3())
-    b.add_frame("tip", parent_body="link1",
-                placement=torch.tensor([0., 0., 0.05, 0., 0., 0., 1.]))
+    b.add_frame("tip", parent_body="link1", placement=torch.tensor([0.0, 0.0, 0.05, 0.0, 0.0, 0.0, 1.0]))
     ir = b.finalize()
     assert len(ir.frames) == 1
     assert ir.frames[0].name == "tip"
@@ -110,10 +113,8 @@ def test_three_link_chain():
     b.add_body("root")
     b.add_body("l1")
     b.add_body("l2")
-    b.add_revolute_z("j1", parent="root", child="l1",
-                     origin=_identity_se3(), lower=-1., upper=1.)
-    b.add_prismatic_z("j2", parent="l1", child="l2",
-                      origin=_identity_se3(), lower=0., upper=0.5)
+    b.add_revolute_z("j1", parent="root", child="l1", origin=_identity_se3(), lower=-1.0, upper=1.0)
+    b.add_prismatic_z("j2", parent="l1", child="l2", origin=_identity_se3(), lower=0.0, upper=0.5)
     ir = b.finalize()
     assert ir.root_body == "root"
     assert len(ir.joints) == 2

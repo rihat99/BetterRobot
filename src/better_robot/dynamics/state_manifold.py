@@ -55,18 +55,18 @@ class StateMultibody:
         dv = v1 - v0
         return torch.cat([dq, dv], dim=-1)
 
-    def jacobian_integrate(
-        self, x: torch.Tensor, dx: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def jacobian_integrate(self, x: torch.Tensor, dx: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """``∂integrate/∂x``, ``∂integrate/∂dx`` — autograd-derived."""
+
         def _f(x_, dx_):
             return self.integrate(x_, dx_)
+
         return torch.autograd.functional.jacobian(_f, (x.detach(), dx.detach()))
 
-    def jacobian_diff(
-        self, x0: torch.Tensor, x1: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def jacobian_diff(self, x0: torch.Tensor, x1: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """``∂diff/∂x0``, ``∂diff/∂x1`` — autograd-derived."""
+
         def _f(x0_, x1_):
             return self.diff(x0_, x1_)
+
         return torch.autograd.functional.jacobian(_f, (x0.detach(), x1.detach()))

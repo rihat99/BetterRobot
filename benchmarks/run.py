@@ -61,7 +61,9 @@ def random_tree(n_moving: int, seed: int = 0) -> br.Model:
         parent = int(torch.randint(0, i, (1,), generator=gen))
         axis = torch.nn.functional.normalize(torch.randn(3, generator=gen, dtype=torch.float64), dim=0)
         builder.add_body(f"b{i}", mass=1.0, inertia=0.01 * torch.eye(3, dtype=torch.float64))
-        builder.add_revolute(f"j{i}", parent=f"b{parent}", child=f"b{i}", axis=axis, origin=origin(), lower=-3.0, upper=3.0)
+        builder.add_revolute(
+            f"j{i}", parent=f"b{parent}", child=f"b{i}", axis=axis, origin=origin(), lower=-3.0, upper=3.0
+        )
     return build_model(builder.finalize())
 
 
@@ -139,7 +141,9 @@ def count_ops(fn: Callable[[torch.Tensor], torch.Tensor], q: torch.Tensor, backw
     return sum(1 for e in prof.events() if e.name.startswith("aten::") and is_top_level(e))
 
 
-def time_calls(call: Callable[[], None], max_repeats: int, sync: Callable[[], None], inner: int = 1) -> tuple[float, float]:
+def time_calls(
+    call: Callable[[], None], max_repeats: int, sync: Callable[[], None], inner: int = 1
+) -> tuple[float, float]:
     """Return (median_ms, min_ms) per call; repeats shrink so the row takes about ``ROW_BUDGET_S``."""
     samples: list[float] = []
     budget_start = time.perf_counter()
@@ -192,8 +196,16 @@ def pinocchio_rows(model_names: list[str], args: argparse.Namespace) -> list[dic
             "aba": lambda: pin.aba(pmodel, pdata, q, v, tau),
         }
         for algo in args.algos:
-            row = {"algo": algo, "model": name, "njoints": pmodel.njoints, "nq": pmodel.nq, "batch": 1,
-                   "mode": "forward", "impl": "pinocchio", "ops": None}
+            row = {
+                "algo": algo,
+                "model": name,
+                "njoints": pmodel.njoints,
+                "nq": pmodel.nq,
+                "batch": 1,
+                "mode": "forward",
+                "impl": "pinocchio",
+                "ops": None,
+            }
             if algo == "jacobian":
                 row["fn"] = "pin.computeJointJacobians"
             try:
@@ -242,8 +254,12 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=20, help="max timed repeats per row (fewer if row > 2 s)")
     parser.add_argument("--threads", type=int, default=1)
     parser.add_argument("--out", default=None)
-    parser.add_argument("--max-call-s", type=float, default=20.0,
-                        help="skip larger batches of an (algo, model, mode) once one call exceeds this; row gets an error")
+    parser.add_argument(
+        "--max-call-s",
+        type=float,
+        default=20.0,
+        help="skip larger batches of an (algo, model, mode) once one call exceeds this; row gets an error",
+    )
     args = parser.parse_args()
     args.batches = [int(b) for b in args.batches.split(",")]
     args.models = args.models.split(",")
@@ -252,9 +268,17 @@ def main() -> None:
 
     sha, dirty = git_info()
     out = Path(args.out) if args.out else REPO_ROOT / "benchmarks" / "results" / f"{sha}_{args.device}.json"
-    meta = {"commit": sha, "dirty": dirty, "torch": torch.__version__, "device": args.device,
-            "device_name": device_name(args.device), "threads": args.threads, "dtype": str(DTYPE),
-            "date": datetime.datetime.now().isoformat(timespec="seconds"), "jacobian_fn": JACOBIAN_FN}
+    meta = {
+        "commit": sha,
+        "dirty": dirty,
+        "torch": torch.__version__,
+        "device": args.device,
+        "device_name": device_name(args.device),
+        "threads": args.threads,
+        "dtype": str(DTYPE),
+        "date": datetime.datetime.now().isoformat(timespec="seconds"),
+        "jacobian_fn": JACOBIAN_FN,
+    }
     print(f"{'algo':9} {'model':8} {'batch':>5} {'mode':16} {'impl':10} {'median_ms':>10} {'min_ms':>10} {'ops':>7}")
     rows: list[dict] = []
     started = time.perf_counter()
@@ -269,13 +293,22 @@ def main() -> None:
         for algo in args.algos:
             for batch in args.batches:
                 for mode in ("forward", "forward_backward"):
-                    row = {"algo": algo, "model": model_name, "njoints": model.njoints, "nq": model.nq,
-                           "batch": batch, "mode": mode, "impl": "better_robot"}
+                    row = {
+                        "algo": algo,
+                        "model": model_name,
+                        "njoints": model.njoints,
+                        "nq": model.nq,
+                        "batch": batch,
+                        "mode": mode,
+                        "impl": "better_robot",
+                    }
                     if algo == "jacobian":
                         row["fn"] = "frame_jacobian"
                     previous = last_ms.get((algo, mode))
                     if previous is not None and previous[1] > args.max_call_s * 1e3:
-                        row["error"] = f"skipped: batch {previous[0]} took {previous[1] / 1e3:.1f} s per call (> --max-call-s)"
+                        row["error"] = (
+                            f"skipped: batch {previous[0]} took {previous[1] / 1e3:.1f} s per call (> --max-call-s)"
+                        )
                     else:
                         try:
                             row.update(bench_torch_row(algo, model, batch, mode, args))

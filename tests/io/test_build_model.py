@@ -216,10 +216,20 @@ def _spherical_model():
         pytest.param(_spherical_model, 2, "spherical", 4, 3, id="spherical"),
         # nq = 7 (free flyer) + 1 (revolute) = 8
         pytest.param(
-            lambda: build_model(_simple_arm_ir(), root_joint=JointFreeFlyer()), 1, "free_flyer", 8, 7, id="free_flyer_root"
+            lambda: build_model(_simple_arm_ir(), root_joint=JointFreeFlyer()),
+            1,
+            "free_flyer",
+            8,
+            7,
+            id="free_flyer_root",
         ),
         pytest.param(
-            lambda: br_io.load(_simple_arm_ir, free_flyer=True), 1, "free_flyer", 8, 7, id="free_flyer_shortcut_via_load"
+            lambda: br_io.load(_simple_arm_ir, free_flyer=True),
+            1,
+            "free_flyer",
+            8,
+            7,
+            id="free_flyer_shortcut_via_load",
         ),
     ],
 )

@@ -46,7 +46,7 @@ class JointFreeFlyer:
 
     def integrate(self, q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
         """SE3 retraction: q_new = q ⊕ v = compose(q, exp(v))."""
-        delta = _se3.exp(v_slice)       # (B..., 7)
+        delta = _se3.exp(v_slice)  # (B..., 7)
         q_new = _se3.compose(q_slice, delta)
         return _se3.normalize(q_new)
 
@@ -66,4 +66,4 @@ class JointFreeFlyer:
 
     def neutral(self) -> torch.Tensor:
         """Identity SE3: zero translation, identity quaternion."""
-        return torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+        return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])

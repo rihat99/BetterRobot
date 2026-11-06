@@ -81,9 +81,11 @@ def main() -> None:
         q = result.x["q"][0]
         length = float((q[1:] - q[:-1]).norm(dim=-1).sum())
         end_error = float(torch.maximum((q[0] - q_a).abs().max(), (q[-1] - q_b).abs().max()))
-        print(f"{label:18s}: minimum clearance {clearance(q):+.3f} m, joint path length {length:.3f} rad "
-              f"(straight {float((q_b - q_a).norm()):.3f}), end error {end_error:.1e} rad, "
-              f"{result.iters} LM steps in {seconds * 1e3:.0f} ms")
+        print(
+            f"{label:18s}: minimum clearance {clearance(q):+.3f} m, joint path length {length:.3f} rad "
+            f"(straight {float((q_b - q_a).norm()):.3f}), end error {end_error:.1e} rad, "
+            f"{result.iters} LM steps in {seconds * 1e3:.0f} ms"
+        )
 
 
 if __name__ == "__main__":

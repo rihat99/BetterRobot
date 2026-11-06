@@ -49,7 +49,7 @@ _LEGACY_KIND_HELPER: dict[str, str] = {
 }
 
 
-_IDENTITY_SE3 = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+_IDENTITY_SE3 = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
 
 def _axis_x() -> torch.Tensor:
@@ -101,12 +101,14 @@ class ModelBuilder:
         if name in self._body_names:
             raise ValueError(f"Body {name!r} already exists")
         self._body_names.add(name)
-        self._bodies.append(IRBody(
-            name=name,
-            mass=mass,
-            com=com if com is not None else torch.zeros(3),
-            inertia=inertia if inertia is not None else torch.zeros(3, 3),
-        ))
+        self._bodies.append(
+            IRBody(
+                name=name,
+                mass=mass,
+                com=com if com is not None else torch.zeros(3),
+                inertia=inertia if inertia is not None else torch.zeros(3, 3),
+            )
+        )
         return name
 
     def add_frame(
@@ -118,12 +120,14 @@ class ModelBuilder:
         frame_type: str = "op",
     ) -> str:
         """Add a named operational frame and return its name."""
-        self._frames.append(IRFrame(
-            name=name,
-            parent_body=parent_body,
-            placement=placement,
-            frame_type=frame_type,
-        ))
+        self._frames.append(
+            IRFrame(
+                name=name,
+                parent_body=parent_body,
+                placement=placement,
+                frame_type=frame_type,
+            )
+        )
         return name
 
     def add_collision_geom(
@@ -165,23 +169,25 @@ class ModelBuilder:
         if name in self._joint_names:
             raise ValueError(f"Joint {name!r} already exists")
         self._joint_names.add(name)
-        self._joints.append(IRJoint(
-            name=name,
-            parent_body=parent,
-            child_body=child,
-            kind=kind,
-            axis=axis,
-            origin=origin,
-            lower=lower,
-            upper=upper,
-            velocity_limit=velocity_limit,
-            effort_limit=effort_limit,
-            mimic_source=mimic_source,
-            mimic_multiplier=mimic_multiplier,
-            mimic_offset=mimic_offset,
-            pitch=pitch,
-            joint_model=joint_model,
-        ))
+        self._joints.append(
+            IRJoint(
+                name=name,
+                parent_body=parent,
+                child_body=child,
+                kind=kind,
+                axis=axis,
+                origin=origin,
+                lower=lower,
+                upper=upper,
+                velocity_limit=velocity_limit,
+                effort_limit=effort_limit,
+                mimic_source=mimic_source,
+                mimic_multiplier=mimic_multiplier,
+                mimic_offset=mimic_offset,
+                pitch=pitch,
+                joint_model=joint_model,
+            )
+        )
         return name
 
     # ── named revolute helpers ───────────────────────────────────────
@@ -212,10 +218,14 @@ class ModelBuilder:
         return self._push_joint(
             name,
             kind="continuous" if unbounded else "revolute",
-            parent=parent, child=child,
+            parent=parent,
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=axis, lower=lower, upper=upper,
-            velocity_limit=velocity_limit, effort_limit=effort_limit,
+            axis=axis,
+            lower=lower,
+            upper=upper,
+            velocity_limit=velocity_limit,
+            effort_limit=effort_limit,
             mimic_source=mimic_source,
             mimic_multiplier=mimic_multiplier,
             mimic_offset=mimic_offset,
@@ -250,11 +260,19 @@ class ModelBuilder:
     ) -> str:
         """Generic 1-DoF prismatic joint with explicit ``axis``."""
         return self._push_joint(
-            name, kind="prismatic", parent=parent, child=child,
+            name,
+            kind="prismatic",
+            parent=parent,
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=axis, lower=lower, upper=upper,
-            velocity_limit=velocity_limit, effort_limit=effort_limit,
-            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            axis=axis,
+            lower=lower,
+            upper=upper,
+            velocity_limit=velocity_limit,
+            effort_limit=effort_limit,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
         )
 
     def add_prismatic_x(self, name: str, **kwargs) -> str:
@@ -278,11 +296,19 @@ class ModelBuilder:
     ) -> str:
         """Spherical (ball) joint — 3 rotational DoF, SO(3) ``q``."""
         return self._push_joint(
-            name, kind="spherical", parent=parent, child=child,
+            name,
+            kind="spherical",
+            parent=parent,
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=None, lower=None, upper=None,
-            velocity_limit=None, effort_limit=None,
-            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            axis=None,
+            lower=None,
+            upper=None,
+            velocity_limit=None,
+            effort_limit=None,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
         )
 
     def add_planar(
@@ -295,11 +321,19 @@ class ModelBuilder:
     ) -> str:
         """Planar joint (2-DoF translation + 1-DoF in-plane rotation)."""
         return self._push_joint(
-            name, kind="planar", parent=parent, child=child,
+            name,
+            kind="planar",
+            parent=parent,
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=None, lower=None, upper=None,
-            velocity_limit=None, effort_limit=None,
-            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            axis=None,
+            lower=None,
+            upper=None,
+            velocity_limit=None,
+            effort_limit=None,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
         )
 
     def add_helical(
@@ -316,11 +350,19 @@ class ModelBuilder:
     ) -> str:
         """Helical / screw joint along ``axis`` with linear/angular ratio ``pitch``."""
         return self._push_joint(
-            name, kind="helical", parent=parent, child=child,
+            name,
+            kind="helical",
+            parent=parent,
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=axis, lower=lower, upper=upper,
-            velocity_limit=None, effort_limit=None,
-            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            axis=axis,
+            lower=lower,
+            upper=upper,
+            velocity_limit=None,
+            effort_limit=None,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
             pitch=pitch,
         )
 
@@ -333,11 +375,19 @@ class ModelBuilder:
     ) -> str:
         """Free-flyer (6-DoF SE(3)) root joint connecting ``world → child``."""
         return self._push_joint(
-            name, kind="free_flyer", parent="world", child=child,
+            name,
+            kind="free_flyer",
+            parent="world",
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=None, lower=None, upper=None,
-            velocity_limit=None, effort_limit=None,
-            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            axis=None,
+            lower=None,
+            upper=None,
+            velocity_limit=None,
+            effort_limit=None,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
         )
 
     def add_fixed(
@@ -350,11 +400,19 @@ class ModelBuilder:
     ) -> str:
         """Rigid (fixed) attachment between two bodies."""
         return self._push_joint(
-            name, kind="fixed", parent=parent, child=child,
+            name,
+            kind="fixed",
+            parent=parent,
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=None, lower=None, upper=None,
-            velocity_limit=None, effort_limit=None,
-            mimic_source=None, mimic_multiplier=1.0, mimic_offset=0.0,
+            axis=None,
+            lower=None,
+            upper=None,
+            velocity_limit=None,
+            effort_limit=None,
+            mimic_source=None,
+            mimic_multiplier=1.0,
+            mimic_offset=0.0,
         )
 
     # ── catch-all ────────────────────────────────────────────────────
@@ -393,27 +451,28 @@ class ModelBuilder:
                 "use one of the named add_<kind> helpers instead."
             )
         if not isinstance(kind, JointModel):
-            raise TypeError(
-                f"kind={kind!r} does not implement the JointModel protocol."
-            )
+            raise TypeError(f"kind={kind!r} does not implement the JointModel protocol.")
 
         # Preserve the exact object: its class-specific state (for example a
         # helical pitch or composite children) cannot be reconstructed from
         # the string discriminator alone.
         kind_str = getattr(kind, "kind", None)
         if not isinstance(kind_str, str):
-            raise TypeError(
-                f"kind={kind!r} does not look like a JointModel "
-                f"(missing string `.kind` attribute)."
-            )
+            raise TypeError(f"kind={kind!r} does not look like a JointModel (missing string `.kind` attribute).")
         return self._push_joint(
-            name, kind=kind_str, parent=parent, child=child,
+            name,
+            kind=kind_str,
+            parent=parent,
+            child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
             axis=axis if axis is not None else kind.axis,
-            lower=lower, upper=upper,
-            velocity_limit=velocity_limit, effort_limit=effort_limit,
+            lower=lower,
+            upper=upper,
+            velocity_limit=velocity_limit,
+            effort_limit=effort_limit,
             mimic_source=mimic_source,
-            mimic_multiplier=mimic_multiplier, mimic_offset=mimic_offset,
+            mimic_multiplier=mimic_multiplier,
+            mimic_offset=mimic_offset,
             pitch=float(getattr(kind, "pitch", 0.0)),
             joint_model=kind,
         )

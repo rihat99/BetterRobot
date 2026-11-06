@@ -54,10 +54,14 @@ def main() -> None:
     q = result.x["q"][0]
     reached = forward_kinematics_state(model, q).frame_pose[:, frame_id]
     print(f"{result.iters} LM steps in {seconds * 1e3:.0f} ms, converged: {bool(result.done[0])}")
-    print(f"start error {float((reached[0, :3] - pose_start[:3]).norm()):.1e} m, "
-          f"goal error {float((reached[-1, :3] - pose_goal[:3]).norm()):.1e} m")
-    print(f"peak joint speed {float(((q[1:] - q[:-1]) / DT).abs().max()):.2f} rad/s, "
-          f"inside limits: {bool(((q >= model.lower_pos_limit) & (q <= model.upper_pos_limit)).all())}")
+    print(
+        f"start error {float((reached[0, :3] - pose_start[:3]).norm()):.1e} m, "
+        f"goal error {float((reached[-1, :3] - pose_goal[:3]).norm()):.1e} m"
+    )
+    print(
+        f"peak joint speed {float(((q[1:] - q[:-1]) / DT).abs().max()):.2f} rad/s, "
+        f"inside limits: {bool(((q >= model.lower_pos_limit) & (q <= model.upper_pos_limit)).all())}"
+    )
 
 
 if __name__ == "__main__":

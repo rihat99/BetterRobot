@@ -30,7 +30,9 @@ def test_analytic_jacobians_match_autodiff(panda):
     goal = forward_kinematics_state(panda, _random_q(panda, 6, 1)).frame_pose[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=q + 4.0, limit_weight=2.0, rest_weight=0.5)
     problem.data["point"] = goal[:, :3]
-    problem.residual("position", terms.frame_position(panda, frame=FRAME, target="point"), kernel=optim.Huber(delta=0.1))
+    problem.residual(
+        "position", terms.frame_position(panda, frame=FRAME, target="point"), kernel=optim.Huber(delta=0.1)
+    )
     errors = optim.check_jacobian(problem, {"q": q + 4.0})
     assert set(errors) == {f"pose/{FRAME}", "limits", "rest", "position"}
     # 1e-5: URDF values are float32-rounded, which limits analytic-vs-autodiff agreement of H.
@@ -57,7 +59,9 @@ def test_result_getitem_and_ik_problem_state_handle(panda):
 
 def test_robot_manifold_accepts_an_empty_batch(panda):
     # tangent_dim used to index x[0], which raises IndexError for B == 0.
-    problem = optim.Problem({"q": torch.zeros(0, panda.nq, dtype=torch.float64)}, manifolds={"q": terms.RobotManifold(panda)})
+    problem = optim.Problem(
+        {"q": torch.zeros(0, panda.nq, dtype=torch.float64)}, manifolds={"q": terms.RobotManifold(panda)}
+    )
     problem.residual("rest", terms.rest(panda, torch.zeros(panda.nq, dtype=torch.float64)))
     result = optim.solve(problem, optim.LevenbergMarquardt(), iters=2)
     assert result.x["q"].shape == (0, panda.nq) and result.loss.shape == (0,)
@@ -73,7 +77,9 @@ def g1():
 
 def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1):
     generator = torch.Generator().manual_seed(0)
-    q = g1.integrate(g1.q_neutral.expand(1, 8, -1), 0.3 * torch.randn(1, 8, g1.nv, generator=generator, dtype=torch.float64))
+    q = g1.integrate(
+        g1.q_neutral.expand(1, 8, -1), 0.3 * torch.randn(1, 8, g1.nv, generator=generator, dtype=torch.float64)
+    )
     dt = 1 / 30
     # World-frame root step, body-frame root rotation step, joint steps; jerk = second difference of the steps.
     rotation = so3.log(so3.compose(so3.inverse(q[:, :-1, 3:7]), q[:, 1:, 3:7]))

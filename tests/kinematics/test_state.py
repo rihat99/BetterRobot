@@ -61,14 +61,18 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
     torch.testing.assert_close(by_func, by_autograd)
     assert float(by_func[:, :, :3].abs().max()) > 0.5  # moving a joint origin moves the hand
 
-    by_q = torch.func.jacrev(lambda x: kinematics.forward_kinematics_state(model, x).frame_translation[:, hand].sum(0))(q)
+    by_q = torch.func.jacrev(lambda x: kinematics.forward_kinematics_state(model, x).frame_translation[:, hand].sum(0))(
+        q
+    )
     jacobian = kinematics.frame_jacobian(model, kinematics.forward_kinematics_state(model, q), frame=hand)
     torch.testing.assert_close(by_q.permute(1, 0, 2), jacobian[:, :3, :], atol=1e-12, rtol=0.0)
 
     # Batched model values: one set of placements and frames per configuration.
     scale = torch.tensor([1.0, 1.3], dtype=torch.float64)[:, None, None]
     batched = model.with_values(
-        joint_placements=torch.cat([model.joint_placements[None, :, :3] * scale, model.joint_placements[None, :, 3:].expand(2, -1, -1)], -1),
+        joint_placements=torch.cat(
+            [model.joint_placements[None, :, :3] * scale, model.joint_placements[None, :, 3:].expand(2, -1, -1)], -1
+        ),
         frame_placements=model.values.frame_placements[None].expand(2, -1, -1),
     )
     state = kinematics.forward_kinematics_state(batched, q)
@@ -85,8 +89,13 @@ def test_state_review_regressions():
     builder = ModelBuilder("axis")
     base = builder.add_body("base", mass=1.0)
     link = builder.add_body("link", mass=1.0)
-    builder.add_revolute("joint", parent=base, child=link, axis=torch.tensor([1.2, 1.6, 0.0]),
-                         origin=torch.tensor([0.1, 0.2, 0.3, 0.0, 0.0, 0.0, 1.0]))
+    builder.add_revolute(
+        "joint",
+        parent=base,
+        child=link,
+        axis=torch.tensor([1.2, 1.6, 0.0]),
+        origin=torch.tensor([0.1, 0.2, 0.3, 0.0, 0.0, 0.0, 1.0]),
+    )
     model = build_model(builder.finalize(), dtype=torch.float64)
     q = torch.tensor([[0.7], [-2.1]], dtype=torch.float64)
     with torch.inference_mode():
@@ -95,7 +104,9 @@ def test_state_review_regressions():
     state.joint_translation.sum().backward()
     state = br.forward_kinematics_state(model, q)
     rotation = state.joint_rotation
-    torch.testing.assert_close(rotation @ rotation.mT, torch.eye(3, dtype=torch.float64).expand_as(rotation), atol=1e-14, rtol=0.0)
+    torch.testing.assert_close(
+        rotation @ rotation.mT, torch.eye(3, dtype=torch.float64).expand_as(rotation), atol=1e-14, rtol=0.0
+    )
     torch.testing.assert_close(rotation, so3.to_matrix(state.joint_pose[..., 3:]), atol=1e-14, rtol=0.0)
 
     with torch.no_grad():

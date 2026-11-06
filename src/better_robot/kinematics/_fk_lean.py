@@ -67,8 +67,12 @@ class LeanPlan:
     order: torch.Tensor  #: ``(njoints,)`` joint id at each level-order slot.
     inverse_order: torch.Tensor | None  #: slot of each joint id; ``None`` when the order is the identity.
     level_slices: tuple[tuple[int, int], ...]  #: slot range of each tree level.
-    parent_position: tuple[torch.Tensor | None, ...]  #: per level > 0: index of each joint's parent in the previous level.
-    fallbacks: tuple[tuple[torch.Tensor, int, int, int], ...]  #: ``(slot (1,), joint id, q start, q width)`` of rare kinds.
+    parent_position: tuple[
+        torch.Tensor | None, ...
+    ]  #: per level > 0: index of each joint's parent in the previous level.
+    fallbacks: tuple[
+        tuple[torch.Tensor, int, int, int], ...
+    ]  #: ``(slot (1,), joint id, q start, q width)`` of rare kinds.
 
 
 def _tree_levels(structure: ModelStructure) -> list[list[int]]:
@@ -168,7 +172,9 @@ def build_plan(structure: ModelStructure, dtype: torch.dtype, device: torch.devi
         if index:
             previous = {joint: position for position, joint in enumerate(levels[index - 1])}
             # A single parent broadcasts; no gather needed.
-            parent_position.append(None if len(previous) == 1 else columns([previous[parents[j]] for j in level], (-1,)))
+            parent_position.append(
+                None if len(previous) == 1 else columns([previous[parents[j]] for j in level], (-1,))
+            )
     identity = order == list(range(nj))
     order_tensor = columns(order, (-1,))
     return LeanPlan(
@@ -257,7 +263,11 @@ def lean_core(
     if plan.inverse_order is not None:
         placement = placement.index_select(-3, plan.order)
     if features:
-        gathered = torch.cat(features, dim=-1).index_select(1, plan.feature_index).view(count, nj, plan.feature_index.numel() // nj)
+        gathered = (
+            torch.cat(features, dim=-1)
+            .index_select(1, plan.feature_index)
+            .view(count, nj, plan.feature_index.numel() // nj)
+        )
     else:
         gathered = plan.bias.new_zeros(count, nj, 1)
     if placement.ndim == 3 and not plan.fallbacks:

@@ -1,4 +1,5 @@
 """Tests for spatial/ — Motion, Force, Inertia, Symmetric3, ops."""
+
 import pytest
 import torch
 from better_robot.spatial.symmetric3 import Symmetric3
@@ -10,6 +11,7 @@ from better_robot.lie import se3
 
 
 # ──────────────────────────── Symmetric3 ────────────────────────────────
+
 
 def test_symmetric3_roundtrip():
     M = torch.randn(3, 3)
@@ -23,7 +25,7 @@ def test_symmetric3_roundtrip():
 
 
 def test_motion_linear_angular():
-    data = torch.arange(6.).view(1, 6)
+    data = torch.arange(6.0).view(1, 6)
     m = Motion(data)
     assert torch.allclose(m.linear, data[..., :3])
     assert torch.allclose(m.angular, data[..., 3:])
@@ -68,7 +70,7 @@ def test_se3_action_identity(value_cls, act):
 
 def test_inertia_from_sphere():
     I = Inertia.from_sphere(mass=1.0, radius=0.5)
-    expected_I = 0.4 * 1.0 * 0.5 ** 2
+    expected_I = 0.4 * 1.0 * 0.5**2
     assert torch.allclose(I.mass, torch.tensor(1.0))
     assert torch.allclose(I.inertia_matrix.diagonal(), torch.tensor([expected_I] * 3), atol=1e-5)
 

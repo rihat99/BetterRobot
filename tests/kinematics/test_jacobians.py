@@ -86,7 +86,9 @@ def test_joint_jacobian_plan_rebuilds_after_to(chain):
 
     def world_jacobians(model):
         state = forward_kinematics_state(model, model.q_neutral)
-        return torch.stack([joint_jacobian(model, state, joint=j, reference="world") for j in range(model.njoints)], dim=-3)
+        return torch.stack(
+            [joint_jacobian(model, state, joint=j, reference="world") for j in range(model.njoints)], dim=-3
+        )
 
     reference = world_jacobians(chain)
     assert getattr(chain.structure, "_joint_jacobian_plan", None) is not None
@@ -201,7 +203,9 @@ def test_point_jacobian_matches_finite_differences_on_a_floating_base():
 
     model = load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
-    q = model.integrate(model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64))
+    q = model.integrate(
+        model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64)
+    )
     frames = ["body_left_ankle_roll_link", "body_right_wrist_yaw_link", "body_left_ankle_roll_link", "body_pelvis"]
     points = 0.1 * torch.randn(len(frames), 3, generator=generator, dtype=torch.float64)
     ids = [model.frame_id(frame) for frame in frames]

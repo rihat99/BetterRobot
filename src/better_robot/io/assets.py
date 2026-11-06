@@ -42,14 +42,10 @@ class FilesystemResolver:
 
     def resolve(self, uri: str) -> Path:
         if "://" in uri:
-            raise FileNotFoundError(
-                f"FilesystemResolver does not handle URIs with schemes: {uri!r}"
-            )
+            raise FileNotFoundError(f"FilesystemResolver does not handle URIs with schemes: {uri!r}")
         candidate = (self.base_path / uri).resolve()
         if not candidate.exists():
-            raise FileNotFoundError(
-                f"Asset {uri!r} not found under base_path={self.base_path}"
-            )
+            raise FileNotFoundError(f"Asset {uri!r} not found under base_path={self.base_path}")
         return candidate
 
 
@@ -69,17 +65,14 @@ class PackageResolver:
 
     def resolve(self, uri: str) -> Path:
         if not uri.startswith(self._SCHEME):
-            raise FileNotFoundError(
-                f"PackageResolver expects 'package://' URIs, got {uri!r}"
-            )
-        rest = uri[len(self._SCHEME):]
+            raise FileNotFoundError(f"PackageResolver expects 'package://' URIs, got {uri!r}")
+        rest = uri[len(self._SCHEME) :]
         pkg, sep, rel = rest.partition("/")
         if not sep:
             raise FileNotFoundError(f"Malformed package URI: {uri!r}")
         if pkg not in self._packages:
             raise FileNotFoundError(
-                f"Package {pkg!r} not registered with this PackageResolver "
-                f"(known: {list(self._packages)})"
+                f"Package {pkg!r} not registered with this PackageResolver (known: {list(self._packages)})"
             )
         candidate = (self._packages[pkg] / rel).resolve()
         if not candidate.exists():
@@ -106,8 +99,7 @@ class CompositeResolver:
                 last_error = exc
                 continue
         raise FileNotFoundError(
-            f"None of {len(self._resolvers)} resolvers could find {uri!r} "
-            f"(last error: {last_error})"
+            f"None of {len(self._resolvers)} resolvers could find {uri!r} (last error: {last_error})"
         )
 
 
@@ -125,9 +117,7 @@ class CachedDownloadResolver:
 
     def resolve(self, uri: str) -> Path:
         if not uri.startswith(("http://", "https://")):
-            raise FileNotFoundError(
-                f"CachedDownloadResolver only handles http(s) URIs, got {uri!r}"
-            )
+            raise FileNotFoundError(f"CachedDownloadResolver only handles http(s) URIs, got {uri!r}")
         # Hash-free local name — last URL component is good enough for
         # the typical URDF mesh case; collisions are the caller's problem.
         local_name = uri.rsplit("/", 1)[-1] or "asset.bin"
@@ -136,9 +126,7 @@ class CachedDownloadResolver:
             try:
                 urllib.request.urlretrieve(uri, target)  # noqa: S310
             except OSError as exc:
-                raise FileNotFoundError(
-                    f"Failed to download {uri!r} to {target}: {exc}"
-                ) from exc
+                raise FileNotFoundError(f"Failed to download {uri!r} to {target}: {exc}") from exc
         return target
 
 

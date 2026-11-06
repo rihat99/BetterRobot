@@ -44,7 +44,9 @@ def test_mass_matrix_is_the_acceleration_jacobian_of_inverse_dynamics(g1: br.Mod
     mass = mass_matrix(g1, state)
     torch.testing.assert_close(mass, mass.mT, rtol=0, atol=1e-12)
     assert (torch.linalg.eigvalsh(mass) > 0).all()
-    jacobian = torch.func.jacrev(lambda a: inverse_dynamics(g1, state, v=v, a=a))(torch.zeros(2, g1.nv, dtype=torch.float64))
+    jacobian = torch.func.jacrev(lambda a: inverse_dynamics(g1, state, v=v, a=a))(
+        torch.zeros(2, g1.nv, dtype=torch.float64)
+    )
     # (2, nv, 2, nv): batch elements do not interact, so the diagonal blocks are the mass matrices.
     torch.testing.assert_close(torch.stack([jacobian[i, :, i] for i in range(2)]), mass, rtol=1e-9, atol=1e-9)
     momentum = (centroidal_map(g1, state) @ v.unsqueeze(-1)).squeeze(-1)

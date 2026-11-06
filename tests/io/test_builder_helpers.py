@@ -48,7 +48,10 @@ def test_add_revolute_with_explicit_axis():
     base = b.add_body("base")
     tip = b.add_body("tip", mass=1.0)
     b.add_revolute(
-        "j", parent=base, child=tip, axis=torch.tensor([0.0, 1.0, 0.0]),
+        "j",
+        parent=base,
+        child=tip,
+        axis=torch.tensor([0.0, 1.0, 0.0]),
     )
     model = build_model(b.finalize())
     # Y-axis revolute resolves to JointRY.
@@ -72,7 +75,10 @@ def test_legacy_string_kind_raises_with_helper_pointer():
     tip = b.add_body("tip", mass=1.0)
     with pytest.raises(TypeError, match="add_revolute_z"):
         b.add_joint(
-            "j", kind="revolute_z", parent=base, child=tip,
+            "j",
+            kind="revolute_z",
+            parent=base,
+            child=tip,
             origin=torch.zeros(7),
         )
 

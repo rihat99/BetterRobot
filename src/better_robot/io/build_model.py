@@ -787,8 +787,9 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         for j_idx in range(len(joint_models_list))
     ]
     armature, friction, damping = (
-        torch.tensor([row[k] for row, jm in zip(joint_dynamics, joint_models_list) for _ in range(jm.nv)], dtype=dtype)
-        .reshape(nv_full)
+        torch.tensor(
+            [row[k] for row, jm in zip(joint_dynamics, joint_models_list) for _ in range(jm.nv)], dtype=dtype
+        ).reshape(nv_full)
         for k in range(3)
     )
 

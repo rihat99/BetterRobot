@@ -1,4 +1,5 @@
 """Tests for lie/so3.py — SO3 group operations."""
+
 import math
 import torch
 from better_robot.lie import so3
@@ -16,12 +17,12 @@ def test_compose_inverse():
 
 def test_act_rotation():
     """90-degree rotation about Z."""
-    axis = torch.tensor([0., 0., 1.])
+    axis = torch.tensor([0.0, 0.0, 1.0])
     angle = torch.tensor(math.pi / 2)
     q = so3.from_axis_angle(axis, angle)
-    p = torch.tensor([1., 0., 0.])
+    p = torch.tensor([1.0, 0.0, 0.0])
     result = so3.act(q, p)
-    expected = torch.tensor([0., 1., 0.])
+    expected = torch.tensor([0.0, 1.0, 0.0])
     assert torch.allclose(result, expected, atol=1e-5)
 
 
@@ -39,11 +40,10 @@ def test_from_matrix_roundtrip():
     R = so3.to_matrix(q)
     q_back = so3.from_matrix(R)
     # Quaternion ±q represent same rotation
-    assert (torch.allclose(q_back, q, atol=1e-5) or
-            torch.allclose(q_back, -q, atol=1e-5))
+    assert torch.allclose(q_back, q, atol=1e-5) or torch.allclose(q_back, -q, atol=1e-5)
 
 
 def test_normalize():
-    q = torch.tensor([0., 0., 0., 2.])
+    q = torch.tensor([0.0, 0.0, 0.0, 2.0])
     q_norm = so3.normalize(q)
     assert torch.allclose(q_norm.norm(), torch.tensor(1.0), atol=1e-6)

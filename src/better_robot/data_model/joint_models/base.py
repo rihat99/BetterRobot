@@ -70,21 +70,15 @@ class JointModel(Protocol):
         """``(B..., nq) → (B..., 6, nv)``. Motion subspace ``S(q)``."""
         ...
 
-    def joint_velocity(
-        self, q_slice: torch.Tensor, v_slice: torch.Tensor
-    ) -> torch.Tensor:
+    def joint_velocity(self, q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
         """``(B..., 6)``. Spatial velocity in the joint frame."""
         ...
 
-    def integrate(
-        self, q_slice: torch.Tensor, v_slice: torch.Tensor
-    ) -> torch.Tensor:
+    def integrate(self, q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
         """``(B..., nq)``. Manifold retraction ``q ⊕ v``."""
         ...
 
-    def difference(
-        self, q0_slice: torch.Tensor, q1_slice: torch.Tensor
-    ) -> torch.Tensor:
+    def difference(self, q0_slice: torch.Tensor, q1_slice: torch.Tensor) -> torch.Tensor:
         """``(B..., nv)``. Tangent ``q1 ⊖ q0``."""
         ...
 
@@ -111,25 +105,19 @@ class JointModel(Protocol):
 # ``isinstance`` does not pick up new mandatory methods.
 
 
-def zero_joint_bias_acceleration(
-    q_slice: torch.Tensor, v_slice: torch.Tensor
-) -> torch.Tensor:
+def zero_joint_bias_acceleration(q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
     """Default ``c_J`` for joints with a ``q``-linear motion subspace."""
     batch_shape = torch.broadcast_shapes(q_slice.shape[:-1], v_slice.shape[:-1])
     return torch.zeros(*batch_shape, 6, dtype=q_slice.dtype, device=q_slice.device)
 
 
-def zero_joint_motion_subspace_derivative(
-    q_slice: torch.Tensor, v_slice: torch.Tensor, nv: int
-) -> torch.Tensor:
+def zero_joint_motion_subspace_derivative(q_slice: torch.Tensor, v_slice: torch.Tensor, nv: int) -> torch.Tensor:
     """Default ``Ṡ(q, v)`` for joints with constant motion subspace."""
     batch_shape = torch.broadcast_shapes(q_slice.shape[:-1], v_slice.shape[:-1])
     return torch.zeros(*batch_shape, 6, nv, dtype=q_slice.dtype, device=q_slice.device)
 
 
-def joint_bias_acceleration(
-    jm: "JointModel", q_slice: torch.Tensor, v_slice: torch.Tensor
-) -> torch.Tensor:
+def joint_bias_acceleration(jm: "JointModel", q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
     """Dispatch ``c_J`` through ``jm`` if available, else zero."""
     impl = getattr(jm, "joint_bias_acceleration", None)
     if impl is None:
@@ -137,9 +125,7 @@ def joint_bias_acceleration(
     return impl(q_slice, v_slice)
 
 
-def joint_motion_subspace_derivative(
-    jm: "JointModel", q_slice: torch.Tensor, v_slice: torch.Tensor
-) -> torch.Tensor:
+def joint_motion_subspace_derivative(jm: "JointModel", q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
     """Dispatch ``Ṡ`` through ``jm`` if available, else zero."""
     impl = getattr(jm, "joint_motion_subspace_derivative", None)
     if impl is None:

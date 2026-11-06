@@ -38,14 +38,17 @@ class Symmetric3:
         Packing: [xx, yy, zz, xy, xz, yz] where xx = M[0,0] etc.
         """
         S = (M + M.transpose(-1, -2)) * 0.5
-        data = torch.stack([
-            S[..., 0, 0],
-            S[..., 1, 1],
-            S[..., 2, 2],
-            S[..., 0, 1],
-            S[..., 0, 2],
-            S[..., 1, 2],
-        ], dim=-1)
+        data = torch.stack(
+            [
+                S[..., 0, 0],
+                S[..., 1, 1],
+                S[..., 2, 2],
+                S[..., 0, 1],
+                S[..., 0, 2],
+                S[..., 1, 2],
+            ],
+            dim=-1,
+        )
         return cls(data)
 
     def to_matrix(self) -> torch.Tensor:
@@ -56,11 +59,14 @@ class Symmetric3:
         xy = self.data[..., 3]
         xz = self.data[..., 4]
         yz = self.data[..., 5]
-        return torch.stack([
-            torch.stack([xx, xy, xz], dim=-1),
-            torch.stack([xy, yy, yz], dim=-1),
-            torch.stack([xz, yz, zz], dim=-1),
-        ], dim=-2)
+        return torch.stack(
+            [
+                torch.stack([xx, xy, xz], dim=-1),
+                torch.stack([xy, yy, yz], dim=-1),
+                torch.stack([xz, yz, zz], dim=-1),
+            ],
+            dim=-2,
+        )
 
     def add(self, other: "Symmetric3") -> "Symmetric3":
         return Symmetric3(self.data + other.data)

@@ -22,7 +22,7 @@ class JointTranslation:
     def joint_placement(self, q_slice: torch.Tensor) -> torch.Tensor:
         """Pure translation SE3. (B..., 3) → (B..., 7)."""
         zeros3 = torch.zeros(*q_slice.shape[:-1], 3, dtype=q_slice.dtype, device=q_slice.device)
-        ones   = torch.ones(*q_slice.shape[:-1], 1,  dtype=q_slice.dtype, device=q_slice.device)
+        ones = torch.ones(*q_slice.shape[:-1], 1, dtype=q_slice.dtype, device=q_slice.device)
         return torch.cat([q_slice, zeros3, ones], dim=-1)
 
     def joint_motion_subspace(self, q_slice: torch.Tensor) -> torch.Tensor:

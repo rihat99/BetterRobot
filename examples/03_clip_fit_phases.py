@@ -59,7 +59,9 @@ def main() -> None:
     root_only = torch.zeros(KNOTS, model.nv, dtype=torch.bool)
     root_only[:, :6] = True
     phases = [
-        optim.Phase(optim.LevenbergMarquardt(), 5, name="root", free={"q": root_only.flatten()}, weights={"smooth": 0.0}),
+        optim.Phase(
+            optim.LevenbergMarquardt(), 5, name="root", free={"q": root_only.flatten()}, weights={"smooth": 0.0}
+        ),
         optim.Phase(optim.LBFGS(), 30, name="lbfgs"),
         optim.Phase(optim.LevenbergMarquardt(), 15, name="lm"),
     ]
@@ -70,10 +72,14 @@ def main() -> None:
     fitted = forward_kinematics_state(model, result.x["q"]).frame_pose[:, :, marker_ids, :3]
     error = (fitted - true_positions).norm(dim=-1)
     for name, losses in result.history.items():
-        print(f"phase {name:6s}: loss {float(losses[0].mean()):.4f} -> {float(losses[-1].mean()):.4f} in {len(losses)} steps")
+        print(
+            f"phase {name:6s}: loss {float(losses[0].mean()):.4f} -> {float(losses[-1].mean()):.4f} in {len(losses)} steps"
+        )
     print(f"{KNOTS} frames, {KNOTS * model.nv} unknowns, {seconds:.1f} s")
-    print(f"marker error against the clean reference: mean {float(error.mean()) * 1e3:.1f} mm, "
-          f"max {float(error.max()) * 1e3:.1f} mm (noise 5 mm, 2% outliers of 0.5 m)")
+    print(
+        f"marker error against the clean reference: mean {float(error.mean()) * 1e3:.1f} mm, "
+        f"max {float(error.max()) * 1e3:.1f} mm (noise 5 mm, 2% outliers of 0.5 m)"
+    )
 
 
 if __name__ == "__main__":

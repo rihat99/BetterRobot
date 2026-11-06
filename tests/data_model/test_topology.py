@@ -1,8 +1,12 @@
 """Tests for data_model/topology.py."""
+
 import pytest
 
 from better_robot.data_model.topology import (
-    topo_sort, build_children, build_subtrees, build_supports,
+    topo_sort,
+    build_children,
+    build_subtrees,
+    build_supports,
 )
 
 # Simple chain: 0 → 1 → 2 → 3

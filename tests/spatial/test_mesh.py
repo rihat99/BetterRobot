@@ -148,12 +148,23 @@ def test_non_manifold_edge_raises_naming_edges() -> None:
 @pytest.mark.parametrize(
     ("check", "faces", "error", "match"),
     [
-        pytest.param(validate_closed_manifold, torch.zeros((4, 3), dtype=torch.float32),
-                     TypeError, "int32 or torch.int64", id="non_integer"),
-        pytest.param(orient_faces_consistently, torch.zeros((4, 4), dtype=torch.int64),
-                     ValueError, r"shape \(F, 3\)", id="four_columns"),
-        pytest.param(orient_faces_consistently, torch.zeros((0, 3), dtype=torch.int64),
-                     ValueError, r"shape \(F, 3\)", id="empty"),
+        pytest.param(
+            validate_closed_manifold,
+            torch.zeros((4, 3), dtype=torch.float32),
+            TypeError,
+            "int32 or torch.int64",
+            id="non_integer",
+        ),
+        pytest.param(
+            orient_faces_consistently,
+            torch.zeros((4, 4), dtype=torch.int64),
+            ValueError,
+            r"shape \(F, 3\)",
+            id="four_columns",
+        ),
+        pytest.param(
+            orient_faces_consistently, torch.zeros((0, 3), dtype=torch.int64), ValueError, r"shape \(F, 3\)", id="empty"
+        ),
     ],
 )
 def test_bad_faces_raise(check, faces: torch.Tensor, error: type, match: str) -> None:

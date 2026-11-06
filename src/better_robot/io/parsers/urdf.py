@@ -46,7 +46,7 @@ def _extract_geoms(
         if origin is not None:
             placement = _mat4_to_se3(origin)
         else:
-            placement = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+            placement = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
         rgba = None
         if hasattr(geom, "material") and geom.material is not None:
@@ -79,49 +79,59 @@ def _extract_geoms(
         mesh = getattr(g, "mesh", None)
 
         if sphere is not None:
-            result.append(IRGeom(
-                kind="sphere",
-                params={"radius": float(sphere.radius)},
-                origin=placement,
-                rgba=rgba,
-            ))
+            result.append(
+                IRGeom(
+                    kind="sphere",
+                    params={"radius": float(sphere.radius)},
+                    origin=placement,
+                    rgba=rgba,
+                )
+            )
         elif box is not None:
             size = np.array(box.size, dtype=np.float64)
-            result.append(IRGeom(
-                kind="box",
-                params={"size": size.tolist()},
-                origin=placement,
-                rgba=rgba,
-            ))
+            result.append(
+                IRGeom(
+                    kind="box",
+                    params={"size": size.tolist()},
+                    origin=placement,
+                    rgba=rgba,
+                )
+            )
         elif cylinder is not None:
-            result.append(IRGeom(
-                kind="cylinder",
-                params={"radius": float(cylinder.radius), "length": float(cylinder.length)},
-                origin=placement,
-                rgba=rgba,
-            ))
+            result.append(
+                IRGeom(
+                    kind="cylinder",
+                    params={"radius": float(cylinder.radius), "length": float(cylinder.length)},
+                    origin=placement,
+                    rgba=rgba,
+                )
+            )
         elif capsule is not None:
-            result.append(IRGeom(
-                kind="capsule",
-                params={"radius": float(capsule.radius), "length": float(capsule.length)},
-                origin=placement,
-                rgba=rgba,
-            ))
+            result.append(
+                IRGeom(
+                    kind="capsule",
+                    params={"radius": float(capsule.radius), "length": float(capsule.length)},
+                    origin=placement,
+                    rgba=rgba,
+                )
+            )
         elif mesh is not None:
             scale = getattr(mesh, "scale", None)
-            scale_list = [float(s) for s in scale] if scale is not None else [1., 1., 1.]
+            scale_list = [float(s) for s in scale] if scale is not None else [1.0, 1.0, 1.0]
             raw_path = getattr(mesh, "filename", "") or ""
             if filename_handler is not None and raw_path:
                 try:
                     raw_path = filename_handler(raw_path)
                 except (OSError, ValueError):
                     pass
-            result.append(IRGeom(
-                kind="mesh",
-                params={"path": raw_path, "scale": scale_list},
-                origin=placement,
-                rgba=rgba,
-            ))
+            result.append(
+                IRGeom(
+                    kind="mesh",
+                    params={"path": raw_path, "scale": scale_list},
+                    origin=placement,
+                    rgba=rgba,
+                )
+            )
     return result
 
 
@@ -148,15 +158,16 @@ def parse_urdf(
         import yourdfpy
     except ImportError as exc:
         from ...exceptions import BackendNotAvailableError
+
         raise BackendNotAvailableError(
-            "URDF parsing requires `yourdfpy`. Reinstall with "
-            "`pip install better-robot`."
+            "URDF parsing requires `yourdfpy`. Reinstall with `pip install better-robot`."
         ) from exc
 
     if isinstance(source, (str, Path)):
         urdf = yourdfpy.URDF.load(str(source))
         if resolver is None:
             from ..assets import FilesystemResolver
+
             resolver = FilesystemResolver(base_path=Path(source).parent)
     else:
         urdf = source
@@ -172,9 +183,7 @@ def parse_urdf(
             if link.inertial.mass is not None:
                 mass = float(link.inertial.mass)
             if link.inertial.origin is not None:
-                com = torch.tensor(
-                    link.inertial.origin[:3, 3].astype(np.float64)
-                )
+                com = torch.tensor(link.inertial.origin[:3, 3].astype(np.float64))
             if link.inertial.inertia is not None:
                 ii = link.inertial.inertia
                 # yourdfpy exposes ``link.inertial.inertia`` as a numpy 3×3 ndarray.
@@ -204,14 +213,16 @@ def parse_urdf(
         visual_geoms = _extract_geoms(getattr(link, "visuals", None), filename_handler=fn_handler, material_map=mat_map)
         collision_geoms = _extract_geoms(getattr(link, "collisions", None), filename_handler=fn_handler)
 
-        ir_bodies.append(IRBody(
-            name=link_name,
-            mass=mass,
-            com=com,
-            inertia=inertia,
-            visual_geoms=visual_geoms,
-            collision_geoms=collision_geoms,
-        ))
+        ir_bodies.append(
+            IRBody(
+                name=link_name,
+                mass=mass,
+                com=com,
+                inertia=inertia,
+                visual_geoms=visual_geoms,
+                collision_geoms=collision_geoms,
+            )
+        )
 
     # ── joints (one per URDF joint) ───────────────────────────────────
     ir_joints: list[IRJoint] = []
@@ -230,7 +241,7 @@ def parse_urdf(
         if joint.origin is not None:
             origin_t = _mat4_to_se3(joint.origin)
         else:
-            origin_t = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
+            origin_t = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
         # limits
         lower: float | None = None
@@ -260,23 +271,25 @@ def parse_urdf(
             if o is not None:
                 mimic_off = float(o)
 
-        ir_joints.append(IRJoint(
-            name=jname,
-            parent_body=joint.parent,
-            child_body=joint.child,
-            kind=joint.type,
-            axis=axis_t,
-            origin=origin_t,
-            lower=lower,
-            upper=upper,
-            velocity_limit=vel_limit,
-            effort_limit=effort_limit,
-            damping=float(getattr(joint.dynamics, "damping", None) or 0.0),
-            friction=float(getattr(joint.dynamics, "friction", None) or 0.0),
-            mimic_source=mimic_source,
-            mimic_multiplier=mimic_mult,
-            mimic_offset=mimic_off,
-        ))
+        ir_joints.append(
+            IRJoint(
+                name=jname,
+                parent_body=joint.parent,
+                child_body=joint.child,
+                kind=joint.type,
+                axis=axis_t,
+                origin=origin_t,
+                lower=lower,
+                upper=upper,
+                velocity_limit=vel_limit,
+                effort_limit=effort_limit,
+                damping=float(getattr(joint.dynamics, "damping", None) or 0.0),
+                friction=float(getattr(joint.dynamics, "friction", None) or 0.0),
+                mimic_source=mimic_source,
+                mimic_multiplier=mimic_mult,
+                mimic_offset=mimic_off,
+            )
+        )
 
     # ── root body ─────────────────────────────────────────────────────
     child_bodies = {j.child_body for j in ir_joints}

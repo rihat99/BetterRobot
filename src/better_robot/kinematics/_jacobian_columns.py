@@ -43,7 +43,9 @@ class JointJacobianPlan:
 
     max_nv: int  #: padded per-joint subspace width (``joint_motion_subspaces.shape[-1]``).
     column_owner: torch.Tensor  #: ``(nv_full,)`` long — joint owning each full-width v-column.
-    column_subspace: torch.Tensor  #: ``(nv_full, 6)`` — the constant joint-frame motion subspace column of each full-width column.
+    column_subspace: (
+        torch.Tensor
+    )  #: ``(nv_full, 6)`` — the constant joint-frame motion subspace column of each full-width column.
     support_mask: torch.Tensor  #: ``(njoints, 1, nv_full)`` bool — True where ``column_owner`` supports the row joint; masks the shared column table into per-joint Jacobians.
 
 

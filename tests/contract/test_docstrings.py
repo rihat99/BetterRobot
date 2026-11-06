@@ -15,8 +15,7 @@ import better_robot
 import pytest
 from better_robot import exceptions, optim, terms
 
-PUBLIC_TYPE_ALIASES: dict[ModuleType, frozenset[str]] = {
-}
+PUBLIC_TYPE_ALIASES: dict[ModuleType, frozenset[str]] = {}
 
 
 def _undocumented(module: ModuleType) -> list[str]:

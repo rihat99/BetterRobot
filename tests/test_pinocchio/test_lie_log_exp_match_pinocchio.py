@@ -54,6 +54,7 @@ def test_se3_exp_matches_pinocchio(seed):
     M_pin = pin.exp6(motion_pin)
     t_pin = np.asarray(M_pin.translation)
     from scipy.spatial.transform import Rotation as Rot
+
     q_pin = Rot.from_matrix(np.asarray(M_pin.rotation)).as_quat()  # xyzw
     # Normalize scalar-sign to match (quaternions q and -q are the same rotation)
     if np.sign(pose_br[3:][np.argmax(np.abs(pose_br[3:]))]) != np.sign(q_pin[np.argmax(np.abs(q_pin))]):

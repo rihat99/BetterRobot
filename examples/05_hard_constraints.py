@@ -48,8 +48,10 @@ def main() -> None:
         reach = (pose[:, hand, :3] - goal).norm(dim=-1).max()
         over = (pose[:, elbow, 2:3] - ceiling).max()
         moved = (result.x["q"] - q_start).norm(dim=-1).mean()
-        print(f"{label:25s}: worst reach error {float(reach):.1e} m, elbow above ceiling by at most "
-              f"{float(over):+.1e} m, mean joint motion {float(moved):.3f} rad")
+        print(
+            f"{label:25s}: worst reach error {float(reach):.1e} m, elbow above ceiling by at most "
+            f"{float(over):+.1e} m, mean joint motion {float(moved):.3f} rad"
+        )
     print(f"rounds: {hard.history['violation'].shape[0]}, LM steps: {hard.iters}")
 
 

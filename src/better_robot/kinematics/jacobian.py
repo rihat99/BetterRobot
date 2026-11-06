@@ -183,9 +183,7 @@ def frame_jacobian_time_variation_raw(
     q = broadcast_to_execution_batch(q, batch, (structure.nq,), name="q")
     v = broadcast_to_execution_batch(v, batch, (structure.nv,), name="v")
     if joint_jacobians is None or joint_jacobians_dot is None:
-        result = joint_jacobians_time_variation_raw(
-            structure, q, v, joint_pose_world, joint_jacobians=joint_jacobians
-        )
+        result = joint_jacobians_time_variation_raw(structure, q, v, joint_pose_world, joint_jacobians=joint_jacobians)
         joint_jacobians = result.joint_jacobians
         joint_jacobians_dot = result.joint_jacobians_dot
 

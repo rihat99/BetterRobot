@@ -12,9 +12,7 @@ from better_robot.exceptions import ShapeError
 def test_batched_q_and_shared_values():
     q = torch.arange(20.0).reshape(4, 5)
     placements = torch.arange(21.0).reshape(3, 7)
-    execution = flatten_execution_batch(
-        q, (placements,), value_event_ndims=(2,)
-    )
+    execution = flatten_execution_batch(q, (placements,), value_event_ndims=(2,))
     assert execution.batch_shape == (4,)
     assert execution.size == 4
     assert execution.q.tensor.shape == (4, 5)
@@ -25,9 +23,7 @@ def test_batched_q_and_shared_values():
 def test_shared_q_and_batched_values():
     q = torch.arange(5.0)
     placements = torch.arange(84.0).reshape(4, 3, 7)
-    execution = flatten_execution_batch(
-        q, (placements,), value_event_ndims=(2,)
-    )
+    execution = flatten_execution_batch(q, (placements,), value_event_ndims=(2,))
     assert execution.batch_shape == (4,)
     assert execution.q.batch_indices.tolist() == [0, 0, 0, 0]
     assert execution.values[0].batch_indices.tolist() == [0, 1, 2, 3]
@@ -36,9 +32,7 @@ def test_shared_q_and_batched_values():
 def test_multi_axis_broadcast_uses_index_maps():
     q = torch.zeros(2, 1, 5)
     placements = torch.zeros(1, 3, 4, 7)
-    execution = flatten_execution_batch(
-        q, (placements,), value_event_ndims=(2,)
-    )
+    execution = flatten_execution_batch(q, (placements,), value_event_ndims=(2,))
     assert execution.batch_shape == (2, 3)
     assert execution.size == 6
     assert execution.q.batch_indices.tolist() == [0, 0, 0, 1, 1, 1]

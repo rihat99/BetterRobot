@@ -4,6 +4,7 @@ Covers the linear-first 6×6 block layout of ``Inertia._to_6x6`` — regression
 guard for the former angular-first mix-up that silently falsified every
 ``I @ v`` call whenever ``com`` was non-zero.
 """
+
 from __future__ import annotations
 
 import torch
@@ -63,8 +64,7 @@ def test_inertia_apply_matches_closed_form_zero_com():
     f = I.apply(v).data
 
     expected = torch.tensor(
-        [2.0 * 1.0, 2.0 * 2.0, 2.0 * 3.0,
-         0.4 * 0.1, 0.5 * 0.2, 0.6 * 0.3],
+        [2.0 * 1.0, 2.0 * 2.0, 2.0 * 3.0, 0.4 * 0.1, 0.5 * 0.2, 0.6 * 0.3],
         dtype=torch.float64,
     )
     assert torch.allclose(f, expected, atol=1e-12)

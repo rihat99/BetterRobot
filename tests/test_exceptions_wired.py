@@ -138,21 +138,53 @@ def test_fixed_base_bypasses_quaternion_check(arm_model):
     ("invariants", "match"),
     [
         # parents[0] should be -1
-        pytest.param(dict(parents=(0, 0, 1), nqs=(0, 0, 1), nvs=(0, 0, 1), idx_qs=(0, 0, 0),
-                          idx_vs=(0, 0, 0), nq_total=1, nv_total=1),
-                     "parents\\[0\\]", id="bad_parents"),
+        pytest.param(
+            dict(
+                parents=(0, 0, 1),
+                nqs=(0, 0, 1),
+                nvs=(0, 0, 1),
+                idx_qs=(0, 0, 0),
+                idx_vs=(0, 0, 0),
+                nq_total=1,
+                nv_total=1,
+            ),
+            "parents\\[0\\]",
+            id="bad_parents",
+        ),
         # parents[1]=2 > 1, violates topo sort
-        pytest.param(dict(parents=(-1, 2, 0), nqs=(0, 1, 1), nvs=(0, 1, 1), idx_qs=(0, 0, 1),
-                          idx_vs=(0, 0, 1), nq_total=2, nv_total=2),
-                     "topological sort", id="out_of_order_parents"),
+        pytest.param(
+            dict(
+                parents=(-1, 2, 0),
+                nqs=(0, 1, 1),
+                nvs=(0, 1, 1),
+                idx_qs=(0, 0, 1),
+                idx_vs=(0, 0, 1),
+                nq_total=2,
+                nv_total=2,
+            ),
+            "topological sort",
+            id="out_of_order_parents",
+        ),
         # gap! idx_qs should be (0, 0, 1)
-        pytest.param(dict(parents=(-1, 0, 1), nqs=(0, 1, 1), nvs=(0, 1, 1), idx_qs=(0, 0, 2),
-                          idx_vs=(0, 0, 1), nq_total=2, nv_total=2),
-                     "q-slicing", id="q_slice_gap"),
+        pytest.param(
+            dict(
+                parents=(-1, 0, 1),
+                nqs=(0, 1, 1),
+                nvs=(0, 1, 1),
+                idx_qs=(0, 0, 2),
+                idx_vs=(0, 0, 1),
+                nq_total=2,
+                nv_total=2,
+            ),
+            "q-slicing",
+            id="q_slice_gap",
+        ),
         # wrong nq_total
-        pytest.param(dict(parents=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0),
-                          idx_vs=(0, 0), nq_total=5, nv_total=1),
-                     "nq", id="nq_mismatch"),
+        pytest.param(
+            dict(parents=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0), idx_vs=(0, 0), nq_total=5, nv_total=1),
+            "nq",
+            id="nq_mismatch",
+        ),
     ],
 )
 def test_model_inconsistency_raises(invariants, match):

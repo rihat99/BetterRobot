@@ -1,4 +1,5 @@
 """Tests for SLERP (SO3) and ScLERP (SE3) in lie/so3.py and lie/se3.py."""
+
 import math
 import torch
 from better_robot.lie import se3, so3
@@ -19,7 +20,7 @@ def test_slerp_endpoints():
 
 def test_slerp_midpoint_axis_angle():
     """SLERP at t=0.5 on a Z-axis π/2 rotation produces a π/4 rotation."""
-    axis = torch.tensor([0., 0., 1.])
+    axis = torch.tensor([0.0, 0.0, 1.0])
     q1 = so3.identity()
     q2 = so3.from_axis_angle(axis, torch.tensor(math.pi / 2))
     mid = so3.slerp(q1, q2, 0.5)
@@ -31,10 +32,10 @@ def test_slerp_antipodal():
     """dot(q1,q2)<0 → takes the shortest arc."""
     q1 = so3.identity()
     # A small rotation whose quaternion we deliberately negate.
-    q2_short = so3.from_axis_angle(torch.tensor([0., 0., 1.]), torch.tensor(0.1))
+    q2_short = so3.from_axis_angle(torch.tensor([0.0, 0.0, 1.0]), torch.tensor(0.1))
     q2 = -q2_short  # same rotation, antipodal quaternion
     out = so3.slerp(q1, q2, 0.1)
-    expected = so3.from_axis_angle(torch.tensor([0., 0., 1.]), torch.tensor(0.01))
+    expected = so3.from_axis_angle(torch.tensor([0.0, 0.0, 1.0]), torch.tensor(0.01))
     assert torch.allclose(out.abs(), expected.abs(), atol=1e-5)
 
 
@@ -94,9 +95,7 @@ def test_slerp_batched():
 def test_slerp_t_broadcast():
     """q1,q2 shared; t as time grid produces a trajectory."""
     q1 = so3.identity().expand(10, 4).clone()
-    q2 = so3.from_axis_angle(
-        torch.tensor([0., 0., 1.]), torch.tensor(math.pi / 2)
-    ).expand(10, 4).clone()
+    q2 = so3.from_axis_angle(torch.tensor([0.0, 0.0, 1.0]), torch.tensor(math.pi / 2)).expand(10, 4).clone()
     ts = torch.linspace(0.0, 1.0, 10)
     out = so3.slerp(q1, q2, ts)
     assert out.shape == (10, 4)
@@ -132,16 +131,16 @@ def test_sclerp_endpoints():
 
 def test_sclerp_pure_translation():
     """Identity rotation + translation diff → LERP of translation."""
-    T1 = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
-    T2 = torch.tensor([2., 0., 0., 0., 0., 0., 1.])
+    T1 = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+    T2 = torch.tensor([2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
     out = se3.sclerp(T1, T2, 0.5)
-    assert torch.allclose(out[:3], torch.tensor([1., 0., 0.]), atol=1e-5)
-    assert torch.allclose(out[3:], torch.tensor([0., 0., 0., 1.]), atol=1e-5)
+    assert torch.allclose(out[:3], torch.tensor([1.0, 0.0, 0.0]), atol=1e-5)
+    assert torch.allclose(out[3:], torch.tensor([0.0, 0.0, 0.0, 1.0]), atol=1e-5)
 
 
 def test_sclerp_pure_rotation():
     """Zero translation + rotation diff → translation stays 0, rotation matches so3.slerp."""
-    axis = torch.tensor([0., 0., 1.])
+    axis = torch.tensor([0.0, 0.0, 1.0])
     T1 = se3.identity()
     q2 = so3.from_axis_angle(axis, torch.tensor(math.pi / 2))
     T2 = torch.cat([torch.zeros(3), q2])
@@ -178,10 +177,10 @@ def test_sclerp_batched():
 
 def test_sclerp_vs_decoupled():
     """ScLERP ≠ (SLERP(rot) ‖ LERP(trans)) in general — coupling is non-trivial."""
-    T1 = torch.tensor([0., 0., 0., 0., 0., 0., 1.])
-    axis = torch.tensor([0., 0., 1.])
+    T1 = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+    axis = torch.tensor([0.0, 0.0, 1.0])
     q2 = so3.from_axis_angle(axis, torch.tensor(math.pi))  # 180° about Z
-    T2 = torch.cat([torch.tensor([2., 0., 0.]), q2])
+    T2 = torch.cat([torch.tensor([2.0, 0.0, 0.0]), q2])
 
     t = 0.5
     out = se3.sclerp(T1, T2, t)

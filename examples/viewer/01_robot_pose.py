@@ -1,7 +1,7 @@
 """Show one robot pose: meshes, skeleton, a frame and the ground.
 
-    uv run python examples/viewer/01_robot_pose.py            # open http://127.0.0.1:8080
-    uv run python examples/viewer/01_robot_pose.py --check    # build the scene and exit
+uv run python examples/viewer/01_robot_pose.py            # open http://127.0.0.1:8080
+uv run python examples/viewer/01_robot_pose.py --check    # build the scene and exit
 """
 
 from __future__ import annotations

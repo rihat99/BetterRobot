@@ -80,31 +80,40 @@ def test_per_body_mass_sequence():
     ("kwargs", "match"),
     [
         pytest.param(
-            dict(joint_names=["a", "b"], parents=[-1, 0],
-                 translations=torch.zeros(2, 3, dtype=torch.float32),
-                 mass_per_body=[1.0, 2.0, 3.0]),
-            "mass_per_body length", id="mass_sequence_length",
+            dict(
+                joint_names=["a", "b"],
+                parents=[-1, 0],
+                translations=torch.zeros(2, 3, dtype=torch.float32),
+                mass_per_body=[1.0, 2.0, 3.0],
+            ),
+            "mass_per_body length",
+            id="mass_sequence_length",
         ),
         pytest.param(
             dict(joint_names=["a", "b"], parents=[-1], translations=torch.zeros(2, 3)),
-            "parents length", id="parents_length",
+            "parents length",
+            id="parents_length",
         ),
         pytest.param(
             dict(joint_names=["a", "b"], parents=[0, 0], translations=torch.zeros(2, 3)),
-            "parents\\[0\\] must be -1", id="root_not_minus_one",
+            "parents\\[0\\] must be -1",
+            id="root_not_minus_one",
         ),
         pytest.param(
             dict(joint_names=["a", "b"], parents=[-1, 0], translations=torch.zeros(3, 3)),
-            "translations shape", id="translations_shape",
+            "translations shape",
+            id="translations_shape",
         ),
         pytest.param(
             dict(joint_names=["a", "b", "c"], parents=[-1, 0, 5], translations=torch.zeros(3, 3)),
-            "must reference an earlier index", id="parent_out_of_range",
+            "must reference an earlier index",
+            id="parent_out_of_range",
         ),
         # A non-root joint may only reference an earlier index.
         pytest.param(
             dict(joint_names=["a", "b", "c"], parents=[-1, 2, 0], translations=torch.zeros(3, 3)),
-            "must reference an earlier index", id="parent_forward_reference",
+            "must reference an earlier index",
+            id="parent_forward_reference",
         ),
     ],
 )
@@ -187,9 +196,7 @@ def _tiny_tree_kwargs():
 
 def test_per_body_com_and_inertia_round_trip_through_ir():
     """Packed COM and inertia land on the IRBody fields intact."""
-    coms = torch.tensor(
-        [[0.01, 0.0, 0.0], [0.0, 0.02, 0.0], [0.0, 0.0, 0.03]], dtype=torch.float32
-    )
+    coms = torch.tensor([[0.01, 0.0, 0.0], [0.0, 0.02, 0.0], [0.0, 0.0, 0.03]], dtype=torch.float32)
     I0 = torch.diag(torch.tensor([1e-3, 2e-3, 3e-3]))
     I1 = torch.diag(torch.tensor([4e-3, 5e-3, 6e-3]))
     I2 = torch.diag(torch.tensor([7e-3, 8e-3, 9e-3]))
@@ -213,9 +220,7 @@ def test_per_body_com_and_inertia_packed_into_model_body_inertias():
     """Values survive the (IRBody → _pack_inertia → body_inertias) pipeline."""
     from better_robot.spatial.inertia import Inertia
 
-    coms = torch.tensor(
-        [[0.10, 0.0, 0.0], [0.0, 0.20, 0.0], [0.0, 0.0, 0.30]], dtype=torch.float32
-    )
+    coms = torch.tensor([[0.10, 0.0, 0.0], [0.0, 0.20, 0.0], [0.0, 0.0, 0.30]], dtype=torch.float32)
     inertias = torch.stack(
         [
             torch.diag(torch.tensor([1.0, 2.0, 3.0])),
@@ -243,22 +248,28 @@ def test_per_body_com_and_inertia_packed_into_model_body_inertias():
     ("override", "match"),
     [
         pytest.param({"com_per_body": torch.zeros(2, 3)}, "com_per_body shape", id="com_shape"),
-        pytest.param({"com_per_body": [torch.zeros(3), torch.zeros(3)]},
-                     "com_per_body length", id="com_sequence_length"),
-        pytest.param({"com_per_body": [torch.zeros(3), torch.zeros(2), torch.zeros(3)]},
-                     r"com_per_body\[1\]", id="com_bad_element"),
-        pytest.param({"inertia_per_body": torch.zeros(2, 3, 3)},
-                     "inertia_per_body shape", id="inertia_shape"),
-        pytest.param({"inertia_per_body": [torch.eye(3), torch.eye(3)]},
-                     "inertia_per_body length", id="inertia_sequence_length"),
-        pytest.param({"inertia_per_body": [torch.zeros(3), torch.eye(3), torch.eye(3)]},
-                     r"inertia_per_body\[0\]", id="inertia_bad_element"),
+        pytest.param(
+            {"com_per_body": [torch.zeros(3), torch.zeros(3)]}, "com_per_body length", id="com_sequence_length"
+        ),
+        pytest.param(
+            {"com_per_body": [torch.zeros(3), torch.zeros(2), torch.zeros(3)]},
+            r"com_per_body\[1\]",
+            id="com_bad_element",
+        ),
+        pytest.param({"inertia_per_body": torch.zeros(2, 3, 3)}, "inertia_per_body shape", id="inertia_shape"),
+        pytest.param(
+            {"inertia_per_body": [torch.eye(3), torch.eye(3)]}, "inertia_per_body length", id="inertia_sequence_length"
+        ),
+        pytest.param(
+            {"inertia_per_body": [torch.zeros(3), torch.eye(3), torch.eye(3)]},
+            r"inertia_per_body\[0\]",
+            id="inertia_bad_element",
+        ),
     ],
 )
 def test_com_and_inertia_per_body_mismatch_raises(override, match):
     with pytest.raises(ValueError, match=match):
         build_kinematic_tree_body(**_tiny_tree_kwargs(), **override)
-
 
 
 def test_com_and_inertia_defaults_preserve_existing_behavior():

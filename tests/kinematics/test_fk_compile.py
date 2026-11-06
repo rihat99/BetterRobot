@@ -59,7 +59,6 @@ def test_free_flyer_quaternion_norm_check_is_opt_in(free_flyer_model):
         )
 
 
-
 @pytest.fixture(scope="module")
 def panda64():
     pytest.importorskip("robot_descriptions")

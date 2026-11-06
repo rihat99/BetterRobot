@@ -1,7 +1,7 @@
 """Interactive IK: drag the gizmo, the Panda follows (LM on ``terms.solve_ik``).
 
-    uv run python examples/viewer/03_ik_gizmo.py
-    uv run python examples/viewer/03_ik_gizmo.py --check
+uv run python examples/viewer/03_ik_gizmo.py
+uv run python examples/viewer/03_ik_gizmo.py --check
 """
 
 from __future__ import annotations

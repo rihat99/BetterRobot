@@ -3,6 +3,7 @@
 Key property checked: Jr(xi) satisfies the finite-difference definition
     log(exp(-xi) * exp(xi + eps*ej)) / eps ≈ Jr(xi)[:, j]
 """
+
 import math
 import torch
 import pytest
@@ -11,6 +12,7 @@ from better_robot.lie import tangents
 
 
 # ──────────────────────────── hat / vee ──────────────────────────────────
+
 
 def test_hat_so3_antisymmetric():
     w = torch.randn(3)
@@ -65,8 +67,9 @@ def test_right_jacobian_so3_fd(scale):
     omega = torch.randn(3) * scale
     Jr_analytic = tangents.right_jacobian_so3(omega)
     Jr_fd = _fd_jr_so3(omega)
-    assert torch.allclose(Jr_analytic, Jr_fd, atol=1e-4), \
+    assert torch.allclose(Jr_analytic, Jr_fd, atol=1e-4), (
         f"Jr_so3 mismatch at scale={scale}:\n{Jr_analytic}\nvs FD:\n{Jr_fd}"
+    )
 
 
 def test_right_jacobian_so3_small_angle():
@@ -85,14 +88,12 @@ def test_right_jacobian_so3_small_angle():
 @pytest.mark.parametrize("theta", [0.0, 1e-9], ids=["identity", "theta_1e-9"])
 def test_right_jacobian_singularities_gradcheck(op, theta):
     """SO3 Jacobians have finite fp64 derivatives through second order."""
-    omega = torch.tensor(
-        [theta, 0.0, 0.0], dtype=torch.float64, requires_grad=True
-    )
+    omega = torch.tensor([theta, 0.0, 0.0], dtype=torch.float64, requires_grad=True)
 
     assert torch.autograd.gradcheck(op, (omega,), atol=1e-6, rtol=1e-5)
     assert torch.autograd.gradgradcheck(op, (omega,), atol=1e-6, rtol=1e-5)
 
-    gradient, = torch.autograd.grad(op(omega).sum(), omega)
+    (gradient,) = torch.autograd.grad(op(omega).sum(), omega)
     assert torch.isfinite(gradient).all()
 
 
@@ -115,8 +116,6 @@ def test_left_right_so3_relation():
 # ──────────────────────── SE3 Jacobians ──────────────────────────────────
 
 
-
-
 def test_jr_jrinv_se3_product():
     """Jr(xi) @ Jr_inv(xi) == I."""
     xi = torch.randn(6) * 0.4
@@ -126,6 +125,7 @@ def test_jr_jrinv_se3_product():
 
 
 # ───────────── SE3 Jacobians at large rotation angles ────────────────────
+
 
 def _series_right_jacobian_se3(xi: torch.Tensor, terms: int = 60) -> torch.Tensor:
     """Reference ``Jr`` from the full power series in float64."""
@@ -151,9 +151,7 @@ def test_right_jacobian_se3_exact_at_any_angle(theta):
     xi = _xi_with_angle(theta)
     reference = _series_right_jacobian_se3(xi)
     torch.testing.assert_close(tangents.right_jacobian_se3(xi), reference, atol=1e-10, rtol=0.0)
-    torch.testing.assert_close(
-        tangents.right_jacobian_inv_se3(xi), torch.linalg.inv(reference), atol=1e-9, rtol=0.0
-    )
+    torch.testing.assert_close(tangents.right_jacobian_inv_se3(xi), torch.linalg.inv(reference), atol=1e-9, rtol=0.0)
 
 
 @pytest.mark.parametrize("theta", [1e-4, 0.05, 0.5, 3.0])

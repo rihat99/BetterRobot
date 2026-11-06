@@ -34,11 +34,11 @@ if TYPE_CHECKING:
     from ..assets import AssetResolver
 
 
-
 def _scalar_attr(element: object, name: str) -> float:
     """Return a scalar MJCF attribute as ``float``; absent or ``None`` means the MuJoCo default ``0``."""
     value = getattr(element, name, None)
     return 0.0 if value is None else float(np.asarray(value, dtype=np.float64).reshape(-1)[0])
+
 
 def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.Tensor:
     """Convert MuJoCo pos (3,) + quat (w,x,y,z) to [tx,ty,tz,qx,qy,qz,qw]."""
@@ -48,7 +48,7 @@ def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.T
         t = torch.tensor(pos[:3].astype(np.float64))
 
     if quat is None:
-        q = torch.tensor([0., 0., 0., 1.])
+        q = torch.tensor([0.0, 0.0, 0.0, 1.0])
     else:
         # MuJoCo quat convention is (w, x, y, z) — convert to (x,y,z,w)
         w, x, y, z = float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3])
@@ -94,14 +94,12 @@ def parse_mjcf(
     """
     if resolver is None:
         from ..assets import FilesystemResolver
+
         resolver = FilesystemResolver(base_path=Path(source).parent)
     try:
         import mujoco
     except ImportError as exc:
-        raise ImportError(
-            "mujoco is required to parse MJCF files. "
-            "Install with: pip install mujoco"
-        ) from exc
+        raise ImportError("mujoco is required to parse MJCF files. Install with: pip install mujoco") from exc
 
     source = str(source)
     spec = mujoco.MjSpec.from_file(source)
@@ -126,7 +124,9 @@ def parse_mjcf(
             gname = g.name or ""
             gtype = int(g.type) if hasattr(g, "type") else -1
             gpos = np.array(g.pos, dtype=np.float64) if hasattr(g, "pos") else np.zeros(3, np.float64)
-            gquat = np.array(g.quat, dtype=np.float64) if hasattr(g, "quat") else np.array([1., 0., 0., 0.], np.float64)
+            gquat = (
+                np.array(g.quat, dtype=np.float64) if hasattr(g, "quat") else np.array([1.0, 0.0, 0.0, 0.0], np.float64)
+            )
             gsize = np.array(g.size, dtype=np.float64) if hasattr(g, "size") else np.zeros(3, np.float64)
             fromto = np.array(g.fromto, dtype=np.float64) if hasattr(g, "fromto") else np.full(6, np.nan)
 
@@ -137,26 +137,36 @@ def parse_mjcf(
             if gtype == 2:  # sphere
                 collision_geoms.append(IRGeom("sphere", {"radius": float(gsize[0])}, placement))
             elif gtype == 3:  # capsule
-                collision_geoms.append(IRGeom("capsule", {"radius": float(gsize[0]), "length": float(gsize[1]) * 2}, placement))
+                collision_geoms.append(
+                    IRGeom("capsule", {"radius": float(gsize[0]), "length": float(gsize[1]) * 2}, placement)
+                )
             elif gtype == 5:  # cylinder
-                collision_geoms.append(IRGeom("cylinder", {"radius": float(gsize[0]), "length": float(gsize[1]) * 2}, placement))
+                collision_geoms.append(
+                    IRGeom("cylinder", {"radius": float(gsize[0]), "length": float(gsize[1]) * 2}, placement)
+                )
             elif gtype == 6:  # box
-                collision_geoms.append(IRGeom("box", {"size": [float(gsize[0]) * 2, float(gsize[1]) * 2, float(gsize[2]) * 2]}, placement))
+                collision_geoms.append(
+                    IRGeom("box", {"size": [float(gsize[0]) * 2, float(gsize[1]) * 2, float(gsize[2]) * 2]}, placement)
+                )
 
-        ir_bodies.append(IRBody(
-            name=bname,
-            mass=mass,
-            com=torch.tensor(pos_inertial),
-            inertia=torch.tensor(inertia_mat),
-            collision_geoms=collision_geoms,
-        ))
+        ir_bodies.append(
+            IRBody(
+                name=bname,
+                mass=mass,
+                com=torch.tensor(pos_inertial),
+                inertia=torch.tensor(inertia_mat),
+                collision_geoms=collision_geoms,
+            )
+        )
 
         # ── joints on this body ───────────────────────────────────────────────
         for jnt in body.joints:
             jname = jnt.name if jnt.name else f"_joint_{len(ir_joints)}"
             jtype = int(jnt.type) if hasattr(jnt, "type") else 0
             jpos = np.array(jnt.pos, dtype=np.float64) if hasattr(jnt, "pos") else np.zeros(3, np.float64)
-            jaxis = np.array(jnt.axis, dtype=np.float64) if hasattr(jnt, "axis") else np.array([0., 0., 1.], np.float64)
+            jaxis = (
+                np.array(jnt.axis, dtype=np.float64) if hasattr(jnt, "axis") else np.array([0.0, 0.0, 1.0], np.float64)
+            )
             norm = np.linalg.norm(jaxis)
             if norm > 1e-12:
                 jaxis = jaxis / norm
@@ -191,39 +201,51 @@ def parse_mjcf(
                 axis_t = None
 
             parent_name_safe = parent_name if parent_name is not None else "world"
-            ir_joints.append(IRJoint(
-                name=jname,
-                parent_body=parent_name_safe,
-                child_body=bname,
-                kind=kind,
-                axis=axis_t,
-                origin=origin,
-                lower=lo,
-                upper=hi,
-                damping=_scalar_attr(jnt, "damping"),
-                friction=_scalar_attr(jnt, "frictionloss"),
-                armature=_scalar_attr(jnt, "armature"),
-            ))
+            ir_joints.append(
+                IRJoint(
+                    name=jname,
+                    parent_body=parent_name_safe,
+                    child_body=bname,
+                    kind=kind,
+                    axis=axis_t,
+                    origin=origin,
+                    lower=lo,
+                    upper=hi,
+                    damping=_scalar_attr(jnt, "damping"),
+                    friction=_scalar_attr(jnt, "frictionloss"),
+                    armature=_scalar_attr(jnt, "armature"),
+                )
+            )
 
         if parent_name is not None and not body.joints:
             # Body with no joints → implicit fixed joint
             bpos = np.array(body.pos, dtype=np.float64) if hasattr(body, "pos") else np.zeros(3, np.float64)
-            bquat = np.array(body.quat, dtype=np.float64) if hasattr(body, "quat") else np.array([1., 0., 0., 0.], np.float64)
+            bquat = (
+                np.array(body.quat, dtype=np.float64)
+                if hasattr(body, "quat")
+                else np.array([1.0, 0.0, 0.0, 0.0], np.float64)
+            )
             origin = _pos_quat_to_se3(bpos, bquat)
             jname = f"_fixed_{bname}"
-            ir_joints.append(IRJoint(
-                name=jname,
-                parent_body=parent_name,
-                child_body=bname,
-                kind="fixed",
-                origin=origin,
-            ))
+            ir_joints.append(
+                IRJoint(
+                    name=jname,
+                    parent_body=parent_name,
+                    child_body=bname,
+                    kind="fixed",
+                    origin=origin,
+                )
+            )
 
         # Sites → operational frames
         for site in getattr(body, "sites", []):
             sname = site.name if site.name else f"_site_{len(ir_frames)}"
             spos = np.array(site.pos, dtype=np.float64) if hasattr(site, "pos") else np.zeros(3, np.float64)
-            squat = np.array(site.quat, dtype=np.float64) if hasattr(site, "quat") else np.array([1., 0., 0., 0.], np.float64)
+            squat = (
+                np.array(site.quat, dtype=np.float64)
+                if hasattr(site, "quat")
+                else np.array([1.0, 0.0, 0.0, 0.0], np.float64)
+            )
             placement = _pos_quat_to_se3(spos, squat)
             ir_frames.append(IRFrame(name=sname, parent_body=bname, placement=placement, frame_type="op"))
 

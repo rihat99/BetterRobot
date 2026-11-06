@@ -11,7 +11,6 @@ from dataclasses import dataclass
 import torch
 
 
-
 @dataclass(frozen=True)
 class Force:
     """6D spatial force (linear + torque)."""

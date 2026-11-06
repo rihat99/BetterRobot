@@ -43,8 +43,10 @@ def main() -> None:
     print(f"{gif}: {args.frames} frames rendered in {time.perf_counter() - start:.1f} s")
     start = time.perf_counter()
     exported = viewer.save(args.out.with_suffix(".viser"))
-    print(f"{exported}: {exported.stat().st_size / 1e6:.1f} MB in {time.perf_counter() - start:.1f} s "
-          "(open with viser's static client)")
+    print(
+        f"{exported}: {exported.stat().st_size / 1e6:.1f} MB in {time.perf_counter() - start:.1f} s "
+        "(open with viser's static client)"
+    )
     viewer.server.stop()
 
 

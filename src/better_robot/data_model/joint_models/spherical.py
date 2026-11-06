@@ -29,8 +29,7 @@ class JointSpherical:
         """
         # Normalize to be safe
         q_n = _so3.normalize(q_slice)
-        zeros = torch.zeros(*q_slice.shape[:-1], 3,
-                             dtype=q_slice.dtype, device=q_slice.device)
+        zeros = torch.zeros(*q_slice.shape[:-1], 3, dtype=q_slice.dtype, device=q_slice.device)
         return torch.cat([zeros, q_n], dim=-1)
 
     def joint_motion_subspace(self, q_slice: torch.Tensor) -> torch.Tensor:
@@ -51,8 +50,8 @@ class JointSpherical:
 
     def integrate(self, q_slice: torch.Tensor, v_slice: torch.Tensor) -> torch.Tensor:
         """Quaternion retraction: q_new = normalize(q * exp_so3(v))."""
-        dq = _so3.exp(v_slice)                    # (B..., 4)
-        q_new = _so3.compose(q_slice, dq)         # (B..., 4)
+        dq = _so3.exp(v_slice)  # (B..., 4)
+        q_new = _so3.compose(q_slice, dq)  # (B..., 4)
         return _so3.normalize(q_new)
 
     def difference(self, q0_slice: torch.Tensor, q1_slice: torch.Tensor) -> torch.Tensor:
