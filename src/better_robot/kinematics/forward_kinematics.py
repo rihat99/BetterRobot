@@ -36,7 +36,8 @@ class KinematicState:
 
     Poses, rotations, translations and the Jacobian column table are derived from the transforms on first use.
     Derived tensors are memoised under ``(name, grad mode)`` by the one writer `_memoised`, so a value made under
-    ``torch.no_grad`` never serves a differentiable call; ``dataclasses.replace`` starts with an empty memo.
+    ``torch.no_grad`` never serves a differentiable call, and never under ``torch.inference_mode``;
+    ``dataclasses.replace`` starts with an empty memo.
     """
 
     model: Model  #: The model the state was computed from.
@@ -96,7 +97,15 @@ class KinematicState:
         )
 
     def _memoised(self, name: str, derive: Callable[[], _T]) -> _T:
-        """``derive()`` once per ``(name, grad mode)``: the only writer of ``_memo``."""
+        """``derive()`` once per ``(name, grad mode)``: the only writer of ``_memo``.
+
+        Under ``torch.inference_mode`` nothing is stored, as in `Model._value`: ``enable_grad`` inside inference mode
+        reports grad mode on, so an inference tensor would be served to a later autograd call of the same state and
+        drop or break its gradient. Under ``torch.compile`` the derivation is traced into the graph instead (Dynamo
+        cannot trace the inference-mode check) (record 0040).
+        """
+        if torch.compiler.is_compiling() or torch.is_inference_mode_enabled():
+            return derive()
         key = (name, torch.is_grad_enabled())
         if key not in self._memo:
             self._memo[key] = derive()

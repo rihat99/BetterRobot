@@ -3,7 +3,7 @@
 ``Model._plans``, ``Model._memo`` and ``KinematicState._memo`` are the only caches: all are ``init=False``, never
 copied by ``dataclasses.replace``, written by one function each (``Model._plan``, ``Model._value``,
 ``KinematicState._memoised``) and keyed by grad mode on the value side (the model memo also by the tensor fields'
-``requires_grad`` flags, and bypassed under inference mode), and nothing in ``src`` writes through
+``requires_grad`` flags; both bypassed under inference mode), and nothing in ``src`` writes through
 ``object.__setattr__``, reads a tensor's ``_version`` or touches ``torch._C``.
 """
 
@@ -149,6 +149,24 @@ def test_nothing_is_memoised_under_inference_mode() -> None:
     assert model._memo == {}
     forward_kinematics(model, q.clone().requires_grad_()).frame_translations.sum().backward()
     assert _model_modes(model, "joint_matrices") == {True}
+
+
+def test_state_memo_is_bypassed_under_inference_mode() -> None:
+    """A state read under ``inference_mode`` with ``enable_grad`` (grad mode reports on) stores nothing, so a later
+    autograd call of the same state gets the gradient of a fresh state (record 0040)."""
+    model = load(panda_urdf(), dtype=torch.float64)
+
+    def gradient(read_under_inference_mode: bool) -> torch.Tensor:
+        q = (model.q_neutral + 0.2).requires_grad_()
+        state = forward_kinematics(model, q)
+        if read_under_inference_mode:
+            with torch.inference_mode(), torch.enable_grad():
+                _derived(state, model)
+            assert state._memo == {}
+        loss = sum((value**2).sum() for value in _derived(state, model).values())
+        return torch.autograd.grad(loss, q)[0]
+
+    torch.testing.assert_close(gradient(True), gradient(False), rtol=0, atol=0)
 
 
 def _memo_writers(tree: ast.AST) -> set[str]:

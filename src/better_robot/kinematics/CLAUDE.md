@@ -21,9 +21,12 @@ of `_fk.py`, `_jacobian.py` and `_plans.py`; contracts in `docs/contracts/00-ind
 - `KinematicState` stores `[R | p]` matrices; `joint_poses` and `frame_poses` convert on first use with
   canonical-sign quaternions (`so3.from_matrix`), so a quaternion may be `-q` against a composition lane
   (same rotation). Compare rotations, not quaternion signs.
-- `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, grad mode)`; a new name goes into
-  the table of `docs/contracts/03-state-mutability.md` in the same change. `dataclasses.replace` starts
-  with an empty memo and recomputes.
+- `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, grad mode)` and bypassed under
+  `torch.inference_mode` and `torch.compile` like `Model._value`: `enable_grad` inside inference mode reports
+  grad mode on, so a stored inference tensor would break a later autograd call of the same state. Dynamics'
+  `"world_geometry"` goes through the same writer and the same bypass. A new name goes into the table of
+  `docs/contracts/03-state-mutability.md` in the same change. `dataclasses.replace` starts with an empty memo
+  and recomputes.
 - Plans (`_plans.py`) are pure functions of the static fields, built by `Model._plan` once per dtype and
   device. Never read a tensor's `_version` or write through `object.__setattr__`
   (`tests/contract/test_caches.py`).
