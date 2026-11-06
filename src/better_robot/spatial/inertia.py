@@ -169,12 +169,13 @@ def inertia_of_mesh(
 ) -> torch.Tensor:
     """Packed inertia ``(..., 10)`` of a solid of uniform ``density`` bounded by a closed triangle mesh.
 
-    ``vertices: (..., V, 3)``, with leading axes a batch that stays differentiable; ``faces: (F, 3)`` int32 or int64,
-    shared by the batch, bounding a closed, non-self-intersecting, consistently wound surface (either global winding;
-    `orient_faces_consistently` repairs mixed winding). ``density`` is a number or a tensor of shape ``()`` or
-    ``vertices.shape[:-2]`` on the dtype and device of ``vertices``; the default 1 gives the inertia per unit
-    density, whose mass is the volume. Each face and the origin span a signed tetrahedron whose volume, first and
-    second moments are summed in closed form, after the origin moves to the vertex mean to limit cancellation.
+    ``vertices: (..., V, 3)``, with leading axes a batch that stays differentiable; ``faces: (F, 3)`` int32 or int64
+    on the device of ``vertices``, shared by the batch, bounding a closed, non-self-intersecting, consistently wound
+    surface (either global winding; `orient_faces_consistently` repairs mixed winding). ``density`` is a number or a
+    tensor of shape ``()`` or ``vertices.shape[:-2]`` on the dtype and device of ``vertices``; the default 1 gives
+    the inertia per unit density, whose mass is the volume. Each face and the origin span a signed tetrahedron whose
+    volume, first and second moments are summed in closed form, after the origin moves to the vertex mean to limit
+    cancellation.
 
     Raises ``TypeError`` for a non-tensor and ``ValueError`` for a wrong shape, dtype or device. ``check_mesh=True``
     also reads the values, one host sync per check, and raises ``ValueError`` for non-finite vertices, a face id
@@ -190,7 +191,7 @@ def inertia_of_mesh(
     # catastrophic cancellation when the body-frame origin is far from a small mesh.
     integration_origin = vertices.mean(dim=-2)
     centered = vertices - integration_origin.unsqueeze(-2)
-    triangles = centered[..., faces.to(device=vertices.device, dtype=torch.long), :]
+    triangles = centered[..., faces, :]
     a, b, c = triangles.unbind(dim=-2)
 
     signed_face_volume = (a * torch.cross(b, c, dim=-1)).sum(dim=-1) / 6.0
@@ -231,7 +232,7 @@ def inertia_of_mesh(
 
 
 def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
-    """Raise unless ``vertices`` is floating ``(..., V >= 4, 3)`` and ``faces`` an integer ``(F >= 1, 3)`` table."""
+    """Raise unless ``vertices`` is floating ``(..., V >= 4, 3)``, ``faces`` integer ``(F >= 1, 3)``, on one device."""
     check_tensors(vertices=(vertices, ()))
     if vertices.ndim < 2 or vertices.shape[-1] != 3:
         raise ValueError(f"vertices must have shape (..., V, 3), got {tuple(vertices.shape)}")
@@ -243,6 +244,10 @@ def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
         raise ValueError(f"faces.dtype={faces.dtype} is not torch.int32 or torch.int64; pass faces.long()")
     if faces.ndim != 2 or faces.shape[-1] != 3 or faces.shape[0] == 0:
         raise ValueError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
+    if faces.device != vertices.device:
+        raise ValueError(
+            f"faces is on {faces.device} but vertices is on {vertices.device}; pass faces.to({vertices.device})"
+        )
 
 
 def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> torch.Tensor:

@@ -212,6 +212,14 @@ def test_unchecked_call_reads_no_values() -> None:
         pytest.param(None, [[0, 1, 2]] * 12, 1.0, TypeError, "faces must be a torch.Tensor", id="list-faces"),
         pytest.param(None, torch.zeros(12, 4, dtype=torch.long), 1.0, ValueError, r"shape \(F, 3\)", id="face-shape"),
         pytest.param(None, torch.zeros(0, 3, dtype=torch.long), 1.0, ValueError, r"shape \(F, 3\)", id="no-faces"),
+        pytest.param(
+            None,
+            torch.zeros(12, 3, dtype=torch.long, device="meta"),
+            1.0,
+            ValueError,
+            r"faces is on meta but vertices is on cpu; pass faces.to\(cpu\)",
+            id="faces-device",
+        ),
         pytest.param(None, None, True, TypeError, "density must be a real number", id="bool-density"),
         pytest.param(None, None, torch.tensor(1.0), ValueError, "density.dtype=torch.float32", id="density-dtype"),
         pytest.param(
