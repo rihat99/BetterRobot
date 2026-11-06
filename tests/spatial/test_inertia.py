@@ -91,13 +91,16 @@ def test_shapes_match_pinocchio(seed: int) -> None:
     generator = torch.Generator().manual_seed(seed)
     mass, radius, length = (torch.rand(3, generator=generator, dtype=F64) + 0.2).unbind()
     size = torch.rand(3, generator=generator, dtype=F64) + 0.1
-    radii = torch.rand(3, generator=generator, dtype=F64) + 0.1
+    semi_axes = torch.rand(3, generator=generator, dtype=F64) + 0.1
     m, r, h = float(mass), float(radius), float(length)
     cases = {
         "sphere": (inertia_of_sphere(mass, radius=radius), pin.Inertia.FromSphere(m, r)),
         "box": (inertia_of_box(mass, size=size), pin.Inertia.FromBox(m, *size.tolist())),
         "capsule": (inertia_of_capsule(mass, radius=radius, length=length), pin.Inertia.FromCapsule(m, r, h)),
-        "ellipsoid": (inertia_of_ellipsoid(mass, radii=radii), pin.Inertia.FromEllipsoid(m, *radii.tolist())),
+        "ellipsoid": (
+            inertia_of_ellipsoid(mass, semi_axes=semi_axes),
+            pin.Inertia.FromEllipsoid(m, *semi_axes.tolist()),
+        ),
     }
     for name, (inertia, oracle) in cases.items():
         assert inertia.shape == (10,), name
@@ -113,7 +116,7 @@ def test_shape_limits_reduce_to_the_sphere() -> None:
     mass, radius = torch.tensor(3.0, dtype=F64), torch.tensor(0.7, dtype=F64)
     sphere = inertia_of_sphere(mass, radius=radius)
     torch.testing.assert_close(inertia_of_capsule(mass, radius=radius, length=torch.tensor(0.0, dtype=F64)), sphere)
-    torch.testing.assert_close(inertia_of_ellipsoid(mass, radii=radius.expand(3)), sphere)
+    torch.testing.assert_close(inertia_of_ellipsoid(mass, semi_axes=radius.expand(3)), sphere)
     cube = inertia_of_box(mass, size=torch.full((3,), 2.0, dtype=F64))
     torch.testing.assert_close(cube[4:7], torch.full((3,), 3.0 * 8.0 / 12.0, dtype=F64))
 
@@ -123,7 +126,7 @@ def test_shapes_broadcast_and_keep_the_dtype() -> None:
     assert inertia_of_sphere(mass, radius=torch.tensor(0.5)).shape == (2, 10)
     assert inertia_of_box(mass[:, None], size=torch.ones(3, 3)).shape == (2, 3, 10)
     assert inertia_of_capsule(mass, radius=torch.tensor(0.1), length=torch.tensor([0.2, 0.3])).shape == (2, 10)
-    ellipsoid = inertia_of_ellipsoid(mass, radii=torch.ones(2, 3))
+    ellipsoid = inertia_of_ellipsoid(mass, semi_axes=torch.ones(2, 3))
     assert ellipsoid.shape == (2, 10)
     assert ellipsoid.dtype == torch.float32
 
@@ -131,8 +134,8 @@ def test_shapes_broadcast_and_keep_the_dtype() -> None:
 def test_shapes_are_differentiable() -> None:
     mass, radius, length = (torch.tensor(value, dtype=F64, requires_grad=True) for value in (1.5, 0.3, 0.8))
     assert torch.autograd.gradcheck(lambda m, r, h: inertia_of_capsule(m, radius=r, length=h), (mass, radius, length))
-    radii = torch.tensor([0.2, 0.3, 0.4], dtype=F64, requires_grad=True)
-    assert torch.autograd.gradcheck(lambda m, a: inertia_of_ellipsoid(m, radii=a), (mass, radii))
+    semi_axes = torch.tensor([0.2, 0.3, 0.4], dtype=F64, requires_grad=True)
+    assert torch.autograd.gradcheck(lambda m, a: inertia_of_ellipsoid(m, semi_axes=a), (mass, semi_axes))
 
 
 @pytest.mark.parametrize(
@@ -160,10 +163,10 @@ def test_shapes_are_differentiable() -> None:
             id="box-size",
         ),
         pytest.param(
-            lambda: inertia_of_ellipsoid(torch.tensor(1.0), radii=torch.ones(())),
+            lambda: inertia_of_ellipsoid(torch.tensor(1.0), semi_axes=torch.ones(())),
             ValueError,
-            "radii must have shape",
-            id="radii",
+            "semi_axes must have shape",
+            id="semi-axes",
         ),
         pytest.param(
             lambda: inertia_from_mass_com(torch.tensor(1.0), torch.zeros(3), rotational_inertia=torch.eye(4)),

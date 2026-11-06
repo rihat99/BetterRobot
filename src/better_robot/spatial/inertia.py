@@ -96,15 +96,15 @@ def inertia_of_capsule(mass: torch.Tensor, *, radius: torch.Tensor, length: torc
     return _principal(mass, transverse, transverse, axial)
 
 
-def inertia_of_ellipsoid(mass: torch.Tensor, *, radii: torch.Tensor) -> torch.Tensor:
+def inertia_of_ellipsoid(mass: torch.Tensor, *, semi_axes: torch.Tensor) -> torch.Tensor:
     """Packed inertia ``(..., 10)`` of a solid ellipsoid of ``mass (...)`` centred at the origin, axes along x, y, z.
 
-    ``radii (..., 3)`` holds the semi-axes ``[a, b, c]``; ``Ixx = m (b^2 + c^2) / 5`` and likewise. Raises as
+    ``semi_axes (..., 3)`` holds ``[a, b, c]``; ``Ixx = m (b^2 + c^2) / 5`` and likewise. Raises as
     `inertia_from_mass_com`.
     """
-    _check_tensors(mass=mass, radii=radii)
-    _check_trailing_shape("radii", radii, (3,))
-    a, b, c = radii.unbind(dim=-1)
+    _check_tensors(mass=mass, semi_axes=semi_axes)
+    _check_trailing_shape("semi_axes", semi_axes, (3,))
+    a, b, c = semi_axes.unbind(dim=-1)
     k = mass / 5.0
     return _principal(mass, k * (b**2 + c**2), k * (a**2 + c**2), k * (a**2 + b**2))
 
