@@ -1,12 +1,15 @@
 """One error tree under ``BetterRobotError`` (decision record 0020, C-ERR-2).
 
 Every class in ``exceptions.__all__`` derives from ``BetterRobotError`` and from the builtin the record names, is
-raised somewhere in ``src`` (a class nobody raises is deleted), and the boundary guards raise the typed class.
+raised somewhere in ``src`` (a class nobody raises is deleted), the boundary guards raise the typed class, and
+``src`` raises a builtin ``ValueError``, ``TypeError`` or ``RuntimeError`` only where ``PLAIN_RAISES`` (permanent,
+reasoned) or the ratchet ``tests/contract/ratchets/plain_raises.json`` (shrinks as the io, optim and viewer rewrites land) allows.
 """
 
 from __future__ import annotations
 
 import ast
+import json
 import math
 import sys
 from pathlib import Path
@@ -19,7 +22,21 @@ from better_robot.io import ModelBuilder, build_model, load
 from better_robot.io.build_model import _check_topology_invariants
 from better_robot.kinematics import forward_kinematics
 
-SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
+REPO = Path(__file__).resolve().parents[2]
+SRC = REPO / "src" / "better_robot"
+PLAIN_RAISES_RATCHET = REPO / "tests" / "contract" / "ratchets" / "plain_raises.json"
+BUILTIN_RAISES = {"ValueError", "TypeError", "RuntimeError"}
+_NOT_A_TENSOR = "a value that is not a torch.Tensor is a Python TypeError; the tree has no node for it"
+PLAIN_RAISES: dict[str, str] = {
+    "src/better_robot/lie/_checks.py::check_tensor": _NOT_A_TENSOR,
+    "src/better_robot/lie/umeyama.py::_validate_point_sets": _NOT_A_TENSOR,
+    "src/better_robot/lie/umeyama.py::_normalized_fit_weights": _NOT_A_TENSOR,
+    "src/better_robot/model/_checks.py::check_tensor": _NOT_A_TENSOR,
+    "src/better_robot/spatial/_checks.py::check_tensors": _NOT_A_TENSOR,
+    "src/better_robot/spatial/inertia.py::_check_mesh_structure": _NOT_A_TENSOR,
+    "src/better_robot/spatial/inertia.py::_density_tensor": _NOT_A_TENSOR,
+    "src/better_robot/spatial/mesh.py::_check_face_table": _NOT_A_TENSOR,
+}
 BASES: dict[type, type] = {
     exc.ShapeError: ValueError,
     exc.DtypeMismatchError: ValueError,
@@ -46,6 +63,26 @@ def _raised_names() -> set[str]:
     return names
 
 
+def _builtin_raise_sites() -> set[str]:
+    """``path::function`` of every ``raise ValueError/TypeError/RuntimeError(...)`` under ``src``."""
+    sites: set[str] = set()
+
+    def visit(node: ast.AST, file: Path, owner: str) -> None:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            owner = node.name
+        if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
+            callee = node.exc.func
+            name = callee.id if isinstance(callee, ast.Name) else getattr(callee, "attr", None)
+            if name in BUILTIN_RAISES:
+                sites.add(f"{file.relative_to(REPO).as_posix()}::{owner}")
+        for child in ast.iter_child_nodes(node):
+            visit(child, file, owner)
+
+    for file in SRC.rglob("*.py"):
+        visit(ast.parse(file.read_text()), file, "<module>")
+    return sites
+
+
 def test_every_class_has_its_bases() -> None:
     """``__all__`` is exactly the root plus the eight classes, each under the root and its builtin."""
     assert set(exc.__all__) == {"BetterRobotError", *(cls.__name__ for cls in BASES)}
@@ -57,6 +94,17 @@ def test_every_class_is_raised_in_src() -> None:
     """The root is the catch-all a caller uses; every other class has a raise site."""
     missing = sorted(cls.__name__ for cls in BASES if cls.__name__ not in _raised_names())
     assert not missing, f"delete or raise: {missing}"
+
+
+def test_src_raises_the_error_tree_only() -> None:
+    """A builtin raise is allowed only by the permanent list or the ratchet, and every entry still has its raise."""
+    sites = _builtin_raise_sites()
+    ratchet = json.loads(PLAIN_RAISES_RATCHET.read_text())
+    assert not set(PLAIN_RAISES) & set(ratchet), "an entry is either permanent or ratcheted"
+    unexpected = sorted(sites - set(PLAIN_RAISES) - set(ratchet))
+    assert unexpected == [], f"raise the error tree (exceptions.py) instead of a builtin: {unexpected}"
+    stale = sorted((set(PLAIN_RAISES) | set(ratchet)) - sites)
+    assert stale == [], f"drop these entries with the fix that removed the raise: {stale}"
 
 
 @pytest.fixture(scope="module")

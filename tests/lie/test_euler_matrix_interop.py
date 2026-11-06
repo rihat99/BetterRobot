@@ -7,6 +7,7 @@ import math
 import pytest
 import torch
 
+from better_robot.exceptions import DtypeMismatchError
 from better_robot.lie import se3, so3
 
 
@@ -92,8 +93,10 @@ def test_se3_matrix_roundtrip_preserves_translation_and_rotation() -> None:
     ],
 )
 def test_euler_and_matrix_interop_reject_integer_tensors(function, value: torch.Tensor) -> None:
-    with pytest.raises(TypeError, match="floating torch.Tensor"):
+    with pytest.raises(DtypeMismatchError, match="is not floating"):
         function(value)
+    with pytest.raises(TypeError, match="must be a torch.Tensor"):
+        function(value.tolist())
 
 
 @pytest.mark.parametrize(

@@ -18,15 +18,20 @@ from __future__ import annotations
 
 import torch
 
+from ..exceptions import ArgumentError, DtypeMismatchError, ShapeError
+from ._checks import check_tensors
+
 _MAX_REPORTED_EDGES = 5
 
 
 def _check_face_table(faces: torch.Tensor) -> None:
     """Validate that ``faces`` is a non-empty integer ``(F, 3)`` triangle table."""
-    if not isinstance(faces, torch.Tensor) or faces.dtype not in (torch.int32, torch.int64):
-        raise TypeError("faces must be a torch.int32 or torch.int64 tensor")
+    if not isinstance(faces, torch.Tensor):
+        raise TypeError(f"faces must be a torch.int32 or torch.int64 tensor, got {type(faces).__name__}")
+    if faces.dtype not in (torch.int32, torch.int64):
+        raise DtypeMismatchError(f"faces.dtype={faces.dtype} is not torch.int32 or torch.int64; pass faces.long()")
     if faces.ndim != 2 or faces.shape[-1] != 3 or faces.shape[0] == 0:
-        raise ValueError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
+        raise ShapeError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
 
 
 def _undirected_edges(faces: torch.Tensor) -> torch.Tensor:
@@ -54,12 +59,13 @@ def validate_closed_manifold(faces: torch.Tensor) -> None:
 
     Raises
     ------
-    TypeError
-        If ``faces`` is not a ``torch.int32`` or ``torch.int64`` tensor.
-    ValueError
-        If ``faces`` is not a non-empty ``(F, 3)`` table, or if any undirected
-        edge has an incidence other than two: incidence one marks a boundary
-        edge (open surface) and incidence above two marks a non-manifold edge.
+    TypeError, DtypeMismatchError, ShapeError
+        If ``faces`` is not a tensor, not ``torch.int32`` or ``torch.int64``, or
+        not a non-empty ``(F, 3)`` table.
+    ArgumentError
+        If any undirected edge has an incidence other than two: incidence one
+        marks a boundary edge (open surface) and incidence above two marks a
+        non-manifold edge.
         The message names a few offending edges.
     """
     _check_face_table(faces)
@@ -82,7 +88,7 @@ def validate_closed_manifold(faces: torch.Tensor) -> None:
             f"{int(non_manifold.sum())} non-manifold edge(s) shared by more than two faces, "
             f"e.g. (edge, incidence) {sample}"
         )
-    raise ValueError("faces do not form a closed 2-manifold surface: " + "; ".join(problems))
+    raise ArgumentError("faces do not form a closed 2-manifold surface: " + "; ".join(problems))
 
 
 def _build_face_adjacency(face_list: list[list[int]]) -> list[list[tuple[int, int]]]:
@@ -145,7 +151,7 @@ def _orient_components(
                     component[neighbour] = next_component
                     stack.append(neighbour)
                 elif sign[neighbour] != expected and not allow_non_orientable:
-                    raise ValueError(
+                    raise ArgumentError(
                         f"surface is non-orientable: faces {current} and {neighbour} impose "
                         "contradictory winding across their shared edge"
                     )
@@ -192,9 +198,9 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
 
     Raises
     ------
-    TypeError
-        If ``faces`` is not an integer tensor.
-    ValueError
+    TypeError, DtypeMismatchError, ShapeError
+        If ``faces`` is not a non-empty integer ``(F, 3)`` tensor.
+    ArgumentError
         If ``faces`` is not a closed 2-manifold surface (see
         ``validate_closed_manifold``), or if that surface is non-orientable
         (a consistent winding then does not exist).
@@ -246,17 +252,15 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
 
     Raises
     ------
-    TypeError
-        If ``faces`` is not an integer tensor or ``vertices`` is not floating.
-    ValueError
-        If ``faces`` is not a non-empty ``(F, 3)`` table or ``vertices`` is not
-        ``(V, 3)``. Boundary and non-manifold edges never raise here.
+    TypeError, DtypeMismatchError, ShapeError
+        If ``faces`` is not a non-empty integer ``(F, 3)`` tensor or ``vertices``
+        is not a floating ``(V, 3)`` tensor. Boundary and non-manifold edges
+        never raise here.
     """
     _check_face_table(faces)
-    if not isinstance(vertices, torch.Tensor) or not vertices.is_floating_point():
-        raise TypeError("vertices must be a floating torch.Tensor")
-    if vertices.ndim != 2 or vertices.shape[-1] != 3:
-        raise ValueError(f"vertices must have shape (V, 3), got {tuple(vertices.shape)}")
+    check_tensors(vertices=(vertices, (3,)))
+    if vertices.ndim != 2:
+        raise ShapeError(f"vertices must have shape (V, 3), got {tuple(vertices.shape)}")
 
     face_list: list[list[int]] = faces.to(torch.long).cpu().tolist()
     face_count = len(face_list)

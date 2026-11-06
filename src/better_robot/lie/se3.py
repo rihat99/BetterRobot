@@ -12,6 +12,7 @@ from __future__ import annotations
 import torch
 
 from . import so3
+from ._checks import check_tensor
 from .so3 import _hat3, _quat_mul, _quat_to_matrix, _taylor_theta2
 
 
@@ -137,10 +138,7 @@ def from_matrix(matrix: torch.Tensor) -> torch.Tensor:
     block and translation in the last column.  The result has shape
     ``(..., 7)`` and layout ``[tx, ty, tz, qx, qy, qz, qw]``.
     """
-    if not isinstance(matrix, torch.Tensor) or not matrix.is_floating_point():
-        raise TypeError("matrix must be a floating torch.Tensor")
-    if matrix.shape[-2:] != (4, 4):
-        raise ValueError(f"matrix must have shape (..., 4, 4); got {tuple(matrix.shape)}")
+    check_tensor("matrix", matrix, trailing=(4, 4))
     translation = matrix[..., :3, 3]
     quaternion = so3.from_matrix(matrix[..., :3, :3])
     return torch.cat((translation, quaternion), dim=-1)
@@ -153,10 +151,7 @@ def to_matrix(t: torch.Tensor) -> torch.Tensor:
     ``[tx, ty, tz, qx, qy, qz, qw]``.  The result has shape
     ``(..., 4, 4)`` and bottom row ``[0, 0, 0, 1]``.
     """
-    if not isinstance(t, torch.Tensor) or not t.is_floating_point():
-        raise TypeError("t must be a floating torch.Tensor")
-    if t.shape[-1:] != (7,):
-        raise ValueError(f"t must have shape (..., 7); got {tuple(t.shape)}")
+    check_tensor("t", t, trailing=(7,))
     rotation = so3.to_matrix(t[..., 3:7])
     upper = torch.cat((rotation, t[..., :3].unsqueeze(-1)), dim=-1)
     bottom = t.new_zeros((*t.shape[:-1], 1, 4))

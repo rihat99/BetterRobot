@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import math
 
+from ._checks import check_tensor
+
 import torch
 
 
@@ -201,10 +203,7 @@ def from_euler(euler: torch.Tensor) -> torch.Tensor:
     not accept other axis orders.  See ``to_euler`` for the inverse and
     its gimbal-lock behaviour.
     """
-    if not isinstance(euler, torch.Tensor) or not euler.is_floating_point():
-        raise TypeError("euler must be a floating torch.Tensor")
-    if euler.shape[-1:] != (3,):
-        raise ValueError(f"euler must have shape (..., 3); got {tuple(euler.shape)}")
+    check_tensor("euler", euler, trailing=(3,))
 
     half = euler * torch.full_like(euler, 0.5)
     roll, pitch, yaw = half.unbind(dim=-1)
@@ -230,10 +229,7 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
     exactly ``+/- pi/2`` and the combined angle in roll, so the round trip
     through ``from_euler`` is exact.
     """
-    if not isinstance(q, torch.Tensor) or not q.is_floating_point():
-        raise TypeError("q must be a floating torch.Tensor")
-    if q.shape[-1:] != (4,):
-        raise ValueError(f"q must have shape (..., 4); got {tuple(q.shape)}")
+    check_tensor("q", q, trailing=(4,))
 
     q = normalize(q)
     qx, qy, qz, qw = q.unbind(dim=-1)

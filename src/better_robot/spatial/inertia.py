@@ -17,7 +17,7 @@ from numbers import Real
 
 import torch
 
-from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
+from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..lie.tangents import hat_so3
 from ._checks import check_tensors
 
@@ -181,7 +181,7 @@ def inertia_of_mesh(
 
     Raises ``TypeError`` for a non-tensor, ``ShapeError``, ``DtypeMismatchError`` or ``DeviceMismatchError`` for a
     wrong shape, dtype or device. ``check_mesh=True``
-    also reads the values, one host sync per check, and raises ``ValueError`` for non-finite vertices, a face id
+    also reads the values, one host sync per check, and raises ``ArgumentError`` for non-finite vertices, a face id
     outside ``[0, V)``, a density that is not finite and positive, or a degenerate enclosed volume; without it such
     input gives a meaningless or non-finite result.
     """
@@ -217,7 +217,7 @@ def inertia_of_mesh(
     if check_mesh:
         scale = torch.linalg.vector_norm(centered, dim=-1).amax(dim=-1)
         if bool(torch.any(volume <= torch.finfo(vertices.dtype).eps * scale.pow(3))):
-            raise ValueError(
+            raise ArgumentError(
                 "mesh has zero or numerically degenerate enclosed volume; "
                 "faces must define a closed, consistently wound surface"
             )
@@ -269,13 +269,13 @@ def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> to
 
 
 def _check_mesh_values(vertices: torch.Tensor, faces: torch.Tensor, density: torch.Tensor) -> None:
-    """Raise ``ValueError`` for non-finite vertices, out-of-range face ids or a density that is not finite positive."""
+    """Raise ``ArgumentError`` for non-finite vertices, out-of-range face ids or a density not finite positive."""
     if not bool(torch.isfinite(vertices).all()):
-        raise ValueError("vertices must contain only finite values")
+        raise ArgumentError("vertices must contain only finite values")
     if bool(torch.any(faces < 0)) or bool(torch.any(faces >= vertices.shape[-2])):
-        raise ValueError("faces contains a vertex index outside the vertices table")
+        raise ArgumentError("faces contains a vertex index outside the vertices table")
     if not bool(torch.isfinite(density).all()) or bool(torch.any(density <= 0.0)):
-        raise ValueError("density must contain only finite positive values")
+        raise ArgumentError("density must contain only finite positive values")
 
 
 def _principal(mass: torch.Tensor, ixx: torch.Tensor, iyy: torch.Tensor, izz: torch.Tensor) -> torch.Tensor:

@@ -27,7 +27,8 @@ class DeviceMismatchError(BetterRobotError, ValueError):
 
 
 class ArgumentError(BetterRobotError, ValueError):
-    """A non-tensor argument is out of its accepted set: an id out of range, an unsupported reference frame."""
+    """An argument is out of its accepted set: an id out of range, an unsupported reference frame, a tensor whose
+    values an operation cannot use (a point set with non-finite entries, a mesh that is not closed)."""
 
 
 class ModelError(BetterRobotError, ValueError):

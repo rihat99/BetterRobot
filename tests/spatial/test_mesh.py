@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import pytest
+
+from better_robot.exceptions import DtypeMismatchError
 import torch
 
 from better_robot.spatial import (
@@ -145,10 +147,11 @@ def test_non_manifold_edge_raises_naming_edges() -> None:
 @pytest.mark.parametrize(
     ("check", "faces", "error", "match"),
     [
+        pytest.param(validate_closed_manifold, [[0, 1, 2]], TypeError, "int32 or torch.int64", id="not_a_tensor"),
         pytest.param(
             validate_closed_manifold,
             torch.zeros((4, 3), dtype=torch.float32),
-            TypeError,
+            DtypeMismatchError,
             "int32 or torch.int64",
             id="non_integer",
         ),
@@ -323,7 +326,7 @@ def test_by_component_degrades_gracefully_on_boundary_and_non_manifold_input() -
 
 def test_by_component_validates_its_vertices() -> None:
     _, faces = _box_mesh()
-    with pytest.raises(TypeError, match="floating"):
+    with pytest.raises(DtypeMismatchError, match="not floating"):
         orient_faces_by_component(torch.zeros((8, 3), dtype=torch.int64), faces)
     with pytest.raises(ValueError, match=r"shape \(V, 3\)"):
         orient_faces_by_component(torch.zeros((2, 8, 3), dtype=torch.float32), faces)
