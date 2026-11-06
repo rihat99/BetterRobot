@@ -2,6 +2,7 @@
 
 Key property checked: Jr(xi) satisfies the finite-difference definition
     log(exp(-xi) * exp(xi + eps*ej)) / eps ≈ Jr(xi)[:, j]
+Random cases draw from a ``torch.Generator`` seeded by the ``seed`` in the test id.
 """
 
 import math
@@ -11,34 +12,46 @@ from better_robot.lie import so3 as _so3
 from better_robot.lie import tangents
 
 
+SEEDS = [0, 1, 2]
+
+
+def _randn(seed: int, *shape: int, scale: float = 1.0) -> torch.Tensor:
+    """Float32 ``N(0, scale^2)`` draws from a generator seeded with ``seed``."""
+    return scale * torch.randn(*shape, generator=torch.Generator().manual_seed(seed))
+
+
 # ──────────────────────────── hat / vee ──────────────────────────────────
 
 
-def test_hat_so3_antisymmetric():
-    w = torch.randn(3)
-    W = tangents.hat_so3(w)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_hat_so3_antisymmetric(seed):
+    W = tangents.hat_so3(_randn(seed, 3))
     assert W.shape == (3, 3)
-    assert torch.allclose(W, -W.T, atol=1e-7)
+    assert torch.equal(W, -W.T)
 
 
-def test_hat_vee_so3_roundtrip():
-    w = torch.randn(3)
-    assert torch.allclose(tangents.vee_so3(tangents.hat_so3(w)), w, atol=1e-7)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_hat_vee_so3_roundtrip(seed):
+    w = _randn(seed, 3)
+    assert torch.equal(tangents.vee_so3(tangents.hat_so3(w)), w)
 
 
-def test_hat_se3_structure():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_hat_se3_structure(seed):
     """hat_se3 top-left 3x3 should be skew-sym, top-right column is v."""
-    xi = torch.randn(6)
+    xi = _randn(seed, 6)
     X = tangents.hat_se3(xi)
     assert X.shape == (4, 4)
     W = X[:3, :3]
-    assert torch.allclose(W, -W.T, atol=1e-7)
-    assert torch.allclose(X[:3, 3], xi[:3], atol=1e-7)  # translation column
+    assert torch.equal(W, -W.T)
+    assert torch.equal(X[:3, 3], xi[:3])  # translation column
+    assert torch.equal(X[3], torch.zeros(4))
 
 
-def test_hat_vee_se3_roundtrip():
-    xi = torch.randn(6)
-    assert torch.allclose(tangents.vee_se3(tangents.hat_se3(xi)), xi, atol=1e-7)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_hat_vee_se3_roundtrip(seed):
+    xi = _randn(seed, 6)
+    assert torch.equal(tangents.vee_se3(tangents.hat_se3(xi)), xi)
 
 
 # ──────────────────────── SO3 Jacobians ──────────────────────────────────
@@ -62,9 +75,9 @@ def _fd_jr_so3(omega, eps=1e-5):
 
 
 @pytest.mark.parametrize("scale", [0.3, 1.0, 2.5])
-def test_right_jacobian_so3_fd(scale):
-    torch.manual_seed(0)
-    omega = torch.randn(3) * scale
+@pytest.mark.parametrize("seed", SEEDS)
+def test_right_jacobian_so3_fd(seed, scale):
+    omega = _randn(seed, 3, scale=scale)
     Jr_analytic = tangents.right_jacobian_so3(omega)
     Jr_fd = _fd_jr_so3(omega)
     assert torch.allclose(Jr_analytic, Jr_fd, atol=1e-4), (
@@ -72,9 +85,10 @@ def test_right_jacobian_so3_fd(scale):
     )
 
 
-def test_right_jacobian_so3_small_angle():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_right_jacobian_so3_small_angle(seed):
     """Near zero: Jr ≈ I - 1/2 * hat(omega)."""
-    omega = torch.randn(3) * 1e-3
+    omega = _randn(seed, 3, scale=1e-3)
     Jr = tangents.right_jacobian_so3(omega)
     Jr_approx = torch.eye(3) - 0.5 * tangents.hat_so3(omega)
     assert torch.allclose(Jr, Jr_approx, atol=1e-5)
@@ -82,7 +96,7 @@ def test_right_jacobian_so3_small_angle():
 
 @pytest.mark.parametrize(
     "op",
-    [tangents.right_jacobian_so3, tangents.right_jacobian_inv_so3],
+    [tangents.right_jacobian_so3, tangents.right_jacobian_inverse_so3],
     ids=["right_jacobian", "right_jacobian_inverse"],
 )
 @pytest.mark.parametrize("theta", [0.0, 1e-9], ids=["identity", "theta_1e-9"])
@@ -97,31 +111,41 @@ def test_right_jacobian_singularities_gradcheck(op, theta):
     assert torch.isfinite(gradient).all()
 
 
-def test_jr_jrinv_so3_product():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_jr_jrinv_so3_product(seed):
     """Jr(omega) @ Jr_inv(omega) == I."""
-    omega = torch.randn(3) * 0.8
+    omega = _randn(seed, 3, scale=0.8)
     Jr = tangents.right_jacobian_so3(omega)
-    Jr_inv = tangents.right_jacobian_inv_so3(omega)
+    Jr_inv = tangents.right_jacobian_inverse_so3(omega)
     assert torch.allclose(Jr @ Jr_inv, torch.eye(3), atol=1e-5)
 
 
-def test_left_right_so3_relation():
-    """Jl(phi) == Jr(-phi)."""
-    omega = torch.randn(3) * 0.5
-    Jl = tangents.left_jacobian_so3(omega)
-    Jr_neg = tangents.right_jacobian_so3(-omega)
-    assert torch.allclose(Jl, Jr_neg, atol=1e-7)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_left_right_so3_relation(seed):
+    """Jl(phi) == Jr(-phi) and Jl^-1(phi) == Jr^-1(-phi)."""
+    omega = _randn(seed, 3, scale=0.5)
+    assert torch.equal(tangents.left_jacobian_so3(omega), tangents.right_jacobian_so3(-omega))
+    assert torch.equal(tangents.left_jacobian_inverse_so3(omega), tangents.right_jacobian_inverse_so3(-omega))
 
 
 # ──────────────────────── SE3 Jacobians ──────────────────────────────────
 
 
-def test_jr_jrinv_se3_product():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_jr_jrinv_se3_product(seed):
     """Jr(xi) @ Jr_inv(xi) == I."""
-    xi = torch.randn(6) * 0.4
+    xi = _randn(seed, 6, scale=0.4)
     Jr = tangents.right_jacobian_se3(xi)
-    Jr_inv = tangents.right_jacobian_inv_se3(xi)
+    Jr_inv = tangents.right_jacobian_inverse_se3(xi)
     assert torch.allclose(Jr @ Jr_inv, torch.eye(6), atol=1e-5)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_left_right_se3_relation(seed):
+    """Jl(xi) == Jr(-xi) and Jl^-1(xi) == Jr^-1(-xi)."""
+    xi = _randn(seed, 6, scale=0.5)
+    assert torch.equal(tangents.left_jacobian_se3(xi), tangents.right_jacobian_se3(-xi))
+    assert torch.equal(tangents.left_jacobian_inverse_se3(xi), tangents.right_jacobian_inverse_se3(-xi))
 
 
 # ───────────── SE3 Jacobians at large rotation angles ────────────────────
@@ -151,7 +175,9 @@ def test_right_jacobian_se3_exact_at_any_angle(theta):
     xi = _xi_with_angle(theta)
     reference = _series_right_jacobian_se3(xi)
     torch.testing.assert_close(tangents.right_jacobian_se3(xi), reference, atol=1e-10, rtol=0.0)
-    torch.testing.assert_close(tangents.right_jacobian_inv_se3(xi), torch.linalg.inv(reference), atol=1e-9, rtol=0.0)
+    torch.testing.assert_close(
+        tangents.right_jacobian_inverse_se3(xi), torch.linalg.inv(reference), atol=1e-9, rtol=0.0
+    )
 
 
 @pytest.mark.parametrize("theta", [1e-4, 0.05, 0.5, 3.0])
@@ -164,7 +190,7 @@ def test_right_jacobian_se3_float32(theta):
 
 
 @pytest.mark.parametrize("theta", [3.5, 5.0])
-def test_right_jacobian_inv_so3_beyond_pi(theta):
+def test_right_jacobian_inverse_so3_beyond_pi(theta):
     omega = _xi_with_angle(theta)[:, 3:]
-    product = tangents.right_jacobian_so3(omega) @ tangents.right_jacobian_inv_so3(omega)
+    product = tangents.right_jacobian_so3(omega) @ tangents.right_jacobian_inverse_so3(omega)
     torch.testing.assert_close(product, torch.eye(3, dtype=torch.float64).expand_as(product), atol=1e-10, rtol=0.0)

@@ -114,10 +114,10 @@ def adjoint(t: torch.Tensor) -> torch.Tensor:
     return torch.cat([top, bottom], dim=-2)
 
 
-def adjoint_inv(t: torch.Tensor) -> torch.Tensor:
-    """Inverse adjoint ``Ad(T^-1)`` — faster than inverting the adjoint.
+def adjoint_inverse(t: torch.Tensor) -> torch.Tensor:
+    """Inverse adjoint ``Ad(T)^-1 = Ad(T^-1)``. ``(..., 7) → (..., 6, 6)``.
 
-    Ad(T^{-1}) = [[R^T, -(R^T @ hat(p))], [0, R^T]].
+    Built from the blocks ``[[R^T, -R^T hat(p)], [0, R^T]]``, so no matrix is inverted.
     """
     p = t[..., :3]
     R = _quat_to_matrix(t[..., 3:7])
@@ -128,6 +128,9 @@ def adjoint_inv(t: torch.Tensor) -> torch.Tensor:
     top = torch.cat([RT, neg_RT_skew], dim=-1)
     bottom = torch.cat([zeros33, RT], dim=-1)
     return torch.cat([top, bottom], dim=-2)
+
+
+adjoint_inv = adjoint_inverse
 
 
 def from_matrix(matrix: torch.Tensor) -> torch.Tensor:
