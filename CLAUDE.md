@@ -26,22 +26,28 @@ uv run python examples/01_ik.py
 
 ## Architecture
 
-Imports point down the checked package DAG:
+Each package imports only the packages of its row in the edge table
+(`ALLOWED` in `tests/contract/test_layer_dependencies.py`, contract 07):
 
 ```text
-viewer -> terms
-            |
-io   kinematics   dynamics   collision
- \       |           |          /
-          data_model -> spatial -> lie
-
-optim (imports only torch; knows nothing about robots)
+exceptions, lie, _version  -> nothing
+spatial     -> lie
+model       -> exceptions lie spatial
+kinematics  -> exceptions lie model
+dynamics    -> exceptions lie spatial model kinematics
+collision   -> exceptions model kinematics
+io          -> exceptions lie model
+optim       -> exceptions
+terms       -> exceptions lie model kinematics collision optim
+viewer      -> exceptions lie model kinematics collision    (+ io, in the edge ratchet)
+testing     -> exceptions model
 ```
 
-Kinematics and dynamics share an architectural rank; dynamics may reuse raw
-FK helpers. `io` builds `data_model` objects and does not depend on optimizers.
-Nothing in the computational core imports `viewer`. The dependency contract is
-enforced by `tests/contract/test_layer_dependencies.py`.
+The root `__init__` re-exports packages and has no row. No row names `viewer`,
+`terms` or `testing`. Outside the package, `lie`, `spatial` and `optim` import
+torch only (`optim` knows nothing about robots), and every other import of a
+third-party package is one `pyproject.toml` declares for that package
+(`tests/contract/test_optional_imports.py`).
 
 Public wrappers validate shapes, dtype, device, and model attachment. Raw
 tensor passes below them trust validated inputs. `ModelStructure` holds static

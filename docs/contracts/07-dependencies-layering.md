@@ -1,34 +1,35 @@
 # 07 Dependencies and layering
 
-The packages under `src/better_robot/` form a directed acyclic graph (DAG): an import may only point *down*.
-Packages at the same rank do not import each other. The graph is the architecture; a new package is placed
-in it by an ADR (`00-index`, "When to write an ADR").
+The packages under `src/better_robot/` import each other along one edge table, the `ALLOWED` table in
+`tests/contract/test_layer_dependencies.py`: one row per package, naming the packages it may import. The table has no
+cycle, and a new package gets its row through an ADR (`00-index`, "When to write an ADR"). The root
+`src/better_robot/__init__.py` re-exports the packages and has no row. The edges that exist today outside the table are
+listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, which only shrinks.
 
-```text
-viewer -> terms -> optim (optim imports only torch; knows nothing about robots)
-            |
-io    dynamics   collision
- \       |          /
-      kinematics
-          |
-   model -> spatial -> lie
-```
+| Package | May import |
+|---|---|
+| `exceptions`, `lie`, `_version` | nothing from the package |
+| `spatial` | `lie` |
+| `model` | `exceptions`, `lie`, `spatial` |
+| `kinematics` | `exceptions`, `lie`, `model` |
+| `dynamics` | `exceptions`, `lie`, `spatial`, `model`, `kinematics` |
+| `collision` | `exceptions`, `model`, `kinematics` |
+| `io` | `exceptions`, `lie`, `model` |
+| `optim` | `exceptions` |
+| `terms` | `exceptions`, `lie`, `model`, `kinematics`, `collision`, `optim` |
+| `viewer` | `exceptions`, `lie`, `model`, `kinematics`, `collision`; `io` sits in the edge ratchet |
+| `testing` | `exceptions`, `model` |
 
-The allowed edges are the `ALLOWED` table in `tests/contract/test_layer_dependencies.py`: one row per package,
-naming the packages it may import; a package without a row imports none. The edges that exist today outside the
-table are listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, which only shrinks.
+## C-DEP-1 Imports follow the edge table, which has no cycle (MUST)
 
-## C-DEP-1 Imports follow the DAG; no cycles, no same-rank imports (MUST)
-
-`lie` imports torch only. `spatial` imports `lie`. `model` imports `spatial`. `kinematics` imports
-`model` and below. `dynamics`, `collision`, `io` import `kinematics` and below (`dynamics` builds its
-world-frame Jacobians on a kinematics helper, `dynamics/_world.py:30`; that helper is private today and
-becomes a public-internal `kinematics.jacobian_columns` `[planned: L-3]`). `optim` imports only torch and
-the standard library. `terms` imports `optim` and the robot packages. `viewer` imports anything.
-`exceptions` is rank zero and imports nothing from the package.
+A package imports only the packages its row names. No row names `viewer`, `terms` or `testing`: no other package
+depends on them. `dynamics` and `collision` import `kinematics`: `dynamics` builds its world-frame Jacobians
+on the private `src/better_robot/kinematics/_jacobian_columns.py`, which becomes a public-internal
+`kinematics.jacobian_columns` `[planned: L-3]`. Outside the package, `lie`, `spatial` and `optim` import torch and
+nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
 
 ```python { .no-run }
-# good  (illustrative; see terms/robot.py)
+# good  (illustrative; see src/better_robot/terms/robot.py)
 from better_robot.kinematics import frame_jacobian
 # bad  (illustrative)
 from better_robot.model import Model          # optim must not know robots

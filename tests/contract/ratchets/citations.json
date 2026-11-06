@@ -17,7 +17,6 @@
   "docs/contracts/05-api-shape.md: terms/robot.py:62": "cites a line number; cite path::symbol",
   "docs/contracts/06-validation-errors.md: kinematics/state.py:151": "cites a line number; cite path::symbol",
   "docs/contracts/06-validation-errors.md: optim/problem.py:401": "cites a line number; cite path::symbol",
-  "docs/contracts/07-dependencies-layering.md: dynamics/_world.py:30": "cites a line number; cite path::symbol",
   "docs/contracts/08-extension-points.md: io/__init__.py:42": "cites a line number; cite path::symbol",
   "docs/contracts/08-extension-points.md: io/build_model.py:387": "cites a line number; cite path::symbol",
   "docs/contracts/08-extension-points.md: io/parsers/programmatic.py:394": "cites a line number; cite path::symbol",
