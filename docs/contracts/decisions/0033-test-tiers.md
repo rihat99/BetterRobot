@@ -26,7 +26,7 @@ markers = ["cuda", "licensed", "slow"]
 ```
 ```text
 tier     selects                              run by                          fails when
-fast     tests/contract, not slow             pre-commit hook                 any test fails
+fast     tests/contract, not slow, not cuda   pre-commit hook                 any test fails
 full     all but cuda and licensed            pre-push hook, release list     any test fails; a missing oracle fails
 release  everything, plus the counters        by hand, free-GPU script        the models directory or an asset is missing
 ```
