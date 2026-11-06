@@ -12,7 +12,6 @@ from __future__ import annotations
 import inspect
 
 import better_robot as br
-from better_robot.lie import SE3 as LieSE3
 
 # The stable core. Other supported conveniences may also be exported without
 # forcing this contract test to enumerate every top-level symbol forever.
@@ -23,8 +22,6 @@ REQUIRED: frozenset[str] = frozenset(
         # io
         "load",
         "ModelBuilder",
-        # lie
-        "SE3",
         # kinematics
         "KinematicState",
         "forward_kinematics_state",
@@ -73,10 +70,6 @@ def test_all_is_list_of_str() -> None:
     assert isinstance(br.__all__, list)
     for name in br.__all__:
         assert isinstance(name, str)
-
-
-def test_root_se3_remains_the_lie_type_after_optim() -> None:
-    assert br.SE3 is LieSE3
 
 
 def test_solve_ik_signature_shape() -> None:

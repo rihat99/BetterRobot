@@ -12,7 +12,7 @@ BetterVideoReconstruction `Force` (1 site).
 
 ## Decision
 We will provide Lie and spatial algebra as functions on tensors only (`spatial.cross_motion`, `cross_force`,
-`transform_motion`, `transform_force`, `transform_inertia`, `inertia_matrix`, `inertia_of_sphere`, `inertia_of_box`,
+`transform_motion`, `transform_force`, `transform_inertia`, `inertia_matrix`, `rotational_inertia`, `inertia_of_sphere`, `inertia_of_box`,
 `inertia_of_capsule`, `inertia_of_ellipsoid`, `inertia_of_mesh`) and remove the value classes and `Pose`.
 
 ## Example

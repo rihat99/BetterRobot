@@ -21,8 +21,9 @@ def cross_motion(twist: torch.Tensor, other: torch.Tensor) -> torch.Tensor:
     """Motion cross product of two twists, ``twist ×m other = ad(twist) @ other``. ``(..., 6), (..., 6) → (..., 6)``.
 
     For ``twist = [v, w]`` and ``other = [u, z]`` it is ``[w × u + v × z, w × z]``: the rate of change of a twist
-    fixed in a frame that moves with ``twist``. Raises ``TypeError`` for a non-tensor and ``ValueError`` for a
-    non-floating dtype, a trailing size other than 6, or mismatched dtypes or devices.
+    fixed in a frame that moves with ``twist``. Raises ``TypeError`` for a non-tensor, ``ShapeError`` for a
+    trailing size other than 6, ``DtypeMismatchError`` for a non-floating or mismatched dtype and
+    ``DeviceMismatchError`` for mismatched devices.
     """
     check_tensors(twist=(twist, (6,)), other=(other, (6,)))
     return cross_motion_raw(twist, other)
@@ -68,8 +69,9 @@ def transform_motion(pose: torch.Tensor, twist: torch.Tensor) -> torch.Tensor:
     """Twist ``twist (..., 6)`` given in frame B, expressed in frame A: ``Ad(pose) @ twist``, ``(..., 6)``.
 
     ``pose (..., 7)`` is B's pose in A, with rotation ``R`` and translation ``p``; the result is
-    ``[R v + p × (R w), R w]`` for ``twist = [v, w]``. Raises ``TypeError`` for a non-tensor and ``ValueError`` for
-    a non-floating dtype, a trailing size other than 7 and 6, or mismatched dtypes or devices.
+    ``[R v + p × (R w), R w]`` for ``twist = [v, w]``. Raises ``TypeError`` for a non-tensor, ``ShapeError`` for
+    a trailing size other than 7 and 6, ``DtypeMismatchError`` for a non-floating or mismatched dtype and
+    ``DeviceMismatchError`` for mismatched devices.
     """
     check_tensors(pose=(pose, (7,)), twist=(twist, (6,)))
     return transform_motion_raw(pose, twist)
@@ -111,8 +113,9 @@ def transform_inertia(pose: torch.Tensor, inertia: torch.Tensor) -> torch.Tensor
 
     ``pose (..., 7)`` is B's pose in A, with rotation ``R`` and translation ``p``. The mass stays, the centre of
     mass maps to ``R c + p`` and the rotational inertia to ``R I_c R^T``, so ``inertia_matrix`` of the result is
-    ``Ad(pose)^-T @ inertia_matrix(inertia) @ Ad(pose)^-1``. Raises ``TypeError`` for a non-tensor and
-    ``ValueError`` for a non-floating dtype, a trailing size other than 7 and 10, or mismatched dtypes or devices.
+    ``Ad(pose)^-T @ inertia_matrix(inertia) @ Ad(pose)^-1``. Raises ``TypeError`` for a non-tensor,
+    ``ShapeError`` for a trailing size other than 7 and 10, ``DtypeMismatchError`` for a non-floating or mismatched
+    dtype and ``DeviceMismatchError`` for mismatched devices.
     """
     check_tensors(pose=(pose, (7,)), inertia=(inertia, (10,)))
     return transform_inertia_raw(pose, inertia)

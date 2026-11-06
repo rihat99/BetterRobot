@@ -108,7 +108,7 @@ ShapeError
 The root namespace is deliberately small. `better_robot.__all__` holds the core of most scripts: `Model`, `load`, `ModelBuilder`,
 `forward_kinematics_state`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, their time variations,
 `center_of_mass`, `inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`,
-`centroidal_momentum` and `SE3`. The subpackages `br.io`, `br.spatial` and `br.exceptions` are attributes
+and `centroidal_momentum`. The subpackages `br.io`, `br.spatial` and `br.exceptions` are attributes
 of the root; `tests/contract/test_public_api.py` checks this core.
 
 Everything else is public only under its package name and only if that package's `__all__` lists it, for

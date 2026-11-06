@@ -75,8 +75,8 @@ def test_from_axis_angle_pure_rotation():
 
 
 def test_from_translation():
-    """A pure translation along ``axis`` by ``disp``."""
-    T = se3.from_translation(torch.tensor([1.0, 0.0, 0.0]), torch.tensor(2.5))
+    """A pure translation by the given vector."""
+    T = se3.from_translation(torch.tensor([2.5, 0.0, 0.0]))
     result = se3.act(T, torch.zeros(3))
     torch.testing.assert_close(result, torch.tensor([2.5, 0.0, 0.0]))
 

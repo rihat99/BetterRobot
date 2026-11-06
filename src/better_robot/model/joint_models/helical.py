@@ -13,7 +13,7 @@ def _helical_transform(axis, pitch, q_slice) -> torch.Tensor:
     """Coupled translation and rotation for a helical joint."""
     axis, angle = axis.to(q_slice.device, q_slice.dtype), q_slice[..., 0]
     rotation = _se3.from_axis_angle(axis, angle)
-    translation = _se3.from_translation(axis, pitch * angle)
+    translation = _se3.from_translation(axis * (pitch * angle)[..., None])
     return _se3.compose(translation, rotation)
 
 

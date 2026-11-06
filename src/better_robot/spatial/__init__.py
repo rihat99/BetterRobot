@@ -15,11 +15,8 @@
 
 from __future__ import annotations
 
-from ..lie.types import SE3, SO3, Pose
 from .algebra import cross_force, cross_motion, transform_force, transform_inertia, transform_motion
-from .force import Force
 from .inertia import (
-    Inertia,
     inertia_from_mass_com,
     inertia_matrix,
     inertia_of_box,
@@ -30,8 +27,6 @@ from .inertia import (
     rotational_inertia,
 )
 from .mesh import orient_faces_by_component, orient_faces_consistently, validate_closed_manifold
-from .motion import Motion
-from .symmetric3 import Symmetric3
 
 __all__ = [
     "cross_motion",
@@ -50,11 +45,4 @@ __all__ = [
     "orient_faces_by_component",
     "orient_faces_consistently",
     "validate_closed_manifold",
-    "Motion",
-    "Force",
-    "Inertia",
-    "Symmetric3",
-    "SE3",
-    "SO3",
-    "Pose",
 ]

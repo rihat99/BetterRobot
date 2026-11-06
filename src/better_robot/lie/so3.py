@@ -179,11 +179,6 @@ def act(q: torch.Tensor, p: torch.Tensor) -> torch.Tensor:
     return p_b + 2.0 * torch.linalg.cross(qxyz_b, cross1, dim=-1)
 
 
-def adjoint(q: torch.Tensor) -> torch.Tensor:
-    """3×3 adjoint of SO3 — equals the rotation matrix. ``(..., 4) → (..., 3, 3)``."""
-    return _quat_to_matrix(q)
-
-
 def from_matrix(R: torch.Tensor) -> torch.Tensor:
     """Rotation matrix → unit quaternion. ``(..., 3, 3) → (..., 4)``."""
     return _matrix_to_quat(R)

@@ -22,8 +22,8 @@ EDGE_RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / 
 ALLOWED: dict[str, set[str]] = {
     "_version": set(),
     "exceptions": set(),
-    "lie": set(),
-    "spatial": {"lie"},
+    "lie": {"exceptions"},
+    "spatial": {"exceptions", "lie"},
     "model": {"exceptions", "lie", "spatial"},
     "kinematics": {"exceptions", "lie", "model"},
     "dynamics": {"exceptions", "lie", "spatial", "model", "kinematics"},

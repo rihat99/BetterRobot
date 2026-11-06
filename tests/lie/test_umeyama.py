@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
+from better_robot.exceptions import DeviceMismatchError, DtypeMismatchError
 from better_robot.lie import so3, umeyama
 
 
@@ -98,24 +99,54 @@ def test_umeyama_rejects_mismatched_dtypes() -> None:
     source = torch.randn((5, 3), generator=generator, dtype=torch.float32)
     target = torch.randn((5, 3), generator=generator, dtype=torch.float64)
 
-    with pytest.raises(ValueError, match="source and target must share dtype and device"):
+    with pytest.raises(DtypeMismatchError, match="source and target must share a dtype"):
         umeyama(source, target)
 
-    with pytest.raises(ValueError, match="weights must share source dtype and device"):
+    with pytest.raises(DtypeMismatchError, match="weights must share the source dtype"):
         umeyama(source, source.clone(), weights=torch.ones(5, dtype=torch.float64))
 
 
-@pytest.mark.cuda
 def test_umeyama_rejects_mismatched_devices() -> None:
+    """The device check precedes every value read, so a ``meta`` tensor exercises it on any machine."""
     generator = torch.Generator().manual_seed(4)
     source = torch.randn((5, 3), generator=generator)
-    target = torch.randn((5, 3), generator=generator).to("cuda")
+    target = torch.randn((5, 3), generator=generator).to("meta")
 
-    with pytest.raises(ValueError, match="source and target must share dtype and device"):
+    with pytest.raises(DeviceMismatchError, match="source and target must share a device"):
         umeyama(source, target)
 
-    with pytest.raises(ValueError, match="weights must share source dtype and device"):
-        umeyama(source, source.clone(), weights=torch.ones(5, device="cuda"))
+    with pytest.raises(DeviceMismatchError, match="weights must share the source device"):
+        umeyama(source, source.clone(), weights=torch.ones(5, device="meta"))
+
+
+@pytest.mark.parametrize(
+    ("source", "target", "error", "match"),
+    [
+        pytest.param([[0.0, 0.0, 0.0]] * 3, torch.zeros(3, 3), TypeError, "torch.Tensor values", id="list"),
+        pytest.param(torch.zeros(3, 2), torch.zeros(3, 2), ValueError, r"shape \(\.\.\., N, 3\)", id="not-3d"),
+        pytest.param(torch.zeros(4, 3), torch.zeros(3, 3), ValueError, "the same N", id="n-mismatch"),
+        pytest.param(torch.zeros(2, 3), torch.zeros(2, 3), ValueError, "at least 3 points", id="two-points"),
+        pytest.param(
+            torch.zeros(3, 3, dtype=torch.int64), torch.zeros(3, 3), DtypeMismatchError, "floating tensors", id="int"
+        ),
+    ],
+)
+def test_umeyama_rejects_malformed_point_sets(source, target, error: type, match: str) -> None:
+    with pytest.raises(error, match=match):
+        umeyama(source, target)
+
+
+@pytest.mark.parametrize(
+    ("weights", "error", "match"),
+    [
+        pytest.param([1.0] * 5, TypeError, "weights must be a torch.Tensor", id="list"),
+        pytest.param(torch.ones(4), ValueError, r"weights must broadcast to \(5,\)", id="wrong-n"),
+    ],
+)
+def test_umeyama_rejects_malformed_weights(weights, error: type, match: str) -> None:
+    source = torch.randn((5, 3), generator=torch.Generator().manual_seed(8))
+    with pytest.raises(error, match=match):
+        umeyama(source, source.clone(), weights=weights)
 
 
 @pytest.mark.parametrize(("input_name", "nonfinite"), [("source", torch.nan), ("target", torch.inf)])

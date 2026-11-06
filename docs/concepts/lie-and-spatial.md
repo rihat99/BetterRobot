@@ -1,8 +1,8 @@
 # Poses and twists are plain tensors with one layout
 
 After this page you can compose, invert and apply poses, move between a twist and a pose with `exp` and
-`log`, pick the right Jacobian of `exp`, and use the spatial value types `Motion`, `Force` and
-`Inertia`. Every convention below is stated in the `better_robot.lie` and `better_robot.spatial`
+`log`, pick the right Jacobian of `exp`, and move twists, wrenches and inertias between frames with
+`better_robot.spatial`. Every convention below is stated in the `better_robot.lie` and `better_robot.spatial`
 module docstrings and checked by a snippet you can run.
 
 ![Poses are [t, q] with a scalar-last quaternion; twists are [v, ω], expressed in one of three frames.](../figures/lie_spatial.svg)
@@ -15,12 +15,13 @@ module docstrings and checked by a snippet you can run.
 | rotation (SO(3) element) | `(..., 4)` | `[qx, qy, qz, qw]` |
 | twist (SE(3) tangent) | `(..., 6)` | `[vx, vy, vz, wx, wy, wz]`, linear first |
 | SO(3) tangent | `(..., 3)` | `[wx, wy, wz]` |
-| wrench (`Force`) | `(..., 6)` | `[fx, fy, fz, tx, ty, tz]`, linear first |
-| spatial inertia (`Inertia`) | `(..., 10)` | `[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]` |
+| wrench | `(..., 6)` | `[fx, fy, fz, tx, ty, tz]`, linear first |
+| spatial inertia | `(..., 10)` | `[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]`: centre of mass `c` and the rotational inertia about it, in MuJoCo's `fullinertia` order |
 
 All functions on tensors broadcast over leading batch axes and keep dtype and device. They are direct torch
-formulas, so autograd flows through every one. The shape constructors `Inertia.from_sphere` / `from_box` /
-`from_capsule` / `from_ellipsoid` take Python floats and build a float32 tensor unless you pass `dtype=`.
+formulas, so autograd flows through every one. The shape constructors `inertia_of_sphere(mass, radius=)`,
+`inertia_of_box(mass, size=)`, `inertia_of_capsule(mass, radius=, length=)` and `inertia_of_ellipsoid(mass, semi_axes=)`
+take tensors and keep their dtype and device.
 
 ## `compose(a, b)` applies `b` first
 
@@ -46,8 +47,7 @@ tensor([1.0000, 1.0000, 0.0000])
 ```
 
 `se3` also provides `from_matrix`, `to_matrix`, `from_axis_angle`, `from_translation`, `normalize` and
-`sclerp`; `so3` adds `from_euler`, `to_euler` and `slerp`. The value classes `SE3`, `SO3` and `Pose` in
-`better_robot.lie` wrap one tensor and forward to these functions.
+`sclerp`; `so3` adds `from_euler`, `to_euler` and `slerp`.
 
 ## `exp` and `log` are the true group maps
 
@@ -64,7 +64,7 @@ assert torch.allclose(se3.log(se3.exp(xi)), xi, atol=1e-6)
 ## Right Jacobians perturb on the right, left Jacobians on the left
 
 `better_robot.lie.tangents` holds `hat_so3`/`vee_so3`, `hat_se3`/`vee_se3` and the Jacobians of `exp` with their inverses:
-`right_jacobian_se3`, `right_jacobian_inv_se3`, `left_jacobian_se3`, `left_jacobian_inv_se3`, and the
+`right_jacobian_se3`, `right_jacobian_inverse_se3`, `left_jacobian_se3`, `left_jacobian_inverse_se3`, and the
 `_so3` versions. For a small twist $\delta$:
 
 $$
@@ -80,8 +80,8 @@ and $J_l(\xi) = J_r(-\xi)$. Use the right Jacobian when the perturbation is expr
 delta = 1e-6 * torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 right = se3.log(se3.compose(se3.exp(xi), se3.exp(delta)))
 left = se3.log(se3.compose(se3.exp(delta), se3.exp(xi)))
-assert torch.allclose(right - xi, tangents.right_jacobian_inv_se3(xi) @ delta, atol=1e-7)
-assert torch.allclose(left - xi, tangents.left_jacobian_inv_se3(xi) @ delta, atol=1e-7)
+assert torch.allclose(right - xi, tangents.right_jacobian_inverse_se3(xi) @ delta, atol=1e-7)
+assert torch.allclose(left - xi, tangents.left_jacobian_inverse_se3(xi) @ delta, atol=1e-7)
 ```
 
 ## The adjoint moves a twist to another frame
@@ -93,7 +93,7 @@ $$
 $$
 
 for the linear-first twist order, where $R$ and $p$ are the rotation and translation of `T`. It
-satisfies $T \exp(\xi) T^{-1} = \exp(\mathrm{Ad}(T)\,\xi)$. `se3.adjoint_inv(T)` is its inverse.
+satisfies $T \exp(\xi) T^{-1} = \exp(\mathrm{Ad}(T)\,\xi)$. `se3.adjoint_inverse(T)` is its inverse.
 
 ```python
 lhs = se3.compose(se3.compose(yaw90, se3.exp(xi)), se3.inverse(yaw90))
@@ -107,37 +107,37 @@ assert torch.allclose(lhs, se3.exp(se3.adjoint(yaw90) @ xi), atol=1e-5)
     needs only a rotation of both halves, not a full adjoint. See
     [Kinematics and Jacobians](kinematics-and-jacobians.md).
 
-## Spatial value types wrap one tensor
+## Twists, wrenches and inertias are tensors
 
-`better_robot.spatial` provides `Motion` (a twist), `Force` (a wrench), `Inertia` and `Symmetric3`.
-Each is a frozen dataclass around `.data`; every method returns a new value.
+`better_robot.spatial` is a module of functions on the `(..., 6)` and `(..., 10)` layouts above; nothing wraps
+them. Every function checks shapes, dtypes and devices and raises the `better_robot.exceptions` classes.
 
-- `Motion.se3_action(T)` and `Force.se3_action(T)` change the frame of a twist or wrench; `T` is a
-  `(..., 7)` tensor or an `SE3`.
-- `Motion.cross_motion` and `Motion.cross_force` are the spatial cross products used by dynamics.
-- `Inertia` stores mass, centre of mass `c` and the rotational inertia about `c`, both in the body
-  frame. Build one with `from_sphere`, `from_box`, `from_capsule`, `from_ellipsoid`,
-  `from_mass_com_sym3`, `from_mass_com_matrix` or `from_mesh`.
-- `Inertia.apply(v)` returns the spatial momentum $I v$ as a `Force`.
+- `transform_motion(T, v)` and `transform_force(T, f)` re-express a twist or wrench in the frame `T` maps
+  into; `transform_inertia(T, I)` does the same for a packed inertia. The pose comes first, as in `se3.act`.
+- `cross_motion(v, w)` and `cross_force(v, f)` are the spatial cross products used by dynamics.
+- `inertia_matrix(I)` is the `(..., 6, 6)` matrix about the frame origin, so `inertia_matrix(I) @ v` is the
+  spatial momentum; `rotational_inertia(I)` is the `(..., 3, 3)` matrix about the centre of mass.
+- `inertia_from_mass_com(mass, com, rotational_inertia=)` packs one; `inertia_of_sphere`, `inertia_of_box`,
+  `inertia_of_capsule`, `inertia_of_ellipsoid` and `inertia_of_mesh` build one from a shape.
 
 ```python
-from better_robot.spatial import Force, Inertia, Motion
+from better_robot import spatial
 
-ball = Inertia.from_sphere(2.0, 0.1)   # 2 kg, 10 cm radius
-print(ball.data)       # [2, 0, 0, 0, 0.008, 0.008, 0.008, 0, 0, 0]: I = 2/5 m r^2
-momentum = ball.apply(Motion(xi))
-print(type(momentum).__name__, momentum.linear)   # Force tensor([0.2000, 0.4000, 0.6000])
-moved = Motion(xi).se3_action(yaw90)
-assert torch.allclose(moved.data, se3.adjoint(yaw90) @ xi)
+ball = spatial.inertia_of_sphere(torch.tensor(2.0), radius=torch.tensor(0.1))   # 2 kg, 10 cm radius
+print(ball)       # [2, 0, 0, 0, 0.008, 0.008, 0.008, 0, 0, 0]: I = 2/5 m r^2
+momentum = spatial.inertia_matrix(ball) @ xi
+print(momentum[:3])   # the linear momentum m v
+moved = spatial.transform_motion(yaw90, xi)
+assert torch.allclose(moved, se3.adjoint(yaw90) @ xi)
 ```
 ```output
 tensor([2.0000, 0.0000, 0.0000, 0.0000, 0.0080, 0.0080, 0.0080, 0.0000, 0.0000,
         0.0000])
-Force tensor([0.2000, 0.4000, 0.6000])
+tensor([0.2000, 0.4000, 0.6000])
 ```
 
 Model inertias use the same 10-vector: `model.body_inertias (nbodies, 10)` (see
-[Model and state](model-and-state.md)). [Dynamics](dynamics.md) builds on these types.
+[Model and state](model-and-state.md)). [Dynamics](dynamics.md) builds on these functions.
 
 ## Where next
 

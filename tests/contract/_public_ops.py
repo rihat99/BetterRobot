@@ -17,7 +17,15 @@ from better_robot import dynamics, kinematics
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.lie import se3, so3
-from better_robot.spatial import Force, Inertia, Motion
+from better_robot.spatial import (
+    cross_force,
+    cross_motion,
+    inertia_matrix,
+    rotational_inertia,
+    transform_force,
+    transform_inertia,
+    transform_motion,
+)
 
 Case = tuple[Callable[..., Any], tuple[Any, ...], dict[str, Any]]
 
@@ -39,8 +47,6 @@ def tensors_of(obj: Any) -> list[torch.Tensor]:
     """Every tensor held directly by ``obj`` (a tensor, a dataclass, or a plain object)."""
     if isinstance(obj, torch.Tensor):
         return [obj]
-    if isinstance(obj, (Motion, Force, Inertia)):
-        return [obj.data]
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         values = [getattr(obj, field.name) for field in dataclasses.fields(obj)]
     elif hasattr(obj, "__dict__"):
@@ -87,9 +93,9 @@ def _lie_spatial_cases(dtype: torch.dtype, device: torch.device) -> dict[str, Ca
     twist = tensor(0.1, -0.2, 0.3, 0.2, 0.1, -0.3)
     pose_a, pose_b = se3.exp(twist), se3.exp(-0.5 * twist)
     rot_a, rot_b = so3.exp(twist[3:]), so3.exp(-twist[3:])
-    motion, other = Motion(twist), Motion(tensor(0.3, 0.1, 0.0, -0.1, 0.2, 0.4))
-    force = Force(tensor(1.0, 0.0, -1.0, 0.1, 0.2, 0.3))
-    inertia = Inertia(tensor(1.0, 0.1, 0.0, 0.0, 0.02, 0.0, 0.0, 0.03, 0.0, 0.04))
+    other = tensor(0.3, 0.1, 0.0, -0.1, 0.2, 0.4)
+    wrench = tensor(1.0, 0.0, -1.0, 0.1, 0.2, 0.3)
+    inertia = tensor(1.0, 0.1, 0.0, 0.0, 0.02, 0.0, 0.0, 0.03, 0.0, 0.04)
     return {
         "se3.exp": (se3.exp, (twist,), {}),
         "se3.log": (se3.log, (pose_a,), {}),
@@ -99,12 +105,13 @@ def _lie_spatial_cases(dtype: torch.dtype, device: torch.device) -> dict[str, Ca
         "so3.log": (so3.log, (rot_a,), {}),
         "so3.compose": (so3.compose, (rot_a, rot_b), {}),
         "so3.inverse": (so3.inverse, (rot_a,), {}),
-        "Motion.cross_motion": (Motion.cross_motion, (motion, other), {}),
-        "Motion.cross_force": (Motion.cross_force, (motion, force), {}),
-        "Motion.se3_action": (Motion.se3_action, (motion, pose_a), {}),
-        "Force.se3_action": (Force.se3_action, (force, pose_a), {}),
-        "Inertia.apply": (Inertia.apply, (inertia, motion), {}),
-        "Inertia.add": (Inertia.add, (inertia, inertia), {}),
+        "spatial.cross_motion": (cross_motion, (twist, other), {}),
+        "spatial.cross_force": (cross_force, (twist, wrench), {}),
+        "spatial.transform_motion": (transform_motion, (pose_a, twist), {}),
+        "spatial.transform_force": (transform_force, (pose_a, wrench), {}),
+        "spatial.transform_inertia": (transform_inertia, (pose_a, inertia), {}),
+        "spatial.inertia_matrix": (inertia_matrix, (inertia,), {}),
+        "spatial.rotational_inertia": (rotational_inertia, (inertia,), {}),
     }
 
 

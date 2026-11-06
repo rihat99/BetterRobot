@@ -17,7 +17,7 @@ from ..model._manifold import manifold_plan
 from ..model.model import Model
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3
-from ..lie.tangents import right_jacobian_inv_se3
+from ..lie.tangents import right_jacobian_inverse_se3
 from ..optim import CacheRef, TermFn
 
 
@@ -67,7 +67,7 @@ def frame_pose(model: Model, *, frame: int | str, target: str, state: CacheRef |
 
     def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         local = frame_jacobian(model, kinematics, frame=frame_id, reference="local")
-        return {q: right_jacobian_inv_se3(error(kinematics, goal)) @ local}
+        return {q: right_jacobian_inverse_se3(error(kinematics, goal)) @ local}
 
     return TermFn(fn=error, reads=(str(state), target), jac=jac)
 

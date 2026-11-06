@@ -162,6 +162,11 @@ def test_degenerate_mesh_raises_only_when_checked() -> None:
     assert not torch.isfinite(inertia_of_mesh(vertices, faces)).all()
 
 
+def test_checked_valid_mesh_matches_unchecked() -> None:
+    vertices, faces = _box_mesh()
+    assert torch.equal(inertia_of_mesh(vertices, faces, check_mesh=True), inertia_of_mesh(vertices, faces))
+
+
 @pytest.mark.parametrize(
     ("edit", "match"),
     [

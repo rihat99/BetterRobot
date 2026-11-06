@@ -8,8 +8,9 @@ listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, wh
 
 | Package | May import |
 |---|---|
-| `exceptions`, `lie`, `_version` | nothing from the package |
-| `spatial` | `lie` |
+| `exceptions`, `_version` | nothing from the package |
+| `lie` | `exceptions` |
+| `spatial` | `exceptions`, `lie` |
 | `model` | `exceptions`, `lie`, `spatial` |
 | `kinematics` | `exceptions`, `lie`, `model` |
 | `dynamics` | `exceptions`, `lie`, `spatial`, `model`, `kinematics` |

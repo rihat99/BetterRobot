@@ -11,6 +11,7 @@ from better_robot.io.builders.kinematic_tree import (
     build_kinematic_tree_model,
 )
 from better_robot.io.ir import IRFrame, IRModel
+from better_robot.spatial import inertia_from_mass_com
 
 from tests.support.branching_tree import (
     JOINT_NAMES,
@@ -218,8 +219,6 @@ def test_per_body_com_and_inertia_round_trip_through_ir():
 
 def test_per_body_com_and_inertia_packed_into_model_body_inertias():
     """Values survive the (IRBody → _pack_inertia → body_inertias) pipeline."""
-    from better_robot.spatial.inertia import Inertia
-
     coms = torch.tensor([[0.10, 0.0, 0.0], [0.0, 0.20, 0.0], [0.0, 0.0, 0.30]], dtype=torch.float32)
     inertias = torch.stack(
         [
@@ -238,10 +237,8 @@ def test_per_body_com_and_inertia_packed_into_model_body_inertias():
     )
     # Body 0 is the universe (zero inertia); body 1..3 are our three bodies.
     for j in range(3):
-        I = Inertia(model.body_inertias[j + 1])
-        assert float(I.mass) == pytest.approx(float(j + 1))
-        assert torch.allclose(I.com, coms[j])
-        assert torch.allclose(I.inertia_matrix, inertias[j])
+        expected = inertia_from_mass_com(torch.tensor(float(j + 1)), coms[j], rotational_inertia=inertias[j])
+        torch.testing.assert_close(model.body_inertias[j + 1], expected, msg=f"body {j + 1} packed inertia")
 
 
 @pytest.mark.parametrize(

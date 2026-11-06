@@ -96,6 +96,20 @@ def test_euler_and_matrix_interop_reject_integer_tensors(function, value: torch.
         function(value)
 
 
+@pytest.mark.parametrize(
+    ("function", "value"),
+    [
+        pytest.param(so3.from_euler, torch.zeros(2), id="so3-from-euler"),
+        pytest.param(so3.to_euler, torch.zeros(3), id="so3-to-euler"),
+        pytest.param(se3.from_matrix, torch.eye(3), id="se3-from-matrix"),
+        pytest.param(se3.to_matrix, torch.zeros(6), id="se3-to-matrix"),
+    ],
+)
+def test_euler_and_matrix_interop_reject_wrong_trailing_shape(function, value: torch.Tensor) -> None:
+    with pytest.raises(ValueError, match="must have shape"):
+        function(value)
+
+
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
 @pytest.mark.parametrize("pitch_sign", [1.0, -1.0])
 def test_to_euler_gimbal_lock_puts_combined_angle_in_roll(dtype, pitch_sign):

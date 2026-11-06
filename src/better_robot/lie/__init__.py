@@ -6,14 +6,12 @@
   ``(..., 3)`` = ``[wx, wy, wz]``.
 - ``compose(a, b)`` is the matrix product ``a @ b`` (apply ``b`` first); ``exp``/``log`` are the true group
   exponential and logarithm, not a decoupled translation + rotation map.
-- Public: the function modules ``se3``, ``so3``, ``tangents``; the value classes ``SE3``, ``SO3``, ``Pose``;
-  ``umeyama``.
+- Public: the function modules ``se3``, ``so3``, ``tangents`` and ``umeyama``.
 """
 
 from __future__ import annotations
 
 from . import se3, so3, tangents
 from .umeyama import umeyama
-from .types import SE3, SO3, Pose
 
-__all__ = ["se3", "so3", "tangents", "umeyama", "SE3", "SO3", "Pose"]
+__all__ = ["se3", "so3", "tangents", "umeyama"]

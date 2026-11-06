@@ -28,11 +28,11 @@
 <polyline points="228,288 228,312" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
 <rect x="48" y="312" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
 <text x="228.0" y="333.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">spatial</text>
-<text x="228.0" y="350.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 3 · Motion, Force, Inertia</text>
+<text x="228.0" y="350.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 3 · twists, wrenches, inertias</text>
 <polyline points="228,360 228,384" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
 <rect x="48" y="384" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
 <text x="228.0" y="405.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">lie</text>
-<text x="228.0" y="422.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 2 · SE3, SO3 formulas</text>
+<text x="228.0" y="422.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 2 · se3, so3 functions</text>
 <rect x="448" y="312" width="176" height="48" rx="6" fill="#f3f5f8" stroke="#1f3a68" stroke-width="2"/>
 <text x="536.0" y="333.0" font-size="15" fill="#1f3a68" text-anchor="middle" font-weight="bold">optim</text>
 <text x="536.0" y="350.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 3 · imports only torch</text>

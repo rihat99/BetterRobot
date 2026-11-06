@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import torch
 
+from ..exceptions import DeviceMismatchError, DtypeMismatchError
+
 
 def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:
     """Reject invalid eager inputs without synchronizing valid CUDA calls."""
@@ -29,9 +31,11 @@ def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
     if source.shape[-2] < 3:
         raise ValueError(f"at least 3 points are required; got {source.shape[-2]}")
     if not source.is_floating_point() or not target.is_floating_point():
-        raise TypeError("source and target must be floating torch.Tensor values")
-    if source.dtype != target.dtype or source.device != target.device:
-        raise ValueError("source and target must share dtype and device")
+        raise DtypeMismatchError(f"source and target must be floating tensors; got {source.dtype} and {target.dtype}")
+    if source.dtype != target.dtype:
+        raise DtypeMismatchError(f"source and target must share a dtype; got {source.dtype} and {target.dtype}")
+    if source.device != target.device:
+        raise DeviceMismatchError(f"source and target must share a device; got {source.device} and {target.device}")
     _require_tensor_condition(
         torch.isfinite(source).all() & torch.isfinite(target).all(),
         "source and target must contain only finite values",
@@ -46,10 +50,12 @@ def _normalized_fit_weights(
     if weights is None:
         fit_weights = source.new_ones(weight_shape)
     else:
-        if not isinstance(weights, torch.Tensor) or not weights.is_floating_point():
-            raise TypeError("weights must be a floating torch.Tensor or None")
-        if weights.dtype != source.dtype or weights.device != source.device:
-            raise ValueError("weights must share source dtype and device")
+        if not isinstance(weights, torch.Tensor):
+            raise TypeError("weights must be a torch.Tensor or None")
+        if weights.dtype != source.dtype:
+            raise DtypeMismatchError(f"weights must share the source dtype; got {weights.dtype} and {source.dtype}")
+        if weights.device != source.device:
+            raise DeviceMismatchError(f"weights must share the source device; got {weights.device} and {source.device}")
         try:
             fit_weights = torch.broadcast_to(weights, weight_shape)
         except RuntimeError as exc:

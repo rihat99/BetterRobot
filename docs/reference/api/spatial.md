@@ -1,6 +1,6 @@
 # `better_robot.spatial`
 
-Spatial algebra value types (motion, force, inertia) on top of `lie`, and mesh helpers.
+Spatial algebra on tensors (twists, wrenches, inertias) on top of `lie`, and mesh helpers.
 
 ::: better_robot.spatial
     options:

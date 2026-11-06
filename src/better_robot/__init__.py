@@ -39,7 +39,6 @@ from .kinematics.state import (
     joint_jacobian,
     joint_jacobian_time_variation,
 )
-from .lie.types import SE3
 
 __all__ = [
     # model
@@ -47,8 +46,6 @@ __all__ = [
     # io
     "load",
     "ModelBuilder",
-    # lie
-    "SE3",
     # kinematics
     "forward_kinematics_state",
     "KinematicState",

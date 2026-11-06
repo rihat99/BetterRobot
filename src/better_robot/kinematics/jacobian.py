@@ -139,7 +139,7 @@ def _time_variation_in_reference(
         return torch.cat((dot_lin, dot_ang), dim=-2)
 
     if reference == "local":
-        adjoint_inv = se3.adjoint_inv(pose_world)  # (B..., 6, 6)
+        adjoint_inv = se3.adjoint_inverse(pose_world)  # (B..., 6, 6)
         j_local = torch.matmul(adjoint_inv, joint_jacobian_world)
         dot_local = torch.matmul(adjoint_inv, joint_jacobian_dot_world)
         v_local = torch.matmul(adjoint_inv, ov.unsqueeze(-1)).squeeze(-1)  # (B..., 6)

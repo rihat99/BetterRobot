@@ -11,7 +11,7 @@ precompute and the downstream vertex integration stays fully differentiable.
 - ``orient_faces_consistently`` rewinds each connected component so all its
   faces agree, replacing the historical ``trimesh.fix_normals`` step.
 
-See ``docs/concepts/lie_and_spatial.md`` and ``spatial/inertia.py``.
+See ``docs/concepts/lie-and-spatial.md`` and ``src/better_robot/spatial/inertia.py``.
 """
 
 from __future__ import annotations

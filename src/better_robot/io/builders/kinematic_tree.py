@@ -131,7 +131,7 @@ def build_kinematic_tree_body(
     inertia_per_body
         Optional ``(N, 3, 3)`` tensor (or length-``N`` sequence of ``(3, 3)``
         tensors) — rotational inertia **at the COM**, in the body's
-        link-frame axes (Pinocchio convention). ``Inertia._to_6x6`` applies
+        link-frame axes (Pinocchio convention). ``spatial.inertia_matrix`` applies
         the parallel-axis shift internally when unpacking; the caller must
         NOT pre-shift. Defaults to zeros.
     """

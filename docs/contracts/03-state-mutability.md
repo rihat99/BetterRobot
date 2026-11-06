@@ -6,17 +6,16 @@ around, and build new ones instead of changing them. See ADR [0002](decisions/00
 
 ## C-STATE-1 Model and state dataclasses are frozen (MUST)
 
-`Model`, `KinematicState`, every `spatial` value type (`Motion`, `Inertia`,
-`Symmetric3`) and the `optim` result types are `@dataclass(frozen=True)` (`optim.Phase` and `optim.Result`,
+`Model`, `KinematicState` and the `optim` result types are `@dataclass(frozen=True)` (`optim.Phase` and `optim.Result`,
 `optim/phases.py:15,38`, are not yet: `[planned: L-5]`). Derived quantities are computed by
 functions or cached properties, never by assignment after construction.
 
 ```python { .no-run }
-# good  (spatial/motion.py)
+# good  (src/better_robot/kinematics/state.py)
 @dataclass(frozen=True)
-class Motion:
-    linear: Tensor      # (..., 3)
-    angular: Tensor     # (..., 3)
+class KinematicState:
+    q: Tensor                  # (B..., nq)
+    joint_transform: Tensor    # (B..., njoints, 3, 4)
 # bad
 state.oMf = new_poses          # mutates a shared value; every holder of `state` changes
 ```

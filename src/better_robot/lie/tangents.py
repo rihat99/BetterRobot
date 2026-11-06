@@ -142,9 +142,6 @@ def right_jacobian_inverse_so3(omega: torch.Tensor) -> torch.Tensor:
     return I3 + 0.5 * H + C * H2
 
 
-right_jacobian_inv_so3 = right_jacobian_inverse_so3
-
-
 def left_jacobian_so3(omega: torch.Tensor) -> torch.Tensor:
     """``Jl(ω)`` — left Jacobian of the SO3 exp.
 
@@ -156,9 +153,6 @@ def left_jacobian_so3(omega: torch.Tensor) -> torch.Tensor:
 def left_jacobian_inverse_so3(omega: torch.Tensor) -> torch.Tensor:
     """``Jl^{-1}(ω) = Jr^{-1}(-ω)``. ``(..., 3) → (..., 3, 3)``."""
     return right_jacobian_inverse_so3(-omega)
-
-
-left_jacobian_inv_so3 = left_jacobian_inverse_so3
 
 
 # ──────────────────────── SE3 adjoint matrix ─────────────────────────────
@@ -249,9 +243,6 @@ def right_jacobian_inverse_se3(xi: torch.Tensor) -> torch.Tensor:
     return _block_upper_triangular(rotation_inv, -rotation_inv @ coupling @ rotation_inv)
 
 
-right_jacobian_inv_se3 = right_jacobian_inverse_se3
-
-
 def left_jacobian_se3(xi: torch.Tensor) -> torch.Tensor:
     """``Jl(ξ)``."""
     return right_jacobian_se3(-xi)
@@ -260,6 +251,3 @@ def left_jacobian_se3(xi: torch.Tensor) -> torch.Tensor:
 def left_jacobian_inverse_se3(xi: torch.Tensor) -> torch.Tensor:
     """``Jl^{-1}(ξ) = Jr^{-1}(-ξ)``. ``(..., 6) → (..., 6, 6)``."""
     return right_jacobian_inverse_se3(-xi)
-
-
-left_jacobian_inv_se3 = left_jacobian_inverse_se3

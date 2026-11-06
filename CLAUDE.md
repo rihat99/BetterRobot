@@ -30,8 +30,9 @@ Each package imports only the packages of its row in the edge table
 (`ALLOWED` in `tests/contract/test_layer_dependencies.py`, contract 07):
 
 ```text
-exceptions, lie, _version  -> nothing
-spatial     -> lie
+exceptions, _version -> nothing
+lie         -> exceptions
+spatial     -> exceptions lie
 model       -> exceptions lie spatial
 kinematics  -> exceptions lie model
 dynamics    -> exceptions lie spatial model kinematics

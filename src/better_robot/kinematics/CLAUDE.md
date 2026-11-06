@@ -35,7 +35,7 @@ R_ee = so3.to_matrix(T_ee[..., 3:])
 J_local = torch.cat([R_ee.mT @ J_world[..., :3, :], R_ee.mT @ J_world[..., 3:, :]], dim=-2)
 
 # WRONG — adds spurious cross-term when J is LWA:
-# J_local = se3.adjoint_inv(T_ee) @ J_world
+# J_local = se3.adjoint_inverse(T_ee) @ J_world
 ```
 
 `reference="world"` gives the velocity at the world origin, `"local"` the body-frame twist. For a joint,

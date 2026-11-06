@@ -15,7 +15,7 @@ from ...lie import se3 as _se3
 def _prismatic_transform(axis: torch.Tensor, q_slice: torch.Tensor) -> torch.Tensor:
     """Pure-translation SE3. q_slice: (B..., 1) → (B..., 7)."""
     disp = q_slice[..., 0]
-    return _se3.from_translation(axis.to(q_slice.device, q_slice.dtype), disp)
+    return _se3.from_translation(axis.to(q_slice.device, q_slice.dtype) * disp[..., None])
 
 
 def _prismatic_subspace(axis: torch.Tensor, q_slice: torch.Tensor) -> torch.Tensor:

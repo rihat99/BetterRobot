@@ -130,9 +130,6 @@ def adjoint_inverse(t: torch.Tensor) -> torch.Tensor:
     return torch.cat([top, bottom], dim=-2)
 
 
-adjoint_inv = adjoint_inverse
-
-
 def from_matrix(matrix: torch.Tensor) -> torch.Tensor:
     """Convert a homogeneous matrix to the library's 7-vector SE3 layout.
 
@@ -174,15 +171,10 @@ def from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
     return torch.cat([zeros, q], dim=-1)
 
 
-def from_translation(axis: torch.Tensor, disp: torch.Tensor) -> torch.Tensor:
-    """Pure-translation SE3 along ``axis`` with scalar displacement ``disp``.
-
-    axis: (3,), disp: (...,) → (..., 7).
-    """
-    trans = disp.unsqueeze(-1) * axis.to(dtype=disp.dtype, device=disp.device)
-    qxyz = torch.zeros(*disp.shape, 3, device=disp.device, dtype=disp.dtype)
-    qw = torch.ones(*disp.shape, 1, device=disp.device, dtype=disp.dtype)
-    return torch.cat([trans, qxyz, qw], dim=-1)
+def from_translation(translation: torch.Tensor) -> torch.Tensor:
+    """Pure-translation pose with the identity rotation. ``(..., 3) → (..., 7)``."""
+    batch = translation.shape[:-1]
+    return torch.cat((translation, translation.new_zeros(*batch, 3), translation.new_ones(*batch, 1)), dim=-1)
 
 
 def normalize(t: torch.Tensor) -> torch.Tensor:
@@ -190,12 +182,6 @@ def normalize(t: torch.Tensor) -> torch.Tensor:
     q = t[..., 3:7]
     q_normed = q / q.norm(dim=-1, keepdim=True).clamp(min=1e-8)
     return torch.cat([t[..., :3], q_normed], dim=-1)
-
-
-def apply_base(base: torch.Tensor, poses: torch.Tensor) -> torch.Tensor:
-    """Compose a base transform with ``(..., N, 7)`` link poses."""
-    base_expanded = base.unsqueeze(-2)
-    return compose(base_expanded.expand(*poses.shape[:-1], 7), poses)
 
 
 def sclerp(
