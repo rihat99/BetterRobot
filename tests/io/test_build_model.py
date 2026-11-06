@@ -1,7 +1,4 @@
-"""Tests for ``build_model`` — IR → frozen Model factory.
-
-See ``docs/concepts/parsers_and_ir.md §3``.
-"""
+"""Tests for ``build_model``: an IR becomes a frozen ``Model`` (``docs/concepts/io.md``)."""
 
 from __future__ import annotations
 
@@ -11,7 +8,6 @@ import math
 import pytest
 import torch
 
-import better_robot.io as br_io
 from better_robot.io.build_model import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import subtree
@@ -214,14 +210,6 @@ def _spherical_model():
             8,
             7,
             id="free_flyer_root",
-        ),
-        pytest.param(
-            lambda: br_io.load(_simple_arm_ir, free_flyer=True),
-            1,
-            JointFreeFlyer,
-            8,
-            7,
-            id="free_flyer_shortcut_via_load",
         ),
     ],
 )

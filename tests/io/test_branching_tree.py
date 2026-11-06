@@ -7,7 +7,7 @@ Exercises ``build_model`` / ``load`` on a representative 24-body free-flyer +
 from __future__ import annotations
 
 
-from better_robot.io import build_model, load
+from better_robot.io import build_model
 from better_robot.io.ir import IRModel
 from better_robot.model.joints import JointFreeFlyer, JointSpherical
 
@@ -15,7 +15,7 @@ from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body
 
 
 def test_branching_model():
-    branching_model = load(make_branching_tree_body)
+    branching_model = build_model(make_branching_tree_body())
     assert branching_model is not None
     assert isinstance(branching_model.joints[1], JointFreeFlyer)
     spherical_count = sum(1 for jm in branching_model.joints if isinstance(jm, JointSpherical))

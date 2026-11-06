@@ -54,7 +54,7 @@ def _panda():
 
 
 def _g1():
-    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 
 
 def _sample_qs(model, n: int, *, seed: int) -> torch.Tensor:

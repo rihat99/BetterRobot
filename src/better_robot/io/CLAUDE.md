@@ -5,12 +5,13 @@ URDF | MJCF | ModelBuilder -> IRModel -> build_model -> Model
 ```
 
 Parsers own source-format interpretation and emit flat, order-independent IR
-records. `build_model` owns tree validation, topological order, concrete joint
-selection, reduced mimic coordinates, packed tensors, frames, limits, and
-metadata. Do not move format-specific cases into kinematics or dynamics.
+records. `build_model` owns tree validation, joint order, reduced mimic
+coordinates, packed tensors, frames and limits, as named stages into one
+`Model(...)`. Do not move format-specific cases into kinematics or dynamics.
 
-`load(...)` dispatches by suffix or an explicit format. `free_flyer=True`
-selects a `JointFreeFlyer` root; `root_joint=` is the general form. Joints keep
+`load(path, *, format=None, root_joint=None, device=None, dtype=...)` takes a
+path only and picks the parser by suffix or `format`; `root_joint=` replaces
+the joint under the universe (`JointFreeFlyer()` floats the base). Joints keep
 the source's order wherever it is topological (a Kahn sort, parents first); a
 body's frame carries the body's name; `q_neutral` is clamped into the limits.
 

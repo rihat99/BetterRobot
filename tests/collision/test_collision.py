@@ -285,7 +285,7 @@ G1_CAPSULES = {  # a subset of mjlab's G1 collision capsules, torso geoms moved 
 
 
 def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
-    g1 = br.load(g1_urdf(), free_flyer=True, dtype=DT)
+    g1 = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=DT)
     capsules = collision.RobotCapsules.from_frames(g1, G1_CAPSULES)
     names = [g1.frame_names[frame] for frame in capsules.frame_ids.tolist()]
     q = torch.stack([g1.random_configuration(generator=torch.Generator().manual_seed(seed)) for seed in range(3)])
@@ -316,7 +316,7 @@ def test_cuda_backward_is_bitwise_reproducible():
     """Posing many points per frame and RNEA's per-column gathers repeat an index: advanced indexing keeps their CUDA
     backward free of atomics (index_select's adds with them), so two backward passes agree to the bit."""
 
-    g1 = br.load(g1_urdf(), free_flyer=True, dtype=DT, device="cuda")
+    g1 = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=DT, device="cuda")
     generator = torch.Generator(device="cuda").manual_seed(0)
 
     def randn(*shape):

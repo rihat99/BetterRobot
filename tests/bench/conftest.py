@@ -16,7 +16,7 @@ def panda():
 
 @pytest.fixture(scope="session")
 def g1():
-    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float32)
+    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float32)
 
 
 @pytest.fixture

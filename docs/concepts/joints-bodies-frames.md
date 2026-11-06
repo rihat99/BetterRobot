@@ -92,7 +92,7 @@ Pass `root_joint=JointFreeFlyer()` to `build_model` and the fixed root becomes a
 else changes: the same kinematics, Jacobian and dynamics functions take the longer `q`. The free-flyer
 uses `nq = 7` (a pose, scalar-last quaternion) and `nv = 6` (a twist, linear first). A builder can also
 declare it directly with `add_free_flyer_root`, and `better_robot.load` takes the same `root_joint`
-argument (or `free_flyer=True`) (see [Loading robots](io.md)).
+argument (see [Loading robots](io.md)).
 
 ```python
 from better_robot.model import JointFreeFlyer

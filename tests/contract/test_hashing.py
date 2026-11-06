@@ -8,12 +8,13 @@ import pytest
 import torch
 
 from better_robot import load
+from better_robot.model import JointFreeFlyer
 from tests.support.branching_tree import make_branching_tree_model
 from tests.support.robots import g1_urdf, panda_urdf
 
 TOPOLOGIES = [
     pytest.param(lambda: load(panda_urdf()), id="panda"),
-    pytest.param(lambda: load(g1_urdf(), free_flyer=True), id="g1"),
+    pytest.param(lambda: load(g1_urdf(), root_joint=JointFreeFlyer()), id="g1"),
     pytest.param(make_branching_tree_model, id="branching_tree"),
 ]
 

@@ -70,7 +70,7 @@ def _load_panda():
 
 
 def _load_g1():
-    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 
 
 @pytest.fixture(scope="module")

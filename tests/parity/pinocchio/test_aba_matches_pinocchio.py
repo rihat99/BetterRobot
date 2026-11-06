@@ -57,7 +57,7 @@ def test_aba_inverse_of_rnea_panda(panda_both):
 def test_aba_inverse_of_rnea_g1():
     """Same identity on the G1 humanoid (free-flyer base)."""
 
-    model = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    model = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     rng = torch.Generator().manual_seed(0)
     q = model.q_neutral.clone()
     v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2

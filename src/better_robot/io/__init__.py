@@ -1,8 +1,8 @@
-"""``better_robot.io`` — loaders, parsers, IR, and ``build_model``.
+"""``better_robot.io``: ``load`` a description into a ``Model``, in two stages anyone can split.
 
-The public entry point is ``load`` — a thin suffix/type dispatcher.
-
-See ``docs/concepts/parsers_and_ir.md``.
+``parse(path)`` reads a URDF or MJCF file into the editable ``IRModel``; ``build_model(ir)`` turns an IR (parsed or
+written with ``ModelBuilder``) into the frozen ``Model``; ``load(path)`` is both. ``load_geometry(path, model)``
+reads the shapes of the same description. See ``docs/concepts/io.md``.
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ from .parser_mjcf import parse_mjcf
 from .parser_urdf import parse_urdf
 
 
-def _parser(path: str | Path, format: str) -> Callable[[str | Path], IRModel]:
+def _parser(path: str | Path, format: str | None) -> Callable[[str | Path], IRModel]:
     """The parser of ``path``: by the explicit ``format``, else by its suffix (``.urdf``; ``.xml`` or ``.mjcf``)."""
-    suffix = format if format != "auto" else Path(path).suffix.lstrip(".").lower()
+    suffix = format if format is not None else Path(path).suffix.lstrip(".").lower()
     if suffix == "urdf":
         return parse_urdf
     if suffix in ("mjcf", "xml"):
@@ -40,59 +40,30 @@ def _parser(path: str | Path, format: str) -> Callable[[str | Path], IRModel]:
     raise ModelError(f"{path}: no parser for the format {suffix!r}; pass format='urdf' or format='mjcf'")
 
 
-def parse(
-    source: str | Path | Callable[[], IRModel],
-    *,
-    format: Literal["auto", "urdf", "mjcf"] = "auto",
-) -> IRModel:
-    """Parse a robot description (a file path, or a callable returning the IR) into an editable ``IRModel``.
+def parse(path: str | Path, *, format: Literal["urdf", "mjcf"] | None = None) -> IRModel:
+    """The editable ``IRModel`` of the description at ``path``, read by the parser of its suffix or of ``format``.
 
-    Composition lives on the IR: parse several sources, merge or edit their
-    ``bodies``/``joints``/``frames`` records, then call ``build_model(ir)``.
-    ``load(source)`` is ``build_model(parse(source))`` plus root-joint options.
+    Composition lives on the IR: parse several files, merge or edit their ``bodies``, ``joints`` and ``frames``,
+    then ``build_model(ir)``. An unknown suffix is a ``ModelError``.
     """
-    if callable(source) and not isinstance(source, (str, Path)):
-        # Programmatic builder: callable that returns an IRModel
-        ir = source()
-        if not isinstance(ir, IRModel):
-            raise ModelError(f"a callable source must return an IRModel, got {type(ir).__name__}")
-        return ir
-    return _parser(source, format)(source)
+    return _parser(path, format)(path)
 
 
 def load(
-    source: str | Path | Callable[[], IRModel],
+    path: str | Path,
     *,
-    format: Literal["auto", "urdf", "mjcf"] = "auto",
+    format: Literal["urdf", "mjcf"] | None = None,
     root_joint: JointModel | None = None,
-    free_flyer: bool = False,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
-    """Load a robot description into a frozen ``Model``.
+    """The frozen ``Model`` of the description at ``path``: ``build_model(parse(path, format=format), ...)``.
 
-    Dispatches by file suffix or explicit ``format`` hint.
-    Passing ``free_flyer=True`` (or ``root_joint=JointFreeFlyer()``) turns
-    any fixed-base URDF into a floating-base robot.
-    ``dtype`` and ``device`` set where the model's tensors are built
-    (default ``torch.float32`` on the CPU), like ``model.to(...)`` after loading.
-
-    See docs/concepts/parsers_and_ir.md §1.
+    ``root_joint`` replaces the joint that holds the root body under the universe (``JointFreeFlyer()`` makes the
+    base float; the description's own root joint, or a ``JointFixed``, otherwise). ``device`` and ``dtype`` set
+    where and in what precision the model's tensors are built, like ``model.to(...)`` after loading.
     """
-    from ..model.joints import JointFreeFlyer  # noqa: PLC0415 - only the free_flyer=True path needs it
-
-    # Resolve root_joint
-    if free_flyer and root_joint is None:
-        root_joint = JointFreeFlyer()
-
-    ir = parse(source, format=format)
-
-    return build_model(
-        ir,
-        root_joint=root_joint,
-        device=device,
-        dtype=dtype,
-    )
+    return build_model(parse(path, format=format), root_joint=root_joint, device=device, dtype=dtype)
 
 
 def load_geometry(path: str | Path, model: Model) -> Geometry:
@@ -101,15 +72,17 @@ def load_geometry(path: str | Path, model: Model) -> Geometry:
 
 
 __all__ = [
-    "parse",
     "load",
-    "load_geometry",
+    "parse",
+    "parse_urdf",
+    "parse_mjcf",
     "build_model",
     "build_geometry",
+    "load_geometry",
+    "ModelBuilder",
     "IRModel",
     "IRBody",
     "IRJoint",
     "IRFrame",
     "IRShape",
-    "ModelBuilder",
 ]

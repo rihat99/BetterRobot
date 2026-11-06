@@ -24,23 +24,23 @@ ModelBuilder.finalize() -->  /
 `better_robot.load(source, ...)` does both stages. It picks the parser from the file suffix or an explicit
 `format="urdf" | "mjcf"`; an unknown suffix raises `ModelError`.
 
-`better_robot.io.parse(source, format=...)` runs only the first stage and returns the `IRModel`.
-Composition lives on the IR: parse several sources, merge or edit their `bodies`, `joints` and `frames`
-records, then call `build_model(ir)`. `load(source)` is `build_model(parse(source))` plus the root-joint
-options below.
+`better_robot.io.parse(path, format=...)` runs only the first stage and returns the `IRModel`.
+Composition lives on the IR: parse several files, merge or edit their `bodies`, `joints` and `frames`
+records, then call `build_model(ir)`. `load(path)` is `build_model(parse(path))` plus the root-joint
+option below.
 
 ```python
 import better_robot as br
-from better_robot.io import ModelBuilder, build_model, parse
+from better_robot.io import ModelBuilder, build_model
 
 builder = ModelBuilder("arm")
 builder.add_body("base", mass=1.0)
 builder.add_body("link", mass=0.5)
 builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="link")
 
-ir = parse(builder.finalize)   # IRModel, no topology decisions yet
+ir = builder.finalize()   # IRModel, no topology decisions yet
 model = build_model(ir)
-assert model.nq == br.load(builder.finalize).nq == 1
+assert model.nq == 1
 ```
 
 MJCF goes through MuJoCo's compiler: `parse_mjcf` reads the compiled `MjModel`, so defaults, angle units,
@@ -64,9 +64,8 @@ Keyword arguments of `load`:
 
 | Argument | Default | Effect |
 |----------|---------|--------|
-| `format` | `"auto"` | force a parser instead of guessing |
-| `free_flyer` | `False` | root the tree on a `JointFreeFlyer` (adds 7 to `nq`, 6 to `nv`) |
-| `root_joint` | `None` | root the tree on any joint model; `free_flyer=True` is shorthand |
+| `format` | `None` | `"urdf"` or `"mjcf"` forces a parser instead of reading the suffix |
+| `root_joint` | `None` | root the tree on any joint model; `JointFreeFlyer()` adds 7 to `nq` and 6 to `nv` |
 | `device`, `dtype` | `None`, `torch.float32` | where and in what precision the values live |
 
 Mesh URIs stay the strings the file wrote; `viewer.robot_meshes(geometry, root=)` reads them under a root you name.
@@ -106,12 +105,12 @@ the parent body. `add_shape(body, shape, collision=True)` attaches a `model.Sphe
 
 ## Make any robot floating-base
 
-A legged robot or a humanoid is usually described with a fixed root. Pass `free_flyer=True` to put a
-six-DoF free-flyer between the world and the root body. `load` also accepts the builder's `finalize`
-method as a source:
+A legged robot or a humanoid is usually described with a fixed root. Pass `root_joint=JointFreeFlyer()` to
+put a six-DoF free-flyer between the world and the root body; `build_model` takes the same argument for
+an IR:
 
 ```python
-floating = br.load(builder.finalize, free_flyer=True)
+floating = br.io.build_model(builder.finalize(), root_joint=br.model.JointFreeFlyer())
 print(floating.nq, floating.nv)              # 8 7
 ```
 ```output

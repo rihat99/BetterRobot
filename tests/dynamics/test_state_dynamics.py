@@ -13,7 +13,7 @@ from tests.support.robots import g1_urdf
 
 @pytest.fixture(scope="module")
 def g1() -> br.Model:
-    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 
 
 def _inputs(model: br.Model, batch: tuple[int, ...], seed: int = 0):

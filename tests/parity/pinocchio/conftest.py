@@ -111,7 +111,7 @@ def g1_both():
     BetterRobot's; the base's coordinates come first in both.
     """
 
-    br_m = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    br_m = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     pin_m = pin.buildModelFromUrdf(str(g1_urdf()), pin.JointModelFreeFlyer())
     pin_d = pin_m.createData()
     perm_q, perm_v = br_m.q_permutation([pin_m.names[i] for i in range(1, pin_m.njoints)])

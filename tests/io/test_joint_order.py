@@ -7,7 +7,7 @@ import dataclasses
 import torch
 
 import better_robot as br
-from better_robot.io import ModelBuilder, build_model, load
+from better_robot.io import ModelBuilder, build_model
 
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body, make_branching_tree_model
 
@@ -59,7 +59,5 @@ def test_the_order_changes_no_physics():
     torch.testing.assert_close(tau, other_tau[perm_v], rtol=1e-11, atol=1e-11, msg="inverse dynamics by name")
 
 
-def test_load_and_the_fixture_builder_agree():
-    expected = ("universe", "root", *JOINT_NAMES[1:])
-    assert load(make_branching_tree_body).joint_names == expected
-    assert make_branching_tree_model().joint_names == expected
+def test_the_fixture_model_has_the_declared_order():
+    assert make_branching_tree_model().joint_names == ("universe", "root", *JOINT_NAMES[1:])

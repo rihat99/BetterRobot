@@ -156,9 +156,24 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.dynamics", "centroidal_momentum"),
     # model
     # io
-    ("better_robot.io", "ModelBuilder"),
-    ("better_robot.io", "build_model"),
-    ("better_robot.io", "IRModel"),
+    *(
+        ("better_robot.io", name)
+        for name in (
+            "load",
+            "parse",
+            "parse_urdf",
+            "parse_mjcf",
+            "build_model",
+            "build_geometry",
+            "load_geometry",
+            "ModelBuilder",
+            "IRModel",
+            "IRBody",
+            "IRJoint",
+            "IRFrame",
+            "IRShape",
+        )
+    ),
     ("better_robot.optim.kernels", "GemanMcClure"),
     # Optimization API
     *(("better_robot.terms", name) for name in sorted(TERMS_PUBLIC)),

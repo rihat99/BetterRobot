@@ -1,6 +1,6 @@
 """RNEA parity with advanced joint types — spherical and free-flyer.
 
-* **Free-flyer**: the tracked G1 humanoid (``tests/support/robots.py``) with ``free_flyer=True``.
+* **Free-flyer**: the tracked G1 humanoid (``tests/support/robots.py``) with ``root_joint=JointFreeFlyer()``.
   Compares against Pinocchio's ``buildModelFromUrdf(..., JointModelFreeFlyer())``.
 * **Spherical**: a 2-body programmatic model built through
   :class:`ModelBuilder`, compared against a hand-assembled ``pin.Model``.

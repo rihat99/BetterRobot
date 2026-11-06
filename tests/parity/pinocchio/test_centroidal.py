@@ -88,7 +88,7 @@ def test_zero_velocity_gives_zero_momentum():
 def test_centroidal_g1_free_flyer():
     """G1 free-flyer: a unit base translation produces ``total_mass · ê_x`` linear momentum."""
 
-    model = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    model = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     q = model.q_neutral.clone()
     # Free-flyer first 6 v slots: [vx, vy, vz, wx, wy, wz]; pure x-translation.
     v = torch.zeros(model.nv, dtype=torch.float64)

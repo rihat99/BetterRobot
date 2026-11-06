@@ -13,7 +13,7 @@ Layered DAG (arrows point from dependent to dependency)::
       ▼
     optim                     (imports only torch; knows nothing about robots)
 
-    io → model           (io reads nothing from optim or terms)
+    io → model, lie      (io reads nothing from optim or terms)
     viewer → terms            (topmost; no-one imports from viewer)
 """
 

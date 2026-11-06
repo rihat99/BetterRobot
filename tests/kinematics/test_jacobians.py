@@ -15,6 +15,7 @@ import torch
 from better_robot.exceptions import DtypeMismatchError
 from better_robot.io.builder import ModelBuilder
 from better_robot.io.build_model import build_model
+from better_robot.model import JointFreeFlyer
 from better_robot.kinematics import forward_kinematics
 from better_robot.terms import frame_pose
 from better_robot.kinematics import frame_jacobian, integrate, joint_jacobian, point_jacobian
@@ -192,7 +193,7 @@ def panda_model():
 def test_point_jacobian_matches_finite_differences_on_a_floating_base():
     from better_robot.io import load  # noqa: PLC0415
 
-    model = load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    model = load(g1_urdf(), root_joint=JointFreeFlyer(), dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
     q = integrate(
         model, model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64)

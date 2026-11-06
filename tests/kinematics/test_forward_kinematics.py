@@ -109,7 +109,7 @@ def test_state_review_regressions():
 def test_empty_batch_flows_through_fk_and_dynamics():
     """A zero-size batch must not hit ``reshape(0, -1)``, which cannot infer the trailing size."""
 
-    model = br.load(panda_urdf(), free_flyer=True, dtype=torch.float64)
+    model = br.load(panda_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     state = br.forward_kinematics(model, model.q_neutral.expand(0, -1))
     v = torch.zeros(0, model.nv, dtype=torch.float64)
     assert state.frame_poses.shape == (0, model.nframes, 7)

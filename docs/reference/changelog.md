@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Io: `load(path, *, format=None, root_joint=None, device=None, dtype=torch.float32)` and `parse(path, *, format=None)`
+  take a path only (record 0015): `free_flyer=True` is `root_joint=JointFreeFlyer()`, a builder's IR goes through
+  `build_model(builder.finalize(), ...)` (no callable source), `format="auto"` is `None`. `io.__all__` is `load`,
+  `parse`, `parse_urdf`, `parse_mjcf`, `build_model`, `build_geometry`, `load_geometry`, `ModelBuilder` and the five IR
+  records; `io.parsers` is gone (`io.parse_urdf`, `io.parse_mjcf`, `io.builder.ModelBuilder`).
 - Io: one joint order and body-named frames (records 0012, 0018): `build_model` orders joints parents first and keeps
   the description's order wherever it is already topological (a Kahn sort; the depth-first default and
   `preserve_joint_order=` are gone); every body's frame carries the body's name (`"panda_hand"`, not

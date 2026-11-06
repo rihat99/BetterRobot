@@ -3,7 +3,7 @@
 Phase 3 pass criteria:
  - ``br.load("panda.urdf")`` returns a ``Model`` equivalent to the current
    ``RobotModel`` (joint count, body count, limits).
- - ``br.load("g1.urdf", free_flyer=True)`` returns a ``Model`` whose
+ - ``br.load("g1.urdf", root_joint=br.model.JointFreeFlyer())`` returns a ``Model`` whose
    ``joints[1]`` is ``JointFreeFlyer`` and whose ``nq`` is 7 + 29 = 36.
 """
 
@@ -96,7 +96,7 @@ def test_panda_body_frame_names(panda_model, panda_ir):
 @pytest.fixture(scope="module")
 def g1_model():
     path = g1_urdf()
-    return load(path, free_flyer=True)
+    return load(path, root_joint=JointFreeFlyer())
 
 
 def test_g1_root_joint_is_free_flyer(g1_model):

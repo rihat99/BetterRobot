@@ -65,7 +65,7 @@ def test_robot_manifold_accepts_an_empty_batch(panda):
 
 @pytest.fixture(scope="module")
 def g1():
-    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 
 
 def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1):

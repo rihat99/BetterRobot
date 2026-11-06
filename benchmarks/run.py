@@ -70,7 +70,7 @@ def random_tree(n_moving: int, seed: int = 0) -> br.Model:
 def load_model(name: str, device: str) -> br.Model:
     """Load ``panda`` / ``g1`` (free flyer) from URDF or build ``tree<N>``; float32 on ``device``."""
     if name in ("panda", "g1"):
-        model = br.load(urdf_path(name), free_flyer=(name == "g1"), dtype=DTYPE)
+        model = br.load(urdf_path(name), root_joint=br.model.JointFreeFlyer() if name == "g1" else None, dtype=DTYPE)
     elif name.startswith("tree"):
         model = random_tree(int(name[4:]))
     else:

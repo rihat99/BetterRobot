@@ -132,7 +132,7 @@ torch.Size([32, 3]) torch.Size([32, 6])
 
 ## The floating base is part of the tree
 
-A floating-base model (`free_flyer=True`, see [Robot I/O](io.md)) has `nv = 6 + n_actuated`; the first six
+A floating-base model (`root_joint=JointFreeFlyer()`, see [Robot I/O](io.md)) has `nv = 6 + n_actuated`; the first six
 entries of `tau` are the wrench the base would need, which is zero for a physically consistent motion.
 
 ## Parity with Pinocchio

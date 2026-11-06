@@ -154,7 +154,7 @@ def _every_axis_kind_model(translation: float = 1.0) -> br.Model:
         getattr(builder, method)(f"joint{index}", parent=parent, child=child, origin=origin, **kwargs)
         parent = child
     builder.add_spherical("ball", parent=parent, child=builder.add_body("tip", mass=1.0))
-    return br.load(builder.finalize, dtype=torch.float64)
+    return br.io.build_model(builder.finalize(), dtype=torch.float64)
 
 
 @pytest.mark.parametrize("robot", ["every_axis_kind", "g1"])
@@ -166,7 +166,7 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
     from better_robot.viewer.robot import skeleton_spec  # noqa: PLC0415
 
     if robot == "g1":
-        model = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+        model = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     else:
         model = _every_axis_kind_model()
         kinds, axes = skeleton_spec(model)
@@ -201,7 +201,7 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
 def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
     from better_robot.viewer import robot_skeleton  # noqa: PLC0415
 
-    model = br.load(g1_urdf(), free_flyer=True)
+    model = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer())
     poses = _random_poses((2, model.njoints))
     massless = (model.body_inertias[1:, 0] == 0).numpy()  # the G1's IMU / camera mounts
     assert massless.any()
@@ -218,7 +218,7 @@ def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
 
 
 def _g1() -> br.Model:
-    return br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
+    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 
 
 def _drawn_markers(layer, server: FakeServer, marker: str) -> tuple[np.ndarray, np.ndarray]:  # noqa: ANN001
@@ -368,7 +368,7 @@ def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images()
                                effort_limit=10.0)  # fmt: skip
         builder.add_revolute(f"{side}_roll", parent=f"{side}_upper", child=f"{side}_lower",
                              axis=torch.tensor([sign, 0.0, 0.0]), effort_limit=10.0)  # fmt: skip
-    model = br.load(builder.finalize, free_flyer=True, dtype=torch.float64)
+    model = br.io.build_model(builder.finalize(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     poses = br.forward_kinematics(model, model.q_neutral).joint_poses[1:].numpy()
     drawn = dict(zip(model.joint_names[1:], poses[:, :3] + rotate(poses[:, 3:], spread_offsets(model))))
     assert drawn["left_roll"][0] > 0.02  # slid off its pitch joint, to +x
@@ -429,7 +429,7 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     builder.add_revolute("shoulder", axis=(0.0, 1.0, 0.0), parent=base, child=upper, effort_limit=10.0)
     builder.add_revolute("wrist", axis=(1.0, 0.0, 0.0), parent=upper, child=hand, origin=origin, effort_limit=10.0)
     builder.add_frame("palm", parent=hand, placement=torch.from_numpy(_random_poses((), seed=2)))
-    model = br.load(builder.finalize, dtype=torch.float64)
+    model = br.io.build_model(builder.finalize(), dtype=torch.float64)
     q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2)])
     state = br.forward_kinematics(model, q)
     point = torch.tensor([0.05, -0.02, 0.1], dtype=torch.float64)

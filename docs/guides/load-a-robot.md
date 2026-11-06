@@ -6,8 +6,8 @@ how to look up joint and frame names, and what the common load errors mean.
 
 ## Load a URDF
 
-Pass a path. The format is picked from the file extension (`format="auto"`); pass
-`format="urdf"` or `format="mjcf"` to force it.
+Pass a path. The format is picked from the file extension; pass `format="urdf"` or
+`format="mjcf"` to force it.
 
 ```python
 import torch
@@ -47,10 +47,10 @@ differ. Use `kinematics.integrate` and `kinematics.difference` instead of adding
 
 ![Unitree G1 loaded with a free-flyer root](../images/g1_floating.png){ width=560 }
 
-*The G1 with `free_flyer=True`: the first seven entries of `q` place the pelvis in the world.*
+*The G1 with `root_joint=JointFreeFlyer()`: the first seven entries of `q` place the pelvis in the world.*
 
 ```python
-floating = br.load(panda_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+floating = br.load(panda_description.URDF_PATH, root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 print(floating.nq - model.nq, floating.nv - model.nv)  # 7 6
 q0 = floating.q_neutral
 print(q0[:7])  # identity base pose: [0, 0, 0, 0, 0, 0, 1]
@@ -60,8 +60,7 @@ print(q0[:7])  # identity base pose: [0, 0, 0, 0, 0, 0, 1]
 tensor([0., 0., 0., 0., 0., 0., 1.], dtype=torch.float64)
 ```
 
-`free_flyer=True` is a shortcut for `root_joint=JointFreeFlyer()`; pass `root_joint=` for any other
-root joint model.
+`root_joint=` takes any joint model; `JointFreeFlyer()` is the one that lets the base move.
 
 ## Build a model in code
 

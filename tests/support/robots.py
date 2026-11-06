@@ -17,5 +17,5 @@ def panda_urdf() -> Path:
 
 
 def g1_urdf() -> Path:
-    """Path of the Unitree G1 URDF with 29 actuated joints; load it with ``free_flyer=True`` for the floating base."""
+    """Path of the Unitree G1 URDF with 29 actuated joints; load it with ``root_joint=JointFreeFlyer()`` for the floating base."""
     return FIXTURES / "g1" / "g1_29dof.urdf"

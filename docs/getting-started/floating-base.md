@@ -5,7 +5,7 @@ You load the Unitree G1 humanoid with a free-floating root, place its base in th
 
 ## Load the G1 with a free-flyer root
 
-A humanoid is not bolted to the ground. `free_flyer=True` puts a `JointFreeFlyer` between the world and
+A humanoid is not bolted to the ground. `root_joint=JointFreeFlyer()` puts a free-flyer joint between the world and
 the root body (the pelvis), so the base pose becomes part of the configuration:
 
 ```python
@@ -14,7 +14,7 @@ import better_robot as br
 from robot_descriptions import g1_description
 from better_robot.kinematics import forward_kinematics
 
-model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
+model = br.load(g1_description.URDF_PATH, root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 print(model.joint_names[:3], type(model.joints[1]).__name__)
 print("nq =", model.nq, "nv =", model.nv)  # 36, 35
 ```
