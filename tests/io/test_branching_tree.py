@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from better_robot.io import build_model, load
 from better_robot.io.ir import IRModel
+from better_robot.model.joints import JointFreeFlyer, JointSpherical
 
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body
 
@@ -16,8 +17,8 @@ from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body
 def test_branching_model():
     branching_model = load(make_branching_tree_body)
     assert branching_model is not None
-    assert branching_model.joints[1].kind == "free_flyer"
-    spherical_count = sum(1 for jm in branching_model.joints if jm.kind == "spherical")
+    assert isinstance(branching_model.joints[1], JointFreeFlyer)
+    spherical_count = sum(1 for jm in branching_model.joints if isinstance(jm, JointSpherical))
     assert spherical_count == 23
     # universe + root_joint(free_flyer, from IR "root") + 23 spherical = 25
     assert branching_model.njoints == 25

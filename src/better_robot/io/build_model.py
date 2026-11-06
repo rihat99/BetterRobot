@@ -8,25 +8,18 @@ from dataclasses import dataclass
 import torch
 
 from ..exceptions import ModelError
-from ..model.joint_models import (
+from ..model.joints import (
     JointFixed,
     JointFreeFlyer,
     JointHelical,
+    JointModel,
     JointPlanar,
-    JointPrismaticUnaligned,
-    JointPX,
-    JointPY,
-    JointPZ,
-    JointRevoluteUnaligned,
+    JointPrismatic,
+    JointRevolute,
     JointRevoluteUnbounded,
-    JointRX,
-    JointRY,
-    JointRZ,
     JointSpherical,
     JointTranslation,
-    JointUniverse,
 )
-from ..model.joint_models.base import JointModel
 from ..model.model import Model
 from .ir import IRBody, IRJoint, IRModel
 
@@ -35,19 +28,8 @@ from .ir import IRBody, IRJoint, IRModel
 #: Parent body name that signals "connect to the universe (joint 0)".
 _WORLD_SENTINEL = "world"
 
-_EPS = 1e-6
 _IDENTITY_SE3_VALS = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
-_SUPPORTED_MIMIC_JOINTS = (
-    JointRX,
-    JointRY,
-    JointRZ,
-    JointRevoluteUnaligned,
-    JointPX,
-    JointPY,
-    JointPZ,
-    JointPrismaticUnaligned,
-    JointHelical,
-)
+_SUPPORTED_MIMIC_JOINTS = (JointRevolute, JointPrismatic, JointHelical)
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,14 +100,6 @@ def _check_topology_invariants(
 # ─────────────────────────────── helpers ─────────────────────────────────��───
 
 
-def _axis_near(a: torch.Tensor | None, ref: tuple[float, float, float]) -> bool:
-    """True if ``a`` is within ``_EPS`` of ``ref``."""
-    if a is None:
-        return False
-    r = torch.tensor(ref, dtype=a.dtype, device=a.device)
-    return bool((a - r).norm() < _EPS)
-
-
 def _cumulative_layout(widths: tuple[int, ...]) -> tuple[tuple[int, ...], int]:
     indices: list[int] = []
     offset = 0
@@ -165,7 +139,7 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
             if not isinstance(joint, _SUPPORTED_MIMIC_JOINTS):
                 raise ModelError(
                     f"Mimic {role} joint {joint_names[joint_id]!r} has unsupported "
-                    f"kind {joint.kind!r}; reduced mimic coordinates currently "
+                    f"kind {type(joint).__name__}; reduced mimic coordinates currently "
                     "require concrete scalar Euclidean revolute, prismatic, or "
                     "helical joints (nq=nv=1)"
                 )
@@ -276,107 +250,61 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
     )
 
 
-def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911, PLR0912
-    """Select a concrete ``JointModel`` from an ``IRJoint``."""
+_ALIGNED_AXES = {
+    "revolute_rx": (1.0, 0.0, 0.0),
+    "revolute_ry": (0.0, 1.0, 0.0),
+    "revolute_rz": (0.0, 0.0, 1.0),
+    "prismatic_px": (1.0, 0.0, 0.0),
+    "prismatic_py": (0.0, 1.0, 0.0),
+    "prismatic_pz": (0.0, 0.0, 1.0),
+}
+_REVOLUTE_KINDS = {"revolute", "revolute_rx", "revolute_ry", "revolute_rz", "revolute_unaligned"}
+_PRISMATIC_KINDS = {"prismatic", "prismatic_px", "prismatic_py", "prismatic_pz", "prismatic_unaligned"}
+
+
+def _joint_axis(ir_joint: IRJoint, default: tuple[float, float, float] | None) -> tuple[float, float, float]:
+    """The axis of an IR joint as a tuple: implied by an aligned kind, else the IR axis, else ``default``."""
+    if ir_joint.kind in _ALIGNED_AXES:
+        return _ALIGNED_AXES[ir_joint.kind]
+    if ir_joint.axis is not None:
+        x, y, z = ir_joint.axis.tolist()
+        return (float(x), float(y), float(z))
+    if default is None:
+        raise ModelError(f"Joint {ir_joint.name!r} with kind {ir_joint.kind!r} requires an axis")
+    return default
+
+
+def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911
+    """Select a joint kind from an ``IRJoint`` (the kind strings and their aliases stay until R6 rewrites io)."""
     kind = ir_joint.kind
-    axis = ir_joint.axis
-
-    joint_model = getattr(ir_joint, "joint_model", None)
-    if joint_model is not None:
-        if not isinstance(joint_model, JointModel):
-            raise ModelError(
-                f"joint_model payload for joint {ir_joint.name!r} does not implement the JointModel protocol"
-            )
-        if joint_model.kind != kind:
-            raise ModelError(
-                f"joint_model payload kind {joint_model.kind!r} does not match "
-                f"IR kind {kind!r} for joint {ir_joint.name!r}"
-            )
-        return joint_model
-
+    if ir_joint.joint_model is not None:
+        if not isinstance(ir_joint.joint_model, JointModel):
+            raise ModelError(f"joint_model payload for joint {ir_joint.name!r} is not a JointModel")
+        return ir_joint.joint_model
     if kind == "mimic":
         raise NotImplementedError(
             f"Joint {ir_joint.name!r} uses the zero-DOF mimic kind, which is "
             "missing the target's concrete motion semantics. Use a supported "
             "scalar revolute, prismatic, or helical kind with mimic_source."
         )
-
-    if kind == "universe":
-        return JointUniverse()
-
-    if kind in ("fixed", "world"):
+    if kind in ("universe", "fixed", "world"):
         return JointFixed()
-
-    if kind == "revolute_rx":
-        return JointRX()
-    if kind == "revolute_ry":
-        return JointRY()
-    if kind == "revolute_rz":
-        return JointRZ()
-    if kind == "revolute_unaligned":
-        if axis is None:
-            raise ModelError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
-        return JointRevoluteUnaligned(axis=axis.float())
-    if kind == "revolute_unbounded":
-        _ax = axis if axis is not None else torch.tensor([0.0, 0.0, 1.0])
-        return JointRevoluteUnbounded(axis=_ax.float())
-
-    if kind in ("revolute",):
-        if axis is None or _axis_near(axis, (1.0, 0.0, 0.0)):
-            return JointRX()
-        if _axis_near(axis, (0.0, 1.0, 0.0)):
-            return JointRY()
-        if _axis_near(axis, (0.0, 0.0, 1.0)):
-            return JointRZ()
-        return JointRevoluteUnaligned(axis=axis.float())
-
-    if kind in ("continuous",):
-        _ax = axis if axis is not None else torch.tensor([0.0, 0.0, 1.0])
-        return JointRevoluteUnbounded(axis=_ax.float())
-
-    if kind in ("prismatic",):
-        if axis is None or _axis_near(axis, (1.0, 0.0, 0.0)):
-            return JointPX()
-        if _axis_near(axis, (0.0, 1.0, 0.0)):
-            return JointPY()
-        if _axis_near(axis, (0.0, 0.0, 1.0)):
-            return JointPZ()
-        return JointPrismaticUnaligned(axis=axis.float())
-
-    if kind == "prismatic_px":
-        return JointPX()
-    if kind == "prismatic_py":
-        return JointPY()
-    if kind == "prismatic_pz":
-        return JointPZ()
-    if kind == "prismatic_unaligned":
-        if axis is None:
-            raise ModelError(f"Joint {ir_joint.name!r} with kind {kind!r} requires an axis")
-        return JointPrismaticUnaligned(axis=axis.float())
-
+    if kind in _REVOLUTE_KINDS:
+        return JointRevolute(axis=_joint_axis(ir_joint, None if kind == "revolute_unaligned" else (1.0, 0.0, 0.0)))
+    if kind in ("continuous", "revolute_unbounded"):
+        return JointRevoluteUnbounded(axis=_joint_axis(ir_joint, (0.0, 0.0, 1.0)))
+    if kind in _PRISMATIC_KINDS:
+        return JointPrismatic(axis=_joint_axis(ir_joint, None if kind == "prismatic_unaligned" else (1.0, 0.0, 0.0)))
     if kind in ("spherical", "ball"):
         return JointSpherical()
-
     if kind in ("free_flyer", "free", "floating"):
         return JointFreeFlyer()
-
-    if kind in ("planar",):
+    if kind == "planar":
         return JointPlanar()
-
-    if kind in ("translation",):
+    if kind == "translation":
         return JointTranslation()
-
     if kind == "helical":
-        _ax = axis if axis is not None else torch.tensor([0.0, 0.0, 1.0])
-        return JointHelical(axis=_ax.float(), pitch=ir_joint.pitch)
-
-    if kind == "composite":
-        raise ModelError(
-            f"Composite joint {ir_joint.name!r} is missing its programmatic "
-            f"JointComposite payload; construct it with "
-            f"ModelBuilder.add_joint(kind=JointComposite(...))"
-        )
-
+        return JointHelical(axis=_joint_axis(ir_joint, (0.0, 0.0, 1.0)), pitch=float(ir_joint.pitch))
     raise ModelError(f"Unknown joint kind {kind!r} for joint {ir_joint.name!r}")
 
 
@@ -557,7 +485,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         sorted_ir_indices = _ir_topo_sort(ir, root_body, regular_ir_indices)
 
     # ── 3. Model joint layout ─────────────────────────────────────────────────
-    # joint 0 = universe (JointUniverse, body = "universe" placeholder)
+    # joint 0 = universe (JointFixed, body = "universe" placeholder)
     # joint 1 = root joint (body = root_body)
     # joints 2..N = regular IR joints in topo order
     n_model_joints = 2 + len(sorted_ir_indices)
@@ -581,7 +509,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     parents = tuple(parents_list)
 
     # ── 7. Joint models ───────────────────────────────────────────────────────
-    joint_models_list: list[JointModel] = [JointUniverse(), _root_jm]
+    joint_models_list: list[JointModel] = [JointFixed(), _root_jm]
     for ir_ji in sorted_ir_indices:
         joint_models_list.append(_kind_to_joint_model(ir.joints[ir_ji]))
     joint_models = tuple(joint_models_list)
@@ -618,16 +546,15 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         if jm.nq == 0:
             continue
 
-        kind = jm.kind
         ir_j = _ir_joint_for(j_idx)
 
-        if kind == "free_flyer":
+        if isinstance(jm, JointFreeFlyer):
             lower_pos.extend([-_INF] * 7)
             upper_pos.extend([_INF] * 7)
             vel_lim.extend([_INF] * 6)
             eff_lim.extend([_INF] * 6)
 
-        elif kind == "revolute_unbounded":
+        elif isinstance(jm, JointRevoluteUnbounded):
             lower_pos.extend([-_INF, -_INF])
             upper_pos.extend([_INF, _INF])
             vel = ir_j.velocity_limit if ir_j is not None and ir_j.velocity_limit is not None else 0.0
@@ -635,7 +562,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
             vel_lim.append(vel)
             eff_lim.append(eff)
 
-        elif kind == "spherical":
+        elif isinstance(jm, JointSpherical):
             lower_pos.extend([-1.0] * 4)
             upper_pos.extend([1.0] * 4)
             v = ir_j.velocity_limit if ir_j is not None and ir_j.velocity_limit is not None else 0.0
@@ -643,13 +570,13 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
             vel_lim.extend([v] * 3)
             eff_lim.extend([e] * 3)
 
-        elif kind == "planar":
+        elif isinstance(jm, JointPlanar):
             lower_pos.extend([-_INF, -_INF, -1.0, -1.0])
             upper_pos.extend([_INF, _INF, 1.0, 1.0])
             vel_lim.extend([0.0] * 3)
             eff_lim.extend([0.0] * 3)
 
-        elif kind == "translation":
+        elif isinstance(jm, JointTranslation):
             lower_pos.extend([-_INF] * 3)
             upper_pos.extend([_INF] * 3)
             vel_lim.extend([0.0] * 3)

@@ -9,8 +9,8 @@ differentiable and may be batched) are folded into that matrix or applied with o
 and the world chain needs one matmul per tree level. Transforms are ``[R | p]`` matrices throughout; nothing is converted
 to quaternions here.
 
-Rare joint kinds (planar, translation, helical, composite) are evaluated one by one through
-the shared joint dispatch and written into the same tensor.
+Rare joint kinds (planar, translation, helical) are evaluated one by one through their own
+``placement`` and written into the same tensor.
 """
 
 from __future__ import annotations
@@ -20,16 +20,11 @@ from dataclasses import dataclass
 import torch
 
 from ..lie import se3
-from ..model.joint_dispatch import joint_axes, joint_pitches
-from ..model.joint_models.helical import _helical_transform
+from ..model.joints import JointFreeFlyer, JointPrismatic, JointRevolute, JointRevoluteUnbounded, JointSpherical
 from ..model.model import Model
 
-_FIXED = {"universe", "fixed", "mimic"}
-_REVOLUTE = {"revolute_rx", "revolute_ry", "revolute_rz", "revolute_unaligned"}
-_UNBOUNDED = {"revolute_unbounded"}
-_PRISMATIC = {"prismatic_px", "prismatic_py", "prismatic_pz", "prismatic_unaligned"}
 #: kind -> offset of ``[qx, qy, qz, qw]`` inside the joint's configuration block.
-_QUATERNION = {"spherical": 0, "free_flyer": 3}
+_QUATERNION = {JointSpherical: 0, JointFreeFlyer: 3}
 
 # vec(R(q)) = vec(q qᵀ) · C / |q|² for q = [x, y, z, w]; entry (a, b, k) adds k · q_a q_b to R[row].
 _QUATERNION_TERMS = {
@@ -73,8 +68,6 @@ class LeanPlan:
         tuple[torch.Tensor, int, int, int], ...
     ]  #: ``(slot (1,), joint id, q start, q width)`` of rare kinds.
     frame_parents: torch.Tensor  #: ``(nframes,)`` long: parent joint of each frame.
-    axes: torch.Tensor  #: ``(njoints, 3)`` joint axes in the plan's dtype on its device (the helical fallback).
-    pitches: torch.Tensor  #: ``(njoints,)`` helical pitches, likewise.
 
 
 def _tree_levels(model: Model) -> list[list[int]]:
@@ -134,24 +127,24 @@ def _feature_map(
 def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> LeanPlan:
     """Derive the constants from the static topology and the joint axes."""
     nj, parents = model.njoints, model.parents
-    kinds, starts, widths = [joint.kind for joint in model.joints], model.idx_qs_full, model.nqs_full
+    starts, widths = model.idx_qs_full, model.nqs_full
     levels = _tree_levels(model)
     order = [j for level in levels for j in level]
     slot = {joint: index for index, joint in enumerate(order)}
-    axes = joint_axes(model.joints)
+    axes = torch.tensor([joint.axis or (0.0, 0.0, 0.0) for joint in model.joints], dtype=torch.float64).reshape(nj, 3)
     unit = torch.eye(3, dtype=torch.float64)
 
     angles, circles, quaternions, fallbacks = [], [], [], []
     linear: list[tuple[int, int, torch.Tensor]] = []  # (joint, column, direction)
-    for joint in range(nj):
-        kind, start = kinds[joint], starts[joint]
-        if kind in _FIXED:
+    for joint, model_joint in enumerate(model.joints):
+        kind, start = type(model_joint), starts[joint]
+        if model_joint.nq == 0:
             continue
-        if kind in _REVOLUTE:
+        if kind is JointRevolute:
             angles.append((joint, start))
-        elif kind in _UNBOUNDED:
+        elif kind is JointRevoluteUnbounded:
             circles.append((joint, start))
-        elif kind in _PRISMATIC:
+        elif kind is JointPrismatic:
             linear.append((joint, start, axes[joint]))
         elif kind in _QUATERNION:
             quaternions.append((joint, start + _QUATERNION[kind]))
@@ -194,8 +187,6 @@ def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> LeanPl
         parent_position=tuple(parent_position),
         fallbacks=tuple(fallbacks),
         frame_parents=torch.tensor(model.frame_parent_joint_ids, dtype=torch.long, device=device),
-        axes=axes.to(dtype=dtype, device=device),
-        pitches=joint_pitches(model.joints).to(dtype=dtype, device=device),
     )
 
 
@@ -216,13 +207,6 @@ def placement_matrices(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
     conversion stays per call.
     """
     return se3.to_matrix(model.joint_placements), se3.to_matrix(model.frame_placements)
-
-
-def _fallback_pose(model: Model, plan: LeanPlan, joint_id: int, q_slice: torch.Tensor) -> torch.Tensor:
-    """Pose ``(N, 7)`` of a rare-kind joint; helical reads the plan's device-resident axis and pitch."""
-    if model.joints[joint_id].kind == "helical":
-        return _helical_transform(plan.axes[joint_id], plan.pitches[joint_id], q_slice)
-    return model.joints[joint_id].joint_placement(q_slice)
 
 
 def lean_core(model: Model, q_full: torch.Tensor, placement: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -270,7 +254,7 @@ def lean_core(model: Model, q_full: torch.Tensor, placement: torch.Tensor) -> tu
     else:
         joint = plan.bias + torch.einsum("njf,jfab->njab", gathered, plan.weight)
         for slot, joint_id, start, width in plan.fallbacks:
-            pose = _fallback_pose(model, plan, joint_id, q_full[:, start : start + width])
+            pose = model.joints[joint_id].placement(q_full[:, start : start + width])
             joint = joint.index_copy(1, slot, se3.to_matrix(pose).unsqueeze(1))
         local = placement @ joint  # (N, nj, 4, 4), level order
     first_start, first_stop = plan.level_slices[0]

@@ -16,7 +16,7 @@ import torch
 from ..exceptions import ArgumentError, QuaternionNormError
 from ..lie import so3
 from ..model._checks import batch_shape, check_tensor, expand_batch
-from ..model.joint_models import JointFreeFlyer
+from ..model.joints import JointFreeFlyer
 from ..model.model import Model
 from ._fk_lean import fk_plan, lean_core, placement_matrices
 from ._jacobian_columns import jacobian_plan, world_column_table_from_matrices

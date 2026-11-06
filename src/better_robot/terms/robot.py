@@ -14,6 +14,7 @@ import torch
 
 from ..exceptions import ArgumentError
 from ..model._manifold import manifold_plan
+from ..model.manifolds import EUCLIDEAN, RIGID
 from ..model.model import Model
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3
@@ -45,7 +46,7 @@ class RobotManifold:
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Step range of the vector-space joints; quaternion coordinates are unbounded."""
         plan = manifold_plan(self.model, dtype=x.dtype, device=x.device)
-        q_index, v_index = plan.euclidean_q, plan.euclidean_v
+        q_index, v_index = (columns.reshape(-1) for columns in plan.columns(EUCLIDEAN))
         low = x.new_full((*x.shape[:-1], self.model.nv), -float("inf"))
         high = x.new_full((*x.shape[:-1], self.model.nv), float("inf"))
         low[..., v_index] = (lower - x)[..., q_index]
@@ -128,7 +129,8 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
     if order < 1:
         raise ArgumentError(f"order must be at least 1, got {order}")
     plan = manifold_plan(model, dtype=model.dtype, device=model.device)
-    position_q, position_v = plan.free_flyer_q[:, :3].reshape(-1), plan.free_flyer_v[:, :3].reshape(-1)
+    rigid_q, rigid_v = plan.columns(RIGID)
+    position_q, position_v = rigid_q[:, :3].reshape(-1), rigid_v[:, :3].reshape(-1)
 
     def derivative(value: torch.Tensor) -> torch.Tensor:
         out = model.difference(value[:, :-1], value[:, 1:])

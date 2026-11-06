@@ -53,7 +53,7 @@ def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> JointJ
     for joint_id, joint in enumerate(model.joints):
         if joint.nv:
             neutral = joint.neutral().to(device=device, dtype=dtype)
-            subspaces[joint_id, :, : joint.nv] = joint.joint_motion_subspace(neutral).to(device=device, dtype=dtype)
+            subspaces[joint_id, :, : joint.nv] = joint.motion_subspace(neutral).to(device=device, dtype=dtype)
     column_owner = torch.tensor(owner, dtype=torch.long, device=device)
     column_gather = torch.tensor(gather, dtype=torch.long, device=device)
     return JointJacobianPlan(

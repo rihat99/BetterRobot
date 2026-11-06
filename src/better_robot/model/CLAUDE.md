@@ -24,10 +24,12 @@ model tensors in place.
 - `_checks.py` is the one structural validator (`check_tensor`, `batch_shape`,
   `expand_batch`): every public boundary calls it once per tensor input, raw
   passes trust the result, and a dtype or device other than the model's raises.
-- `_manifold.py` holds `integrate`/`difference` (one batched formula per
-  manifold group) behind `Model.integrate`/`Model.difference`.
-- `joint_dispatch.py` holds the static per-joint tables (`joint_axes`,
-  `joint_pitches`); `topology.py` the pure tree helpers on `parents`.
+- `manifolds.py` holds the five `Manifold`s (Euclidean, circle, rotation, plane,
+  rigid): `integrate`/`difference` written once each as the group exponential
+  and logarithm. `_manifold.py` groups the public coordinates by manifold and
+  runs one batched call per group behind `Model.integrate`/`Model.difference`.
+- `joints/` holds the abstract `JointModel` and the nine final kinds, one file
+  per kind; `topology.py` the pure tree helpers on `parents`.
 
 ## Coordinate rules
 
@@ -45,9 +47,12 @@ model tensors in place.
 
 ## Extending joints
 
-Implement the `JointModel` protocol in `joint_models/`, add the public kind and
-dimensions, then wire `io/build_model.py` and the kind tables in
-`kinematics/_fk_lean.py`. Algorithms must not duplicate parser-string dispatch.
-Preserve scalar-last quaternions and linear-first tangents throughout.
+Subclass `JointModel` in `joints/` as a `@final` frozen dataclass declaring
+`nq`, `nv`, `manifold` and `axis`, run `better_robot.testing.check_joint_model`
+on it, export it from `src/better_robot/model/__init__.py`, then map its IR kind string in
+`io/build_model.py`. `kinematics/_fk_lean.py` reads a kind's class only for
+the affine fast path; every other kind goes through `placement`. Joints carry
+no kind string. Preserve scalar-last quaternions and linear-first tangents
+throughout.
 
 Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

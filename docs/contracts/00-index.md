@@ -58,11 +58,11 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-DEP-2 | `tests/contract/test_optional_imports.py`, `[ruff:PLC0415]` |
 | C-DEP-3 | `[ruff:TID251]` |
 | C-DEP-4 | `[review]` |
-| C-EXT-1 | `tests/contract/test_protocols.py`, `[review]` |
-| C-EXT-2 | `tests/contract/test_protocols.py`, `[review]` |
+| C-EXT-1 | `[review]` |
+| C-EXT-2 | `tests/contract/test_abstract_or_final.py`, `[review]` |
 | C-EXT-3 | `tests/contract/test_public_api.py`, `tests/contract/test_submodule_public_imports.py`, `[ruff:SLF001]` [planned: L-7] |
 | C-EXT-4 | `[review]` |
-| C-EXT-5 | `tests/contract/test_protocols.py`, `tests/contract/test_layer_dependencies.py`, `[review]` |
+| C-EXT-5 | `tests/contract/test_layer_dependencies.py`, `[review]` |
 | C-EXT-6 | `[review]` |
 | C-PERF-2 | `[review]` |
 | C-PERF-3 | `[review]` (benchmarks under `tests/bench/` are advisory) |

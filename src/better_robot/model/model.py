@@ -13,7 +13,7 @@ from torch.utils import _pytree
 from ..exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from ..lie import se3
 from ._checks import check_tensor
-from .joint_models.base import JointModel
+from .joints.base import JointModel
 
 _TENSOR_FIELDS = (
     "joint_placements",
@@ -29,12 +29,6 @@ _TENSOR_FIELDS = (
     "q_neutral",
 )
 _BATCHED_FIELDS = ("joint_placements", "body_inertias", "frame_placements")
-
-
-def _joint_key(joint: JointModel) -> tuple:
-    axis = None if joint.axis is None else tuple(joint.axis.detach().cpu().tolist())
-    children = tuple(_joint_key(sub) for sub in getattr(joint, "sub_joints", ()))
-    return (type(joint).__name__, joint.kind, axis, float(getattr(joint, "pitch", 0.0)), children)
 
 
 @dataclass(frozen=True, eq=False, repr=False)
@@ -151,7 +145,7 @@ class Model:
             self.joint_names,
             self.body_names,
             self.frame_names,
-            tuple(_joint_key(joint) for joint in self.joints),
+            self.joints,
             self.parents,
             self.frame_parent_joint_ids,
             self.nqs,
@@ -231,7 +225,7 @@ class Model:
             if width:
                 lower = self.lower_position_limit[start : start + width]
                 upper = self.upper_position_limit[start : start + width]
-                parts.append(joint.random_configuration(generator, lower, upper))
+                parts.append(joint.random(generator, lower=lower, upper=upper))
         if not parts:
             return torch.zeros(self.nq, dtype=self.dtype, device=self.device)
         sample = torch.cat(parts, dim=-1).to(dtype=self.dtype, device=self.device)

@@ -20,8 +20,7 @@ from better_robot.model import Model
 from tests.support.robots import panda_urdf
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
-#: ``JointComposite.__post_init__`` derives ``nq``/``nv`` from its sub-joints; R2 replaces it with a factory.
-SETATTR_ALLOWED = {SRC / "model" / "joint_models" / "composite.py"}
+SETATTR_ALLOWED: set[Path] = set()
 
 
 def _cache_field(cls: type, name: str) -> dataclasses.Field:

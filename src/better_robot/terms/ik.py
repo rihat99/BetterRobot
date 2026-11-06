@@ -7,6 +7,7 @@ from collections.abc import Mapping
 import torch
 
 from ..model._manifold import manifold_plan
+from ..model.manifolds import EUCLIDEAN
 from ..model.model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
 from ..optim.solvers import select
@@ -47,7 +48,7 @@ def ik_problem(
 
 def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator | None = None) -> torch.Tensor:
     """Copy of ``q0: (B, nq)`` with every vector-space joint that has finite limits sampled uniformly."""
-    index = manifold_plan(model, dtype=model.dtype, device=model.device).euclidean_q
+    index = manifold_plan(model, dtype=model.dtype, device=model.device).columns(EUCLIDEAN)[0].reshape(-1)
     lower, upper = model.lower_position_limit[index], model.upper_position_limit[index]
     sample = torch.rand(q0.shape[0], index.numel(), generator=generator, dtype=q0.dtype).to(q0.device)
     sample = lower + (upper - lower) * sample

@@ -34,37 +34,37 @@ model = build_model(ir)
 print(model.joint_names)   # ('universe', 'root_joint', 'j1', 'j2')
 print(model.parents)       # (-1, 0, 1, 2)
 print([type(jm).__name__ for jm in model.joints])
-# ['JointUniverse', 'JointFixed', 'JointRZ', 'JointRY']
+# ['JointFixed', 'JointFixed', 'JointRevolute', 'JointRevolute']
 ```
 ```output
 ('universe', 'root_joint', 'j1', 'j2')
 (-1, 0, 1, 2)
-['JointUniverse', 'JointFixed', 'JointRZ', 'JointRY']
+['JointFixed', 'JointFixed', 'JointRevolute', 'JointRevolute']
 ```
 
-Joint 0 is always `universe`, the world. Its parent is `-1`. Joint 1, `root_joint`, connects the world
-to the root body; on a fixed-base model it is a `JointFixed`. Joints are numbered so that a parent
+Joint 0 is always `universe`, the world, a `JointFixed`. Its parent is `-1`. Joint 1, `root_joint`, connects the world
+to the root body; on a fixed-base model it is a `JointFixed` too. Joints are numbered so that a parent
 always comes before its children.
 
-## Every joint model declares `nq` and `nv`
+## Every joint kind declares `nq`, `nv`, a manifold and an axis
 
-A joint model is a small object in `better_robot.model.joint_models` that knows its sizes and how
-to turn its coordinates into a transform. `nq` counts configuration coordinates; `nv` counts velocity
-coordinates. They differ when the joint moves on a curved space, such as a rotation stored as a unit
-quaternion.
+A joint kind is a small frozen value in `better_robot.model` (a `JointModel`) that knows its sizes and how to turn
+its coordinates into a placement. `nq` counts configuration coordinates; `nv` counts velocity coordinates. They
+differ when the joint moves on a curved space, such as a rotation stored as a unit quaternion; the kind's
+`manifold` says how `integrate` and `difference` step its coordinates. Revolute, prismatic and helical joints
+carry their `axis` as data, a tuple of three floats in the joint frame.
 
-| Joint model | `nq` | `nv` | `ModelBuilder` method |
-|-------------|------|------|-----------------------|
-| `JointRX`, `JointRY`, `JointRZ`, `JointRevoluteUnaligned` | 1 | 1 | `add_revolute_x/_y/_z`, `add_revolute` |
-| `JointRevoluteUnbounded` | 2 | 1 | |
-| `JointPX`, `JointPY`, `JointPZ`, `JointPrismaticUnaligned` | 1 | 1 | `add_prismatic_x/_y/_z`, `add_prismatic` |
-| `JointHelical` | 1 | 1 | `add_helical` |
-| `JointSpherical` | 4 | 3 | `add_spherical` |
-| `JointPlanar` | 4 | 3 | `add_planar` |
-| `JointTranslation` | 3 | 3 | |
-| `JointFreeFlyer` | 7 | 6 | `add_free_flyer_root` |
-| `JointFixed`, `JointUniverse` | 0 | 0 | `add_fixed` |
-| `JointComposite` | sum of its parts | sum of its parts | |
+| Joint kind | `nq` | `nv` | Manifold | `ModelBuilder` method |
+|------------|------|------|----------|-----------------------|
+| `JointRevolute(axis)` | 1 | 1 | Euclidean | `add_revolute`, `add_revolute_x/_y/_z` |
+| `JointRevoluteUnbounded(axis)` | 2 | 1 | circle `[cos θ, sin θ]` | `add_revolute(unbounded=True)` |
+| `JointPrismatic(axis)` | 1 | 1 | Euclidean | `add_prismatic`, `add_prismatic_x/_y/_z` |
+| `JointHelical(axis, pitch)` | 1 | 1 | Euclidean | `add_helical` |
+| `JointSpherical()` | 4 | 3 | rotation (unit quaternion) | `add_spherical` |
+| `JointPlanar()` | 4 | 3 | plane (SE(2)) | `add_planar` |
+| `JointTranslation()` | 3 | 3 | Euclidean | |
+| `JointFreeFlyer()` | 7 | 6 | rigid (SE(3)) | `add_free_flyer_root` |
+| `JointFixed()` | 0 | 0 | | `add_fixed` |
 
 ## `idx_qs` and `idx_vs` say where a joint's coordinates live
 
@@ -95,7 +95,7 @@ declare it directly with `add_free_flyer_root`, and `better_robot.load` takes th
 argument (or `free_flyer=True`) (see [Loading robots](io.md)).
 
 ```python
-from better_robot.model.joint_models import JointFreeFlyer
+from better_robot.model import JointFreeFlyer
 
 floating = build_model(ir, root_joint=JointFreeFlyer())
 print(floating.nq, floating.nv)        # 9 8

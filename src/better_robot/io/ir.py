@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Optional
 import torch
 
 if TYPE_CHECKING:
-    from ..model.joint_models.base import JointModel
+    from ..model.joints import JointModel
 
 
 @dataclass

@@ -16,6 +16,7 @@ import yourdfpy
 
 from better_robot.io import load
 from better_robot.io.parsers.urdf import parse_urdf
+from better_robot.model.joints import JointFixed, JointFreeFlyer, JointPrismatic, JointRevolute
 from tests.support.robots import g1_urdf, panda_urdf
 
 
@@ -77,10 +78,7 @@ def test_panda_limits_finite_for_actuated(panda_model):
 def test_panda_joint_kinds(panda_model):
     """Panda joints should only be revolute, prismatic, or fixed."""
     for j in range(2, panda_model.njoints):
-        kind = panda_model.joints[j].kind
-        assert kind.startswith("revolute") or kind.startswith("prismatic") or kind == "fixed", (
-            f"Unexpected joint kind {kind!r} at index {j}"
-        )
+        assert isinstance(panda_model.joints[j], (JointRevolute, JointPrismatic, JointFixed)), panda_model.joints[j]
 
 
 def test_panda_name_to_id_has_all_joints(panda_model, panda_ir):
@@ -111,7 +109,7 @@ def g1_model():
 
 
 def test_g1_root_joint_is_free_flyer(g1_model):
-    assert g1_model.joints[1].kind == "free_flyer"
+    assert isinstance(g1_model.joints[1], JointFreeFlyer)
 
 
 @pytest.mark.parametrize(

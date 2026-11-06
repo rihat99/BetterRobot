@@ -12,7 +12,7 @@ from typing import Any, Callable, Literal
 
 import torch
 
-from ..model.joint_models.base import JointModel
+from ..model.joints import JointModel
 from ..model.model import Model
 from .assets import (
     AssetResolver,
@@ -113,7 +113,7 @@ def load(
 
     See docs/concepts/parsers_and_ir.md §1.
     """
-    from ..model.joint_models import JointFreeFlyer  # noqa: PLC0415 - only the free_flyer=True path needs it
+    from ..model.joints import JointFreeFlyer  # noqa: PLC0415 - only the free_flyer=True path needs it
 
     # Resolve root_joint
     if free_flyer and root_joint is None:

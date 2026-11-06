@@ -7,13 +7,7 @@ import pinocchio as pin
 import pytest
 import torch
 
-from better_robot.model.joint_models import (
-    JointHelical,
-    JointPlanar,
-    JointRevoluteUnaligned,
-    JointRevoluteUnbounded,
-    JointTranslation,
-)
+from better_robot.model.joints import JointHelical, JointPlanar, JointRevolute, JointRevoluteUnbounded, JointTranslation
 from better_robot.io import ModelBuilder, build_model
 from better_robot.dynamics.state import inverse_dynamics
 from better_robot.kinematics import forward_kinematics_state
@@ -59,7 +53,7 @@ def _planar_q() -> torch.Tensor:
         ),
         pytest.param(
             (
-                lambda: JointRevoluteUnbounded(torch.tensor([0.0, 0.0, 1.0])),
+                lambda: JointRevoluteUnbounded(axis=(0.0, 0.0, 1.0)),
                 pin.JointModelRUBZ,
                 torch.tensor([np.cos(0.3), np.sin(0.3)], dtype=torch.float64),
                 torch.tensor([0.2], dtype=torch.float64),
@@ -68,7 +62,7 @@ def _planar_q() -> torch.Tensor:
         ),
         pytest.param(
             (
-                lambda: JointRevoluteUnaligned(torch.from_numpy(_AXIS.copy())),
+                lambda: JointRevolute(axis=tuple(_AXIS.tolist())),
                 lambda: pin.JointModelRevoluteUnaligned(_AXIS),
                 torch.tensor([0.3], dtype=torch.float64),
                 torch.tensor([0.2], dtype=torch.float64),
@@ -77,7 +71,7 @@ def _planar_q() -> torch.Tensor:
         ),
         pytest.param(
             (
-                lambda: JointHelical(torch.from_numpy(_AXIS.copy()), pitch=0.25),
+                lambda: JointHelical(axis=tuple(_AXIS.tolist()), pitch=0.25),
                 lambda: pin.JointModelHelicalUnaligned(_AXIS, 0.25),
                 torch.tensor([0.3], dtype=torch.float64),
                 torch.tensor([0.2], dtype=torch.float64),

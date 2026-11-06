@@ -122,7 +122,7 @@ def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
         "s",
         poses,
         [-1, 0, 1],
-        kinds=["free_flyer", "revolute_unaligned", "fixed"],
+        kinds=["free_flyer", "revolute", "fixed"],
         axes=[[0, 0, 1], [1, 0, 0], [0, 0, 1]],
     )
     server = FakeServer()

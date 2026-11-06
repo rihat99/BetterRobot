@@ -27,9 +27,9 @@ _CONJUGATE = np.array([-1.0, -1.0, -1.0, 1.0], dtype=np.float32)
 _FOLD = 0.01  # m: a bone leg shorter than this folds into the bone's longest leg
 _STRAIGHT = 0.15  # m: a longer bone from a joint with one child stays straight (a thigh)
 _CORNER = 0.98  # corner sphere radius per bone radius: inside the bone's 16 flat sides, so no scalloped seam
-# Joint kind (``JointModel.kind`` or its prefix before ``_``) -> marker; fixed joints draw nothing.
+# Joint kind word (``robot.skeleton_spec``) -> marker; fixed joints draw nothing, unknown words are spheres.
 _MARKER = {
-    "revolute": "cylinder", "helical": "cylinder", "mimic": "cylinder", "prismatic": "box",
+    "revolute": "cylinder", "continuous": "cylinder", "helical": "cylinder", "prismatic": "box",
     "spherical": "sphere", "free_flyer": "axes", "planar": "cube", "translation": "cube", "fixed": None,
 }  # fmt: skip
 # Marker -> (unit mesh, scale per unit joint radius); the mesh's +z is laid along the joint axis.
@@ -51,9 +51,9 @@ _EXTENT = {
 
 
 def marker_of(kind: str) -> str | None:
-    """The marker a joint kind (``JointModel.kind`` or its prefix before ``_``) is drawn as: ``"cylinder"``,
-    ``"box"``, ``"sphere"``, ``"axes"``, ``"cube"``, or None for fixed joints (nothing drawn)."""
-    return _MARKER.get(kind, _MARKER.get(kind.split("_", 1)[0], "sphere"))
+    """The marker a joint kind word is drawn as: ``"cylinder"``, ``"box"``, ``"sphere"``, ``"axes"``, ``"cube"``,
+    or None for fixed joints (nothing drawn)."""
+    return _MARKER.get(kind, "sphere")
 
 
 def marker_extent(marker: str) -> tuple[float, float]:
@@ -66,7 +66,7 @@ class SkeletonLayer(Layer):
     """Joints ``(T, J, 3)`` positions or ``(T, J, 7)`` poses (xyzw) and ``parents (J,)`` (``-1`` for roots)
     drawn as a stick figure.
 
-    Without ``kinds`` every joint is a sphere. With ``kinds`` (``JointModel.kind`` strings, see
+    Without ``kinds`` every joint is a sphere. With ``kinds`` (kind words, see
     ``skeleton_spec``) and ``axes (J, 3)`` in the joint frame, revolute/helical joints are cylinders along
     the axis, prismatic thin boxes along the axis, spherical spheres, free-flyers small triads,
     planar/translation cubes, and fixed joints nothing. ``radius`` is one float, ``(J,)`` per joint, or

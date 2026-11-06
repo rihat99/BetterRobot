@@ -30,6 +30,9 @@ FROZEN_RECORD_CITATIONS: dict[str, str] = {
     ),
     "docs/contracts/decisions/0004-viser-viewer.md: tests/contract/test_import_dag.py": "now test_layer_dependencies.py",
     "docs/contracts/decisions/0004-viser-viewer.md: tests/contract/test_optional_deps.py": "now test_optional_imports.py",
+    "docs/contracts/decisions/0003-terms-plain-functions.md: tests/contract/test_protocols.py": (
+        "trashed with the JointModel protocol (0013); C-EXT-1 is review-enforced"
+    ),
 }
 
 

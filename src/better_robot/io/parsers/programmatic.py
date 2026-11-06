@@ -18,12 +18,34 @@ from collections.abc import Sequence
 
 import torch
 
-from ...model.joint_models.base import JointModel
+from ...model.joints import (
+    JointFixed,
+    JointFreeFlyer,
+    JointHelical,
+    JointModel,
+    JointPlanar,
+    JointPrismatic,
+    JointRevolute,
+    JointRevoluteUnbounded,
+    JointSpherical,
+    JointTranslation,
+)
 from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
 
 
 # Named-kind names that the builder forbids passing as a string. The
 # message names the helper to use instead.
+_IR_KIND: dict[type[JointModel], str] = {
+    JointFixed: "fixed",
+    JointRevolute: "revolute",
+    JointRevoluteUnbounded: "continuous",
+    JointPrismatic: "prismatic",
+    JointHelical: "helical",
+    JointSpherical: "spherical",
+    JointFreeFlyer: "free_flyer",
+    JointPlanar: "planar",
+    JointTranslation: "translation",
+}
 _LEGACY_KIND_HELPER: dict[str, str] = {
     "revolute": "add_revolute (or add_revolute_x/y/z)",
     "revolute_x": "add_revolute_x",
@@ -451,21 +473,17 @@ class ModelBuilder:
                 "use one of the named add_<kind> helpers instead."
             )
         if not isinstance(kind, JointModel):
-            raise TypeError(f"kind={kind!r} does not implement the JointModel protocol.")
+            raise TypeError(f"kind={kind!r} is not a JointModel.")
 
-        # Preserve the exact object: its class-specific state (for example a
-        # helical pitch or composite children) cannot be reconstructed from
-        # the string discriminator alone.
-        kind_str = getattr(kind, "kind", None)
-        if not isinstance(kind_str, str):
-            raise TypeError(f"kind={kind!r} does not look like a JointModel (missing string `.kind` attribute).")
+        # The IR keeps a kind string beside the joint itself (until R6 rewrites io); the joint is preserved as
+        # the ``joint_model`` payload, so its data (axis, helical pitch) never goes through the string.
         return self._push_joint(
             name,
-            kind=kind_str,
+            kind=_IR_KIND.get(type(kind), type(kind).__name__),
             parent=parent,
             child=child,
             origin=origin if origin is not None else _IDENTITY_SE3.clone(),
-            axis=axis if axis is not None else kind.axis,
+            axis=axis if axis is not None else (None if kind.axis is None else torch.tensor(kind.axis)),
             lower=lower,
             upper=upper,
             velocity_limit=velocity_limit,
@@ -473,7 +491,7 @@ class ModelBuilder:
             mimic_source=mimic_source,
             mimic_multiplier=mimic_multiplier,
             mimic_offset=mimic_offset,
-            pitch=float(getattr(kind, "pitch", 0.0)),
+            pitch=kind.pitch if isinstance(kind, JointHelical) else 0.0,
             joint_model=kind,
         )
 

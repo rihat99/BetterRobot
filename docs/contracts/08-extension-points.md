@@ -1,8 +1,8 @@
 # 08 Extension points
 
 The library grows by adding *to* fixed seams, not by editing their consumers. There are five seams: terms
-(plain functions), joint types and loaders (registries behind protocols), the public surface (names
-without `_`), the optimizer's linear sink (below), and collision `distance_fn` obstacles (below). A new seam needs an ADR. The how-to lives in [extending](../contributing/extending.md).
+(plain functions), joint kinds and loaders (subclasses of an abstract base; parser functions), the public surface
+(names without `_`), the optimizer's linear sink (below), and collision `distance_fn` obstacles (below). A new seam needs an ADR. The how-to lives in [extending](../contributing/extending.md).
 
 ## C-EXT-1 Terms are plain functions (MUST)
 
@@ -22,27 +22,36 @@ class PoseTerm:
     def residual(self, variables): ...
 ```
 
-Enforcement: `tests/contract/test_protocols.py` (every public term factory returns a callable); `[review]`.
+Enforcement: `[review]`.
 
-## C-EXT-2 Joint types and loaders plug in through a protocol (MUST)
+## C-EXT-2 Joint kinds subclass the abstract `JointModel`; loaders are functions (MUST)
 
-A new joint type implements the `JointModel` protocol in `model/joint_models/base.py` structurally
-(no base class, no registry: the model object is passed where it is needed); a new file format implements
-the `io` parser signature and registers its suffix with `io.register_parser(suffix, fn)`
-(`io/__init__.py:42`). Consumers (`kinematics`, `dynamics`, `viewer`) SHOULD dispatch through the protocol
-rather than `isinstance` on concrete joint classes `[planned: L-1]`: today `kinematics/state.py:84`,
-`io/build_model.py:387`, `io/parsers/programmatic.py:394` and `joint_models/composite.py:32` still do. A
-joint-type registry does not exist and needs an ADR before one is added.
+A joint kind is a final frozen dataclass under `src/better_robot/model/joints/base.py::JointModel` (record
+[0013](decisions/0013-joint-kinds.md)): it declares `nq`, `nv`, `manifold` and `axis` and implements `placement`,
+`motion_subspace`, `neutral` and `random`; the abstract methods make a missing member fail where the kind is
+defined, not at a distant dispatch. Every class in `model.joints` and `model.manifolds` is abstract or `@final`:
+kinds are data, not a hierarchy. There is no joint registry: the kind is passed to `ModelBuilder.add_joint(kind=)`
+and the built model keeps that object (record [0025](decisions/0025-extension-model.md)). Consumers that need a
+kind's class (`src/better_robot/kinematics/_fk_lean.py`, the viewer's markers) test the final classes; any other kind takes the
+generic path through `placement`. A new file format is a function returning `IRModel`, passed to `io.build_model`
+(`io.register_parser` remains until the io rewrite removes it).
 
 ```python { .no-run }
-# good  (illustrative)
-register_parser(".sdf", parse_sdf)              # io: suffix -> parser
-joint = JointPlanar(...)                        # any object satisfying JointModel
-# bad
-if isinstance(joint, JointRevolute): ... elif isinstance(joint, JointPrismatic): ...
+# good: a kind subclasses the base and is passed where it is used
+@final
+@dataclass(frozen=True)
+class JointRevolute(JointModel):
+    axis: tuple[float, float, float]
+    nq: ClassVar[int] = 1
+    nv: ClassVar[int] = 1
+    manifold: ClassVar[Manifold] = EUCLIDEAN
+builder.add_joint("elbow", kind=JointRevolute(axis=(0.0, 1.0, 0.0)), parent="upper_arm", child="forearm")
+# bad: a kind string looked up in a registry
+register_joint("revolute", JointRevolute)
 ```
 
-Enforcement: `tests/contract/test_protocols.py` (parser registry, `JointModel` protocol); `[review]`.
+Enforcement: `tests/contract/test_abstract_or_final.py` (every class in `model.joints` and `model.manifolds` is
+abstract or final, every kind a frozen `JointModel`); `[review]`.
 
 ## C-EXT-3 Public means no leading underscore and a place in `__all__` (MUST)
 
@@ -71,7 +80,7 @@ Enforcement: `[review]`; changelog entry checked in review.
 - Package: add its row to `ALLOWED` in `tests/contract/test_layer_dependencies.py` and the package to the diagram
   in `07`; this needs an ADR (`00-index`, "When to write an ADR").
 
-Enforcement: `tests/contract/test_protocols.py`; `tests/contract/test_layer_dependencies.py`; `[review]`.
+Enforcement: `tests/contract/test_layer_dependencies.py`; `[review]`.
 
 ## C-EXT-6 Pre-1.0 versioning: minor releases may break (MUST)
 

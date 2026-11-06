@@ -10,16 +10,10 @@ import torch
 from better_robot.exceptions import ModelError
 from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
-from better_robot.model.joint_models import (
+from better_robot.model.joints import (
     JointHelical,
-    JointPrismaticUnaligned,
-    JointPX,
-    JointPY,
-    JointPZ,
-    JointRevoluteUnaligned,
-    JointRX,
-    JointRY,
-    JointRZ,
+    JointPrismatic,
+    JointRevolute,
     JointSpherical,
 )
 
@@ -89,24 +83,11 @@ def test_reduced_and_full_layouts_and_affine_expansion_are_explicit() -> None:
 @pytest.mark.parametrize(
     "factory",
     (
-        pytest.param(JointRX, id="revolute_rx"),
-        pytest.param(JointRY, id="revolute_ry"),
-        pytest.param(JointRZ, id="revolute_rz"),
-        pytest.param(
-            lambda: JointRevoluteUnaligned(torch.tensor([0.6, 0.8, 0.0])),
-            id="revolute_unaligned",
-        ),
-        pytest.param(JointPX, id="prismatic_px"),
-        pytest.param(JointPY, id="prismatic_py"),
-        pytest.param(JointPZ, id="prismatic_pz"),
-        pytest.param(
-            lambda: JointPrismaticUnaligned(torch.tensor([0.6, 0.0, 0.8])),
-            id="prismatic_unaligned",
-        ),
-        pytest.param(
-            lambda: JointHelical(torch.tensor([0.0, 0.0, 1.0]), pitch=0.2),
-            id="helical",
-        ),
+        pytest.param(lambda: JointRevolute(axis=(0.0, 0.0, 1.0)), id="revolute_z"),
+        pytest.param(lambda: JointRevolute(axis=(0.6, 0.8, 0.0)), id="revolute_unaligned"),
+        pytest.param(lambda: JointPrismatic(axis=(1.0, 0.0, 0.0)), id="prismatic_x"),
+        pytest.param(lambda: JointPrismatic(axis=(0.6, 0.0, 0.8)), id="prismatic_unaligned"),
+        pytest.param(lambda: JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.2), id="helical"),
     ),
 )
 def test_every_supported_concrete_scalar_kind_builds_a_reduced_map(factory) -> None:

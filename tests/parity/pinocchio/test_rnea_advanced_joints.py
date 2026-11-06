@@ -19,6 +19,7 @@ import torch
 
 from better_robot.dynamics.state import inverse_dynamics
 from better_robot.kinematics import forward_kinematics_state
+from better_robot.model.joints import JointFixed, JointRevolute, JointSpherical
 
 from .conftest import _build_spherical_chain
 
@@ -106,9 +107,9 @@ def test_rnea_spherical_populates_tangent_fields_correctly():
     br_m, _, _ = _build_spherical_chain()
     assert br_m.nv == 4
     assert br_m.nq == 5  # 4 quat + 1 angle
-    assert br_m.joints[1].kind == "fixed"  # synthetic base
-    assert br_m.joints[2].kind == "spherical"
-    assert br_m.joints[3].kind == "revolute_rz"
+    assert isinstance(br_m.joints[1], JointFixed)  # synthetic base
+    assert isinstance(br_m.joints[2], JointSpherical)
+    assert br_m.joints[3] == JointRevolute(axis=(0.0, 0.0, 1.0))
     q = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)
     v = torch.tensor([0.1, 0.2, 0.3, 0.4], dtype=torch.float64)
     a = torch.tensor([0.05, -0.1, 0.2, 0.3], dtype=torch.float64)

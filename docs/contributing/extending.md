@@ -1,33 +1,33 @@
 # Extending BetterRobot
 
-BetterRobot has four extension points: joint models, optimization terms, viewer layers and file
+BetterRobot has four extension points: joint kinds, optimization terms, viewer layers and file
 parsers. None of them uses a registry of classes; you pass your object where it is needed. This page
 gives the contract for each; the normative rules are in [contracts/08-extension-points](../contracts/08-extension-points.md).
 
-## Add a joint model
+## Add a joint kind
 
-A joint model satisfies the `JointModel` protocol in
-`better_robot/model/joint_models/base.py` structurally; inheritance is not required. The
-built-in joints (`fixed`, `free_flyer`, `planar`, `prismatic`, `helical`, `mimic`, `composite`, ...)
-in the same folder are the reference implementations.
+A joint kind subclasses the abstract `JointModel` in `src/better_robot/model/joints/base.py` as a final frozen
+dataclass (records 0013 and 0025); the built-in kinds in the same folder (`revolute.py`, `prismatic.py`,
+`planar.py`, ...) are the reference implementations, one file per kind.
 
 | Member | Contract |
 |--------|----------|
-| `kind`, `nq`, `nv`, `axis` | static joint description |
-| `joint_placement(q_slice)` | `(B..., nq) -> (B..., 7)` pose of the child relative to the joint origin |
-| `joint_motion_subspace(q_slice)` | `(B..., nq) -> (B..., 6, nv)` |
-| `joint_velocity(q_slice, v_slice)` | `(B..., 6)` spatial velocity in the joint frame |
-| `integrate(q, v)` | manifold retraction; keeps quaternions on the unit sphere |
-| `difference(q0, q1)` | local tangent from `q0` to `q1` |
-| `neutral()` | identity or default configuration |
-| `random_configuration(generator, lower, upper)` | `(nq,)` valid random configuration within the limits |
+| `nq`, `nv` | class variables: the widths of the joint's `q` and `v` slices |
+| `manifold` | class variable: the `Manifold` of `better_robot.model.manifolds` whose `integrate`/`difference` step the coordinates |
+| `axis` | the joint axis in the joint frame as a tuple of floats (a dataclass field), or the class variable `None` |
+| `placement(q)` | `(B..., nq) -> (B..., 7)` pose of the child in the joint frame |
+| `motion_subspace(q)` | `(B..., nq) -> (B..., 6, nv)`; the child's twist in its own frame is `S(q) @ v` |
+| `neutral()` | `(nq,)` configuration with the identity placement |
+| `random(generator, *, lower, upper)` | `(nq,)` configuration inside the limits |
 
-Optional dynamics hooks provide the joint bias acceleration or the derivative of the motion subspace
-(`joint_motion_subspace_derivative`). When a hook is absent the dynamics use zero, which is correct
-only when the motion subspace is constant in `q`.
+A new manifold is a `Manifold(name=, nq=, nv=, integrate=, difference=)` whose maps are the group exponential and
+logarithm, so that `difference(q0, integrate(q0, v)) == v` and the derivative of `placement(integrate(q, t v))` at
+`t = 0` is `motion_subspace(q) @ v`. `better_robot.testing.check_joint_model(joint, dtype=, generator=)` checks
+both and the shapes; run it on every new kind.
 
-There is no joint registry. Pass the joint object to `ModelBuilder`; the built model keeps that exact
-object. Add a Pinocchio parity test when Pinocchio has the same joint (see [Testing](testing.md)).
+There is no joint registry. Pass the kind to `ModelBuilder.add_joint(kind=...)`; the built model keeps that exact
+object, forward kinematics evaluates it through `placement`, and the viewer draws it as a sphere. Add a Pinocchio
+parity test when Pinocchio has the same joint (see [Testing](testing.md)).
 
 ## Add a term
 

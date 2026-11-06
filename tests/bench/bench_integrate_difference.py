@@ -28,7 +28,7 @@ def _loop_integrate(model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
         iq = model.idx_qs[joint_id]
         iv = model.idx_vs[joint_id]
         parts.append(
-            joint.integrate(
+            joint.manifold.integrate(
                 q[..., iq : iq + nq_joint],
                 v[..., iv : iv + model.nvs[joint_id]],
             )
@@ -44,7 +44,7 @@ def _loop_difference(model, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
             continue
         iq = model.idx_qs[joint_id]
         parts.append(
-            joint.difference(
+            joint.manifold.difference(
                 q0[..., iq : iq + nq_joint],
                 q1[..., iq : iq + nq_joint],
             )

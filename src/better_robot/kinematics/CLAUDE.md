@@ -62,8 +62,7 @@ features of `q` (`sin`/`cos` of revolute angles, quaternion products, translatio
 coordinates), so one `addmm` with a constant matrix built from topology and joint axes gives
 all joint transforms; the world chain is one matmul per tree level. Transforms are `[R | p]`
 matrices `(N, njoints, 3, 4)`; nothing is converted to quaternions inside the pass. Rare kinds
-(planar, translation, helical, composite) call the joint's own `joint_placement` one by one
-(helical reads the plan's device-resident axis and pitch). The plan is built by
+(planar, translation, helical, custom) call the joint's own `placement` one by one. The plan is built by
 `Model._plan("fk", ...)` once per model, dtype and device.
 
 Placements stay differentiable and may be batched. Unbatched placements are folded into the

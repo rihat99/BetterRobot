@@ -4,35 +4,27 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import ClassVar, final
 
 import pytest
 import torch
 
-from better_robot.model.joint_models import (
-    JointComposite,
+from better_robot.io import ModelBuilder, build_model
+from better_robot.kinematics import forward_kinematics_state
+from better_robot.lie import se3
+from better_robot.model.joints import (
     JointFixed,
     JointFreeFlyer,
     JointHelical,
+    JointModel,
     JointPlanar,
-    JointPrismaticUnaligned,
-    JointPX,
-    JointPY,
-    JointPZ,
-    JointRevoluteUnaligned,
+    JointPrismatic,
+    JointRevolute,
     JointRevoluteUnbounded,
-    JointRX,
-    JointRY,
-    JointRZ,
     JointSpherical,
     JointTranslation,
-    JointUniverse,
 )
-from better_robot.model.joint_models.base import JointModel
-from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import forward_kinematics_state
-
-
-_IDENTITY = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+from better_robot.model.manifolds import EUCLIDEAN, Manifold
 
 
 def _assert_fk_runs(model) -> None:
@@ -45,45 +37,51 @@ def _assert_fk_runs(model) -> None:
     assert model.effort_limit.shape == (model.nv,)
 
 
+def _axis(*xyz: float) -> tuple[float, float, float]:
+    """The axis as the builder stores it: a float32 tensor read back as Python floats."""
+    x, y, z = torch.tensor(xyz).tolist()
+    return (x, y, z)
+
+
 @pytest.mark.parametrize(
-    ("method", "kwargs", "expected_kind"),
+    ("method", "kwargs", "expected"),
     [
         pytest.param(
             "add_revolute",
             {"axis": torch.tensor([0.7071068, 0.7071068, 0.0])},
-            "revolute_unaligned",
+            JointRevolute(axis=_axis(0.7071068, 0.7071068, 0.0)),
             id="revolute",
         ),
         pytest.param(
             "add_revolute",
             {"axis": torch.tensor([0.0, 0.0, 1.0]), "unbounded": True},
-            "revolute_unbounded",
+            JointRevoluteUnbounded(axis=(0.0, 0.0, 1.0)),
             id="continuous",
         ),
-        pytest.param("add_revolute_x", {}, "revolute_rx", id="revolute_x"),
-        pytest.param("add_revolute_y", {}, "revolute_ry", id="revolute_y"),
-        pytest.param("add_revolute_z", {}, "revolute_rz", id="revolute_z"),
+        pytest.param("add_revolute_x", {}, JointRevolute(axis=(1.0, 0.0, 0.0)), id="revolute_x"),
+        pytest.param("add_revolute_y", {}, JointRevolute(axis=(0.0, 1.0, 0.0)), id="revolute_y"),
+        pytest.param("add_revolute_z", {}, JointRevolute(axis=(0.0, 0.0, 1.0)), id="revolute_z"),
         pytest.param(
             "add_prismatic",
             {"axis": torch.tensor([0.7071068, 0.7071068, 0.0])},
-            "prismatic_unaligned",
+            JointPrismatic(axis=_axis(0.7071068, 0.7071068, 0.0)),
             id="prismatic",
         ),
-        pytest.param("add_prismatic_x", {}, "prismatic_px", id="prismatic_x"),
-        pytest.param("add_prismatic_y", {}, "prismatic_py", id="prismatic_y"),
-        pytest.param("add_prismatic_z", {}, "prismatic_pz", id="prismatic_z"),
-        pytest.param("add_spherical", {}, "spherical", id="spherical"),
-        pytest.param("add_planar", {}, "planar", id="planar"),
+        pytest.param("add_prismatic_x", {}, JointPrismatic(axis=(1.0, 0.0, 0.0)), id="prismatic_x"),
+        pytest.param("add_prismatic_y", {}, JointPrismatic(axis=(0.0, 1.0, 0.0)), id="prismatic_y"),
+        pytest.param("add_prismatic_z", {}, JointPrismatic(axis=(0.0, 0.0, 1.0)), id="prismatic_z"),
+        pytest.param("add_spherical", {}, JointSpherical(), id="spherical"),
+        pytest.param("add_planar", {}, JointPlanar(), id="planar"),
         pytest.param(
             "add_helical",
             {"axis": torch.tensor([0.0, 0.0, 1.0]), "pitch": 0.25},
-            "helical",
+            JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.25),
             id="helical",
         ),
-        pytest.param("add_fixed", {}, "fixed", id="fixed"),
+        pytest.param("add_fixed", {}, JointFixed(), id="fixed"),
     ],
 )
-def test_named_joint_methods_build_and_run_fk(method, kwargs, expected_kind):
+def test_named_joint_methods_build_and_run_fk(method, kwargs, expected: JointModel):
     builder = ModelBuilder(method)
     base = builder.add_body("base")
     tip = builder.add_body("tip")
@@ -91,7 +89,7 @@ def test_named_joint_methods_build_and_run_fk(method, kwargs, expected_kind):
 
     model = build_model(builder.finalize())
 
-    assert model.joints[2].kind == expected_kind
+    assert model.joints[2] == expected
     _assert_fk_runs(model)
 
 
@@ -102,79 +100,71 @@ def test_add_free_flyer_root_builds_and_runs_fk():
 
     model = build_model(builder.finalize())
 
-    assert model.joints[1].kind == "free_flyer"
+    assert model.joints[1] == JointFreeFlyer()
     _assert_fk_runs(model)
 
 
-_JointFactory = Callable[[], JointModel]
-
-
+@final
 @dataclass(frozen=True)
-class _CustomRevolute(JointRX):
-    """Minimal out-of-tree-style JointModel with a non-built-in kind."""
+class _Slider(JointModel):
+    """An out-of-tree kind: a translation along ``-z`` (record 0025: a kind subclasses ``JointModel``)."""
 
-    kind: str = "custom_revolute"
+    nq: ClassVar[int] = 1
+    nv: ClassVar[int] = 1
+    manifold: ClassVar[Manifold] = EUCLIDEAN
+    axis: ClassVar[None] = None
+
+    def placement(self, q: torch.Tensor) -> torch.Tensor:
+        return se3.from_translation(torch.cat((q.new_zeros(*q.shape[:-1], 2), -q), dim=-1))
+
+    def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
+        return q.new_tensor([0.0, 0.0, -1.0, 0.0, 0.0, 0.0]).expand(*q.shape[:-1], 6).unsqueeze(-1)
+
+    def neutral(self) -> torch.Tensor:
+        return torch.zeros(1)
+
+    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        return lower + (upper - lower) * torch.rand(1, generator=generator)
 
 
 @pytest.mark.parametrize(
-    ("factory", "expected_kind"),
+    "factory",
     [
-        pytest.param(JointUniverse, "universe", id="universe"),
-        pytest.param(JointFixed, "fixed", id="fixed"),
-        pytest.param(JointRX, "revolute_rx", id="revolute_rx"),
-        pytest.param(JointRY, "revolute_ry", id="revolute_ry"),
-        pytest.param(JointRZ, "revolute_rz", id="revolute_rz"),
-        pytest.param(
-            lambda: JointRevoluteUnaligned(torch.tensor([1.0, 1.0, 0.0])),
-            "revolute_unaligned",
-            id="revolute_unaligned",
-        ),
-        pytest.param(JointRevoluteUnbounded, "revolute_unbounded", id="continuous"),
-        pytest.param(JointPX, "prismatic_px", id="prismatic_px"),
-        pytest.param(JointPY, "prismatic_py", id="prismatic_py"),
-        pytest.param(JointPZ, "prismatic_pz", id="prismatic_pz"),
-        pytest.param(
-            lambda: JointPrismaticUnaligned(torch.tensor([1.0, 1.0, 0.0])),
-            "prismatic_unaligned",
-            id="prismatic_unaligned",
-        ),
-        pytest.param(JointSpherical, "spherical", id="spherical"),
-        pytest.param(JointFreeFlyer, "free_flyer", id="free_flyer"),
-        pytest.param(JointPlanar, "planar", id="planar"),
-        pytest.param(JointTranslation, "translation", id="translation"),
-        pytest.param(
-            lambda: JointHelical(torch.tensor([0.0, 0.0, 1.0]), pitch=0.25),
-            "helical",
-            id="helical",
-        ),
-        pytest.param(
-            lambda: JointComposite((JointRX(), JointPX())),
-            "composite",
-            id="composite",
-        ),
-        pytest.param(_CustomRevolute, "custom_revolute", id="custom"),
+        pytest.param(JointFixed, id="fixed"),
+        pytest.param(lambda: JointRevolute(axis=(1.0, 1.0, 0.0)), id="revolute"),
+        pytest.param(lambda: JointRevoluteUnbounded(axis=(0.0, 0.0, 1.0)), id="continuous"),
+        pytest.param(lambda: JointPrismatic(axis=(1.0, 1.0, 0.0)), id="prismatic"),
+        pytest.param(JointSpherical, id="spherical"),
+        pytest.param(JointFreeFlyer, id="free_flyer"),
+        pytest.param(JointPlanar, id="planar"),
+        pytest.param(JointTranslation, id="translation"),
+        pytest.param(lambda: JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.25), id="helical"),
+        pytest.param(_Slider, id="custom"),
     ],
 )
-def test_joint_model_instances_round_trip_and_run_fk(
-    factory: _JointFactory,
-    expected_kind: str,
-):
+def test_joint_model_instances_round_trip_and_run_fk(factory: Callable[[], JointModel]):
     joint_model = factory()
-    builder = ModelBuilder(expected_kind)
+    builder = ModelBuilder(type(joint_model).__name__)
     base = builder.add_body("base")
     tip = builder.add_body("tip")
-    builder.add_joint(
-        "joint",
-        kind=joint_model,
-        parent=base,
-        child=tip,
-    )
+    builder.add_joint("joint", kind=joint_model, parent=base, child=tip)
 
     model = build_model(builder.finalize())
 
     assert model.joints[2] is joint_model
-    assert model.joints[2].kind == expected_kind
     _assert_fk_runs(model)
+
+
+def test_custom_kind_runs_through_fk():
+    builder = ModelBuilder("slider")
+    base = builder.add_body("base")
+    tip = builder.add_body("tip")
+    builder.add_joint("joint", kind=_Slider(), parent=base, child=tip)
+    model = build_model(builder.finalize())
+
+    state = forward_kinematics_state(model, torch.tensor([0.4]))
+
+    assert state.joint_pose[2, 2].item() == pytest.approx(-0.4)
 
 
 def test_named_helical_preserves_pitch_in_fk():
@@ -193,27 +183,5 @@ def test_named_helical_preserves_pitch_in_fk():
     q = torch.tensor([0.4])
     state = forward_kinematics_state(model, q)
 
-    assert isinstance(model.joints[2], JointHelical)
-    assert model.joints[2].pitch == pytest.approx(0.25)
+    assert model.joints[2] == JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.25)
     assert state.joint_pose[2, 2].item() == pytest.approx(0.1)
-
-
-def test_composite_derives_dimensions_and_runs_fk():
-    composite = JointComposite((JointRX(), JointPX()))
-    assert composite.nq == 2
-    assert composite.nv == 2
-
-    builder = ModelBuilder("composite")
-    base = builder.add_body("base")
-    tip = builder.add_body("tip")
-    builder.add_joint(
-        "joint",
-        kind=composite,
-        parent=base,
-        child=tip,
-        origin=_IDENTITY,
-    )
-    model = build_model(builder.finalize())
-
-    state = forward_kinematics_state(model, torch.tensor([0.2, 0.3]))
-    assert torch.isfinite(state.joint_pose).all()

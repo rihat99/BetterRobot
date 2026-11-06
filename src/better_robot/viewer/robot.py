@@ -12,7 +12,17 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from ..model.joint_dispatch import joint_axes
+from ..model.joints import (
+    JointFixed,
+    JointFreeFlyer,
+    JointHelical,
+    JointPlanar,
+    JointPrismatic,
+    JointRevolute,
+    JointRevoluteUnbounded,
+    JointSpherical,
+    JointTranslation,
+)
 from ._math import colormap, rotate
 from .layer import Layer
 from .layers.frames import FramesLayer
@@ -194,13 +204,24 @@ def _end_poses(
     return np.concatenate([joint_poses[:, joints, :3] + rotate(rotations, local), rotations], axis=-1), joints
 
 
+_KIND_WORD = {
+    JointRevolute: "revolute",
+    JointRevoluteUnbounded: "continuous",
+    JointPrismatic: "prismatic",
+    JointHelical: "helical",
+    JointSpherical: "spherical",
+    JointFreeFlyer: "free_flyer",
+    JointPlanar: "planar",
+    JointTranslation: "translation",
+    JointFixed: "fixed",
+}
+
+
 def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
-    """Joint kinds and axes ``(njoints - 1, 3)`` (joint frame; ``+z`` for joints without one) of joints 1..,
+    """Joint kind words and axes ``(njoints - 1, 3)`` (joint frame; ``+z`` for joints without one) of joints 1..,
     for ``SkeletonLayer(kinds=, axes=)``."""
-    # The packed table, not ``joint.axis``: JointRX/RY/RZ and PX/PY/PZ keep their axis in a ClassVar (axis None).
-    axes = joint_axes(model.joints)[1:].numpy().astype(np.float32)
-    axes[~np.any(axes, axis=-1)] = (0.0, 0.0, 1.0)  # zero rows: spherical, free-flyer, planar, fixed, ...
-    return [joint.kind for joint in model.joints[1:]], axes
+    axes = np.array([joint.axis or (0.0, 0.0, 1.0) for joint in model.joints[1:]], dtype=np.float32).reshape(-1, 3)
+    return [_KIND_WORD[type(joint)] for joint in model.joints[1:]], axes
 
 
 def spread_offsets(

@@ -16,7 +16,7 @@ from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.kinematics import subtree
 from better_robot.exceptions import ModelError
-from better_robot.model.joint_models import JointFreeFlyer
+from better_robot.model.joints import JointFixed, JointFreeFlyer, JointRevolute, JointRevoluteUnbounded, JointSpherical
 
 
 def _id7() -> torch.Tensor:
@@ -49,14 +49,14 @@ def test_frozen():
 def test_universe_joint_zero():
     model = build_model(_simple_arm_ir())
     assert model.joint_names[0] == "universe"
-    assert model.joints[0].kind == "universe"
+    assert model.joints[0] == JointFixed()
     assert model.parents[0] == -1
 
 
 def test_root_joint_is_fixed_by_default():
     model = build_model(_simple_arm_ir())
     assert model.joint_names[1] == "root_joint"
-    assert model.joints[1].kind == "fixed"
+    assert model.joints[1] == JointFixed()
     assert model.parents[1] == 0
 
 
@@ -203,18 +203,18 @@ def _spherical_model():
 
 
 @pytest.mark.parametrize(
-    "make_model, joint_index, kind, nq, nv",
+    "make_model, joint_index, cls, nq, nv",
     [
         # joint index 2 = j1 (revolute around Z)
-        pytest.param(lambda: build_model(_simple_arm_ir()), 2, "revolute_rz", 1, 1, id="revolute_z"),
-        pytest.param(_unaligned_model, 2, "revolute_unaligned", 1, 1, id="revolute_unaligned"),
-        pytest.param(_continuous_model, 2, "revolute_unbounded", 2, 1, id="continuous"),  # nq = cos,sin
-        pytest.param(_spherical_model, 2, "spherical", 4, 3, id="spherical"),
+        pytest.param(lambda: build_model(_simple_arm_ir()), 2, JointRevolute, 1, 1, id="revolute_z"),
+        pytest.param(_unaligned_model, 2, JointRevolute, 1, 1, id="revolute_unaligned"),
+        pytest.param(_continuous_model, 2, JointRevoluteUnbounded, 2, 1, id="continuous"),  # nq = cos,sin
+        pytest.param(_spherical_model, 2, JointSpherical, 4, 3, id="spherical"),
         # nq = 7 (free flyer) + 1 (revolute) = 8
         pytest.param(
             lambda: build_model(_simple_arm_ir(), root_joint=JointFreeFlyer()),
             1,
-            "free_flyer",
+            JointFreeFlyer,
             8,
             7,
             id="free_flyer_root",
@@ -222,16 +222,16 @@ def _spherical_model():
         pytest.param(
             lambda: br_io.load(_simple_arm_ir, free_flyer=True),
             1,
-            "free_flyer",
+            JointFreeFlyer,
             8,
             7,
             id="free_flyer_shortcut_via_load",
         ),
     ],
 )
-def test_joint_kind_mapping(make_model, joint_index, kind, nq, nv):
+def test_joint_kind_mapping(make_model, joint_index, cls, nq, nv):
     model = make_model()
-    assert model.joints[joint_index].kind == kind
+    assert isinstance(model.joints[joint_index], cls)
     assert model.nq == nq
     assert model.nv == nv
 
