@@ -24,13 +24,12 @@ The core has no viewer, no MuJoCo and no robot assets. You add those through ext
 | `io-mjcf` | `mujoco` | loading MJCF (`.xml`) models |
 | `meshes` | `trimesh` | loading visual and collision meshes |
 | `demos` | `robot_descriptions` | the Panda and G1 models used in these tutorials |
-| `dev` | pytest, Pinocchio, ruff, mkdocs, ... | running the tests and building these docs |
 
 The tutorials use `demos`, `meshes` and `viewer`:
 
 ```bash
 uv sync --extra demos --extra meshes --extra viewer
-uv sync --all-extras         # everything, including dev
+uv sync --all-extras --all-groups   # everything, plus the dev and test-oracles groups
 ```
 
 ## Get a CUDA build of PyTorch

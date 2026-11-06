@@ -19,7 +19,7 @@ git clone https://github.com/rihat99/BetterRobot
 cd BetterRobot
 uv sync                                               # torch, numpy, URDF loading
 uv sync --extra demos --extra viewer --extra meshes   # example robots, browser viewer, mesh rendering
-uv sync --extra dev                                   # tests, benchmarks, docs, lint
+uv sync --all-extras --all-groups                     # plus tests, oracles, benchmarks, docs, lint
 ```
 
 ## Solve 64 IK problems at once

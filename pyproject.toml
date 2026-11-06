@@ -24,24 +24,22 @@ viewer = ["viser>=1.0.18"]
 io-mjcf = ["mujoco>=3.1"]
 meshes = ["trimesh>=4.0.0"]
 demos = ["robot_descriptions>=1.0.0"]
+
+[dependency-groups]
 dev = [
+    "ruff",
     "pytest>=8.0",
-    "pytest-cov>=5",
-    "pytest-xdist>=3",
     "pytest-benchmark>=4",
-    "scipy>=1.11",
-    "hypothesis>=6.100",
-    "pin>=2.7",
-    "pyperf>=2.7",
+    "coverage>=7",
+    "pyright",
+    "pre-commit>=3.7",
     "mkdocs>=1.6,<2",
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.26",
-    "matplotlib>=3.8",
-    "ruff",
-    "pyright",
-    "mypy>=1.10",
-    "pre-commit>=3.7",
-    "jaxtyping>=0.2.30",
+]
+test-oracles = [
+    "pin>=2.7",
+    "scipy>=1.11",
 ]
 
 [[tool.uv.index]]
@@ -92,15 +90,6 @@ ignore = ["E501", "PLR0913", "PLR2004"]
 "torch.manual_seed".msg = "C-DEP-3: no process-wide RNG seeding inside the library; take a generator"
 "torch.set_num_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
 "torch.set_num_interop_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
-
-[tool.mypy]
-python_version = "3.10"
-strict = false
-warn_unused_configs = true
-warn_unreachable = true
-no_implicit_optional = true
-disallow_untyped_defs = false
-files = ["src/better_robot"]
 
 [tool.coverage.run]
 branch = true
