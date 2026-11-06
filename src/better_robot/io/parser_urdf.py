@@ -17,15 +17,15 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from ..ir import IRBody, IRGeom, IRJoint, IRModel
+from .ir import IRBody, IRGeom, IRJoint, IRModel
 
 if TYPE_CHECKING:
-    from ..assets import AssetResolver
+    from .assets import AssetResolver
 
 
 def _mat4_to_se3(T: np.ndarray) -> torch.Tensor:
     """Convert a 4×4 homogeneous numpy matrix to ``[tx,ty,tz,qx,qy,qz,qw]``."""
-    from ...lie.so3 import from_matrix as _so3_from_matrix
+    from ..lie.so3 import from_matrix as _so3_from_matrix
 
     t = torch.tensor(T[:3, 3].astype(np.float64))
     R = torch.from_numpy(T[:3, :3].astype(np.float64))
@@ -159,14 +159,14 @@ def parse_urdf(
     try:
         import yourdfpy
     except ImportError as exc:
-        from ...exceptions import OptionalDependencyError
+        from ..exceptions import OptionalDependencyError
 
         raise OptionalDependencyError("yourdfpy", install="uv sync") from exc
 
     if isinstance(source, (str, Path)):
         urdf = yourdfpy.URDF.load(str(source))
         if resolver is None:
-            from ..assets import FilesystemResolver
+            from .assets import FilesystemResolver
 
             resolver = FilesystemResolver(base_path=Path(source).parent)
     else:

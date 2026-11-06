@@ -15,7 +15,7 @@ import torch
 import yourdfpy
 
 from better_robot.io import load
-from better_robot.io.parsers.urdf import parse_urdf
+from better_robot.io.parser_urdf import parse_urdf
 from better_robot.model.joints import JointFixed, JointFreeFlyer, JointPrismatic, JointRevolute
 from tests.support.robots import g1_urdf, panda_urdf
 

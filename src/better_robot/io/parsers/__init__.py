@@ -7,6 +7,6 @@ from __future__ import annotations
 
 from ..parser_mjcf import parse_mjcf
 from .programmatic import ModelBuilder
-from .urdf import parse_urdf
+from ..parser_urdf import parse_urdf
 
 __all__ = ["parse_urdf", "parse_mjcf", "ModelBuilder"]
