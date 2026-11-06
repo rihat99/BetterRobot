@@ -1,40 +1,95 @@
-"""No test skips or xfails: a gate that cannot run fails (principle 6.5, decision record 0033).
+"""No test skips or xfails, whatever spells it: ``tests/conftest.py`` fails each one (principle 6.5, record 0033).
 
-A test that needs what the fast and full tiers lack (a GPU) carries the ``cuda`` marker, which deselects it there;
-a missing oracle or fixture is an error. The scan is an AST walk of every Python file under ``tests/``, so a skip
-spelled in a string or a comment does not count.
+A test that needs what the fast and full tiers lack (a GPU) carries the ``cuda`` marker, which deselects it there; a
+missing oracle, fixture or browser is an error. The hooks read the test reports, so an aliased ``pytest``, a
+``unittest`` skip or a non-strict ``xfail`` fails like a plain ``pytest.skip``. These cases plant each spelling in a
+scratch suite that runs under a copy of this repository's ``tests/conftest.py``.
 """
 
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 
 import pytest
 
-TESTS = Path(__file__).resolve().parents[1]
-BANNED = {"skip", "skipif", "importorskip", "xfail"}
+pytest_plugins = ["pytester"]
+
+CONFTEST = Path(__file__).resolve().parents[1] / "conftest.py"
+PLANTED = """
+import unittest
+
+import pytest
+import pytest as pt
+from pytest import mark
 
 
-def _skips(file: Path) -> list[str]:
-    """``<line>: <spelling>`` of every pytest skip or xfail in ``file``: calls, marks and ``from pytest import``."""
-    found: list[str] = []
-    for node in ast.walk(ast.parse(file.read_text())):
-        if (
-            isinstance(node, ast.Attribute)
-            and node.attr in BANNED
-            and ast.unparse(node.value) in {"pytest", "pytest.mark", "mark"}
-        ):
-            found.append(f"{node.lineno}: {ast.unparse(node)}")
-        elif isinstance(node, ast.ImportFrom) and node.module == "pytest":
-            found.extend(
-                f"{node.lineno}: from pytest import {alias.name}" for alias in node.names if alias.name in BANNED
-            )
-    return found
+def test_skip_call():
+    pytest.skip("planted")
 
 
-@pytest.mark.parametrize("file", sorted(TESTS.rglob("*.py")), ids=lambda p: str(p.relative_to(TESTS)))
-def test_no_skip_or_xfail(file: Path) -> None:
-    """A skip or xfail reports green while checking nothing; mark a GPU test ``cuda`` and let anything else fail."""
-    found = _skips(file)
-    assert not found, f"{file.relative_to(TESTS)} skips or xfails:\n  " + "\n  ".join(found)
+@pt.mark.skipif(True, reason="planted")
+def test_skipif_aliased_pytest():
+    pass
+
+
+@mark.skip(reason="planted")
+def test_skip_imported_mark():
+    pass
+
+
+def test_importorskip():
+    pytest.importorskip("a_module_that_does_not_exist")
+
+
+@pytest.fixture
+def skipping_fixture():
+    pytest.skip("planted")
+
+
+def test_skip_in_fixture(skipping_fixture):
+    pass
+
+
+@unittest.skip("planted")
+def test_unittest_skip_decorator():
+    pass
+
+
+def test_raise_skiptest():
+    raise unittest.SkipTest("planted")
+
+
+class TestCase(unittest.TestCase):
+    def test_skiptest_method(self):
+        self.skipTest("planted")
+
+
+@pytest.mark.xfail(reason="planted")
+def test_xfail_that_fails():
+    raise AssertionError
+
+
+@pytest.mark.xfail(reason="planted", strict=False)
+def test_xfail_that_passes():
+    pass
+
+
+def test_xfail_call():
+    pytest.xfail("planted")
+"""
+
+
+def test_every_skip_or_xfail_spelling_fails(pytester: pytest.Pytester) -> None:
+    """All eleven planted tests fail; the three that skip in setup (two marks, a fixture) report as errors."""
+    pytester.makeconftest(CONFTEST.read_text())
+    pytester.makepyfile(test_planted=PLANTED)
+    result = pytester.runpytest("-p", "no:cacheprovider")
+    assert result.parseoutcomes() == {"failed": 8, "errors": 3}, result.outlines
+
+
+def test_a_module_skipped_at_collection_fails(pytester: pytest.Pytester) -> None:
+    """A module-level ``importorskip`` is a collection error, not a skipped module."""
+    pytester.makeconftest(CONFTEST.read_text())
+    pytester.makepyfile(test_planted='import pytest\n\npytest.importorskip("a_module_that_does_not_exist")\n')
+    result = pytester.runpytest("-p", "no:cacheprovider")
+    assert result.parseoutcomes() == {"errors": 1}, result.outlines

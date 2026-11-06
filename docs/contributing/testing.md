@@ -25,7 +25,8 @@ While you edit one package, run the fast tier plus that package's folder, for ex
 | `cuda` | needs a CUDA device; deselected in the fast and full tiers |
 | `bench` | micro-benchmarks in `tests/bench/`; deselected in every tier |
 
-Nothing skips: a missing oracle, fixture or browser fails the test (`tests/contract/test_no_skips.py`). The test
+Nothing skips: hooks in `tests/conftest.py` turn every skip or xfail into a failure, whatever spells it, so a missing
+oracle, fixture or browser fails the test (`tests/contract/test_no_skips.py` plants each spelling). The test
 robots are tracked under `tests/fixtures/robots/`, so the suite runs offline. One full-tier test,
 `tests/viewer/test_capture.py::test_record_screenshots_a_real_scene`, screenshots a real scene through a headless
 Chromium: put `chromium`, `google-chrome` or `chrome-headless-shell` on `PATH`, or point `BETTER_ROBOT_CHROME` at
@@ -60,7 +61,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_hot_path_lint.py` | no `torch.compile`-breaking patterns (host syncs, `.item()`, Python branching on tensors) in kinematics and dynamics |
 | `test_naming.py` | old Pinocchio-style storage names do not come back |
 | `test_optional_imports.py` | each optional package is imported only in its boundary module |
-| `test_no_skips.py` | no test skips or xfails |
+| `test_no_skips.py` | the conftest hooks fail every skip and xfail, whatever spells it |
 | `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
 | `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |
 | `test_fixtures.py` | every test robot has its licence and provenance |
