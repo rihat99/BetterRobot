@@ -1,6 +1,6 @@
 # 0008 Geometry is a separate brick
 
-**Status:** Accepted · **Date:** 2026-10-08
+**Status:** Superseded by 0016 · **Date:** 2026-10-08
 
 ## Context
 `collision` today approximates the robot by `RobotSpheres` built by hand, and returns scalar signed distances.

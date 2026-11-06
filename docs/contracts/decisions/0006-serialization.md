@@ -1,6 +1,6 @@
 # 0006 Serialization and format versioning of Model and IR
 
-**Status:** Proposed · **Date:** 2026-10-07
+**Status:** Superseded by 0032 · **Date:** 2026-10-07
 
 ## Context
 A `Model` is built from URDF, MJCF or the programmatic builder through the `io` intermediate representation

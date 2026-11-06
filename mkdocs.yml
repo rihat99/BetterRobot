@@ -161,6 +161,37 @@ nav:
           - 0006 Serialization: contracts/decisions/0006-serialization.md
           - 0007 Derivatives contract: contracts/decisions/0007-derivatives-contract.md
           - 0008 Geometry brick: contracts/decisions/0008-geometry-brick.md
+          - 0009 Model flat frozen record: contracts/decisions/0009-model-flat-frozen-record.md
+          - 0010 Equality and hashing: contracts/decisions/0010-equality-and-hashing.md
+          - 0011 Caches and plans: contracts/decisions/0011-caches-and-plans.md
+          - 0012 One joint order: contracts/decisions/0012-one-joint-order.md
+          - 0013 Joint kinds: contracts/decisions/0013-joint-kinds.md
+          - 0014 Tensor functions for lie and spatial: contracts/decisions/0014-tensor-functions-for-lie-and-spatial.md
+          - 0015 io entry points: contracts/decisions/0015-io-entry-points.md
+          - 0016 Geometry out of model: contracts/decisions/0016-geometry-out-of-model.md
+          - 0017 optim API: contracts/decisions/0017-optim-api.md
+          - 0018 Frame names: contracts/decisions/0018-frame-names.md
+          - 0019 Root namespace: contracts/decisions/0019-root-namespace.md
+          - 0020 Error tree: contracts/decisions/0020-error-tree.md
+          - 0021 Validation ladder: contracts/decisions/0021-validation-ladder.md
+          - 0022 Viewer boundary: contracts/decisions/0022-viewer-boundary.md
+          - 0023 Naming sweep: contracts/decisions/0023-naming-sweep.md
+          - 0024 Surface trim: contracts/decisions/0024-surface-trim.md
+          - 0025 Extension model: contracts/decisions/0025-extension-model.md
+          - 0026 Coupling standard page: contracts/decisions/0026-coupling-standard-page.md
+          - 0027 Shared vocabulary: contracts/decisions/0027-shared-vocabulary.md
+          - 0028 Batch axes: contracts/decisions/0028-batch-axes.md
+          - 0029 Frames and identifiers: contracts/decisions/0029-frames-and-identifiers.md
+          - 0030 Formats in the standard: contracts/decisions/0030-formats-in-the-standard.md
+          - 0031 Error vocabulary across the stack: contracts/decisions/0031-error-vocabulary-across-the-stack.md
+          - 0032 BR serialization non-goal: contracts/decisions/0032-br-serialization-non-goal.md
+          - 0033 Test tiers: contracts/decisions/0033-test-tiers.md
+          - 0034 Python 3.12: contracts/decisions/0034-python-312.md
+          - 0035 Shared testing module: contracts/decisions/0035-shared-testing-module.md
+          - 0036 MJCF compile through MuJoCo: contracts/decisions/0036-mjcf-compile-through-mujoco.md
+          - 0037 URDF typed adapter: contracts/decisions/0037-urdf-typed-adapter.md
+          - 0038 Remove downloader and registry: contracts/decisions/0038-remove-downloader-and-registry.md
+          - 0039 Test robot fixtures: contracts/decisions/0039-test-robot-fixtures.md
   - Contributing:
       - contributing/testing.md
       - contributing/extending.md
