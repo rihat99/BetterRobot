@@ -1,6 +1,6 @@
 """Face-table topology helpers for closed triangle meshes.
 
-Companions to ``Inertia.from_mesh``. That integrator
+Companions to ``inertia_of_mesh``. That integrator
 folds a single *global* winding sign but trusts every face to already agree on
 orientation; it silently returns a wrong result for a surface whose faces are
 inconsistently wound. These helpers operate on the **integer face table only**
@@ -169,7 +169,7 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
     connected component, this walks the face-adjacency graph over shared edges
     and reverses any neighbour that would otherwise traverse the shared edge in
     the same direction. Only the integer vertex order of each row changes, so
-    the result plugs directly into ``Inertia.from_mesh``, which then folds
+    the result plugs directly into ``inertia_of_mesh``, which then folds
     the remaining single global winding sign from the enclosed volume.
 
     The graph walk runs on the host, which is appropriate for a spawn-time
@@ -186,7 +186,7 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
     torch.Tensor
         A ``(F, 3)`` table on the input device and dtype. Each connected
         component is internally consistent (all faces agree on winding). A
-        single closed surface is exactly what ``Inertia.from_mesh``
+        single closed surface is exactly what ``inertia_of_mesh``
         expects; integrate disjoint components separately, because their
         relative orientation is undetermined by topology alone.
 
@@ -221,7 +221,7 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
     two-manifold patch becomes a connected component. Every component is first
     made internally consistent and then flipped, if needed, so its mean-centered
     signed volume is non-negative — i.e. every component faces outward. Passing
-    the result to ``Inertia.from_mesh`` (with the same ``vertices``) then
+    the result to ``inertia_of_mesh`` (with the same ``vertices``) then
     needs no global sign fold and the component volumes add constructively.
 
     Only the integer face table changes, so the orientation is a one-time
@@ -233,7 +233,7 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
     vertices
         Floating tensor shaped ``(V, 3)`` giving the reference (rest) geometry
         the face table indexes. It is used only to sign each component's
-        volume; it is mean-centered exactly as ``Inertia.from_mesh``
+        volume; it is mean-centered exactly as ``inertia_of_mesh``
         centers, so pass the same vertex array to both.
     faces
         Integer triangle table shaped ``(F, 3)``.
@@ -267,7 +267,7 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
     component_id = torch.tensor(component, device=vertices.device)  # (F,)
 
     # Signed tetrahedron volume per face after the topological reorientation,
-    # centered like ``Inertia.from_mesh`` so an open component's sign is stable.
+    # centered like ``inertia_of_mesh`` so an open component's sign is stable.
     face_indices = faces.to(device=vertices.device, dtype=torch.long)
     centered = vertices - vertices.mean(dim=0)
     a, b, c = centered[face_indices].unbind(dim=1)

@@ -39,9 +39,11 @@ def test_se3_log_exp_round_trip(theta) -> None:
     torch.testing.assert_close(xi_out, xi_in, atol=1e-9, rtol=1e-9)
 
 
-def test_se3_log_finite_at_theta_zero() -> None:
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_se3_log_finite_at_theta_zero(seed: int) -> None:
     """``∇log`` near θ=0 stays finite."""
-    xi = (torch.randn(6, dtype=torch.float64) * 1e-7).requires_grad_(True)
+    generator = torch.Generator().manual_seed(seed)
+    xi = (torch.randn(6, generator=generator, dtype=torch.float64) * 1e-7).requires_grad_(True)
     T = se3.exp(xi)
     xi_back = se3.log(T)
     loss = (xi_back**2).sum()

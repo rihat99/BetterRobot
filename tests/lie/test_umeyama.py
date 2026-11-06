@@ -94,8 +94,9 @@ def test_umeyama_gradients_are_finite() -> None:
 
 
 def test_umeyama_rejects_mismatched_dtypes() -> None:
-    source = torch.randn((5, 3), dtype=torch.float32)
-    target = torch.randn((5, 3), dtype=torch.float64)
+    generator = torch.Generator().manual_seed(3)
+    source = torch.randn((5, 3), generator=generator, dtype=torch.float32)
+    target = torch.randn((5, 3), generator=generator, dtype=torch.float64)
 
     with pytest.raises(ValueError, match="source and target must share dtype and device"):
         umeyama(source, target)
@@ -106,8 +107,9 @@ def test_umeyama_rejects_mismatched_dtypes() -> None:
 
 @pytest.mark.cuda
 def test_umeyama_rejects_mismatched_devices() -> None:
-    source = torch.randn((5, 3), device="cpu")
-    target = torch.randn((5, 3), device="cuda")
+    generator = torch.Generator().manual_seed(4)
+    source = torch.randn((5, 3), generator=generator)
+    target = torch.randn((5, 3), generator=generator).to("cuda")
 
     with pytest.raises(ValueError, match="source and target must share dtype and device"):
         umeyama(source, target)
@@ -118,8 +120,9 @@ def test_umeyama_rejects_mismatched_devices() -> None:
 
 @pytest.mark.parametrize(("input_name", "nonfinite"), [("source", torch.nan), ("target", torch.inf)])
 def test_umeyama_rejects_nonfinite_point_inputs(input_name: str, nonfinite: float) -> None:
-    source = torch.randn((5, 3))
-    target = torch.randn((5, 3))
+    generator = torch.Generator().manual_seed(6)
+    source = torch.randn((5, 3), generator=generator)
+    target = torch.randn((5, 3), generator=generator)
     value = source if input_name == "source" else target
     value[0, 0] = nonfinite
 
@@ -129,7 +132,7 @@ def test_umeyama_rejects_nonfinite_point_inputs(input_name: str, nonfinite: floa
 
 @pytest.mark.parametrize("nonfinite", [torch.nan, torch.inf, -torch.inf])
 def test_umeyama_rejects_nonfinite_weights(nonfinite: float) -> None:
-    source = torch.randn((5, 3))
+    source = torch.randn((5, 3), generator=torch.Generator().manual_seed(7))
     weights = torch.ones(5)
     weights[0] = nonfinite
 

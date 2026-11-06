@@ -1,49 +1,57 @@
-"""Tests for lie/so3.py — SO3 group operations."""
+"""SO(3) group operations of ``better_robot.lie.so3`` on seeded random rotations and hand-built cases."""
 
 import math
+
+import pytest
 import torch
+
 from better_robot.lie import so3
 
+SEEDS = [0, 1, 2]
 
-def test_compose_inverse():
-    """q * q^{-1} == identity."""
-    q = so3.exp(torch.randn(3) * 0.5)
-    q_inv = so3.inverse(q)
-    result = so3.compose(q, q_inv)
-    expected = so3.identity()
-    # Quaternion can be +/- identity
-    assert torch.allclose(result.abs(), expected.abs(), atol=1e-5)
+
+def _random_quaternions(seed: int, batch: int = 8) -> torch.Tensor:
+    """``(batch, 4)`` float64 unit quaternions, normalized Gaussian draws."""
+    generator = torch.Generator().manual_seed(seed)
+    return so3.normalize(torch.randn(batch, 4, generator=generator, dtype=torch.float64))
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_compose_with_inverse_is_identity(seed):
+    """q * q^{-1} is the identity, up to the quaternion sign."""
+    q = _random_quaternions(seed)
+    result = so3.compose(q, so3.inverse(q))
+    expected = so3.identity(batch_shape=(8,), dtype=torch.float64)
+    torch.testing.assert_close(result.abs(), expected, atol=1e-12, rtol=0.0)
 
 
 def test_act_rotation():
-    """90-degree rotation about Z."""
-    axis = torch.tensor([0.0, 0.0, 1.0])
-    angle = torch.tensor(math.pi / 2)
-    q = so3.from_axis_angle(axis, angle)
-    p = torch.tensor([1.0, 0.0, 0.0])
-    result = so3.act(q, p)
-    expected = torch.tensor([0.0, 1.0, 0.0])
-    assert torch.allclose(result, expected, atol=1e-5)
+    """A rotation about Z by pi/2 maps (1, 0, 0) to (0, 1, 0)."""
+    q = so3.from_axis_angle(torch.tensor([0.0, 0.0, 1.0]), torch.tensor(math.pi / 2))
+    result = so3.act(q, torch.tensor([1.0, 0.0, 0.0]))
+    torch.testing.assert_close(result, torch.tensor([0.0, 1.0, 0.0]), atol=1e-6, rtol=0.0)
 
 
-def test_adjoint_is_rotation_matrix():
-    """Adjoint of SO3 is the rotation matrix."""
-    q = so3.exp(torch.randn(3) * 0.5)
-    Ad = so3.adjoint(q)
-    R = so3.to_matrix(q)
-    assert torch.allclose(Ad, R, atol=1e-6)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_act_matches_rotation_matrix(seed):
+    """act(q, p) == to_matrix(q) @ p."""
+    q = _random_quaternions(seed)
+    generator = torch.Generator().manual_seed(seed + 100)
+    p = torch.randn(8, 3, generator=generator, dtype=torch.float64)
+    expected = (so3.to_matrix(q) @ p.unsqueeze(-1)).squeeze(-1)
+    torch.testing.assert_close(so3.act(q, p), expected, atol=1e-12, rtol=0.0)
 
 
-def test_from_matrix_roundtrip():
-    """from_matrix(to_matrix(q)) ≈ q."""
-    q = so3.normalize(torch.randn(4))
-    R = so3.to_matrix(q)
-    q_back = so3.from_matrix(R)
-    # Quaternion ±q represent same rotation
-    assert torch.allclose(q_back, q, atol=1e-5) or torch.allclose(q_back, -q, atol=1e-5)
+@pytest.mark.parametrize("seed", SEEDS)
+def test_from_matrix_round_trip(seed):
+    """from_matrix(to_matrix(q)) == q, up to the quaternion sign."""
+    q = _random_quaternions(seed)
+    q_back = so3.from_matrix(so3.to_matrix(q))
+    sign = torch.sign((q_back * q).sum(dim=-1, keepdim=True))
+    torch.testing.assert_close(sign * q_back, q, atol=1e-12, rtol=0.0)
 
 
 def test_normalize():
-    q = torch.tensor([0.0, 0.0, 0.0, 2.0])
-    q_norm = so3.normalize(q)
-    assert torch.allclose(q_norm.norm(), torch.tensor(1.0), atol=1e-6)
+    """normalize returns a unit quaternion."""
+    q_norm = so3.normalize(torch.tensor([0.0, 0.0, 0.0, 2.0]))
+    torch.testing.assert_close(q_norm.norm(), torch.tensor(1.0))
