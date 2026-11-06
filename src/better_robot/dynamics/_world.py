@@ -17,10 +17,12 @@ negligible up to a few hundred joints. Forward dynamics solves ``M ddq = τ - b`
 recursion is sequential in the tree depth and gains nothing in batched torch for ``nv`` up to a few hundred, and with
 mimic joints the projected equations are the only correct form.
 
-World geometry is derived per call, never memoised by dynamics: `world_kinematics` reads the state's memoised column
-table (about the world origin) and moves it to a reference origin with one cross product. All world quantities are
-taken about that origin, the first joint's position in each sample, so lever arms stay of the robot's size and float32
-accuracy does not degrade far from the world origin (G1 at 100 m: mass matrix within 4.8e-6 of float64).
+The world geometry (`world_geometry`) is the state's memoised column table (about the world origin) moved to a
+reference origin with one cross product, with the joint rotations and origins; it is memoised on the state through
+its one writer, keyed by grad mode, so dynamics calls on one state (`forward_dynamics` makes two) derive it once
+(record 0011, note 2026-11-06). All world quantities are taken about that origin, the first joint's position in each
+sample, so lever arms stay of the robot's size and float32 accuracy does not degrade far from the world origin (G1 at
+100 m: mass matrix within 4.8e-6 of float64).
 
 * RNEA forms wrenches in the joint frames, where the inertia is constant; CRBA needs the world inertia (`spatial`'s
   packed inertia rotated by ``R I_c Rᵀ``, then its 6x6 matrix).
@@ -135,20 +137,35 @@ class WorldKinematics:
         return inertia_matrix_raw(torch.cat((mass, com_world, *upper), dim=-1))
 
 
-def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
-    """World-frame quantities of ``state`` about each sample's first joint, derived on every call.
+def world_geometry(
+    model: Model, state: KinematicState
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The state-only fields of `WorldKinematics`: ``(columns, rotations, translations, origin)``.
 
-    The columns are the state's memoised `KinematicState.jacobian_columns` (about the world origin) moved to the
-    reference origin with one cross product: a column's linear part is the velocity of the point at the world origin,
-    so at ``origin`` it is ``linear + angular × origin``. The ``6x6`` inertias are memoised on the model by grad mode
-    (record 0040); a batched model's inertias are broadcast to the flattened batch.
+    Shapes ``(N, 6, nv_full)``, ``(N, njoints, 3, 3)``, ``(N, njoints, 3)`` and ``(N, 3)``, the state's batch flattened
+    to ``N``. The columns are the state's memoised `KinematicState.jacobian_columns` (about the world origin) moved to
+    the reference origin with one cross product: a column's linear part is the velocity of the point at the world
+    origin, so at ``origin`` it is ``linear + angular × origin``.
     """
-    batch = tuple(state.q.shape[:-1])
-    count, nj = math.prod(batch), model.njoints
+    count, nj = math.prod(state.q.shape[:-1]), model.njoints
     transforms = state.joint_transforms.reshape(count, nj, 3, 4)
     origin = transforms[:, min(1, nj - 1), :, 3]
     columns = state.jacobian_columns.reshape(count, 6, model.nv_full)
     linear = columns[:, :3] + torch.linalg.cross(columns[:, 3:], origin.unsqueeze(-1), dim=-2)
+    columns = torch.cat((linear, columns[:, 3:]), dim=-2)
+    return columns, transforms[..., :3], transforms[..., 3] - origin.unsqueeze(-2), origin
+
+
+def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
+    """World-frame quantities of ``state`` about each sample's first joint.
+
+    The geometry (`world_geometry`) is memoised on the state under ``"world_geometry"`` by its one writer, keyed by
+    grad mode. The inertias come from ``model`` on every call (their ``6x6`` form memoised on the model by grad mode,
+    record 0040); a batched model's inertias are broadcast to the flattened batch.
+    """
+    batch = tuple(state.q.shape[:-1])
+    columns, rotations, translations, origin = state._memoised("world_geometry", lambda: world_geometry(model, state))
+    count, nj = math.prod(batch), model.njoints
     body_inertias = model.body_inertias
     inertias = model._value("spatial_inertias", lambda m: inertia_matrix_raw(m.body_inertias))
     if body_inertias.ndim > 2:
@@ -157,9 +174,9 @@ def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
     return WorldKinematics(
         batch=batch,
         plan=dynamics_plan(model, dtype=state.q.dtype, device=state.q.device),
-        columns=torch.cat((linear, columns[:, 3:]), dim=-2),
-        rotations=transforms[..., :3],
-        translations=transforms[..., 3] - origin.unsqueeze(-2),
+        columns=columns,
+        rotations=rotations,
+        translations=translations,
         origin=origin,
         inertias=inertias,
         body_inertias=body_inertias,
@@ -255,5 +272,6 @@ __all__ = [
     "inverse_dynamics_full",
     "mass_matrix_full",
     "momentum_columns",
+    "world_geometry",
     "world_kinematics",
 ]
