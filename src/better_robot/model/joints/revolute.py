@@ -62,5 +62,6 @@ class JointRevoluteUnbounded(JointModel):
         return torch.tensor([1.0, 0.0])
 
     def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        angle = (torch.rand(1, generator=generator) * 2.0 - 1.0) * torch.pi
+        # Drawn in the limits' dtype: a float32 (cos, sin) pair cast to float64 is not unit.
+        angle = (torch.rand(1, generator=generator, dtype=lower.dtype) * 2.0 - 1.0) * torch.pi
         return torch.cat((torch.cos(angle), torch.sin(angle)))

@@ -41,5 +41,6 @@ class JointPlanar(JointModel):
         """``x`` and ``y`` uniform inside their limits, ``θ`` uniform on the circle."""
         x = lower[0] + (upper[0] - lower[0]) * torch.rand(1, generator=generator)
         y = lower[1] + (upper[1] - lower[1]) * torch.rand(1, generator=generator)
-        angle = (torch.rand(1, generator=generator) * 2.0 - 1.0) * torch.pi
+        # Drawn in the limits' dtype: a float32 (cos, sin) pair cast to float64 is not unit.
+        angle = (torch.rand(1, generator=generator, dtype=lower.dtype) * 2.0 - 1.0) * torch.pi
         return torch.cat((x, y, torch.cos(angle), torch.sin(angle)))

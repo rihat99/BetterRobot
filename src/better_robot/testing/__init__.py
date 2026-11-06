@@ -1,13 +1,14 @@
-"""Repository checks shared by BetterRobot's and BetterHuman's test suites (decision record 0035).
+"""Checks shared by BetterRobot's and BetterHuman's test suites (decision records 0013 and 0035).
 
 ``imported_packages`` walks every import of a package for its edge-table test; ``dead_citations`` resolves every
-repository path cited in tracked text (principle 7.8). Both use the standard library only, so importing this module
-pulls in neither pytest nor an optional dependency.
+repository path cited in tracked text (principle 7.8); ``check_joint_model`` checks a joint kind against the
+`JointModel` contract. None imports pytest or an optional dependency.
 """
 
 from __future__ import annotations
 
 from .citations import dead_citations
 from .import_edges import imported_packages
+from .joints import check_joint_model
 
-__all__ = ["dead_citations", "imported_packages"]
+__all__ = ["check_joint_model", "dead_citations", "imported_packages"]
