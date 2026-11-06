@@ -1,4 +1,4 @@
-"""The two tracked test robots (decision record 0039), loaded by path so that every test runs offline.
+"""The two tracked test robots (decision record 0039), loaded by path so that the tests using them run offline.
 
 Source, licence and changes of each robot: ``tests/fixtures/robots/panda/README.md``,
 ``tests/fixtures/robots/g1/README.md``.

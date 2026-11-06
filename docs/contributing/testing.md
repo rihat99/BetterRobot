@@ -27,7 +27,10 @@ While you edit one package, run the fast tier plus that package's folder, for ex
 
 Nothing skips: hooks in `tests/conftest.py` turn every skip or xfail into a failure, whatever spells it, so a missing
 oracle, fixture or browser fails the test (`tests/contract/test_no_skips.py` plants each spelling). The test
-robots are tracked under `tests/fixtures/robots/`, so the suite runs offline. One full-tier test,
+robots are tracked under `tests/fixtures/robots/`, so the unit, contract and parity tests run offline. The full tier
+does not: the docs pages (`tests/docs/test_snippets.py`), the examples (`tests/examples/test_examples_run.py`) and the
+benchmark smoke test (`tests/bench/test_run_smoke.py`) load robots through `robot_descriptions`, which downloads each
+robot into `~/.cache` on first use and needs that cache from then on. One full-tier test,
 `tests/viewer/test_capture.py::test_record_screenshots_a_real_scene`, screenshots a real scene through a headless
 Chromium: put `chromium`, `google-chrome` or `chrome-headless-shell` on `PATH`, or point `BETTER_ROBOT_CHROME` at
 one. On a machine without `libasound.so.2` Chromium exits at start; point `BETTER_ROBOT_CHROME` at a wrapper script
