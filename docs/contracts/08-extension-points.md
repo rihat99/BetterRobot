@@ -51,7 +51,8 @@ register_joint("revolute", JointRevolute)
 ```
 
 Enforcement: `tests/contract/test_abstract_or_final.py` (every class in `model.joints` and `model.manifolds` is
-abstract or final, every kind a frozen `JointModel`); `[review]`.
+abstract or final, every kind a frozen `JointModel`); `tests/model/test_joints.py` (every kind passes
+`check_joint_model`); `[review]`.
 
 ## C-EXT-3 Public means no leading underscore and a place in `__all__` (MUST)
 

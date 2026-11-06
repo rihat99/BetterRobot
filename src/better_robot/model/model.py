@@ -91,6 +91,8 @@ class Model:
     meta: dict = field(default_factory=dict)
     # Plans (constant tensors derived from the static fields) keyed by (kind, dtype, device); never copied.
     _plans: dict = field(default_factory=dict, init=False, repr=False, compare=False)
+    # Values derived from the tensor fields keyed by (kind, grad mode), written only without a graph; never copied.
+    _memo: dict = field(default_factory=dict, init=False, repr=False, compare=False)
 
     @property
     def nq(self) -> int:
@@ -281,6 +283,16 @@ class Model:
             with torch.inference_mode(False):  # an inference tensor in a plan would break later autograd calls
                 self._plans[key] = build(self, dtype, device)
         return self._plans[key]
+
+    def _value(self, kind: str, derive: Callable[[Model], torch.Tensor]) -> torch.Tensor:
+        """``derive(model)``, memoised under ``(kind, grad mode)`` once it carries no graph (record 0040)."""
+        key = (kind, torch.is_grad_enabled())
+        if key not in self._memo:
+            value = derive(self)
+            if value.requires_grad:  # a differentiable call owns its graph: converted per call
+                return value
+            self._memo[key] = value
+        return self._memo[key]
 
 
 def _flatten(model: Model) -> tuple[list[torch.Tensor], tuple]:

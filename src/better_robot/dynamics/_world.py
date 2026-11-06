@@ -199,8 +199,9 @@ def world_geometry(model: Model, transform: torch.Tensor, plan: DynamicsPlan) ->
 
 
 def world_kinematics(geometry: WorldGeometry, model: Model, batch: tuple[int, ...]) -> WorldKinematics:
-    """Attach the model's inertias (expanded per call, broadcast to the flattened batch ``N``) to a `WorldGeometry`."""
-    packed, inertia = model.body_inertias, packed_inertias_to_6x6(model.body_inertias)
+    """Attach the model's inertias (``6x6`` memoised by grad mode, record 0040; broadcast to the flattened batch ``N``)."""
+    packed = model.body_inertias
+    inertia = model._value("spatial_inertias", lambda m: packed_inertias_to_6x6(m.body_inertias))
     if packed.ndim > 2:
         count, nj = math.prod(batch), model.njoints
         packed = packed.broadcast_to(*batch, nj, 10).reshape(count, nj, 10)

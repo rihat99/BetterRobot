@@ -74,18 +74,16 @@ def test_float32_accuracy_does_not_depend_on_distance_from_the_world_origin(g1: 
     assert ((mass.double() - reference).abs().max() / reference.abs().max()) < 1e-5
 
 
-def test_state_reuse_sees_edited_inertias_and_other_models(g1: br.Model) -> None:
+def test_state_reuse_sees_the_inertias_of_another_model(g1: br.Model) -> None:
     q, v, _ = _inputs(g1, (1,), seed=4)
     a = torch.zeros(1, g1.nv, dtype=torch.float64)
     state = forward_kinematics_state(g1, q)
     before = inverse_dynamics(g1, state, v=v, a=a)
-    g1.body_inertias[..., 0].mul_(2.0)
-    try:
-        edited = inverse_dynamics(g1, state, v=v, a=a)
-        assert not torch.allclose(edited, before)
-        torch.testing.assert_close(edited, inverse_dynamics(g1, forward_kinematics_state(g1, q), v=v, a=a))
-    finally:
-        g1.body_inertias[..., 0].mul_(0.5)
+    doubled_mass = g1.body_inertias * torch.tensor([2.0] + [1.0] * 9, dtype=torch.float64)
+    heavier = g1.with_values(body_inertias=doubled_mass)
+    edited = inverse_dynamics(heavier, state, v=v, a=a)
+    assert not torch.allclose(edited, before)
+    torch.testing.assert_close(edited, inverse_dynamics(heavier, forward_kinematics_state(heavier, q), v=v, a=a))
     torch.testing.assert_close(inverse_dynamics(g1, state, v=v, a=a), before)
 
 

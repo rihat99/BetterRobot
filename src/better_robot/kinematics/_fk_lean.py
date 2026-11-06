@@ -198,15 +198,12 @@ def fk_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> LeanPl
 def placement_matrices(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
     """Joint and frame placements as ``4x4`` matrices, ``(I..., njoints, 4, 4)`` and ``(I..., nframes, 4, 4)``.
 
-    Design note (record 0011, A3): converted on every call, so each call owns its graph and the model carries
-    no cache keyed by tensor versions. Measured at R1 (CPU, one thread, float32, one core, this tree against the
-    R0 tree): the two conversions cost 0.17 ms per call, which is 44 % of a batch-1 FK call on the Panda
-    (0.19 -> 0.39 ms; G1 0.23 -> 0.44 ms) and under 1.2 % at batch 4096 (Panda 14.3 ms, G1 55 ms, inside the
-    baseline spread). That is above the 10 % batch-1 threshold of record 0011, so its option (b), a value-side
-    memo on the model keyed by grad mode, is due by its own decision record; until that record lands the
-    conversion stays per call.
+    Memoised on the model by grad mode (record 0040): the conversion is 44 % of a batch-1 FK call when done per
+    call; placements that carry a graph are converted per call so each differentiable call owns its graph.
     """
-    return se3.to_matrix(model.joint_placements), se3.to_matrix(model.frame_placements)
+    joints = model._value("joint_matrices", lambda m: se3.to_matrix(m.joint_placements))
+    frames = model._value("frame_matrices", lambda m: se3.to_matrix(m.frame_placements))
+    return joints, frames
 
 
 def lean_core(model: Model, q_full: torch.Tensor, placement: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

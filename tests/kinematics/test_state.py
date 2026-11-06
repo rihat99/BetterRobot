@@ -77,7 +77,7 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
 
 
 def test_state_review_regressions():
-    """Non-unit joint axis, in-place edit of placements after a call, first call in inference mode."""
+    """Non-unit joint axis, a moved placement in a new model after a call, first call in inference mode."""
     from better_robot.io import ModelBuilder, build_model
 
     builder = ModelBuilder("axis")
@@ -103,9 +103,9 @@ def test_state_review_regressions():
     )
     torch.testing.assert_close(rotation, so3.to_matrix(state.joint_pose[..., 3:]), atol=1e-14, rtol=0.0)
 
-    with torch.no_grad():
-        model.joint_placements[-1, 0] += 1.0
-    moved = kinematics.forward_kinematics_state(model, q)
+    placements = model.joint_placements.clone()
+    placements[-1, 0] += 1.0
+    moved = kinematics.forward_kinematics_state(model.with_values(joint_placements=placements), q)
     torch.testing.assert_close(moved.joint_translation[:, -1, 0], state.joint_translation[:, -1, 0].detach() + 1.0)
 
 

@@ -192,6 +192,7 @@ nav:
           - 0037 URDF typed adapter: contracts/decisions/0037-urdf-typed-adapter.md
           - 0038 Remove downloader and registry: contracts/decisions/0038-remove-downloader-and-registry.md
           - 0039 Test robot fixtures: contracts/decisions/0039-test-robot-fixtures.md
+          - 0040 Model value memo: contracts/decisions/0040-model-value-memo.md
   - Contributing:
       - contributing/testing.md
       - contributing/extending.md

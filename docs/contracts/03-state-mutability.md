@@ -72,8 +72,10 @@ from the state's own `joint_transform`/`frame_transform` and the model structure
 | `"world_geometry"` | `dynamics/state.py` (`WorldGeometry`) | per-joint world rotations, translations, columns |
 
 A new key is added to this table in the same change that writes it. The model-side cache is `Model._plans`:
-constant tensors derived from the static fields, keyed by kind, dtype and device. Placements and inertias are
-converted on every call, so nothing on the model is keyed by a tensor's `_version` (decision record 0011).
+constant tensors derived from the static fields, keyed by kind, dtype and device. `Model._memo` holds values
+derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind and grad
+mode and written only when the value carries no autograd graph, so nothing on the model is keyed by a tensor's
+`_version` (decision records 0011 and 0040).
 
 Enforcement: `tests/contract/test_caches.py`; `[review]`.
 
