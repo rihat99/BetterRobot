@@ -20,7 +20,7 @@ from typing import Literal
 
 import torch
 
-from ..exceptions import ArgumentError
+from ..exceptions import ArgumentError, ShapeError
 from ..model._checks import check_tensor, expand_batch
 from ..model.model import Model
 from ._plans import jacobian_plan
@@ -56,13 +56,19 @@ def point_jacobian(
     """Jacobian of points fixed to frames, ``(B..., K, 3, nv)``: the world velocity of each point.
 
     Point ``k`` sits at ``points[..., k, :]`` in the coordinates of ``frames[k]`` (id or name); ``points`` is
-    ``(K, 3)`` or ``(B..., K, 3)``. The rows are the linear rows of a ``local_world_aligned`` frame Jacobian moved to
-    the point. ``J.mT @ f`` maps world forces ``f: (B..., K, 3, 1)`` at the points to one generalized force per point,
-    ``(B..., K, nv, 1)``; sum over ``K`` (``.sum(-3)``) for the generalized force of them all.
+    ``(K, 3)`` or ``(B..., K, 3)``, and a points batch that does not broadcast with the state's raises `ShapeError`.
+    The rows are the linear rows of a ``local_world_aligned`` frame Jacobian moved to the point. ``J.mT @ f`` maps
+    world forces ``f: (B..., K, 3, 1)`` at the points to one generalized force per point, ``(B..., K, nv, 1)``; sum
+    over ``K`` (``.sum(-3)``) for the generalized force of them all.
     """
     if not frames:
         raise ArgumentError("frames is empty; point_jacobian needs at least one frame")
     check_tensor("points", points, shape=(len(frames), 3), dtype=model.dtype, device=model.device)
+    batch, points_batch = tuple(state.q.shape[:-1]), tuple(points.shape[:-2])
+    try:
+        torch.broadcast_shapes(points_batch, batch)
+    except RuntimeError as error:
+        raise ShapeError(f"cannot broadcast points batch {points_batch} with the state batch {batch}") from error
     frame_ids = [model.frame_id(frame) for frame in frames]
     joints = [model.frame_parent_joint_ids[frame_id] for frame_id in frame_ids]
     owners = sorted(set(joints))

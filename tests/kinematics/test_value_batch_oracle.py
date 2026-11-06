@@ -6,13 +6,22 @@ batched pass at every index of ``broadcast(B..., I...)``.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 import torch
 
 from better_robot.exceptions import ShapeError
 from better_robot.io.build_model import build_model
 from better_robot.io.builder import ModelBuilder
-from better_robot.kinematics import forward_kinematics, frame_jacobian
+from better_robot.kinematics import (
+    forward_kinematics,
+    frame_jacobian,
+    frame_jacobian_time_variation,
+    joint_jacobian,
+    joint_jacobian_time_variation,
+    point_jacobian,
+)
 
 
 def _pose(x: float = 0.0, y: float = 0.0) -> torch.Tensor:
@@ -44,27 +53,48 @@ def _identities(model, count: int) -> tuple[torch.Tensor, torch.Tensor]:
     return placements, frames
 
 
+def _outputs(model, state, v: torch.Tensor, shared: torch.Tensor, points: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    """Every value a state yields: poses, the Jacobians of a frame, a joint and points (``shared: (K, 3)`` and
+    ``points: (B..., K, 3)``), and both time variations."""
+    frames = ["tip", "link"]
+    return (
+        state.joint_poses,
+        state.frame_poses,
+        frame_jacobian(model, state, frame="tip"),
+        joint_jacobian(model, state, joint="elbow", reference="world"),
+        joint_jacobian(model, state, joint="elbow", reference="local"),
+        point_jacobian(model, state, frames=frames, points=shared),
+        point_jacobian(model, state, frames=frames, points=points),
+        frame_jacobian_time_variation(model, state, v=v, frame="tip"),
+        frame_jacobian_time_variation(model, state, v=v, frame="tip", reference="local"),
+        joint_jacobian_time_variation(model, state, v=v, joint="elbow", reference="world"),
+    )
+
+
 def test_identity_batch_broadcasts_against_the_configuration_batch(value_batch_loop_oracle) -> None:
-    """``I = (2,)`` against ``B = (3, 1)`` gives the state batch ``(3, 2)``; every index matches the scalar loop."""
+    """``I = (2,)`` against ``B = (3, 1)`` gives the state batch ``(3, 2)``; every index equals the scalar loop."""
     model = _model()
     placements, frames = _identities(model, 2)
     batched = model.with_values(joint_placements=placements, frame_placements=frames)
     generator = torch.Generator().manual_seed(0)
     q = torch.rand(3, 1, model.nq, generator=generator, dtype=torch.float64) - 0.5
+    v = torch.randn(3, 1, model.nv, generator=generator, dtype=torch.float64)
+    shared = torch.randn(2, 3, generator=generator, dtype=torch.float64)  # (K, 3)
+    points = torch.randn(3, 2, 2, 3, generator=generator, dtype=torch.float64)  # (B..., K, 3) at the state batch
 
     def batched_call():
         state = forward_kinematics(batched, q)
         assert state.q.shape == (3, 2, model.nq)
         assert state.frame_poses.shape == (3, 2, model.nframes, 7)
-        return state.joint_poses, state.frame_poses, frame_jacobian(batched, state, frame="tip")
+        return _outputs(batched, state, v, shared, points)
 
     def loop_call(index: tuple[int, ...]):
         row, identity = index
         scalar = model.with_values(joint_placements=placements[identity], frame_placements=frames[identity])
         state = forward_kinematics(scalar, q[row, 0])
-        return state.joint_poses, state.frame_poses, frame_jacobian(scalar, state, frame="tip")
+        return _outputs(scalar, state, v[row, 0], shared, points[row, identity])
 
-    value_batch_loop_oracle(batched_call, loop_call, execution_batch_shape=(3, 2), rtol=1e-12, atol=1e-12)
+    value_batch_loop_oracle(batched_call, loop_call, execution_batch_shape=(3, 2), rtol=0.0, atol=0.0)
 
 
 def test_non_broadcastable_batches_raise() -> None:
@@ -74,3 +104,8 @@ def test_non_broadcastable_batches_raise() -> None:
     q = model.q_neutral.expand(3, -1)
     with pytest.raises(ShapeError, match=r"cannot broadcast q batch \(3,\) with joint_placements batch \(2,\)"):
         forward_kinematics(batched, q)
+    state = forward_kinematics(batched, q.unsqueeze(1))  # batch (3, 2)
+    for points_batch in ((5,), (4, 2)):
+        points = torch.zeros(*points_batch, 2, 3, dtype=torch.float64)
+        with pytest.raises(ShapeError, match=rf"cannot broadcast points batch {re.escape(str(points_batch))} with"):
+            point_jacobian(batched, state, frames=["tip", "link"], points=points)
