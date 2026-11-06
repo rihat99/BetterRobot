@@ -14,6 +14,10 @@ tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is 
 | fast | `uv run pytest tests/contract -q -m "not slow and not cuda"` | about 2 s | the pre-commit hook, after every edit |
 | full | `uv run pytest tests -q -m "not bench and not cuda"` | about 3 min (184 s) | the pre-push hook |
 | CUDA | `CUDA_VISIBLE_DEVICES=<gpu> uv run pytest tests -q -m cuda` | seconds | by hand on a machine with a GPU |
+| release | `uv run coverage run --branch --source=src/better_robot/lie,src/better_robot/spatial -m pytest tests/lie tests/spatial -q -m "not cuda" && uv run coverage report --fail-under=100` | about 5 s | the pre-push hook, the release checklist |
+
+The release row is the coverage gate of `lie` and `spatial`: both are torch-only mathematics with no robot in
+sight, so every line and branch is reachable from a unit test, and the gate holds them at 100 %.
 
 While you edit one package, run the fast tier plus that package's folder, for example
 `uv run pytest tests/kinematics -q`. The hooks live in `.pre-commit-config.yaml`;

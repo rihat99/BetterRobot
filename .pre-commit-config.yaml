@@ -28,3 +28,9 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
+      - id: lie-spatial-coverage
+        name: lie + spatial branch coverage at 100 % (release tier)
+        entry: bash -c 'uv run coverage run --branch --source=src/better_robot/lie,src/better_robot/spatial -m pytest tests/lie tests/spatial -q -m "not cuda" && uv run coverage report --fail-under=100'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
