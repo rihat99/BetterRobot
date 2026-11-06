@@ -22,7 +22,6 @@ and fails on any other import.
 | 4 | `data_model` | `Model`, `ModelStructure`, `ModelValues`, joint models, bodies, frames |
 | 3 | `spatial`, `optim` | 6-D motion, force and inertia algebra; robot-agnostic least squares |
 | 2 | `lie` | SO(3) and SE(3) formulas on plain tensors |
-| 1 | `_typing` | shared type aliases |
 
 `dynamics` may import `kinematics` on its own rank, so it reuses the raw forward-kinematics helpers. `optim`
 imports only `torch`: it knows nothing about robots, and `terms` adapts robots to it. Imports inside functions and

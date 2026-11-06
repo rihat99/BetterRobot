@@ -25,7 +25,7 @@ table are listed with a `path::symbol` witness in `tests/contract/ratchets/edges
 world-frame Jacobians on a kinematics helper, `dynamics/_world.py:30`; that helper is private today and
 becomes a public-internal `kinematics.jacobian_columns` `[planned: L-3]`). `optim` imports only torch and
 the standard library. `terms` imports `optim` and the robot packages. `viewer` imports anything.
-`exceptions` and `_typing` are rank zero and import nothing from the package.
+`exceptions` is rank zero and imports nothing from the package.
 
 ```python { .no-run }
 # good  (illustrative; see terms/robot.py)
