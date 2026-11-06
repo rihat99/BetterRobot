@@ -86,26 +86,20 @@ def test_se3_value_class_parts_and_adjoints(seed):
     assert torch.equal(SE3(T).adjoint_inv(), se3.adjoint_inverse(T))
 
 
-@pytest.mark.parametrize("seed", SEEDS)
-def test_adjoint_inv_equals_adjoint_inverse(seed):
-    T = _poses(seed)
-    assert torch.equal(se3.adjoint_inv(T), se3.adjoint_inverse(T))
-
-
 @pytest.mark.parametrize(
-    ("old", "new", "dim"),
+    ("old", "new"),
     [
-        (tangents.right_jacobian_inv_so3, tangents.right_jacobian_inverse_so3, 3),
-        (tangents.left_jacobian_inv_so3, tangents.left_jacobian_inverse_so3, 3),
-        (tangents.right_jacobian_inv_se3, tangents.right_jacobian_inverse_se3, 6),
-        (tangents.left_jacobian_inv_se3, tangents.left_jacobian_inverse_se3, 6),
+        (se3.adjoint_inv, se3.adjoint_inverse),
+        (tangents.right_jacobian_inv_so3, tangents.right_jacobian_inverse_so3),
+        (tangents.left_jacobian_inv_so3, tangents.left_jacobian_inverse_so3),
+        (tangents.right_jacobian_inv_se3, tangents.right_jacobian_inverse_se3),
+        (tangents.left_jacobian_inv_se3, tangents.left_jacobian_inverse_se3),
     ],
-    ids=["right_so3", "left_so3", "right_se3", "left_se3"],
+    ids=["adjoint", "right_so3", "left_so3", "right_se3", "left_se3"],
 )
-@pytest.mark.parametrize("seed", SEEDS)
-def test_jacobian_inv_names_equal_jacobian_inverse_names(seed, old, new, dim):
-    tangent = torch.randn(4, dim, generator=torch.Generator().manual_seed(seed), dtype=torch.float64)
-    assert torch.equal(old(tangent), new(tangent))
+def test_inv_names_are_the_inverse_functions(old, new):
+    """Each ``*_inv*`` name is the same function object as its ``*_inverse*`` replacement, so every value agrees."""
+    assert old is new
 
 
 @pytest.mark.parametrize("seed", SEEDS)
