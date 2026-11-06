@@ -6,7 +6,7 @@ around, and build new ones instead of changing them. See ADR [0002](decisions/00
 
 ## C-STATE-1 Model and state dataclasses are frozen (MUST)
 
-`ModelStructure`, `ModelValues`, `KinematicState`, every `spatial` value type (`Motion`, `Inertia`,
+`Model`, `KinematicState`, every `spatial` value type (`Motion`, `Inertia`,
 `Symmetric3`) and the `optim` result types are `@dataclass(frozen=True)` (`optim.Phase` and `optim.Result`,
 `optim/phases.py:15,38`, are not yet: `[planned: L-5]`). Derived quantities are computed by
 functions or cached properties, never by assignment after construction.
@@ -27,8 +27,8 @@ Enforcement: `tests/contract/test_frozen.py` (imports every public dataclass, as
 ## C-STATE-2 Queries return new values (MUST)
 
 `forward_kinematics_state(model, q)` returns a new `KinematicState`; `Model.integrate(q, v)` returns a new `q`.
-A function never takes a state to fill in. To change a model parameter, build a new `ModelValues` with
-`dataclasses.replace` or the builder API.
+A function never takes a state to fill in. To change a model parameter, build a new `Model` with
+`Model.with_values` or the builder API.
 
 ```python { .no-run }
 # good
@@ -72,12 +72,11 @@ from the state's own `joint_transform`/`frame_transform` and the model structure
 | `"jacobian_columns"` | Jacobian helpers in `kinematics/state.py` | world Jacobian column table |
 | `"world_geometry"` | `dynamics/state.py` (`WorldGeometry`) | per-joint world rotations, translations, columns |
 
-A new key is added to this table in the same change that writes it. The model-side caches
-(`ModelStructure._fk_lean_plans`, `ModelValues._fk_placement_matrices`, `ModelValues._spatial_inertias_cache`)
-are invalidated by the tensors' `_version` and are bypassed when the tensors require grad, are `torch.func`
-wrapped, are inference tensors, or are being traced by `torch.compile`.
+A new key is added to this table in the same change that writes it. The model-side cache is `Model._plans`:
+constant tensors derived from the static fields, keyed by kind, dtype and device. Placements and inertias are
+converted on every call, so nothing on the model is keyed by a tensor's `_version` (decision record 0011).
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_caches.py`; `[review]`.
 
 ## C-STATE-5 A `Problem` is built once; `with_` returns a view (MUST)
 
@@ -91,10 +90,9 @@ Enforcement: `tests/optim/test_problem.py`; `[review]`.
 
 ## C-STATE-6 `Model.to` and the dynamics caches (MUST)
 
-`Model.to(device, dtype)` returns a new `Model` with new `ModelValues`; it never moves
-tensors in place. Dynamics caches hang off the object they derive from: the packed spatial inertias on the
-`ModelValues` keyed by the tensor `_version` (`dynamics/_world.py:170`), and world geometry on the
-`KinematicState._memo` (`dynamics/state.py:39`). A moved model therefore starts with empty caches, and a state made
-from the old model is not valid for the moved one; recompute it with `forward_kinematics_state`.
+`Model.to(device, dtype)` returns a new `Model` with every tensor field moved; it never moves tensors in
+place. Caches hang off the object they derive from: the plans in `Model._plans` and the world geometry in
+`KinematicState._memo`. A moved model therefore starts with empty caches, and a state made from the old model is
+not valid for the moved one; recompute it with `forward_kinematics_state`.
 
-Enforcement: `tests/contract/test_dtype_device.py`; `[review]`.
+Enforcement: `tests/contract/test_caches.py`, `tests/contract/test_dtype_device.py`; `[review]`.

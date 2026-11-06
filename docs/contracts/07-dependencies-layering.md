@@ -56,8 +56,8 @@ def _viser():
 import trimesh
 ```
 
-`better_robot.exceptions.BackendNotAvailableError` is reserved for a future kernel brick (an optional compiled
-backend behind the same public signatures); no compute-backend registry exists today.
+No compute-backend registry exists today; an optional compiled backend would sit behind the same public
+signatures and report its missing package with `better_robot.exceptions.OptionalDependencyError`.
 
 Enforcement: `tests/contract/test_optional_imports.py` (subprocess with `sys.modules[name] = None` for each
 extra, then `import better_robot` and the core packages); `tests/contract/test_optional_imports.py`;

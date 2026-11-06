@@ -138,7 +138,7 @@ viewer.show()
 Options of both: `visual` and `collision` meshes, `skeleton`, `frames` (names or ids), `tau` (the joint load on the
 skeleton), `spheres` (collision spheres), `theme`, `opacity`. The skeleton draws each revolute joint as a
 cylinder along its axis (radius 25 mm, length 60 mm) and each prismatic joint as a thin box along it, with the axes
-from `model.structure.joint_axes`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
+from `joint_axes(model.joints)` (`better_robot.model.joint_dispatch`). Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
 as in a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its
 own axis (so it stays on the true axis line), once at `model.q_neutral` and for markers of the plain thickness, and
 the bones (8 mm) connect the drawn markers in chain order. A bone bends at right angles instead of running

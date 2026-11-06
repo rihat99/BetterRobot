@@ -55,7 +55,7 @@ intermediate model.
 - Imports point down the package graph; `tests/contract/test_layer_dependencies.py` enforces it.
   Nothing in the computational core imports `viewer`.
 - Optional dependencies are imported lazily inside the function that needs them and raise
-  `BackendNotAvailableError` when missing (`tests/contract/test_optional_imports.py`).
+  `OptionalDependencyError` when missing (`tests/contract/test_optional_imports.py`).
 - Add an abstraction only when at least two in-tree callers need it.
 - Follow the [design contracts](../contracts/00-index.md) for names, shapes and validation; the per-extension-point rules are in [08-extension-points](../contracts/08-extension-points.md).
 

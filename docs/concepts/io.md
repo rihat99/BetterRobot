@@ -11,7 +11,7 @@ Loading has two stages with one owner each:
 1. A parser reads a source and returns an `IRModel` (`better_robot.io.ir`): plain bodies, joints, frames,
    inertias and limits, with no topology decisions made yet.
 2. `build_model(ir, root_joint=None, preserve_joint_order=False, device=None, dtype=torch.float32)`
-   orders the joints into a tree, assigns `idx_q` and `idx_v`, packs every tensor into `ModelValues`
+   orders the joints into a tree, assigns `idx_q` and `idx_v`, packs every tensor field
    and returns a frozen [`Model`](model-and-state.md).
 
 ```text

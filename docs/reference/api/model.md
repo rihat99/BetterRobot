@@ -1,6 +1,6 @@
 # `better_robot.model`
 
-The robot model: static structure (`ModelStructure`), differentiable values (`ModelValues`), and the `Model` that joins them, plus joints, bodies and frames.
+The robot model: `Model`, one flat frozen record of static fields and tensor fields, plus the joint models.
 
 ::: better_robot.model
     options:

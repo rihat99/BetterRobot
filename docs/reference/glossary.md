@@ -15,12 +15,9 @@ This page defines the words used across the documentation, then gives their comp
 | **kinematic tree** | The parent-to-child structure connecting the robot's joints and bodies. |
 | **fixed base** | A robot whose root does not move relative to the world. |
 | **floating base** | A robot whose root is a free-flyer joint with translation and rotation. |
-| **`Model`** | Robot structure and tensor values shared across evaluations. Treat its contents as read-only. |
-| **`ModelStructure`** | Immutable topology, index tables, and joint metadata. |
-| **`ModelValues`** | Differentiable model tensors such as placements, inertias, limits, and gravity. |
+| **`Model`** | One flat frozen record: static fields (names, joints, parents, index tables) and tensor fields (placements, inertias, limits, gravity, `q_neutral`). Treat its contents as read-only. |
 | **`KinematicState`** | The immutable result of `forward_kinematics_state(model, q)`: world transforms of every joint and frame, `(B..., n, 3, 4)`, plus derived poses. Jacobians and the dynamics algorithms read it; each query makes its own. |
 | **`forward_kinematics_state(model, q)`** | Forward kinematics; returns a frozen `KinematicState`. Read one frame's pose `(B..., 7)` with `state.frame_pose_of("name")`. |
-| **`Trajectory`** | A frozen sampled motion: `q (T, nq)`, optional `v (T, nv)` and `times (T,)` in seconds; `len(trajectory)` is `T` and `trajectory.at(step)` returns `(q, v)` at one sample. |
 
 ## Poses and motion
 

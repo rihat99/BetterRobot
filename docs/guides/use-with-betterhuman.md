@@ -9,7 +9,7 @@ start, so you can tell which package owns which step.
 | Piece | What it is |
 |-------|------------|
 | `bh.load(family, gender=...)` | returns a `Body`: one BetterRobot `Model` per family plus the shape and skinning data |
-| `Body.bake(betas=...)` | bakes a body shape once into an `Identity`: joint placements, masses, inertias and contact frames become `ModelValues` |
+| `Body.bake(betas=...)` | bakes a body shape once into an `Identity`: joint placements, masses, inertias and contact frames become the model's tensor fields |
 | `Identity.forward(q, stream=...)` | returns a `HumanState`: the `KinematicState` of the skeleton plus skinned `vertices()` and `joints` |
 | `better_human.terms` | cost terms for [`better_robot.optim`](../concepts/optimization.md): `joints`, `points`, `landmarks`, `reprojection`, with `human_state` registered once as a cached value so one forward pass serves every term |
 | `better_human.viz` | viewer layers for [`better_robot.viewer`](../concepts/viewer.md): `mesh_layer`, `skinned_layer`, `skeleton_layer`, `frames_layer`, `forces_layer`, and `HumanView`, which groups them and updates them in place |
@@ -17,7 +17,7 @@ start, so you can tell which package owns which step.
 Everything below the human layer is BetterRobot: the configuration `q (B, nq)` is a free-flyer root
 followed by spherical joints, so `model.integrate`, `forward_kinematics_state`, the dynamics in
 `better_robot.dynamics.state` and the solvers in `better_robot.optim` apply unchanged. Because shape
-lives in `ModelValues`, gradients reach the shape parameters the same way they reach any model tensor
+lives in the model's tensor fields, gradients reach the shape parameters the same way they reach any model tensor
 (see [Differentiate](differentiate.md)).
 
 ## A body is a BetterRobot model with a baked identity

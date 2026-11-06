@@ -24,12 +24,11 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
   terms; joint ids accept `int | str`; an unknown name raises
   `UnknownNameError` ([C-ERR-2](../contracts/06-validation-errors.md)).
 - `io.parse` returns the IR, where composition lives; URDF/MJCF joint
-  damping, friction and armature reach `ModelValues`; MJCF import is marked
+  damping and armature reach the model; MJCF import is marked
   experimental with its known gaps ([model loading](../concepts/io.md)).
-  `BackendNotAvailableError` is reserved for a future kernel brick
+  `OptionalDependencyError` names a missing optional package and its install command
   ([dependencies and layering](../contracts/07-dependencies-layering.md)).
-- `Trajectory`, a minimal frozen dataclass (`q (T, nq)`, `times (T,)`,
-  optional `v (T, nv)`), and the SE(3) vocabulary placement / pose / transform
+- The SE(3) vocabulary placement / pose / transform
   ([C-NAME-5](../contracts/01-naming.md), [glossary](glossary.md)).
 - Optimizer diagnostics in `State.extra`, `Result.diagnostics` and
   `Result.state`, warm start through `solve(..., state=)` / `run(..., state=)`,
@@ -138,7 +137,7 @@ The [API reference](api/better_robot.md) is the exact signature source.
 | Analytic RNEA/ABA derivatives (Carpentier–Mansard) behind the same signatures | speed | autograd derivatives and parity tests | later |
 | O(n) ABA; loop closures | long chains, musculoskeletal models | none | later |
 | Force-plate / ground-reaction input feeding `fext` | gait biomechanics | contact Jacobians | later |
-| Warp kernel backend behind `BackendNotAvailableError` | throughput | a measured bottleneck | maybe |
+| Warp kernel backend behind `OptionalDependencyError` | throughput | a measured bottleneck | maybe |
 | Constrained dynamics (KKT forward dynamics, impulses) and its derivatives | contact-implicit trajectory optimization | contact Jacobians | far future |
 
 The target is batch-first; compile-clean code is the route to fast batch-1 calls.

@@ -7,8 +7,6 @@
   "docs/contracts/01-naming.md: kinematics/state.py:151": "cites a line number; cite path::symbol",
   "docs/contracts/02-tensors.md: kinematics/state.py:151": "cites a line number; cite path::symbol",
   "docs/contracts/02-tensors.md: optim/problem.py:143": "cites a line number; cite path::symbol",
-  "docs/contracts/03-state-mutability.md: dynamics/_world.py:170": "cites a line number; cite path::symbol",
-  "docs/contracts/03-state-mutability.md: dynamics/state.py:39": "cites a line number; cite path::symbol",
   "docs/contracts/03-state-mutability.md: kinematics/state.py:111": "cites a line number; cite path::symbol",
   "docs/contracts/03-state-mutability.md: optim/phases.py:15": "cites a line number; cite path::symbol",
   "docs/contracts/03-state-mutability.md: optim/problem.py:226": "cites a line number; cite path::symbol",
