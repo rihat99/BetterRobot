@@ -51,7 +51,7 @@ from ..kinematics._plans import JacobianPlan, jacobian_plan
 from ..model.model import Model
 from ..model.topology import build_supports
 from ..spatial.algebra import cross_force_raw, cross_motion_raw
-from ..spatial.inertia import inertia_from_mass_com_raw, inertia_matrix_raw, rotational_inertia_raw
+from ..spatial.inertia import inertia_matrix_raw, rotational_inertia_raw
 
 
 @dataclass(frozen=True)
@@ -124,12 +124,15 @@ class WorldKinematics:
         """Spatial inertia of every body about ``origin`` in world axes, ``(N, njoints, 6, 6)``.
 
         The packed inertia's centre of mass and rotational inertia rotated with ``3x3`` products (``R c + p``,
-        ``R I_c Rᵀ``); the ``6x6`` congruence with the adjoint costs several times more memory traffic.
+        ``R I_c Rᵀ``); the ``6x6`` congruence with the adjoint costs several times more memory traffic. The rotated
+        inertia is packed from its diagonal and upper triangle: `inertia_from_mass_com_raw`'s symmetrisation and
+        per-entry stack cost 14 more operators per call.
         """
-        mass, com = self.body_inertias[..., 0], self.body_inertias[..., 1:4]
-        com_world = (self.rotations @ com.unsqueeze(-1)).squeeze(-1) + self.translations
+        com_world = (self.rotations @ self.body_inertias[..., 1:4, None]).squeeze(-1) + self.translations
         rotational = self.rotations @ rotational_inertia_raw(self.body_inertias) @ self.rotations.mT
-        return inertia_matrix_raw(inertia_from_mass_com_raw(mass, com_world, rotational_inertia=rotational))
+        mass = self.body_inertias[..., :1].expand(*com_world.shape[:-1], 1)
+        upper = (rotational.diagonal(dim1=-2, dim2=-1), rotational[..., 0, 1:], rotational[..., 1, 2:])
+        return inertia_matrix_raw(torch.cat((mass, com_world, *upper), dim=-1))
 
 
 def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
