@@ -19,9 +19,9 @@ from dataclasses import dataclass
 
 import torch
 
-from ..data_model.joint_dispatch import joint_placement
-from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure
-from ..data_model.model_values import ModelValues
+from ..model.joint_dispatch import joint_placement
+from ..model.model_structure import JOINT_KIND_CODES, ModelStructure
+from ..model.model_values import ModelValues
 from ..lie import se3
 
 _K = JOINT_KIND_CODES

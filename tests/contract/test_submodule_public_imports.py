@@ -146,7 +146,7 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.dynamics", "center_of_mass"),
     ("better_robot.dynamics", "centroidal_map"),
     ("better_robot.dynamics", "centroidal_momentum"),
-    # data_model
+    # model
     # io
     ("better_robot.io", "ModelBuilder"),
     ("better_robot.io", "build_model"),

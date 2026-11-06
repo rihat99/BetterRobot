@@ -19,7 +19,7 @@ and fails on any other import.
 | 7 | `viewer` | interactive 3-D display; nothing imports it |
 | 6 | `terms` | robot cost terms (poses, limits, collision) and `solve_ik` |
 | 5 | `io`, `kinematics`, `dynamics`, `collision` | model building; FK and Jacobians; RNEA, CRBA, centroidal; distances |
-| 4 | `data_model` | `Model`, `ModelStructure`, `ModelValues`, joint models, bodies, frames |
+| 4 | `model` | `Model`, `ModelStructure`, `ModelValues`, joint models, bodies, frames |
 | 3 | `spatial`, `optim` | 6-D motion, force and inertia algebra; robot-agnostic least squares |
 | 2 | `lie` | SO(3) and SE(3) formulas on plain tensors |
 
@@ -58,23 +58,21 @@ print(tuple(state.frame_pose_of("body_lower").shape))
 ```
 
 Two coordinates, but four joints: `universe` and a fixed `root_joint` that attaches `base` come before
-`shoulder` and `elbow`. Seven steps happened, from the public boundary down to plain tensor algebra:
+`shoulder` and `elbow`. Six steps happened, from the public boundary down to plain tensor algebra:
 
-1. `Model.fk` lives in `data_model` (rank 4) but the function it calls lives in `kinematics` (rank 5). It
-   imports it lazily inside the method, so the module-level import graph still points down only.
-2. `forward_kinematics_state` validates `q`: trailing size `nq`, dtype and device against `model.values`.
+1. `forward_kinematics_state` validates `q`: trailing size `nq`, dtype and device against `model.values`.
    This is the only check on the whole path.
-3. The leading batch axes of `q` and of the model's values broadcast together (here `(4,)`).
-4. `expand_configuration` fills mimic joints, giving the full configuration `q_full`.
-5. `placement_matrices` turns the joint placements $M_j$ and frame placements $F_f$ into 4×4 matrices.
-6. The raw pass `lean_core` (in `kinematics._fk_lean`, no checks) walks the tree in topological order:
+2. The leading batch axes of `q` and of the model's values broadcast together (here `(4,)`).
+3. `expand_configuration` fills mimic joints, giving the full configuration `q_full`.
+4. `placement_matrices` turns the joint placements $M_j$ and frame placements $F_f$ into 4×4 matrices.
+5. The raw pass `lean_core` (in `kinematics._fk_lean`, no checks) walks the tree in topological order:
 
     $$T_{0j} = T_{0\lambda(j)}\, M_j\, X_j(q_j), \qquad T_{0f} = T_{0\,p(f)}\, F_f$$
 
     where $T_{0j}$ is the world pose of joint $j$, $\lambda(j)$ its parent joint, $X_j(q_j)$ the joint's own
     motion, and $p(f)$ the parent joint of frame $f$.
 
-7. The result is a frozen `KinematicState` holding `joint_transform` `(B..., njoints, 3, 4)` and
+6. The result is a frozen `KinematicState` holding `joint_transform` `(B..., njoints, 3, 4)` and
    `frame_transform` `(B..., nframes, 3, 4)`. `state.frame_pose_of(name)` reads one frame as a 7-vector
    `[tx, ty, tz, qx, qy, qz, qw]`.
 

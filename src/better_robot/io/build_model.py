@@ -10,9 +10,9 @@ from dataclasses import dataclass
 
 import torch
 
-from ..data_model.frame import Frame
+from ..model.frame import Frame
 from ..exceptions import ModelError
-from ..data_model.joint_models import (
+from ..model.joint_models import (
     JointFixed,
     JointFreeFlyer,
     JointHelical,
@@ -30,11 +30,11 @@ from ..data_model.joint_models import (
     JointTranslation,
     JointUniverse,
 )
-from ..data_model.joint_models.base import JointModel
-from ..data_model.model import Model
-from ..data_model.model_structure import JOINT_KIND_CODES, ModelStructure, _flatten_rows
-from ..data_model.model_values import ModelValues
-from ..data_model.topology import build_children, build_subtrees, build_supports, topo_sort
+from ..model.joint_models.base import JointModel
+from ..model.model import Model
+from ..model.model_structure import JOINT_KIND_CODES, ModelStructure, _flatten_rows
+from ..model.model_values import ModelValues
+from ..model.topology import build_children, build_subtrees, build_supports, topo_sort
 from .ir import IRBody, IRJoint, IRModel
 
 # ──────────────────────────────── constants ──────────────────────────────────

@@ -1,4 +1,4 @@
-"""``better_robot.data_model`` — ``Model`` / ``Frame`` / ``Body`` / ``Joint``.
+"""``better_robot.model`` — ``Model`` / ``Frame`` / ``Body`` / ``Joint``.
 
 This package is the Pinocchio-style universal data model. The fixed vs
 floating-base split is gone: a floating base is simply a ``JointFreeFlyer``

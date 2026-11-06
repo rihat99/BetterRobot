@@ -12,9 +12,9 @@ import math
 
 import torch
 
-from ..data_model.execution_batch import broadcast_to_execution_batch
-from ..data_model.model import Model
-from ..data_model.reduced_coordinates import (
+from ..model.execution_batch import broadcast_to_execution_batch
+from ..model.model import Model
+from ..model.reduced_coordinates import (
     expand_tangent,
     reduce_generalized_force,
     reduce_jacobian,

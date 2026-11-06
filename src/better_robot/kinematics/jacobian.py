@@ -10,10 +10,10 @@ from typing import Literal
 
 import torch
 
-from ..data_model.execution_batch import broadcast_to_execution_batch
-from ..data_model.model_structure import ModelStructure
-from ..data_model.model_values import ModelValues
-from ..data_model.reduced_coordinates import reduce_jacobian
+from ..model.execution_batch import broadcast_to_execution_batch
+from ..model.model_structure import ModelStructure
+from ..model.model_values import ModelValues
+from ..model.reduced_coordinates import reduce_jacobian
 from ..exceptions import ArgumentError
 from ..lie import se3
 from ..lie.tangents import hat_so3

@@ -150,7 +150,7 @@ True
 
 Other helpers on `Model`: `random_configuration()`, `q_neutral`, `frame_id(name)`, `joint_id(name)`,
 `body_id(name)`, `get_subtree(joint_id)`, `get_support(joint_id)`. The full list is in the
-[data_model API reference](../reference/api/data_model.md).
+[model API reference](../reference/api/model.md).
 
 ## Where next
 

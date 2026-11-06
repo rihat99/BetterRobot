@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import pytest
 import torch
 
-from better_robot.data_model.joint_models import (
+from better_robot.model.joint_models import (
     JointComposite,
     JointFixed,
     JointFreeFlyer,
@@ -27,7 +27,7 @@ from better_robot.data_model.joint_models import (
     JointTranslation,
     JointUniverse,
 )
-from better_robot.data_model.joint_models.base import JointModel
+from better_robot.model.joint_models.base import JointModel
 from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics import forward_kinematics_state
 

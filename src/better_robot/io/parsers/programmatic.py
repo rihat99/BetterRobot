@@ -18,7 +18,7 @@ from collections.abc import Sequence
 
 import torch
 
-from ...data_model.joint_models.base import JointModel
+from ...model.joint_models.base import JointModel
 from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
 
 

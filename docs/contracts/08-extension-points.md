@@ -26,7 +26,7 @@ Enforcement: `tests/contract/test_protocols.py` (every public term factory retur
 
 ## C-EXT-2 Joint types and loaders plug in through a protocol (MUST)
 
-A new joint type implements the `JointModel` protocol in `data_model/joint_models/base.py` structurally
+A new joint type implements the `JointModel` protocol in `model/joint_models/base.py` structurally
 (no base class, no registry: the model object is passed where it is needed); a new file format implements
 the `io` parser signature and registers its suffix with `io.register_parser(suffix, fn)`
 (`io/__init__.py:42`). Consumers (`kinematics`, `dynamics`, `viewer`) SHOULD dispatch through the protocol

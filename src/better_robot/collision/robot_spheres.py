@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from ..data_model.model import Model
+from ..model.model import Model
 from ..kinematics.state import KinematicState
 from .distance import sphere_sphere
 

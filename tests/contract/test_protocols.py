@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from better_robot.data_model.joint_models.base import JointModel
-from better_robot.data_model.joint_models import (
+from better_robot.model.joint_models.base import JointModel
+from better_robot.model.joint_models import (
     JointFixed,
     JointFreeFlyer,
     JointPlanar,

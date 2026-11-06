@@ -15,7 +15,7 @@ import better_robot.io as br_io
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.exceptions import ModelError
-from better_robot.data_model.joint_models import JointFreeFlyer
+from better_robot.model.joint_models import JointFreeFlyer
 
 
 def _id7() -> torch.Tensor:

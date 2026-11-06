@@ -25,8 +25,8 @@ from dataclasses import dataclass
 
 import torch
 
-from ..data_model.model_structure import ModelStructure
-from ..data_model.model_values import ModelValues, inertia_about_com, packed_inertias_to_6x6, spatial_inertia_matrix
+from ..model.model_structure import ModelStructure
+from ..model.model_values import ModelValues, inertia_about_com, packed_inertias_to_6x6, spatial_inertia_matrix
 from ..kinematics import jacobian_columns
 from ..lie.tangents import hat_so3
 

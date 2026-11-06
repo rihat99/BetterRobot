@@ -11,7 +11,7 @@ io    dynamics   collision
  \       |          /
       kinematics
           |
-   data_model -> spatial -> lie
+   model -> spatial -> lie
 ```
 
 The allowed edges are the `ALLOWED` table in `tests/contract/test_layer_dependencies.py`: one row per package,
@@ -20,8 +20,8 @@ table are listed with a `path::symbol` witness in `tests/contract/ratchets/edges
 
 ## C-DEP-1 Imports follow the DAG; no cycles, no same-rank imports (MUST)
 
-`lie` imports torch only. `spatial` imports `lie`. `data_model` imports `spatial`. `kinematics` imports
-`data_model` and below. `dynamics`, `collision`, `io` import `kinematics` and below (`dynamics` builds its
+`lie` imports torch only. `spatial` imports `lie`. `model` imports `spatial`. `kinematics` imports
+`model` and below. `dynamics`, `collision`, `io` import `kinematics` and below (`dynamics` builds its
 world-frame Jacobians on a kinematics helper, `dynamics/_world.py:30`; that helper is private today and
 becomes a public-internal `kinematics.jacobian_columns` `[planned: L-3]`). `optim` imports only torch and
 the standard library. `terms` imports `optim` and the robot packages. `viewer` imports anything.
@@ -31,7 +31,7 @@ the standard library. `terms` imports `optim` and the robot packages. `viewer` i
 # good  (illustrative; see terms/robot.py)
 from better_robot.kinematics import frame_jacobian
 # bad  (illustrative)
-from better_robot.data_model import Model          # optim must not know robots
+from better_robot.model import Model          # optim must not know robots
 ```
 
 Enforcement: `tests/contract/test_layer_dependencies.py` (every import of every module, function-level and

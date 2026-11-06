@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 import torch
 
-from better_robot.data_model import Model
+from better_robot.model import Model
 
 from ._public_ops import CASE_NAMES, build_case, tensors_of
 

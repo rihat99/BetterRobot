@@ -1,8 +1,8 @@
-"""Tests for data_model/topology.py."""
+"""Tests for model/topology.py."""
 
 import pytest
 
-from better_robot.data_model.topology import (
+from better_robot.model.topology import (
     topo_sort,
     build_children,
     build_subtrees,

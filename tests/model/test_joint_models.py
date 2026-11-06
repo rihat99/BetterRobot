@@ -1,4 +1,4 @@
-"""Tests for data_model/joint_models/*.py — every joint family.
+"""Tests for model/joint_models/*.py — every joint family.
 
 Phase 2 criteria: joint_placement, integrate, difference, neutral on a random
 batch are tested against hand-derived references for every joint family.
@@ -8,24 +8,24 @@ import math
 import torch
 import pytest
 
-from better_robot.data_model.joint_models.fixed import JointFixed, JointUniverse
-from better_robot.data_model.joint_models.revolute import (
+from better_robot.model.joint_models.fixed import JointFixed, JointUniverse
+from better_robot.model.joint_models.revolute import (
     JointRX,
     JointRY,
     JointRZ,
     JointRevoluteUnaligned,
     JointRevoluteUnbounded,
 )
-from better_robot.data_model.joint_models.prismatic import (
+from better_robot.model.joint_models.prismatic import (
     JointPX,
     JointPY,
     JointPZ,
 )
-from better_robot.data_model.joint_models.spherical import JointSpherical
-from better_robot.data_model.joint_models.free_flyer import JointFreeFlyer
-from better_robot.data_model.joint_models.translation import JointTranslation
-from better_robot.data_model.joint_models.planar import JointPlanar
-from better_robot.data_model.joint_models.helical import JointHelical
+from better_robot.model.joint_models.spherical import JointSpherical
+from better_robot.model.joint_models.free_flyer import JointFreeFlyer
+from better_robot.model.joint_models.translation import JointTranslation
+from better_robot.model.joint_models.planar import JointPlanar
+from better_robot.model.joint_models.helical import JointHelical
 from better_robot.lie import se3 as _se3, so3 as _so3
 
 

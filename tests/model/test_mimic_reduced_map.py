@@ -7,7 +7,7 @@ import dataclasses
 import pytest
 import torch
 
-from better_robot.data_model.joint_models import (
+from better_robot.model.joint_models import (
     JointHelical,
     JointPrismaticUnaligned,
     JointPX,
@@ -19,7 +19,7 @@ from better_robot.data_model.joint_models import (
     JointRZ,
     JointSpherical,
 )
-from better_robot.data_model.reduced_coordinates import (
+from better_robot.model.reduced_coordinates import (
     expand_configuration,
     expand_tangent,
 )

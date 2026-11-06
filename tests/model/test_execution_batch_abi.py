@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.data_model.execution_batch import flatten_execution_batch
+from better_robot.model.execution_batch import flatten_execution_batch
 from better_robot.exceptions import ShapeError
 
 

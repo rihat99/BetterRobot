@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 import torch
 
-from ..data_model.model import Model
+from ..model.model import Model
 from ..exceptions import ArgumentError
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3

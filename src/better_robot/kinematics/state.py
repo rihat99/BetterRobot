@@ -14,12 +14,12 @@ from typing import Literal
 
 import torch
 
-from ..data_model.execution_batch import broadcast_to_execution_batch
-from ..data_model.joint_models import JointFreeFlyer
-from ..data_model.model import Model
-from ..data_model.model_structure import ModelStructure
-from ..data_model.model_values import ModelValues
-from ..data_model.reduced_coordinates import expand_configuration, reduce_jacobian
+from ..model.execution_batch import broadcast_to_execution_batch
+from ..model.joint_models import JointFreeFlyer
+from ..model.model import Model
+from ..model.model_structure import ModelStructure
+from ..model.model_values import ModelValues
+from ..model.reduced_coordinates import expand_configuration, reduce_jacobian
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, QuaternionNormError, ShapeError
 from ..lie import so3
 from ._fk_lean import lean_core, placement_matrices

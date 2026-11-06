@@ -1,9 +1,9 @@
-"""Tests for data_model/model.py."""
+"""Tests for model/model.py."""
 
 import pytest
 import torch
 
-from better_robot.data_model.model import Model
+from better_robot.model.model import Model
 from better_robot.exceptions import ArgumentError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder

@@ -19,7 +19,7 @@ from collections.abc import Sequence
 
 import torch
 
-from ...data_model.model import Model
+from ...model.model import Model
 from ..build_model import build_model
 from ..ir import IRFrame, IRModel
 from ..parsers.programmatic import ModelBuilder

@@ -17,7 +17,7 @@ PACKAGES = [
     "better_robot",
     "better_robot.lie",
     "better_robot.spatial",
-    "better_robot.data_model",
+    "better_robot.model",
     "better_robot.kinematics",
     "better_robot.dynamics",
     "better_robot.collision",

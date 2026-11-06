@@ -126,7 +126,7 @@ nav:
   - Reference:
       - API:
           - better_robot: reference/api/better_robot.md
-          - data_model: reference/api/data_model.md
+          - model: reference/api/model.md
           - io: reference/api/io.md
           - lie: reference/api/lie.md
           - spatial: reference/api/spatial.md

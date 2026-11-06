@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import torch
 
-from ..data_model.model import Model
+from ..model.model import Model
 
 
 class StateMultibody:

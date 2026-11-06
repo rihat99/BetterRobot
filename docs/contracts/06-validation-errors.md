@@ -9,7 +9,7 @@ flag that defaults to off, such as `check_quaternion_norm=False` on `forward_kin
 ## C-ERR-1 Validate at public boundaries only (MUST)
 
 Private helpers (`_name`) and the raw tensor passes in `kinematics`/`dynamics` do no checks. Public wrappers
-call the helpers in `better_robot.data_model._checks` and nothing else re-checks. Validation must not read tensor
+call the helpers in `better_robot.model._checks` and nothing else re-checks. Validation must not read tensor
 values (no `isfinite`, no `.item()`), because that is a host sync (`02`) and breaks `vmap` (`04`).
 
 ```python { .no-run }

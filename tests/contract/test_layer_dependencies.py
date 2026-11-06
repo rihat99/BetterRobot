@@ -23,15 +23,15 @@ ALLOWED: dict[str, set[str]] = {
     "exceptions": set(),
     "lie": set(),
     "spatial": {"lie"},
-    "data_model": {"exceptions", "lie", "spatial"},
-    "kinematics": {"exceptions", "lie", "data_model"},
-    "dynamics": {"exceptions", "lie", "spatial", "data_model", "kinematics"},
-    "collision": {"exceptions", "data_model", "kinematics"},
-    "io": {"exceptions", "lie", "data_model"},
+    "model": {"exceptions", "lie", "spatial"},
+    "kinematics": {"exceptions", "lie", "model"},
+    "dynamics": {"exceptions", "lie", "spatial", "model", "kinematics"},
+    "collision": {"exceptions", "model", "kinematics"},
+    "io": {"exceptions", "lie", "model"},
     "optim": {"exceptions"},
-    "terms": {"exceptions", "lie", "data_model", "kinematics", "collision", "optim"},
-    "viewer": {"exceptions", "lie", "data_model", "kinematics", "collision"},
-    "testing": {"exceptions", "data_model"},
+    "terms": {"exceptions", "lie", "model", "kinematics", "collision", "optim"},
+    "viewer": {"exceptions", "lie", "model", "kinematics", "collision"},
+    "testing": {"exceptions", "model"},
 }
 
 

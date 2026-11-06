@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 import torch
 
-from ..data_model.model import Model
+from ..model.model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
 from ..optim.solvers import select
 from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest

@@ -21,7 +21,7 @@ from .theme import LIGHT, Theme
 
 if TYPE_CHECKING:
     from ..collision.robot_spheres import RobotSpheres
-    from ..data_model.model import Model
+    from ..model.model import Model
     from ..io.ir import IRGeom
 
 

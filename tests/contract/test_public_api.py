@@ -18,7 +18,7 @@ from better_robot.lie import SE3 as LieSE3
 # forcing this contract test to enumerate every top-level symbol forever.
 REQUIRED: frozenset[str] = frozenset(
     {
-        # data_model
+        # model
         "Model",
         "ModelStructure",
         "ModelValues",

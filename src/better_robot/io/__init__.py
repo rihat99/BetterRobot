@@ -12,8 +12,8 @@ from typing import Any, Callable, Literal
 
 import torch
 
-from ..data_model.joint_models.base import JointModel
-from ..data_model.model import Model
+from ..model.joint_models.base import JointModel
+from ..model.model import Model
 from .assets import (
     AssetResolver,
     CachedDownloadResolver,
@@ -113,7 +113,7 @@ def load(
 
     See docs/concepts/parsers_and_ir.md §1.
     """
-    from ..data_model.joint_models import JointFreeFlyer  # noqa: PLC0415 - only the free_flyer=True path needs it
+    from ..model.joint_models import JointFreeFlyer  # noqa: PLC0415 - only the free_flyer=True path needs it
 
     # Resolve root_joint
     if free_flyer and root_joint is None:

@@ -8,7 +8,7 @@ import pytest
 import torch
 from torch.utils import _pytree
 
-from better_robot.data_model.model_values import packed_inertias_to_6x6
+from better_robot.model.model_values import packed_inertias_to_6x6
 from better_robot.io import load
 from tests.support.branching_tree import make_branching_tree_body
 from tests.support.robots import panda_urdf

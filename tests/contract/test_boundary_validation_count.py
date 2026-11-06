@@ -8,7 +8,7 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from better_robot.data_model.model_values import ModelValues
+from better_robot.model.model_values import ModelValues
 from better_robot.dynamics import (
     centroidal_map,
     centroidal_momentum,

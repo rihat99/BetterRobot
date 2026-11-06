@@ -8,12 +8,12 @@ deprecation. See ``docs/concepts/architecture.md §Public API contract``.
 
 Layered DAG (arrows point from dependent to dependency)::
 
-    terms → kinematics, dynamics, collision → data_model → spatial → lie
+    terms → kinematics, dynamics, collision → model → spatial → lie
       │
       ▼
     optim                     (imports only torch; knows nothing about robots)
 
-    io → data_model           (io reads nothing from optim or terms)
+    io → model           (io reads nothing from optim or terms)
     viewer → terms            (topmost; no-one imports from viewer)
 """
 
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from . import exceptions as exceptions, io as io, spatial as spatial, testing as testing
 from ._version import __version__ as __version__
-from .data_model import Body, Frame, Joint, Model, ModelStructure, ModelValues, Trajectory
+from .model import Body, Frame, Joint, Model, ModelStructure, ModelValues, Trajectory
 from .io import ModelBuilder, load
 from .dynamics.state import (
     center_of_mass,
@@ -42,7 +42,7 @@ from .kinematics.state import (
 from .lie.types import SE3
 
 __all__ = [
-    # data_model
+    # model
     "Model",
     "ModelStructure",
     "ModelValues",

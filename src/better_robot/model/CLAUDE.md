@@ -1,4 +1,4 @@
-# `data_model/` — Robot Identity
+# `model/` — Robot Identity
 
 `Model` is the shallowly frozen robot description. Query results live in a
 frozen `KinematicState` (`kinematics/state.py`), never on the model; do not

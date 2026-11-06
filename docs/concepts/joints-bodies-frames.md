@@ -48,7 +48,7 @@ always comes before its children.
 
 ## Every joint model declares `nq` and `nv`
 
-A joint model is a small object in `better_robot.data_model.joint_models` that knows its sizes and how
+A joint model is a small object in `better_robot.model.joint_models` that knows its sizes and how
 to turn its coordinates into a transform. `nq` counts configuration coordinates; `nv` counts velocity
 coordinates. They differ when the joint moves on a curved space, such as a rotation stored as a unit
 quaternion.
@@ -95,7 +95,7 @@ declare it directly with `add_free_flyer_root`, and `better_robot.load` takes th
 argument (or `free_flyer=True`) (see [Loading robots](io.md)).
 
 ```python
-from better_robot.data_model.joint_models import JointFreeFlyer
+from better_robot.model.joint_models import JointFreeFlyer
 
 floating = build_model(ir, root_joint=JointFreeFlyer())
 print(floating.nq, floating.nv)        # 9 8

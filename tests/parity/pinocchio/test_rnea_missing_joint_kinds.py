@@ -7,7 +7,7 @@ import pinocchio as pin
 import pytest
 import torch
 
-from better_robot.data_model.joint_models import (
+from better_robot.model.joint_models import (
     JointHelical,
     JointPlanar,
     JointRevoluteUnaligned,

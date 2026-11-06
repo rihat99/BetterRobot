@@ -28,7 +28,7 @@ from dataclasses import dataclass
 
 import torch
 
-from ..data_model.model_structure import ModelStructure
+from ..model.model_structure import ModelStructure
 from ..lie import so3
 
 

@@ -7,7 +7,7 @@ gives the contract for each; the normative rules are in [contracts/08-extension-
 ## Add a joint model
 
 A joint model satisfies the `JointModel` protocol in
-`better_robot/data_model/joint_models/base.py` structurally; inheritance is not required. The
+`better_robot/model/joint_models/base.py` structurally; inheritance is not required. The
 built-in joints (`fixed`, `free_flyer`, `planar`, `prismatic`, `helical`, `mimic`, `composite`, ...)
 in the same folder are the reference implementations.
 

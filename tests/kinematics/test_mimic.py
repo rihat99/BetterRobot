@@ -6,7 +6,7 @@ import dataclasses
 
 import torch
 
-from better_robot.data_model.reduced_coordinates import expand_configuration, expand_tangent
+from better_robot.model.reduced_coordinates import expand_configuration, expand_tangent
 from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics import forward_kinematics_state, joint_jacobian, joint_jacobian_time_variation
 

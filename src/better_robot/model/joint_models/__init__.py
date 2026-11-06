@@ -1,4 +1,4 @@
-"""``better_robot.data_model.joint_models`` — per-joint dispatch objects.
+"""``better_robot.model.joint_models`` — per-joint dispatch objects.
 
 One file per joint family. Every class implements the ``JointModel`` protocol
 from ``base.py``. ``build_model()`` selects the right class for each

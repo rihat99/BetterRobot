@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import torch
 
-from better_robot.data_model.model import Model
+from better_robot.model.model import Model
 from better_robot.io.builders.kinematic_tree import (
     build_kinematic_tree_body,
     build_kinematic_tree_model,
