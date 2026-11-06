@@ -40,7 +40,10 @@ class RobotCapsules:
     def from_frames(
         cls, model: Model, capsules: Mapping[str | int, Sequence[tuple[Sequence[float], Sequence[float], float]]]
     ) -> RobotCapsules:
-        """Build from ``{frame name or id: [(start xyz, end xyz, radius), ...]}``, in the model's dtype and device."""
+        """Build from ``{frame name or id: [(start xyz, end xyz, radius), ...]}``, in the model's dtype and device.
+
+        Frames resolve as in `RobotSpheres.from_frames`.
+        """
         frame_ids, starts, ends, radii = [], [], [], []
         for frame, entries in capsules.items():
             for start, end, radius in entries:

@@ -5,6 +5,7 @@ import torch
 
 import better_robot as br
 from better_robot import collision, optim, terms
+from better_robot.exceptions import ArgumentError, UnknownNameError
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -134,6 +135,18 @@ def test_centers_match_manual_fk_and_pairs(panda):
         centers[:, 0], spheres.radii[0], center_b=centers[:, 2], radius_b=spheres.radii[2]
     )
     assert torch.allclose(collision.self_distances(spheres, state, pairs=pairs)[:, 1], expected)
+
+
+def test_from_frames_agree(panda):
+    """Spheres and capsules resolve a frame name and its id to one frame and reject the same bad frames (record 0029)."""
+    name = "body_panda_hand"
+    frame = panda.frame_id(name)
+    sphere, capsule = ((0.0, 0.0, 0.0), 0.05), ((0.0, 0.0, 0.0), (0.0, 0.0, 0.1), 0.05)
+    for build, entry in ((collision.RobotSpheres.from_frames, sphere), (collision.RobotCapsules.from_frames, capsule)):
+        assert build(panda, {name: [entry], frame: [entry]}).frame_ids.tolist() == [frame, frame]
+        for bad, error in ((panda.nframes, ArgumentError), (-1, ArgumentError), ("no_such_frame", UnknownNameError)):
+            with pytest.raises(error):
+                build(panda, {bad: [entry]})
 
 
 def test_pairs_ignore_fixed_joints(panda):
