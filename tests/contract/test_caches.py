@@ -2,7 +2,8 @@
 
 ``Model._plans``, ``Model._memo`` and ``KinematicState._memo`` are the only caches: all are ``init=False``, never
 copied by ``dataclasses.replace``, written by one function each (``Model._plan``, ``Model._value``,
-``KinematicState._memoised``) and keyed by grad mode on the value side, and nothing in ``src`` writes through
+``KinematicState._memoised``) and keyed by grad mode on the value side (the model memo also by the tensor fields'
+``requires_grad`` flags, and bypassed under inference mode), and nothing in ``src`` writes through
 ``object.__setattr__``, reads a tensor's ``_version`` or touches ``torch._C``.
 """
 
@@ -32,6 +33,11 @@ MEMO_WRITERS = {
 
 def _cache_field(cls: type, name: str) -> dataclasses.Field:
     return next(field for field in dataclasses.fields(cls) if field.name == name)
+
+
+def _model_modes(model: Model, kind: str) -> set[bool]:
+    """The grad modes under which ``kind`` is memoised on the model (the key is ``(kind, grad mode, flags)``)."""
+    return {key[1] for key in model._memo if key[0] == kind}
 
 
 def _derived(state: KinematicState, model: Model) -> dict[str, torch.Tensor]:
@@ -96,13 +102,53 @@ def test_values_with_a_graph_are_never_memoised() -> None:
     placements = model.joint_placements.clone().requires_grad_()
     model = model.with_values(joint_placements=placements)
     first, second = (placement_matrices(model)[0] for _ in range(2))
-    assert first.requires_grad and first is not second and ("joint_matrices", True) not in model._memo
+    assert first.requires_grad and first is not second and _model_modes(model, "joint_matrices") == set()
     forward_kinematics(model, model.q_neutral).frame_poses.sum().backward()
     assert placements.grad is not None
     with torch.no_grad():
         forward_kinematics(model, model.q_neutral)
-    assert ("joint_matrices", False) in model._memo and ("joint_matrices", True) not in model._memo
+    assert _model_modes(model, "joint_matrices") == {False}
     assert forward_kinematics(model, model.q_neutral).frame_poses.requires_grad, "a no-grad memo serves no grad call"
+
+
+def test_requires_grad_after_a_query_still_yields_a_gradient() -> None:
+    """``requires_grad_()`` on a model tensor is an edit C-STATE-1 forbids; the flags in the key make it harmless."""
+    model = load(panda_urdf(), dtype=torch.float64)
+    q = model.q_neutral
+    forward_kinematics(model, q)
+    assert _model_modes(model, "joint_matrices") == {True}
+    model.joint_placements.requires_grad_()
+    forward_kinematics(model, q).frame_translations.sum().backward()
+    assert model.joint_placements.grad is not None, "the memo served the graph-free matrices"
+
+
+def test_a_leaf_stepped_in_place_is_not_seen() -> None:
+    """A model is read-only after construction: a leaf stepped by ``torch.optim`` needs a new ``with_values`` model
+    (the differentiate guide rebuilds the model every step)."""
+    model = load(panda_urdf(), dtype=torch.float64)
+    q = model.q_neutral
+    placements = model.joint_placements.clone().requires_grad_()
+    tuned = model.with_values(joint_placements=placements)
+    optimizer = torch.optim.SGD([placements], lr=1e-1)
+    forward_kinematics(tuned, q).frame_translations.norm(dim=-1).sum().backward()
+    before = forward_kinematics(tuned, q).frame_translations.detach().clone()
+    optimizer.step()
+    with torch.no_grad():
+        torch.testing.assert_close(forward_kinematics(tuned, q).frame_translations, before)
+        rebuilt = forward_kinematics(model.with_values(joint_placements=placements), q).frame_translations
+    assert not torch.allclose(rebuilt, before), "the step changed the placements"
+
+
+def test_nothing_is_memoised_under_inference_mode() -> None:
+    """Under inference mode values are derived per call, even inside ``torch.enable_grad`` (what ``Problem.gradient``
+    does), so no inference tensor is ever served to a later autograd call."""
+    model = load(panda_urdf(), dtype=torch.float64)
+    q = model.q_neutral
+    with torch.inference_mode(), torch.enable_grad():
+        forward_kinematics(model, q)
+    assert model._memo == {}
+    forward_kinematics(model, q.clone().requires_grad_()).frame_translations.sum().backward()
+    assert _model_modes(model, "joint_matrices") == {True}
 
 
 def _memo_writers(tree: ast.AST) -> set[str]:

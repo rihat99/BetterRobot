@@ -285,8 +285,18 @@ class Model:
         return self._plans[key]
 
     def _value(self, kind: str, derive: Callable[[Model], torch.Tensor]) -> torch.Tensor:
-        """``derive(model)``, memoised under ``(kind, grad mode)`` once it carries no graph (record 0040)."""
-        key = (kind, torch.is_grad_enabled())
+        """``derive(model)``, memoised under ``(kind, grad mode, requires_grad flags)`` once it carries no graph.
+
+        The flags of the tensor fields are in the key so that ``requires_grad_()`` on a model tensor after a query,
+        an in-place edit C-STATE-1 forbids, still gets a fresh value. Under ``torch.inference_mode`` nothing is
+        stored: an inference tensor served to a later autograd call would break it. Under ``torch.compile`` the
+        derivation is traced into the graph instead (Dynamo cannot trace the inference-mode check, and the fused
+        ops cost nothing there) (record 0040).
+        """
+        if torch.compiler.is_compiling() or torch.is_inference_mode_enabled():
+            return derive(self)
+        flags = tuple(getattr(self, name).requires_grad for name in _TENSOR_FIELDS)
+        key = (kind, torch.is_grad_enabled(), flags)
         if key not in self._memo:
             value = derive(self)
             if value.requires_grad:  # a differentiable call owns its graph: converted per call

@@ -83,10 +83,28 @@ print(placements.grad.shape)                                 # same shape as joi
 torch.Size([14, 7])
 ```
 
-The same pattern fits link lengths or masses to data: make `body_inertias` a leaf tensor, pass it
-through `with_values`, and optimize it with any `torch.optim` optimizer or with
-[`better_robot.optim`](../concepts/optimization.md). Values may also carry leading batch axes, one
-set of parameters per configuration.
+The same pattern fits link lengths or masses to data: make the tensor a leaf, pass it through
+`with_values` and step it with any `torch.optim` optimizer or with
+[`better_robot.optim`](../concepts/optimization.md). Build the model again after every step: a model
+is read-only after construction (`with_values` normalises the placements it is given, and the model
+memoises what it derives from its tensors), so a model built before the step does not see a leaf
+stepped in place.
+
+```python
+optimizer = torch.optim.SGD([placements], lr=1e-3)
+for step in range(3):
+    optimizer.zero_grad()
+    tuned = model.with_values(joint_placements=placements)       # rebuilt from the stepped leaf
+    reach = kinematics.forward_kinematics(tuned, q_fixed).frame_translations[:, hand].norm(dim=-1)
+    reach.sum().backward()
+    optimizer.step()
+print(step + 1, "steps")
+```
+```output
+3 steps
+```
+
+Values may also carry leading batch axes, one set of parameters per configuration.
 
 ## Full Jacobians with `torch.func`
 

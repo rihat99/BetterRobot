@@ -8,7 +8,9 @@ around, and build new ones instead of changing them. See ADR [0002](decisions/00
 
 `Model`, `KinematicState` and the `optim` result types are `@dataclass(frozen=True)` (`optim.Phase` and `optim.Result`,
 `optim/phases.py:15,38`, are not yet: `[planned: L-5]`). Derived quantities are computed by
-functions or cached properties, never by assignment after construction.
+functions or cached properties, never by assignment after construction. The tensor fields are read-only after
+construction too (the freeze is shallow): an in-place write and `requires_grad_()` on a model tensor are edits a
+user must not make; build a new model with `with_values` (record [0040](decisions/0040-model-value-memo.md)).
 
 ```python { .no-run }
 # good  (src/better_robot/kinematics/forward_kinematics.py)
@@ -75,9 +77,10 @@ state, keyed by `(name, grad mode)` and written only by `KinematicState._memoise
 
 A new name is added to this table in the same change that writes it. The model-side cache is `Model._plans`:
 constant tensors derived from the static fields, keyed by kind, dtype and device. `Model._memo` holds values
-derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind and grad
-mode and written only when the value carries no autograd graph, so nothing on the model is keyed by a tensor's
-`_version` (decision records 0011 and 0040).
+derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind, grad
+mode and the tensor fields' `requires_grad` flags, written only when the value carries no autograd graph and
+bypassed under `torch.inference_mode`, so nothing on the model is keyed by a tensor's `_version` (decision
+records 0011 and 0040).
 
 Enforcement: `tests/contract/test_caches.py`; `[review]`.
 

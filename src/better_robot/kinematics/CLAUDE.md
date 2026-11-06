@@ -27,8 +27,9 @@ of `_fk.py`, `_jacobian.py` and `_plans.py`; contracts in `docs/contracts/00-ind
 - Plans (`_plans.py`) are pure functions of the static fields, built by `Model._plan` once per dtype and
   device. Never read a tensor's `_version` or write through `object.__setattr__`
   (`tests/contract/test_caches.py`).
-- Placement matrices are memoised on the model by grad mode (record 0040): a model whose tensors are edited
-  in place after a query serves the old matrices. Build a new model with `with_values`.
+- Placement matrices are memoised on the model by grad mode and the tensor fields' `requires_grad` flags, never
+  under `torch.inference_mode` (record 0040): a model whose tensors are edited in place after a query serves the
+  old matrices. Build a new model with `with_values`.
 - `check_quaternion_norm=True` reads values and syncs the device; it is the only value check and covers
   every spherical and free-flyer joint. Below the public wrappers everything trusts validated inputs: no
   `.item()`, `bool(tensor)` or Python branch on a value in the hot path
