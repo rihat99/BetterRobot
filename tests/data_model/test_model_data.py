@@ -7,7 +7,6 @@ from better_robot.data_model.model import Model
 from better_robot.exceptions import ArgumentError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import forward_kinematics_state
 
 
 def _make_simple_model() -> Model:
@@ -114,10 +113,3 @@ def test_random_configuration_rejects_unlimited_prismatic():
     model = build_model(builder.finalize())
     with pytest.raises(ValueError, match="slide"):
         model.random_configuration()
-
-
-def test_model_fk_matches_forward_kinematics_state():
-    model = _make_simple_model()
-    q = torch.randn(3, model.nq, generator=torch.Generator().manual_seed(0))
-    state = model.fk(q, check_quaternion_norm=True)
-    torch.testing.assert_close(state.frame_pose, forward_kinematics_state(model, q).frame_pose)

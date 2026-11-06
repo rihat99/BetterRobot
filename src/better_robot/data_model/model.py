@@ -15,7 +15,6 @@ from .frame import Frame
 from .joint_models.base import JointModel
 
 if TYPE_CHECKING:
-    from ..kinematics.state import KinematicState
     from ..spatial.inertia import Inertia
     from .model_structure import ModelStructure
     from .model_values import ModelValues
@@ -229,13 +228,6 @@ class Model:
     def difference(self, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
         """Compute the universal tangent ``q1 ⊖ q0``."""
         return self.structure.difference(q0, q1)
-
-    def fk(self, q: torch.Tensor, *, check_quaternion_norm: bool = False) -> KinematicState:
-        """Run forward kinematics on ``q: (..., nq)``; shorthand for ``kinematics.forward_kinematics_state``."""
-        # kinematics ranks above data_model; a lazy import keeps the module-level DAG acyclic.
-        from ..kinematics.state import forward_kinematics_state  # noqa: PLC0415
-
-        return forward_kinematics_state(self, q, check_quaternion_norm=check_quaternion_norm)
 
     def expand_configuration(self, q: torch.Tensor) -> torch.Tensor:
         """Map ``q: (..., nq)`` to the full configuration ``(..., nq_full)`` with mimic joints filled in."""

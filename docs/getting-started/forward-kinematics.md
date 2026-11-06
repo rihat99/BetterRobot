@@ -27,10 +27,10 @@ tensor([ 1.0731e-01, -3.2653e-17,  9.2494e-01,  9.2332e-01,  3.8245e-01,
         -3.2237e-02, -1.3353e-02], dtype=torch.float64)
 ```
 
-`model.fk(q)` is the same call as a method, and `frame_pose_of` also takes a frame name:
+`frame_pose_of` also takes a frame name:
 
 ```python
-state = model.fk(q)
+state = br.forward_kinematics_state(model, q)
 print(state.frame_pose_of("body_panda_hand"))  # (7,)
 ```
 ```output

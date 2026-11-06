@@ -36,18 +36,18 @@ model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 # 64 reachable hand poses: forward kinematics of random configurations.
 generator = torch.Generator().manual_seed(0)
 q0 = model.q_neutral.clamp(model.lower_pos_limit, model.upper_pos_limit).expand(64, -1)
-targets = model.fk(terms.random_start(model, q0, generator=generator)).frame_pose_of("body_panda_hand")
+targets = br.forward_kinematics_state(model, terms.random_start(model, q0, generator=generator)).frame_pose_of("body_panda_hand")
 
 # One batched solve, then check every answer with forward kinematics.
 result = terms.solve_ik(model, {"body_panda_hand": targets}, q0=q0, restarts=4, generator=generator)
-reached = model.fk(result["q"]).frame_pose_of("body_panda_hand")
+reached = br.forward_kinematics_state(model, result["q"]).frame_pose_of("body_panda_hand")
 print(float((reached[:, :3] - targets[:, :3]).norm(dim=-1).median()))
 ```
 ```output
 3.1075885246701783e-12
 ```
 
-`model.fk(q)` returns a frozen `KinematicState`; Jacobians and dynamics are functions of that state. Poses are
+`br.forward_kinematics_state(model, q)` returns a frozen `KinematicState`; Jacobians and dynamics are functions of that state. Poses are
 `[tx, ty, tz, qx, qy, qz, qw]` (scalar last). The median position error over the 64 solves is at machine
 precision.
 

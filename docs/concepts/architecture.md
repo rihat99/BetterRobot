@@ -1,6 +1,6 @@
 # Packages form a strict layering
 
-After this page you know which package does what, how one call such as `model.fk(q)` travels through
+After this page you know which package does what, how one call such as `br.forward_kinematics_state(model, q)` travels through
 them, what counts as public API, where inputs are validated, and where the written rules live. Read it
 before you add a module or move a function.
 
@@ -34,7 +34,7 @@ higher one, which sees only public names. And the tests of one layer need only t
 
 ## One call crosses the layers once, and checks its input once
 
-Follow `model.fk(q)` from the top. It is the same function as `br.forward_kinematics_state(model, q)`.
+Follow `br.forward_kinematics_state(model, q)` from the top.
 
 ```python
 import torch
@@ -47,7 +47,7 @@ builder.add_revolute_z("elbow", parent="upper", child="lower")
 model = br.io.build_model(builder.finalize())
 
 q = torch.rand(4, model.nq)                        # a batch of 4 configurations
-state = model.fk(q)
+state = br.forward_kinematics_state(model, q)
 print(model.nq, model.structure.njoints)
 print(tuple(state.joint_transform.shape))
 print(tuple(state.frame_pose_of("body_lower").shape))
@@ -98,7 +98,7 @@ once per configuration, not once per query.
 
 ```python
 try:
-    model.fk(torch.zeros(5))                       # wrong trailing size: nq is 2
+    br.forward_kinematics_state(model, torch.zeros(5))   # wrong trailing size: nq is 2
 except br.exceptions.ShapeError as error:
     print(type(error).__name__)
 ```
