@@ -24,7 +24,7 @@ all of them.
 
 ## Pinocchio parity is a gate
 
-`tests/test_pinocchio/` compares kinematics, Jacobians and dynamics against Pinocchio on the same
+`tests/parity/pinocchio/` compares kinematics, Jacobians and dynamics against Pinocchio on the same
 URDFs. The tolerances are part of the contract:
 
 | Inputs | Typical `atol` |

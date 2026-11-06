@@ -133,7 +133,7 @@ device); the inner loops trust them.
 
 ## Parity with Pinocchio
 
-The tests in `tests/test_pinocchio/` compare each function against Pinocchio's implementation.
+The tests in `tests/parity/pinocchio/` compare each function against Pinocchio's implementation.
 
 | Quantity | Test file | Tolerance (`atol`) |
 |----------|-----------|--------------------|

@@ -139,7 +139,7 @@ entries of `tau` are the wrench the base would need, which is zero for a physica
 
 | Quantity | Test file | Tolerance (`atol`, float64) |
 |----------|-----------|-----------------------------|
-| RNEA | `tests/test_pinocchio/test_rnea_matches_pinocchio.py` | `1e-10`–`1e-12` (float32: `2e-5`) |
+| RNEA | `tests/parity/pinocchio/test_rnea_matches_pinocchio.py` | `1e-10`–`1e-12` (float32: `2e-5`) |
 | CRBA | `test_crba_matches_pinocchio.py` | `1e-10`–`1e-12` |
 | Armature in RNEA and CRBA | `test_crba_matches_pinocchio.py` | `1e-10` |
 | Forward dynamics vs ABA | `test_aba_matches_pinocchio.py` | `1e-9`–`1e-12` |

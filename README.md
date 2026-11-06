@@ -67,7 +67,7 @@ uv run ruff check src tests
 uv run mkdocs build --strict
 ```
 
-Pinocchio parity tests (`tests/test_pinocchio/`) are the numerical oracle.
+Pinocchio parity tests (`tests/parity/pinocchio/`) are the numerical oracle.
 
 ## License
 
