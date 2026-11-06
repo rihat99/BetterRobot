@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 import torch
+import trimesh
 
 from better_robot.spatial import Inertia
 
@@ -133,7 +134,6 @@ def test_float64_vertex_gradcheck() -> None:
 
 
 def test_matches_trimesh_reference() -> None:
-    trimesh = pytest.importorskip("trimesh")
     vertices, faces = _box_mesh()
     reference = trimesh.Trimesh(vertices=vertices.numpy(), faces=faces.numpy(), process=False)
     actual = Inertia.from_mesh(vertices, faces)

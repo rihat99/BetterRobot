@@ -12,6 +12,7 @@ not align 1-to-1; joints are resolved by name in both models.
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
@@ -19,8 +20,6 @@ import better_robot as br
 from better_robot.kinematics import joint_jacobian
 
 from .conftest import _build_spherical_chain, sample_panda_q
-
-pin = pytest.importorskip("pinocchio")
 
 
 _REFERENCES = [

@@ -7,14 +7,13 @@ This is the regression test that anchors the ``reference=`` parameter in
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 
 import better_robot as br
 from better_robot.kinematics import frame_jacobian
 
 from .conftest import sample_panda_q
-
-pin = pytest.importorskip("pinocchio")
 
 
 # Test against the end-effector frame (panda_hand — the most natural choice

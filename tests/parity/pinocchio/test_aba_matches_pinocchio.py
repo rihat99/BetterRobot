@@ -12,7 +12,7 @@ Acceptance for P11-D4:
 from __future__ import annotations
 
 import numpy as np
-import pytest
+import pinocchio as pin
 import torch
 
 import better_robot as br
@@ -22,7 +22,6 @@ from better_robot.kinematics import forward_kinematics_state
 from .conftest import sample_panda_q
 from tests.support.robots import g1_urdf
 
-pin = pytest.importorskip("pinocchio")
 
 _RTOL = 1e-10
 _ATOL = 1e-10

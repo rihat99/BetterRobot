@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
@@ -19,7 +20,6 @@ from better_robot.kinematics import forward_kinematics_state
 
 from .conftest import rot_matrix_from_pose
 
-pin = pytest.importorskip("pinocchio")
 
 _AXIS = np.array([1.0, 2.0, 3.0], dtype=np.float64)
 _AXIS /= np.linalg.norm(_AXIS)

@@ -1,19 +1,20 @@
 """Shared fixtures and adapters for Pinocchio parity tests.
 
-All tests in this folder are skipped if pinocchio is not installed.
+The oracles `pinocchio` and `scipy` come from the `test-oracles` dependency group; scipy converts rotations so the
+oracle side never runs through `better_robot.lie` (principle 6.3).
 """
 
 from __future__ import annotations
 
 import dataclasses
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
+from scipy.spatial.transform import Rotation as Rot
 
 import better_robot as br
 from tests.support.robots import g1_urdf, panda_urdf
-
-pin = pytest.importorskip("pinocchio", reason="dev-only dependency")
 
 
 def pose_to_se3(pose: torch.Tensor) -> "pin.SE3":
@@ -30,8 +31,6 @@ def se3_to_pose(se3: "pin.SE3") -> torch.Tensor:
     """Pinocchio ``SE3`` → BetterRobot ``[tx, ty, tz, qx, qy, qz, qw]`` (fp64)."""
     t = np.asarray(se3.translation)
     R = np.asarray(se3.rotation)
-    from scipy.spatial.transform import Rotation as Rot
-
     quat_xyzw = Rot.from_matrix(R).as_quat()
     out = np.concatenate([t, quat_xyzw])
     return torch.from_numpy(out).double()
@@ -39,8 +38,6 @@ def se3_to_pose(se3: "pin.SE3") -> torch.Tensor:
 
 def rot_matrix_from_pose(pose: torch.Tensor) -> np.ndarray:
     """Extract rotation matrix (3,3) from BetterRobot pose."""
-    from scipy.spatial.transform import Rotation as Rot
-
     q_xyzw = pose[3:].detach().cpu().double().numpy()
     return Rot.from_quat(q_xyzw).as_matrix()
 

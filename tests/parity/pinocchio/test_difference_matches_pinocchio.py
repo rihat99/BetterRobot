@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
+import pinocchio as pin
 import torch
 
 from .conftest import sample_panda_q
-
-pin = pytest.importorskip("pinocchio")
 
 
 def test_difference_matches(panda_both):

@@ -8,14 +8,13 @@ BetterRobot's ``se3.log`` takes a 7-vector pose, returns a 6-vector tangent
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
 from better_robot.lie import se3
 
 from .conftest import pose_to_se3
-
-pin = pytest.importorskip("pinocchio")
 
 
 def _random_pose(seed: int) -> torch.Tensor:

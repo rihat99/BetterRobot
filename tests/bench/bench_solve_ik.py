@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("pytest_benchmark")
 from better_robot.terms import solve_ik
 
 pytestmark = pytest.mark.bench

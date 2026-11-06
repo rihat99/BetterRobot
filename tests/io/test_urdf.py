@@ -9,8 +9,10 @@ Phase 3 pass criteria:
 
 from __future__ import annotations
 
+import pinocchio as pin
 import pytest
 import torch
+import yourdfpy
 
 from better_robot.io import load
 from better_robot.io.parsers.urdf import parse_urdf
@@ -92,9 +94,6 @@ def test_panda_body_frame_names(panda_model, panda_ir):
 
 
 def test_load_accepts_yourdfpy_object():
-    pytest.importorskip("yourdfpy")
-    import yourdfpy
-
     path = panda_urdf()
     urdf = yourdfpy.URDF.load(str(path))
     model = load(urdf)
@@ -134,7 +133,6 @@ def test_load_dtype_and_device_kwargs():
 
 def test_inertia_is_rotated_from_inertial_frame_into_link_frame(tmp_path):
     """An ``<inertial><origin rpy=...>`` rotates the inertia tensor (URDF spec, Pinocchio)."""
-    pin = pytest.importorskip("pinocchio")
     urdf = tmp_path / "r.urdf"
     urdf.write_text(
         '<robot name="r"><link name="base"/>'

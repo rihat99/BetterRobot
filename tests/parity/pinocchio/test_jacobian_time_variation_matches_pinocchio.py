@@ -17,6 +17,7 @@ without widening.
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
@@ -24,8 +25,6 @@ import better_robot as br
 from better_robot.kinematics import frame_jacobian_time_variation, joint_jacobian_time_variation
 
 from .conftest import _build_spherical_chain, sample_panda_q, sample_panda_v
-
-pin = pytest.importorskip("pinocchio")
 
 
 _REFERENCES = [

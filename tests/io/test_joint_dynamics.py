@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 import torch
 
 from better_robot.io import build_model, load, parse
@@ -29,7 +28,6 @@ def test_urdf_dynamics_reach_model_values(tmp_path: Path) -> None:
 
 
 def test_mjcf_dynamics_reach_model_values(tmp_path: Path) -> None:
-    pytest.importorskip("mujoco")
     path = tmp_path / "a.xml"
     path.write_text(MJCF)
     values = load(path, dtype=torch.float64).values
@@ -53,7 +51,6 @@ MJCF_DEFAULTS = """<mujoco><default><joint damping="0.3" armature="0.05"/></defa
 
 
 def test_mjcf_default_class_inheritance_and_ball_joint_per_dof(tmp_path: Path) -> None:
-    pytest.importorskip("mujoco")
     path = tmp_path / "b.xml"
     path.write_text(MJCF_DEFAULTS)
     values = load(path, dtype=torch.float64).values

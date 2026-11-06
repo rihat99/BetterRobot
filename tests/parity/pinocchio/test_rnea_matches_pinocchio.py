@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
@@ -11,7 +12,6 @@ from better_robot.kinematics import forward_kinematics_state
 
 from .conftest import sample_panda_q
 
-pin = pytest.importorskip("pinocchio")
 
 # Model values and gravity are exact in fp64; the measured gap to Pinocchio is 1e-15.
 _RTOL = 1e-10

@@ -8,12 +8,11 @@ of the exponential map. BetterRobot exposes this as
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
 from better_robot.lie.tangents import right_jacobian_se3
-
-pin = pytest.importorskip("pinocchio")
 
 
 def _random_xi(seed: int, magnitude: float = 0.5) -> torch.Tensor:

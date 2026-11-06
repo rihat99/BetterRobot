@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import mujoco
 import numpy as np
 import pytest
 
@@ -23,7 +24,6 @@ MJCF = """<mujoco><default><default class="col"><geom type="capsule" size="0.02"
 
 
 def test_fromto_matches_mujoco_compiler(tmp_path: Path) -> None:
-    mujoco = pytest.importorskip("mujoco")
     path = tmp_path / "fromto.xml"
     path.write_text(MJCF)
     compiled = mujoco.MjModel.from_xml_path(str(path))

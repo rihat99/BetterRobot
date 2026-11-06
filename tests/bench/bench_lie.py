@@ -9,7 +9,6 @@ from __future__ import annotations
 import pytest
 import torch
 
-pytest.importorskip("pytest_benchmark")
 from better_robot.lie import se3, so3
 
 pytestmark = pytest.mark.bench

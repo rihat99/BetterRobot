@@ -7,12 +7,9 @@ import time
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.viewer import Viewer
-
-pytest.importorskip("viser")
 
 
 def _free_port() -> int:

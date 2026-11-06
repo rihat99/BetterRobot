@@ -13,6 +13,7 @@ so comparisons are direct tensor operations.
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
@@ -20,8 +21,6 @@ from better_robot.dynamics.state import inverse_dynamics
 from better_robot.kinematics import forward_kinematics_state
 
 from .conftest import _build_spherical_chain
-
-pin = pytest.importorskip("pinocchio")
 
 
 # ───────────────────────── free-flyer (G1) ─────────────────────────

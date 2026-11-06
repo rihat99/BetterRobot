@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import numpy as np
+import pinocchio as pin
 import pytest
 import torch
 
 import better_robot as br
 
 from .conftest import rot_matrix_from_pose, sample_panda_q
-
-pin = pytest.importorskip("pinocchio")
 
 
 @pytest.mark.parametrize("i", range(8))

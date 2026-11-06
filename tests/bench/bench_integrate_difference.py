@@ -7,7 +7,6 @@ import platform
 import pytest
 import torch
 
-pytest.importorskip("pytest_benchmark")
 
 from tests.support.branching_tree import make_branching_tree_model
 

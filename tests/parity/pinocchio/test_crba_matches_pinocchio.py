@@ -11,7 +11,7 @@ Acceptance for P11-D3:
 from __future__ import annotations
 
 import numpy as np
-import pytest
+import pinocchio as pin
 import torch
 
 from better_robot.dynamics.state import inverse_dynamics, mass_matrix
@@ -19,7 +19,6 @@ from better_robot.kinematics import forward_kinematics_state
 
 from .conftest import sample_panda_q
 
-pin = pytest.importorskip("pinocchio")
 
 _RTOL = 1e-10
 
