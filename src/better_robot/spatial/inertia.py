@@ -5,8 +5,9 @@ symmetric rotational inertia about the centre of mass (not the frame origin), in
 MuJoCo's ``fullinertia`` order. It is not Pinocchio's ``Inertia.toDynamicParameters``, which holds ``m c`` and the
 inertia about the frame origin as ``[Ixx, Ixy, Iyy, Ixz, Iyz, Izz]``. The 6x6 matrix acting on linear-first twists
 is ``[[m I3, -m hat(c)], [m hat(c), I_c - m hat(c)^2]]``. Every function is differentiable in its tensor inputs and
-broadcasts leading axes. The constructors check types, shapes, dtypes and devices and read no tensor value, except
-``inertia_of_mesh(..., check_mesh=True)``.
+broadcasts leading axes. Every public function checks types, trailing shapes, dtypes and devices and reads no tensor
+value, except ``inertia_of_mesh(..., check_mesh=True)``; `inertia_matrix`, `rotational_inertia` and
+`inertia_from_mass_com` have unchecked ``*_raw`` twins for callers whose inputs are already checked (dynamics).
 """
 
 from __future__ import annotations
@@ -18,17 +19,25 @@ from numbers import Real
 import torch
 
 from ..lie.tangents import hat_so3
+from ._checks import check_tensors
 
 
 def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
     """Spatial inertia matrix ``(..., 6, 6)`` of packed inertias ``inertia: (..., 10)``, about the frame origin.
 
     It acts on linear-first twists: ``inertia_matrix(inertia) @ twist`` is the spatial momentum, a wrench with the
-    linear part first. The blocks are ``[[m I3, -m hat(c)], [m hat(c), I_c - m hat(c)^2]]``.
+    linear part first. The blocks are ``[[m I3, -m hat(c)], [m hat(c), I_c - m hat(c)^2]]``. Raises ``TypeError``
+    for a non-tensor and ``ValueError`` for a non-floating dtype or a trailing size other than 10.
     """
+    check_tensors(inertia=(inertia, (10,)))
+    return inertia_matrix_raw(inertia)
+
+
+def inertia_matrix_raw(inertia: torch.Tensor) -> torch.Tensor:
+    """`inertia_matrix` without input checks, for checked inputs: ``(..., 10) → (..., 6, 6)``."""
     mass, com = inertia[..., 0], inertia[..., 1:4]
     hat_com = hat_so3(com)
-    inertia_origin = rotational_inertia(inertia) - mass[..., None, None] * (hat_com @ hat_com)
+    inertia_origin = rotational_inertia_raw(inertia) - mass[..., None, None] * (hat_com @ hat_com)
     eye = torch.eye(3, dtype=inertia.dtype, device=inertia.device)
     mass_eye = mass[..., None, None] * eye
     mass_hat = mass[..., None, None] * hat_com
@@ -41,8 +50,14 @@ def rotational_inertia(inertia: torch.Tensor) -> torch.Tensor:
     """Rotational inertia ``(..., 3, 3)`` of packed inertias ``inertia: (..., 10)``, about the centre of mass.
 
     The symmetric matrix of the six stored entries, in body-frame axes; `inertia_matrix` adds the parallel-axis shift
-    to the frame origin.
+    to the frame origin. Raises as `inertia_matrix`.
     """
+    check_tensors(inertia=(inertia, (10,)))
+    return rotational_inertia_raw(inertia)
+
+
+def rotational_inertia_raw(inertia: torch.Tensor) -> torch.Tensor:
+    """`rotational_inertia` without input checks, for checked inputs: ``(..., 10) → (..., 3, 3)``."""
     ixx, iyy, izz, ixy, ixz, iyz = inertia[..., 4:10].unbind(dim=-1)
     return torch.stack(
         (
@@ -58,19 +73,17 @@ def inertia_from_mass_com(mass: torch.Tensor, com: torch.Tensor, *, rotational_i
     """Packed inertia ``(..., 10)`` from ``mass (...)``, ``com (..., 3)`` and ``rotational_inertia (..., 3, 3)``.
 
     ``rotational_inertia`` is taken about the centre of mass in body-frame axes, and its symmetric part is stored.
-    Leading axes broadcast. Raises ``TypeError`` for an input that is not a floating tensor and ``ValueError`` for a
-    wrong trailing shape or a dtype or device other than ``mass``'s.
+    Leading axes broadcast. Raises ``TypeError`` for an input that is not a tensor and ``ValueError`` for a
+    non-floating dtype, a wrong trailing shape, or a dtype or device other than ``mass``'s.
     """
-    _check_tensors(mass=mass, com=com, rotational_inertia=rotational_inertia)
-    _check_trailing_shape("com", com, (3,))
-    _check_trailing_shape("rotational_inertia", rotational_inertia, (3, 3))
+    check_tensors(mass=(mass, ()), com=(com, (3,)), rotational_inertia=(rotational_inertia, (3, 3)))
     return inertia_from_mass_com_raw(mass, com, rotational_inertia=rotational_inertia)
 
 
 def inertia_from_mass_com_raw(
     mass: torch.Tensor, com: torch.Tensor, *, rotational_inertia: torch.Tensor
 ) -> torch.Tensor:
-    """`inertia_from_mass_com` without input checks, for callers whose inputs are already checked.
+    """`inertia_from_mass_com` without input checks, for checked inputs.
 
     ``mass (...)``, ``com (..., 3)``, ``rotational_inertia (..., 3, 3)`` → ``(..., 10)``.
     """
@@ -95,7 +108,7 @@ def inertia_of_sphere(mass: torch.Tensor, *, radius: torch.Tensor) -> torch.Tens
 
     The rotational inertia is ``2/5 m r^2`` about every axis. Raises as `inertia_from_mass_com`.
     """
-    _check_tensors(mass=mass, radius=radius)
+    check_tensors(mass=(mass, ()), radius=(radius, ()))
     moment = (2.0 / 5.0) * mass * radius**2
     return _principal(mass, moment, moment, moment)
 
@@ -106,8 +119,7 @@ def inertia_of_box(mass: torch.Tensor, *, size: torch.Tensor) -> torch.Tensor:
     ``size (..., 3)`` holds the full edge lengths ``[lx, ly, lz]``; ``Ixx = m (ly^2 + lz^2) / 12`` and likewise.
     Raises as `inertia_from_mass_com`.
     """
-    _check_tensors(mass=mass, size=size)
-    _check_trailing_shape("size", size, (3,))
+    check_tensors(mass=(mass, ()), size=(size, (3,)))
     lx, ly, lz = size.unbind(dim=-1)
     k = mass / 12.0
     return _principal(mass, k * (ly**2 + lz**2), k * (lx**2 + lz**2), k * (lx**2 + ly**2))
@@ -120,7 +132,7 @@ def inertia_of_capsule(mass: torch.Tensor, *, radius: torch.Tensor, length: torc
     mass splits between the parts by volume, as in Pinocchio's ``Inertia.FromCapsule``. Raises as
     `inertia_from_mass_com`.
     """
-    _check_tensors(mass=mass, radius=radius, length=length)
+    check_tensors(mass=(mass, ()), radius=(radius, ()), length=(length, ()))
     cylinder_volume = math.pi * radius**2 * length
     hemisphere_volume = (2.0 / 3.0) * math.pi * radius**3
     total_volume = cylinder_volume + 2.0 * hemisphere_volume
@@ -142,8 +154,7 @@ def inertia_of_ellipsoid(mass: torch.Tensor, *, semi_axes: torch.Tensor) -> torc
     ``semi_axes (..., 3)`` holds ``[a, b, c]``; ``Ixx = m (b^2 + c^2) / 5`` and likewise. Raises as
     `inertia_from_mass_com`.
     """
-    _check_tensors(mass=mass, semi_axes=semi_axes)
-    _check_trailing_shape("semi_axes", semi_axes, (3,))
+    check_tensors(mass=(mass, ()), semi_axes=(semi_axes, (3,)))
     a, b, c = semi_axes.unbind(dim=-1)
     k = mass / 5.0
     return _principal(mass, k * (b**2 + c**2), k * (a**2 + c**2), k * (a**2 + b**2))
@@ -165,10 +176,10 @@ def inertia_of_mesh(
     density, whose mass is the volume. Each face and the origin span a signed tetrahedron whose volume, first and
     second moments are summed in closed form, after the origin moves to the vertex mean to limit cancellation.
 
-    Raises ``TypeError`` or ``ValueError`` for a wrong type, shape, dtype or device. ``check_mesh=True`` also reads
-    the values, one host sync per check, and raises ``ValueError`` for non-finite vertices, a face id outside
-    ``[0, V)``, a density that is not finite and positive, or a degenerate enclosed volume; without it such input
-    gives a meaningless or non-finite result.
+    Raises ``TypeError`` for a non-tensor and ``ValueError`` for a wrong shape, dtype or device. ``check_mesh=True``
+    also reads the values, one host sync per check, and raises ``ValueError`` for non-finite vertices, a face id
+    outside ``[0, V)``, a density that is not finite and positive, or a degenerate enclosed volume; without it such
+    input gives a meaningless or non-finite result.
     """
     _check_mesh_structure(vertices, faces)
     rho = _density_tensor(density, vertices)
@@ -221,14 +232,15 @@ def inertia_of_mesh(
 
 def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
     """Raise unless ``vertices`` is floating ``(..., V >= 4, 3)`` and ``faces`` an integer ``(F >= 1, 3)`` table."""
-    if not isinstance(vertices, torch.Tensor) or not vertices.is_floating_point():
-        raise TypeError("vertices must be a floating torch.Tensor")
+    check_tensors(vertices=(vertices, ()))
     if vertices.ndim < 2 or vertices.shape[-1] != 3:
         raise ValueError(f"vertices must have shape (..., V, 3), got {tuple(vertices.shape)}")
     if vertices.shape[-2] < 4:
         raise ValueError("vertices must contain at least four points")
-    if not isinstance(faces, torch.Tensor) or faces.dtype not in (torch.int32, torch.int64):
-        raise TypeError("faces must be a torch.int32 or torch.int64 tensor")
+    if not isinstance(faces, torch.Tensor):
+        raise TypeError(f"faces must be a torch.Tensor, got {type(faces).__name__}")
+    if faces.dtype not in (torch.int32, torch.int64):
+        raise ValueError(f"faces.dtype={faces.dtype} is not torch.int32 or torch.int64; pass faces.long()")
     if faces.ndim != 2 or faces.shape[-1] != 3 or faces.shape[0] == 0:
         raise ValueError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
 
@@ -236,7 +248,7 @@ def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
 def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> torch.Tensor:
     """``density`` as a tensor of shape ``()`` or ``vertices.shape[:-2]`` on the dtype and device of ``vertices``."""
     if isinstance(density, torch.Tensor):
-        _check_tensors(vertices=vertices, density=density)
+        check_tensors(vertices=(vertices, ()), density=(density, ()))
         rho = density
     elif isinstance(density, Real) and not isinstance(density, bool):
         rho = vertices.new_tensor(float(density))
@@ -256,32 +268,6 @@ def _check_mesh_values(vertices: torch.Tensor, faces: torch.Tensor, density: tor
         raise ValueError("faces contains a vertex index outside the vertices table")
     if not bool(torch.isfinite(density).all()) or bool(torch.any(density <= 0.0)):
         raise ValueError("density must contain only finite positive values")
-
-
-def _check_tensors(**tensors: torch.Tensor) -> None:
-    """Raise unless every argument is a floating tensor with the dtype and device of the first one."""
-    (first_name, first), *others = tensors.items()
-    for name, tensor in tensors.items():
-        if not isinstance(tensor, torch.Tensor) or not tensor.is_floating_point():
-            found = tensor.dtype if isinstance(tensor, torch.Tensor) else type(tensor).__name__
-            raise TypeError(f"{name} must be a floating torch.Tensor, got {found}")
-    for name, tensor in others:
-        if tensor.dtype != first.dtype:
-            raise ValueError(
-                f"{name}.dtype={tensor.dtype} differs from {first_name}.dtype={first.dtype}; "
-                f"pass {name}.to({first.dtype})"
-            )
-        if tensor.device != first.device:
-            raise ValueError(
-                f"{name} is on {tensor.device} but {first_name} is on {first.device}; pass {name}.to({first.device})"
-            )
-
-
-def _check_trailing_shape(name: str, tensor: torch.Tensor, shape: tuple[int, ...]) -> None:
-    """Raise ``ValueError`` unless ``tensor`` ends in ``shape``."""
-    if tensor.ndim < len(shape) or tuple(tensor.shape[-len(shape) :]) != shape:
-        trailing = ", ".join(str(size) for size in shape)
-        raise ValueError(f"{name} must have shape (..., {trailing}), got {tuple(tensor.shape)}")
 
 
 def _principal(mass: torch.Tensor, ixx: torch.Tensor, iyy: torch.Tensor, izz: torch.Tensor) -> torch.Tensor:

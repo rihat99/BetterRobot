@@ -18,6 +18,7 @@ from better_robot.spatial import (
     cross_motion,
     inertia_from_mass_com,
     inertia_matrix,
+    rotational_inertia,
     transform_force,
     transform_inertia,
     transform_motion,
@@ -170,3 +171,47 @@ def test_frame_changes_are_differentiable() -> None:
     assert torch.autograd.gradcheck(transform_inertia, (pose, inertia))
     assert torch.autograd.gradcheck(cross_motion, (motion, motion.detach().flip(0).requires_grad_(True)))
     assert torch.autograd.gradcheck(cross_force, (motion, motion.detach().flip(0).requires_grad_(True)))
+
+
+# Each public function with its parameters as (name, trailing size), in call order.
+_CHECKED = {
+    "cross_motion": (cross_motion, ("twist", 6), ("other", 6)),
+    "cross_force": (cross_force, ("twist", 6), ("wrench", 6)),
+    "transform_motion": (transform_motion, ("pose", 7), ("twist", 6)),
+    "transform_force": (transform_force, ("pose", 7), ("wrench", 6)),
+    "transform_inertia": (transform_inertia, ("pose", 7), ("inertia", 10)),
+    "inertia_matrix": (inertia_matrix, ("inertia", 10)),
+    "rotational_inertia": (rotational_inertia, ("inertia", 10)),
+}
+
+
+@pytest.mark.parametrize("name", list(_CHECKED))
+def test_public_functions_check_type_dtype_trailing_size_and_device(name: str) -> None:
+    """Each public function rejects a non-tensor, an integer dtype, a wrong trailing size and mixed dtypes or devices.
+
+    A non-tensor raises ``TypeError``, the rest ``ValueError`` with the fix in the message; the wrong size is one
+    entry too many, so ``inertia_matrix`` of an ``(..., 11)`` tensor is among the cases.
+    """
+    function, *parameters = _CHECKED[name]
+    valid = [torch.zeros(2, size) for _, size in parameters]
+    for index, (parameter, size) in enumerate(parameters):
+        bad_inputs = [
+            (torch.zeros(2, size).tolist(), TypeError, rf"{parameter} must be a floating torch.Tensor, got list"),
+            (torch.zeros(2, size, dtype=torch.int64), ValueError, rf"{parameter}.dtype=torch.int64 is not floating"),
+            (
+                torch.zeros(2, size + 1),
+                ValueError,
+                rf"{parameter} must have shape \(\.\.\., {size}\), got \(2, {size + 1}\)",
+            ),
+        ]
+        for bad, error, match in bad_inputs:
+            arguments = [*valid[:index], bad, *valid[index + 1 :]]
+            with pytest.raises(error, match=match):
+                function(*arguments)
+    if len(parameters) == 2:
+        (first, size_first), (second, size_second) = parameters
+        with pytest.raises(ValueError, match=rf"{second}.dtype=torch.float64 differs from {first}.dtype=torch.float32"):
+            function(torch.zeros(size_first), torch.zeros(size_second, dtype=torch.float64))
+        # A meta tensor has a device of its own, so the device check runs without an accelerator.
+        with pytest.raises(ValueError, match=rf"{second} is on meta but {first} is on cpu; pass {second}.to\(cpu\)"):
+            function(torch.zeros(size_first), torch.zeros(size_second, device="meta"))

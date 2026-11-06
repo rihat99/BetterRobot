@@ -194,11 +194,22 @@ def test_unchecked_call_reads_no_values() -> None:
     ("vertices", "faces", "density", "error", "match"),
     [
         pytest.param(
-            torch.zeros(8, 3, dtype=torch.int64), None, 1.0, TypeError, "vertices must be a floating", id="int-vertices"
+            torch.zeros(8, 3, dtype=torch.int64),
+            None,
+            1.0,
+            ValueError,
+            "vertices.dtype=torch.int64 is not floating",
+            id="int-vertices",
+        ),
+        pytest.param(
+            [[0.0] * 3] * 8, None, 1.0, TypeError, "vertices must be a floating torch.Tensor", id="list-vertices"
         ),
         pytest.param(torch.zeros(8, 2), None, 1.0, ValueError, r"shape \(\.\.\., V, 3\)", id="vertex-shape"),
         pytest.param(torch.zeros(3, 3), None, 1.0, ValueError, "at least four points", id="three-vertices"),
-        pytest.param(None, torch.zeros(12, 3), 1.0, TypeError, "faces must be a torch.int32", id="float-faces"),
+        pytest.param(
+            None, torch.zeros(12, 3), 1.0, ValueError, "faces.dtype=torch.float32 is not torch.int32", id="float-faces"
+        ),
+        pytest.param(None, [[0, 1, 2]] * 12, 1.0, TypeError, "faces must be a torch.Tensor", id="list-faces"),
         pytest.param(None, torch.zeros(12, 4, dtype=torch.long), 1.0, ValueError, r"shape \(F, 3\)", id="face-shape"),
         pytest.param(None, torch.zeros(0, 3, dtype=torch.long), 1.0, ValueError, r"shape \(F, 3\)", id="no-faces"),
         pytest.param(None, None, True, TypeError, "density must be a real number", id="bool-density"),

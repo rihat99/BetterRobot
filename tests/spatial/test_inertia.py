@@ -157,7 +157,10 @@ def test_shapes_are_differentiable() -> None:
             id="python-float",
         ),
         pytest.param(
-            lambda: inertia_of_sphere(torch.tensor(1), radius=torch.tensor(0.1)), TypeError, "torch.int64", id="integer"
+            lambda: inertia_of_sphere(torch.tensor(1), radius=torch.tensor(0.1)),
+            ValueError,
+            "mass.dtype=torch.int64 is not floating",
+            id="integer",
         ),
         pytest.param(
             lambda: inertia_of_sphere(torch.tensor(1.0), radius=torch.tensor(0.1, dtype=F64)),
