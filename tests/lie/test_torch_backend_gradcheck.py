@@ -13,12 +13,6 @@ import torch
 from better_robot.lie import se3, so3
 
 
-def _rand_quat(dtype):
-    q = torch.randn(2, 4, dtype=dtype, requires_grad=True)
-    # gradcheck needs differentiable input; we don't normalise in-place.
-    return q
-
-
 @pytest.mark.parametrize("op", [se3.log, se3.inverse])
 def test_se3_op_gradcheck(op) -> None:
     rng = torch.Generator().manual_seed(0)

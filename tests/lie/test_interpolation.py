@@ -1,8 +1,16 @@
-"""Tests for SLERP (SO3) and ScLERP (SE3) in lie/so3.py and lie/se3.py."""
+"""Tests for SLERP (SO3) and ScLERP (SE3) in lie/so3.py and lie/se3.py.
+
+Random cases draw from a ``torch.Generator`` seeded by the ``seed`` in the test id.
+"""
 
 import math
+
+import pytest
 import torch
+
 from better_robot.lie import se3, so3
+
+SEEDS = [0, 1, 2]
 
 
 # ────────────────────────────── SLERP (SO3) ──────────────────────────────
@@ -39,11 +47,12 @@ def test_slerp_antipodal():
     assert torch.allclose(out.abs(), expected.abs(), atol=1e-5)
 
 
-def test_slerp_near_identical():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_slerp_near_identical(seed):
     """q2 = q1 + tiny noise → LERP fallback, no NaN, stays near q1."""
-    torch.manual_seed(0)
-    q1 = so3.normalize(torch.randn(4))
-    q2 = so3.normalize(q1 + 1e-8 * torch.randn(4))
+    generator = torch.Generator().manual_seed(seed)
+    q1 = so3.normalize(torch.randn(4, generator=generator))
+    q2 = so3.normalize(q1 + 1e-8 * torch.randn(4, generator=generator))
     out = so3.slerp(q1, q2, 0.5)
     assert torch.isfinite(out).all()
     assert torch.allclose(out.abs(), q1.abs(), atol=1e-5)
@@ -72,21 +81,23 @@ def test_slerp_constant_speed():
         assert abs(dists[i] - t.item() * total) < 1e-5
 
 
-def test_slerp_unit_norm():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_slerp_unit_norm(seed):
     """Output is unit-norm."""
-    torch.manual_seed(1)
-    q1 = so3.normalize(torch.randn(4))
-    q2 = so3.normalize(torch.randn(4))
+    generator = torch.Generator().manual_seed(seed)
+    q1 = so3.normalize(torch.randn(4, generator=generator))
+    q2 = so3.normalize(torch.randn(4, generator=generator))
     for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
         out = so3.slerp(q1, q2, t)
         assert torch.allclose(out.norm(), torch.tensor(1.0), atol=1e-6)
 
 
-def test_slerp_batched():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_slerp_batched(seed):
     """Batched inputs (5, 4) with scalar t → (5, 4)."""
-    torch.manual_seed(2)
-    q1 = so3.exp(torch.randn(5, 3) * 0.3)
-    q2 = so3.exp(torch.randn(5, 3) * 0.3)
+    generator = torch.Generator().manual_seed(seed)
+    q1 = so3.exp(torch.randn(5, 3, generator=generator) * 0.3)
+    q2 = so3.exp(torch.randn(5, 3, generator=generator) * 0.3)
     out = so3.slerp(q1, q2, 0.3)
     assert out.shape == (5, 4)
     assert torch.allclose(out.norm(dim=-1), torch.ones(5), atol=1e-6)
@@ -164,11 +175,12 @@ def test_sclerp_constant_speed():
         assert abs(dists[i] - t.item() * total) < 1e-5
 
 
-def test_sclerp_batched():
+@pytest.mark.parametrize("seed", SEEDS)
+def test_sclerp_batched(seed):
     """Batched (4, 7) inputs with scalar t → (4, 7)."""
-    torch.manual_seed(3)
-    T1 = se3.exp(torch.randn(4, 6) * 0.3)
-    T2 = se3.exp(torch.randn(4, 6) * 0.3)
+    generator = torch.Generator().manual_seed(seed)
+    T1 = se3.exp(torch.randn(4, 6, generator=generator) * 0.3)
+    T2 = se3.exp(torch.randn(4, 6, generator=generator) * 0.3)
     out = se3.sclerp(T1, T2, 0.4)
     assert out.shape == (4, 7)
     # Quaternion part stays unit-norm.
