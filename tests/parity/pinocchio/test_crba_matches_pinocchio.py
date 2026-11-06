@@ -44,13 +44,23 @@ def test_armature_matches_pinocchio(panda_both):
     pin_model = pin.Model(pin_model)
     pin_model.armature = armature.numpy()
     pin_data = pin_model.createData()
-    q, v, a = sample_panda_q(1, seed=4)[0], *(torch.rand(2, br_model.nv, dtype=torch.float64) - 0.5)
+    rng = torch.Generator().manual_seed(4)
+    q = sample_panda_q(1, seed=4)[0]
+    v, a = torch.rand(2, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
     state = forward_kinematics_state(br_model, q)
     tau_pin = pin.rnea(pin_model, pin_data, q.numpy(), v.numpy(), a.numpy())
-    np.testing.assert_allclose(inverse_dynamics(br_model, state, v=v, a=a).numpy(), tau_pin, rtol=_RTOL, atol=_RTOL)
+    np.testing.assert_allclose(
+        inverse_dynamics(br_model, state, v=v, a=a).numpy(),
+        tau_pin,
+        rtol=_RTOL,
+        atol=_RTOL,
+        err_msg="RNEA with armature",
+    )
     M_pin = np.asarray(pin.crba(pin_model, pin_data, q.numpy()))
     M_pin_full = np.triu(M_pin) + np.triu(M_pin, k=1).T
-    np.testing.assert_allclose(mass_matrix(br_model, state).numpy(), M_pin_full, rtol=_RTOL, atol=_RTOL)
+    np.testing.assert_allclose(
+        mass_matrix(br_model, state).numpy(), M_pin_full, rtol=_RTOL, atol=_RTOL, err_msg="CRBA with armature"
+    )
 
 
 def test_crba_consistent_with_rnea(panda_both):
