@@ -60,7 +60,6 @@ _LEGACY_KIND_HELPER: dict[str, str] = {
     "ball": "add_spherical",
     "planar": "add_planar",
     "helical": "add_helical",
-    "composite": "add_joint(kind=JointComposite(...))",
     "mimic": "a concrete joint helper plus mimic_source=...",
     "free_flyer": "add_free_flyer_root",
     "free": "add_free_flyer_root",
@@ -468,7 +467,7 @@ class ModelBuilder:
             helper = _LEGACY_KIND_HELPER.get(kind, "the matching add_<kind> helper")
             raise TypeError(
                 f"ModelBuilder.add_joint(kind={kind!r}, ...) is not supported. "
-                f"Use {helper!s} instead — see docs/concepts/parsers_and_ir.md §6."
+                f"Use {helper!s} instead."
             )
         if kind is None:
             raise TypeError(

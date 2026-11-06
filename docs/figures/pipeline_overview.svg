@@ -13,13 +13,13 @@
 <polyline points="174,64 198,64" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
 <rect x="198" y="24" width="148" height="80" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
 <text x="272.0" y="53.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">Model</text>
-<text x="272.0" y="70.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">structure (static)</text>
-<text x="272.0" y="86.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">values (tensors)</text>
-<text x="272" y="126" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">data_model</text>
+<text x="272.0" y="70.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">static fields</text>
+<text x="272.0" y="86.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">tensor fields</text>
+<text x="272" y="126" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">model</text>
 <polyline points="346,64 370,64" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
 <rect x="370" y="24" width="148" height="80" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
 <text x="444.0" y="53.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">State</text>
-<text x="444.0" y="70.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">model.fk(q)</text>
+<text x="444.0" y="70.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">forward_kinematics</text>
 <text x="444.0" y="86.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">Jacobians · dynamics</text>
 <text x="444" y="126" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">kinematics · dynamics</text>
 <polyline points="518,64 542,64" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>

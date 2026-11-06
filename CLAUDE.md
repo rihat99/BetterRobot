@@ -51,10 +51,10 @@ third-party package is one `pyproject.toml` declares for that package
 (`tests/contract/test_optional_imports.py`).
 
 Public wrappers validate shapes, dtype, device, and model attachment. Raw
-tensor passes below them trust validated inputs. `ModelStructure` holds static
-topology, `ModelValues` holds differentiable tensors, and a frozen
-`KinematicState` holds the results of one forward-kinematics query. Torch is
-the only implementation.
+tensor passes below them trust validated inputs. `Model` is one flat frozen
+record: its static fields hold the topology, its tensor fields the
+differentiable parameters; a frozen `KinematicState` holds the results of one
+forward-kinematics query. Torch is the only implementation.
 
 ## Numerical contracts
 
