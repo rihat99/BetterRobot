@@ -10,9 +10,9 @@ Re-running this script with the same seed and pinned versions must reproduce
 the numerical arrays. Archive bytes and the ``generated_at`` metadata may
 differ between runs.
 
-Run:
+Run from the repository root (``tests.support`` must import):
 
-    uv run python tests/kinematics/_generate_fk_reference.py
+    PYTHONPATH=. uv run python tests/kinematics/_generate_fk_reference.py
 
 See ``docs/conventions/testing.md §5.4``.
 """
@@ -29,7 +29,7 @@ import torch
 import better_robot as br
 from tests.support.robots import g1_urdf, panda_urdf
 
-ORACLE_VERSION = "4"
+ORACLE_VERSION = "5"
 GENERATION_SEED = 0
 N_CONFIGS = 32  # keep small — < 200 KB total
 
