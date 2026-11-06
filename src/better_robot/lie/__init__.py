@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from . import se3, so3, tangents
-from .alignment import umeyama
+from .umeyama import umeyama
 from .types import SE3, SO3, Pose
 
 __all__ = ["se3", "so3", "tangents", "umeyama", "SE3", "SO3", "Pose"]

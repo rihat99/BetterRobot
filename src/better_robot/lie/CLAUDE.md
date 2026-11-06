@@ -23,7 +23,7 @@ The pure-Torch implementations live directly in `so3.py` and `se3.py`; PyPose wa
 
 - `se3.py` — `compose`, `inverse`, `log`, `exp`, `act`, `adjoint`, `from_matrix`, `to_matrix`, `from_axis_angle`, `from_translation`, `normalize`, `sclerp`
 - `so3.py` — same pattern + fixed-convention `from_euler` / `to_euler`, `from_matrix`, `to_matrix`, `slerp`
-- `alignment.py` — weighted, batched `umeyama` similarity-transform fitting with a proper-rotation reflection fix
+- `umeyama.py` — weighted, batched `umeyama` similarity-transform fitting with a proper-rotation reflection fix
 - `tangents.py` — right/left Jacobians of SO3/SE3 exp/log, `hat`/`vee` maps
 
 Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.
