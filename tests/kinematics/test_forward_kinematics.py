@@ -5,6 +5,7 @@ import torch
 
 import better_robot as br
 from better_robot import dynamics, kinematics
+from better_robot.io import ModelBuilder, build_model
 from better_robot.lie import so3
 from tests.support.robots import panda_urdf
 
@@ -55,9 +56,7 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
     torch.testing.assert_close(by_func, by_autograd)
     assert float(by_func[:, :, :3].abs().max()) > 0.5  # moving a joint origin moves the hand
 
-    by_q = torch.func.jacrev(lambda x: kinematics.forward_kinematics(model, x).frame_translations[:, hand].sum(0))(
-        q
-    )
+    by_q = torch.func.jacrev(lambda x: kinematics.forward_kinematics(model, x).frame_translations[:, hand].sum(0))(q)
     jacobian = kinematics.frame_jacobian(model, kinematics.forward_kinematics(model, q), frame=hand)
     torch.testing.assert_close(by_q.permute(1, 0, 2), jacobian[:, :3, :], atol=1e-12, rtol=0.0)
 
@@ -78,8 +77,6 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
 
 def test_state_review_regressions():
     """Non-unit joint axis, a moved placement in a new model after a call, first call in inference mode."""
-    from better_robot.io import ModelBuilder, build_model
-
     builder = ModelBuilder("axis")
     base = builder.add_body("base", mass=1.0)
     link = builder.add_body("link", mass=1.0)

@@ -3,7 +3,7 @@
 Every public kinematics and dynamics function is plain PyTorch, so autograd reaches the configuration
 `q`, the velocity `v` and the model's own tensors. This guide shows gradients with respect to each,
 and how to use `torch.func.jacrev` for full Jacobians. Tests in `tests/autograd/`,
-`tests/kinematics/test_state.py` and `tests/dynamics/test_state_dynamics.py` guard every path shown here.
+`tests/kinematics/test_forward_kinematics.py` and `tests/dynamics/test_state_dynamics.py` guard every path shown here.
 
 ## Gradients with respect to `q`
 
