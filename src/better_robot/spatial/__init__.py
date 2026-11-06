@@ -6,7 +6,8 @@
 - Inertia ``(..., 10)`` = ``[mass, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``: the centre of mass ``c`` and the
   rotational inertia about it, both in the body frame, in MuJoCo's ``fullinertia`` order (not Pinocchio's
   ``toDynamicParameters``, which is about the frame origin). `inertia_matrix` gives the ``(..., 6, 6)`` matrix;
-  `inertia_from_mass_com` and ``inertia_of_sphere``, ``_box``, ``_capsule``, ``_ellipsoid``, ``_mesh`` build one.
+  `inertia_from_mass_com`, `inertia_of_sphere`, `inertia_of_box`, `inertia_of_capsule`, `inertia_of_ellipsoid` and
+  `inertia_of_mesh` build one.
 - Mesh helpers on the integer face table: `validate_closed_manifold`, `orient_faces_consistently`,
   `orient_faces_by_component` (inputs for `inertia_of_mesh`).
 """
