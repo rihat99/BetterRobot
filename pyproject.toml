@@ -90,8 +90,8 @@ ignore = ["E501", "PLR0913", "PLR2004"]
 #   "D"      305  C-DOC-1  (numpy convention; D1xx on public names only)
 #   "ANN001" 132  C-TEST-2
 #   "SLF001"  31  C-EXT-3
-# Enabled above with open violations listed in the task ledger (p1_violations.md):
-#   FBT001 9, FBT002 3, BLE001 2, ERA001 7, ANN201 4.
+# Enabled above with open violations in `src/` (counts on 2026-11-06; `ruff check src --statistics` lists them):
+#   FBT001 7, FBT002 3, BLE001 1.
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ANN201", "FBT001", "FBT002", "ERA001"]
