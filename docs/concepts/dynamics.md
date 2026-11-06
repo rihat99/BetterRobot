@@ -39,8 +39,8 @@ from better_robot.dynamics import (
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 for body in ("base", "link1", "link2"):
     builder.add_body(body, mass=1.0, com=torch.tensor([0.0, 0.0, 0.15]))
-builder.add_revolute_z("j1", parent="base", child="link1")
-builder.add_revolute_y("j2", parent="link1", child="link2",
+builder.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1")
+builder.add_revolute("j2", axis=(0.0, 1.0, 0.0), parent="link1", child="link2",
                        origin=torch.tensor([0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 1.0]))
 model = build_model(builder.finalize(), dtype=torch.float64)
 
