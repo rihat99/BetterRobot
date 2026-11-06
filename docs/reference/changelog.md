@@ -5,6 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Io: `Model.name` is the robot name of the file (`<robot name=...>` in URDF, `<mujoco model=...>` in MJCF); it was empty.
 - Io: `register_parser` and the parser registry are gone (records 0025, 0038): `load` and `parse` know URDF and MJCF by
   suffix and raise `ModelError` for any other; a new format is a function returning `IRModel` passed to `build_model`
   (`tests/contract/test_extension_points.py`: no registry and no `register_*` function in `src`).

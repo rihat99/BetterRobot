@@ -17,7 +17,7 @@ model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 print(model.name, "nq =", model.nq, "nv =", model.nv)
 ```
 ```output
- nq = 8 nv = 8
+panda nq = 8 nv = 8
 ```
 
 A `Model` is immutable. Its topology (joint tree, names, index tables) is static Python data; its numbers

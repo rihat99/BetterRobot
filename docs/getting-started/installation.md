@@ -52,7 +52,7 @@ model = br.load(panda_description.URDF_PATH)
 print(model.name, model.nq, torch.cuda.is_available())
 ```
 ```output
- 8 False
+panda 8 False
 ```
 
 The first `robot_descriptions` import downloads the robot repository into `~/.cache`; later runs are offline.
