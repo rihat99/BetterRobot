@@ -134,7 +134,8 @@ def test_frame_jacobian_compiles_fullgraph(arm):
         return frame_jacobian(arm, kinematic_state, frame=frame_id)
 
     compiled = torch.compile(evaluate, fullgraph=True, backend="eager")
-    torch.testing.assert_close(compiled(state), evaluate(state))
+    # A fresh state for the reference, so it never reads a column table the compiled call left on `state`.
+    torch.testing.assert_close(compiled(state), evaluate(forward_kinematics(arm, q)))
 
 
 # ── analytic vs finite diff ───────────────────────────────────────────────────
