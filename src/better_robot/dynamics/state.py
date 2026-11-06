@@ -17,6 +17,7 @@ from ..model._checks import check_tensor, expand_batch
 from ..model.model import Model
 from ._world import (
     DynamicsPlan,
+    WorldGeometry,
     WorldKinematics,
     centroidal_map_full,
     dynamics_plan,
@@ -34,13 +35,17 @@ def _plan(model: Model, state: KinematicState) -> DynamicsPlan:
 def _world(model: Model, state: KinematicState) -> tuple[WorldKinematics, tuple[int, ...]]:
     """World-frame kinematics of ``state`` and the state's batch shape.
 
-    The model-independent geometry is memoised on the state; the inertias are read from ``model`` on every call.
+    The model-independent geometry is memoised on the state by grad mode through its one memo writer; the
+    inertias are read from ``model`` on every call.
     """
     batch = tuple(state.q.shape[:-1])
-    if "world_geometry" not in state._memo:
-        transform = state.joint_transforms.reshape(math.prod(batch), model.njoints, 3, 4)
-        state._memo["world_geometry"] = world_geometry(model, transform, _plan(model, state))
-    return world_kinematics(state._memo["world_geometry"], model, batch), batch
+    count = math.prod(batch)
+
+    def geometry() -> WorldGeometry:
+        transform = state.joint_transforms.reshape(count, model.njoints, 3, 4)
+        return world_geometry(model, transform, _plan(model, state))
+
+    return world_kinematics(state._memoised("world_geometry", geometry), model, batch), batch
 
 
 def _tangent(model: Model, batch: tuple[int, ...], value: torch.Tensor, name: str) -> torch.Tensor:

@@ -4,7 +4,7 @@
 parents, the `q`/`v` layout, the resolved mimic chain, `meta`) and eleven tensor
 fields (placements, inertias, limits, armature, damping, gravity, `q_neutral`).
 The class docstring holds the field table. Query results live in a frozen
-`KinematicState` (`kinematics/state.py`), never on the model; do not mutate
+`KinematicState` (`src/better_robot/kinematics/forward_kinematics.py`), never on the model; do not mutate
 model tensors in place.
 
 - No `__post_init__` validation: `io/build_model.py` constructs the record;
@@ -51,7 +51,7 @@ model tensors in place.
 Subclass `JointModel` in `joints/` as a `@final` frozen dataclass declaring
 `nq`, `nv`, `manifold` and `axis`, run `better_robot.testing.check_joint_model`
 on it, export it from `src/better_robot/model/__init__.py`, then map its IR kind string in
-`io/build_model.py`. `kinematics/_fk_lean.py` reads a kind's class only for
+`io/build_model.py`. `src/better_robot/kinematics/_plans.py` reads a kind's class only for
 the affine fast path; every other kind goes through `placement`. Joints carry
 no kind string. Preserve scalar-last quaternions and linear-first tangents
 throughout.

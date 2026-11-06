@@ -6,14 +6,14 @@
   `mass_matrix(model, state)`, `forward_dynamics(model, state, *, v, tau, fext=)`,
   `centroidal_map(model, state)`, `centroidal_momentum(model, state, v=v)`,
   `center_of_mass(model, state)`. World-frame quantities are built once per state and
-  memoised in `state._memo["world_geometry"]` (inertias are re-read from the model each call).
+  memoised on it by grad mode through `KinematicState._memoised` (inertias are re-read from the model each call).
   Bias forces are `inverse_dynamics(model, state, v=v, a=zeros)`; gravity torque is
   `inverse_dynamics(model, state, v=zeros, a=zeros)` with `zeros` a `(B..., nv)` tensor.
 
 ## One core, no joint loops
 
 `_world.py` holds the only implementation. Everything lives in the world frame: the shared
-Jacobian column table `C (N, 6, nv_full)` from `kinematics/_jacobian_columns.py`, each joint's
+Jacobian column table `C (N, 6, nv_full)` from `src/better_robot/kinematics/_jacobian.py`, each joint's
 rotation and origin, the packed body inertias. Sums over ancestors or subtrees are products with
 constant support matrices (`DynamicsPlan`, memoised on the structure), so operator counts are
 independent of the joint count (Panda RNEA 387 operators, tree200 390).
