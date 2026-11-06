@@ -102,7 +102,7 @@ def missing_joint_pair(request):
         parent=base,
         child=tip,
     )
-    br_model = build_model(builder.finalize()).to(dtype=torch.float64)
+    br_model = build_model(builder.finalize(), dtype=torch.float64)
 
     pin_model = pin.Model()
     pin_joint_id = pin_model.addJoint(
