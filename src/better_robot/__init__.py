@@ -19,7 +19,7 @@ Layered DAG (arrows point from dependent to dependency)::
 
 from __future__ import annotations
 
-from . import exceptions as exceptions, io as io, spatial as spatial
+from . import exceptions as exceptions, io as io, spatial as spatial, testing as testing
 from ._version import __version__ as __version__
 from .data_model import Body, Frame, Joint, Model, ModelStructure, ModelValues, Trajectory
 from .io import ModelBuilder, load
@@ -69,4 +69,6 @@ __all__ = [
     "forward_dynamics",
     "centroidal_map",
     "centroidal_momentum",
+    # repository checks shared with BetterHuman
+    "testing",
 ]
