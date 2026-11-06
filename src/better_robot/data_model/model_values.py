@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch.utils import _pytree
 
-from .._validation import check_tensor
+from ._checks import check_tensor
 from ..lie.tangents import hat_so3
 from .execution_batch import broadcast_execution_batch_shape
 

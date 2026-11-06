@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from .._validation import check_tensor
+from ._checks import check_tensor
 from ..exceptions import ShapeError
 from ..lie import se3
 from .frame import Frame

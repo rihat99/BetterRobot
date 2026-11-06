@@ -1,5 +1,3 @@
 {
-  "_validation -> exceptions": "src/better_robot/_validation.py::check_tensor",
-  "data_model -> _validation": "src/better_robot/data_model/model.py::_checked_value",
   "viewer -> io": "src/better_robot/viewer/robot.py::_load_geom"
 }

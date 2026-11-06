@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from .exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
+from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
 
 
 def check_tensor(
