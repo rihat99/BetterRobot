@@ -283,7 +283,7 @@ def test_solve_layer_gradient_matches_finite_differences():
     weights = torch.randn(4, 3, generator=torch.Generator().manual_seed(7), dtype=torch.float64)
     attached = goal.clone().requires_grad_(True)
     out = solution(attached)
-    assert float(out[0, 2]) == pytest.approx(0.3)
+    assert out[0, 2].item() == pytest.approx(0.3)
     (analytic,) = torch.autograd.grad((out * weights).sum(), attached)
     numeric = torch.zeros_like(goal)
     for index in range(goal.numel()):

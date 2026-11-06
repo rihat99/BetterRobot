@@ -54,12 +54,24 @@ torch = { index = "pytorch-cu129" }
 packages = ["src/better_robot"]
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib"
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+testpaths = ["tests"]
 python_files = ["test_*.py", "bench_*.py"]  # bench_* files carry the bench marker; -m bench selects them
+xfail_strict = true
+empty_parameter_set_mark = "fail_at_collect"
+filterwarnings = [
+    "error",
+    # torch 2.13 deprecates its own internals yet still calls them: torch.func.jvp's decompositions call
+    # torch.jit.script, inductor's import of torch.utils.mkldnn calls torch.jit.script_method, and inductor's
+    # decomposition of diagonal calls torch._prims_common.check. No code here calls any of them.
+    "ignore:`torch.jit.script` is deprecated:DeprecationWarning",
+    "ignore:`torch.jit.script_method` is deprecated:DeprecationWarning",
+    "ignore:`torch._prims_common.check` is deprecated:FutureWarning",
+]
 markers = [
-    "slow: long-running tests (skip with '-m \"not slow\"')",
-    "cuda: tests requiring a CUDA device",
-    "bench: benchmark micro-tests (advisory; not part of contract)",
+    "cuda: needs a CUDA device; deselected in the fast and full tiers, run in the release tier",
+    "slow: takes seconds; deselected in the fast tier, run in the full tier",
+    "bench: benchmark micro-tests; deselected in every tier until benchmarks/ is their one home",
 ]
 
 [tool.ruff]
