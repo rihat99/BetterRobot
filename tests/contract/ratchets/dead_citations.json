@@ -119,8 +119,5 @@
   "tests/lie/test_interpolation.py: lie/so3.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/lie/test_tangents.py: lie/tangents.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/model/test_model_data.py: model/model.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
-  "tests/model/test_topology.py: model/topology.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
-  "docs/contracts/decisions/0022-viewer-boundary.md: tests/contract/test_no_probing.py": "the record's enforcement test, written by the work package that implements the record",
-  "docs/contracts/decisions/0036-mjcf-compile-through-mujoco.md: tests/contract/test_no_probing.py": "the record's enforcement test, written by the work package that implements the record",
-  "docs/contracts/decisions/0037-urdf-typed-adapter.md: tests/contract/test_no_probing.py": "the record's enforcement test, written by the work package that implements the record"
+  "tests/model/test_topology.py: model/topology.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root"
 }
