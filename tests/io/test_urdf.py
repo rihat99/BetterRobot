@@ -87,7 +87,7 @@ def test_panda_name_to_id_has_all_joints(panda_model, panda_ir):
 
 def test_panda_body_frame_names(panda_model, panda_ir):
     for body in panda_ir.bodies:
-        assert f"body_{body.name}" in panda_model.frame_names
+        assert body.name in panda_model.frame_names
 
 
 # ── G1 floating-base tests ───────────────────────────────────────────────────

@@ -20,7 +20,7 @@ def mixed_dof_model():
     builder.add_spherical("ball", parent=base, child=ball_link)
     builder.add_revolute("hinge", axis=(0.0, 0.0, 1.0), parent=base, child=hinge_link)
     builder.add_planar("plane", parent=ball_link, child=plane_link)
-    return build_model(builder.finalize(), preserve_joint_order=True)
+    return build_model(builder.finalize())
 
 
 def _reference_name_remap(

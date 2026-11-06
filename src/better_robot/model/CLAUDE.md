@@ -1,7 +1,7 @@
 # `model/` — Robot Identity
 
 `Model` (`model.py`) is one flat frozen dataclass: static fields (names, joints,
-parents, the `q`/`v` layout, the resolved mimic chain) and eleven tensor
+parent joint ids, the `q`/`v` layout, the resolved mimic chain) and eleven tensor
 fields (placements, inertias, limits, armature, damping, gravity, `q_neutral`).
 The class docstring holds the field table. Query results live in a frozen
 `KinematicState` (`src/better_robot/kinematics/forward_kinematics.py`), never on the model; do not mutate
@@ -30,12 +30,12 @@ model tensors in place.
   manifold and runs one batched call per group behind `kinematics.integrate`
   and `kinematics.difference`.
 - `joints/` holds the abstract `JointModel` and the nine final kinds, one file
-  per kind; `topology.py` the pure tree helpers on `parents`.
+  per kind; `topology.py` the pure tree helpers on `parent_joint_ids`.
 
 ## Coordinate rules
 
 - Joint 0 is the zero-DOF universe; a floating base is joint 1 as
-  `JointFreeFlyer`. Index order is a topological order (`parents[i] < i`).
+  `JointFreeFlyer`. Index order is a topological order (`parent_joint_ids[i] < i`).
 - `nq != nv` for manifold joints. Use `kinematics.integrate` and
   `kinematics.difference`; use `idx_qs`/`idx_vs` for slices.
 - `Model.q_permutation` supplies scalar gather tables for external joint

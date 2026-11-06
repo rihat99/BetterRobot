@@ -22,11 +22,11 @@ from better_robot.kinematics import forward_kinematics
 KNOTS, DT, MARGIN = 30, 0.05, 0.02
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
 SPHERES = {
-    "body_panda_link3": [((0.0, 0.0, -0.05), 0.08)],
-    "body_panda_link4": [((0.0, 0.0, 0.0), 0.08)],
-    "body_panda_link5": [((0.0, 0.05, -0.12), 0.07), ((0.0, 0.0, -0.22), 0.07)],
-    "body_panda_link7": [((0.0, 0.0, 0.05), 0.07)],
-    "body_panda_hand": [((0.0, 0.0, 0.06), 0.07), ((0.0, 0.0, 0.11), 0.05)],
+    "panda_link3": [((0.0, 0.0, -0.05), 0.08)],
+    "panda_link4": [((0.0, 0.0, 0.0), 0.08)],
+    "panda_link5": [((0.0, 0.05, -0.12), 0.07), ((0.0, 0.0, -0.22), 0.07)],
+    "panda_link7": [((0.0, 0.0, 0.05), 0.07)],
+    "panda_hand": [((0.0, 0.0, 0.06), 0.07), ((0.0, 0.0, 0.11), 0.05)],
 }
 
 
@@ -37,7 +37,7 @@ def main() -> None:
     q_a, q_b = torch.tensor(READY, dtype=torch.float64), torch.tensor(READY, dtype=torch.float64)
     q_a[0], q_b[0] = -0.9, 0.9  # swing the base; halfway the hand is where the obstacle sits
     hand = forward_kinematics(model, torch.tensor(READY, dtype=torch.float64)).frame_translations
-    obstacle, radius = hand[model.frame_id("body_panda_hand")].clone(), torch.tensor(0.08, dtype=torch.float64)
+    obstacle, radius = hand[model.frame_id("panda_hand")].clone(), torch.tensor(0.08, dtype=torch.float64)
 
     def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
         return collision.sphere_sphere(centers, radii, center_b=obstacle, radius_b=radius)

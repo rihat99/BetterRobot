@@ -10,9 +10,10 @@ Loading has two stages with one owner each:
 
 1. A parser reads a source and returns an `IRModel` (`better_robot.io.ir`): plain bodies, joints, frames,
    inertias and limits, with no topology decisions made yet.
-2. `build_model(ir, root_joint=None, preserve_joint_order=False, device=None, dtype=torch.float32)`
-   orders the joints into a tree, assigns `idx_q` and `idx_v`, packs every tensor field
-   and returns a frozen [`Model`](model-and-state.md).
+2. `build_model(ir, root_joint=None, device=None, dtype=torch.float32)` orders the joints into a tree
+   (parents first, the source's order wherever it is already topological), assigns `idx_q` and `idx_v`, packs
+   every tensor field, names a frame after every body and returns a frozen [`Model`](model-and-state.md) whose
+   `q_neutral` lies inside the limits.
 
 ```text
 URDF file  --parse_urdf-->  \
@@ -66,7 +67,6 @@ Keyword arguments of `load`:
 | `format` | `"auto"` | force a parser instead of guessing |
 | `free_flyer` | `False` | root the tree on a `JointFreeFlyer` (adds 7 to `nq`, 6 to `nv`) |
 | `root_joint` | `None` | root the tree on any joint model; `free_flyer=True` is shorthand |
-| `preserve_joint_order` | `False` | keep an already-topological source joint order instead of depth-first order |
 | `device`, `dtype` | `None`, `torch.float32` | where and in what precision the values live |
 
 Mesh URIs stay the strings the file wrote; `viewer.robot_meshes(geometry, root=)` reads them under a root you name.

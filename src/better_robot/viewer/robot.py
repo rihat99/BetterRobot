@@ -65,7 +65,7 @@ def robot_skeleton(
     (names or ids) to a point ``(3,)`` in each frame: a bone, as thick as the one into the frame's parent joint, runs
     from that joint to the point, such as a hand out to where its contacts are, past the last wrist joint.
     """
-    parents = np.asarray(model.parents[1:], dtype=np.int64) - 1  # the universe becomes -1
+    parents = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
     poses, offsets = joint_poses[:, 1:], spread_offsets(model, radius=radius)
     if end_points:  # each end point joins the skeleton as a joint without a marker
@@ -175,7 +175,7 @@ def spread_offsets(
     axial = [marker in ("cylinder", "box") for marker in markers]
     inner = np.zeros(len(markers), dtype=bool)  # a marker further down the chain (not a chain end)
     for joint in reversed(range(len(markers))):
-        parent = model.parents[joint + 1] - 1
+        parent = model.parent_joint_ids[joint + 1] - 1
         if parent >= 0:
             inner[parent] |= inner[joint] or markers[joint] is not None
     fixed = [joint for joint, marker in enumerate(markers) if marker and not axial[joint]]

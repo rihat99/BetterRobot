@@ -22,7 +22,7 @@ def main() -> None:
 
     model = br.load(panda_description.URDF_PATH)
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-    q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
+    q = model.q_neutral
     state = br.forward_kinematics(model, q[None])
     poses = state.joint_poses.numpy()
     viewer = Viewer()
@@ -30,7 +30,7 @@ def main() -> None:
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
     viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
     viewer.add(robot_skeleton(model, poses), group="panda")
-    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("body_panda_hand")]].numpy()), group="panda")
+    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()), group="panda")
     viewer.show()
     print(f"{len(viewer.layers)} layers at {viewer.url}")
     if args.check:

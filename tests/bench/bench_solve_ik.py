@@ -11,8 +11,8 @@ pytestmark = pytest.mark.bench
 
 def test_solve_ik_panda(benchmark, panda, panda_state) -> None:
     frame_id = (
-        panda.frame_id("body_panda_hand")
-        if "body_panda_hand" in panda.frame_names
+        panda.frame_id("panda_hand")
+        if "panda_hand" in panda.frame_names
         else panda.frame_id(panda.frame_names[-1])
     )
     target = panda_state.frame_poses[frame_id].clone()

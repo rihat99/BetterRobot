@@ -134,7 +134,7 @@ poses = state.joint_poses.numpy()                                        # (30, 
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
 viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
 viewer.add(robot_skeleton(model, poses), group="panda")
-viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("body_panda_hand")]].numpy()), group="panda")
+viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()), group="panda")
 
 ghost = robot_skeleton(model, poses, name="ghost")
 viewer.add(ghost, group="ghost", offset=(0.0, 1.0, 0.0))
@@ -174,7 +174,7 @@ from better_robot.viewer import robot_skeleton
 
 poses = br.forward_kinematics(model, q).joint_poses.numpy()   # (30, njoints, 7)
 tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
-fingers = {"body_panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
+fingers = {"panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
 viewer.add(robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers), group="panda")
 ```
 

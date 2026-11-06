@@ -26,7 +26,7 @@ class RobotCapsules:
     build it with ``from_frames`` so dtype and device match the model.
 
     ```python
-    capsules = RobotCapsules.from_frames(model, {"body_left_knee_link": [((0.01, 0, 0), (0.01, 0, -0.15), 0.045)]})
+    capsules = RobotCapsules.from_frames(model, {"left_knee_link": [((0.01, 0, 0), (0.01, 0, -0.15), 0.045)]})
     starts, ends = capsules.segments(forward_kinematics(model, q))  # (B..., C, 3) each, WORLD
     ```
     """

@@ -15,12 +15,12 @@ from robot_descriptions import panda_description
 from better_robot import optim, terms
 from better_robot.kinematics import forward_kinematics
 
-FRAME = "body_panda_hand"
+FRAME = "panda_hand"
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 hand = model.frame_id(FRAME)
 generator = torch.Generator().manual_seed(0)
 
-q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(32, -1)
+q0 = model.q_neutral.expand(32, -1)
 q_goal = terms.random_start(model, q0, generator=generator)
 target = forward_kinematics(model, q_goal).frame_poses[:, hand]  # (32, 7)
 ```
@@ -83,7 +83,7 @@ for name, loss in problem.losses(result.x).items():
     print(f"{name}: {float(loss.mean()):.2e}")
 ```
 ```output
-pose/body_panda_hand: 2.27e-02
+pose/panda_hand: 2.27e-02
 elbow: 6.95e-04
 ```
 

@@ -31,21 +31,21 @@ A `Model` is immutable. Its topology (joint tree, names, index tables) is static
 ## Read the joints and frames
 
 Joint 0 is always `universe`, the fixed world. The URDF parser adds a fixed `root_joint` that attaches the
-robot to it. Every body gets a frame named `body_<link>`; you address frames by name:
+robot to it. Every body gets a frame of its own name; you address frames by name:
 
 ```python
 print(model.njoints, model.joint_names[:4])
 print(model.nframes, model.frame_names[-3:])
-hand = model.frame_id("body_panda_hand")
+hand = model.frame_id("panda_hand")
 print("hand frame id:", hand)
 ```
 ```output
 14 ('universe', 'root_joint', 'panda_joint1', 'panda_joint2')
-14 ('body_panda_hand_tcp', 'body_panda_leftfinger', 'body_panda_rightfinger')
+14 ('panda_hand_tcp', 'panda_leftfinger', 'panda_rightfinger')
 hand frame id: 10
 ```
 
-Frame names are prefixed with their kind, so the hand link becomes `body_panda_hand`.
+A body's frame carries the body's name, so the hand link's frame is `panda_hand`.
 
 ## Read the configuration vector
 
@@ -56,17 +56,19 @@ finger joint; the second finger mimics the first, so it does not get its own ent
 print(model.q_neutral)
 print(model.lower_position_limit)
 print(model.upper_position_limit)
-q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
+q = model.q_neutral
 ```
 ```output
-tensor([0., 0., 0., 0., 0., 0., 0., 0.], dtype=torch.float64)
+tensor([ 0.0000,  0.0000,  0.0000, -0.0698,  0.0000,  0.0000,  0.0000,  0.0000],
+       dtype=torch.float64)
 tensor([-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973,  0.0000],
        dtype=torch.float64)
 tensor([ 2.8973,  1.7628,  2.8973, -0.0698,  2.8973,  3.7525,  2.8973,  0.0400],
        dtype=torch.float64)
 ```
 
-`q_neutral` is all zeros here, which lies outside the limits of joint 4, so you clamp it before use.
+`q_neutral` is the zero pose clamped into the limits: joint 4's range excludes zero, so its entry sits at the
+upper limit.
 For a fixed-base arm `nq == nv`. A floating base breaks that equality; [Floating-base robots](floating-base.md)
 shows why.
 

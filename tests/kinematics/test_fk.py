@@ -101,10 +101,10 @@ def test_revolute_z_rotation(arm):
 
 
 def test_body_frame_is_at_joint(arm):
-    """body_universe frame should be at identity."""
+    """universe frame should be at identity."""
     q = arm.q_neutral
     state = forward_kinematics(arm, q)
-    f_id = arm.frame_id("body_universe")
+    f_id = arm.frame_id("universe")
     T_f = state.frame_poses[f_id]
     assert T_f[:3].norm() < 1e-6
 

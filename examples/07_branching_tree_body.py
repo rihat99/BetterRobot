@@ -29,7 +29,7 @@ def make_branching_tree() -> br.Model:
             child=names[index],
             origin=torch.tensor([0.0, 0.0, 0.15, 0.0, 0.0, 0.0, 1.0]),
         )
-    return br.io.build_model(builder.finalize(), preserve_joint_order=True)
+    return br.io.build_model(builder.finalize())
 
 
 def main() -> None:

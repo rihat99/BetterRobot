@@ -25,7 +25,7 @@ def _configuration(model) -> torch.Tensor:
 
 
 def _hand_frame(model) -> int:
-    for name in ("body_panda_hand", "body_panda_link8", "body_panda_link7"):
+    for name in ("panda_hand", "panda_link8", "panda_link7"):
         if name in model.frame_names:
             return model.frame_id(name)
     raise AssertionError("Panda hand frame is missing")

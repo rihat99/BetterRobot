@@ -15,8 +15,8 @@ from better_robot import dynamics as dyn
 from robot_descriptions import panda_description
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-hand = model.frame_id("body_panda_hand")
-q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(4, -1).clone()
+hand = model.frame_id("panda_hand")
+q = model.q_neutral.expand(4, -1).clone()
 q.requires_grad_()
 
 state = kinematics.forward_kinematics(model, q)
@@ -127,7 +127,7 @@ True
 batch element; `dyn.mass_matrix(model, state)` computes it directly and is cheaper.
 
 !!! note "What is not differentiable"
-    The static fields (parents, index tables, names) have no gradient by design.
+    The static fields (parent joint ids, index tables, names) have no gradient by design.
     Gradients through `q` on a floating base flow through the quaternion entries; take steps with
     `kinematics.integrate(model, q, dv)` so the quaternion stays on the unit sphere.
 

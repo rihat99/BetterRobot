@@ -14,7 +14,7 @@ def test_state_matches_data_api_and_autograd():
     model = br.load(panda_urdf(), dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
     q = torch.stack([model.random_configuration(generator=generator) for _ in range(4)])
-    frame = "body_panda_hand"
+    frame = "panda_hand"
 
     state = kinematics.forward_kinematics(model, q)
     state = br.forward_kinematics(model, q)
@@ -43,8 +43,8 @@ def test_state_matches_data_api_and_autograd():
 
 def test_state_is_differentiable_in_model_values_and_under_torch_func():
     model = br.load(panda_urdf(), dtype=torch.float64)
-    q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(2, -1)
-    hand = model.frame_id("body_panda_hand")
+    q = model.q_neutral.expand(2, -1)
+    hand = model.frame_id("panda_hand")
 
     def hand_position(placements: torch.Tensor) -> torch.Tensor:
         moved = model.with_values(joint_placements=placements)

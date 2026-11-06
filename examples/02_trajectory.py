@@ -18,14 +18,14 @@ import better_robot as br
 from better_robot import optim, terms
 from better_robot.kinematics import forward_kinematics
 
-FRAME, KNOTS, DT = "body_panda_hand", 40, 0.05
+FRAME, KNOTS, DT = "panda_hand", 40, 0.05
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
 
 
 def main() -> None:
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     frame_id = model.frame_id(FRAME)
-    q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_position_limit, model.upper_position_limit)
+    q_start = torch.tensor(READY, dtype=torch.float64)
     pose_start = forward_kinematics(model, q_start[None]).frame_poses[0, frame_id]
     pose_goal = pose_start.clone()
     pose_goal[:3] += torch.tensor([0.10, 0.15, 0.15], dtype=torch.float64)

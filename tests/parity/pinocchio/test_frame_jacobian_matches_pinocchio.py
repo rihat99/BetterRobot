@@ -18,7 +18,7 @@ from .conftest import sample_panda_q
 
 # Test against the end-effector frame (panda_hand — the most natural choice
 # for manipulation residuals).
-TARGET_FRAME = "body_panda_hand"
+TARGET_FRAME = "panda_hand"
 TARGET_PIN_FRAME = "panda_hand"
 
 

@@ -15,7 +15,7 @@ import better_robot as br
 from better_robot import optim, terms
 from better_robot.kinematics import forward_kinematics
 
-FRAME = "body_panda_hand"
+FRAME = "panda_hand"
 
 
 def main() -> None:

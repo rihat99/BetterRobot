@@ -12,7 +12,7 @@ you may change (none) and how to get a changed copy instead.
 
 | Kind | Fields | Changes when |
 |------|--------|--------------|
-| static | `name`, `joint_names`, `body_names`, `frame_names`, `joints`, `parents`, the index tables (`nqs`, `nvs`, `idx_qs`, `idx_vs`, ...), the mimic chain | never |
+| static | `name`, `joint_names`, `body_names`, `frame_names`, `joints`, `parent_joint_ids`, the index tables (`nqs`, `nvs`, `idx_qs`, `idx_vs`, ...), the mimic chain | never |
 | tensor | `joint_placements (njoints, 7)`, `body_inertias (nbodies, 10)`, `frame_placements (nframes, 7)`, the limit vectors, `armature`, `damping`, `gravity (6,)`, `q_neutral (nq,)` | you call `with_values` or `to` |
 
 The static fields are plain Python data: strings, tuples and joint objects. Nothing in them carries a

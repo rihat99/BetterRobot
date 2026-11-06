@@ -79,7 +79,7 @@ def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> Dynami
     """Derive the support masks from the topology, on top of the Jacobian plan."""
     jacobian = jacobian_plan(model, dtype=dtype, device=device)
     support = torch.zeros((model.njoints, model.njoints), dtype=torch.bool, device=device)
-    for joint, chain in enumerate(build_supports(model.parents)):
+    for joint, chain in enumerate(build_supports(model.parent_joint_ids)):
         support[joint, list(chain)] = True
     support[0, 0] = False  # the universe transmits its children's wrenches only, never its own external force
     column_support = jacobian.support_mask.squeeze(-2)

@@ -109,7 +109,7 @@ def test_get_joint_jacobian_matches_coincident_frame(arm, chain, reference):
     agree in every reference frame. This is the only kinematics test that
     exercises ``get_joint_jacobian`` with a ``reference=`` argument.
     """
-    for model, frame_name in ((arm, "body_link1"), (chain, "body_l2")):
+    for model, frame_name in ((arm, "link1"), (chain, "l2")):
         q = model.q_neutral.clone()
         for index in range(model.nv):
             q[index] = 0.3 * (index + 1)
@@ -124,7 +124,7 @@ def test_get_joint_jacobian_matches_coincident_frame(arm, chain, reference):
 def test_frame_jacobian_compiles_fullgraph(arm):
     q = arm.q_neutral.expand(2, -1).clone()
     state = forward_kinematics(arm, q)
-    frame_id = arm.frame_id("body_link1")
+    frame_id = arm.frame_id("link1")
 
     def evaluate(kinematic_state):
         return frame_jacobian(arm, kinematic_state, frame=frame_id)
@@ -167,7 +167,7 @@ def test_analytic_vs_finite_diff_simple_arm(arm, q_overrides):
     q = arm.q_neutral.clone()
     for index, value in q_overrides.items():
         q[index] = value
-    frame_id = arm.frame_id("body_link1")
+    frame_id = arm.frame_id("link1")
     _analytic_vs_finite_diff(arm, q, frame_id)
 
 
@@ -175,7 +175,7 @@ def test_analytic_vs_finite_diff_chain_j1(chain):
     q = chain.q_neutral.clone()
     q[0] = 0.3
     q[1] = -0.4
-    frame_id = chain.frame_id("body_l2")
+    frame_id = chain.frame_id("l2")
     _analytic_vs_finite_diff(chain, q, frame_id)
 
 
@@ -197,7 +197,7 @@ def test_point_jacobian_matches_finite_differences_on_a_floating_base():
     q = integrate(
         model, model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64)
     )
-    frames = ["body_left_ankle_roll_link", "body_right_wrist_yaw_link", "body_left_ankle_roll_link", "body_pelvis"]
+    frames = ["left_ankle_roll_link", "right_wrist_yaw_link", "left_ankle_roll_link", "pelvis"]
     points = 0.1 * torch.randn(len(frames), 3, generator=generator, dtype=torch.float64)
     ids = [model.frame_id(frame) for frame in frames]
 

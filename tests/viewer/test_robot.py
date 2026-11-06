@@ -70,7 +70,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     joint_poses = state.joint_poses.numpy().astype(np.float32)
     meshes = robot_meshes(geometry, root=panda_urdf().parent, collision=True)
     assert len(meshes) == 17  # nine STL meshes and eight finger boxes
-    hand_frame = model.frame_id("body_panda_hand")
+    hand_frame = model.frame_id("panda_hand")
     layers = {
         "robot collision": RigidMeshLayer("robot collision", meshes, joint_poses, opacity=0.4),
         "robot skeleton": robot_skeleton(model, joint_poses, name="robot skeleton", tau=tau),
@@ -80,7 +80,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     np.testing.assert_allclose(layers["robot frames"].poses[:, 0], hand, atol=1e-6)
     skeleton = layers["robot skeleton"]
     np.testing.assert_allclose(skeleton.joints, state.joint_poses[:, 1:, :3].numpy(), atol=1e-6)
-    assert skeleton.parents[0] == -1 and list(skeleton.parents[1:]) == [p - 1 for p in model.parents[2:]]
+    assert skeleton.parents[0] == -1 and list(skeleton.parents[1:]) == [p - 1 for p in model.parent_joint_ids[2:]]
     assert skeleton.colors.shape == (5, model.njoints - 1, 3)
 
     server = FakeServer()

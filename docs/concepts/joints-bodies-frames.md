@@ -32,7 +32,7 @@ ir = builder.finalize()
 model = build_model(ir)
 
 print(model.joint_names)   # ('universe', 'root_joint', 'j1', 'j2')
-print(model.parents)       # (-1, 0, 1, 2)
+print(model.parent_joint_ids)       # (-1, 0, 1, 2)
 print([type(jm).__name__ for jm in model.joints])
 # ['JointFixed', 'JointFixed', 'JointRevolute', 'JointRevolute']
 ```
@@ -136,17 +136,17 @@ use them through `terms.RobotManifold(model)` (see [Optimization](optimization.m
 
 ## Frames are looked up by name
 
-Every body gets a frame named `body_<name>`; frames you add with `add_frame` keep their own name.
+Every body gets a frame of its own name; frames you add with `add_frame` keep theirs (a clash is a `ModelError`).
 `model.frame_id(name)` returns the integer index that kinematics, Jacobians and collision spheres take.
 `model.joint_id(name)` does the same for joints.
 
 ```python
-print(model.frame_names)   # ('body_universe', 'body_base', 'body_link1', 'body_link2', 'tool')
+print(model.frame_names)   # ('universe', 'base', 'link1', 'link2', 'tool')
 tool = model.frame_id("tool")
 print(tool)                # 4
 ```
 ```output
-('body_universe', 'body_base', 'body_link1', 'body_link2', 'tool')
+('universe', 'base', 'link1', 'link2', 'tool')
 4
 ```
 

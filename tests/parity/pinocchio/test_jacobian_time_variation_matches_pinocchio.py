@@ -37,7 +37,7 @@ PANDA_TARGET_JOINTS = ["panda_joint1", "panda_joint4", "panda_joint7"]
 # panda_hand is a fixed-joint operational frame with a nontrivial world pose:
 # its origin sits away from the world origin with the whole arm's angular DOF
 # above it, so the LWA ``-v_pt × J_ang`` transport term is O(1) here.
-PANDA_TARGET_FRAME = ("body_panda_hand", "panda_hand")
+PANDA_TARGET_FRAME = ("panda_hand", "panda_hand")
 
 
 def _fk_both(br_model, pin_model, pin_data, q, v):

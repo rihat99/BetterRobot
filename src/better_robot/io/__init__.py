@@ -66,7 +66,6 @@ def load(
     format: Literal["auto", "urdf", "mjcf"] = "auto",
     root_joint: JointModel | None = None,
     free_flyer: bool = False,
-    preserve_joint_order: bool = False,
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
@@ -75,8 +74,6 @@ def load(
     Dispatches by file suffix or explicit ``format`` hint.
     Passing ``free_flyer=True`` (or ``root_joint=JointFreeFlyer()``) turns
     any fixed-base URDF into a floating-base robot.
-    ``preserve_joint_order=True`` retains already-topological source joint
-    order; the default keeps the historical DFS layout.
     ``dtype`` and ``device`` set where the model's tensors are built
     (default ``torch.float32`` on the CPU), like ``model.to(...)`` after loading.
 
@@ -93,7 +90,6 @@ def load(
     return build_model(
         ir,
         root_joint=root_joint,
-        preserve_joint_order=preserve_joint_order,
         device=device,
         dtype=dtype,
     )

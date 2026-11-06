@@ -21,7 +21,7 @@ from robot_descriptions import panda_description
 from better_robot.viewer import FramesLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-q_rest = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
+q_rest = model.q_neutral
 clip = q_rest.repeat(30, 1)                       # (T, nq)
 clip[:, 0] = torch.linspace(-1.0, 1.0, 30, dtype=torch.float64)
 ```
@@ -41,7 +41,7 @@ state = br.forward_kinematics(model, clip)
 poses = state.joint_poses.numpy()                                        # (T, njoints, 7)
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
 viewer.add(RigidMeshLayer("panda", meshes, poses))
-viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("body_panda_hand")]].numpy()))
+viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()))
 print(viewer.url, len(viewer.layers))
 ```
 ```output

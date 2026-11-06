@@ -15,7 +15,7 @@ import better_robot as br
 from better_robot import optim, terms
 from better_robot.kinematics import forward_kinematics
 
-FRAME = "body_panda_hand"
+FRAME = "panda_hand"
 
 
 def position_error(model: br.Model, q: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -27,7 +27,7 @@ def position_error(model: br.Model, q: torch.Tensor, target: torch.Tensor) -> to
 def main() -> None:
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
-    q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(256, -1)
+    q0 = model.q_neutral.expand(256, -1)
     q_goal = terms.random_start(model, q0, generator=generator)
     target = forward_kinematics(model, q_goal).frame_poses[:, model.frame_id(FRAME)]
 

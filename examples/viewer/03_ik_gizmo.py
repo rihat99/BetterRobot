@@ -19,7 +19,7 @@ from better_robot.kinematics import forward_kinematics
 from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 from better_robot.viewer.tools import PoseGizmo
 
-FRAME = "body_panda_hand"
+FRAME = "panda_hand"
 
 
 def main() -> None:
@@ -29,7 +29,7 @@ def main() -> None:
 
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-    q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)[None]
+    q = model.q_neutral[None]
     hand = model.frame_id(FRAME)
     start = forward_kinematics(model, q)
     pose = start.frame_poses[0, hand]

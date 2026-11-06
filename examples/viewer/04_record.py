@@ -40,7 +40,7 @@ def main() -> None:
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
     viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
     viewer.add(robot_skeleton(model, poses), group="panda")
-    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("body_panda_hand")]].numpy()), group="panda")
+    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()), group="panda")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     start = time.perf_counter()

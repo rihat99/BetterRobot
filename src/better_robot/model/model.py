@@ -44,7 +44,7 @@ class Model:
     | ``name`` | static | ``str`` |
     | ``joint_names``, ``body_names``, ``frame_names`` | static | ``tuple[str, ...]`` |
     | ``joints`` | static | ``tuple[JointModel, ...]``, joint 0 is the universe |
-    | ``parents`` | static | ``tuple[int, ...]``, ``parents[0] == -1``, ``parents[i] < i`` |
+    | ``parent_joint_ids`` | static | ``tuple[int, ...]``, ``parent_joint_ids[0] == -1``, ``parent_joint_ids[i] < i`` |
     | ``frame_parent_joint_ids`` | static | ``tuple[int, ...]`` |
     | ``nqs``, ``nvs``, ``idx_qs``, ``idx_vs`` | static | public width and start of each joint's ``q``/``v`` slice |
     | ``nqs_full``, ``nvs_full``, ``idx_qs_full``, ``idx_vs_full`` | static | the same over every joint's coordinates |
@@ -64,7 +64,7 @@ class Model:
     body_names: tuple[str, ...]
     frame_names: tuple[str, ...]
     joints: tuple[JointModel, ...]
-    parents: tuple[int, ...]
+    parent_joint_ids: tuple[int, ...]
     frame_parent_joint_ids: tuple[int, ...]
     nqs: tuple[int, ...]
     nvs: tuple[int, ...]
@@ -147,7 +147,7 @@ class Model:
             self.body_names,
             self.frame_names,
             self.joints,
-            self.parents,
+            self.parent_joint_ids,
             self.frame_parent_joint_ids,
             self.nqs,
             self.nvs,

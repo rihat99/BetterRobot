@@ -14,8 +14,8 @@ from robot_descriptions import panda_description
 from better_robot.kinematics import forward_kinematics, frame_jacobian
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
-hand = model.frame_id("body_panda_hand")
+q = model.q_neutral
+hand = model.frame_id("panda_hand")
 
 state = forward_kinematics(model, q)
 print(state.joint_transforms.shape)  # (njoints, 3, 4)
@@ -31,7 +31,7 @@ tensor([ 1.0731e-01, -3.2653e-17,  9.2494e-01,  9.2332e-01,  3.8245e-01,
 
 ```python
 state = br.forward_kinematics(model, q)
-print(state.frame_pose_of("body_panda_hand"))  # (7,)
+print(state.frame_pose_of("panda_hand"))  # (7,)
 ```
 ```output
 tensor([ 1.0731e-01, -3.2653e-17,  9.2494e-01,  9.2332e-01,  3.8245e-01,
@@ -81,7 +81,7 @@ torch.Size([4, 10, 3])
 `v (nv,)` to the hand twist `[linear(3), angular(3)]`:
 
 ```python
-J = frame_jacobian(model, state, frame="body_panda_hand")
+J = frame_jacobian(model, state, frame="panda_hand")
 print(J.shape)  # (6, nv)
 ```
 ```output

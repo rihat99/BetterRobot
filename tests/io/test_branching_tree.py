@@ -29,7 +29,7 @@ def test_branching_model():
     assert "j0" in branching_model.body_names
     for bname in JOINT_NAMES:
         assert bname in branching_model.body_names, f"Missing body: {bname}"
-    assert all(parent < joint for joint, parent in enumerate(branching_model.parents) if joint)
+    assert all(parent < joint for joint, parent in enumerate(branching_model.parent_joint_ids) if joint)
     assert branching_model.q_neutral.shape == (branching_model.nq,)
 
 

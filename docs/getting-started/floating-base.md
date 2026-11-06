@@ -38,7 +38,7 @@ print(q[:7])   # base at the origin, identity quaternion (scalar last)
 q[2] = 0.79    # lift the pelvis to standing height
 
 state = forward_kinematics(model, q)
-left_foot = model.frame_id("body_left_ankle_roll_link")
+left_foot = model.frame_id("left_ankle_roll_link")
 print(state.frame_translations[left_foot])  # ankle about 3 cm above the ground
 ```
 ```output
@@ -83,7 +83,7 @@ the other 29 to the joints:
 ```python
 from better_robot.kinematics import frame_jacobian
 
-J = frame_jacobian(model, state, frame="body_left_ankle_roll_link")
+J = frame_jacobian(model, state, frame="left_ankle_roll_link")
 print(J.shape)  # (6, 35)
 assert J.shape == (6, model.nv)
 ```

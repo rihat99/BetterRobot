@@ -31,7 +31,7 @@ class RobotSpheres:
     device match the model, and move it with ``to``.
 
     ```python
-    spheres = RobotSpheres.from_frames(model, {"body_panda_link7": [((0.0, 0.0, 0.05), 0.06)]})
+    spheres = RobotSpheres.from_frames(model, {"panda_link7": [((0.0, 0.0, 0.05), 0.06)]})
     centers = spheres.centers(forward_kinematics(model, q))  # (B..., S, 3), WORLD
     ```
     """
@@ -93,7 +93,7 @@ def self_collision_pairs(
     frame id), e.g. links whose meshes overlap at every reachable ``q``.
     """
     ignored = {frozenset((model.frame_id(a), model.frame_id(b))) for a, b in (ignore or ())}
-    parents = model.parents
+    parents = model.parent_joint_ids
 
     def body(joint: int) -> int:
         # The nearest ancestor joint with coordinates; fixed joints do not separate bodies.

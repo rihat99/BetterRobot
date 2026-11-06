@@ -183,7 +183,7 @@ def test_quaternion_norm_is_checked_only_on_request(free_flyer_model, arm_model)
     [
         pytest.param(
             dict(
-                parents=(0, 0, 1),
+                parent_joint_ids=(0, 0, 1),
                 nqs=(0, 0, 1),
                 nvs=(0, 0, 1),
                 idx_qs=(0, 0, 0),
@@ -191,12 +191,12 @@ def test_quaternion_norm_is_checked_only_on_request(free_flyer_model, arm_model)
                 nq_total=1,
                 nv_total=1,
             ),
-            r"parents\[0\]",
+            r"parent_joint_ids\[0\]",
             id="bad_parents",
         ),
         pytest.param(
             dict(
-                parents=(-1, 2, 0),
+                parent_joint_ids=(-1, 2, 0),
                 nqs=(0, 1, 1),
                 nvs=(0, 1, 1),
                 idx_qs=(0, 0, 1),
@@ -209,7 +209,7 @@ def test_quaternion_norm_is_checked_only_on_request(free_flyer_model, arm_model)
         ),
         pytest.param(
             dict(
-                parents=(-1, 0, 1),
+                parent_joint_ids=(-1, 0, 1),
                 nqs=(0, 1, 1),
                 nvs=(0, 1, 1),
                 idx_qs=(0, 0, 2),
@@ -221,7 +221,7 @@ def test_quaternion_norm_is_checked_only_on_request(free_flyer_model, arm_model)
             id="q_slice_gap",
         ),
         pytest.param(
-            dict(parents=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0), idx_vs=(0, 0), nq_total=5, nv_total=1),
+            dict(parent_joint_ids=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0), idx_vs=(0, 0), nq_total=5, nv_total=1),
             "nq",
             id="nq_mismatch",
         ),

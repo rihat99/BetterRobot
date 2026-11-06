@@ -93,16 +93,16 @@ once, outside any hot loop.
 
 ```python
 print(model.joint_names[:3])
-hand = model.frame_id("body_panda_hand")
+hand = model.frame_id("panda_hand")
 joint = model.joint_id("panda_joint4")
 print(hand, joint, model.frame_names[hand])
 ```
 ```output
 ('universe', 'root_joint', 'panda_joint1')
-10 5 body_panda_hand
+10 5 panda_hand
 ```
 
-The URDF parser names the frame of each link `body_<link name>`; print `model.frame_names` to see
+Every link gets a frame of its own name; print `model.frame_names` to see
 them all. An unknown name raises `UnknownNameError` (a `KeyError`). Functions that take a frame, such as `frame_jacobian`,
 accept either the id or the name.
 

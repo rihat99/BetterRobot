@@ -109,14 +109,12 @@ def make_branching_tree_model(
     *,
     name: str = "branching_tree",
     joint_offsets: torch.Tensor | None = None,
-    preserve_joint_order: bool = False,
     device: torch.device | str | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
     """Build the branching-tree frozen ``Model``. See :func:`make_branching_tree_body`."""
     return build_model(
         make_branching_tree_body(height, mass, name=name, joint_offsets=joint_offsets),
-        preserve_joint_order=preserve_joint_order,
         device=device,
         dtype=dtype,
     )

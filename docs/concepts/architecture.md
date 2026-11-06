@@ -49,7 +49,7 @@ q = torch.rand(4, model.nq)                        # a batch of 4 configurations
 state = br.forward_kinematics(model, q)
 print(model.nq, model.njoints)
 print(tuple(state.joint_transforms.shape))
-print(tuple(state.frame_pose_of("body_lower").shape))
+print(tuple(state.frame_pose_of("lower").shape))
 ```
 ```output
 2 4

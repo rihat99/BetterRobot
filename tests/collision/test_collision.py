@@ -109,10 +109,10 @@ def _spheres(model):
     return collision.RobotSpheres.from_frames(
         model,
         {
-            "body_panda_link3": [((0.0, 0.0, 0.0), 0.08)],
-            "body_panda_link5": [((0.0, 0.05, -0.1), 0.07)],
-            "body_panda_hand": [((0.0, 0.0, 0.05), 0.06)],
-            "body_panda_link4": [((0.05, 0.0, 0.0), 0.07)],
+            "panda_link3": [((0.0, 0.0, 0.0), 0.08)],
+            "panda_link5": [((0.0, 0.05, -0.1), 0.07)],
+            "panda_hand": [((0.0, 0.0, 0.05), 0.06)],
+            "panda_link4": [((0.05, 0.0, 0.0), 0.07)],
         },
     )
 
@@ -139,7 +139,7 @@ def test_centers_match_manual_fk_and_pairs(panda):
 
 def test_from_frames_agree(panda):
     """Spheres and capsules resolve a frame name and its id to one frame and reject the same bad frames (record 0029)."""
-    name = "body_panda_hand"
+    name = "panda_hand"
     frame = panda.frame_id(name)
     sphere, capsule = ((0.0, 0.0, 0.0), 0.05), ((0.0, 0.0, 0.0), (0.0, 0.0, 0.1), 0.05)
     for build, entry in ((collision.RobotSpheres.from_frames, sphere), (collision.RobotCapsules.from_frames, capsule)):
@@ -154,10 +154,10 @@ def test_pairs_ignore_fixed_joints(panda):
     spheres = collision.RobotSpheres.from_frames(
         panda,
         {
-            "body_panda_link7": [((0.0, 0.0, 0.0), 0.05)],
-            "body_panda_hand": [((0.0, 0.0, 0.05), 0.05)],
-            "body_panda_leftfinger": [((0.0, 0.0, 0.02), 0.02)],
-            "body_panda_link5": [((0.0, 0.0, 0.0), 0.05)],
+            "panda_link7": [((0.0, 0.0, 0.0), 0.05)],
+            "panda_hand": [((0.0, 0.0, 0.05), 0.05)],
+            "panda_leftfinger": [((0.0, 0.0, 0.02), 0.02)],
+            "panda_link5": [((0.0, 0.0, 0.0), 0.05)],
         },
     )
     assert collision.self_collision_pairs(panda, spheres).tolist() == [[0, 3], [1, 3], [2, 3]]
@@ -184,10 +184,10 @@ def test_terms_pass_check_jacobian(panda):
 
 def test_pairs_ignore_frame_pairs(panda):
     spheres = _spheres(panda)  # 0 link3, 1 link5, 2 hand, 3 link4
-    ignore = [("body_panda_hand", "body_panda_link3"), (panda.frame_id("body_panda_link5"), "body_panda_hand")]
+    ignore = [("panda_hand", "panda_link3"), (panda.frame_id("panda_link5"), "panda_hand")]
     assert collision.self_collision_pairs(panda, spheres, ignore=ignore).tolist() == [[0, 1], [2, 3]]
     with pytest.raises(br.exceptions.UnknownNameError):
-        collision.self_collision_pairs(panda, spheres, ignore=[("no_such_frame", "body_panda_hand")])
+        collision.self_collision_pairs(panda, spheres, ignore=[("no_such_frame", "panda_hand")])
 
 
 def test_spheres_to_and_batched_offsets(panda):
@@ -271,23 +271,23 @@ def test_capsule_capsule_gradients():
 
 
 G1_CAPSULES = {  # a subset of mjlab's G1 collision capsules, torso geoms moved into the URDF torso frame (-10 mm)
-    "body_pelvis": [((0.0, 0.0, -0.08), (0.0, 0.0, -0.08), 0.07)],
-    "body_left_hip_roll_link": [((0.02, 0.0, 0.0), (0.02, 0.0, -0.08), 0.06)],
-    "body_right_hip_roll_link": [((0.02, 0.0, 0.0), (0.02, 0.0, -0.08), 0.06)],
-    "body_left_hip_yaw_link": [((0.0, 0.0, -0.03), (-0.06, 0.0, -0.17), 0.055)],
-    "body_torso_link": [((0.01, 0.0, 0.07), (0.01, 0.0, 0.19), 0.09), ((0.0, 0.0, 0.42), (0.0, 0.0, 0.42), 0.06)],
-    "body_left_elbow_link": [((-0.01, 0.0, -0.01), (0.08, 0.0, -0.01), 0.035)],
-    "body_left_wrist_pitch_link": [((-0.01, 0.0, 0.0), (0.06, 0.0, 0.0), 0.035)],
-    "body_left_wrist_yaw_link": [((0.07, 0.0, 0.0), (0.15, -0.02, 0.0), 0.035)],
-    "body_right_elbow_link": [((-0.01, 0.0, -0.01), (0.08, 0.0, -0.01), 0.035)],
-    "body_right_wrist_pitch_link": [((-0.01, 0.0, 0.0), (0.06, 0.0, 0.0), 0.035)],
+    "pelvis": [((0.0, 0.0, -0.08), (0.0, 0.0, -0.08), 0.07)],
+    "left_hip_roll_link": [((0.02, 0.0, 0.0), (0.02, 0.0, -0.08), 0.06)],
+    "right_hip_roll_link": [((0.02, 0.0, 0.0), (0.02, 0.0, -0.08), 0.06)],
+    "left_hip_yaw_link": [((0.0, 0.0, -0.03), (-0.06, 0.0, -0.17), 0.055)],
+    "torso_link": [((0.01, 0.0, 0.07), (0.01, 0.0, 0.19), 0.09), ((0.0, 0.0, 0.42), (0.0, 0.0, 0.42), 0.06)],
+    "left_elbow_link": [((-0.01, 0.0, -0.01), (0.08, 0.0, -0.01), 0.035)],
+    "left_wrist_pitch_link": [((-0.01, 0.0, 0.0), (0.06, 0.0, 0.0), 0.035)],
+    "left_wrist_yaw_link": [((0.07, 0.0, 0.0), (0.15, -0.02, 0.0), 0.035)],
+    "right_elbow_link": [((-0.01, 0.0, -0.01), (0.08, 0.0, -0.01), 0.035)],
+    "right_wrist_pitch_link": [((-0.01, 0.0, 0.0), (0.06, 0.0, 0.0), 0.035)],
 }
 
 
 def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
     g1 = br.load(g1_urdf(), free_flyer=True, dtype=DT)
     capsules = collision.RobotCapsules.from_frames(g1, G1_CAPSULES)
-    names = [g1.frame_names[frame].removeprefix("body_") for frame in capsules.frame_ids.tolist()]
+    names = [g1.frame_names[frame] for frame in capsules.frame_ids.tolist()]
     q = torch.stack([g1.random_configuration(generator=torch.Generator().manual_seed(seed)) for seed in range(3)])
     state = forward_kinematics(g1, q)
     starts, ends = capsules.segments(state)

@@ -72,7 +72,7 @@ class JacobianPlan:
 
 def _tree_levels(model: Model) -> list[list[int]]:
     """Joint ids grouped by depth in the tree; parents come before children."""
-    parents = model.parents
+    parents = model.parent_joint_ids
     depth = [0] * model.njoints
     for joint in range(model.njoints):  # parents[i] < i, so index order is a topological order
         depth[joint] = 0 if parents[joint] < 0 else depth[parents[joint]] + 1
@@ -126,7 +126,7 @@ def _feature_map(
 
 def build_fk_plan(model: Model, dtype: torch.dtype, device: torch.device) -> FkPlan:
     """Derive the FK constants from the static topology and the joint axes."""
-    nj, parents = model.njoints, model.parents
+    nj, parents = model.njoints, model.parent_joint_ids
     starts, widths = model.idx_qs_full, model.nqs_full
     levels = _tree_levels(model)
     order = [j for level in levels for j in level]
@@ -202,7 +202,7 @@ def build_jacobian_plan(model: Model, dtype: torch.dtype, device: torch.device) 
             owner[column] = joint_id
             gather[column] = joint_id * max_nv + local_col
     is_support = torch.zeros((njoints, njoints), dtype=torch.bool, device=device)
-    for joint_id, chain in enumerate(build_supports(model.parents)):
+    for joint_id, chain in enumerate(build_supports(model.parent_joint_ids)):
         is_support[joint_id, list(chain)] = True
     subspaces = torch.zeros((njoints, 6, max_nv), dtype=dtype, device=device)
     for joint_id, joint in enumerate(model.joints):

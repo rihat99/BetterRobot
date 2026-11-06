@@ -9,10 +9,10 @@ records. `build_model` owns tree validation, topological order, concrete joint
 selection, reduced mimic coordinates, packed tensors, frames, limits, and
 metadata. Do not move format-specific cases into kinematics or dynamics.
 
-`load(...)` dispatches by suffix/type or an explicit format. `free_flyer=True`
-selects a `JointFreeFlyer` root; `root_joint=` is the general form.
-`preserve_joint_order=True` keeps an already-topological source order through a
-stable Kahn sort; the default retains the established DFS order.
+`load(...)` dispatches by suffix or an explicit format. `free_flyer=True`
+selects a `JointFreeFlyer` root; `root_joint=` is the general form. Joints keep
+the source's order wherever it is topological (a Kahn sort, parents first); a
+body's frame carries the body's name; `q_neutral` is clamped into the limits.
 
 `ModelBuilder` and file parsers meet at the IR boundary: every `IRJoint`
 carries its `JointModel` (`ModelBuilder.add_joint(kind=)` takes any instance).

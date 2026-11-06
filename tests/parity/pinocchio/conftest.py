@@ -70,12 +70,8 @@ def panda_both():
     pin_model = pin.buildModelFromUrdf(str(panda_urdf()))
     pin_data = pin_model.createData()
 
-    # BetterRobot frames are prefixed with "body_". Strip prefix to get URDF link name.
-    frame_map = {}
-    for br_name in br_model.frame_names:
-        pin_name = br_name[len("body_") :] if br_name.startswith("body_") else br_name
-        if pin_model.existFrame(pin_name):
-            frame_map[br_name] = pin_model.getFrameId(pin_name)
+    # A body's frame carries the body's name, which is the URDF link name Pinocchio knows.
+    frame_map = {name: pin_model.getFrameId(name) for name in br_model.frame_names if pin_model.existFrame(name)}
 
     return br_model, pin_model, pin_data, frame_map
 

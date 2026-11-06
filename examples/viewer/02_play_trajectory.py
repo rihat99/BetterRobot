@@ -22,14 +22,14 @@ from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import forward_kinematics
 from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 
-FRAME, KNOTS, DT = "body_panda_hand", 60, 1.0 / 30.0
+FRAME, KNOTS, DT = "panda_hand", 60, 1.0 / 30.0
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
 
 
 def optimize_trajectory(model: br.Model) -> torch.Tensor:
     """``(KNOTS, nq)`` smooth motion from the ready pose to a shifted hand pose."""
     frame_id = model.frame_id(FRAME)
-    q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_position_limit, model.upper_position_limit)
+    q_start = torch.tensor(READY, dtype=torch.float64)
     pose_start = forward_kinematics(model, q_start[None]).frame_poses[0, frame_id]
     pose_goal = pose_start.clone()
     pose_goal[:3] += torch.tensor([0.10, 0.25, 0.20], dtype=torch.float64)

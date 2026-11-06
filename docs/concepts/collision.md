@@ -31,8 +31,8 @@ builder.add_frame("tool", parent="link2",
 model = build_model(builder.finalize(), dtype=torch.float64)
 
 spheres = collision.RobotSpheres.from_frames(model, {
-    "body_base": [((0.0, 0.0, 0.05), 0.06)],
-    "body_link2": [((0.0, 0.0, 0.12), 0.04)],
+    "base": [((0.0, 0.0, 0.05), 0.06)],
+    "link2": [((0.0, 0.0, 0.12), 0.04)],
     "tool": [((0.0, 0.0, 0.0), 0.03)],
 })
 state = forward_kinematics(model, torch.tensor([0.0, 0.5], dtype=torch.float64))
@@ -92,7 +92,7 @@ tensor([[0, 1],
 tensor([0.2599, 0.3945], dtype=torch.float64)
 ```
 
-The sphere on `body_link2` and the `tool` sphere are on the same body, so they form no pair. The base
+The sphere on `link2` and the `tool` sphere are on the same body, so they form no pair. The base
 and `link1` are joined by `j1`, so they would form none either.
 
 ## Capsules cover long links with few primitives
@@ -108,8 +108,8 @@ takes capsules with the same rules as spheres, and `self_capsule_distances` retu
 
 ```python
 capsules = collision.RobotCapsules.from_frames(model, {
-    "body_base": [((0.0, 0.0, 0.0), (0.0, 0.0, 0.1), 0.05)],
-    "body_link2": [((0.0, 0.0, 0.05), (0.0, 0.0, 0.25), 0.03)],
+    "base": [((0.0, 0.0, 0.0), (0.0, 0.0, 0.1), 0.05)],
+    "link2": [((0.0, 0.0, 0.05), (0.0, 0.0, 0.25), 0.03)],
 })
 capsule_pairs = collision.self_collision_pairs(model, capsules)
 print(collision.self_capsule_distances(capsules, state, pairs=capsule_pairs))   # base top to link2's lower end

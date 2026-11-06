@@ -77,7 +77,7 @@ from better_robot import terms
 from better_robot.kinematics import forward_kinematics
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-hand, elbow = model.frame_id("body_panda_hand"), model.frame_id("body_panda_link4")
+hand, elbow = model.frame_id("panda_hand"), model.frame_id("panda_link4")
 q_start = torch.tensor([[0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.02, 0.02]], dtype=torch.float64)
 q_start = q_start[:, : model.nq].expand(8, -1)
 start = forward_kinematics(model, q_start).frame_poses
@@ -92,7 +92,7 @@ problem = optim.Problem(
 )
 problem.cached(terms.kinematic_state(model), name="state")
 problem.residual("stay", lambda q, q_start: q - q_start)
-problem.residual("reach", terms.frame_position(model, frame="body_panda_hand", target="goal"))
+problem.residual("reach", terms.frame_position(model, frame="panda_hand", target="goal"))
 problem.residual("under", lambda state, ceiling: state.frame_poses[:, elbow, 2:3] - ceiling)
 
 hard = optim.solve_constrained(

@@ -9,7 +9,7 @@ from better_robot.kinematics import forward_kinematics
 from better_robot.lie import so3
 from tests.support.robots import g1_urdf, panda_urdf
 
-FRAME = "body_panda_hand"
+FRAME = "panda_hand"
 
 
 @pytest.fixture(scope="module")

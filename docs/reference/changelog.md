@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Io: one joint order and body-named frames (records 0012, 0018): `build_model` orders joints parents first and keeps
+  the description's order wherever it is already topological (a Kahn sort; the depth-first default and
+  `preserve_joint_order=` are gone); every body's frame carries the body's name (`"panda_hand"`, not
+  `"body_panda_hand"`; an IR frame named like a body, or like another frame, or on an unknown body, is a `ModelError`);
+  `q_neutral` is clamped into the limits (no `clamp(...)` before use); `Model.parents` is `Model.parent_joint_ids`
+  (`model.topology` helpers take `parent_joint_ids`). `build_model` runs named stages into one `Model(...)`.
 - Io: one `ModelBuilder` (record 0015): `add_revolute(name, *, parent, child, axis, ...)` and `add_prismatic(..., axis=)`
   take the axis as a unit 3-vector and build the joint kind at the call (a bad axis fails there); `add_frame(name, *,
   parent, placement)`; `add_joint(name, *, kind=<JointModel>, ...)` takes a kind instance only (`ArgumentError` for a

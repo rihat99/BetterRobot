@@ -50,14 +50,14 @@ def test_universe_joint_zero():
     model = build_model(_simple_arm_ir())
     assert model.joint_names[0] == "universe"
     assert model.joints[0] == JointFixed()
-    assert model.parents[0] == -1
+    assert model.parent_joint_ids[0] == -1
 
 
 def test_root_joint_is_fixed_by_default():
     model = build_model(_simple_arm_ir())
     assert model.joint_names[1] == "root_joint"
     assert model.joints[1] == JointFixed()
-    assert model.parents[1] == 0
+    assert model.parent_joint_ids[1] == 0
 
 
 def test_limits():
@@ -93,7 +93,7 @@ def _model_with_ir_frame():
     "make_model, expected_frames",
     [
         pytest.param(
-            lambda: build_model(_simple_arm_ir()), ("body_universe", "body_base", "body_link1"), id="body_frames"
+            lambda: build_model(_simple_arm_ir()), ("universe", "base", "link1"), id="body_frames"
         ),
         pytest.param(_model_with_ir_frame, ("tip",), id="ir_frame"),
     ],
@@ -116,8 +116,8 @@ def test_name_to_id_dicts():
 
 def test_parents_precede_children():
     model = build_model(_simple_arm_ir())
-    assert model.parents[0] == -1
-    assert all(parent < joint for joint, parent in enumerate(model.parents) if joint)
+    assert model.parent_joint_ids[0] == -1
+    assert all(parent < joint for joint, parent in enumerate(model.parent_joint_ids) if joint)
 
 
 def _branching_tree_ir():
@@ -127,9 +127,8 @@ def _branching_tree_ir():
         root → left_j1 → left_j2
         root → right_j1 → right_j2
 
-    Under DFS, the left arm is fully traversed before the right — so joint 3
-    is ``left_j2`` (not ``right_j1``). Under BFS, siblings are visited before
-    grandchildren, so joint 3 would be ``right_j1``.
+    The joints are declared in a topological order (the left arm, then the right), which the
+    build keeps: joint 3 is ``left_j2``, not the breadth-first ``right_j1``.
     """
     b = ModelBuilder("y_tree")
     b.add_body("root")
@@ -144,13 +143,10 @@ def _branching_tree_ir():
     return b.finalize()
 
 
-def test_idx_qs_dfs_order_on_branching_tree():
-    """Exact DFS-ordered ``joint_names``/``idx_qs`` on a Y-shape.
-
-    Under DFS, the left arm is fully descended before the right sibling:
-    ``(universe, root, left_j1, left_j2, right_j1, right_j2)``. Under BFS
-    it would be ``(..., left_j1, right_j1, left_j2, right_j2)`` — this
-    test would fail under the old ordering.
+def test_idx_qs_follow_the_declared_order_on_a_branching_tree():
+    """``joint_names``/``idx_qs`` on a Y-shape keep the declared (topological) order:
+    ``(universe, root, left_j1, left_j2, right_j1, right_j2)``, not the breadth-first
+    ``(..., left_j1, right_j1, left_j2, right_j2)``.
     """
     model = build_model(_branching_tree_ir())
     assert model.joint_names == (
@@ -164,7 +160,7 @@ def test_idx_qs_dfs_order_on_branching_tree():
     # Four revolute joints → idx_qs increments 1 per joint after the fixed root
     assert model.idx_qs == (0, 0, 0, 1, 2, 3)
     assert model.idx_vs == (0, 0, 0, 1, 2, 3)
-    # DFS signature: each subtree is a contiguous range of joint ids
+    # each subtree is a contiguous range of joint ids
     assert subtree(model, joint=2) == (2, 3)  # left_j1 subtree = {left_j1, left_j2}
     assert subtree(model, joint=4) == (4, 5)  # right_j1 subtree = {right_j1, right_j2}
 
