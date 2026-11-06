@@ -1,8 +1,8 @@
 """C-STATE-1 / C-STATE-2: public dataclasses are frozen.
 
 Every dataclass exported from a public ``__all__`` must be declared
-``frozen=True``; mutable builders and lifecycle objects are listed in
-``MUTABLE_ALLOWLIST`` with the reason.
+``frozen=True``. The exceptions are listed in ``MUTABLE_DATACLASSES`` with
+their reason, and each entry must still name a public mutable dataclass.
 """
 
 from __future__ import annotations
@@ -27,16 +27,14 @@ PACKAGES = [
     "better_robot.viewer",
 ]
 
-# Mutable by design (C-API-1 lifecycle objects); reviewed, not accidental.
-MUTABLE_ALLOWLIST: dict[str, str] = {
+MUTABLE_DATACLASSES: dict[str, str] = {
     "better_robot.io.IRBody": "parser IR, filled incrementally while parsing",
     "better_robot.io.IRFrame": "parser IR, filled incrementally while parsing",
     "better_robot.io.IRGeom": "parser IR, filled incrementally while parsing",
     "better_robot.io.IRJoint": "parser IR, filled incrementally while parsing",
     "better_robot.io.IRModel": "parser IR, filled incrementally while parsing",
     "better_robot.optim.State": "solver loop state, mutated by optimizers",
-    # Ledger items (p1_violations.md): plain records that should become frozen.
-    "better_robot.viewer.MeshSpec": "LEDGER: plain record, make frozen",
+    "better_robot.viewer.MeshSpec": "known violation: a plain record that should be frozen; remove this entry then",
 }
 
 
@@ -52,14 +50,20 @@ def _public_dataclasses() -> list[tuple[str, type]]:
 
 
 DATACLASSES = _public_dataclasses()
+FROZEN = [(qualname, cls) for qualname, cls in DATACLASSES if qualname not in MUTABLE_DATACLASSES]
 
 
-@pytest.mark.parametrize("qualname,cls", DATACLASSES, ids=[q for q, _ in DATACLASSES])
+@pytest.mark.parametrize("qualname,cls", FROZEN, ids=[qualname for qualname, _ in FROZEN])
 def test_public_dataclass_is_frozen(qualname: str, cls: type) -> None:
-    if qualname in MUTABLE_ALLOWLIST:
-        pytest.skip(MUTABLE_ALLOWLIST[qualname])
     assert cls.__dataclass_params__.frozen, f"{qualname} must be @dataclass(frozen=True)"
 
 
+def test_mutable_list_names_public_mutable_dataclasses() -> None:
+    """An entry whose class was frozen, renamed or removed leaves ``MUTABLE_DATACLASSES``."""
+    found = dict(DATACLASSES)
+    stale = [name for name in MUTABLE_DATACLASSES if name not in found or found[name].__dataclass_params__.frozen]
+    assert not stale, f"remove from MUTABLE_DATACLASSES: {stale}"
+
+
 def test_contract_covers_public_dataclasses() -> None:
-    assert DATACLASSES
+    assert FROZEN
