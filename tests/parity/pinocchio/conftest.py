@@ -134,7 +134,8 @@ def _build_spherical_chain():
     IDENT = torch.tensor([0.0, 0, 0, 0, 0, 0, 1.0])
     b.add_spherical("j_sph", parent=base, child=link1, origin=IDENT)
     b.add_revolute(
-        "j_rz", axis=(0.0, 0.0, 1.0),
+        "j_rz",
+        axis=(0.0, 0.0, 1.0),
         parent=link1,
         child=link2,
         origin=torch.cat([rz_offset, torch.tensor([0.0, 0, 0, 1.0])]),

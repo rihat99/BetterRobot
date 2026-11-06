@@ -24,7 +24,8 @@ def _simple_arm_ir():
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
     b.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0),
+        "j1",
+        axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -88,9 +89,7 @@ def _model_with_ir_frame():
 @pytest.mark.parametrize(
     "make_model, expected_frames",
     [
-        pytest.param(
-            lambda: build_model(_simple_arm_ir()), ("universe", "base", "link1"), id="body_frames"
-        ),
+        pytest.param(lambda: build_model(_simple_arm_ir()), ("universe", "base", "link1"), id="body_frames"),
         pytest.param(_model_with_ir_frame, ("tip",), id="ir_frame"),
     ],
 )
@@ -132,10 +131,24 @@ def _branching_tree_ir():
     b.add_body("left_link2")
     b.add_body("right_link1")
     b.add_body("right_link2")
-    b.add_revolute("left_j1", axis=(0.0, 0.0, 1.0), parent="root", child="left_link1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute("left_j2", axis=(0.0, 0.0, 1.0), parent="left_link1", child="left_link2", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute("right_j1", axis=(0.0, 0.0, 1.0), parent="root", child="right_link1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute("right_j2", axis=(0.0, 0.0, 1.0), parent="right_link1", child="right_link2", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute(
+        "left_j1", axis=(0.0, 0.0, 1.0), parent="root", child="left_link1", origin=_id7(), lower=-1.0, upper=1.0
+    )
+    b.add_revolute(
+        "left_j2", axis=(0.0, 0.0, 1.0), parent="left_link1", child="left_link2", origin=_id7(), lower=-1.0, upper=1.0
+    )
+    b.add_revolute(
+        "right_j1", axis=(0.0, 0.0, 1.0), parent="root", child="right_link1", origin=_id7(), lower=-1.0, upper=1.0
+    )
+    b.add_revolute(
+        "right_j2",
+        axis=(0.0, 0.0, 1.0),
+        parent="right_link1",
+        child="right_link2",
+        origin=_id7(),
+        lower=-1.0,
+        upper=1.0,
+    )
     return b.finalize()
 
 
@@ -243,7 +256,8 @@ def _mimic_ir(*, multiplier: float = 1.0, offset: float = 0.0):
     b.add_body("finger2")
     b.add_revolute("main_j", axis=(0.0, 0.0, 1.0), parent="root", child="finger1", origin=_id7(), lower=-1.0, upper=1.0)
     b.add_revolute(
-        "mimic_j", axis=(0.0, 0.0, 1.0),
+        "mimic_j",
+        axis=(0.0, 0.0, 1.0),
         parent="root",
         child="finger2",
         origin=_id7(),
@@ -287,7 +301,14 @@ def test_mimic_bad_source_raises():
     b.add_body("root")
     b.add_body("child")
     b.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0), parent="root", child="child", origin=_id7(), lower=-1.0, upper=1.0, mimic_source="nonexistent_joint"
+        "j1",
+        axis=(0.0, 0.0, 1.0),
+        parent="root",
+        child="child",
+        origin=_id7(),
+        lower=-1.0,
+        upper=1.0,
+        mimic_source="nonexistent_joint",
     )
     ir = b.finalize()
     with pytest.raises(ModelError, match="Mimic source"):

@@ -20,7 +20,8 @@ def _model(dtype: torch.dtype = torch.float64):
     builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
     builder.add_body("link", mass=2.0, inertia=torch.eye(3) * 0.2)
     builder.add_revolute(
-        "joint", axis=(0.0, 0.0, 1.0),
+        "joint",
+        axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link",
         origin=_pose(0.5),

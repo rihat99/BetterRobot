@@ -59,7 +59,9 @@ class _Topology:
     body_names: tuple[str, ...]
     parent_joint_ids: tuple[int, ...]
     joints: tuple[JointModel, ...]
-    ir_joints: tuple[IRJoint | None, ...]  #: the IR joint behind each model joint; the universe and a synthetic root have none
+    ir_joints: tuple[
+        IRJoint | None, ...
+    ]  #: the IR joint behind each model joint; the universe and a synthetic root have none
     joint_placements: torch.Tensor  #: ``(njoints, 7)``
 
 
@@ -221,7 +223,9 @@ def _cumulative(widths: tuple[int, ...]) -> tuple[tuple[int, ...], int]:
     return tuple(starts), offset
 
 
-def _joint_limits(joint: JointModel, ir_joint: IRJoint | None) -> tuple[list[float], list[float], list[float], list[float]]:
+def _joint_limits(
+    joint: JointModel, ir_joint: IRJoint | None
+) -> tuple[list[float], list[float], list[float], list[float]]:
     """Lower, upper, velocity and effort limits of one joint's coordinates: the kind fixes the shape of its
     coordinates (a quaternion lies in ``[-1, 1]``, a free flyer is unbounded), the IR joint's scalars fill the rest."""
     velocity = ir_joint.velocity_limit if ir_joint is not None and ir_joint.velocity_limit is not None else 0.0
@@ -304,7 +308,9 @@ def _frames(ir: IRModel, topology: _Topology, dtype: torch.dtype) -> _Frames:
         names.append(frame.name)
         parent_joint_ids.append(joint_of_body[frame.parent_body])
         placements.append(frame.placement.to(dtype=dtype))
-    return _Frames(names=tuple(names), parent_joint_ids=tuple(parent_joint_ids), placements=torch.stack(placements, dim=0))
+    return _Frames(
+        names=tuple(names), parent_joint_ids=tuple(parent_joint_ids), placements=torch.stack(placements, dim=0)
+    )
 
 
 def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduction:  # noqa: PLR0912, PLR0915 - one build-time policy boundary
@@ -321,7 +327,9 @@ def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduc
             continue
         source = joint_of_name.get(ir_joint.mimic_source)
         if source is None:
-            raise ModelError(f"Mimic source {ir_joint.mimic_source!r} not found (referenced by joint {ir_joint.name!r})")
+            raise ModelError(
+                f"Mimic source {ir_joint.mimic_source!r} not found (referenced by joint {ir_joint.name!r})"
+            )
         targets.add(index)
         source_of[index] = source
         multiplier_of[index] = float(ir_joint.mimic_multiplier)

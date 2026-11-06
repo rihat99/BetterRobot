@@ -113,7 +113,8 @@ def arm_model():
     builder.add_body("base", mass=0.5)
     builder.add_body("link1", mass=1.0)
     builder.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0),
+        "j1",
+        axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -130,7 +131,8 @@ def free_flyer_model():
     builder.add_body("link1", mass=0.5)
     builder.add_free_flyer_root("floating", child="base", origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]))
     builder.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0),
+        "j1",
+        axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -221,7 +223,9 @@ def test_quaternion_norm_is_checked_only_on_request(free_flyer_model, arm_model)
             id="q_slice_gap",
         ),
         pytest.param(
-            dict(parent_joint_ids=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0), idx_vs=(0, 0), nq_total=5, nv_total=1),
+            dict(
+                parent_joint_ids=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0), idx_vs=(0, 0), nq_total=5, nv_total=1
+            ),
             "nq",
             id="nq_mismatch",
         ),

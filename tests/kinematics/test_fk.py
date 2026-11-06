@@ -26,7 +26,8 @@ def _simple_arm():
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
     b.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0),
+        "j1",
+        axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),

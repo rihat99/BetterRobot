@@ -27,7 +27,8 @@ def _mimic_ir(*, multiplier: float = -2.0, offset: float = 0.25):
     source = builder.add_body("source", mass=1.0, inertia=torch.eye(3))
     target = builder.add_body("target", mass=1.0, inertia=torch.eye(3))
     builder.add_revolute(
-        "source_joint", axis=(0.0, 0.0, 1.0),
+        "source_joint",
+        axis=(0.0, 0.0, 1.0),
         parent=root,
         child=source,
         origin=_IDENTITY,
@@ -37,7 +38,8 @@ def _mimic_ir(*, multiplier: float = -2.0, offset: float = 0.25):
         effort_limit=5.0,
     )
     builder.add_revolute(
-        "target_joint", axis=(0.0, 0.0, 1.0),
+        "target_joint",
+        axis=(0.0, 0.0, 1.0),
         parent=source,
         child=target,
         origin=torch.tensor([0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
@@ -135,7 +137,8 @@ def test_mimic_chains_resolve_to_the_public_root_with_composed_multiplier_and_of
     c = builder.add_body("c")
     builder.add_revolute("a_joint", axis=(0.0, 0.0, 1.0), parent=root, child=a, lower=-2.0, upper=2.0)
     builder.add_revolute(
-        "b_joint", axis=(0.0, 0.0, 1.0),
+        "b_joint",
+        axis=(0.0, 0.0, 1.0),
         parent=a,
         child=b,
         lower=-10.0,
@@ -145,7 +148,8 @@ def test_mimic_chains_resolve_to_the_public_root_with_composed_multiplier_and_of
         mimic_offset=0.25,
     )
     builder.add_revolute(
-        "c_joint", axis=(0.0, 0.0, 1.0),
+        "c_joint",
+        axis=(0.0, 0.0, 1.0),
         parent=b,
         child=c,
         lower=-10.0,

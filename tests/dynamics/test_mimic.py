@@ -25,7 +25,8 @@ def _model_pair():
     first = builder.add_body("first", mass=1.3, com=torch.tensor([0.2, 0.0, 0.0]), inertia=inertia)
     second = builder.add_body("second", mass=0.7, com=torch.tensor([0.25, 0.0, 0.0]), inertia=inertia)
     builder.add_revolute(
-        "source", axis=(0.0, 0.0, 1.0),
+        "source",
+        axis=(0.0, 0.0, 1.0),
         parent=root,
         child=first,
         origin=torch.tensor([0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
@@ -33,7 +34,8 @@ def _model_pair():
         upper=1.0,
     )
     builder.add_revolute(
-        "target", axis=(0.0, 0.0, 1.0),
+        "target",
+        axis=(0.0, 0.0, 1.0),
         parent=first,
         child=second,
         origin=torch.tensor([0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),

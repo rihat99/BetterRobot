@@ -46,7 +46,8 @@ def _chain_with_frame():
     for name in ("root", "l1", "l2", "l3"):
         b.add_body(name)
     b.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0),
+        "j1",
+        axis=(0.0, 0.0, 1.0),
         parent="root",
         child="l1",
         origin=torch.tensor([0.1, 0.2, 0.5, 0.0, 0.0, 0.0, 1.0]),
@@ -54,7 +55,8 @@ def _chain_with_frame():
         upper=math.pi,
     )
     b.add_revolute(
-        "j2", axis=(0.0, 1.0, 0.0),
+        "j2",
+        axis=(0.0, 1.0, 0.0),
         parent="l1",
         child="l2",
         origin=torch.tensor([0.3, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]),
@@ -62,7 +64,8 @@ def _chain_with_frame():
         upper=math.pi,
     )
     b.add_revolute(
-        "j3", axis=(1.0, 0.0, 0.0),
+        "j3",
+        axis=(1.0, 0.0, 0.0),
         parent="l2",
         child="l3",
         origin=torch.tensor([0.0, 0.4, 0.5, 0.0, 0.0, 0.0, 1.0]),

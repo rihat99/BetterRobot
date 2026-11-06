@@ -31,7 +31,8 @@ def _simple_arm_model():
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
     b.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0),
+        "j1",
+        axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -47,7 +48,8 @@ def _chain_model():
     b.add_body("l1")
     b.add_body("l2")
     b.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0),
+        "j1",
+        axis=(0.0, 0.0, 1.0),
         parent="root",
         child="l1",
         origin=torch.tensor([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]),
@@ -55,7 +57,8 @@ def _chain_model():
         upper=math.pi,
     )
     b.add_revolute(
-        "j2", axis=(0.0, 1.0, 0.0),
+        "j2",
+        axis=(0.0, 1.0, 0.0),
         parent="l1",
         child="l2",
         origin=torch.tensor([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]),

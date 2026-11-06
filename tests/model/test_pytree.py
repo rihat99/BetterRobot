@@ -21,7 +21,8 @@ def _arm() -> Model:
     builder.add_body("hand", mass=0.5)
     builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="upper", lower=-1.0, upper=1.0)
     builder.add_revolute(
-        "elbow", axis=(0.0, 1.0, 0.0),
+        "elbow",
+        axis=(0.0, 1.0, 0.0),
         parent="upper",
         child="hand",
         origin=torch.tensor([0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 1.0]),

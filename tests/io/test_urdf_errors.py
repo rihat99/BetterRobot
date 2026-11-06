@@ -66,7 +66,5 @@ def test_unreadable_mesh_names_body_and_uri(tmp_path: Path) -> None:
     visual = '<visual><geometry><mesh filename="missing.stl"/></geometry></visual>'
     path = _write(tmp_path, f'<robot name="r"><link name="base">{visual}</link></robot>')
     model = load(path)
-    with pytest.raises(
-        ModelError, match=re.escape(f"body {model.body_id('base')}: mesh 'missing.stl' is not a file")
-    ):
+    with pytest.raises(ModelError, match=re.escape(f"body {model.body_id('base')}: mesh 'missing.stl' is not a file")):
         robot_meshes(load_geometry(path, model), root=path.parent)
