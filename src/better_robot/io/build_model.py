@@ -763,6 +763,5 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         damping=reduction.damping,
         gravity=gravity,
         q_neutral=q_neutral,
-        meta={"ir": ir, **ir.meta},
     )
     return model if device is None else model.to(device=device)

@@ -47,12 +47,11 @@ def main() -> None:
     print(f"Root position: {state.joint_poses[0, :3]}")
 
     if not args.no_viewer:
-        from better_robot.viewer import GroundLayer, Viewer, robot_layers  # noqa: PLC0415 - optional viewer extra
+        from better_robot.viewer import GroundLayer, Viewer, robot_skeleton  # noqa: PLC0415 - optional viewer extra
 
         viewer = Viewer(port=8081)
         viewer.add(GroundLayer())
-        for layer in robot_layers(model, q0, skeleton=True):  # no meshes for a programmatic body
-            viewer.add(layer)
+        viewer.add(robot_skeleton(model, state.joint_poses.numpy()))  # no meshes for a programmatic body
         viewer.show()
         print(f"\nOpening viewer at {viewer.url} — press Ctrl-C to exit.")
         viewer.server.sleep_forever()

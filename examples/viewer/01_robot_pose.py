@@ -7,11 +7,12 @@ uv run python examples/viewer/01_robot_pose.py --check    # build the scene and 
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot.viewer import GroundLayer, Viewer, robot_layers
+from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 
 
 def main() -> None:
@@ -20,11 +21,16 @@ def main() -> None:
     args = parser.parse_args()
 
     model = br.load(panda_description.URDF_PATH)
+    geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
     q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
+    state = br.forward_kinematics(model, q[None])
+    poses = state.joint_poses.numpy()
     viewer = Viewer()
     viewer.add(GroundLayer())
-    for layer in robot_layers(model, q, skeleton=True, frames=["body_panda_hand"]):
-        viewer.add(layer, group="panda")
+    meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
+    viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
+    viewer.add(robot_skeleton(model, poses), group="panda")
+    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("body_panda_hand")]].numpy()), group="panda")
     viewer.show()
     print(f"{len(viewer.layers)} layers at {viewer.url}")
     if args.check:

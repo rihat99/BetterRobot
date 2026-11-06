@@ -108,35 +108,44 @@ viewer.play()  # blocks until Ctrl-C
 
 ## A robot becomes layers with one kinematics pass
 
-`robot_layers(model, q)` turns a `Model` and a clip `q (T, nq)` into rigid-mesh, skeleton, frame and sphere layers.
-It runs forward kinematics once for the whole clip and hands the joint poses to the layers.
-`RobotView` holds the same layers and adds `update(q)`, which rewrites them in place for a new clip of the
-same length; follow it with `viewer.show()`.
+Forward kinematics runs once for the whole clip `q (T, nq)`; its joint poses `(T, njoints, 7)` feed every robot
+layer. `robot_meshes(geometry, root=)` turns the `Geometry` of a description (`io.load_geometry`) into the mesh
+specs of a `RigidMeshLayer` (the display shapes by default, `collision=True` for the collision shapes; mesh URIs
+are read under `root`), `robot_skeleton(model, joint_poses)` draws joints and bones, `FramesLayer` takes frame
+poses and `SpheresLayer` sphere centres. A layer keeps its arrays by reference: write new poses into them and call
+`viewer.show()` to redraw, for example after each solver step.
 
 ```python
+from pathlib import Path
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.viewer import RobotView, robot_layers
+from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
 
 model = br.load(panda_description.URDF_PATH)
+geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
 phase = torch.linspace(0.0, 2 * torch.pi, 30)[:, None]
 mid = (model.lower_position_limit + model.upper_position_limit) / 2
 half = (model.upper_position_limit - model.lower_position_limit) / 2
 q = mid + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)   # q (30, nq)
+state = br.forward_kinematics(model, q)
+poses = state.joint_poses.numpy()                                        # (30, njoints, 7)
 
-for layer in robot_layers(model, q, skeleton=True, frames=["body_panda_hand"]):
-    viewer.add(layer, group="panda")
+meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
+viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
+viewer.add(robot_skeleton(model, poses), group="panda")
+viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("body_panda_hand")]].numpy()), group="panda")
 
-robot = RobotView(model, q, name="ghost", visual=False, skeleton=True)
-for layer in robot:
-    viewer.add(layer, group="ghost", offset=(0.0, 1.0, 0.0))
-robot.update(q.flip(0))   # same length, played backwards
+ghost = robot_skeleton(model, poses, name="ghost")
+viewer.add(ghost, group="ghost", offset=(0.0, 1.0, 0.0))
+backwards = br.forward_kinematics(model, q.flip(0)).joint_poses.numpy()   # same length, played backwards
+ghost.joints[:] = backwards[:, 1:, :3]
+ghost.rotations[:] = backwards[:, 1:, 3:]
 viewer.show()
 ```
 
-Options of both: `visual` and `collision` meshes, `skeleton`, `frames` (names or ids), `tau` (the joint load on the
-skeleton), `spheres` (collision spheres), `theme`, `opacity`. The skeleton draws each revolute joint as a
+`robot_skeleton` takes `tau (T, nv)` (the joint load colours and thickens the markers), a `theme` and the marker
+radii; `RigidMeshLayer` an `opacity`. The skeleton draws each revolute joint as a
 cylinder along its axis (radius 25 mm, length 60 mm) and each prismatic joint as a thin box along it, with the axes
 from each joint's `axis`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
 as in a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its

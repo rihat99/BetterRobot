@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 from better_robot.exceptions import ModelError
+from better_robot.io import load, load_geometry
 from better_robot.io.parser_urdf import parse_urdf
+from better_robot.viewer import robot_meshes
 
 TWO_LINKS = '<robot name="r"><link name="base"/><link name="tip"/>{joint}</robot>'
 
@@ -57,3 +59,14 @@ def test_unsupported_shape_names_file_and_tag(tmp_path: Path) -> None:
     path = _write(tmp_path, f'<robot name="r"><link name="base">{visual}</link></robot>')
     with pytest.raises(ModelError, match=re.escape(f"{path}: ") + "Unknown tag: capsule"):
         parse_urdf(path)
+
+
+def test_unreadable_mesh_names_body_and_uri(tmp_path: Path) -> None:
+    """Mesh files are read where meshes are drawn, not at parse time (record 0048)."""
+    visual = '<visual><geometry><mesh filename="missing.stl"/></geometry></visual>'
+    path = _write(tmp_path, f'<robot name="r"><link name="base">{visual}</link></robot>')
+    model = load(path)
+    with pytest.raises(
+        ModelError, match=re.escape(f"body {model.body_id('base')}: mesh 'missing.stl' is not a file")
+    ):
+        robot_meshes(load_geometry(path, model), root=path.parent)

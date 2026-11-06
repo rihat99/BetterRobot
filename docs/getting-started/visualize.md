@@ -18,7 +18,7 @@ from pathlib import Path
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.viewer import Viewer, robot_layers, RobotView
+from better_robot.viewer import FramesLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 q_rest = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
@@ -31,13 +31,17 @@ Any `(T, nq)` tensor works: the `result.x["q"][0]` of [the trajectory tutorial](
 ## Open the viewer and add the robot
 
 `Viewer()` starts a local [viser](https://viser.studio) server on `127.0.0.1:8080`; open `viewer.url` in a
-browser. `robot_layers` turns a model and a clip into layers: the visual meshes by default, plus a skeleton,
-collision geometry or frame axes on request:
+browser. Forward kinematics runs once for the clip; `robot_meshes` turns the description's `Geometry` into the
+meshes of a `RigidMeshLayer` that follows the joint poses, and a `FramesLayer` draws frame axes:
 
 ```python
 viewer = Viewer()
-for layer in robot_layers(model, clip, frames=["body_panda_hand"]):
-    viewer.add(layer)
+geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
+state = br.forward_kinematics(model, clip)
+poses = state.joint_poses.numpy()                                        # (T, njoints, 7)
+meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
+viewer.add(RigidMeshLayer("panda", meshes, poses))
+viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("body_panda_hand")]].numpy()))
 print(viewer.url, len(viewer.layers))
 ```
 ```output
@@ -64,15 +68,15 @@ viewer.play()
 
 ## Update the robot in place
 
-When you keep a handle on the robot, use `RobotView` instead of `robot_layers`: it owns its layers, and
-`update(q)` recomputes them for a new clip of the same length, for example after each solver step. Call
-`viewer.show()` afterwards to push the edited arrays:
+A layer keeps its arrays by reference. To redraw the robot for a new clip of the same length, for example after
+each solver step, write the new poses into the layer's arrays and call `viewer.show()`:
 
 ```python
-view = RobotView(model, clip, name="panda_live", skeleton=True)
-for layer in view.layers:
-    viewer.add(layer, group="live")
-view.update(clip.flip(0))
+skeleton = robot_skeleton(model, poses, name="panda_live")
+viewer.add(skeleton, group="live")
+backwards = br.forward_kinematics(model, clip.flip(0)).joint_poses.numpy()
+skeleton.joints[:] = backwards[:, 1:, :3]
+skeleton.rotations[:] = backwards[:, 1:, 3:]
 viewer.show()
 ```
 

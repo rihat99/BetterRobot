@@ -41,7 +41,7 @@ def test_leaves_are_the_tensor_fields_and_unflatten_keeps_the_static_fields() ->
 
     rebuilt = _pytree.tree_unflatten([leaf * 2 for leaf in leaves], spec)
     assert isinstance(rebuilt, Model) and rebuilt is not model
-    assert rebuilt.structure_key == model.structure_key and rebuilt.meta is model.meta
+    assert rebuilt.structure_key == model.structure_key
     assert torch.equal(rebuilt.joint_placements, 2 * model.joint_placements)
     assert rebuilt._plans == {}
 

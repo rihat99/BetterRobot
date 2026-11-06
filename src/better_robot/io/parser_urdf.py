@@ -20,7 +20,6 @@ import torch
 from ..exceptions import ModelError
 from ..lie import so3
 from ..model.geometry import Box, Color, Cylinder, Mesh, Pose, Shape, Sphere
-from .assets import FilesystemResolver
 from .ir import IRBody, IRJoint, IRModel, IRShape
 
 if TYPE_CHECKING:
@@ -196,5 +195,4 @@ def parse_urdf(path: str | Path) -> IRModel:
         joints=joints,
         shapes=shapes,
         root_body=root_body,
-        meta={"asset_resolver": FilesystemResolver(base_path=path.parent)},
     )

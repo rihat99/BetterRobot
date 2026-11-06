@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import math
+from pathlib import Path
 
 import torch
 from robot_descriptions import panda_description
@@ -19,7 +20,7 @@ import better_robot as br
 from better_robot import optim, terms
 from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import forward_kinematics
-from better_robot.viewer import GroundLayer, Viewer, robot_layers
+from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 
 FRAME, KNOTS, DT = "body_panda_hand", 60, 1.0 / 30.0
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
@@ -69,10 +70,15 @@ def main() -> None:
     tau = joint_torques(model, q)
     print(f"{KNOTS} frames, peak torque {float(tau.abs().max()):.1f} N m")
 
+    geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
+    state = forward_kinematics(model, q)
+    poses = state.joint_poses.numpy()
     viewer = Viewer(fps=1.0 / DT)
     viewer.add(GroundLayer())
-    for layer in robot_layers(model, q, skeleton=True, tau=tau, frames=[FRAME]):
-        viewer.add(layer, group="panda")
+    meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
+    viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
+    viewer.add(robot_skeleton(model, poses, tau=tau), group="panda")
+    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id(FRAME)]].numpy()), group="panda")
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
     viewer.add_plot("torque", tau.numpy(), labels=moving)
     if args.check:

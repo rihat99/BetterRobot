@@ -9,8 +9,9 @@ import torch
 import better_robot as br
 from better_robot.lie.se3 import compose
 from better_robot.viewer._math import compose_poses
+from better_robot.viewer.layers.frames import FramesLayer
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
-from better_robot.viewer.robot import robot_layers, robot_meshes
+from better_robot.viewer.robot import robot_meshes, robot_skeleton, spread_offsets
 from better_robot.viewer.viewer import Viewer
 
 from .fake_server import FakeServer
@@ -62,17 +63,20 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
 def test_panda_layers_follow_forward_kinematics() -> None:
     """The tracked Panda ships its collision meshes only, so the mesh layer draws those."""
     model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
     q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(5)])
     tau = torch.randn(5, model.nv)
-    options = {"visual": False, "collision": True, "skeleton": True, "tau": tau, "frames": ["body_panda_hand"]}
-    layers = {layer.name: layer for layer in robot_layers(model, q, **options)}
-    assert set(layers) == {"robot collision", "robot skeleton", "robot frames"}
-    assert len(robot_meshes(model, collision=True)) == 17  # nine STL meshes and eight finger boxes
-
-    from better_robot.kinematics import forward_kinematics  # noqa: PLC0415
-
-    state = forward_kinematics(model, q)
-    hand = state.frame_poses[:, model.frame_id("body_panda_hand")].numpy()
+    state = br.forward_kinematics(model, q)
+    joint_poses = state.joint_poses.numpy().astype(np.float32)
+    meshes = robot_meshes(geometry, root=panda_urdf().parent, collision=True)
+    assert len(meshes) == 17  # nine STL meshes and eight finger boxes
+    hand_frame = model.frame_id("body_panda_hand")
+    layers = {
+        "robot collision": RigidMeshLayer("robot collision", meshes, joint_poses, opacity=0.4),
+        "robot skeleton": robot_skeleton(model, joint_poses, name="robot skeleton", tau=tau),
+        "robot frames": FramesLayer("robot frames", state.frame_poses[:, [hand_frame]].numpy()),
+    }
+    hand = state.frame_poses[:, hand_frame].numpy()
     np.testing.assert_allclose(layers["robot frames"].poses[:, 0], hand, atol=1e-6)
     skeleton = layers["robot skeleton"]
     np.testing.assert_allclose(skeleton.joints, state.joint_poses[:, 1:, :3].numpy(), atol=1e-6)
@@ -91,24 +95,23 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     np.testing.assert_allclose(node.position, expected[:3], atol=1e-5)
 
 
-def test_robot_view_update_rewrites_layer_arrays_in_place() -> None:
-    from better_robot.viewer.robot import RobotView  # noqa: PLC0415
-
+def test_in_place_pose_edits_reach_the_scene_on_show() -> None:
     model = br.load(panda_urdf())
     q0, q1 = (model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2))
-    view = RobotView(model, q0, visual=False, skeleton=True, frames=["body_panda_hand"])
+    poses_0, poses_1 = (br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32) for q in (q0, q1))
+    skeleton = robot_skeleton(model, poses_0, name="robot skeleton")
     server = FakeServer()
     viewer = Viewer(server=server)
-    for layer in view:
-        viewer.add(layer)
+    viewer.add(skeleton)
     node = "/scene/robot skeleton/joints_cylinder"  # Panda's revolute joints
     before = server.scene.nodes[node].batched_positions.copy()
-    view.update(q1)
+    skeleton.joints[:] = poses_1[:, 1:, :3]
+    skeleton.rotations[:] = poses_1[:, 1:, 3:]
     viewer.show()
     after = server.scene.nodes[node].batched_positions
     assert not np.allclose(before, after)
     fresh_server = FakeServer()
-    Viewer(server=fresh_server).add(robot_layers(model, q1, visual=False, skeleton=True)[0])
+    Viewer(server=fresh_server).add(robot_skeleton(model, poses_1, name="robot skeleton"))
     np.testing.assert_allclose(after, fresh_server.scene.nodes[node].batched_positions, atol=1e-6)
 
 
@@ -238,7 +241,6 @@ def _drawn_skeleton(model: br.Model, q: torch.Tensor, radius: float = 0.025, tau
 
 def test_spread_layout_slides_co_located_markers_along_their_own_axes() -> None:
     """G1: the drawn cylinder of a co-located joint stays on the joint's axis line, at the neutral and a random pose."""
-    from better_robot.viewer import spread_offsets  # noqa: PLC0415
 
     model = _g1()
     offsets = spread_offsets(model, radius=0.02)
@@ -336,7 +338,6 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
 
 
 def test_spread_layout_draws_left_and_right_joints_as_mirror_images() -> None:
-    from better_robot.viewer import spread_offsets  # noqa: PLC0415
 
     model = _g1()
     offsets = spread_offsets(model, radius=0.02)
@@ -355,7 +356,6 @@ def test_spread_layout_draws_left_and_right_joints_as_mirror_images() -> None:
 def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images() -> None:
     """Pitch joints at (0, +-0.1, -0.1), each with a co-located roll whose axis is +x on the left and -x on the right:
     the rolls tie (their origins lie in the root's plane normal to x) and both slide to +x, as mirror images."""
-    from better_robot.viewer import spread_offsets  # noqa: PLC0415
     from better_robot.viewer._math import rotate  # noqa: PLC0415
 
     builder = br.ModelBuilder("mirror")

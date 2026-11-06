@@ -36,7 +36,6 @@
   "src/better_robot/viewer/layers/plot.py::__init__": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",
   "src/better_robot/viewer/layers/skeleton.py::__init__": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",
   "src/better_robot/viewer/layers/skinned.py::__init__": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",
-  "src/better_robot/viewer/robot.py::_kinematics": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",
   "src/better_robot/viewer/robot.py::_torque_ratio": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",
   "src/better_robot/viewer/timeline.py::__init__": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",
   "src/better_robot/viewer/timeline.py::resize": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",

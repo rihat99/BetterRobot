@@ -7,9 +7,10 @@ layers: ``show(k)`` pushes frame ``k``, ``show()`` re-pushes after in-place edit
 ``save(path)`` writes a ``.viser`` recording for viser's static web client, and ``record(path)`` screenshots the
 live scene in a headless Chromium into WebM, GIF or PNG frames (``viewer.capture``).
 
-``robot_layers(model, q)`` and ``RobotView`` turn a ``Model`` and a clip ``q (T, nq)`` into mesh, skeleton, frame
-and sphere layers with one forward-kinematics pass; ``robot_skeleton`` (joints coloured and thickened by
-``|tau| / effort_limit``) builds the skeleton from joint poses already computed. ``viewer.tools`` adds a draggable
+A robot is drawn from one forward-kinematics pass over a clip ``q (T, nq)``: a ``RigidMeshLayer`` takes the joint
+poses and the meshes of ``robot_meshes(geometry, root=)`` (a ``Geometry`` from ``io.load_geometry``),
+``robot_skeleton(model, joint_poses)`` draws joints (coloured and thickened by ``|tau| / effort_limit``) and bones,
+and ``FramesLayer`` and ``SpheresLayer`` take frame poses and sphere centres. ``viewer.tools`` adds a draggable
 ``PoseGizmo`` and numpy picking (``ray_hit``, ``vertices_in_sphere``, ``vertices_in_rect``). ``LIGHT``
 and ``DARK`` are the built-in ``Theme``s; ``Theme(up="+y")`` sets the up axis of the browser scene and of the
 ``record`` camera. viser is imported only when a ``Viewer`` is created.
@@ -33,7 +34,7 @@ from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
 from .layers.camera import CameraLayer
 from .layers.skinned import SkinnedMeshLayer
-from .robot import RobotView, robot_layers, robot_meshes, robot_skeleton, skeleton_spec, spread_offsets
+from .robot import robot_meshes, robot_skeleton
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline
 from .viewer import Viewer
@@ -52,16 +53,12 @@ __all__ = [
     "PlotPanel",
     "PointsLayer",
     "RigidMeshLayer",
-    "RobotView",
     "SkeletonLayer",
     "SkinnedMeshLayer",
     "SpheresLayer",
     "Theme",
     "Timeline",
     "Viewer",
-    "robot_layers",
     "robot_meshes",
     "robot_skeleton",
-    "skeleton_spec",
-    "spread_offsets",
 ]

@@ -50,7 +50,6 @@ class Model:
     | ``nqs_full``, ``nvs_full``, ``idx_qs_full``, ``idx_vs_full`` | static | the same over every joint's coordinates |
     | ``mimic_source_ids`` | static | public joint driving each joint (itself when not a mimic target) |
     | ``mimic_multipliers``, ``mimic_offsets`` | static | ``q_full[j] = multiplier * q[source] + offset`` |
-    | ``meta`` | static, until 0016 | ``dict`` (the IR and parser extras) |
     | ``joint_placements`` | tensor | ``(I..., njoints, 7)`` pose of each joint in its parent joint frame |
     | ``body_inertias`` | tensor | ``(I..., nbodies, 10)`` mass, centre of mass, symmetric inertia |
     | ``frame_placements`` | tensor | ``(I..., nframes, 7)`` pose of each frame in its parent joint frame |
@@ -89,7 +88,6 @@ class Model:
     damping: torch.Tensor
     gravity: torch.Tensor
     q_neutral: torch.Tensor
-    meta: dict = field(default_factory=dict)
     # Plans (constant tensors derived from the static fields) keyed by (kind, dtype, device); never copied.
     _plans: dict = field(default_factory=dict, init=False, repr=False, compare=False)
     # Values derived from the tensor fields keyed by (kind, grad mode), written only without a graph; never copied.

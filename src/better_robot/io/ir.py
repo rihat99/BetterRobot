@@ -95,5 +95,3 @@ class IRModel:
     gravity: torch.Tensor = field(
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0], dtype=torch.float64)
     )
-    #: Free-form parser metadata, e.g. ``{"asset_resolver": ..., "source_path": ...}``.
-    meta: dict = field(default_factory=dict)

@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Viewer: `robot_meshes(geometry, *, root=None, collision=False, default_color)` reads the meshes of a `Geometry`
+  under `root` (`package://<package>/<rel>` and relative URIs under it, absolute paths as written) and raises
+  `ModelError` naming body and URI on an unreadable file; `RobotView` and `robot_layers` are gone (record 0016):
+  layers are built from `RigidMeshLayer`, `robot_skeleton`, `FramesLayer` and `SpheresLayer`; `skeleton_spec` and
+  `spread_offsets` leave `viewer.__all__`. `Model.meta` and `IRModel.meta` are gone with them.
 - Model: `Geometry`, the shapes of a robot as a value beside `Model` (record 0016): final records `Sphere`,
   `Box`, `Cylinder`, `Capsule` and `Mesh` (placement and colour), each attached to a body by `AttachedShape(body,
   shape, collision)`; `io.build_geometry(ir, model)` and `io.load_geometry(path, model)` build one; the IR carries

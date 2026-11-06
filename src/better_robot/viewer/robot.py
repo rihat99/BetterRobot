@@ -1,12 +1,14 @@
-"""Robot adapter: a ``Model`` and a configuration clip ``q (T, nq)`` become viewer layers.
+"""Robot adapter: joint poses from one forward-kinematics pass and a ``Geometry`` become viewer layers.
 
-The only viewer file that knows ``Model``. Forward kinematics runs once for the whole clip; the
-layers receive numpy arrays and never touch the model again.
+The only viewer file that knows ``Model``. ``robot_meshes(geometry, root=)`` gives a ``RigidMeshLayer`` its meshes
+and ``robot_skeleton(model, joint_poses)`` draws joints and bones; the layers receive numpy arrays and never touch
+the model again.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -23,106 +25,15 @@ from ..model.joints import (
     JointSpherical,
     JointTranslation,
 )
-from ..model.geometry import Box, Cylinder, Mesh, Shape, Sphere
+from ..exceptions import ModelError
+from ..model.geometry import AttachedShape, Box, Cylinder, Geometry, Mesh, Sphere
 from ._math import colormap, rotate
-from .layer import Layer
-from .layers.frames import FramesLayer
-from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
+from .layers.mesh import MeshSpec
 from .layers.skeleton import SkeletonLayer, marker_extent, marker_of
 from .theme import LIGHT, Theme
 
 if TYPE_CHECKING:
-    from ..collision.robot_spheres import RobotSpheres
     from ..model.model import Model
-
-
-class RobotView:
-    """Layers for one robot and a clip ``q (T, nq)``; ``update(q)`` rewrites them in place.
-
-    ``visual``/``collision`` draw the URDF/MJCF geometry as ``RigidMeshLayer``s; ``skeleton``
-    draws joints and links, coloured and thickened by ``|tau| / effort_limit`` when ``tau (T, nv)`` is given;
-    ``frames`` lists frame names or ids for a ``FramesLayer``; ``spheres`` draws a
-    ``RobotSpheres`` collision model. Forward kinematics runs once per ``update``.
-    """
-
-    def __init__(
-        self,
-        model: Model,
-        q: torch.Tensor,
-        *,
-        name: str = "robot",
-        visual: bool = True,
-        collision: bool = False,
-        skeleton: bool = False,
-        frames: Sequence[str | int] = (),
-        tau: torch.Tensor | None = None,
-        spheres: RobotSpheres | None = None,
-        theme: Theme = LIGHT,
-        opacity: float = 1.0,
-    ) -> None:
-        self.model = model
-        self.frame_ids = [model.frame_id(frame) if isinstance(frame, str) else int(frame) for frame in frames]
-        self.sphere_model = spheres
-        # Typed layer slots (None when not drawn); ``update`` writes each one directly.
-        self.mesh: RigidMeshLayer | None = None
-        self.collision: RigidMeshLayer | None = None
-        self.skeleton: SkeletonLayer | None = None
-        self.frames: FramesLayer | None = None
-        self.spheres: SpheresLayer | None = None
-        joint_poses, frame_poses, centers = self._kinematics(q)
-        if visual:
-            meshes = robot_meshes(model, collision=False, default_color=theme.robot)
-            if meshes:
-                self.mesh = RigidMeshLayer(name, meshes, joint_poses, opacity=opacity)
-        if collision:
-            meshes = robot_meshes(model, collision=True, default_color=theme.force)
-            if meshes:
-                self.collision = RigidMeshLayer(f"{name} collision", meshes, joint_poses, opacity=0.4)
-        if skeleton:
-            self.skeleton = robot_skeleton(model, joint_poses, name=f"{name} skeleton", tau=tau, theme=theme)
-        if self.frame_ids:
-            self.frames = FramesLayer(f"{name} frames", frame_poses)
-        if spheres is not None:
-            radii = spheres.radii.detach().cpu().numpy()
-            self.spheres = SpheresLayer(f"{name} spheres", centers, radii, colors=theme.torque)
-        slots = (self.mesh, self.collision, self.skeleton, self.frames, self.spheres)
-        self.layers: list[Layer] = [layer for layer in slots if layer is not None]
-
-    def __iter__(self) -> Iterator[Layer]:
-        return iter(self.layers)
-
-    def update(self, q: torch.Tensor) -> None:
-        """Recompute kinematics for ``q`` (same number of frames) into the existing layer arrays."""
-        joint_poses, frame_poses, centers = self._kinematics(q)
-        for mesh in (self.mesh, self.collision):
-            if mesh is not None:
-                mesh.body_poses[:] = joint_poses
-        if self.skeleton is not None:
-            self.skeleton.joints[:] = joint_poses[:, 1:, :3]
-            self.skeleton.rotations[:] = joint_poses[:, 1:, 3:]
-        if self.frames is not None:
-            self.frames.poses[:] = frame_poses
-        if self.spheres is not None:
-            self.spheres.centers[:] = centers
-
-    def _kinematics(self, q: torch.Tensor) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
-        from ..kinematics import forward_kinematics  # noqa: PLC0415 - keep the core import-light
-
-        if q.ndim == 1:
-            q = q[None]
-        if q.ndim != 2:
-            raise ValueError("q must be (T, nq) or (nq,)")
-        with torch.no_grad():
-            state = forward_kinematics(self.model, q)
-            joint_poses = state.joint_poses.cpu().numpy().astype(np.float32)
-            frame_poses = state.frame_poses[:, self.frame_ids].cpu().numpy() if self.frame_ids else None
-            centers = self.sphere_model.centers(state).cpu().numpy() if self.sphere_model is not None else None
-        return joint_poses, frame_poses, centers
-
-
-def robot_layers(model: Model, q: torch.Tensor, **options: Any) -> list[Layer]:
-    """Layers for a clip ``q (T, nq)`` (or one pose ``(nq,)``); see ``RobotView`` for the options."""
-    return RobotView(model, q, **options).layers
 
 
 _TORQUE_THICKNESS = (0.8, 1.5)  # a joint marker's cross-section, times its default, at zero load and at the limit
@@ -336,44 +247,44 @@ def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarra
     return np.broadcast_to(ratio, (nsteps, ratio.shape[1])).copy(), limited
 
 
-def robot_meshes(model: Model, *, collision: bool = False, default_color: Any = (0.8, 0.8, 0.8)) -> list[MeshSpec]:
-    """Mesh specs for the visual (or collision) geometry stored in ``model.meta["ir"]``.
+def robot_meshes(
+    geometry: Geometry, *, root: Path | None = None, collision: bool = False, default_color: Any = (0.8, 0.8, 0.8)
+) -> list[MeshSpec]:
+    """Mesh specs for the collision shapes of ``geometry`` or, by default, its display shapes (record 0016).
 
-    Mesh files resolve through ``model.meta["asset_resolver"]`` when present; unreadable files
-    are skipped. Primitives are tessellated with trimesh.
+    A ``Mesh`` URI is read as written when absolute; ``package://<package>/<rel>`` and a relative path are read
+    under ``root`` (the directory the description's URIs are relative to; the working directory when ``None``). A
+    file that is missing or does not load raises ``ModelError`` naming the body and the URI. Primitives are
+    tessellated with trimesh.
     """
-    ir = model.meta.get("ir")
-    if ir is None:
-        return []
-    resolver = model.meta.get("asset_resolver")
-    specs: list[MeshSpec] = []
-    for ir_shape in ir.shapes:
-        if ir_shape.collision != collision or ir_shape.body not in model.body_names:
-            continue
-        spec = _load_geom(ir_shape.shape, model.body_id(ir_shape.body), resolver, default_color)
-        if spec is not None:
-            specs.append(spec)
-    return specs
+    return [
+        _mesh_spec(attached, root, default_color) for attached in geometry.shapes if attached.collision == collision
+    ]
 
 
-def _load_geom(shape: Shape, body: int, resolver: Any, default_color: Any) -> MeshSpec | None:
+def _mesh_path(uri: str, root: Path | None) -> Path:
+    """The file ``uri`` names: as written when absolute, else under ``root`` with a ``package://<package>/`` prefix
+    stripped."""
+    path = Path(uri.removeprefix("package://").partition("/")[2] if uri.startswith("package://") else uri)
+    return path if path.is_absolute() or root is None else root / path
+
+
+def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: Any) -> MeshSpec:
     import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
+    shape = attached.shape
     origin = np.asarray(shape.placement, dtype=np.float32)
     color = shape.color[:3] if shape.color is not None else tuple(default_color)
     if isinstance(shape, Mesh):
-        path = shape.uri
-        if resolver is not None:
-            try:
-                path = str(resolver.resolve(path))
-            except (FileNotFoundError, OSError):
-                pass
+        path = _mesh_path(shape.uri, root)
+        if not path.is_file():
+            raise ModelError(f"body {attached.body}: mesh {shape.uri!r} is not a file at {path}")
         try:
             mesh = trimesh.load(path, force="mesh")
-        except Exception:  # noqa: BLE001 - trimesh raises many loader-specific errors
-            return None
+        except Exception as exc:  # noqa: BLE001 - trimesh raises many loader-specific errors
+            raise ModelError(f"body {attached.body}: mesh {shape.uri!r} does not load: {exc}") from exc
         if not isinstance(mesh, trimesh.Trimesh) or mesh.faces.shape[0] == 0:
-            return None
+            raise ModelError(f"body {attached.body}: mesh {shape.uri!r} has no faces")
         mesh.apply_scale(shape.scale)
         source = mesh if _has_own_colors(mesh) else None
     elif isinstance(shape, Box):
@@ -386,7 +297,7 @@ def _load_geom(shape: Shape, body: int, resolver: Any, default_color: Any) -> Me
         mesh, source = trimesh.creation.capsule(radius=shape.radius, height=shape.length), None
     vertices = np.asarray(mesh.vertices, dtype=np.float32)
     faces = np.asarray(mesh.faces, dtype=np.uint32)
-    return MeshSpec(vertices, faces, body, origin, color=color, trimesh=source)
+    return MeshSpec(vertices, faces, attached.body, origin, color=color, trimesh=source)
 
 
 def _has_own_colors(mesh: Any) -> bool:

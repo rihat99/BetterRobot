@@ -1,7 +1,7 @@
 # `model/` — Robot Identity
 
 `Model` (`model.py`) is one flat frozen dataclass: static fields (names, joints,
-parents, the `q`/`v` layout, the resolved mimic chain, `meta`) and eleven tensor
+parents, the `q`/`v` layout, the resolved mimic chain) and eleven tensor
 fields (placements, inertias, limits, armature, damping, gravity, `q_neutral`).
 The class docstring holds the field table. Query results live in a frozen
 `KinematicState` (`src/better_robot/kinematics/forward_kinematics.py`), never on the model; do not mutate
