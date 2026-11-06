@@ -112,16 +112,19 @@ class KinematicState:
         return self._memo[key]
 
 
-def _check_quaternion_norms(model: Model, q: torch.Tensor) -> None:
-    """Raise `QuaternionNormError` when any spherical or free-flyer quaternion in ``q`` is far from unit norm.
+def _check_quaternion_norms(model: Model, q_full: torch.Tensor) -> None:
+    """Raise `QuaternionNormError` if a spherical or free-flyer quaternion of ``q_full: (N, nq_full)`` is off unit norm.
+
+    The plan's columns index the mimic-expanded configuration: a mimic joint before a quaternion joint shifts the
+    quaternion's columns in the public ``q``, so the check reads ``q_full``.
 
     Converts a tensor predicate to a Python ``bool`` and so synchronises accelerators: called only behind the
     opt-in flag of `forward_kinematics`.
     """
-    columns = fk_plan(model, dtype=q.dtype, device=q.device).quaternion_columns  # (n_quat, 4)
+    columns = fk_plan(model, dtype=q_full.dtype, device=q_full.device).quaternion_columns  # (n_quat, 4)
     if columns.numel() == 0:
         return
-    norms = q[..., columns].norm(dim=-1)  # (B..., n_quat)
+    norms = q_full[:, columns].norm(dim=-1)  # (N, n_quat)
     tolerance = _QUATERNION_NORM_TOLERANCE
     if bool(((norms - 1.0).abs() > tolerance).any()):  # bench-ok: opt-in public-boundary debug validation
         observed = float(norms.min()), float(norms.max())  # bench-ok: opt-in public-boundary debug validation
@@ -141,8 +144,6 @@ def forward_kinematics(model: Model, q: torch.Tensor, *, check_quaternion_norm: 
     check_tensor("q", q, shape=(model.nq,), dtype=model.dtype, device=model.device)
     batch = batch_shape(model, "q", q, (model.nq,))
     q = expand_batch("q", q, batch, (model.nq,))
-    if check_quaternion_norm:
-        _check_quaternion_norms(model, q)
     placements, frames = placement_matrices(model)
     count = math.prod(batch)  # explicit: a model without coordinates has zero-width q
     nj, nf = model.njoints, model.nframes
@@ -152,6 +153,8 @@ def forward_kinematics(model: Model, q: torch.Tensor, *, check_quaternion_norm: 
     if frames.ndim > 3:
         frames = frames.broadcast_to(*batch, nf, 4, 4).reshape(count, nf, 4, 4)
     q_full = full_configuration(model, q).reshape(count, model.nq_full)
+    if check_quaternion_norm:
+        _check_quaternion_norms(model, q_full)
     joints, frames = world_transforms(model, q_full, placements, frames)
     return KinematicState(
         model=model,

@@ -46,6 +46,26 @@ def test_quaternion_norm_check_is_opt_in(free_flyer_model):
         forward_kinematics(free_flyer_model, q, check_quaternion_norm=True)
 
 
+def test_quaternion_norm_check_reads_the_full_configuration():
+    """A mimic joint before a spherical joint shifts the quaternion's public columns by one (A13)."""
+    builder = ModelBuilder("mimic_then_ball")
+    for name in ("base", "first", "second", "ball_link", "tip"):
+        builder.add_body(name, mass=1.0)
+    z, y = (0.0, 0.0, 1.0), (0.0, 1.0, 0.0)
+    builder.add_revolute("source", parent="base", child="first", axis=z, lower=-2.0, upper=2.0)
+    builder.add_revolute("target", parent="first", child="second", axis=z, lower=-2.0, upper=2.0, mimic_source="source")
+    builder.add_spherical("ball", parent="second", child="ball_link")
+    builder.add_revolute("wrist", parent="ball_link", child="tip", axis=y, lower=-2.0, upper=2.0)
+    model = build_model(builder.finalize(), dtype=torch.float64)
+    assert (model.nq, model.nq_full) == (6, 7)  # q = [source, qx, qy, qz, qw, wrist]
+
+    valid = torch.tensor([0.3, 0.0, 0.0, 0.0, 1.0, 0.7], dtype=torch.float64)
+    forward_kinematics(model, valid, check_quaternion_norm=True)
+    off_norm = torch.tensor([0.3, 0.7, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)  # quaternion norm 1.22
+    with pytest.raises(QuaternionNormError, match="quaternion norm"):
+        forward_kinematics(model, off_norm, check_quaternion_norm=True)
+
+
 @pytest.fixture(scope="module")
 def panda64():
     return load(panda_urdf(), dtype=torch.float64)
