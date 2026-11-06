@@ -76,10 +76,9 @@ def test_shape_error_on_wrong_nq(arm_model, batch_shape, extra, match):
 # ────────────────────── DeviceMismatchError ──────────────────────
 
 
+@pytest.mark.cuda
 def test_device_mismatch_on_cpu_cuda():
-    """If CUDA is unavailable we skip — the guard is exercised regardless via docs contract tests."""
-    if not torch.cuda.is_available():
-        pytest.skip("no CUDA available")
+    """A model on the CPU rejects a configuration on CUDA with ``DeviceMismatchError``."""
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)

@@ -104,7 +104,7 @@ def test_umeyama_rejects_mismatched_dtypes() -> None:
         umeyama(source, source.clone(), weights=torch.ones(5, dtype=torch.float64))
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required for device mismatch coverage")
+@pytest.mark.cuda
 def test_umeyama_rejects_mismatched_devices() -> None:
     source = torch.randn((5, 3), device="cpu")
     target = torch.randn((5, 3), device="cuda")

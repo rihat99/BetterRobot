@@ -297,7 +297,6 @@ def test_g1_capsules_pose_pair_and_overlap_where_the_meshes_do():
 
 
 @pytest.mark.cuda
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
 def test_cuda_backward_is_bitwise_reproducible():
     """Posing many points per frame and RNEA's per-column gathers repeat an index: advanced indexing keeps their CUDA
     backward free of atomics (index_select's adds with them), so two backward passes agree to the bit."""
