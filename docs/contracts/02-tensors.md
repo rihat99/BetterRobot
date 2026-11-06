@@ -20,7 +20,7 @@ q = q.float()                                   # silent downcast of float64 inp
 ```
 
 Enforcement: `tests/contract/test_dtype_device.py` (calls every public kinematics/dynamics/lie entry point on
-float32 and float64 inputs and asserts the output dtype; skips cuda when absent).
+float32 and float64 inputs and asserts the output dtype).
 
 ## C-TENS-2 Leading batch axes broadcast; no fixed batch rank (MUST)
 

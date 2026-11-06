@@ -6,26 +6,38 @@ group guards.
 
 ## Run the suite
 
-```bash
-UV_CACHE_DIR=/tmp/betterrobot-uv-cache uv run pytest tests/ -q -m "not bench and not cuda"
-uv run pytest tests/kinematics -q            # one package while you edit
-uv run ruff check src/ tests/
-```
+Install everything the tests need with one command: `uv sync --all-extras --all-groups` (the extras, the `dev`
+tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is one command:
+
+| Tier | Command | Time | Run by |
+|------|---------|------|--------|
+| fast | `uv run pytest tests/contract -q -m "not slow"` | about 2 s | the pre-commit hook, after every edit |
+| full | `uv run pytest tests -q -m "not bench and not cuda"` | about 3 min (184 s) | the pre-push hook |
+| CUDA | `CUDA_VISIBLE_DEVICES=<gpu> uv run pytest tests -q -m cuda` | seconds | by hand on a machine with a GPU |
+
+While you edit one package, run the fast tier plus that package's folder, for example
+`uv run pytest tests/kinematics -q`. The hooks live in `.pre-commit-config.yaml`;
+`uv run pre-commit install` installs them.
 
 | Marker | Meaning |
 |--------|---------|
-| `slow` | long-running tests; skip with `-m "not slow"` |
-| `cuda` | needs a CUDA device |
-| `bench` | micro-benchmarks in `tests/bench/`; advisory, not part of the contract |
+| `slow` | takes seconds; deselected in the fast tier, run in the full tier |
+| `cuda` | needs a CUDA device; deselected in the fast and full tiers |
+| `bench` | micro-benchmarks in `tests/bench/`; deselected in every tier |
 
-Tests that need optional packages (`robot_descriptions`, `pin`, `mujoco`, `viser`) call
-`pytest.importorskip`, so a minimal install skips them instead of failing. The `dev` extra installs
-all of them.
+Nothing skips: a missing oracle, fixture or browser fails the test (`tests/contract/test_no_skips.py`). The test
+robots are tracked under `tests/fixtures/robots/`, so the suite runs offline. One full-tier test,
+`tests/viewer/test_capture.py::test_record_screenshots_a_real_scene`, screenshots a real scene through a headless
+Chromium: put `chromium`, `google-chrome` or `chrome-headless-shell` on `PATH`, or point `BETTER_ROBOT_CHROME` at
+one. On a machine without `libasound.so.2` Chromium exits at start; point `BETTER_ROBOT_CHROME` at a wrapper script
+that adds a copy of the library to `LD_LIBRARY_PATH` (for example extracted from the `libasound2` package) and
+then runs the browser.
 
 ## Pinocchio parity is a gate
 
 `tests/parity/pinocchio/` compares kinematics, Jacobians and dynamics against Pinocchio on the same
-URDFs. The tolerances are part of the contract:
+URDFs; it is part of the full tier and runs alone with `uv run pytest tests/parity/pinocchio -q`. The tolerances
+are part of the contract:
 
 | Inputs | Typical `atol` |
 |--------|----------------|
@@ -40,16 +52,24 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 
 | Test | Guards |
 |------|--------|
-| `test_layer_dependencies.py` | imports follow the package graph (`viewer -> terms -> core`, `optim` imports only torch) |
+| `test_layer_dependencies.py` | every import between packages is in the `ALLOWED` edge table (`optim` imports only `exceptions`) |
 | `test_public_api.py` | the top-level `better_robot` API surface |
 | `test_submodule_public_imports.py` | symbols documented under `better_robot.<submodule>` import from there |
 | `test_docstrings.py` | every public symbol has a docstring |
 | `test_boundary_validation_count.py` | public functions validate inputs once; raw passes below do not re-validate |
 | `test_hot_path_lint.py` | no `torch.compile`-breaking patterns (host syncs, `.item()`, Python branching on tensors) in kinematics and dynamics |
 | `test_naming.py` | old Pinocchio-style storage names do not come back |
-| `test_optional_imports.py` | optional dependencies are imported lazily at their integration boundary |
+| `test_optional_imports.py` | each optional package is imported only in its boundary module |
+| `test_no_skips.py` | no test skips or xfails |
+| `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
+| `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |
+| `test_fixtures.py` | every test robot has its licence and provenance |
 | `test_protocols.py` | extension protocols keep their shape (see [Extending](extending.md)) |
 | `test_roadmap_stub_inventory.py` | every `NotImplementedError` stub is listed in the [roadmap](../reference/roadmap.md) |
+
+A rule that still has known violations keeps them in a ratchet, `tests/contract/ratchets/<name>.json`: each key
+is one violation with its reason or witness. A ratchet only shrinks; the fix that removes a violation removes its
+entry, and a stale-entry test fails until it does.
 
 `tests/autograd/` checks that gradients reach `q` and the model tensors through every public
 kinematics and dynamics function (see [Differentiate](../guides/differentiate.md)).
@@ -62,7 +82,7 @@ clip a page references exists. The rules for a page:
 
 | Fence | Meaning |
 |---|---|
-| ```` ```python ```` | runs in CI, in page order |
+| ```` ```python ```` | runs in the full tier, in page order |
 | ```` ```python { .no-run } ```` | shown but not run (licensed data, a live server) |
 | ```` ```output ```` | directly after a block that prints: its real output |
 

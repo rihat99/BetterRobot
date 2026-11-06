@@ -1,22 +1,20 @@
 # Install BetterRobot
 
-You install BetterRobot with `uv`, pick the optional extras you need, and check that the install works.
-After this page you can run every tutorial in Getting started.
+You install BetterRobot with `uv` in one command and check that the install works. After this page you can run
+every tutorial in Getting started.
 
 ## Install the package with uv
 
-BetterRobot is a plain Python package that needs Python 3.10+ and PyTorch. The project uses
+BetterRobot is a plain Python package that needs Python 3.12 and PyTorch. The project uses
 [uv](https://docs.astral.sh/uv/) for environments. From a clone of the repository:
 
 ```bash
 git clone <your BetterRobot clone URL> BetterRobot
 cd BetterRobot
-uv sync                      # core: torch, numpy and the URDF parser
+uv sync --all-extras --all-groups   # the package, every extra, and the dev and test-oracles groups
 ```
 
-The core has no viewer, no MuJoCo and no robot assets. You add those through extras.
-
-## Pick the extras you need
+## What the extras add
 
 | Extra | Installs | You need it for |
 |---|---|---|
@@ -25,12 +23,8 @@ The core has no viewer, no MuJoCo and no robot assets. You add those through ext
 | `meshes` | `trimesh` | loading visual and collision meshes |
 | `demos` | `robot_descriptions` | the Panda and G1 models used in these tutorials |
 
-The tutorials use `demos`, `meshes` and `viewer`:
-
-```bash
-uv sync --extra demos --extra meshes --extra viewer
-uv sync --all-extras --all-groups   # everything, plus the dev and test-oracles groups
-```
+The core alone (`torch`, `numpy` and the URDF parser) has no viewer, no MuJoCo and no robot assets. The `dev` group
+holds the test, lint and docs tools; `test-oracles` holds Pinocchio and SciPy, the references of the parity tests.
 
 ## Get a CUDA build of PyTorch
 
@@ -41,10 +35,10 @@ code runs on CPU and GPU, chosen by the device of your tensors (see [GPU and bat
 
 ## Check the install
 
-Run the tests that need no GPU:
+Run the fast test tier (seconds; the other tiers are in [Testing](../contributing/testing.md)):
 
 ```bash
-uv run pytest tests/ -q -m "not bench and not cuda"
+uv run pytest tests/contract -q -m "not slow"
 ```
 
 Or load a robot in Python. This needs the `demos` extra:
