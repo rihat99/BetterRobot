@@ -104,7 +104,6 @@
   "src/better_robot/io/parsers/mjcf.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/parsers/programmatic.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/parsers/urdf.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
-  "src/better_robot/kinematics/CLAUDE.md: model/_checks.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "src/better_robot/model/CLAUDE.md: io/build_model.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "src/better_robot/model/CLAUDE.md: kinematics/configuration.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/bench/README.md: baselines/torch_filtered_smpl_b1_rtx6000_ada.json": "a path relative to the citing file's folder outside a Markdown link; cite it from the repository root",
