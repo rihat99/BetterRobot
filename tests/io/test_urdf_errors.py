@@ -1,0 +1,59 @@
+"""``parse_urdf`` raises ``ModelError`` naming the file and the element at fault (record 0047)."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+
+from better_robot.exceptions import ModelError
+from better_robot.io.parser_urdf import parse_urdf
+
+TWO_LINKS = '<robot name="r"><link name="base"/><link name="tip"/>{joint}</robot>'
+
+
+def _write(tmp_path: Path, text: str) -> Path:
+    path = tmp_path / "r.urdf"
+    path.write_text(text)
+    return path
+
+
+def test_missing_file_names_the_path(tmp_path: Path) -> None:
+    path = tmp_path / "missing.urdf"
+    with pytest.raises(ModelError, match=re.escape(str(path))):
+        parse_urdf(path)
+
+
+def test_empty_file_names_the_path(tmp_path: Path) -> None:
+    path = _write(tmp_path, "")
+    with pytest.raises(ModelError, match=re.escape(str(path))):
+        parse_urdf(path)
+
+
+def test_unknown_parent_link_names_file_and_joint(tmp_path: Path) -> None:
+    joint = '<joint name="j" type="fixed"><parent link="nowhere"/><child link="tip"/></joint>'
+    path = _write(tmp_path, TWO_LINKS.format(joint=joint))
+    with pytest.raises(ModelError, match=re.escape(f"{path}: <joint name='j'>: parent link 'nowhere'")):
+        parse_urdf(path)
+
+
+def test_unknown_joint_type_names_file_and_joint(tmp_path: Path) -> None:
+    joint = '<joint name="j" type="screw"><parent link="base"/><child link="tip"/></joint>'
+    path = _write(tmp_path, TWO_LINKS.format(joint=joint))
+    with pytest.raises(ModelError, match=re.escape(f"{path}: <joint name='j'>: type 'screw'")):
+        parse_urdf(path)
+
+
+def test_zero_axis_names_file_and_joint(tmp_path: Path) -> None:
+    joint = '<joint name="j" type="revolute"><parent link="base"/><child link="tip"/><axis xyz="0 0 0"/></joint>'
+    path = _write(tmp_path, TWO_LINKS.format(joint=joint))
+    with pytest.raises(ModelError, match=re.escape(f"{path}: <joint name='j'>: <axis> is zero")):
+        parse_urdf(path)
+
+
+def test_unsupported_shape_names_file_and_tag(tmp_path: Path) -> None:
+    visual = '<visual><geometry><capsule radius="0.1" length="0.5"/></geometry></visual>'
+    path = _write(tmp_path, f'<robot name="r"><link name="base">{visual}</link></robot>')
+    with pytest.raises(ModelError, match=re.escape(f"{path}: ") + "Unknown tag: capsule"):
+        parse_urdf(path)

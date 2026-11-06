@@ -1,315 +1,184 @@
-"""URDF parser — ``yourdfpy``-backed, emits an ``IRModel``.
+"""URDF parser: a typed adapter over the locked ``yourdfpy`` (record 0047).
 
-The ``yourdfpy`` import is confined to this file. Mimic joints, continuous
-joints, and multi-child links are handled at IR level. Free-flyer is not
-added here — ``build_model(root_joint=JointFreeFlyer())`` adds it. A joint
-axis is normalised here (a file may carry one of any length); the joint
-kinds themselves accept unit axes only.
-
-See ``docs/concepts/parsers_and_ir.md §4``.
+``yourdfpy`` reads the XML into plain records (``Robot``, ``Link``, ``Joint``, ``Visual``, ``Collision``) and this
+module reads those records by direct attribute access, so a yourdfpy upgrade that renames an attribute fails here
+with an ``AttributeError`` and never silently with a default. Every failure a file can cause is a ``ModelError``
+naming the file and the element. Mesh files are never opened: a mesh geometry keeps the ``filename`` the file
+wrote (record 0048) and the viewer resolves it. A joint axis is normalised here (a file may carry one of any
+length); the joint kinds accept unit axes only. The free-flyer root is not added here:
+``build_model(root_joint=JointFreeFlyer())`` adds it. ``yourdfpy`` is imported here only.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
+from ..exceptions import ModelError
+from ..lie import so3
+from .assets import FilesystemResolver
 from .ir import IRBody, IRGeom, IRJoint, IRModel
 
 if TYPE_CHECKING:
-    from .assets import AssetResolver
+    import yourdfpy
+
+#: URDF joint ``type`` to the IR kind.
+_KINDS = {
+    "revolute": "revolute",
+    "continuous": "continuous",
+    "prismatic": "prismatic",
+    "fixed": "fixed",
+    "floating": "free_flyer",
+    "planar": "planar",
+}
 
 
-def _mat4_to_se3(T: np.ndarray) -> torch.Tensor:
-    """Convert a 4×4 homogeneous numpy matrix to ``[tx,ty,tz,qx,qy,qz,qw]``."""
-    from ..lie.so3 import from_matrix as _so3_from_matrix
-
-    t = torch.tensor(T[:3, 3].astype(np.float64))
-    R = torch.from_numpy(T[:3, :3].astype(np.float64))
-    q = _so3_from_matrix(R)  # [qx, qy, qz, qw]
-    return torch.cat([t, q])
+def _pose(origin: np.ndarray | None) -> torch.Tensor:
+    """A URDF ``<origin>`` as a ``(4, 4)`` matrix, or ``None`` for identity, as one pose ``(7,)`` ``[t, qx, qy, qz, qw]``."""
+    if origin is None:
+        return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=torch.float64)
+    matrix = torch.tensor(origin, dtype=torch.float64)
+    return torch.cat([matrix[:3, 3], so3.from_matrix(matrix[:3, :3])])
 
 
-def _extract_geoms(
-    geom_list: list | None,
-    origin_fn=None,
-    filename_handler=None,
-    material_map: dict | None = None,
-) -> list[IRGeom]:
-    """Extract visual / collision geometries from a list of yourdfpy geometry objects."""
-    result: list[IRGeom] = []
-    if geom_list is None:
-        return result
-    for geom in geom_list:
-        origin: np.ndarray | None = getattr(geom, "origin", None)
-        if origin is not None:
-            placement = _mat4_to_se3(origin)
-        else:
-            placement = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-
-        rgba = None
-        if hasattr(geom, "material") and geom.material is not None:
-            mat = geom.material
-            # Try inline color first
-            c = getattr(mat, "color", None)
-            if c is not None:
-                rgba_arr = getattr(c, "rgba", None)
-                if rgba_arr is not None:
-                    rgba = tuple(float(x) for x in rgba_arr[:4])
-            # Fall back to material name reference
-            if rgba is None and material_map is not None:
-                mat_name = getattr(mat, "name", None)
-                if mat_name and mat_name in material_map:
-                    ref = material_map[mat_name]
-                    c = getattr(ref, "color", None)
-                    if c is not None:
-                        rgba_arr = getattr(c, "rgba", None)
-                        if rgba_arr is not None:
-                            rgba = tuple(float(x) for x in rgba_arr[:4])
-
-        g = getattr(geom, "geometry", None)
-        if g is None:
-            continue
-
-        sphere = getattr(g, "sphere", None)
-        box = getattr(g, "box", None)
-        cylinder = getattr(g, "cylinder", None)
-        capsule = getattr(g, "capsule", None)
-        mesh = getattr(g, "mesh", None)
-
-        if sphere is not None:
-            result.append(
-                IRGeom(
-                    kind="sphere",
-                    params={"radius": float(sphere.radius)},
-                    origin=placement,
-                    rgba=rgba,
-                )
-            )
-        elif box is not None:
-            size = np.array(box.size, dtype=np.float64)
-            result.append(
-                IRGeom(
-                    kind="box",
-                    params={"size": size.tolist()},
-                    origin=placement,
-                    rgba=rgba,
-                )
-            )
-        elif cylinder is not None:
-            result.append(
-                IRGeom(
-                    kind="cylinder",
-                    params={"radius": float(cylinder.radius), "length": float(cylinder.length)},
-                    origin=placement,
-                    rgba=rgba,
-                )
-            )
-        elif capsule is not None:
-            result.append(
-                IRGeom(
-                    kind="capsule",
-                    params={"radius": float(capsule.radius), "length": float(capsule.length)},
-                    origin=placement,
-                    rgba=rgba,
-                )
-            )
-        elif mesh is not None:
-            scale = getattr(mesh, "scale", None)
-            scale_list = [float(s) for s in scale] if scale is not None else [1.0, 1.0, 1.0]
-            raw_path = getattr(mesh, "filename", "") or ""
-            if filename_handler is not None and raw_path:
-                try:
-                    raw_path = filename_handler(raw_path)
-                except (OSError, ValueError):
-                    pass
-            result.append(
-                IRGeom(
-                    kind="mesh",
-                    params={"path": raw_path, "scale": scale_list},
-                    origin=placement,
-                    rgba=rgba,
-                )
-            )
-    return result
+def _color(
+    material: yourdfpy.Material | None, materials: dict[str, yourdfpy.Material]
+) -> tuple[float, float, float, float] | None:
+    """The RGBA of a visual's material: inline, else the robot-level ``<material>`` of that name, else ``None``."""
+    if material is None:
+        return None
+    if material.color is None:
+        material = materials.get(material.name)
+        if material is None or material.color is None:
+            return None
+    red, green, blue, alpha = (float(value) for value in material.color.rgba)
+    return red, green, blue, alpha
 
 
-def parse_urdf(
-    source: str | Path | Any,
-    *,
-    resolver: "AssetResolver | None" = None,
-) -> IRModel:
-    """Parse a URDF file, path, or ``yourdfpy.URDF`` object into an ``IRModel``.
-
-    Parameters
-    ----------
-    source : str | Path | yourdfpy.URDF
-    resolver : AssetResolver, optional
-        Resolves mesh / texture references encountered inside the URDF.
-        Defaults to a `FilesystemResolver`
-        rooted at the URDF file's parent directory (when ``source`` is a
-        path). The resolver is forwarded to ``IRModel.meta["asset_resolver"]``
-        and through ``build_model`` to ``Model.meta["asset_resolver"]``.
-
-    See docs/concepts/parsers_and_ir.md §4.
-    """
-    try:
-        import yourdfpy
-    except ImportError as exc:
-        from ..exceptions import OptionalDependencyError
-
-        raise OptionalDependencyError("yourdfpy", install="uv sync") from exc
-
-    if isinstance(source, (str, Path)):
-        urdf = yourdfpy.URDF.load(str(source))
-        if resolver is None:
-            from .assets import FilesystemResolver
-
-            resolver = FilesystemResolver(base_path=Path(source).parent)
+def _geom(
+    geometry: yourdfpy.Geometry, origin: np.ndarray | None, rgba: tuple[float, float, float, float] | None
+) -> IRGeom:
+    """One ``<visual>`` or ``<collision>`` as an IR primitive placed in the link frame (yourdfpy rejects any other shape)."""
+    if geometry.sphere is not None:
+        kind, params = "sphere", {"radius": float(geometry.sphere.radius)}
+    elif geometry.box is not None:
+        kind, params = "box", {"size": [float(value) for value in geometry.box.size]}
+    elif geometry.cylinder is not None:
+        kind, params = (
+            "cylinder",
+            {"radius": float(geometry.cylinder.radius), "length": float(geometry.cylinder.length)},
+        )
     else:
-        urdf = source
+        scale = geometry.mesh.scale  # None, one float for all axes, or (3,)
+        scale = np.ones(3) if scale is None else np.broadcast_to(np.asarray(scale, dtype=np.float64), (3,))
+        kind, params = "mesh", {"path": geometry.mesh.filename, "scale": scale.tolist()}
+    return IRGeom(kind=kind, params=params, origin=_pose(origin), rgba=rgba)
 
-    # ── bodies (one per URDF link) ────────────────────────────────────
-    ir_bodies: list[IRBody] = []
-    for link_name, link in urdf.link_map.items():
-        mass = 0.0
-        com = torch.zeros(3)
-        inertia = torch.zeros(3, 3)
 
-        if link.inertial is not None:
-            if link.inertial.mass is not None:
-                mass = float(link.inertial.mass)
-            if link.inertial.origin is not None:
-                com = torch.tensor(link.inertial.origin[:3, 3].astype(np.float64))
-            if link.inertial.inertia is not None:
-                ii = link.inertial.inertia
-                # yourdfpy exposes ``link.inertial.inertia`` as a numpy 3×3 ndarray.
-                # Fall back to object-attribute lookup (ixx/iyy/.../iyz) if the
-                # backend ever switches to a field-style object.
-                if isinstance(ii, np.ndarray):
-                    inertia = torch.tensor(np.asarray(ii, dtype=np.float64))
-                else:
-                    ixx = float(getattr(ii, "ixx", 0.0) or 0.0)
-                    iyy = float(getattr(ii, "iyy", 0.0) or 0.0)
-                    izz = float(getattr(ii, "izz", 0.0) or 0.0)
-                    ixy = float(getattr(ii, "ixy", 0.0) or 0.0)
-                    ixz = float(getattr(ii, "ixz", 0.0) or 0.0)
-                    iyz = float(getattr(ii, "iyz", 0.0) or 0.0)
-                    inertia = torch.tensor(
-                        [[ixx, ixy, ixz], [ixy, iyy, iyz], [ixz, iyz, izz]],
-                        dtype=torch.float64,
-                    )
-                # URDF gives the inertia in the inertial frame; the IR wants it in the
-                # link frame at the COM, so rotate by the inertial origin (R I R^T).
-                if link.inertial.origin is not None:
-                    rot = torch.tensor(link.inertial.origin[:3, :3].astype(np.float64))
-                    inertia = rot @ inertia.to(torch.float64) @ rot.T
+def _body(link: yourdfpy.Link, materials: dict[str, yourdfpy.Material]) -> IRBody:
+    """A ``<link>`` as an IR body: mass, centre of mass and inertia in the link frame, visual and collision geoms."""
+    inertial = link.inertial
+    mass = 0.0 if inertial is None or inertial.mass is None else float(inertial.mass)
+    origin = np.eye(4) if inertial is None or inertial.origin is None else inertial.origin
+    inertia = (
+        np.zeros((3, 3))
+        if inertial is None or inertial.inertia is None
+        else np.asarray(inertial.inertia, dtype=np.float64)
+    )
+    # The file gives the inertia in the inertial frame; the IR wants it in the link frame about the centre of mass.
+    rotation = origin[:3, :3]
+    return IRBody(
+        name=link.name,
+        mass=mass,
+        com=torch.tensor(origin[:3, 3], dtype=torch.float64),
+        inertia=torch.tensor(rotation @ inertia @ rotation.T, dtype=torch.float64),
+        visual_geoms=[_geom(v.geometry, v.origin, _color(v.material, materials)) for v in link.visuals],
+        collision_geoms=[_geom(c.geometry, c.origin, None) for c in link.collisions],
+    )
 
-        fn_handler = getattr(urdf, "_filename_handler", None)
-        mat_map = getattr(urdf, "_material_map", None)
-        visual_geoms = _extract_geoms(getattr(link, "visuals", None), filename_handler=fn_handler, material_map=mat_map)
-        collision_geoms = _extract_geoms(getattr(link, "collisions", None), filename_handler=fn_handler)
 
-        ir_bodies.append(
-            IRBody(
-                name=link_name,
-                mass=mass,
-                com=com,
-                inertia=inertia,
-                visual_geoms=visual_geoms,
-                collision_geoms=collision_geoms,
-            )
+def _joint(joint: yourdfpy.Joint, links: set[str], path: Path) -> IRJoint:
+    """A ``<joint>`` as an IR joint; its type, its parent and child links and its axis are checked here."""
+    element = f"{path}: <joint name={joint.name!r}>"
+    if joint.type not in _KINDS:
+        raise ModelError(f"{element}: type {joint.type!r} is not one of {sorted(_KINDS)}")
+    for role, link in (("parent", joint.parent), ("child", joint.child)):
+        if link not in links:
+            raise ModelError(f"{element}: {role} link {link!r} is not a <link> of the file")
+    axis = np.asarray(joint.axis, dtype=np.float64)
+    norm = float(np.linalg.norm(axis))
+    if norm == 0.0:
+        raise ModelError(f"{element}: <axis> is zero")
+    limit, dynamics, mimic = joint.limit, joint.dynamics, joint.mimic
+    lower, upper, velocity, effort = (
+        (None, None, None, None) if limit is None else (limit.lower, limit.upper, limit.velocity, limit.effort)
+    )
+    # yourdfpy 0.0.60 keeps the <dynamics> attributes as the strings it read (its other numbers are floats).
+    damping, friction = (
+        (0.0, 0.0) if dynamics is None else (float(dynamics.damping or 0.0), float(dynamics.friction or 0.0))
+    )
+    source, multiplier, offset = (
+        (None, 1.0, 0.0)
+        if mimic is None
+        else (
+            mimic.joint,
+            1.0 if mimic.multiplier is None else mimic.multiplier,
+            0.0 if mimic.offset is None else mimic.offset,
         )
+    )
+    return IRJoint(
+        name=joint.name,
+        parent_body=joint.parent,
+        child_body=joint.child,
+        kind=_KINDS[joint.type],
+        axis=torch.tensor(axis / norm),
+        origin=_pose(joint.origin),
+        lower=lower,
+        upper=upper,
+        velocity_limit=velocity,
+        effort_limit=effort,
+        damping=damping,
+        friction=friction,
+        mimic_source=source,
+        mimic_multiplier=multiplier,
+        mimic_offset=offset,
+    )
 
-    # ── joints (one per URDF joint) ───────────────────────────────────
-    ir_joints: list[IRJoint] = []
-    for jname, joint in urdf.joint_map.items():
-        # axis
-        if joint.axis is not None:
-            axis_np = np.array(joint.axis, dtype=np.float64)
-            norm = float(np.linalg.norm(axis_np))
-            if norm > 1e-12:
-                axis_np = axis_np / norm
-            axis_t: torch.Tensor | None = torch.from_numpy(axis_np)
-        else:
-            axis_t = None
 
-        # origin
-        if joint.origin is not None:
-            origin_t = _mat4_to_se3(joint.origin)
-        else:
-            origin_t = torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+def parse_urdf(path: str | Path) -> IRModel:
+    """Parse a URDF file into an ``IRModel``; raises ``ModelError`` naming the file and the element at fault."""
+    import yourdfpy  # noqa: PLC0415 - 0.5 s of import (it pulls trimesh), paid by the loader only
 
-        # limits
-        lower: float | None = None
-        upper: float | None = None
-        vel_limit: float | None = None
-        effort_limit: float | None = None
-        if joint.limit is not None:
-            lo = getattr(joint.limit, "lower", None)
-            hi = getattr(joint.limit, "upper", None)
-            vel = getattr(joint.limit, "velocity", None)
-            eff = getattr(joint.limit, "effort", None)
-            lower = float(lo) if lo is not None else None
-            upper = float(hi) if hi is not None else None
-            vel_limit = float(vel) if vel is not None else None
-            effort_limit = float(eff) if eff is not None else None
-
-        # mimic
-        mimic_source: str | None = None
-        mimic_mult = 1.0
-        mimic_off = 0.0
-        if getattr(joint, "mimic", None) is not None:
-            mimic_source = getattr(joint.mimic, "joint", None)
-            m = getattr(joint.mimic, "multiplier", None)
-            o = getattr(joint.mimic, "offset", None)
-            if m is not None:
-                mimic_mult = float(m)
-            if o is not None:
-                mimic_off = float(o)
-
-        ir_joints.append(
-            IRJoint(
-                name=jname,
-                parent_body=joint.parent,
-                child_body=joint.child,
-                kind=joint.type,
-                axis=axis_t,
-                origin=origin_t,
-                lower=lower,
-                upper=upper,
-                velocity_limit=vel_limit,
-                effort_limit=effort_limit,
-                damping=float(getattr(joint.dynamics, "damping", None) or 0.0),
-                friction=float(getattr(joint.dynamics, "friction", None) or 0.0),
-                mimic_source=mimic_source,
-                mimic_multiplier=mimic_mult,
-                mimic_offset=mimic_off,
-            )
+    path = Path(path)
+    if not path.is_file():
+        raise ModelError(f"{path}: no such file")
+    try:
+        urdf = yourdfpy.URDF.load(
+            str(path),
+            build_scene_graph=False,
+            build_collision_scene_graph=False,
+            load_meshes=False,
+            load_collision_meshes=False,
         )
-
-    # ── root body ─────────────────────────────────────────────────────
-    child_bodies = {j.child_body for j in ir_joints}
-    root_body = ""
-    for b in ir_bodies:
-        if b.name not in child_bodies:
-            root_body = b.name
-            break
-
-    # ── model name ────────────────────────────────────────────────────
-    name = getattr(urdf, "name", "") or ""
-
-    meta: dict = {}
-    if resolver is not None:
-        meta["asset_resolver"] = resolver
-
+    except (yourdfpy.URDFError, SyntaxError, TypeError, ValueError, IndexError) as exc:
+        # yourdfpy 0.0.60 fails on a broken file with whatever builtin its parse stumbles on: lxml's XMLSyntaxError
+        # for an empty file, TypeError for no root element or a <visual> without <geometry>, ValueError for an
+        # unknown tag such as <capsule>, IndexError for an empty <geometry>.
+        raise ModelError(f"{path}: {exc}") from exc
+    robot = urdf.robot
+    materials = {material.name: material for material in robot.materials}
+    bodies = [_body(link, materials) for link in robot.links]
+    links = {link.name for link in robot.links}
+    joints = [_joint(joint, links, path) for joint in robot.joints]
+    children = {joint.child_body for joint in joints}
+    root_body = next((link.name for link in robot.links if link.name not in children), "")
     return IRModel(
-        name=name,
-        bodies=ir_bodies,
-        joints=ir_joints,
+        name=robot.name,
+        bodies=bodies,
+        joints=joints,
         root_body=root_body,
-        meta=meta,
+        meta={"asset_resolver": FilesystemResolver(base_path=path.parent)},
     )

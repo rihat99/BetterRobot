@@ -12,7 +12,6 @@ from __future__ import annotations
 import pinocchio as pin
 import pytest
 import torch
-import yourdfpy
 
 from better_robot.io import load
 from better_robot.io.parser_urdf import parse_urdf
@@ -89,14 +88,6 @@ def test_panda_name_to_id_has_all_joints(panda_model, panda_ir):
 def test_panda_body_frame_names(panda_model, panda_ir):
     for body in panda_ir.bodies:
         assert f"body_{body.name}" in panda_model.frame_names
-
-
-def test_load_accepts_yourdfpy_object():
-    path = panda_urdf()
-    urdf = yourdfpy.URDF.load(str(path))
-    model = load(urdf)
-    assert model.nq == 8
-    assert model.nq_full == 9
 
 
 # ── G1 floating-base tests ───────────────────────────────────────────────────

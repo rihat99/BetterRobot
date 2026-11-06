@@ -58,11 +58,11 @@ def _detect_format(source: Any, hint: str) -> str:
 
 
 def parse(
-    source: str | Path | Any | Callable[[], IRModel],
+    source: str | Path | Callable[[], IRModel],
     *,
     format: Literal["auto", "urdf", "mjcf", "builder"] = "auto",
 ) -> IRModel:
-    """Parse a robot description into an editable ``IRModel`` without building a ``Model``.
+    """Parse a robot description (a file path, or a callable returning the IR) into an editable ``IRModel``.
 
     Composition lives on the IR: parse several sources, merge or edit their
     ``bodies``/``joints``/``frames`` records, then call ``build_model(ir)``.
@@ -73,26 +73,12 @@ def parse(
         ir = source()
         if not isinstance(ir, IRModel):
             raise ValueError(f"Programmatic builder must return an IRModel, got {type(ir)}")
-    else:
-        # Try to detect if it's a yourdfpy.URDF object
-        try:
-            import yourdfpy  # noqa: PLC0415 - optional dependency, imported only when needed
-
-            if isinstance(source, yourdfpy.URDF):
-                ir = parse_urdf(source)
-            else:
-                suffix = _detect_format(source, format)
-                ir = _PARSERS[suffix](source)
-        except ImportError:
-            # yourdfpy not available; just try the suffix route
-            suffix = _detect_format(source, format)
-            ir = _PARSERS[suffix](source)
-
-    return ir
+        return ir
+    return _PARSERS[_detect_format(source, format)](source)
 
 
 def load(
-    source: str | Path | Any | Callable[[], IRModel],
+    source: str | Path | Callable[[], IRModel],
     *,
     format: Literal["auto", "urdf", "mjcf", "builder"] = "auto",
     root_joint: JointModel | None = None,
@@ -103,7 +89,7 @@ def load(
 ) -> Model:
     """Load a robot description into a frozen ``Model``.
 
-    Dispatches by file suffix, argument type, or explicit ``format`` hint.
+    Dispatches by file suffix or explicit ``format`` hint.
     Passing ``free_flyer=True`` (or ``root_joint=JointFreeFlyer()``) turns
     any fixed-base URDF into a floating-base robot.
     ``preserve_joint_order=True`` retains already-topological source joint
