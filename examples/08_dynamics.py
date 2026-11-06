@@ -33,7 +33,7 @@ def run() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     velocity = torch.zeros(model.nv, dtype=torch.float64)
     desired_acceleration = torch.zeros_like(velocity)
 
-    state = br.forward_kinematics_state(model, q)
+    state = br.forward_kinematics(model, q)
     gravity_torque = br.inverse_dynamics(model, state, v=velocity, a=desired_acceleration)
     recovered_acceleration = br.forward_dynamics(model, state, v=velocity, tau=gravity_torque)
     round_trip_error = (recovered_acceleration - desired_acceleration).abs().max()

@@ -15,15 +15,15 @@ Everything before that is batch, and you may use any number of batch axes. Resul
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.kinematics import forward_kinematics_state, frame_jacobian
+from better_robot.kinematics import forward_kinematics, frame_jacobian
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float32)
 hand = model.frame_id("body_panda_hand")
 
 q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)
 q_batch = q.expand(8, 16, model.nq)  # 8 robots x 16 time steps
-state = forward_kinematics_state(model, q_batch)
-print(state.frame_pose.shape)                            # (8, 16, nframes, 7)
+state = forward_kinematics(model, q_batch)
+print(state.frame_poses.shape)                            # (8, 16, nframes, 7)
 print(frame_jacobian(model, state, frame="body_panda_hand").shape)  # (8, 16, 6, nv)
 ```
 ```output
@@ -42,12 +42,12 @@ functions check that `q` matches the model and raise instead of casting silently
 ```python
 q64 = torch.zeros(3, model.nq, dtype=torch.float64)
 try:
-    forward_kinematics_state(model, q64)
+    forward_kinematics(model, q64)
 except Exception as error:
     print(type(error).__name__, error)
 
 model64 = model.to(dtype=torch.float64)
-print(forward_kinematics_state(model64, q64).frame_pose.dtype)
+print(forward_kinematics(model64, q64).frame_poses.dtype)
 ```
 ```output
 DtypeMismatchError q.dtype=torch.float64 != model.dtype=torch.float32; cast q or call model.to(dtype=q.dtype)
@@ -64,7 +64,7 @@ Only the device changes:
 device = torch.device("cuda")
 model = br.load(panda_description.URDF_PATH, device=device, dtype=torch.float32)
 q_batch = model.q_neutral.expand(4096, model.nq).clone()
-state = forward_kinematics_state(model, q_batch)  # runs on the GPU
+state = forward_kinematics(model, q_batch)  # runs on the GPU
 torch.cuda.synchronize()
 ```
 

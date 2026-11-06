@@ -13,7 +13,7 @@ section of the docs to open next.
 - **A robot is a `Model`.** `br.load(path)` reads a URDF, MJCF or programmatic description into an
   immutable `Model`: joints, bodies and frames (the static topology) plus the differentiable tensors
   that parametrize them. A floating base is just one more joint, a `JointFreeFlyer`.
-- **A query returns a `KinematicState`.** `br.forward_kinematics_state(model, q)` runs forward kinematics for a configuration
+- **A query returns a `KinematicState`.** `br.forward_kinematics(model, q)` runs forward kinematics for a configuration
   `q` and returns a frozen state with every body and frame pose. Jacobians and dynamics
   (`frame_jacobian`, `inverse_dynamics`) are functions of that state, never hidden caches.
 - **Everything is batched and differentiable.** `q` may carry any leading batch axes
@@ -44,11 +44,11 @@ hand = model.frame_id("body_panda_hand")
 # A batch of 64 reachable hand poses, made from random configurations.
 generator = torch.Generator().manual_seed(0)
 q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(64, -1)
-targets = br.forward_kinematics_state(model, terms.random_start(model, q0, generator=generator)).frame_pose[:, hand]
+targets = br.forward_kinematics(model, terms.random_start(model, q0, generator=generator)).frame_poses[:, hand]
 
 # Solve all 64 inverse-kinematics problems at once, then check them with forward kinematics.
 result = terms.solve_ik(model, {"body_panda_hand": targets}, q0=q0, restarts=4, generator=generator)
-reached = br.forward_kinematics_state(model, result["q"]).frame_pose[:, hand]
+reached = br.forward_kinematics(model, result["q"]).frame_poses[:, hand]
 error = (reached[:, :3] - targets[:, :3]).norm(dim=-1)
 print(f"median hand position error: {float(error.median()):.1e} m")
 ```

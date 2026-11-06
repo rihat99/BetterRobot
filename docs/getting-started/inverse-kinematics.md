@@ -13,7 +13,7 @@ import torch
 import better_robot as br
 from robot_descriptions import panda_description
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 FRAME = "body_panda_hand"
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
@@ -22,7 +22,7 @@ generator = torch.Generator().manual_seed(0)
 
 q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(32, -1)
 q_goal = terms.random_start(model, q0, generator=generator)
-target = forward_kinematics_state(model, q_goal).frame_pose[:, hand]  # (32, 7)
+target = forward_kinematics(model, q_goal).frame_poses[:, hand]  # (32, 7)
 ```
 
 `terms.random_start` redraws every bounded vector-space joint inside its limits for every row of `q0`; free-flyer,
@@ -47,7 +47,7 @@ stay on the manifold:
 result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=4, generator=generator)
 q = result.x["q"]  # (32, nq)
 
-reached = forward_kinematics_state(model, q).frame_pose[:, hand]
+reached = forward_kinematics(model, q).frame_poses[:, hand]
 error = (reached[:, :3] - target[:, :3]).norm(dim=-1)
 print(f"reached (<0.1 mm): {float((error < 1e-4).float().mean()):.2f}, median error {float(error.median()):.1e} m")
 ```

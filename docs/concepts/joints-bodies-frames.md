@@ -154,9 +154,9 @@ A frame's world pose comes from forward kinematics. The returned `KinematicState
 frame transform; `frame_pose_of(frame_id)` gives one pose `(B..., 7)`.
 
 ```python
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
-state = forward_kinematics_state(model, torch.tensor([0.0, 0.5]))
+state = forward_kinematics(model, torch.tensor([0.0, 0.5]))
 print(state.frame_pose_of(tool))   # tensor([0.1199, 0.0000, 0.5194, 0.0000, 0.2474, 0.0000, 0.9689])
 ```
 ```output

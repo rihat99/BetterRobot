@@ -18,7 +18,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import optim, terms
 from better_robot.dynamics import inverse_dynamics
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from better_robot.viewer import GroundLayer, Viewer, robot_layers
 
 FRAME, KNOTS, DT = "body_panda_hand", 60, 1.0 / 30.0
@@ -29,7 +29,7 @@ def optimize_trajectory(model: br.Model) -> torch.Tensor:
     """``(KNOTS, nq)`` smooth motion from the ready pose to a shifted hand pose."""
     frame_id = model.frame_id(FRAME)
     q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_position_limit, model.upper_position_limit)
-    pose_start = forward_kinematics_state(model, q_start[None]).frame_pose[0, frame_id]
+    pose_start = forward_kinematics(model, q_start[None]).frame_poses[0, frame_id]
     pose_goal = pose_start.clone()
     pose_goal[:3] += torch.tensor([0.10, 0.25, 0.20], dtype=torch.float64)
     target = pose_start.repeat(1, KNOTS, 1)
@@ -56,7 +56,7 @@ def joint_torques(model: br.Model, q: torch.Tensor) -> torch.Tensor:
     v[1:-1] = (q[2:] - q[:-2]) / (2 * DT)
     a = torch.zeros_like(v)
     a[1:-1] = (q[2:] - 2 * q[1:-1] + q[:-2]) / DT**2
-    return inverse_dynamics(model, forward_kinematics_state(model, q), v=v, a=a)
+    return inverse_dynamics(model, forward_kinematics(model, q), v=v, a=a)
 
 
 def main() -> None:

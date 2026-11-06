@@ -13,7 +13,7 @@ import torch
 import better_robot as br
 from robot_descriptions import panda_description
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 FRAME, KNOTS, DT = "body_panda_hand", 20, 0.05
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
@@ -21,7 +21,7 @@ READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 hand = model.frame_id(FRAME)
 q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_position_limit, model.upper_position_limit)
-pose_start = forward_kinematics_state(model, q_start[None]).frame_pose[0, hand]
+pose_start = forward_kinematics(model, q_start[None]).frame_poses[0, hand]
 pose_goal = pose_start.clone()
 pose_goal[:3] += torch.tensor([0.10, 0.15, 0.15], dtype=torch.float64)
 ```
@@ -74,7 +74,7 @@ Each piece does one job:
 result = optim.solve(problem, optim.LevenbergMarquardt(), iters=200)
 q = result.x["q"][0]  # (KNOTS, nq)
 
-reached = forward_kinematics_state(model, q).frame_pose[:, hand]
+reached = forward_kinematics(model, q).frame_poses[:, hand]
 print(f"{result.iters} LM steps, goal error {float((reached[-1, :3] - pose_goal[:3]).norm()):.1e} m")
 print(f"peak joint speed {float(((q[1:] - q[:-1]) / DT).abs().max()):.2f} rad/s")
 ```

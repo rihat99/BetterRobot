@@ -12,7 +12,7 @@ Model parameters live on one device; a query tensor on another device is an erro
 (`06`), not a hidden `.to()`.
 
 ```python { .no-run }
-# good  (illustrative; real entry point: kinematics/state.py:151)
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
 out = torch.empty((*q.shape[:-1], 7), dtype=q.dtype, device=q.device)
 # bad
 out = torch.empty((*q.shape[:-1], 7))          # default dtype, cpu
@@ -74,7 +74,7 @@ if step_norm.item() < tol: break
 
 Enforcement: `tests/contract/test_hot_path_lint.py` (ast scan of `kinematics`, `dynamics`, `lie` and
 `optim/solvers.py`; a line marked `# bench-ok` is exempt, e.g. once-per-model plan building in
-`kinematics/_fk_lean.py`). Widening the scan to `spatial` and `terms` is `[planned: L-4]`. In
+`src/better_robot/kinematics/_fk.py`). Widening the scan to `spatial` and `terms` is `[planned: L-4]`. In
 `optim/solvers.py` the one exempt read is the `LBFGS` line search: one flag per trial, to stop once every
 problem has its step instead of evaluating the loss at the remaining step sizes.
 

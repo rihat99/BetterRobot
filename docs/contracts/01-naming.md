@@ -15,7 +15,7 @@ Composition reads left to right: `X_WB = X_WA @ X_AB`. Use these names for local
 `lie`, `spatial`, `kinematics`, `dynamics` and nowhere else.
 
 ```python { .no-run }
-# good  (illustrative; real entry point: kinematics/state.py:151)
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
 X_WB = X_WA @ X_AB
 V_WB = adjoint(X_WB) @ V_B
 # bad
@@ -33,7 +33,7 @@ know monogram notation to call the library.
 
 ```python { .no-run }
 # good
-def forward_kinematics_state(model: Model, q: Tensor) -> KinematicState: ...
+def forward_kinematics(model: Model, q: Tensor) -> KinematicState: ...
 # bad
 def fk_st(m, q): ...
 ```
@@ -79,16 +79,16 @@ Three words name a rigid-body quantity, and each has one meaning:
 | Word | Meaning | Layout |
 |------|---------|--------|
 | placement | a pose expressed in the parent frame: the model constants (`joint_placements`, `frame_placements`) and a joint's own q-dependent motion (`JointModel.joint_placement`), as in Pinocchio | `(..., 7)` |
-| pose | computed world quantity (`frame_pose`, `joint_pose`) | `(..., 7)` |
-| transform | the same world quantity as a 3x4 rotation-translation matrix (`frame_transform`, `joint_transform`) | `(..., 3, 4)` |
+| pose | computed world quantity (`frame_poses`, `joint_poses`) | `(..., 7)` |
+| transform | the same world quantity as a 3x4 rotation-translation matrix (`frame_transforms`, `joint_transforms`) | `(..., 3, 4)` |
 
 A 7-vector layout is `[tx, ty, tz, qx, qy, qz, qw]`. Do not use synonyms (`tf`, `xform`, `homogeneous`), do not
 name a matrix a pose or placement (`pose_matrix`), and do not call a world quantity a placement.
 
 ```python { .no-run }
 # good
-state.frame_pose            # (B..., nframes, 7) world
-state.frame_transform       # (B..., nframes, 3, 4) world
+state.frame_poses            # (B..., nframes, 7) world
+state.frame_transforms       # (B..., nframes, 3, 4) world
 # bad
 frame_tf, pose_matrix, world_placement
 ```

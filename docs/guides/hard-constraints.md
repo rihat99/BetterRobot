@@ -74,13 +74,13 @@ exactly (equality) and keeps the elbow at least 3 cm lower than at the start (in
 import better_robot as br
 from robot_descriptions import panda_description
 from better_robot import terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 hand, elbow = model.frame_id("body_panda_hand"), model.frame_id("body_panda_link4")
 q_start = torch.tensor([[0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.02, 0.02]], dtype=torch.float64)
 q_start = q_start[:, : model.nq].expand(8, -1)
-start = forward_kinematics_state(model, q_start).frame_pose
+start = forward_kinematics(model, q_start).frame_poses
 goal = start[:, hand, :3] + 0.15 * (torch.rand(8, 3, dtype=torch.float64) - 0.5)
 ceiling = start[:, elbow, 2:3] - 0.03
 
@@ -93,12 +93,12 @@ problem = optim.Problem(
 problem.cached(terms.kinematic_state(model), name="state")
 problem.residual("stay", lambda q, q_start: q - q_start)
 problem.residual("reach", terms.frame_position(model, frame="body_panda_hand", target="goal"))
-problem.residual("under", lambda state, ceiling: state.frame_pose[:, elbow, 2:3] - ceiling)
+problem.residual("under", lambda state, ceiling: state.frame_poses[:, elbow, 2:3] - ceiling)
 
 hard = optim.solve_constrained(
     problem, optim.LevenbergMarquardt(), equalities=("reach",), inequalities=("under",), tolerance=1e-8
 )
-pose = forward_kinematics_state(model, hard.x["q"]).frame_pose
+pose = forward_kinematics(model, hard.x["q"]).frame_poses
 print("worst reach error:", float((pose[:, hand, :3] - goal).norm(dim=-1).max()))
 print("elbow over ceiling:", float((pose[:, elbow, 2:3] - ceiling).max()))
 ```

@@ -14,7 +14,7 @@ from robot_descriptions import panda_description
 
 import better_robot as br
 from better_robot import terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from better_robot.viewer import GroundLayer, RobotView, Viewer
 from better_robot.viewer.tools import PoseGizmo
 
@@ -28,7 +28,7 @@ def main() -> None:
 
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit)[None]
-    pose = forward_kinematics_state(model, q).frame_pose[0, model.frame_id(FRAME)]
+    pose = forward_kinematics(model, q).frame_poses[0, model.frame_id(FRAME)]
 
     viewer = Viewer()
     viewer.add(GroundLayer())
@@ -50,7 +50,7 @@ def main() -> None:
         moved = pose.clone()
         moved[0] += 0.1
         follow(moved.numpy())
-        reached = forward_kinematics_state(model, state["q"]).frame_pose[0, model.frame_id(FRAME)]
+        reached = forward_kinematics(model, state["q"]).frame_poses[0, model.frame_id(FRAME)]
         print(f"target moved 10 cm, residual {float((reached[:3] - moved[:3]).norm()):.1e} m")
         viewer.server.stop()
         return

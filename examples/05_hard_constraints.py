@@ -13,7 +13,7 @@ from robot_descriptions import panda_description
 
 import better_robot as br
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 HAND, ELBOW = "body_panda_hand", "body_panda_link4"
 
@@ -23,7 +23,7 @@ def main() -> None:
     hand, elbow = model.frame_id(HAND), model.frame_id(ELBOW)
     q_start = torch.tensor([[0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.02, 0.02]], dtype=torch.float64)
     q_start = q_start[:, : model.nq].expand(64, -1)
-    start = forward_kinematics_state(model, q_start).frame_pose
+    start = forward_kinematics(model, q_start).frame_poses
     generator = torch.Generator().manual_seed(0)
     goal = start[:, hand, :3] + 0.15 * (torch.rand(64, 3, generator=generator, dtype=torch.float64) - 0.5)
     ceiling = start[:, elbow, 2:3] - 0.03  # the elbow has to come down by 3 cm
@@ -37,14 +37,14 @@ def main() -> None:
     problem.cached(terms.kinematic_state(model), name="state")
     problem.residual("stay", lambda q, q_start: q - q_start)
     problem.residual("reach", terms.frame_position(model, frame=HAND, target="goal"))
-    problem.residual("under", lambda state, ceiling: state.frame_pose[:, elbow, 2:3] - ceiling)
+    problem.residual("under", lambda state, ceiling: state.frame_poses[:, elbow, 2:3] - ceiling)
 
     soft = optim.solve(problem.with_(weights={"reach": 100.0, "under": 0.0}), optim.LevenbergMarquardt(), iters=50)
     hard = optim.solve_constrained(
         problem, optim.LevenbergMarquardt(), equalities=("reach",), inequalities=("under",), tolerance=1e-8
     )
     for label, result in (("penalty only, no ceiling", soft), ("hard constraints", hard)):
-        pose = forward_kinematics_state(model, result.x["q"]).frame_pose
+        pose = forward_kinematics(model, result.x["q"]).frame_poses
         reach = (pose[:, hand, :3] - goal).norm(dim=-1).max()
         over = (pose[:, elbow, 2:3] - ceiling).max()
         moved = (result.x["q"] - q_start).norm(dim=-1).mean()

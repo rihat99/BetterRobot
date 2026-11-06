@@ -3,7 +3,7 @@
 After this page you can compute joint torques for a motion, the joint-space mass matrix, accelerations
 under given torques, and the centre of mass and centroidal momentum, all batched and differentiable.
 Every function lives in `better_robot.dynamics.state` and takes `(model, state, ...)`, where `state` comes
-from [`forward_kinematics_state`](kinematics-and-jacobians.md).
+from [`forward_kinematics`](kinematics-and-jacobians.md).
 
 ## The equation of motion
 
@@ -30,7 +30,7 @@ $C v + g - J^\top f_\text{ext}$ with one RNEA pass at zero acceleration, factors
 ```python
 import torch
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics.state import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 from better_robot.dynamics.state import (
     inverse_dynamics, mass_matrix, forward_dynamics,
     center_of_mass, centroidal_map, centroidal_momentum,
@@ -47,7 +47,7 @@ model = build_model(builder.finalize(), dtype=torch.float64)
 q = torch.randn(32, model.nq, dtype=torch.float64)
 v = torch.randn(32, model.nv, dtype=torch.float64)
 a = torch.randn(32, model.nv, dtype=torch.float64)
-state = forward_kinematics_state(model, q)
+state = forward_kinematics(model, q)
 
 tau = inverse_dynamics(model, state, v=v, a=a)
 M = mass_matrix(model, state)

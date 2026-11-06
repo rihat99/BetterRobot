@@ -18,7 +18,7 @@ section or a fix `[planned: L-6]`.
 """... Differentiability: `solve` returns detached values; use `solve_layer` to backpropagate
 through the solution (implicit function theorem)."""
 # bad
-return poses.detach()          # inside forward_kinematics_state
+return poses.detach()          # inside forward_kinematics
 ```
 
 Enforcement: `tests/autograd/` and `tests/lie/test_torch_backend_gradcheck.py` (`torch.autograd.gradcheck`

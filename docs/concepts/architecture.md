@@ -1,6 +1,6 @@
 # Packages form a strict layering
 
-After this page you know which package does what, how one call such as `br.forward_kinematics_state(model, q)` travels through
+After this page you know which package does what, how one call such as `br.forward_kinematics(model, q)` travels through
 them, what counts as public API, where inputs are validated, and where the written rules live. Read it
 before you add a module or move a function.
 
@@ -33,7 +33,7 @@ higher one, which sees only public names. And the tests of one layer need only t
 
 ## One call crosses the layers once, and checks its input once
 
-Follow `br.forward_kinematics_state(model, q)` from the top.
+Follow `br.forward_kinematics(model, q)` from the top.
 
 ```python
 import torch
@@ -46,9 +46,9 @@ builder.add_revolute_z("elbow", parent="upper", child="lower")
 model = br.io.build_model(builder.finalize())
 
 q = torch.rand(4, model.nq)                        # a batch of 4 configurations
-state = br.forward_kinematics_state(model, q)
+state = br.forward_kinematics(model, q)
 print(model.nq, model.njoints)
-print(tuple(state.joint_transform.shape))
+print(tuple(state.joint_transforms.shape))
 print(tuple(state.frame_pose_of("body_lower").shape))
 ```
 ```output
@@ -60,20 +60,20 @@ print(tuple(state.frame_pose_of("body_lower").shape))
 Two coordinates, but four joints: `universe` and a fixed `root_joint` that attaches `base` come before
 `shoulder` and `elbow`. Six steps happened, from the public boundary down to plain tensor algebra:
 
-1. `forward_kinematics_state` validates `q`: trailing size `nq`, dtype and device against the model's.
+1. `forward_kinematics` validates `q`: trailing size `nq`, dtype and device against the model's.
    This is the only check on the whole path.
 2. The leading batch axes of `q` and of the model's values broadcast together (here `(4,)`).
 3. `full_configuration` fills mimic joints, giving the full configuration `q_full`.
 4. `placement_matrices` turns the joint placements $M_j$ and frame placements $F_f$ into 4×4 matrices.
-5. The raw pass `lean_core` (in `kinematics._fk_lean`, no checks) walks the tree in topological order:
+5. The raw pass `world_transforms` (in `kinematics._fk`, no checks) walks the tree in topological order:
 
     $$T_{0j} = T_{0\lambda(j)}\, M_j\, X_j(q_j), \qquad T_{0f} = T_{0\,p(f)}\, F_f$$
 
     where $T_{0j}$ is the world pose of joint $j$, $\lambda(j)$ its parent joint, $X_j(q_j)$ the joint's own
     motion, and $p(f)$ the parent joint of frame $f$.
 
-6. The result is a frozen `KinematicState` holding `joint_transform` `(B..., njoints, 3, 4)` and
-   `frame_transform` `(B..., nframes, 3, 4)`. `state.frame_pose_of(name)` reads one frame as a 7-vector
+6. The result is a frozen `KinematicState` holding `joint_transforms` `(B..., njoints, 3, 4)` and
+   `frame_transforms` `(B..., nframes, 3, 4)`. `state.frame_pose_of(name)` reads one frame as a 7-vector
    `[tx, ty, tz, qx, qy, qz, qw]`.
 
 Every later query takes that state instead of `q`: `frame_jacobian(model, state, frame=...)`,
@@ -95,7 +95,7 @@ once per configuration, not once per query.
 
 ```python
 try:
-    br.forward_kinematics_state(model, torch.zeros(5))   # wrong trailing size: nq is 2
+    br.forward_kinematics(model, torch.zeros(5))   # wrong trailing size: nq is 2
 except br.exceptions.ShapeError as error:
     print(type(error).__name__)
 ```
@@ -106,7 +106,7 @@ ShapeError
 ## Public API is what `__all__` lists
 
 The root namespace is deliberately small. `better_robot.__all__` holds the core of most scripts: `Model`, `load`, `ModelBuilder`,
-`forward_kinematics_state`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, their time variations,
+`forward_kinematics`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, their time variations,
 `center_of_mass`, `inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`,
 and `centroidal_momentum`. The subpackages `br.io`, `br.spatial` and `br.exceptions` are attributes
 of the root; `tests/contract/test_public_api.py` checks this core.
@@ -117,9 +117,9 @@ from `__all__`, can change without a deprecation. The [API reference](../referen
 documents each package's `__all__`.
 
 ```python
-import better_robot.kinematics.state as kinematics_state
+import better_robot.kinematics as kinematics_state
 
-print(br.forward_kinematics_state is kinematics_state.forward_kinematics_state)
+print(br.forward_kinematics is kinematics_state.forward_kinematics)
 print("Model" in br.__all__)
 ```
 ```output

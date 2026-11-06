@@ -90,7 +90,7 @@ distance and convex decomposition are not provided.
 
 The following surfaces are live:
 
-- `forward_kinematics_state(model, q)` returning an immutable `KinematicState`,
+- `forward_kinematics(model, q)` returning an immutable `KinematicState`,
   and batched analytic joint and frame Jacobians and their time variation in
   all three references;
 - inverse dynamics, the mass matrix, forward dynamics, bias forces, the

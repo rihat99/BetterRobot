@@ -17,7 +17,7 @@ from robot_descriptions import g1_description
 
 import better_robot as br
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 KNOTS, FPS = 120, 30.0
 
@@ -34,7 +34,7 @@ def main() -> None:
     q_true = model.q_neutral.repeat(KNOTS, 1)
     q_true[:, 7:] += 0.4 * torch.sin(phase + torch.arange(model.nq - 7, dtype=torch.float64))
     q_true[:, 0] += 0.5 * phase[:, 0] / 6.28
-    true_positions = forward_kinematics_state(model, q_true[None]).frame_pose[:, :, marker_ids, :3]  # (1, T, M, 3)
+    true_positions = forward_kinematics(model, q_true[None]).frame_poses[:, :, marker_ids, :3]  # (1, T, M, 3)
     observed = true_positions + 0.005 * torch.randn(true_positions.shape, generator=generator, dtype=torch.float64)
     outliers = torch.rand(true_positions.shape[:-1], generator=generator) < 0.02
     observed[outliers] += 0.5
@@ -49,7 +49,7 @@ def main() -> None:
     # One custom term for all markers; the last axis (xyz of one marker) is one robust group.
     problem.residual(
         "markers",
-        lambda state, observed: state.frame_pose[:, :, marker_ids, :3] - observed,
+        lambda state, observed: state.frame_poses[:, :, marker_ids, :3] - observed,
         kernel=optim.Huber(delta=0.03),
         window=1,
     )
@@ -69,7 +69,7 @@ def main() -> None:
     result = optim.run(problem, phases)
     seconds = time.perf_counter() - start
 
-    fitted = forward_kinematics_state(model, result.x["q"]).frame_pose[:, :, marker_ids, :3]
+    fitted = forward_kinematics(model, result.x["q"]).frame_poses[:, :, marker_ids, :3]
     error = (fitted - true_positions).norm(dim=-1)
     for name, losses in result.history.items():
         print(

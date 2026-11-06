@@ -18,7 +18,7 @@ against the state's batch axes in `centers`, while `frame_ids` and `radii` stay 
 import torch
 from better_robot import collision, optim, terms
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 for body in ("base", "link1", "link2"):
@@ -35,7 +35,7 @@ spheres = collision.RobotSpheres.from_frames(model, {
     "body_link2": [((0.0, 0.0, 0.12), 0.04)],
     "tool": [((0.0, 0.0, 0.0), 0.03)],
 })
-state = forward_kinematics_state(model, torch.tensor([0.0, 0.5], dtype=torch.float64))
+state = forward_kinematics(model, torch.tensor([0.0, 0.5], dtype=torch.float64))
 centers = spheres.centers(state)
 print(centers.shape)   # torch.Size([3, 3]): (B..., S, 3), in WORLD
 ```
@@ -134,14 +134,14 @@ both soft and hard constraints.
 ```python
 knots, dt, margin = 12, 0.1, 0.02
 q_mid = torch.tensor([0.0, 0.5], dtype=torch.float64)
-obstacle = forward_kinematics_state(model, q_mid).frame_translation[model.frame_id("tool")].clone()
+obstacle = forward_kinematics(model, q_mid).frame_translations[model.frame_id("tool")].clone()
 obstacle_radius = torch.tensor(0.05, dtype=torch.float64)
 
 def to_obstacle(centers, radii):
     return collision.sphere_sphere(centers, radii, center_b=obstacle, radius_b=obstacle_radius)
 
 def clearance(q):
-    return float(to_obstacle(spheres.centers(forward_kinematics_state(model, q)), spheres.radii).min())
+    return float(to_obstacle(spheres.centers(forward_kinematics(model, q)), spheres.radii).min())
 
 alpha = torch.linspace(0, 1, knots, dtype=torch.float64)[:, None]
 straight = (1 - alpha) * torch.tensor([-0.9, 0.5]) + alpha * torch.tensor([0.9, 0.5])

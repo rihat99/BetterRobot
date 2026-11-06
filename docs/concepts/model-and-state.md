@@ -93,25 +93,25 @@ downstream quantity with respect to it. `model.to(device=..., dtype=...)` moves 
 
 ## Forward kinematics returns a `KinematicState`
 
-`forward_kinematics_state(model, q)` takes `q (B..., nq)` and returns a frozen `KinematicState`. It stores
+`forward_kinematics(model, q)` takes `q (B..., nq)` and returns a frozen `KinematicState`. It stores
 three tensors; everything else is derived on demand and memoized.
 
 | Member | Shape | Meaning |
 |--------|-------|---------|
 | `q` | `(B..., nq)` | the configuration the state was computed at |
-| `joint_transform` | `(B..., njoints, 3, 4)` | world `[R | p]` of every joint |
-| `frame_transform` | `(B..., nframes, 3, 4)` | world `[R | p]` of every frame |
-| `joint_translation`, `joint_rotation` | `(B..., njoints, 3)`, `(..., 3, 3)` | slices of `joint_transform` |
-| `frame_translation`, `frame_rotation` | `(B..., nframes, 3)`, `(..., 3, 3)` | slices of `frame_transform` |
-| `joint_pose`, `frame_pose` | `(B..., n, 7)` | the same placements as `[tx, ty, tz, qx, qy, qz, qw]` |
+| `joint_transforms` | `(B..., njoints, 3, 4)` | world `[R | p]` of every joint |
+| `frame_transforms` | `(B..., nframes, 3, 4)` | world `[R | p]` of every frame |
+| `joint_translations`, `joint_rotations` | `(B..., njoints, 3)`, `(..., 3, 3)` | slices of `joint_transforms` |
+| `frame_translations`, `frame_rotations` | `(B..., nframes, 3)`, `(..., 3, 3)` | slices of `frame_transforms` |
+| `joint_poses`, `frame_poses` | `(B..., n, 7)` | the same placements as `[tx, ty, tz, qx, qy, qz, qw]` |
 | `frame_pose_of(frame)` | `(B..., 7)` | one frame's pose, by id or name |
 
 ```python
-from better_robot.kinematics.state import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 q = torch.zeros(4, model.nq)
-state = forward_kinematics_state(model, q)
-print(state.joint_transform.shape)                       # torch.Size([4, 4, 3, 4])
+state = forward_kinematics(model, q)
+print(state.joint_transforms.shape)                       # torch.Size([4, 4, 3, 4])
 print(state.frame_pose_of(model.frame_id("tool")))       # (4, 7)
 print(state.frame_pose_of("tool"))                       # same: a state knows its model's names
 ```
@@ -125,7 +125,7 @@ tensor([[0.0000, 0.0000, 0.5500, 0.0000, 0.0000, 0.0000, 1.0000],
 ...
 ```
 
-A state belongs to one configuration. To evaluate a new `q`, call `forward_kinematics_state` again; there is
+A state belongs to one configuration. To evaluate a new `q`, call `forward_kinematics` again; there is
 no update-in-place. Jacobians ([Kinematics and Jacobians](kinematics-and-jacobians.md)) and dynamics
 ([Dynamics](dynamics.md)) take `(model, state, ...)` and read what they need from the state, so one
 forward pass serves several queries.

@@ -22,7 +22,7 @@ import torch
 import better_robot as br
 from robot_descriptions import g1_description
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 KNOTS, FPS = 20, 30.0
 model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
@@ -35,7 +35,7 @@ phase = torch.linspace(0, 6.28, KNOTS, dtype=torch.float64)[:, None]
 q_true = model.q_neutral.repeat(KNOTS, 1)
 q_true[:, 7:] += 0.4 * torch.sin(phase + torch.arange(model.nq - 7, dtype=torch.float64))
 q_true[:, 0] += 0.5 * phase[:, 0] / 6.28
-true_positions = forward_kinematics_state(model, q_true[None]).frame_pose[:, :, marker_ids, :3]  # (1, T, M, 3)
+true_positions = forward_kinematics(model, q_true[None]).frame_poses[:, :, marker_ids, :3]  # (1, T, M, 3)
 observed = true_positions + 0.005 * torch.randn(true_positions.shape, generator=generator, dtype=torch.float64)
 observed[torch.rand(true_positions.shape[:-1], generator=generator) < 0.02] += 0.5
 
@@ -48,7 +48,7 @@ problem = optim.Problem(
 problem.cached(terms.kinematic_state(model), name="state")
 problem.residual(
     "markers",
-    lambda state, observed: state.frame_pose[:, :, marker_ids, :3] - observed,
+    lambda state, observed: state.frame_poses[:, :, marker_ids, :3] - observed,
     kernel=optim.Huber(delta=0.03),
     window=1,
 )
@@ -121,7 +121,7 @@ annealed = optim.run(problem, schedule, x=result.x)
 ```python
 for name, losses in result.history.items():
     print(f"{name:6s}: loss {float(losses[0].mean()):.4f} -> {float(losses[-1].mean()):.4f} in {len(losses)} steps")
-fitted = forward_kinematics_state(model, result.x["q"]).frame_pose[:, :, marker_ids, :3]
+fitted = forward_kinematics(model, result.x["q"]).frame_poses[:, :, marker_ids, :3]
 print(f"mean marker error {float((fitted - true_positions).norm(dim=-1).mean()) * 1e3:.1f} mm")
 ```
 ```output

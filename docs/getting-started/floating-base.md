@@ -12,7 +12,7 @@ the root body (the pelvis), so the base pose becomes part of the configuration:
 import torch
 import better_robot as br
 from robot_descriptions import g1_description
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 model = br.load(g1_description.URDF_PATH, free_flyer=True, dtype=torch.float64)
 print(model.joint_names[:3], type(model.joints[1]).__name__)
@@ -37,9 +37,9 @@ q = model.q_neutral.clone()
 print(q[:7])   # base at the origin, identity quaternion (scalar last)
 q[2] = 0.79    # lift the pelvis to standing height
 
-state = forward_kinematics_state(model, q)
+state = forward_kinematics(model, q)
 left_foot = model.frame_id("body_left_ankle_roll_link")
-print(state.frame_translation[left_foot])  # ankle about 3 cm above the ground
+print(state.frame_translations[left_foot])  # ankle about 3 cm above the ground
 ```
 ```output
 tensor([0., 0., 0., 0., 0., 0., 1.], dtype=torch.float64)

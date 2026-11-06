@@ -16,7 +16,7 @@ from robot_descriptions import panda_description
 
 import better_robot as br
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 FRAME, KNOTS, DT = "body_panda_hand", 40, 0.05
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
@@ -26,7 +26,7 @@ def main() -> None:
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     frame_id = model.frame_id(FRAME)
     q_start = torch.tensor(READY, dtype=torch.float64).clamp(model.lower_position_limit, model.upper_position_limit)
-    pose_start = forward_kinematics_state(model, q_start[None]).frame_pose[0, frame_id]
+    pose_start = forward_kinematics(model, q_start[None]).frame_poses[0, frame_id]
     pose_goal = pose_start.clone()
     pose_goal[:3] += torch.tensor([0.10, 0.15, 0.15], dtype=torch.float64)
 
@@ -52,7 +52,7 @@ def main() -> None:
     result = optim.solve(problem, optim.LevenbergMarquardt(), iters=200)
     seconds = time.perf_counter() - start
     q = result.x["q"][0]
-    reached = forward_kinematics_state(model, q).frame_pose[:, frame_id]
+    reached = forward_kinematics(model, q).frame_poses[:, frame_id]
     print(f"{result.iters} LM steps in {seconds * 1e3:.0f} ms, converged: {bool(result.done[0])}")
     print(
         f"start error {float((reached[0, :3] - pose_start[:3]).norm()):.1e} m, "

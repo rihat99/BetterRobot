@@ -19,8 +19,8 @@ hand = model.frame_id("body_panda_hand")
 q = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(4, -1).clone()
 q.requires_grad_()
 
-state = kinematics.forward_kinematics_state(model, q)
-height = state.frame_translation[:, hand, 2]        # (4,)
+state = kinematics.forward_kinematics(model, q)
+height = state.frame_translations[:, hand, 2]        # (4,)
 height.sum().backward()
 print(q.grad.shape)                                   # (4, nq)
 ```
@@ -28,16 +28,16 @@ print(q.grad.shape)                                   # (4, nq)
 torch.Size([4, 8])
 ```
 
-`forward_kinematics_state` returns a `KinematicState` with world transforms `joint_transform
-(B..., njoints, 3, 4)` and `frame_transform (B..., nframes, 3, 4)`, plus derived views
-(`frame_translation`, `frame_pose`, `frame_pose_of(id)`). All of them carry the autograd graph.
+`forward_kinematics` returns a `KinematicState` with world transforms `joint_transforms
+(B..., njoints, 3, 4)` and `frame_transforms (B..., nframes, 3, 4)`, plus derived views
+(`frame_translations`, `frame_poses`, `frame_pose_of(id)`). All of them carry the autograd graph.
 
 The analytic `frame_jacobian` is itself differentiable, so second-order terms (for example a
 manipulability gradient) need no extra code:
 
 ```python
 q.grad = None
-state = kinematics.forward_kinematics_state(model, q)
+state = kinematics.forward_kinematics(model, q)
 jacobian = kinematics.frame_jacobian(model, state, frame=hand)    # (4, 6, nv), LOCAL_WORLD_ALIGNED
 manipulability = torch.linalg.det(jacobian @ jacobian.mT)    # (4,)
 manipulability.sum().backward()
@@ -56,7 +56,7 @@ external wrenches `fext`.
 ```python
 v = torch.zeros(4, model.nv, dtype=torch.float64, requires_grad=True)
 a = torch.zeros(4, model.nv, dtype=torch.float64)
-state = kinematics.forward_kinematics_state(model, q)
+state = kinematics.forward_kinematics(model, q)
 tau = dyn.inverse_dynamics(model, state, v=v, a=a)               # (4, nv)
 (tau ** 2).sum().backward()
 print(v.grad.shape)                                          # (4, nv)
@@ -75,7 +75,7 @@ tensors you pass, checked for shape, dtype and device. The original model is unc
 placements = model.joint_placements.clone().requires_grad_()
 tuned = model.with_values(joint_placements=placements)
 q_fixed = q.detach()
-reach = kinematics.forward_kinematics_state(tuned, q_fixed).frame_translation[:, hand].norm(dim=-1)
+reach = kinematics.forward_kinematics(tuned, q_fixed).frame_translations[:, hand].norm(dim=-1)
 reach.sum().backward()
 print(placements.grad.shape)                                 # same shape as joint_placements
 ```
@@ -95,10 +95,10 @@ The state API composes with `torch.func.jacrev`. The test suite checks `jacrev` 
 
 ```python
 def hand_position(x: torch.Tensor) -> torch.Tensor:
-    return kinematics.forward_kinematics_state(model, x).frame_translation[:, hand].sum(0)
+    return kinematics.forward_kinematics(model, x).frame_translations[:, hand].sum(0)
 
 by_func = torch.func.jacrev(hand_position)(q_fixed)          # (3, 4, nq)
-analytic = kinematics.frame_jacobian(model, kinematics.forward_kinematics_state(model, q_fixed), frame=hand)
+analytic = kinematics.frame_jacobian(model, kinematics.forward_kinematics(model, q_fixed), frame=hand)
 print(torch.allclose(by_func.permute(1, 0, 2), analytic[:, :3, :], atol=1e-10))
 ```
 ```output

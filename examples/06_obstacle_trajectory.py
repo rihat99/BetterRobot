@@ -17,7 +17,7 @@ from robot_descriptions import panda_description
 
 import better_robot as br
 from better_robot import collision, optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 KNOTS, DT, MARGIN = 30, 0.05, 0.02
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
@@ -36,14 +36,14 @@ def main() -> None:
     spheres = collision.RobotSpheres.from_frames(model, SPHERES)
     q_a, q_b = torch.tensor(READY, dtype=torch.float64), torch.tensor(READY, dtype=torch.float64)
     q_a[0], q_b[0] = -0.9, 0.9  # swing the base; halfway the hand is where the obstacle sits
-    hand = forward_kinematics_state(model, torch.tensor(READY, dtype=torch.float64)).frame_translation
+    hand = forward_kinematics(model, torch.tensor(READY, dtype=torch.float64)).frame_translations
     obstacle, radius = hand[model.frame_id("body_panda_hand")].clone(), torch.tensor(0.08, dtype=torch.float64)
 
     def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
         return collision.sphere_sphere(centers, radii, center_b=obstacle, radius_b=radius)
 
     def clearance(q: torch.Tensor) -> float:
-        return float(to_obstacle(spheres.centers(forward_kinematics_state(model, q)), spheres.radii).min())
+        return float(to_obstacle(spheres.centers(forward_kinematics(model, q)), spheres.radii).min())
 
     alpha = torch.linspace(0, 1, KNOTS, dtype=torch.float64)[:, None]
     straight = (1 - alpha) * q_a + alpha * q_b

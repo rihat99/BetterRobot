@@ -3,8 +3,8 @@
 A *public boundary* is a function listed in a package `__all__`. It validates structure (shapes, dtype,
 device, model attachment, id resolution) once; everything it calls trusts the validated input. Validation
 is about structure, not values: no finiteness scans by default. A value check is allowed only behind a keyword
-flag that defaults to off, such as `check_quaternion_norm=False` on `forward_kinematics_state`
-(`kinematics/state.py:151`), so the hot path pays nothing unless the caller asks.
+flag that defaults to off, such as `check_quaternion_norm=False` on `forward_kinematics`
+(`src/better_robot/kinematics/forward_kinematics.py::forward_kinematics`), so the hot path pays nothing unless the caller asks.
 
 ## C-ERR-1 Validate at public boundaries only (MUST)
 
@@ -13,10 +13,10 @@ call the helpers in `better_robot.model._checks` and nothing else re-checks. Val
 values (no `isfinite`, no `.item()`), because that is a host sync (`02`) and breaks `vmap` (`04`).
 
 ```python { .no-run }
-# good  (illustrative; real entry point: kinematics/state.py:151)
-def forward_kinematics_state(model, q):
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
+def forward_kinematics(model, q):
     _checks.check_tensor(q, ...)                     # shape (..., nq), dtype, device
-    return _forward_kinematics_state(model, q)
+    return _forward_kinematics(model, q)
 # bad
 def _fk_pass(model, q):
     if q.shape[-1] != model.nq: raise ...           # re-validates on every internal call

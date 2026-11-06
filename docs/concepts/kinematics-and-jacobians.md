@@ -6,15 +6,15 @@ here matches Pinocchio to the tolerances listed at the end.
 
 ## Forward kinematics fills a state
 
-`forward_kinematics_state(model, q)` composes joint placements and joint motions from the root to the
+`forward_kinematics(model, q)` composes joint placements and joint motions from the root to the
 leaves and returns a frozen [`KinematicState`](model-and-state.md#forward-kinematics-returns-a-kinematicstate).
-`q` may have any number of leading batch axes: `q (B..., nq)` gives `joint_transform (B..., njoints, 3, 4)`.
+`q` may have any number of leading batch axes: `q (B..., nq)` gives `joint_transforms (B..., njoints, 3, 4)`.
 
 ```python
 import torch
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics.state import (
-    forward_kinematics_state, frame_jacobian, joint_jacobian, frame_jacobian_time_variation,
+from better_robot.kinematics import (
+    forward_kinematics, frame_jacobian, joint_jacobian, frame_jacobian_time_variation,
 )
 
 builder = ModelBuilder("arm")
@@ -28,7 +28,7 @@ builder.add_frame("tool", parent_body="link2",
 model = build_model(builder.finalize())
 
 q = torch.randn(16, 3, model.nq)            # any leading batch shape
-state = forward_kinematics_state(model, q)
+state = forward_kinematics(model, q)
 tool = model.frame_id("tool")
 print(state.frame_pose_of(tool).shape)      # torch.Size([16, 3, 7])
 ```
@@ -77,7 +77,7 @@ rotation of each 3-row block, not a full adjoint. `world` differs from `local_wo
 linear rows by $\omega \times p$, where $p$ is the frame origin.
 
 ```python
-R = state.frame_rotation[..., tool, :, :]                    # (16, 3, 3, 3)
+R = state.frame_rotations[..., tool, :, :]                    # (16, 3, 3, 3)
 J_local = frame_jacobian(model, state, frame=tool, reference="local")
 J_lwa = frame_jacobian(model, state, frame=tool)
 print(torch.allclose(R @ J_local[..., :3, :], J_lwa[..., :3, :], atol=1e-5))   # True

@@ -13,7 +13,7 @@ from robot_descriptions import panda_description
 
 import better_robot as br
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 FRAME = "body_panda_hand"
 
@@ -23,7 +23,7 @@ def main() -> None:
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     frame_id = model.frame_id(FRAME)
     q_home = torch.tensor([0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.02], dtype=torch.float64)
-    home_pose = forward_kinematics_state(model, q_home[None]).frame_pose[0, frame_id]
+    home_pose = forward_kinematics(model, q_home[None]).frame_poses[0, frame_id]
 
     # Ground truth: each task code moves the hand by a fixed linear map of the code.
     codes = torch.randn(64, 4, dtype=torch.float64)

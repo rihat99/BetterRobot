@@ -73,11 +73,11 @@ from robot_descriptions import panda_description
 model = br.load(panda_description.URDF_PATH)
 q = model.q_neutral.expand(256, -1).clone()
 for _ in range(3):
-    kinematics.forward_kinematics_state(model, q)
+    kinematics.forward_kinematics(model, q)
 
 with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:
     with torch.no_grad():
-        kinematics.forward_kinematics_state(model, q)
+        kinematics.forward_kinematics(model, q)
 
 print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=8))
 ```

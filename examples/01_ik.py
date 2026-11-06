@@ -13,14 +13,14 @@ from robot_descriptions import panda_description
 
 import better_robot as br
 from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 FRAME = "body_panda_hand"
 
 
 def position_error(model: br.Model, q: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """Distance ``(B,)`` between the hand and the target position."""
-    pose = forward_kinematics_state(model, q).frame_pose[:, model.frame_id(FRAME)]
+    pose = forward_kinematics(model, q).frame_poses[:, model.frame_id(FRAME)]
     return (pose[:, :3] - target[:, :3]).norm(dim=-1)
 
 
@@ -29,7 +29,7 @@ def main() -> None:
     generator = torch.Generator().manual_seed(0)
     q0 = model.q_neutral.clamp(model.lower_position_limit, model.upper_position_limit).expand(256, -1)
     q_goal = terms.random_start(model, q0, generator=generator)
-    target = forward_kinematics_state(model, q_goal).frame_pose[:, model.frame_id(FRAME)]
+    target = forward_kinematics(model, q_goal).frame_poses[:, model.frame_id(FRAME)]
 
     # 1. Recipe: LM, hard joint limits, a few random restarts for the local minima.
     result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=8, generator=generator)

@@ -148,7 +148,7 @@ joined by spheres; a leg under 1 cm folds into the longest. A bone over 15 cm fr
 humanoid's thigh, stays straight, since a long bone's small offsets would otherwise draw a long jog. The routing is
 chosen once; each step the legs split the bone's current centre difference, so they always meet the child.
 
-When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_pose`),
+When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_poses`),
 `robot_skeleton(model, joint_poses, bone_radius=...)` builds the skeleton from them without another kinematics
 pass; a `bone_radius` of 0 hides a bone, such as the ones to massless sensor mounts
 (`model.body_inertias[1:, 0] == 0`). With `tau` `(T, nv)` each joint marker shows the joint's load
@@ -163,7 +163,7 @@ hand past the last wrist joint out to where its contact forces act.
 ```python
 from better_robot.viewer import robot_skeleton
 
-poses = br.forward_kinematics_state(model, q).joint_pose.numpy()   # (30, njoints, 7)
+poses = br.forward_kinematics(model, q).joint_poses.numpy()   # (30, njoints, 7)
 tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
 fingers = {"body_panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
 viewer.add(robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers), group="panda")

@@ -20,7 +20,7 @@ Work over a batch axis is one tensor op. A Python loop is allowed only over a *s
 is a Python int fixed by the model (joints in a kinematic chain, LM iterations), never over batch elements.
 
 ```python { .no-run }
-# good  (illustrative; real entry point: kinematics/state.py:151)
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
 for joint in model.joints:                 # structural, len = model.njoints
     X_WB = X_WB @ joint_placement(joint, q[..., joint.idx_q])   # batched over `...`
 # bad
@@ -31,7 +31,7 @@ Enforcement: `[review]`; `tests/bench/` guards the entry points below.
 
 ## C-PERF-3 Hot paths have a benchmark and are not slowed silently (SHOULD)
 
-`forward_kinematics_state`, `frame_jacobian`, `rnea`/`crba`, and `optim.solve` have a benchmark under
+`forward_kinematics`, `frame_jacobian`, `rnea`/`crba`, and `optim.solve` have a benchmark under
 `tests/bench/` (`-m bench`). A change that slows one by more than 20 % needs a reason in the PR.
 
 Enforcement: `[review]`; the benchmarks under `tests/bench/` (`uv run pytest -m bench`) are advisory, not a CI gate.

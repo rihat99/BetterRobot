@@ -128,10 +128,10 @@ the message:
 
 ```python
 from better_robot.exceptions import ShapeError
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics
 
 try:
-    forward_kinematics_state(model, torch.zeros(model.nq + 1, dtype=torch.float64))
+    forward_kinematics(model, torch.zeros(model.nq + 1, dtype=torch.float64))
 except ShapeError as error:
     print(type(error).__name__)
 ```
