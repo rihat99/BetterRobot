@@ -267,18 +267,6 @@ class Model:
         moved = {name: getattr(self, name).to(device=device, dtype=dtype) for name in _TENSOR_FIELDS}
         return dataclasses.replace(self, **moved)
 
-    def integrate(self, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-        """``q ⊕ v``: step ``q: (B..., nq)`` along ``v: (B..., nv)`` on the configuration manifold."""
-        from ._manifold import integrate  # noqa: PLC0415 - the manifold module reads Model
-
-        return integrate(self, q, v)
-
-    def difference(self, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
-        """``q1 ⊖ q0``: the tangent ``(B..., nv)`` from ``q0`` to ``q1``."""
-        from ._manifold import difference  # noqa: PLC0415 - the manifold module reads Model
-
-        return difference(self, q0, q1)
-
     def _plan(
         self,
         kind: str,

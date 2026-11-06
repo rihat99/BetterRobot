@@ -17,7 +17,7 @@ from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.io.build_model import build_model
 from better_robot.kinematics.state import forward_kinematics_state
 from better_robot.terms import frame_pose
-from better_robot.kinematics import frame_jacobian, joint_jacobian, point_jacobian
+from better_robot.kinematics import frame_jacobian, integrate, joint_jacobian, point_jacobian
 from tests.support.robots import g1_urdf, panda_urdf
 
 
@@ -147,8 +147,8 @@ def _analytic_vs_finite_diff(model, q, frame_id, rtol=1e-3, atol=1e-4):
     for index in range(model.nv):
         delta = torch.zeros(model.nv, dtype=q.dtype, device=q.device)
         delta[index] = eps
-        plus = term.fn(forward_kinematics_state(model, model.integrate(q, delta)), target)
-        minus = term.fn(forward_kinematics_state(model, model.integrate(q, -delta)), target)
+        plus = term.fn(forward_kinematics_state(model, integrate(model, q, delta)), target)
+        minus = term.fn(forward_kinematics_state(model, integrate(model, q, -delta)), target)
         columns.append((plus - minus) / (2.0 * eps))
     J_finite_diff = torch.stack(columns, dim=-1)
 
@@ -194,8 +194,8 @@ def test_point_jacobian_matches_finite_differences_on_a_floating_base():
 
     model = load(g1_urdf(), free_flyer=True, dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
-    q = model.integrate(
-        model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64)
+    q = integrate(
+        model, model.q_neutral.expand(3, -1), 0.3 * torch.randn(3, model.nv, generator=generator, dtype=torch.float64)
     )
     frames = ["body_left_ankle_roll_link", "body_right_wrist_yaw_link", "body_left_ankle_roll_link", "body_pelvis"]
     points = 0.1 * torch.randn(len(frames), 3, generator=generator, dtype=torch.float64)
@@ -208,7 +208,7 @@ def test_point_jacobian_matches_finite_differences_on_a_floating_base():
     eps = 1e-6
     numeric = torch.stack(
         [
-            (positions(model.integrate(q, eps * e)) - positions(model.integrate(q, -eps * e))) / (2 * eps)
+            (positions(integrate(model, q, eps * e)) - positions(integrate(model, q, -eps * e))) / (2 * eps)
             for e in torch.eye(model.nv, dtype=torch.float64)
         ],
         dim=-1,

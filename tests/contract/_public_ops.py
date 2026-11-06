@@ -83,6 +83,8 @@ def _kinematic_cases(dtype: torch.dtype, device: torch.device) -> dict[str, Case
         "centroidal_map": (dynamics.centroidal_map, (model, state), {}),
         "centroidal_momentum": (dynamics.centroidal_momentum, (model, state), {"v": v}),
         "center_of_mass": (dynamics.center_of_mass, (model, state), {}),
+        "integrate": (kinematics.integrate, (model, q, v), {}),
+        "difference": (kinematics.difference, (model, q, q), {}),
     }
 
 

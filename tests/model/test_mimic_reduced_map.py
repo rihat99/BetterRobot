@@ -9,7 +9,7 @@ import torch
 
 from better_robot.exceptions import ModelError
 from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
+from better_robot.kinematics.configuration import difference, full_configuration, full_tangent, integrate, mimic_plan
 from better_robot.model.joints import (
     JointHelical,
     JointPrismatic,
@@ -209,7 +209,7 @@ def test_public_manifold_permutation_and_plans_skip_mimic_targets() -> None:
     model = build_model(_mimic_ir(), dtype=torch.float64)
     q = torch.tensor([0.1], dtype=torch.float64)
     v = torch.tensor([-0.2], dtype=torch.float64)
-    torch.testing.assert_close(model.difference(q, model.integrate(q, v)), v)
+    torch.testing.assert_close(difference(model, q, integrate(model, q, v)), v)
     assert model.random_configuration(generator=torch.Generator().manual_seed(0)).shape == (model.nq,)
 
     perm_q, perm_v = model.q_permutation(("target_joint", "source_joint"))

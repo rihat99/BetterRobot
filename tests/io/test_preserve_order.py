@@ -61,7 +61,7 @@ def test_preserved_branching_fk_and_rnea_match_default_dfs_model():
     generator = torch.Generator().manual_seed(35)
 
     delta = torch.randn(preserved.nv, generator=generator, dtype=torch.float64) * 0.03
-    q_preserved = preserved.integrate(preserved.q_neutral, delta)
+    q_preserved = br.kinematics.integrate(preserved, preserved.q_neutral, delta)
     v_preserved = (
         torch.randn(
             preserved.nv,

@@ -16,7 +16,7 @@ import torch
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
 from better_robot.lie import so3
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import forward_kinematics_state, integrate
 
 
 def _pose(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
@@ -48,7 +48,7 @@ def _random_config(model, *, batch: tuple[int, ...] = (), scale: float = 1.0, se
     generator = torch.Generator().manual_seed(seed)
     tangent = (torch.rand(*batch, model.nv, generator=generator) - 0.5) * 2.0 * scale
     q_neutral = model.q_neutral.expand(*batch, model.nq)
-    return model.integrate(q_neutral, tangent).contiguous()
+    return integrate(model, q_neutral, tangent).contiguous()
 
 
 def test_matrix_fk_matches_hand_computed_two_link_chain() -> None:

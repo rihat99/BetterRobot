@@ -129,8 +129,8 @@ def test_integrate_and_difference_reach_q(panda) -> None:
     step = torch.linspace(0.01, 0.04, panda.nv, dtype=torch.float64)
 
     q_integrate = _configuration(panda).requires_grad_()
-    _assert_gradients(panda.integrate(q_integrate, step), q_integrate)
+    _assert_gradients(br.kinematics.integrate(panda, q_integrate, step), q_integrate)
 
-    target = panda.integrate(_configuration(panda), step)
+    target = br.kinematics.integrate(panda, _configuration(panda), step)
     q_difference = _configuration(panda).requires_grad_()
-    _assert_gradients(panda.difference(q_difference, target), q_difference)
+    _assert_gradients(br.kinematics.difference(panda, q_difference, target), q_difference)

@@ -53,7 +53,7 @@ tensor([1.0000, 1.0000, 0.0000])
 
 `se3.exp(xi)` maps a twist `xi (..., 6)` to a pose; `se3.log(T)` is its inverse. They are the real SE(3)
 exponential and logarithm, not a separate translation plus rotation map: a twist with both linear and
-angular parts traces a screw motion. `model.integrate` uses the same map for a free-flyer (see
+angular parts traces a screw motion. `kinematics.integrate` uses the same map for a free-flyer (see
 [Joints, bodies and frames](joints-bodies-frames.md)).
 
 ```python

@@ -111,17 +111,19 @@ tensor([0., 0., 0., 0., 0., 0., 1., 0., 0.])
 ## Step configurations with `integrate` and `difference`
 
 Because `nq` and `nv` can differ, you never add a velocity to a configuration with `+`. Use
-`model.integrate(q, v)`, which moves each joint along its own manifold, and its inverse
-`model.difference(q0, q1)`, which returns the `v` that takes `q0` to `q1`. The free-flyer integrates
+`kinematics.integrate(model, q, v)`, which moves each joint along its own manifold, and its inverse
+`kinematics.difference(model, q0, q1)`, which returns the `v` that takes `q0` to `q1`. The free-flyer integrates
 with the SE(3) exponential, so a forward speed combined with a yaw rate traces an arc, not a line.
 
 ```python
+from better_robot.kinematics import difference, integrate
+
 v = torch.zeros(floating.nv)
 v[0], v[5] = 1.0, 0.5                  # move along local x while yawing
-q1 = floating.integrate(floating.q_neutral, v)
+q1 = integrate(floating, floating.q_neutral, v)
 print(q1[:3])                          # tensor([0.9589, 0.2448, 0.0000])
-print(floating.difference(floating.q_neutral, q1))   # recovers v
-assert torch.allclose(floating.difference(floating.q_neutral, q1), v, atol=1e-6)
+print(difference(floating, floating.q_neutral, q1))   # recovers v
+assert torch.allclose(difference(floating, floating.q_neutral, q1), v, atol=1e-6)
 ```
 ```output
 tensor([0.9589, 0.2448, 0.0000])

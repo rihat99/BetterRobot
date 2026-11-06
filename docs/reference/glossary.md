@@ -33,8 +33,8 @@ This page defines the words used across the documentation, then gives their comp
 | **tangent** | A small local displacement from a point on a curved space. It lets an optimizer take ordinary vector steps on rotations and robot configurations. |
 | **twist** | A six-number tangent for a rigid pose: linear motion followed by angular motion. |
 | **wrench** | A six-number force quantity: force followed by torque. |
-| **retraction** | An operation that applies a tangent step and returns to the manifold. `Model.integrate` is the robot-configuration retraction. |
-| **difference** | The local tangent that moves one manifold value to another. `Model.difference(q0, q1)` returns it for robot configurations. |
+| **retraction** | An operation that applies a tangent step and returns to the manifold. `kinematics.integrate(model, q, v)` is the robot-configuration retraction. |
+| **difference** | The local tangent that moves one manifold value to another. `kinematics.difference(model, q0, q1)` returns it for robot configurations. |
 | **manifold** | A space that is locally vector-like but may be curved globally, such as rotations or unit quaternions. |
 
 For a visual and mathematical introduction, see

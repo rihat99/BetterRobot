@@ -7,7 +7,7 @@ from better_robot.model.model import Model
 from better_robot.exceptions import ArgumentError, ModelError
 from better_robot.io.build_model import build_model
 from better_robot.io.parsers.programmatic import ModelBuilder
-from better_robot.kinematics import subtree, support
+from better_robot.kinematics import difference, integrate, subtree, support
 
 
 def _make_simple_model() -> Model:
@@ -46,8 +46,8 @@ def test_model_integrate_difference():
     model = _make_simple_model()
     q = torch.zeros(2)
     v = torch.tensor([0.5, -0.3])
-    q_new = model.integrate(q, v)
-    v_back = model.difference(q, q_new)
+    q_new = integrate(model, q, v)
+    v_back = difference(model, q, q_new)
     assert torch.allclose(v, v_back, atol=1e-5)
 
 

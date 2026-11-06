@@ -1,7 +1,7 @@
 """Jacobian time-variation (J̇) tests — fp32, builder models.
 
 Central finite differences of the same-frame Jacobian along ``v`` (via the
-``model.integrate`` retraction) cross-check the analytic getters in all three
+``kinematics.integrate`` retraction) cross-check the analytic getters in all three
 reference frames, for joints and frames. Non-degeneracy is mandatory: ``v`` is
 nonzero in every coordinate, the tested joint/frame sits at a nonzero world
 origin with angular DOF above it (so the LWA ``-v_pt × J_ang`` transport term is
@@ -28,6 +28,7 @@ from better_robot.kinematics import (
     forward_kinematics_state,
     frame_jacobian,
     frame_jacobian_time_variation,
+    integrate,
     joint_jacobian,
     joint_jacobian_time_variation,
 )
@@ -101,8 +102,8 @@ def _static_jacobian(model, q, *, joint_id=None, frame_id=None, reference):
 
 
 def _finite_diff_dot(model, q, v, *, joint_id=None, frame_id=None, reference):
-    q_plus = model.integrate(q, v * _FD_DT)
-    q_minus = model.integrate(q, -v * _FD_DT)
+    q_plus = integrate(model, q, v * _FD_DT)
+    q_minus = integrate(model, q, -v * _FD_DT)
     j_plus = _static_jacobian(model, q_plus, joint_id=joint_id, frame_id=frame_id, reference=reference)
     j_minus = _static_jacobian(model, q_minus, joint_id=joint_id, frame_id=frame_id, reference=reference)
     return (j_plus - j_minus) / (2.0 * _FD_DT)

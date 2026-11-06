@@ -8,6 +8,7 @@ import pytest
 import torch
 
 
+from better_robot.kinematics import difference, integrate
 from tests.support.branching_tree import make_branching_tree_model
 
 
@@ -104,14 +105,14 @@ def test_smpl_manifold_throughput(
         function = (
             (lambda: _loop_integrate(model, q0, tangent))
             if implementation == "loop"
-            else (lambda: model.integrate(q0, tangent))
+            else (lambda: integrate(model, q0, tangent))
         )
         expected_shape = (TRAJECTORY_LENGTH, model.nq)
     else:
         function = (
             (lambda: _loop_difference(model, q0, q1))
             if implementation == "loop"
-            else (lambda: model.difference(q0, q1))
+            else (lambda: difference(model, q0, q1))
         )
         expected_shape = (TRAJECTORY_LENGTH, model.nv)
 

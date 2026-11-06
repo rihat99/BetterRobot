@@ -15,7 +15,7 @@ start, so you can tell which package owns which step.
 | `better_human.viz` | viewer layers for [`better_robot.viewer`](../concepts/viewer.md): `mesh_layer`, `skinned_layer`, `skeleton_layer`, `frames_layer`, `forces_layer`, and `HumanView`, which groups them and updates them in place |
 
 Everything below the human layer is BetterRobot: the configuration `q (B, nq)` is a free-flyer root
-followed by spherical joints, so `model.integrate`, `forward_kinematics_state`, the dynamics in
+followed by spherical joints, so `kinematics.integrate`, `forward_kinematics_state`, the dynamics in
 `better_robot.dynamics.state` and the solvers in `better_robot.optim` apply unchanged. Because shape
 lives in the model's tensor fields, gradients reach the shape parameters the same way they reach any model tensor
 (see [Differentiate](differentiate.md)).

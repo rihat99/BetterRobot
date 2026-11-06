@@ -10,7 +10,7 @@ import torch
 from better_robot.model.joints import JointHelical, JointPlanar, JointRevolute, JointRevoluteUnbounded, JointTranslation
 from better_robot.io import ModelBuilder, build_model
 from better_robot.dynamics.state import inverse_dynamics
-from better_robot.kinematics import forward_kinematics_state
+from better_robot.kinematics import difference, forward_kinematics_state, integrate
 
 from .conftest import rot_matrix_from_pose
 
@@ -168,6 +168,6 @@ def test_missing_joint_integrate_difference_roundtrip(missing_joint_pair):
     """Each local manifold recovers a small tangent after retraction."""
     br_model, _, _, _, q, v = missing_joint_pair
     step = v * 0.1
-    q_next = br_model.integrate(q, step)
-    recovered = br_model.difference(q, q_next)
+    q_next = integrate(br_model, q, step)
+    recovered = difference(br_model, q, q_next)
     torch.testing.assert_close(recovered, step, rtol=1e-12, atol=1e-12)

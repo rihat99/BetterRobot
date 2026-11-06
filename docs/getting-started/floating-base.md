@@ -1,7 +1,7 @@
 # Work with a floating-base robot
 
 You load the Unitree G1 humanoid with a free-floating root, place its base in the world, and move it with
-`Model.integrate`. After this page you know why `nq` and `nv` differ and how to handle it.
+`kinematics.integrate`. After this page you know why `nq` and `nv` differ and how to handle it.
 
 ## Load the G1 with a free-flyer root
 
@@ -54,7 +54,8 @@ tensor([-2.3261e-06,  1.1851e-01,  3.3136e-02], dtype=torch.float64)
 ## Move with integrate, not addition
 
 Adding a velocity to `q` is wrong for the base: a quaternion plus a rotation vector is not a rotation.
-`Model.integrate(q, v)` applies `v (..., nv)` on the configuration manifold, and `Model.difference(q0, q1)`
+`kinematics.integrate(model, q, v)` applies `v (..., nv)` on the configuration manifold, and
+`kinematics.difference(model, q0, q1)`
 is its inverse: the `(..., nv)` velocity that takes `q0` to `q1` in unit time.
 
 ```python
@@ -62,9 +63,9 @@ v = torch.zeros(model.nv, dtype=torch.float64)
 v[0] = 0.5   # move forward 0.5 m
 v[5] = 1.0   # turn 1 rad about the vertical axis
 
-q_next = model.integrate(q, v)
+q_next = br.kinematics.integrate(model, q, v)
 print(q_next[:7])  # x = 0.42, y = 0.23: an arc; the quaternion stays unit norm
-print(torch.allclose(model.difference(q, q_next), v))
+print(torch.allclose(br.kinematics.difference(model, q, q_next), v))
 ```
 ```output
 tensor([0.4207, 0.2298, 0.7900, 0.0000, 0.0000, 0.4794, 0.8776],
@@ -94,7 +95,7 @@ Moving the base by one unit along `v[0]` moves every frame by the same amount, s
 the base rotation, here the identity.
 
 !!! note "Contract"
-    Never add or subtract configurations directly. Use `Model.integrate` and `Model.difference`
+    Never add or subtract configurations directly. Use `kinematics.integrate` and `kinematics.difference`
     everywhere `nq != nv` is possible. Optimizers do this for you through `terms.RobotManifold`.
 
 ## Where next

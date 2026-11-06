@@ -63,7 +63,7 @@ problem.residual("acceleration", terms.finite_difference(model, order=2, dt=DT),
 
 Each piece does one job:
 
-- `RobotManifold` updates `q` with `Model.integrate`, so the same code works for a floating base.
+- `RobotManifold` updates `q` with `kinematics.integrate`, so the same code works for a floating base.
 - `bounds` keeps every knot inside the joint limits.
 - `problem.cached` computes the `KinematicState` once per step and shares it between terms.
 - `window=1` evaluates the pose term knot by knot; `finite_difference` couples 2 or 3 neighbouring knots.

@@ -11,6 +11,8 @@
   (the `local_world_aligned` linear rows moved to each point)
 - `frame_jacobian_time_variation(model, state, *, v, frame, reference=...)` and
   `joint_jacobian_time_variation(model, state, *, v, joint, reference=...)` — `J̇` for the same references
+- `integrate(model, q, v)` — `q ⊕ v`, `(B..., nq)`; `difference(model, q0, q1)` — `q1 ⊖ q0`, `(B..., nv)`:
+  one batched call per manifold over the public coordinates (`configuration.py`)
 - `full_configuration(model, q)` — `q` with the mimic targets filled in (`configuration.py`, with the mimic
   plan and the reductions `dynamics/` uses); `subtree(model, joint)` and `support(model, joint)` (`tree.py`)
 - Raw kernels below them (`_fk_lean.py`, `_jacobian_columns.py`, `jacobian.py::*_time_variation_raw`)

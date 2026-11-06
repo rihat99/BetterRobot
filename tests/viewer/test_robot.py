@@ -168,7 +168,7 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
         kinds, axes = skeleton_spec(model)
         np.testing.assert_array_equal(axes[kinds.index("spherical")], [0.0, 0.0, 1.0])  # no axis: +z
     tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
-    q = model.integrate(model.q_neutral, tangent)
+    q = br.kinematics.integrate(model, model.q_neutral, tangent)
     joint_poses = br.forward_kinematics_state(model, q[None]).joint_pose.numpy().astype(np.float32)
     layer = robot_skeleton(model, joint_poses)
     server = FakeServer()
@@ -183,8 +183,8 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
         for entry, joint in enumerate(layer.groups[marker] + 1):
             step = torch.zeros(model.nv, dtype=torch.float64)
             step[model.idx_vs[joint]] = 1e-6
-            plus = br.forward_kinematics_state(model, model.integrate(q, step)).joint_pose[joint]
-            minus = br.forward_kinematics_state(model, model.integrate(q, -step)).joint_pose[joint]
+            plus = br.forward_kinematics_state(model, br.kinematics.integrate(model, q, step)).joint_pose[joint]
+            minus = br.forward_kinematics_state(model, br.kinematics.integrate(model, q, -step)).joint_pose[joint]
             change = compose(plus, inverse(minus)).numpy()  # world-frame increment: [translation, quaternion xyzw]
             true = change[3:6] if marker == "cylinder" else change[:3]
             true /= np.linalg.norm(true)
@@ -244,7 +244,7 @@ def test_spread_layout_slides_co_located_markers_along_their_own_axes() -> None:
     offsets = spread_offsets(model, radius=0.02)
     assert np.count_nonzero(np.linalg.norm(offsets, axis=-1)) >= 6  # waist, shoulders, wrists, ankles slide
     tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
-    for q in (model.q_neutral, model.integrate(model.q_neutral, tangent)):
+    for q in (model.q_neutral, br.kinematics.integrate(model, model.q_neutral, tangent)):
         poses, layer, _, centres, axes = _drawn_skeleton(model, q)
         origins = poses[0, 1:, :3][layer.groups["cylinder"]]
         off_axis = np.linalg.norm(np.cross(centres - origins, axes), axis=-1)
@@ -300,7 +300,7 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
 
     model = _g1() if robot == "g1" else _every_axis_kind_model(translation=0.05)
     tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(2), dtype=torch.float64)
-    poses, layer, server, *_ = _drawn_skeleton(model, model.integrate(model.q_neutral, tangent))
+    poses, layer, server, *_ = _drawn_skeleton(model, br.kinematics.integrate(model, model.q_neutral, tangent))
     child = np.nonzero(layer.parents >= 0)[0]
     parent = layer.parents[child]
     rotations = poses[0, 1:, 3:].astype(np.float64)

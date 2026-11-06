@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .configuration import full_configuration
+from .configuration import difference, full_configuration, integrate
 from .state import (
     KinematicState,
     forward_kinematics_state,
@@ -16,10 +16,12 @@ from .tree import subtree, support
 
 __all__ = [
     "KinematicState",
+    "difference",
     "forward_kinematics_state",
     "frame_jacobian",
     "frame_jacobian_time_variation",
     "full_configuration",
+    "integrate",
     "joint_jacobian",
     "joint_jacobian_time_variation",
     "point_jacobian",

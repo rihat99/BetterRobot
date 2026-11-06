@@ -33,7 +33,11 @@ PACKAGES = [
 MAX_POSITIONAL = 2
 
 # Current violations (package.name -> positional count). Shrink, never grow.
-KEYWORD_ONLY_ALLOWLIST: dict[str, int] = {}
+# ``integrate(model, q, v)`` and ``difference(model, q0, q1)`` keep the mathematical signature (record 0013).
+KEYWORD_ONLY_ALLOWLIST: dict[str, int] = {
+    "better_robot.kinematics.integrate": 3,
+    "better_robot.kinematics.difference": 3,
+}
 
 
 def _public_callables() -> list[tuple[str, object]]:

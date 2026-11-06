@@ -111,7 +111,7 @@ batch element; `dyn.mass_matrix(model, state)` computes it directly and is cheap
 !!! note "What is not differentiable"
     The static fields (parents, index tables, names) have no gradient by design.
     Gradients through `q` on a floating base flow through the quaternion entries; take steps with
-    `model.integrate(q, dv)` so the quaternion stays on the unit sphere.
+    `kinematics.integrate(model, q, dv)` so the quaternion stays on the unit sphere.
 
 ## Where next
 

@@ -6,8 +6,8 @@ from collections.abc import Mapping
 
 import torch
 
-from ..model._manifold import manifold_plan
 from ..model.manifolds import EUCLIDEAN
+from ..kinematics.configuration import manifold_plan
 from ..model.model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
 from ..optim.solvers import select

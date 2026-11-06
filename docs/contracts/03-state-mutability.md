@@ -25,7 +25,7 @@ Enforcement: `tests/contract/test_frozen.py` (imports every public dataclass, as
 
 ## C-STATE-2 Queries return new values (MUST)
 
-`forward_kinematics_state(model, q)` returns a new `KinematicState`; `Model.integrate(q, v)` returns a new `q`.
+`forward_kinematics_state(model, q)` returns a new `KinematicState`; `kinematics.integrate(model, q, v)` returns a new `q`.
 A function never takes a state to fill in. To change a model parameter, build a new `Model` with
 `Model.with_values` or the builder API.
 

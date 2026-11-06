@@ -145,6 +145,8 @@ SUBMODULE_PATHS: list[tuple[str, str]] = [
     ("better_robot.kinematics", "joint_jacobian"),
     ("better_robot.kinematics", "frame_jacobian_time_variation"),
     ("better_robot.kinematics", "joint_jacobian_time_variation"),
+    ("better_robot.kinematics", "integrate"),
+    ("better_robot.kinematics", "difference"),
     # dynamics
     ("better_robot.dynamics", "inverse_dynamics"),
     ("better_robot.dynamics", "mass_matrix"),

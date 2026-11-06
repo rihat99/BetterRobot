@@ -13,9 +13,9 @@ from collections.abc import Callable
 import torch
 
 from ..exceptions import ArgumentError
-from ..model._manifold import manifold_plan
 from ..model.manifolds import EUCLIDEAN, RIGID
 from ..model.model import Model
+from ..kinematics.configuration import difference, integrate, manifold_plan
 from ..kinematics.state import KinematicState, forward_kinematics_state, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inverse_se3
@@ -25,7 +25,7 @@ from ..optim import CacheRef, TermFn
 class RobotManifold:
     """Configuration manifold of ``model``: ``q: (B, nq)`` or ``(B, T, nq)``, tangent ``nv`` per configuration.
 
-    ``retract`` is ``model.integrate``; ``project`` integrates a zero step, which renormalizes quaternion joints.
+    ``retract`` is ``kinematics.integrate``; ``project`` integrates a zero step, which renormalizes quaternion joints.
     Pass it as ``Problem(..., manifolds={"q": RobotManifold(model)})``.
     """
 
@@ -36,10 +36,10 @@ class RobotManifold:
         return x.shape[1:].numel() // self.model.nq * self.model.nv
 
     def retract(self, x: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
-        return self.model.integrate(x, delta.reshape(*x.shape[:-1], self.model.nv))
+        return integrate(self.model, x, delta.reshape(*x.shape[:-1], self.model.nv))
 
     def project(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model.integrate(x, x.new_zeros(*x.shape[:-1], self.model.nv))
+        return integrate(self.model, x, x.new_zeros(*x.shape[:-1], self.model.nv))
 
     def tangent_bounds(
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
@@ -112,7 +112,7 @@ def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
     """Tangent difference to a rest configuration ``q_rest: (nq,)`` or ``(B, nq)``. Residual ``(B, nv)``."""
 
     def offset(value: torch.Tensor) -> torch.Tensor:
-        return model.difference(q_rest.expand_as(value), value)
+        return difference(model, q_rest.expand_as(value), value)
 
     return TermFn(fn=offset, reads=(q,), jac=_identity_jac(model, q, torch.ones_like))
 
@@ -120,7 +120,7 @@ def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
 def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", world_translation: bool = False) -> TermFn:
     """Time derivative of order ``order`` of a trajectory ``q: (B, T, nq)`` in tangent space, by finite differences.
 
-    The steps ``model.difference(q[t], q[t + 1]) / dt`` are differenced ``order - 1`` more times (the binomial
+    The steps ``difference(model, q[t], q[t + 1]) / dt`` are differenced ``order - 1`` more times (the binomial
     stencil), each time divided by ``dt``: velocity (1), acceleration (2), jerk (3), snap (4).
     ``world_translation=True`` steps each free flyer's position in its parent frame (the world for a floating base)
     instead of taking the translation of the SE3 log, which is expressed in the turning base frame; its rotation step
@@ -133,7 +133,7 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
     position_q, position_v = rigid_q[:, :3].reshape(-1), rigid_v[:, :3].reshape(-1)
 
     def derivative(value: torch.Tensor) -> torch.Tensor:
-        out = model.difference(value[:, :-1], value[:, 1:])
+        out = difference(model, value[:, :-1], value[:, 1:])
         if world_translation:
             out = out.index_copy(-1, position_v, value[:, 1:, position_q] - value[:, :-1, position_q])
         out = out / dt

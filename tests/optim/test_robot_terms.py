@@ -70,8 +70,8 @@ def g1():
 
 def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1):
     generator = torch.Generator().manual_seed(0)
-    q = g1.integrate(
-        g1.q_neutral.expand(1, 8, -1), 0.3 * torch.randn(1, 8, g1.nv, generator=generator, dtype=torch.float64)
+    q = br.kinematics.integrate(
+        g1, g1.q_neutral.expand(1, 8, -1), 0.3 * torch.randn(1, 8, g1.nv, generator=generator, dtype=torch.float64)
     )
     dt = 1 / 30
     # World-frame root step, body-frame root rotation step, joint steps; jerk = second difference of the steps.

@@ -13,7 +13,8 @@ from ._public_ops import CASE_NAMES, build_case
 _CPU = torch.device("cpu")
 
 #: ``check_tensor`` calls per public call; a name absent here makes none (Jacobians read the state, lie/spatial
-#: take plain tensors). ``forward_dynamics`` checks ``v``, the zero acceleration of its bias call and ``tau``.
+#: take plain tensors). ``forward_dynamics`` checks ``v``, the zero acceleration of its bias call and ``tau``;
+#: ``integrate`` and ``difference`` check their two configuration-space inputs.
 EXPECTED_CHECKS = {
     "forward_kinematics_state": 1,
     "frame_jacobian_time_variation": 1,
@@ -21,6 +22,8 @@ EXPECTED_CHECKS = {
     "inverse_dynamics": 2,
     "forward_dynamics": 3,
     "centroidal_momentum": 1,
+    "integrate": 2,
+    "difference": 2,
 }
 
 
@@ -34,7 +37,7 @@ def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         names.append(name)
         return original(name, value, **kwargs)
 
-    for module in (kinematics.state, dynamics.state):
+    for module in (kinematics.state, kinematics.configuration, dynamics.state):
         monkeypatch.setattr(module, "check_tensor", counted)
     return names
 

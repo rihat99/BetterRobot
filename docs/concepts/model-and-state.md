@@ -130,16 +130,18 @@ no update-in-place. Jacobians ([Kinematics and Jacobians](kinematics-and-jacobia
 ([Dynamics](dynamics.md)) take `(model, state, ...)` and read what they need from the state, so one
 forward pass serves several queries.
 
-## Configuration arithmetic goes through the model
+## Configuration arithmetic goes through the manifold
 
 `nq` and `nv` differ as soon as a model has a free-flyer or spherical joint: a quaternion has four
-coordinates but three velocity directions. Use `model.integrate(q, v)` to step a configuration and
-`model.difference(q0, q1)` to get the tangent between two, never `q + v` or `q1 - q0`.
+coordinates but three velocity directions. Use `kinematics.integrate(model, q, v)` to step a configuration
+and `kinematics.difference(model, q0, q1)` to get the tangent between two, never `q + v` or `q1 - q0`.
 
 ```python
+from better_robot.kinematics import difference, integrate
+
 v = torch.full((4, model.nv), 0.1)
-q_next = model.integrate(q, v)
-print(torch.allclose(model.difference(q, q_next), v))    # True
+q_next = integrate(model, q, v)
+print(torch.allclose(difference(model, q, q_next), v))    # True
 ```
 ```output
 True

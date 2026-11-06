@@ -40,7 +40,7 @@ model = br.load("robot.xml", format="mjcf")
 
 A floating base is one more joint, a `JointFreeFlyer`, at the root of the tree. It adds 7
 configuration entries (position and a scalar-last quaternion) and 6 velocity entries, so `nq` and `nv`
-differ. Use `model.integrate` and `model.difference` instead of adding to `q`.
+differ. Use `kinematics.integrate` and `kinematics.difference` instead of adding to `q`.
 
 ![Unitree G1 loaded with a free-flyer root](../images/g1_floating.png){ width=560 }
 

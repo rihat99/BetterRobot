@@ -15,7 +15,7 @@ coordinates and the solver between phases.
 
 The unknown is the whole clip `q (B, T, nq)`. `time=("q",)` marks it as a time variable, so the solver sees a
 block-tridiagonal normal matrix instead of a dense one. The example's Unitree G1 has a free-flyer root
-(`nq = nv + 1`), so the variable gets `terms.RobotManifold(model)`, which steps it with `Model.integrate`.
+(`nq = nv + 1`), so the variable gets `terms.RobotManifold(model)`, which steps it with `kinematics.integrate`.
 
 ```python
 import torch
@@ -65,7 +65,7 @@ $$
 $$
 
 where $p_m(q_t)$ is the forward-kinematics position of marker $m$, $\hat p_{t,m}$ its observation, $\rho$ the Huber
-kernel, $a \ominus b$ is `model.difference(b, a)` (a tangent vector), and $w_s = 10^{-5}$, $w_r = 10^{-3}$ are the `smooth` and `rest` weights.
+kernel, $a \ominus b$ is `kinematics.difference(model, b, a)` (a tangent vector), and $w_s = 10^{-5}$, $w_r = 10^{-3}$ are the `smooth` and `rest` weights.
 
 The terms do not know about phases. `markers` and `rest` touch one knot each (`window=1`); `smooth` is a
 second-order finite difference over neighbouring knots. The Huber kernel keeps the outliers from dragging the fit.

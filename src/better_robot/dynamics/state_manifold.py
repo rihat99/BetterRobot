@@ -1,6 +1,6 @@
 """``StateMultibody`` — state manifold of a rigid-body system (Crocoddyl pattern).
 
-Wraps ``model.integrate`` / ``model.difference`` into the state-manifold
+Wraps ``kinematics.integrate`` / ``kinematics.difference`` into the state-manifold
 interface that DDP / iLQR consume. The state is the concatenation
 ``x = [q (nq), v (nv)]``; the tangent is ``dx = [dq (nv), dv (nv)]``.
 
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import torch
 
+from ..kinematics.configuration import difference, integrate
 from ..model.model import Model
 
 
@@ -43,7 +44,7 @@ class StateMultibody:
         """``x ⊕ dx``: configuration retraction + linear velocity update."""
         q, v = self._split(x)
         dq, dv = self._split_tangent(dx)
-        q_new = self.model.integrate(q, dq)
+        q_new = integrate(self.model, q, dq)
         v_new = v + dv
         return torch.cat([q_new, v_new], dim=-1)
 
@@ -51,7 +52,7 @@ class StateMultibody:
         """``x1 ⊖ x0``: configuration tangent + velocity delta."""
         q0, v0 = self._split(x0)
         q1, v1 = self._split(x1)
-        dq = self.model.difference(q0, q1)
+        dq = difference(self.model, q0, q1)
         dv = v1 - v0
         return torch.cat([dq, dv], dim=-1)
 

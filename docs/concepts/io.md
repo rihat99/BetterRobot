@@ -120,7 +120,7 @@ print(floating.nq, floating.nv)              # 8 7
 ```
 
 The base configuration is `q[:7] = [tx, ty, tz, qx, qy, qz, qw]` and the base velocity is `v[:6]`.
-Because `nq != nv`, step configurations with `model.integrate(q, v)`; see
+Because `nq != nv`, step configurations with `kinematics.integrate(model, q, v)`; see
 [Joints, bodies and frames](joints-bodies-frames.md).
 
 ## Choose dtype and device at load time

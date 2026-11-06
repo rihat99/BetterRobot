@@ -34,10 +34,10 @@ spherical and unbounded joints keep their `q0` values.
 Levenberg-Marquardt (LM) on all 32 problems together. Each iteration evaluates the residual
 $r(q)$ (pose error and limit violations) and its Jacobian $J = \partial r / \partial q$, then takes the
 damped step $\Delta q = -(J^\top J + \lambda D)^{-1} J^\top r$, where $D = \mathrm{diag}(J^\top J)$ and
-$\lambda$ grows when a step is rejected, then integrates it with `model.integrate`, so configurations
+$\lambda$ grows when a step is rejected, then integrates it with `kinematics.integrate`, so configurations
 stay on the manifold:
 
-![The IK loop: forward kinematics gives the pose error, the Jacobian gives the step, Model.integrate applies it, and the loop repeats until the residual is small.](../figures/ik_loop.svg){ width="860" }
+![The IK loop: forward kinematics gives the pose error, the Jacobian gives the step, kinematics.integrate applies it, and the loop repeats until the residual is small.](../figures/ik_loop.svg){ width="860" }
 
 *One LM iteration of `solve_ik`; the whole loop is batched over the 32 targets.*
 

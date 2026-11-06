@@ -26,8 +26,9 @@ model tensors in place.
   passes trust the result, and a dtype or device other than the model's raises.
 - `manifolds.py` holds the five `Manifold`s (Euclidean, circle, rotation, plane,
   rigid): `integrate`/`difference` written once each as the group exponential
-  and logarithm. `_manifold.py` groups the public coordinates by manifold and
-  runs one batched call per group behind `Model.integrate`/`Model.difference`.
+  and logarithm; `kinematics/configuration.py` groups the public coordinates by
+  manifold and runs one batched call per group behind `kinematics.integrate`
+  and `kinematics.difference`.
 - `joints/` holds the abstract `JointModel` and the nine final kinds, one file
   per kind; `topology.py` the pure tree helpers on `parents`.
 
@@ -35,8 +36,8 @@ model tensors in place.
 
 - Joint 0 is the zero-DOF universe; a floating base is joint 1 as
   `JointFreeFlyer`. Index order is a topological order (`parents[i] < i`).
-- `nq != nv` for manifold joints. Use `Model.integrate` and
-  `Model.difference`; use `idx_qs`/`idx_vs` for slices.
+- `nq != nv` for manifold joints. Use `kinematics.integrate` and
+  `kinematics.difference`; use `idx_qs`/`idx_vs` for slices.
 - `Model.q_permutation` supplies scalar gather tables for external joint
   orders and supports arbitrary leading batches.
 - Mimic targets have zero-width public slices. `mimic_source_ids`,

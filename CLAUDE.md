@@ -63,8 +63,9 @@ the only implementation.
 - Public tensors use trailing event axes and arbitrary leading batch axes.
 - Frame Jacobians default to `LOCAL_WORLD_ALIGNED`; do not apply a full
   adjoint when only a rotation into the local frame is required.
-- `nq` and `nv` can differ. Use `Model.integrate` and `Model.difference`, not
-  configuration-space addition or subtraction.
+- `nq` and `nv` can differ. Use `kinematics.integrate(model, q, v)` and
+  `kinematics.difference(model, q0, q1)`, not configuration-space addition or
+  subtraction.
 - Preserve dtype/device and PyTorch broadcasting; never silently cast, move,
   squeeze, or change process-wide Torch settings.
 
