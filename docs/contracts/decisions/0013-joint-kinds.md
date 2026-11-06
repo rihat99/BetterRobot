@@ -34,8 +34,10 @@ q_next = br.kinematics.integrate(model, q, v)   # was model.integrate(q, v)
 
 ## Consequences
 Manifold math exists once; the kind and axis are data. Joint hooks nothing calls (`joint_bias_acceleration`,
-`joint_motion_subspace_derivative`) go. The oracle-tested kinds that no consumer uses stay because their parity tests
-cost nothing; the composite goes.
+`joint_motion_subspace_derivative`) go, and so does the planned `velocity(q, v)` method: the child's twist is
+`motion_subspace(q) @ v` by definition, and the subspace is constant in the child frame (the plans read it once at
+`neutral()`; `check_joint_model` asserts it for every drawn `q`). The oracle-tested kinds that no consumer uses stay
+because their parity tests cost nothing; the composite goes.
 
 ## Alternatives
 Keep the axis subclasses: no gain, the kind/axis split stays. Ball joints as three revolute joints: gimbal lock, and

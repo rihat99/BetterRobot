@@ -39,7 +39,8 @@ def check_joint_model(joint: JointModel, *, dtype: torch.dtype, generator: torch
     ``generator``: ``neutral()`` is ``(nq,)`` and places the child at the identity; ``placement`` and
     ``motion_subspace`` keep the dtype and return ``(B..., 7)`` and ``(B..., 6, nv)`` for the batch shapes ``()``,
     ``(5,)`` and ``(2, 3)``; the placement of every drawn ``q`` carries a unit quaternion (a non-unit axis would
-    scale it); the manifold round trip ``difference(q, integrate(q, v)) == v`` and
+    scale it); ``motion_subspace(q)`` equals ``motion_subspace(neutral())`` (the subspace is constant in the child
+    frame, which the plans rely on); the manifold round trip ``difference(q, integrate(q, v)) == v`` and
     ``integrate(q, 0) == q``; and the derivative of ``placement`` along ``integrate(q, t v)`` at ``t = 0``, measured
     by a forward difference of the relative pose, equals the child-frame twist ``motion_subspace(q) @ v``. The
     finite-difference step is ``sqrt(eps(dtype))`` and the tolerance 50 times that.
@@ -68,7 +69,16 @@ def check_joint_model(joint: JointModel, *, dtype: torch.dtype, generator: torch
     q = torch.stack(samples)  # (6, nq)
     eps = torch.finfo(dtype).eps
     quaternion_norm = joint.placement(q)[..., 3:].norm(dim=-1)
-    _close(quaternion_norm, torch.ones_like(quaternion_norm), tolerance=100 * eps, what="placement(q) quaternion is unit")
+    _close(
+        quaternion_norm, torch.ones_like(quaternion_norm), tolerance=100 * eps, what="placement(q) quaternion is unit"
+    )
+    subspace = joint.motion_subspace(q)
+    _close(
+        subspace,
+        joint.motion_subspace(neutral).expand_as(subspace),
+        tolerance=0.0,
+        what="motion_subspace(q) is constant in the child frame",
+    )
     v = 0.3 * torch.randn(q.shape[0], nv, generator=generator, dtype=dtype)
     _close(_step(joint, q, torch.zeros_like(v)), q, tolerance=1e-6, what="integrate(q, 0) == q")
     tolerance = 1e-5 if dtype == torch.float32 else 1e-10

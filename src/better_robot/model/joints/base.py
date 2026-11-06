@@ -35,7 +35,12 @@ class JointModel(ABC):
 
     @abstractmethod
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
-        """``S(q)``, ``(B..., nq) -> (B..., 6, nv)``: the child's twist in its own frame is ``S(q) @ v``."""
+        """``S``, ``(B..., nq) -> (B..., 6, nv)``: the child's twist in its own frame is ``S @ v``.
+
+        ``S`` is constant in the child frame: the kinematics and dynamics plans read it once, at ``neutral()``, and
+        `better_robot.testing.check_joint_model` asserts ``motion_subspace(q) == motion_subspace(neutral())``. A
+        motion whose subspace moves with ``q`` in the child frame is not a joint kind of this library.
+        """
 
     @abstractmethod
     def neutral(self) -> torch.Tensor:
