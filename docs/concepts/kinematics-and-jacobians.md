@@ -123,12 +123,32 @@ print(dJ.shape)                              # torch.Size([16, 3, 6, 2])
 torch.Size([16, 3, 6, 2])
 ```
 
+$\dot J$ is the plain time derivative of the Jacobian in the same reference, $\frac{d}{dt} J(q(t))$ with
+$\dot q = v$, in all three references; Pinocchio 3.9 agrees in each. It is transport only: in the `world` reference
+the columns of joint $i$ are $\mathrm{ad}(v_i)\, J_i$, where $v_i = [\nu_i; \omega_i]$ is the world spatial velocity
+of joint $i$ and $\mathrm{ad}(v_i) = \begin{bmatrix} \hat\omega_i & \hat\nu_i \\ 0 & \hat\omega_i \end{bmatrix}$. No
+$\dot S$ term appears, because every joint's motion subspace is constant in the joint's own frame. The other two
+references follow from the `world` one, with $p$ the reference origin, $v = [\nu; \omega]$ its world spatial
+velocity, $v_p = \nu + \omega \times p$ the world velocity of the point $p$, $M$ the reference pose, $v_{local}$
+its local spatial velocity, and $J^W$, $\dot J^W$ (`JW`, `dJW`) the `world` Jacobian and its time variation:
+
+```text
+local_world_aligned:  dJ_ang = dJW_ang
+                      dJ_lin = dJW_lin - p x dJW_ang - v_p x JW_ang
+local:                dJ     = Ad(M)^-1 dJW - ad(v_local) (Ad(M)^-1 JW)
+```
+
+Translating $\dot J^W$ the way the static Jacobian is translated misses the $- v_p \times J^W_\omega$ term and is off by
+order one. The acceleration identity $a = J \dot v + \dot J v$ holds with the spatial acceleration in `world` and
+`local`, and with the classical acceleration of the frame origin in `local_world_aligned`.
+
 ## Batching and gradients
 
 Every function above is batched by broadcasting: `q`, `v` and the model's values can each carry leading
 axes, and they broadcast together ([Model and state](model-and-state.md#with_values-returns-a-changed-copy)).
 All operations are differentiable PyTorch, so `torch.autograd` gives derivatives with respect to `q` or
-to model values without extra code. Inputs are validated once in these public functions (shape, dtype,
+to model values without extra code; $\partial J / \partial q$ comes this way too, and a kinematic-Hessian function
+like Pinocchio's is a non-goal. Inputs are validated once in these public functions (shape, dtype,
 device); the inner loops trust them.
 
 ## Parity with Pinocchio
