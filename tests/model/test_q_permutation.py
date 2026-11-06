@@ -18,7 +18,7 @@ def mixed_dof_model():
     plane_link = builder.add_body("plane_link")
     builder.add_free_flyer_root("root", child=base)
     builder.add_spherical("ball", parent=base, child=ball_link)
-    builder.add_revolute_z("hinge", parent=base, child=hinge_link)
+    builder.add_revolute("hinge", axis=(0.0, 0.0, 1.0), parent=base, child=hinge_link)
     builder.add_planar("plane", parent=ball_link, child=plane_link)
     return build_model(builder.finalize(), preserve_joint_order=True)
 

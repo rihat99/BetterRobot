@@ -1,11 +1,10 @@
-"""Display a programmatically-built branching-tree skeleton using SkeletonMode.
+"""Display a branching tree built with ``ModelBuilder`` as a skeleton.
 
-Demonstrates that the viewer works on robots built with the generic
-``build_kinematic_tree_model`` — no URDF and no collision geometry —
-SkeletonMode is always available.
+The viewer works on a robot built in Python, with no URDF and no geometry: ``robot_skeleton`` draws the joints
+and the bones between them.
 
 Usage:
-    uv run python examples/04_branching_tree_body.py [--no-viewer]
+    uv run python examples/07_branching_tree_body.py [--no-viewer]
 """
 
 import argparse
@@ -13,24 +12,24 @@ import argparse
 import torch
 
 import better_robot as br
-from better_robot.io.builders.kinematic_tree import build_kinematic_tree_model
 
 
 def make_branching_tree() -> br.Model:
-    """Build a 24-body free-flyer + 23-spherical tree with arbitrary offsets."""
-    joint_names = tuple(f"j{index}" for index in range(24))
+    """A 24-body tree: a free-flyer root and 23 spherical joints, each 15 cm above its parent."""
+    names = [f"j{index}" for index in range(24)]
     parents = (-1, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 12, 12, 13, 14, 16, 17, 18, 19, 20, 21)
-    translations = torch.zeros(24, 3)
-    translations[1:, 2] = 0.15  # give every non-root joint a visible offset
-    return build_kinematic_tree_model(
-        name="branching_tree",
-        joint_names=joint_names,
-        parents=parents,
-        translations=translations,
-        root_kind="free_flyer",
-        child_kind="spherical",
-        preserve_joint_order=True,
-    )
+    builder = br.ModelBuilder("branching_tree")
+    for name in names:
+        builder.add_body(name)
+    builder.add_free_flyer_root("root", child=names[0])
+    for index in range(1, len(names)):
+        builder.add_spherical(
+            names[index],
+            parent=names[parents[index]],
+            child=names[index],
+            origin=torch.tensor([0.0, 0.0, 0.15, 0.0, 0.0, 0.0, 1.0]),
+        )
+    return br.io.build_model(builder.finalize(), preserve_joint_order=True)
 
 
 def main() -> None:

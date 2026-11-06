@@ -23,10 +23,10 @@ from better_robot.io import ModelBuilder, build_model
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 for body in ("base", "link1", "link2"):
     builder.add_body(body, mass=1.0)
-builder.add_revolute_z("j1", parent="base", child="link1")
-builder.add_revolute_y("j2", parent="link1", child="link2",
+builder.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1")
+builder.add_revolute("j2", axis=(0.0, 1.0, 0.0), parent="link1", child="link2",
                        origin=torch.tensor([0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 1.0]))
-builder.add_frame("tool", parent_body="link2",
+builder.add_frame("tool", parent="link2",
                   placement=torch.tensor([0.0, 0.0, 0.25, 0.0, 0.0, 0.0, 1.0]))
 ir = builder.finalize()
 model = build_model(ir)
@@ -56,9 +56,9 @@ carry their `axis` as data, a tuple of three floats in the joint frame.
 
 | Joint kind | `nq` | `nv` | Manifold | `ModelBuilder` method |
 |------------|------|------|----------|-----------------------|
-| `JointRevolute(axis)` | 1 | 1 | Euclidean | `add_revolute`, `add_revolute_x/_y/_z` |
+| `JointRevolute(axis)` | 1 | 1 | Euclidean | `add_revolute(axis=)` |
 | `JointRevoluteUnbounded(axis)` | 2 | 1 | circle `[cos θ, sin θ]` | `add_revolute(unbounded=True)` |
-| `JointPrismatic(axis)` | 1 | 1 | Euclidean | `add_prismatic`, `add_prismatic_x/_y/_z` |
+| `JointPrismatic(axis)` | 1 | 1 | Euclidean | `add_prismatic(axis=)` |
 | `JointHelical(axis, pitch)` | 1 | 1 | Euclidean | `add_helical` |
 | `JointSpherical()` | 4 | 3 | rotation (unit quaternion) | `add_spherical` |
 | `JointPlanar()` | 4 | 3 | plane (SE(2)) | `add_planar` |

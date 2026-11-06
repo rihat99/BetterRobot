@@ -38,8 +38,8 @@ def two_link_arm(dtype: torch.dtype, device: torch.device):
     builder.add_body("link1", mass=1.0, com=torch.tensor([0.1, 0.0, 0.0]), inertia=inertia)
     builder.add_body("link2", mass=0.7, com=torch.tensor([0.1, 0.0, 0.0]), inertia=inertia)
     origin = torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0])
-    builder.add_revolute_z("j1", parent="base", child="link1", origin=origin, lower=-math.pi, upper=math.pi)
-    builder.add_revolute_y("j2", parent="link1", child="link2", origin=origin, lower=-math.pi, upper=math.pi)
+    builder.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=origin, lower=-math.pi, upper=math.pi)
+    builder.add_revolute("j2", axis=(0.0, 1.0, 0.0), parent="link1", child="link2", origin=origin, lower=-math.pi, upper=math.pi)
     return build_model(builder.finalize()).to(device=device, dtype=dtype)
 
 

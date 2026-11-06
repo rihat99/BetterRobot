@@ -73,7 +73,7 @@ builder = br.ModelBuilder("pendulum")
 builder.add_body("base", mass=0.0)
 builder.add_body("link", mass=2.0, com=torch.tensor([0.3, 0.0, 0.0]),
                  inertia=torch.diag(torch.tensor([0.2, 0.3, 0.4])))
-builder.add_revolute_y("shoulder", parent="base", child="link",
+builder.add_revolute("shoulder", axis=(0.0, 1.0, 0.0), parent="base", child="link",
                        origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
                        lower=-2.0, upper=2.0)
 pendulum = br.io.build_model(builder.finalize(), dtype=torch.float64)

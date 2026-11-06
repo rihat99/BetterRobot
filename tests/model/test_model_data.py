@@ -16,8 +16,8 @@ def _make_simple_model() -> Model:
     base = builder.add_body("base")
     link1 = builder.add_body("j1")
     link2 = builder.add_body("j2")
-    builder.add_revolute_z("j1", parent=base, child=link1, lower=-3.14, upper=3.14)
-    builder.add_revolute_z("j2", parent=link1, child=link2, lower=-3.14, upper=3.14)
+    builder.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent=base, child=link1, lower=-3.14, upper=3.14)
+    builder.add_revolute("j2", axis=(0.0, 0.0, 1.0), parent=link1, child=link2, lower=-3.14, upper=3.14)
     return build_model(builder.finalize())
 
 
@@ -86,7 +86,7 @@ def _make_floating_model(dtype: torch.dtype) -> Model:
     root = builder.add_body("root")
     link = builder.add_body("link")
     builder.add_free_flyer_root("root_joint", child=root)
-    builder.add_revolute_z("spin", parent=root, child=link)
+    builder.add_revolute("spin", axis=(0.0, 0.0, 1.0), parent=root, child=link)
     return build_model(builder.finalize()).to(dtype=dtype)
 
 
@@ -110,7 +110,7 @@ def test_random_configuration_rejects_unlimited_prismatic():
     builder = ModelBuilder("slider")
     base = builder.add_body("base")
     link = builder.add_body("link")
-    builder.add_prismatic_z("slide", parent=base, child=link)
+    builder.add_prismatic("slide", axis=(0.0, 0.0, 1.0), parent=base, child=link)
     model = build_model(builder.finalize())
     with pytest.raises(ModelError, match="slide"):
         model.random_configuration(generator=torch.Generator().manual_seed(0))

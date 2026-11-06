@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from better_robot.exceptions import ArgumentError
-from better_robot.io import ModelBuilder, build_model
+from better_robot.io import ModelBuilder
 from better_robot.model import (
     JointFixed,
     JointFreeFlyer,
@@ -78,12 +78,11 @@ def test_axis_must_be_a_unit_tuple(make, axis, match: str) -> None:
         make(axis)
 
 
-def test_builder_passes_the_axis_through_so_a_non_unit_axis_fails_at_build() -> None:
+def test_builder_builds_the_kind_at_the_call_so_a_non_unit_axis_fails_there() -> None:
     builder = ModelBuilder("axis")
     base, link = builder.add_body("base", mass=1.0), builder.add_body("link", mass=1.0)
-    builder.add_revolute("joint", parent=base, child=link, axis=torch.tensor([1.2, 1.6, 0.0]))
     with pytest.raises(ArgumentError, match="has norm 2"):
-        build_model(builder.finalize())
+        builder.add_revolute("joint", parent=base, child=link, axis=torch.tensor([1.2, 1.6, 0.0]))
 
 
 def test_circle_difference_is_the_wrapped_angle() -> None:

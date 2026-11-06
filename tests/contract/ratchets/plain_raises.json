@@ -1,13 +1,4 @@
 {
-  "src/better_robot/io/builders/kinematic_tree.py::_normalize_mass": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/builders/kinematic_tree.py::_normalize_com": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/builders/kinematic_tree.py::_normalize_inertia": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/builders/kinematic_tree.py::build_kinematic_tree_body": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/builders/kinematic_tree.py::build_kinematic_tree_model": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/parsers/programmatic.py::add_body": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/parsers/programmatic.py::_push_joint": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/parsers/programmatic.py::add_joint": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
-  "src/better_robot/io/parsers/programmatic.py::finalize": "raises a builtin; R6 rewrites io on the error tree (record 0020)",
   "src/better_robot/optim/constrained.py::solve_constrained": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
   "src/better_robot/optim/kernels.py::__init__": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
   "src/better_robot/optim/phases.py::run": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",

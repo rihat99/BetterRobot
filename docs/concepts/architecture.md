@@ -41,8 +41,8 @@ import better_robot as br
 
 builder = br.ModelBuilder("two_link")
 builder.add_body("base"); builder.add_body("upper"); builder.add_body("lower")
-builder.add_revolute_z("shoulder", parent="base", child="upper")
-builder.add_revolute_z("elbow", parent="upper", child="lower")
+builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="upper")
+builder.add_revolute("elbow", axis=(0.0, 0.0, 1.0), parent="upper", child="lower")
 model = br.io.build_model(builder.finalize())
 
 q = torch.rand(4, model.nq)                        # a batch of 4 configurations

@@ -19,15 +19,15 @@ def _model(dtype: torch.dtype = torch.float64):
     builder = ModelBuilder("batched_values_fk")
     builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
     builder.add_body("link", mass=2.0, inertia=torch.eye(3) * 0.2)
-    builder.add_revolute_z(
-        "joint",
+    builder.add_revolute(
+        "joint", axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link",
         origin=_pose(0.5),
         lower=-2.0,
         upper=2.0,
     )
-    builder.add_frame("tip", parent_body="link", placement=_pose(0.3))
+    builder.add_frame("tip", parent="link", placement=_pose(0.3))
     return build_model(builder.finalize(), dtype=dtype)
 
 

@@ -27,8 +27,8 @@ def _simple_arm_ir():
     b = ModelBuilder("arm")
     b.add_body("base", mass=0.5)
     b.add_body("link1", mass=1.0)
-    b.add_revolute_z(
-        "j1",
+    b.add_revolute(
+        "j1", axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -85,7 +85,7 @@ def _model_with_ir_frame():
     b.add_body("root")
     b.add_body("child")
     b.add_fixed("j1", parent="root", child="child", origin=_id7())
-    b.add_frame("tip", parent_body="child", placement=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]))
+    b.add_frame("tip", parent="child", placement=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]))
     return build_model(b.finalize())
 
 
@@ -137,10 +137,10 @@ def _branching_tree_ir():
     b.add_body("left_link2")
     b.add_body("right_link1")
     b.add_body("right_link2")
-    b.add_revolute_z("left_j1", parent="root", child="left_link1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute_z("left_j2", parent="left_link1", child="left_link2", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute_z("right_j1", parent="root", child="right_link1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute_z("right_j2", parent="right_link1", child="right_link2", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute("left_j1", axis=(0.0, 0.0, 1.0), parent="root", child="left_link1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute("left_j2", axis=(0.0, 0.0, 1.0), parent="left_link1", child="left_link2", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute("right_j1", axis=(0.0, 0.0, 1.0), parent="root", child="right_link1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute("right_j2", axis=(0.0, 0.0, 1.0), parent="right_link1", child="right_link2", origin=_id7(), lower=-1.0, upper=1.0)
     return b.finalize()
 
 
@@ -242,9 +242,9 @@ def test_multi_joint_chain():
     b.add_body("l1")
     b.add_body("l2")
     b.add_body("l3")
-    b.add_revolute_z("j1", parent="root", child="l1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute_y("j2", parent="l1", child="l2", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_prismatic_x("j3", parent="l2", child="l3", origin=_id7(), lower=0.0, upper=0.5)
+    b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="root", child="l1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute("j2", axis=(0.0, 1.0, 0.0), parent="l1", child="l2", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_prismatic("j3", axis=(1.0, 0.0, 0.0), parent="l2", child="l3", origin=_id7(), lower=0.0, upper=0.5)
     ir = b.finalize()
     model = build_model(ir)
     assert model.nq == 3
@@ -257,9 +257,9 @@ def _mimic_ir(*, multiplier: float = 1.0, offset: float = 0.0):
     b.add_body("root")
     b.add_body("finger1")
     b.add_body("finger2")
-    b.add_revolute_z("main_j", parent="root", child="finger1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute_z(
-        "mimic_j",
+    b.add_revolute("main_j", axis=(0.0, 0.0, 1.0), parent="root", child="finger1", origin=_id7(), lower=-1.0, upper=1.0)
+    b.add_revolute(
+        "mimic_j", axis=(0.0, 0.0, 1.0),
         parent="root",
         child="finger2",
         origin=_id7(),
@@ -302,8 +302,8 @@ def test_mimic_bad_source_raises():
     b = ModelBuilder("m")
     b.add_body("root")
     b.add_body("child")
-    b.add_revolute_z(
-        "j1", parent="root", child="child", origin=_id7(), lower=-1.0, upper=1.0, mimic_source="nonexistent_joint"
+    b.add_revolute(
+        "j1", axis=(0.0, 0.0, 1.0), parent="root", child="child", origin=_id7(), lower=-1.0, upper=1.0, mimic_source="nonexistent_joint"
     )
     ir = b.finalize()
     with pytest.raises(ModelError, match="Mimic source"):

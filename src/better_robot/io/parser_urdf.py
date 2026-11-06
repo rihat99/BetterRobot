@@ -20,20 +20,23 @@ import torch
 from ..exceptions import ModelError
 from ..lie import so3
 from ..model.geometry import Box, Color, Cylinder, Mesh, Pose, Shape, Sphere
+from ..model.joints import (
+    JointFixed,
+    JointFreeFlyer,
+    JointModel,
+    JointPlanar,
+    JointPrismatic,
+    JointRevolute,
+    JointRevoluteUnbounded,
+)
 from .ir import IRBody, IRJoint, IRModel, IRShape
 
 if TYPE_CHECKING:
     import yourdfpy
 
-#: URDF joint ``type`` to the IR kind.
-_KINDS = {
-    "revolute": "revolute",
-    "continuous": "continuous",
-    "prismatic": "prismatic",
-    "fixed": "fixed",
-    "floating": "free_flyer",
-    "planar": "planar",
-}
+#: URDF joint ``type`` to the joint kind: the types without an axis, and the three scalar types with their unit axis.
+_KINDS = {"fixed": JointFixed, "floating": JointFreeFlyer, "planar": JointPlanar}
+_AXIS_KINDS = {"revolute": JointRevolute, "continuous": JointRevoluteUnbounded, "prismatic": JointPrismatic}
 
 
 def _pose(origin: np.ndarray | None) -> torch.Tensor:
@@ -113,26 +116,33 @@ def _body(link: yourdfpy.Link) -> IRBody:
     )
 
 
-def _joint(joint: yourdfpy.Joint, links: set[str], path: Path) -> IRJoint:
-    """A ``<joint>`` as an IR joint; its type, its parent and child links and its axis are checked here."""
-    element = f"{path}: <joint name={joint.name!r}>"
-    if joint.type not in _KINDS:
-        raise ModelError(f"{element}: type {joint.type!r} is not one of {sorted(_KINDS)}")
-    for role, link in (("parent", joint.parent), ("child", joint.child)):
-        if link not in links:
-            raise ModelError(f"{element}: {role} link {link!r} is not a <link> of the file")
+def _kind(joint: yourdfpy.Joint, element: str) -> JointModel:
+    """The kind of a ``<joint>`` from its ``type``; a revolute, continuous or prismatic joint takes its unit ``<axis>``."""
+    if joint.type in _KINDS:
+        return _KINDS[joint.type]()
+    if joint.type not in _AXIS_KINDS:
+        raise ModelError(f"{element}: type {joint.type!r} is not one of {sorted(_KINDS | _AXIS_KINDS)}")
     axis = np.asarray(joint.axis, dtype=np.float64)
     norm = float(np.linalg.norm(axis))
     if norm == 0.0:
         raise ModelError(f"{element}: <axis> is zero")
+    x, y, z = (axis / norm).tolist()
+    return _AXIS_KINDS[joint.type](axis=(x, y, z))
+
+
+def _joint(joint: yourdfpy.Joint, links: set[str], path: Path) -> IRJoint:
+    """A ``<joint>`` as an IR joint; its type, its axis and its parent and child links are checked here."""
+    element = f"{path}: <joint name={joint.name!r}>"
+    kind = _kind(joint, element)
+    for role, link in (("parent", joint.parent), ("child", joint.child)):
+        if link not in links:
+            raise ModelError(f"{element}: {role} link {link!r} is not a <link> of the file")
     limit, dynamics, mimic = joint.limit, joint.dynamics, joint.mimic
     lower, upper, velocity, effort = (
         (None, None, None, None) if limit is None else (limit.lower, limit.upper, limit.velocity, limit.effort)
     )
     # yourdfpy 0.0.60 keeps the <dynamics> attributes as the strings it read (its other numbers are floats).
-    damping, friction = (
-        (0.0, 0.0) if dynamics is None else (float(dynamics.damping or 0.0), float(dynamics.friction or 0.0))
-    )
+    damping = 0.0 if dynamics is None else float(dynamics.damping or 0.0)
     source, multiplier, offset = (
         (None, 1.0, 0.0)
         if mimic is None
@@ -146,15 +156,13 @@ def _joint(joint: yourdfpy.Joint, links: set[str], path: Path) -> IRJoint:
         name=joint.name,
         parent_body=joint.parent,
         child_body=joint.child,
-        kind=_KINDS[joint.type],
-        axis=torch.tensor(axis / norm),
+        joint=kind,
         origin=_pose(joint.origin),
         lower=lower,
         upper=upper,
         velocity_limit=velocity,
         effort_limit=effort,
         damping=damping,
-        friction=friction,
         mimic_source=source,
         mimic_multiplier=multiplier,
         mimic_offset=offset,

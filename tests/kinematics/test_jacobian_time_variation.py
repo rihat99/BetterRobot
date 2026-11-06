@@ -45,24 +45,24 @@ def _chain_with_frame():
     b = ModelBuilder("jdot_chain")
     for name in ("root", "l1", "l2", "l3"):
         b.add_body(name)
-    b.add_revolute_z(
-        "j1",
+    b.add_revolute(
+        "j1", axis=(0.0, 0.0, 1.0),
         parent="root",
         child="l1",
         origin=torch.tensor([0.1, 0.2, 0.5, 0.0, 0.0, 0.0, 1.0]),
         lower=-math.pi,
         upper=math.pi,
     )
-    b.add_revolute_y(
-        "j2",
+    b.add_revolute(
+        "j2", axis=(0.0, 1.0, 0.0),
         parent="l1",
         child="l2",
         origin=torch.tensor([0.3, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]),
         lower=-math.pi,
         upper=math.pi,
     )
-    b.add_revolute_x(
-        "j3",
+    b.add_revolute(
+        "j3", axis=(1.0, 0.0, 0.0),
         parent="l2",
         child="l3",
         origin=torch.tensor([0.0, 0.4, 0.5, 0.0, 0.0, 0.0, 1.0]),
@@ -71,7 +71,7 @@ def _chain_with_frame():
     )
     b.add_frame(
         "tool",
-        parent_body="l3",
+        parent="l3",
         placement=torch.tensor([0.15, -0.1, 0.2, 0.0, 0.3826834, 0.0, 0.9238795]),
     )
     return build_model(b.finalize())

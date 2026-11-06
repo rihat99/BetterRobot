@@ -24,6 +24,7 @@ import torch
 from ..exceptions import ModelError, OptionalDependencyError
 from ..lie import se3, so3
 from ..model.geometry import Box, Capsule, Cylinder, Mesh, Shape, Sphere
+from ..model.joints import JointFixed, JointFreeFlyer, JointModel, JointPrismatic, JointRevolute, JointSpherical
 from .ir import IRBody, IRFrame, IRJoint, IRModel, IRShape
 
 
@@ -50,21 +51,23 @@ def _joint(mujoco: ModuleType, compiled: Any, body: int, path: Path) -> IRJoint 
         return None
     joint = int(compiled.body_jntadr[body])
     joint_type = compiled.jnt_type[joint]
-    kinds = {
-        mujoco.mjtJoint.mjJNT_HINGE: "revolute",
-        mujoco.mjtJoint.mjJNT_SLIDE: "prismatic",
-        mujoco.mjtJoint.mjJNT_BALL: "spherical",
-        mujoco.mjtJoint.mjJNT_FREE: "free_flyer",
-    }
-    scalar = joint_type in (mujoco.mjtJoint.mjJNT_HINGE, mujoco.mjtJoint.mjJNT_SLIDE)
-    limited = scalar and bool(compiled.jnt_limited[joint])
+    x, y, z = (float(value) for value in compiled.jnt_axis[joint])  # unit: MuJoCo's compiler normalises it
+    kind: JointModel
+    if joint_type == mujoco.mjtJoint.mjJNT_HINGE:
+        kind = JointRevolute(axis=(x, y, z))
+    elif joint_type == mujoco.mjtJoint.mjJNT_SLIDE:
+        kind = JointPrismatic(axis=(x, y, z))
+    elif joint_type == mujoco.mjtJoint.mjJNT_BALL:
+        kind = JointSpherical()
+    else:
+        kind = JointFreeFlyer()
+    limited = isinstance(kind, (JointRevolute, JointPrismatic)) and bool(compiled.jnt_limited[joint])
     dof = int(compiled.jnt_dofadr[joint])
     return IRJoint(
         name=_named(compiled.joint(joint), "joint", joint, path),
         parent_body="",  # filled by the caller, which knows the body names
         child_body=name,
-        kind=kinds[joint_type],
-        axis=torch.tensor(compiled.jnt_axis[joint], dtype=torch.float64) if scalar else None,
+        joint=kind,
         lower=float(compiled.jnt_range[joint, 0]) if limited else None,
         upper=float(compiled.jnt_range[joint, 1]) if limited else None,
         damping=float(compiled.dof_damping[dof]),
@@ -127,7 +130,7 @@ def parse_mjcf(path: str | Path) -> IRModel:
     joints = [None] + [_joint(mujoco, compiled, body, path) for body in range(1, compiled.nbody)]
     offsets = np.zeros((compiled.nbody, 3))
     for body, joint in enumerate(joints):
-        if joint is not None and joint.kind != "free_flyer":
+        if joint is not None and not isinstance(joint.joint, JointFreeFlyer):
             offsets[body] = compiled.jnt_pos[int(compiled.body_jntadr[body])]
 
     bodies: list[IRBody] = []
@@ -144,8 +147,8 @@ def parse_mjcf(path: str | Path) -> IRModel:
         placement = se3.compose(placement, se3.from_translation(torch.tensor(offsets[body], dtype=torch.float64)))
         joint = joints[body]
         if joint is None:
-            joint = IRJoint(name=name, parent_body=parent_name, child_body=name, kind="fixed")
-        elif joint.kind == "free_flyer":  # a free joint places the body in the world by ``qpos`` alone
+            joint = IRJoint(name=name, parent_body=parent_name, child_body=name, joint=JointFixed())
+        elif isinstance(joint.joint, JointFreeFlyer):  # a free joint places the body in the world by ``qpos`` alone
             placement = se3.identity(dtype=torch.float64)
         joint.parent_body = parent_name
         joint.origin = placement

@@ -35,7 +35,7 @@ from better_robot.io import ModelBuilder, build_model, parse
 builder = ModelBuilder("arm")
 builder.add_body("base", mass=1.0)
 builder.add_body("link", mass=0.5)
-builder.add_revolute_z("shoulder", parent="base", child="link")
+builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="link")
 
 ir = parse(builder.finalize)   # IRModel, no topology decisions yet
 model = build_model(ir)
@@ -84,8 +84,8 @@ from better_robot.io import ModelBuilder, build_model
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 builder.add_body("base", mass=2.0)
 builder.add_body("link", mass=1.0, com=torch.tensor([0.0, 0.0, 0.2]))
-builder.add_revolute_z("shoulder", parent="base", child="link", lower=-1.5, upper=1.5)
-builder.add_frame("tip", parent_body="link",
+builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="link", lower=-1.5, upper=1.5)
+builder.add_frame("tip", parent="link",
                   placement=torch.tensor([0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 1.0]))
 model = build_model(builder.finalize())
 print(model.nq, model.nv, model.upper_position_limit)
@@ -94,8 +94,9 @@ print(model.nq, model.nv, model.upper_position_limit)
 1 1 tensor([1.5000])
 ```
 
-Joint methods: `add_revolute` (any axis) and `add_revolute_x/y/z`, `add_prismatic` and
-`add_prismatic_x/y/z`, `add_spherical`, `add_planar`, `add_fixed`, `add_free_flyer_root`. Each takes the
+Joint methods: `add_revolute` (about `axis=`, a unit vector of the joint frame), `add_prismatic` (along
+`axis=`), `add_helical`, `add_spherical`, `add_planar`, `add_fixed`, `add_free_flyer_root`, and `add_joint(kind=)`
+for any `JointModel` instance. Each takes the
 parent and child body names and an optional `origin` pose `[tx, ty, tz, qx, qy, qz, qw]` of the joint in
 the parent body. `add_shape(body, shape, collision=True)` attaches a `model.Sphere`, `Box`, `Cylinder`,
 `Capsule` or `Mesh` (each with its placement in the body frame and an optional colour) to a body.

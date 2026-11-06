@@ -1,55 +1,45 @@
-"""Intermediate representation — parser output, ``build_model()`` input.
+"""The intermediate representation: what a parser or ``ModelBuilder`` emits and ``build_model`` reads (record 0015).
 
-All parsers (URDF, MJCF, programmatic builder) emit an ``IRModel``. A single
-``build_model()`` factory consumes the IR and produces a frozen ``Model``.
-The IR is flat and ordering-unconstrained; topology/idx_q/idx_v assignment
-is ``build_model``'s job.
-
-See ``docs/concepts/parsers_and_ir.md §2``.
+The records are plain, editable and unordered: parse or build several, merge or edit their lists, then build one
+``Model``. Names tie the records together (a joint names its two bodies, a frame and a shape their body);
+``build_model`` orders the joints and assigns every index.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, final
+from typing import final
 
 import torch
 
+from ..lie import se3
 from ..model.geometry import Shape
-
-if TYPE_CHECKING:
-    from ..model.joints import JointModel
+from ..model.joints import JointModel
 
 
 @dataclass
 class IRJoint:
-    """A joint in the intermediate representation."""
+    """A joint of the description: ``joint`` is its kind, ``origin (7,)`` its placement in the parent body's frame.
+
+    The scalar limits apply to every coordinate of the joint; ``damping`` and ``armature`` to every velocity
+    coordinate (URDF ``<dynamics>``, MJCF ``damping`` and ``armature``). A joint with ``mimic_source`` follows that
+    joint as ``mimic_multiplier * q_source + mimic_offset`` and has no coordinates of its own.
+    """
 
     name: str
     parent_body: str
     child_body: str
-    kind: str
-    axis: Optional[torch.Tensor] = None
-    origin: torch.Tensor = field(default_factory=lambda: torch.zeros(7))
-    lower: Optional[float] = None
-    upper: Optional[float] = None
-    velocity_limit: Optional[float] = None
-    effort_limit: Optional[float] = None
-    mimic_source: Optional[str] = None
+    joint: JointModel
+    origin: torch.Tensor = field(default_factory=se3.identity)
+    lower: float | None = None
+    upper: float | None = None
+    velocity_limit: float | None = None
+    effort_limit: float | None = None
+    mimic_source: str | None = None
     mimic_multiplier: float = 1.0
     mimic_offset: float = 0.0
-    pitch: float = 0.0
-    # Per-velocity-coordinate joint dynamics (URDF ``<dynamics>``, MJCF ``armature``/``frictionloss``/``damping``).
     damping: float = 0.0
-    friction: float = 0.0
     armature: float = 0.0
-    # Programmatic-builder payload only. File parsers leave this as ``None``;
-    # it is intentionally outside the parser-IR serialization contract.
-    joint_model: Optional[JointModel] = field(
-        default=None,
-        repr=False,
-        compare=False,
-    )
 
 
 @final
@@ -64,7 +54,7 @@ class IRShape:
 
 @dataclass
 class IRBody:
-    """A rigid body in the intermediate representation."""
+    """A rigid body: ``mass`` in kg, ``com (3,)`` and ``inertia (3, 3)`` about the centre of mass, in the body frame."""
 
     name: str
     mass: float = 0.0
@@ -74,17 +64,16 @@ class IRBody:
 
 @dataclass
 class IRFrame:
-    """A named operational / sensor frame attached to a body."""
+    """A named frame placed by ``placement (7,)`` on the body ``parent_body``."""
 
     name: str
     parent_body: str
     placement: torch.Tensor
-    frame_type: str = "op"
 
 
 @dataclass
 class IRModel:
-    """Flat, unordered intermediate representation of a robot."""
+    """Flat, unordered intermediate representation of a robot; ``gravity (6,)`` is the world's spatial acceleration."""
 
     name: str
     bodies: list[IRBody]

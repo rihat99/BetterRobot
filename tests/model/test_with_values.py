@@ -25,15 +25,15 @@ def _model(dtype: torch.dtype = torch.float32):
     builder = ModelBuilder("with_values")
     builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
     builder.add_body("link", mass=2.0, com=torch.tensor([0.1, 0.0, 0.0]), inertia=torch.eye(3) * 0.2)
-    builder.add_revolute_z(
-        "joint",
+    builder.add_revolute(
+        "joint", axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link",
         origin=_pose(0.5),
         lower=-1.0,
         upper=1.0,
     )
-    builder.add_frame("tip", parent_body="link", placement=_pose(0.25))
+    builder.add_frame("tip", parent="link", placement=_pose(0.25))
     return build_model(builder.finalize(), dtype=dtype)
 
 

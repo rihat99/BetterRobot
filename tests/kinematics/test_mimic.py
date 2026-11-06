@@ -16,16 +16,16 @@ def _model_pair():
     root = builder.add_body("root")
     first = builder.add_body("first")
     second = builder.add_body("second")
-    builder.add_revolute_z(
-        "source",
+    builder.add_revolute(
+        "source", axis=(0.0, 0.0, 1.0),
         parent=root,
         child=first,
         origin=torch.tensor([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
         lower=-1.0,
         upper=1.0,
     )
-    builder.add_revolute_z(
-        "target",
+    builder.add_revolute(
+        "target", axis=(0.0, 0.0, 1.0),
         parent=first,
         child=second,
         origin=torch.tensor([0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),

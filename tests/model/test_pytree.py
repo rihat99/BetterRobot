@@ -19,16 +19,16 @@ def _arm() -> Model:
     builder.add_body("base", mass=1.0)
     builder.add_body("upper", mass=1.0)
     builder.add_body("hand", mass=0.5)
-    builder.add_revolute_z("shoulder", parent="base", child="upper", lower=-1.0, upper=1.0)
-    builder.add_revolute_y(
-        "elbow",
+    builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="upper", lower=-1.0, upper=1.0)
+    builder.add_revolute(
+        "elbow", axis=(0.0, 1.0, 0.0),
         parent="upper",
         child="hand",
         origin=torch.tensor([0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 1.0]),
         lower=-1.0,
         upper=1.0,
     )
-    builder.add_frame("tip", parent_body="hand", placement=torch.tensor([0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0]))
+    builder.add_frame("tip", parent="hand", placement=torch.tensor([0.0, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0]))
     return build_model(builder.finalize(), dtype=torch.float64)
 
 

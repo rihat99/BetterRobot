@@ -1,4 +1,4 @@
-"""Every programmatic joint-builder path builds a model that runs FK."""
+"""Every ``ModelBuilder`` joint path builds a model that runs FK; a bad kind or axis fails at the call."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import ClassVar, final
 import pytest
 import torch
 
+from better_robot.exceptions import ArgumentError
 from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics import forward_kinematics
 from better_robot.lie import se3
@@ -58,18 +59,12 @@ def _axis(*xyz: float) -> tuple[float, float, float]:
             JointRevoluteUnbounded(axis=(0.0, 0.0, 1.0)),
             id="continuous",
         ),
-        pytest.param("add_revolute_x", {}, JointRevolute(axis=(1.0, 0.0, 0.0)), id="revolute_x"),
-        pytest.param("add_revolute_y", {}, JointRevolute(axis=(0.0, 1.0, 0.0)), id="revolute_y"),
-        pytest.param("add_revolute_z", {}, JointRevolute(axis=(0.0, 0.0, 1.0)), id="revolute_z"),
         pytest.param(
             "add_prismatic",
             {"axis": torch.tensor([0.7071068, 0.7071068, 0.0])},
             JointPrismatic(axis=_axis(0.7071068, 0.7071068, 0.0)),
             id="prismatic",
         ),
-        pytest.param("add_prismatic_x", {}, JointPrismatic(axis=(1.0, 0.0, 0.0)), id="prismatic_x"),
-        pytest.param("add_prismatic_y", {}, JointPrismatic(axis=(0.0, 1.0, 0.0)), id="prismatic_y"),
-        pytest.param("add_prismatic_z", {}, JointPrismatic(axis=(0.0, 0.0, 1.0)), id="prismatic_z"),
         pytest.param("add_spherical", {}, JointSpherical(), id="spherical"),
         pytest.param("add_planar", {}, JointPlanar(), id="planar"),
         pytest.param(
@@ -153,6 +148,13 @@ def test_joint_model_instances_round_trip_and_run_fk(factory: Callable[[], Joint
 
     assert model.joints[2] is joint_model
     _assert_fk_runs(model)
+
+
+def test_add_joint_takes_a_kind_instance_only():
+    builder = ModelBuilder("string_kind")
+    base, tip = builder.add_body("base"), builder.add_body("tip")
+    with pytest.raises(ArgumentError, match="JointModel"):
+        builder.add_joint("joint", kind="revolute", parent=base, child=tip)
 
 
 def test_custom_kind_runs_through_fk():

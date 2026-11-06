@@ -142,10 +142,11 @@ def _every_axis_kind_model(translation: float = 1.0) -> br.Model:
     every joint placement rotated (its translation drawn from N(0, ``translation``^2) per coordinate)."""
     builder = br.ModelBuilder("axes")
     parent = builder.add_body("base")
+    x, y, z = {"axis": (1.0, 0.0, 0.0)}, {"axis": (0.0, 1.0, 0.0)}, {"axis": (0.0, 0.0, 1.0)}
     oblique = {"axis": torch.tensor([1.0, 2.0, 2.0]) / 3.0}
     joints = [
-        ("add_revolute_x", {}), ("add_revolute_y", {}), ("add_revolute_z", {}), ("add_revolute", oblique),
-        ("add_prismatic_x", {}), ("add_prismatic_y", {}), ("add_prismatic_z", {}), ("add_prismatic", oblique),
+        ("add_revolute", x), ("add_revolute", y), ("add_revolute", z), ("add_revolute", oblique),
+        ("add_prismatic", x), ("add_prismatic", y), ("add_prismatic", z), ("add_prismatic", oblique),
     ]  # fmt: skip
     for index, (method, kwargs) in enumerate(joints):
         child = builder.add_body(f"link{index}", mass=1.0)
@@ -363,7 +364,7 @@ def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images()
         builder.add_body(name, mass=1.0)
     for side, sign in (("left", 1.0), ("right", -1.0)):
         origin = torch.tensor([0.0, 0.1 * sign, -0.1, 0.0, 0.0, 0.0, 1.0])
-        builder.add_revolute_y(f"{side}_pitch", parent="pelvis", child=f"{side}_upper", origin=origin,
+        builder.add_revolute(f"{side}_pitch", axis=(0.0, 1.0, 0.0), parent="pelvis", child=f"{side}_upper", origin=origin,
                                effort_limit=10.0)  # fmt: skip
         builder.add_revolute(f"{side}_roll", parent=f"{side}_upper", child=f"{side}_lower",
                              axis=torch.tensor([sign, 0.0, 0.0]), effort_limit=10.0)  # fmt: skip
@@ -425,9 +426,9 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     builder = br.ModelBuilder("arm")
     base, upper, hand = (builder.add_body(name, mass=1.0) for name in ("base", "upper", "hand"))
     origin = torch.from_numpy(_random_poses((), seed=1))
-    builder.add_revolute_y("shoulder", parent=base, child=upper, effort_limit=10.0)
-    builder.add_revolute_x("wrist", parent=upper, child=hand, origin=origin, effort_limit=10.0)
-    builder.add_frame("palm", parent_body=hand, placement=torch.from_numpy(_random_poses((), seed=2)))
+    builder.add_revolute("shoulder", axis=(0.0, 1.0, 0.0), parent=base, child=upper, effort_limit=10.0)
+    builder.add_revolute("wrist", axis=(1.0, 0.0, 0.0), parent=upper, child=hand, origin=origin, effort_limit=10.0)
+    builder.add_frame("palm", parent=hand, placement=torch.from_numpy(_random_poses((), seed=2)))
     model = br.load(builder.finalize, dtype=torch.float64)
     q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2)])
     state = br.forward_kinematics(model, q)

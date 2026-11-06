@@ -15,8 +15,8 @@ def build_pendulum() -> br.Model:
         com=torch.tensor([0.3, 0.0, 0.0]),
         inertia=torch.diag(torch.tensor([0.2, 0.3, 0.4])),
     )
-    builder.add_revolute_y(
-        "shoulder",
+    builder.add_revolute(
+        "shoulder", axis=(0.0, 1.0, 0.0),
         parent="base",
         child="link",
         origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),

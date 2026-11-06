@@ -37,10 +37,10 @@ def _mixed_kind_model() -> "object":
     for body in ("base", "l1", "l2", "l3", "l4"):
         builder.add_body(body, mass=1.0)
     builder.add_free_flyer_root("ff", child="base")
-    builder.add_revolute_z("rev_z", parent="base", child="l1", origin=_pose(0.1, 0.0, 0.05))
-    builder.add_prismatic_x("pris_x", parent="l1", child="l2", origin=_pose(0.1, 0.0, 0.0))
+    builder.add_revolute("rev_z", axis=(0.0, 0.0, 1.0), parent="base", child="l1", origin=_pose(0.1, 0.0, 0.05))
+    builder.add_prismatic("pris_x", axis=(1.0, 0.0, 0.0), parent="l1", child="l2", origin=_pose(0.1, 0.0, 0.0))
     builder.add_spherical("sph", parent="l2", child="l3", origin=_pose(0.1, 0.0, 0.0))
-    builder.add_revolute_y("rev_y", parent="l3", child="l4", origin=_pose(0.1, 0.0, 0.0))
+    builder.add_revolute("rev_y", axis=(0.0, 1.0, 0.0), parent="l3", child="l4", origin=_pose(0.1, 0.0, 0.0))
     return build_model(builder.finalize())
 
 
@@ -56,8 +56,8 @@ def test_matrix_fk_matches_hand_computed_two_link_chain() -> None:
     builder = ModelBuilder("two_link")
     for body in ("root", "link1", "link2"):
         builder.add_body(body, mass=1.0)
-    builder.add_revolute_z("j1", parent="root", child="link1", origin=_pose(0.2, 0.0, 0.0))
-    builder.add_revolute_z("j2", parent="link1", child="link2", origin=_pose(0.3, 0.0, 0.0))
+    builder.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="root", child="link1", origin=_pose(0.2, 0.0, 0.0))
+    builder.add_revolute("j2", axis=(0.0, 0.0, 1.0), parent="link1", child="link2", origin=_pose(0.3, 0.0, 0.0))
     model = build_model(builder.finalize())
 
     theta1, theta2 = 0.5, -0.7

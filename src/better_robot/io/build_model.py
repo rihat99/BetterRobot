@@ -250,64 +250,6 @@ def _build_mimic_reduction(  # noqa: PLR0912, PLR0913, PLR0915 - one build-time 
     )
 
 
-_ALIGNED_AXES = {
-    "revolute_rx": (1.0, 0.0, 0.0),
-    "revolute_ry": (0.0, 1.0, 0.0),
-    "revolute_rz": (0.0, 0.0, 1.0),
-    "prismatic_px": (1.0, 0.0, 0.0),
-    "prismatic_py": (0.0, 1.0, 0.0),
-    "prismatic_pz": (0.0, 0.0, 1.0),
-}
-_REVOLUTE_KINDS = {"revolute", "revolute_rx", "revolute_ry", "revolute_rz", "revolute_unaligned"}
-_PRISMATIC_KINDS = {"prismatic", "prismatic_px", "prismatic_py", "prismatic_pz", "prismatic_unaligned"}
-
-
-def _joint_axis(ir_joint: IRJoint, default: tuple[float, float, float] | None) -> tuple[float, float, float]:
-    """The axis of an IR joint as a tuple: implied by an aligned kind, else the IR axis, else ``default``."""
-    if ir_joint.kind in _ALIGNED_AXES:
-        return _ALIGNED_AXES[ir_joint.kind]
-    if ir_joint.axis is not None:
-        x, y, z = ir_joint.axis.tolist()
-        return (float(x), float(y), float(z))
-    if default is None:
-        raise ModelError(f"Joint {ir_joint.name!r} with kind {ir_joint.kind!r} requires an axis")
-    return default
-
-
-def _kind_to_joint_model(ir_joint: IRJoint) -> JointModel:  # noqa: PLR0911
-    """Select a joint kind from an ``IRJoint`` (the kind strings and their aliases stay until R6 rewrites io)."""
-    kind = ir_joint.kind
-    if ir_joint.joint_model is not None:
-        if not isinstance(ir_joint.joint_model, JointModel):
-            raise ModelError(f"joint_model payload for joint {ir_joint.name!r} is not a JointModel")
-        return ir_joint.joint_model
-    if kind == "mimic":
-        raise NotImplementedError(
-            f"Joint {ir_joint.name!r} uses the zero-DOF mimic kind, which is "
-            "missing the target's concrete motion semantics. Use a supported "
-            "scalar revolute, prismatic, or helical kind with mimic_source."
-        )
-    if kind in ("universe", "fixed", "world"):
-        return JointFixed()
-    if kind in _REVOLUTE_KINDS:
-        return JointRevolute(axis=_joint_axis(ir_joint, None if kind == "revolute_unaligned" else (1.0, 0.0, 0.0)))
-    if kind in ("continuous", "revolute_unbounded"):
-        return JointRevoluteUnbounded(axis=_joint_axis(ir_joint, (0.0, 0.0, 1.0)))
-    if kind in _PRISMATIC_KINDS:
-        return JointPrismatic(axis=_joint_axis(ir_joint, None if kind == "prismatic_unaligned" else (1.0, 0.0, 0.0)))
-    if kind in ("spherical", "ball"):
-        return JointSpherical()
-    if kind in ("free_flyer", "free", "floating"):
-        return JointFreeFlyer()
-    if kind == "planar":
-        return JointPlanar()
-    if kind == "translation":
-        return JointTranslation()
-    if kind == "helical":
-        return JointHelical(axis=_joint_axis(ir_joint, (0.0, 0.0, 1.0)), pitch=float(ir_joint.pitch))
-    raise ModelError(f"Unknown joint kind {kind!r} for joint {ir_joint.name!r}")
-
-
 def _pack_inertia(ir_body: IRBody, dtype: torch.dtype) -> torch.Tensor:
     """Pack ``IRBody`` inertia into [m, cx,cy,cz, Ixx,Iyy,Izz,Ixy,Ixz,Iyz]."""
     m = torch.tensor([float(ir_body.mass)], dtype=dtype)
@@ -415,7 +357,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     2.  Resolve mimic chains to each joint's public root, total multiplier and offset.
     3.  Topologically sort joints so parents precede children.
     4.  Assign ``idx_q``/``idx_v`` by accumulating ``nq_i``/``nv_i``.
-    5.  Select concrete ``JointModel`` instances from ``IRJoint.kind`` + axis.
+    5.  Take each joint's ``JointModel`` from its ``IRJoint.joint``.
     6.  Pack per-joint limits, armature and damping.
     7.  Pack per-body inertias into the 10-vector form.
     8.  Build frames (including ``body_<name>`` defaults).
@@ -424,7 +366,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     **World-sentinel convention**: an ``IRJoint`` with ``parent_body="world"``
     signals that the joint connects to the universe (joint 0) directly.  That
     joint becomes model joint 1.  A synthetic ``JointFixed`` is *not* inserted;
-    the IR joint's ``kind`` is used instead (unless ``root_joint`` overrides
+    the IR joint's ``joint`` is used instead (unless ``root_joint`` overrides
     it).  This lets programmatic builders embed a ``JointFreeFlyer`` root
     without extra ``load(…, free_flyer=True)`` kwargs.
 
@@ -450,7 +392,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
         root_body = world_ir_joint.child_body
 
         # Root joint model: IR kind OR user-supplied override
-        _root_jm: JointModel = root_joint if root_joint is not None else _kind_to_joint_model(world_ir_joint)
+        _root_jm: JointModel = root_joint if root_joint is not None else world_ir_joint.joint
         _root_placement = world_ir_joint.origin.to(dtype=dtype)
         _root_name = world_ir_joint.name
 
@@ -511,7 +453,7 @@ def build_model(  # noqa: PLR0912, PLR0915 - one audited IR packing boundary
     # ── 7. Joint models ───────────────────────────────────────────────────────
     joint_models_list: list[JointModel] = [JointFixed(), _root_jm]
     for ir_ji in sorted_ir_indices:
-        joint_models_list.append(_kind_to_joint_model(ir.joints[ir_ji]))
+        joint_models_list.append(ir.joints[ir_ji].joint)
     joint_models = tuple(joint_models_list)
 
     # ── 8. idx_q / idx_v ─────────────────────────────────────────────────────

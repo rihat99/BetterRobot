@@ -14,10 +14,10 @@ selects a `JointFreeFlyer` root; `root_joint=` is the general form.
 `preserve_joint_order=True` keeps an already-topological source order through a
 stable Kahn sort; the default retains the established DFS order.
 
-`ModelBuilder` and file parsers meet at the IR boundary. Programmatic custom
-joint objects may use the builder's opaque payload, but file formats must use
-serializable joint fields. Mimic tags stay on supported concrete scalar joints
-and are resolved centrally by `build_model`.
+`ModelBuilder` and file parsers meet at the IR boundary: every `IRJoint`
+carries its `JointModel` (`ModelBuilder.add_joint(kind=)` takes any instance).
+Mimic tags stay on supported concrete scalar joints and are resolved centrally
+by `build_model`.
 
 For a new format, write a function returning `IRModel` and pass its result to
 `build_model`; there is no registry, and model construction does not change.

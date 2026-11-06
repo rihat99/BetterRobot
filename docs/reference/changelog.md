@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Io: one `ModelBuilder` (record 0015): `add_revolute(name, *, parent, child, axis, ...)` and `add_prismatic(..., axis=)`
+  take the axis as a unit 3-vector and build the joint kind at the call (a bad axis fails there); `add_frame(name, *,
+  parent, placement)`; `add_joint(name, *, kind=<JointModel>, ...)` takes a kind instance only (`ArgumentError` for a
+  string). Gone: `add_revolute_x/y/z`, `add_prismatic_x/y/z`, `parent_body=`, `frame_type`, the legacy kind table,
+  `io.builders` (`build_kinematic_tree_body/model`: write the loop with `ModelBuilder`, as `examples/07_branching_tree_body.py`
+  does). `IRJoint` carries its kind as `joint: JointModel` (was a `kind` string with `axis`, `pitch` and a `joint_model`
+  payload); `friction` is dropped (`Model` has no reader); the parsers build the joint objects. The builder raises
+  `ModelError` (duplicate name, root count) and `UnknownNameError` (frame or shape on an unknown body).
 - Tests: `tests/contract/test_no_probing.py` (records 0022, 0036, 0037): no literal-name `getattr` and no `hasattr` in
   `src`, and a layer's `_visible`/`_handles` are reached in `src/better_robot/viewer/layer.py` only; today's remaining sites sit in
   `tests/contract/ratchets/probing.json` (optim, viewer), which only shrinks.

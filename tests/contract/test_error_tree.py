@@ -112,8 +112,8 @@ def arm_model():
     builder = ModelBuilder("arm")
     builder.add_body("base", mass=0.5)
     builder.add_body("link1", mass=1.0)
-    builder.add_revolute_z(
-        "j1",
+    builder.add_revolute(
+        "j1", axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -129,8 +129,8 @@ def free_flyer_model():
     builder.add_body("base", mass=1.0)
     builder.add_body("link1", mass=0.5)
     builder.add_free_flyer_root("floating", child="base", origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]))
-    builder.add_revolute_z(
-        "j1",
+    builder.add_revolute(
+        "j1", axis=(0.0, 0.0, 1.0),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),

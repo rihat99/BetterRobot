@@ -59,7 +59,6 @@ contract test reports both missing source files and stale documentation
 entries.
 
 <!-- not-implemented-inventory:start -->
-- `src/better_robot/io/build_model.py`
 <!-- not-implemented-inventory:end -->
 
 ## Current limits

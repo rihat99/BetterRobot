@@ -24,9 +24,9 @@ def _model():
     builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
     builder.add_body("link", mass=2.0, inertia=torch.eye(3) * 0.2)
     builder.add_body("tip_link", mass=0.5, inertia=torch.eye(3) * 0.05)
-    builder.add_revolute_z("shoulder", parent="base", child="link", origin=_pose(0.5), lower=-2.0, upper=2.0)
-    builder.add_revolute_y("elbow", parent="link", child="tip_link", origin=_pose(0.4), lower=-2.0, upper=2.0)
-    builder.add_frame("tip", parent_body="tip_link", placement=_pose(0.3))
+    builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="link", origin=_pose(0.5), lower=-2.0, upper=2.0)
+    builder.add_revolute("elbow", axis=(0.0, 1.0, 0.0), parent="link", child="tip_link", origin=_pose(0.4), lower=-2.0, upper=2.0)
+    builder.add_frame("tip", parent="tip_link", placement=_pose(0.3))
     return build_model(builder.finalize(), dtype=torch.float64)
 
 

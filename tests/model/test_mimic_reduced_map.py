@@ -26,8 +26,8 @@ def _mimic_ir(*, multiplier: float = -2.0, offset: float = 0.25):
     root = builder.add_body("root", mass=1.0, inertia=torch.eye(3))
     source = builder.add_body("source", mass=1.0, inertia=torch.eye(3))
     target = builder.add_body("target", mass=1.0, inertia=torch.eye(3))
-    builder.add_revolute_z(
-        "source_joint",
+    builder.add_revolute(
+        "source_joint", axis=(0.0, 0.0, 1.0),
         parent=root,
         child=source,
         origin=_IDENTITY,
@@ -36,8 +36,8 @@ def _mimic_ir(*, multiplier: float = -2.0, offset: float = 0.25):
         velocity_limit=3.0,
         effort_limit=5.0,
     )
-    builder.add_revolute_z(
-        "target_joint",
+    builder.add_revolute(
+        "target_joint", axis=(0.0, 0.0, 1.0),
         parent=source,
         child=target,
         origin=torch.tensor([0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
@@ -133,9 +133,9 @@ def test_mimic_chains_resolve_to_the_public_root_with_composed_multiplier_and_of
     a = builder.add_body("a")
     b = builder.add_body("b")
     c = builder.add_body("c")
-    builder.add_revolute_z("a_joint", parent=root, child=a, lower=-2.0, upper=2.0)
-    builder.add_revolute_z(
-        "b_joint",
+    builder.add_revolute("a_joint", axis=(0.0, 0.0, 1.0), parent=root, child=a, lower=-2.0, upper=2.0)
+    builder.add_revolute(
+        "b_joint", axis=(0.0, 0.0, 1.0),
         parent=a,
         child=b,
         lower=-10.0,
@@ -144,8 +144,8 @@ def test_mimic_chains_resolve_to_the_public_root_with_composed_multiplier_and_of
         mimic_multiplier=-2.0,
         mimic_offset=0.25,
     )
-    builder.add_revolute_z(
-        "c_joint",
+    builder.add_revolute(
+        "c_joint", axis=(0.0, 0.0, 1.0),
         parent=b,
         child=c,
         lower=-10.0,
@@ -171,8 +171,8 @@ def test_cycles_and_unsupported_manifold_mimics_fail_at_build() -> None:
     root = cycle.add_body("root")
     a = cycle.add_body("a")
     b = cycle.add_body("b")
-    cycle.add_revolute_z("a_joint", parent=root, child=a, mimic_source="b_joint")
-    cycle.add_revolute_z("b_joint", parent=root, child=b, mimic_source="a_joint")
+    cycle.add_revolute("a_joint", axis=(0.0, 0.0, 1.0), parent=root, child=a, mimic_source="b_joint")
+    cycle.add_revolute("b_joint", axis=(0.0, 0.0, 1.0), parent=root, child=b, mimic_source="a_joint")
     with pytest.raises(ModelError, match="cycle"):
         build_model(cycle.finalize())
 
@@ -180,8 +180,7 @@ def test_cycles_and_unsupported_manifold_mimics_fail_at_build() -> None:
     target_index = next(i for i, joint in enumerate(ir.joints) if joint.name == "target_joint")
     ir.joints[target_index] = dataclasses.replace(
         ir.joints[target_index],
-        kind="spherical",
-        joint_model=JointSpherical(),
+        joint=JointSpherical(),
     )
     with pytest.raises(ModelError, match="scalar Euclidean"):
         build_model(ir)

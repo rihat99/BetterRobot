@@ -22,8 +22,8 @@ def _two_link():
     base = builder.add_body("base")
     link1 = builder.add_body("link1")
     link2 = builder.add_body("link2")
-    builder.add_revolute_z("j1", parent=base, child=link1)
-    builder.add_revolute_z("j2", parent=link1, child=link2)
+    builder.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent=base, child=link1)
+    builder.add_revolute("j2", axis=(0.0, 0.0, 1.0), parent=link1, child=link2)
     return build_model(builder.finalize(), dtype=torch.float64)
 
 

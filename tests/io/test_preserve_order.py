@@ -6,11 +6,9 @@ import torch
 
 import better_robot as br
 from better_robot.io import ModelBuilder, build_model, load
-from better_robot.io.builders.kinematic_tree import build_kinematic_tree_model
 
 from tests.support.branching_tree import (
     JOINT_NAMES,
-    PARENTS,
     make_branching_tree_body,
     make_branching_tree_model,
 )
@@ -121,10 +119,10 @@ def test_stable_kahn_repairs_non_topological_input_deterministically():
         builder.add_body(body)
 
     # Deliberately place a child before its parent in the flat IR.
-    builder.add_revolute_z("left_tip", parent="left", child="left_tip")
-    builder.add_revolute_z("right", parent="base", child="right")
-    builder.add_revolute_z("left", parent="base", child="left")
-    builder.add_revolute_z("right_tip", parent="right", child="right_tip")
+    builder.add_revolute("left_tip", axis=(0.0, 0.0, 1.0), parent="left", child="left_tip")
+    builder.add_revolute("right", axis=(0.0, 0.0, 1.0), parent="base", child="right")
+    builder.add_revolute("left", axis=(0.0, 0.0, 1.0), parent="base", child="left")
+    builder.add_revolute("right_tip", axis=(0.0, 0.0, 1.0), parent="right", child="right_tip")
 
     model = build_model(builder.finalize(), preserve_joint_order=True)
     assert model.joint_names == (
@@ -137,18 +135,10 @@ def test_stable_kahn_repairs_non_topological_input_deterministically():
     )
 
 
-def test_preserve_order_threads_through_load_and_public_model_builders():
+def test_preserve_order_threads_through_load_and_the_fixture_builder():
     loaded = load(make_branching_tree_body, preserve_joint_order=True)
     fixture_model = make_branching_tree_model(preserve_joint_order=True)
-    tree_model = build_kinematic_tree_model(
-        name="tree",
-        joint_names=JOINT_NAMES,
-        parents=PARENTS,
-        translations=torch.zeros(len(JOINT_NAMES), 3),
-        preserve_joint_order=True,
-    )
 
     expected = ("root", *JOINT_NAMES[1:])
     assert loaded.joint_names[1:] == expected
     assert fixture_model.joint_names[1:] == expected
-    assert tree_model.joint_names[1:] == expected
