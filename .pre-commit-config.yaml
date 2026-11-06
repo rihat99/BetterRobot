@@ -1,16 +1,30 @@
+# Each hook runs one of the repository's own commands (docs/contributing/testing.md). Not installed by default;
+# `uv run pre-commit install` installs both stages.
+default_install_hook_types: [pre-commit, pre-push]
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-
   - repo: local
     hooks:
-      - id: contract-fast
-        name: Fast contract subset (layer + naming + public API)
-        entry: uv run pytest tests/contract/test_layer_dependencies.py tests/contract/test_public_api.py tests/contract/test_pluggable_protocols.py -q
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check
+        language: system
+        types: [python]
+        stages: [pre-commit]
+      - id: ruff-format
+        name: ruff format --check
+        entry: uv run ruff format --check
+        language: system
+        types: [python]
+        stages: [pre-commit]
+      - id: fast-tier
+        name: fast tier (tests/contract, not slow)
+        entry: uv run pytest tests/contract -q -m "not slow"
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: full-tier
+        name: full tier (all but cuda and bench)
+        entry: uv run pytest tests -q -m "not bench and not cuda"
         language: system
         pass_filenames: false
         stages: [pre-push]
