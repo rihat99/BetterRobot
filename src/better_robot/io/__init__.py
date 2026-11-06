@@ -18,6 +18,7 @@ from ..model.joints import JointModel
 from ..model.model import Model
 from .build_geometry import build_geometry
 from .build_model import build_model
+from .builder import ModelBuilder
 from .ir import (
     IRBody,
     IRFrame,
@@ -25,7 +26,8 @@ from .ir import (
     IRModel,
     IRShape,
 )
-from .parsers import ModelBuilder, parse_mjcf, parse_urdf
+from .parser_mjcf import parse_mjcf
+from .parser_urdf import parse_urdf
 
 
 def _parser(path: str | Path, format: str) -> Callable[[str | Path], IRModel]:
