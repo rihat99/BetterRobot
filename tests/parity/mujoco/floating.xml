@@ -1,0 +1,19 @@
+<mujoco model="floating_cases">
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="torso" pos="0 0 1" euler="0 0.3 0">
+      <freejoint name="root"/>
+      <inertial pos="0 0 0.1" mass="3" diaginertia="0.1 0.2 0.3"/>
+      <geom type="box" size="0.1 0.1 0.2"/>
+      <body name="head" pos="0 0 0.4">
+        <joint name="neck" type="ball" pos="0 0 -0.05"/>
+        <geom type="sphere" size="0.1"/>
+        <site name="eye" pos="0.1 0 0" quat="0.7071 0 0.7071 0"/>
+      </body>
+      <body name="arm" pos="0.2 0 0.3" quat="0.7071 0.7071 0 0">
+        <joint name="shoulder" type="hinge" axis="0 0 1" range="-1 1"/>
+        <geom type="capsule" fromto="0 0 0 0.3 0 0" size="0.03"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

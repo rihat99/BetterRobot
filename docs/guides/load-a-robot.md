@@ -28,8 +28,11 @@ Any URDF path on disk works the same way.
 
 ## Load an MJCF file
 
-MJCF parsing goes through MuJoCo's own compiler, so it needs the `io-mjcf` extra
-(`pip install "better-robot[io-mjcf]"`). Without it, `load` raises `OptionalDependencyError`.
+MuJoCo compiles the file and `load` reads the compiled model, so body placements, joint ranges in the
+file's angle unit, `limited="auto"` and `euler`/`axisangle` orientations come out as MuJoCo computes them
+(`tests/parity/mujoco/` checks them against `mj_kinematics`). It needs the `mjcf` extra
+(`pip install "better-robot[mjcf]"`); without it, `load` raises `OptionalDependencyError`. A body carries
+at most one joint, and names are required on every body, joint and site.
 
 ```python { .no-run }
 model = br.load("scene.xml")              # .xml / .mjcf picks the MJCF parser

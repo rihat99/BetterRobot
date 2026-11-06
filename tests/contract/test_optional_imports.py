@@ -29,7 +29,7 @@ IMPORTERS: dict[str, set[str]] = {
     "numpy": {"io", "viewer"},
     "yourdfpy": {"io"},
     "viser": {"viewer"},  # extra viewer
-    "mujoco": {"io"},  # extra io-mjcf
+    "mujoco": {"io"},  # extra mjcf
     "trimesh": {"viewer"},  # extra meshes
     "robot_descriptions": set(),  # extra demos: the examples and docs load robots with it
 }

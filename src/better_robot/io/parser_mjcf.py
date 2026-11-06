@@ -1,289 +1,164 @@
-"""MJCF parser — ``mujoco.MjSpec``-backed, emits an ``IRModel``.
+"""MJCF parser: MuJoCo compiles the file and ``parse_mjcf`` reads the compiled ``MjModel`` (record 0036).
 
-MJCF has strictly richer joint syntax than URDF — ball joints, free joints,
-sites — so the MJCF parser fills more of the IR than the URDF parser.
-``mujoco`` is imported lazily so ``import better_robot`` does not require
-it.
+MuJoCo resolves defaults, units (``compiler angle="degree"``), ``limited="auto"``, ``euler`` and ``axisangle``
+orientations, ``fromto`` geoms and geom-derived inertias, so nothing here re-implements them. Oracle:
+``tests/parity/mujoco/test_mjcf_kinematics.py`` compares body poses, site frames and limits with ``mj_kinematics``.
 
-Covered: bodies, joints (hinge/slide/ball/free), sites (→ frames). A joint
-axis is normalised here (a file may carry one of any length); the joint
-kinds themselves accept unit axes only.
-Not covered (deferred to future work): mesh loading, tendons, actuators.
-
-Experimental: the parser reads the uncompiled ``MjSpec``, so known gaps
-remain. A jointed body's own ``pos``/``quat`` is dropped (only ``jnt.pos``
-is used); joint ``range`` is not converted from degrees under the default
-``compiler angle="degree"``; ``limited="auto"`` is read as limited;
-inertia ignores ``iquat``/``fullinertia`` and geom-derived mass;
-``euler``/``axisangle``/``xyaxes``/``zaxis`` orientations are ignored;
-geom ``fromto`` is read for capsules and cylinders only.
-Check MJCF-loaded kinematics against MuJoCo before relying on them.
-
-See ``docs/concepts/parsers_and_ir.md §5``.
+MuJoCo moves a body about ``jnt_pos``, a point of the body frame; BetterRobot moves a body about its joint frame's
+origin. A body's joint frame is therefore its MuJoCo body frame translated by ``jnt_pos``, and every quantity
+MuJoCo gives in the body frame (centre of mass, sites, geoms, child body positions) is shifted by ``-jnt_pos``.
+A body carries at most one joint (a chain of joints in one body needs a body per joint); a body without a joint is
+attached by a fixed joint named after the body; geoms of the world body are scenery, not robot geometry, and are
+not read. ``mujoco`` is imported here only (extra ``mjcf``).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from types import ModuleType
+from typing import Any
 
 import numpy as np
 import torch
 
-from ...exceptions import OptionalDependencyError
-from ..ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
-
-if TYPE_CHECKING:
-    from ..assets import AssetResolver
+from ..exceptions import ModelError, OptionalDependencyError
+from ..lie import se3, so3
+from .ir import IRBody, IRFrame, IRGeom, IRJoint, IRModel
 
 
-def _scalar_attr(element: object, name: str) -> float:
-    """Return a scalar MJCF attribute as ``float``; absent or ``None`` means the MuJoCo default ``0``."""
-    value = getattr(element, name, None)
-    return 0.0 if value is None else float(np.asarray(value, dtype=np.float64).reshape(-1)[0])
+def _pose(position: np.ndarray, quaternion_wxyz: np.ndarray) -> torch.Tensor:
+    """MuJoCo ``pos (3,)`` and ``quat (w, x, y, z)`` as one pose ``(7,)`` ``[t, qx, qy, qz, qw]`` in float64."""
+    w, x, y, z = (float(value) for value in quaternion_wxyz)
+    return torch.tensor([*position.tolist(), x, y, z, w], dtype=torch.float64)
 
 
-def _pos_quat_to_se3(pos: np.ndarray | None, quat: np.ndarray | None) -> torch.Tensor:
-    """Convert MuJoCo pos (3,) + quat (w,x,y,z) to [tx,ty,tz,qx,qy,qz,qw]."""
-    if pos is None:
-        t = torch.zeros(3)
-    else:
-        t = torch.tensor(pos[:3].astype(np.float64))
-
-    if quat is None:
-        q = torch.tensor([0.0, 0.0, 0.0, 1.0])
-    else:
-        # MuJoCo quat convention is (w, x, y, z) — convert to (x,y,z,w)
-        w, x, y, z = float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3])
-        q = torch.tensor([x, y, z, w])
-
-    return torch.cat([t, q])
+def _named(element: Any, kind: str, index: int, path: Path) -> str:
+    """The name of ``element``, the ``index``-th ``kind``; an unnamed body, joint or site is an error (names are the API)."""
+    if not element.name:
+        raise ModelError(f"{path}: {kind} {index} has no name; name every body, joint and site")
+    return element.name
 
 
-def _fromto_frame(fromto: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
-    """Centre ``(3,)``, quat ``(4,)`` (w, x, y, z) and half-length of a capsule or cylinder ``fromto (6,)``.
+def _joint(mujoco: ModuleType, compiled: Any, body: int, path: Path) -> IRJoint | None:
+    """The one joint moving ``body`` relative to its parent, or ``None`` for a fixed attachment."""
+    count = int(compiled.body_jntnum[body])
+    name = _named(compiled.body(body), "body", body, path)
+    if count > 1:
+        raise ModelError(f"{path}: body {name!r} has {count} joints; BetterRobot takes one joint per body")
+    if count == 0:
+        return None
+    joint = int(compiled.body_jntadr[body])
+    joint_type = compiled.jnt_type[joint]
+    kinds = {
+        mujoco.mjtJoint.mjJNT_HINGE: "revolute",
+        mujoco.mjtJoint.mjJNT_SLIDE: "prismatic",
+        mujoco.mjtJoint.mjJNT_BALL: "spherical",
+        mujoco.mjtJoint.mjJNT_FREE: "free_flyer",
+    }
+    scalar = joint_type in (mujoco.mjtJoint.mjJNT_HINGE, mujoco.mjtJoint.mjJNT_SLIDE)
+    limited = scalar and bool(compiled.jnt_limited[joint])
+    dof = int(compiled.jnt_dofadr[joint])
+    return IRJoint(
+        name=_named(compiled.joint(joint), "joint", joint, path),
+        parent_body="",  # filled by the caller, which knows the body names
+        child_body=name,
+        kind=kinds[joint_type],
+        axis=torch.tensor(compiled.jnt_axis[joint], dtype=torch.float64) if scalar else None,
+        lower=float(compiled.jnt_range[joint, 0]) if limited else None,
+        upper=float(compiled.jnt_range[joint, 1]) if limited else None,
+        damping=float(compiled.dof_damping[dof]),
+        armature=float(compiled.dof_armature[dof]),
+    )
 
-    As MuJoCo's compiler (``mjuu_z2quat``): the minimal rotation taking +z to ``from - to``, about x when antiparallel.
-    """
-    start, end = fromto[:3], fromto[3:]
-    axis = start - end
-    turn = np.cross([0.0, 0.0, 1.0], axis)
-    sine = float(np.linalg.norm(turn))
-    turn = turn / sine if sine >= 1e-10 else np.array([1.0, 0.0, 0.0])
-    angle = np.arctan2(sine, axis[2])
-    quat = np.concatenate(([np.cos(angle / 2)], np.sin(angle / 2) * turn))
-    return 0.5 * (start + end), quat, 0.5 * float(np.linalg.norm(axis))
+
+def _geoms(mujoco: ModuleType, compiled: Any, spec: Any, body: int, offset: np.ndarray, path: Path) -> list[IRGeom]:
+    """The geoms of ``body`` as IR primitives placed in the body's joint frame."""
+    meshes = {mesh.name: mesh for mesh in spec.meshes}
+    geoms: list[IRGeom] = []
+    for geom in range(compiled.ngeom):
+        if int(compiled.geom_bodyid[geom]) != body:
+            continue
+        geom_type = compiled.geom_type[geom]
+        size = compiled.geom_size[geom]
+        placement = _pose(compiled.geom_pos[geom] - offset, compiled.geom_quat[geom])
+        rgba = tuple(float(value) for value in compiled.geom_rgba[geom])
+        if geom_type == mujoco.mjtGeom.mjGEOM_SPHERE:
+            kind, params = "sphere", {"radius": float(size[0])}
+        elif geom_type == mujoco.mjtGeom.mjGEOM_CAPSULE:
+            kind, params = "capsule", {"radius": float(size[0]), "length": 2.0 * float(size[1])}
+        elif geom_type == mujoco.mjtGeom.mjGEOM_CYLINDER:
+            kind, params = "cylinder", {"radius": float(size[0]), "length": 2.0 * float(size[1])}
+        elif geom_type == mujoco.mjtGeom.mjGEOM_BOX:
+            kind, params = "box", {"size": [2.0 * float(value) for value in size]}
+        elif geom_type == mujoco.mjtGeom.mjGEOM_MESH:
+            mesh = meshes[compiled.mesh(int(compiled.geom_dataid[geom])).name]
+            uri = str(Path(spec.meshdir) / mesh.file) if spec.meshdir else mesh.file
+            kind, params = "mesh", {"path": uri, "scale": [float(value) for value in mesh.scale]}
+        else:
+            body_name = compiled.body(body).name
+            raise ModelError(f"{path}: geom {geom} of body {body_name!r} has type {geom_type!r}, not a shape")
+        geoms.append(IRGeom(kind=kind, params=params, origin=placement, rgba=rgba))
+    return geoms
 
 
-def parse_mjcf(
-    source: str | Path,
-    *,
-    resolver: "AssetResolver | None" = None,
-) -> IRModel:
-    """Parse an MJCF file into an ``IRModel``.
-
-    Requires ``mujoco`` to be installed. Imports lazily so the rest of the
-    library does not depend on it.
-
-    Parameters
-    ----------
-    source : str | Path
-    resolver : AssetResolver, optional
-        Resolves mesh / texture references encountered inside the MJCF.
-        Defaults to a `FilesystemResolver`
-        rooted at the MJCF file's parent directory.
-
-    See docs/concepts/parsers_and_ir.md §5.
-    """
-    if resolver is None:
-        from ..assets import FilesystemResolver
-
-        resolver = FilesystemResolver(base_path=Path(source).parent)
+def parse_mjcf(path: str | Path) -> IRModel:
+    """Parse an MJCF file into an ``IRModel`` through MuJoCo's compiler; raises ``ModelError`` naming the file."""
     try:
-        import mujoco
+        import mujoco  # noqa: PLC0415 - the mjcf extra, imported at its boundary
     except ImportError as exc:
-        raise OptionalDependencyError("mujoco", install="uv sync --extra io-mjcf") from exc
+        raise OptionalDependencyError("mujoco", install="uv sync --extra mjcf") from exc
+    path = Path(path)
+    if not path.is_file():
+        raise ModelError(f"{path}: no such file")
+    try:
+        spec = mujoco.MjSpec.from_file(str(path))
+        compiled = spec.compile()
+    except ValueError as exc:
+        raise ModelError(f"{path}: {exc}") from exc
 
-    source = str(source)
-    spec = mujoco.MjSpec.from_file(source)
+    joints = [None] + [_joint(mujoco, compiled, body, path) for body in range(1, compiled.nbody)]
+    offsets = np.zeros((compiled.nbody, 3))
+    for body, joint in enumerate(joints):
+        if joint is not None and joint.kind != "free_flyer":
+            offsets[body] = compiled.jnt_pos[int(compiled.body_jntadr[body])]
 
-    ir_bodies: list[IRBody] = []
+    bodies: list[IRBody] = []
     ir_joints: list[IRJoint] = []
-    ir_frames: list[IRFrame] = []
-
-    # ── traverse body tree ────────────────────────────────────────────────────
-    def _visit(body: mujoco.MjsBody, parent_name: str | None) -> None:
-        bname = body.name if body.name else f"_body_{len(ir_bodies)}"
-
-        # Inertia
-        mass = float(body.mass) if hasattr(body, "mass") else 0.0
-        pos_inertial = np.array(body.ipos, dtype=np.float64) if hasattr(body, "ipos") else np.zeros(3, np.float64)
-        inertia_diag = np.array(body.inertia, dtype=np.float64) if hasattr(body, "inertia") else np.zeros(3, np.float64)
-        inertia_mat = np.diag(inertia_diag) if inertia_diag.shape == (3,) else np.zeros((3, 3), np.float64)
-
-        # Collision geoms
-        collision_geoms: list[IRGeom] = []
-        for g in body.geoms:
-            gname = g.name or ""
-            gtype = int(g.type) if hasattr(g, "type") else -1
-            gpos = np.array(g.pos, dtype=np.float64) if hasattr(g, "pos") else np.zeros(3, np.float64)
-            gquat = (
-                np.array(g.quat, dtype=np.float64) if hasattr(g, "quat") else np.array([1.0, 0.0, 0.0, 0.0], np.float64)
-            )
-            gsize = np.array(g.size, dtype=np.float64) if hasattr(g, "size") else np.zeros(3, np.float64)
-            fromto = np.array(g.fromto, dtype=np.float64) if hasattr(g, "fromto") else np.full(6, np.nan)
-
-            # mujoco geom types: 0=plane,1=hfield,2=sphere,3=capsule,4=ellipsoid,5=cylinder,6=box,7=mesh
-            if gtype in (3, 5) and not np.isnan(fromto[0]):  # fromto replaces pos, quat and the half-length
-                gpos, gquat, gsize[1] = _fromto_frame(fromto)
-            placement = _pos_quat_to_se3(gpos, gquat)
-            if gtype == 2:  # sphere
-                collision_geoms.append(IRGeom("sphere", {"radius": float(gsize[0])}, placement))
-            elif gtype == 3:  # capsule
-                collision_geoms.append(
-                    IRGeom("capsule", {"radius": float(gsize[0]), "length": float(gsize[1]) * 2}, placement)
-                )
-            elif gtype == 5:  # cylinder
-                collision_geoms.append(
-                    IRGeom("cylinder", {"radius": float(gsize[0]), "length": float(gsize[1]) * 2}, placement)
-                )
-            elif gtype == 6:  # box
-                collision_geoms.append(
-                    IRGeom("box", {"size": [float(gsize[0]) * 2, float(gsize[1]) * 2, float(gsize[2]) * 2]}, placement)
-                )
-
-        ir_bodies.append(
+    frames: list[IRFrame] = []
+    for body in range(1, compiled.nbody):
+        name = compiled.body(body).name
+        parent = int(compiled.body_parentid[body])
+        parent_name = "world" if parent == 0 else compiled.body(parent).name
+        # The joint's placement in the parent joint frame: the parent's offset undone, the body pose, this
+        # body's offset applied.
+        placement = _pose(compiled.body_pos[body] - offsets[parent], compiled.body_quat[body])
+        placement = se3.compose(placement, se3.from_translation(torch.tensor(offsets[body], dtype=torch.float64)))
+        joint = joints[body]
+        if joint is None:
+            joint = IRJoint(name=name, parent_body=parent_name, child_body=name, kind="fixed")
+        elif joint.kind == "free_flyer":  # a free joint places the body in the world by ``qpos`` alone
+            placement = se3.identity(dtype=torch.float64)
+        joint.parent_body = parent_name
+        joint.origin = placement
+        ir_joints.append(joint)
+        inertial_rotation = so3.to_matrix(_pose(np.zeros(3), compiled.body_iquat[body])[3:])
+        bodies.append(
             IRBody(
-                name=bname,
-                mass=mass,
-                com=torch.tensor(pos_inertial),
-                inertia=torch.tensor(inertia_mat),
-                collision_geoms=collision_geoms,
+                name=name,
+                mass=float(compiled.body_mass[body]),
+                com=torch.tensor(compiled.body_ipos[body] - offsets[body], dtype=torch.float64),
+                inertia=inertial_rotation @ torch.diag(torch.tensor(compiled.body_inertia[body])) @ inertial_rotation.T,
+                collision_geoms=_geoms(mujoco, compiled, spec, body, offsets[body], path),
             )
         )
-
-        # ── joints on this body ───────────────────────────────────────────────
-        for jnt in body.joints:
-            jname = jnt.name if jnt.name else f"_joint_{len(ir_joints)}"
-            jtype = int(jnt.type) if hasattr(jnt, "type") else 0
-            jpos = np.array(jnt.pos, dtype=np.float64) if hasattr(jnt, "pos") else np.zeros(3, np.float64)
-            jaxis = (
-                np.array(jnt.axis, dtype=np.float64) if hasattr(jnt, "axis") else np.array([0.0, 0.0, 1.0], np.float64)
+    for site in range(compiled.nsite):
+        body = int(compiled.site_bodyid[site])
+        frames.append(
+            IRFrame(
+                name=_named(compiled.site(site), "site", site, path),
+                parent_body=compiled.body(body).name,
+                placement=_pose(compiled.site_pos[site] - offsets[body], compiled.site_quat[site]),
             )
-            norm = np.linalg.norm(jaxis)
-            if norm > 1e-12:
-                jaxis = jaxis / norm
-
-            # Joint placement: pos in parent body frame, identity rotation
-            origin = _pos_quat_to_se3(jpos, None)
-
-            # Limits
-            jrange = np.array(jnt.range, dtype=np.float64) if hasattr(jnt, "range") else None
-            limited = bool(jnt.limited) if hasattr(jnt, "limited") else False
-            lo: float | None = None
-            hi: float | None = None
-            if jrange is not None and limited:
-                lo = float(jrange[0])
-                hi = float(jrange[1])
-
-            # mujoco joint types: 0=free,1=ball,2=slide,3=hinge
-            if jtype == 0:  # free
-                kind = "free_flyer"
-                axis_t = None
-            elif jtype == 1:  # ball
-                kind = "spherical"
-                axis_t = None
-            elif jtype == 2:  # slide (prismatic)
-                kind = "prismatic"
-                axis_t = torch.tensor(jaxis)
-            elif jtype == 3:  # hinge (revolute)
-                kind = "revolute"
-                axis_t = torch.tensor(jaxis)
-            else:
-                kind = "fixed"
-                axis_t = None
-
-            parent_name_safe = parent_name if parent_name is not None else "world"
-            ir_joints.append(
-                IRJoint(
-                    name=jname,
-                    parent_body=parent_name_safe,
-                    child_body=bname,
-                    kind=kind,
-                    axis=axis_t,
-                    origin=origin,
-                    lower=lo,
-                    upper=hi,
-                    damping=_scalar_attr(jnt, "damping"),
-                    friction=_scalar_attr(jnt, "frictionloss"),
-                    armature=_scalar_attr(jnt, "armature"),
-                )
-            )
-
-        if parent_name is not None and not body.joints:
-            # Body with no joints → implicit fixed joint
-            bpos = np.array(body.pos, dtype=np.float64) if hasattr(body, "pos") else np.zeros(3, np.float64)
-            bquat = (
-                np.array(body.quat, dtype=np.float64)
-                if hasattr(body, "quat")
-                else np.array([1.0, 0.0, 0.0, 0.0], np.float64)
-            )
-            origin = _pos_quat_to_se3(bpos, bquat)
-            jname = f"_fixed_{bname}"
-            ir_joints.append(
-                IRJoint(
-                    name=jname,
-                    parent_body=parent_name,
-                    child_body=bname,
-                    kind="fixed",
-                    origin=origin,
-                )
-            )
-
-        # Sites → operational frames
-        for site in getattr(body, "sites", []):
-            sname = site.name if site.name else f"_site_{len(ir_frames)}"
-            spos = np.array(site.pos, dtype=np.float64) if hasattr(site, "pos") else np.zeros(3, np.float64)
-            squat = (
-                np.array(site.quat, dtype=np.float64)
-                if hasattr(site, "quat")
-                else np.array([1.0, 0.0, 0.0, 0.0], np.float64)
-            )
-            placement = _pos_quat_to_se3(spos, squat)
-            ir_frames.append(IRFrame(name=sname, parent_body=bname, placement=placement, frame_type="op"))
-
-        # Recurse into child bodies
-        for child_body in body.bodies:
-            _visit(child_body, bname)
-
-    # MjSpec worldbody
-    worldbody = spec.worldbody
-    # Add a "world" body (no inertia)
-    ir_bodies.append(IRBody(name="world", mass=0.0))
-    for child in worldbody.bodies:
-        _visit(child, "world")
-
-    # Root body = first non-world body
-    child_set = {j.child_body for j in ir_joints}
-    root_body = ""
-    for b in ir_bodies:
-        if b.name != "world" and b.name not in child_set:
-            root_body = b.name
-            break
-    if not root_body:
-        root_body = "world"
-
-    name = getattr(spec, "modelname", "") or Path(source).stem
-
-    meta: dict = {}
-    if resolver is not None:
-        meta["asset_resolver"] = resolver
-
-    return IRModel(
-        name=name,
-        bodies=ir_bodies,
-        joints=ir_joints,
-        frames=ir_frames,
-        root_body=root_body,
-        meta=meta,
-    )
+        )
+    gravity = torch.cat([torch.tensor(compiled.opt.gravity, dtype=torch.float64), torch.zeros(3, dtype=torch.float64)])
+    return IRModel(name=spec.modelname, bodies=bodies, joints=ir_joints, frames=frames, gravity=gravity)

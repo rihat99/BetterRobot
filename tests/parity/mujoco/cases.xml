@@ -1,0 +1,33 @@
+<mujoco model="f1_cases">
+  <compiler angle="degree"/>
+  <default>
+    <joint limited="auto" damping="0.1" armature="0.01"/>
+  </default>
+  <worldbody>
+    <body name="base" pos="0 0 1" euler="0 0 90">
+      <inertial pos="0.1 0 0" mass="2" diaginertia="0.02 0.03 0.04"/>
+      <geom type="box" size="0.1 0.2 0.3" rgba="1 0 0 1"/>
+      <site name="base_site" pos="0 0 0.5"/>
+      <body name="upper" pos="0 1 0" quat="0.7071 0 0.7071 0">
+        <joint name="shoulder" type="hinge" axis="0 1 0" pos="0.05 0 0" range="-90 45"/>
+        <geom type="capsule" fromto="0 0 0 0 0 0.5" size="0.05"/>
+        <body name="lower" pos="0 0 0.5" axisangle="1 0 0 30">
+          <joint name="elbow" type="hinge" axis="1 0 0"/>
+          <geom type="sphere" size="0.08" mass="0.5"/>
+          <body name="slider" pos="0.2 0 0">
+            <joint name="slide" type="slide" axis="0 0 1" range="-0.1 0.2"/>
+            <geom type="cylinder" size="0.02 0.1" pos="0 0 0.1"/>
+            <site name="tip" pos="0 0 0.3" euler="0 90 0"/>
+            <body name="ball_body" pos="0 0 0.3">
+              <joint name="ball" type="ball" pos="0.01 0.02 0.03"/>
+              <geom type="box" size="0.05 0.05 0.05" contype="0" conaffinity="0"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="fixed_child" pos="0.3 0 0" euler="10 20 30">
+        <geom type="sphere" size="0.05"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

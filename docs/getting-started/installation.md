@@ -19,7 +19,7 @@ uv sync --all-extras --all-groups   # the package, every extra, and the dev and 
 | Extra | Installs | You need it for |
 |---|---|---|
 | `viewer` | `viser` | the browser viewer in [Visualize a robot](visualize.md) |
-| `io-mjcf` | `mujoco` | loading MJCF (`.xml`) models |
+| `mjcf` | `mujoco` | loading MJCF (`.xml`) models through MuJoCo's compiler |
 | `meshes` | `trimesh` | loading visual and collision meshes |
 | `demos` | `robot_descriptions` | the Panda and G1 models used in these tutorials |
 

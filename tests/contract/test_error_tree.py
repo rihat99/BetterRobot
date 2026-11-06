@@ -234,5 +234,5 @@ def test_topology_invariants_raise_model_error(invariants, match) -> None:
 
 def test_missing_optional_package_names_the_install_line(monkeypatch, tmp_path) -> None:
     monkeypatch.setitem(sys.modules, "mujoco", None)
-    with pytest.raises(exc.OptionalDependencyError, match=r"mujoco is not installed; run: uv sync --extra io-mjcf"):
+    with pytest.raises(exc.OptionalDependencyError, match=r"mujoco is not installed; run: uv sync --extra mjcf"):
         load(tmp_path / "scene.xml")
