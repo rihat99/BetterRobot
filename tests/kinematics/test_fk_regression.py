@@ -12,8 +12,7 @@ change surfaces as the deliberate-regeneration decision it is rather than a
 wall of sign flips. Pinocchio parity (``tests/parity/pinocchio``) remains the
 fp64 rotation-matrix ground truth.
 
-Skips automatically if ``fk_reference.npz`` is missing — the oracle file
-ships only after the first commit of the bench infrastructure.
+The oracle file is tracked; a missing ``fk_reference.npz`` fails the test.
 
 See ``docs/conventions/testing.md §4.5``.
 """
