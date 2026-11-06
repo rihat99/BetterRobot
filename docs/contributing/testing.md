@@ -64,6 +64,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
 | `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |
 | `test_fixtures.py` | every test robot has its licence and provenance |
+| `test_citations.py` | every repository path and `path::symbol` cited in tracked text resolves; no line number is cited |
 | `test_protocols.py` | extension protocols keep their shape (see [Extending](extending.md)) |
 | `test_roadmap_stub_inventory.py` | every `NotImplementedError` stub is listed in the [roadmap](../reference/roadmap.md) |
 
