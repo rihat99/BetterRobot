@@ -6,8 +6,7 @@
   `mass_matrix(model, state)`, `forward_dynamics(model, state, *, v, tau, fext=)`,
   `centroidal_map(model, state)`, `centroidal_momentum(model, state, v=v)`,
   `center_of_mass(model, state)`. World-frame quantities are built once per state and
-  memoised on it by grad mode through `KinematicState._memoised`; the 6x6 inertias come from the model's value
-  memo (`Model._value`, record 0040).
+  memoised on it by grad mode through `KinematicState._memoised` (inertias are re-read from the model each call).
   Bias forces are `inverse_dynamics(model, state, v=v, a=zeros)`; gravity torque is
   `inverse_dynamics(model, state, v=zeros, a=zeros)` with `zeros` a `(B..., nv)` tensor.
 
