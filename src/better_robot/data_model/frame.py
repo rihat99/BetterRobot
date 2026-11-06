@@ -4,8 +4,6 @@ Pinocchio-style frame indirection: operational frames (tool tips, IMUs, IK
 targets) live on a joint with a fixed local placement. Frame *placements*
 (the world pose of each frame) live on ``KinematicState``; this
 struct is metadata only.
-
-See ``docs/concepts/joints_bodies_frames.md §6``.
 """
 
 from __future__ import annotations

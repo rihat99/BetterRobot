@@ -1,7 +1,4 @@
-"""``JointHelical`` — pitch-coupled rotation + translation. ``nq = nv = 1``.
-
-See ``docs/concepts/joints_bodies_frames.md §5``.
-"""
+"""``JointHelical`` — pitch-coupled rotation + translation. ``nq = nv = 1``."""
 
 from __future__ import annotations
 

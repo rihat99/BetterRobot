@@ -1,7 +1,4 @@
-"""``JointFixed`` / ``JointUniverse`` — zero-DOF joints.
-
-See ``docs/concepts/joints_bodies_frames.md §5``.
-"""
+"""``JointFixed`` / ``JointUniverse`` — zero-DOF joints."""
 
 from __future__ import annotations
 

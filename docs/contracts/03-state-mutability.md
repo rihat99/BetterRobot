@@ -91,7 +91,7 @@ Enforcement: `tests/optim/test_problem.py`; `[review]`.
 
 ## C-STATE-6 `Model.to` and the dynamics caches (MUST)
 
-`Model.to(device, dtype)` (`data_model/model.py:298`) returns a new `Model` with new `ModelValues`; it never moves
+`Model.to(device, dtype)` returns a new `Model` with new `ModelValues`; it never moves
 tensors in place. Dynamics caches hang off the object they derive from: the packed spatial inertias on the
 `ModelValues` keyed by the tensor `_version` (`dynamics/_world.py:170`), and world geometry on the
 `KinematicState._memo` (`dynamics/state.py:39`). A moved model therefore starts with empty caches, and a state made

@@ -2,8 +2,6 @@
 
 Pure tree utilities operating on the ``parents`` tuple of a ``Model``.
 Joint 0 is always the universe root (``parents[0] == -1``).
-
-See ``docs/concepts/model_and_data.md §2``.
 """
 
 from __future__ import annotations

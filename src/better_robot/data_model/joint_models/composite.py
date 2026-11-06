@@ -1,7 +1,4 @@
-"""``JointComposite`` — stack of sub-joints acting on the same parent/child.
-
-See ``docs/concepts/joints_bodies_frames.md §5``.
-"""
+"""``JointComposite`` — stack of sub-joints acting on the same parent/child."""
 
 from __future__ import annotations
 

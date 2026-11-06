@@ -3,8 +3,6 @@
 This package is the Pinocchio-style universal data model. The fixed vs
 floating-base split is gone: a floating base is simply a ``JointFreeFlyer``
 root joint.
-
-See ``docs/concepts/model_and_data.md``.
 """
 
 from __future__ import annotations

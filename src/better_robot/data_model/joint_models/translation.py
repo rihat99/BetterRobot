@@ -1,7 +1,4 @@
-"""``JointTranslation`` — 3-DOF pure translation. ``nq = nv = 3``.
-
-See ``docs/concepts/joints_bodies_frames.md §5``.
-"""
+"""``JointTranslation`` — 3-DOF pure translation. ``nq = nv = 3``."""
 
 from __future__ import annotations
 

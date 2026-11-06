@@ -4,8 +4,6 @@ Pinocchio-style ``Joint`` enumeration. ``Joint`` is a string-valued
 ``enum.Enum`` subclass so downstream code can write ``Joint.FREE_FLYER``
 and still do cheap equality checks against the raw ``kind`` string on
 ``JointModel``.
-
-See ``docs/concepts/joints_bodies_frames.md §5``.
 """
 
 from __future__ import annotations

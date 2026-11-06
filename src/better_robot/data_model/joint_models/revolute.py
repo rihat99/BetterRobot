@@ -1,8 +1,6 @@
 """Revolute joint family: ``JointRX``/``JointRY``/``JointRZ`` (axis-aligned),
 ``JointRevoluteUnaligned`` (arbitrary 3-vector axis), and
 ``JointRevoluteUnbounded`` (continuous, ``(cos θ, sin θ)`` parameterisation).
-
-See ``docs/concepts/joints_bodies_frames.md §5``.
 """
 
 from __future__ import annotations

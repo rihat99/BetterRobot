@@ -5,8 +5,6 @@ static joint configuration such as an axis or helical pitch. It does not store
 per-query configuration or velocity: ``q``/``v`` live in query tensors and
 ``KinematicState``, while topology, placements, and slice indices live on ``Model``.
 Implementations operate on the corresponding slices of the full tensors.
-
-See ``docs/concepts/joints_bodies_frames.md`` ("The JointModel Protocol").
 """
 
 from __future__ import annotations
@@ -42,7 +40,7 @@ class JointModel(Protocol):
     """Protocol for per-joint dispatch objects.
 
     Marked ``@runtime_checkable`` so callers can assert ``isinstance(jm,
-    JointModel)`` when wiring custom joint types (docs/conventions/extension.md §2).
+    JointModel)`` when wiring custom joint types.
 
     Attributes
     ----------

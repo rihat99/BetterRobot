@@ -48,7 +48,7 @@ Enforcement: `[ruff:FBT001,FBT002]`.
 ## C-API-4 Frames, joints and bodies are named by `int | str` everywhere (MUST)
 
 Any parameter that identifies a frame, joint or body accepts the index *or* the name `[planned: L-2]`.
-Today `Model.frame_id(name)` (`data_model/model.py:195`) takes a `str` only and
+Today `Model.frame_id(name)` takes a `str` only and
 `KinematicState.frame_pose_of(frame_id)` (`kinematics/state.py:146`) an `int` only; the ledger entry widens
 `frame_id` to `int | str` and routes every public id parameter through it. `terms.frame_pose`
 (`terms/robot.py:62`) already accepts `int | str`.

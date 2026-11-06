@@ -1,7 +1,5 @@
 """``JointSpherical`` — SO3 ball joint. ``nq = 4`` (``[qx,qy,qz,qw]``),
 ``nv = 3``.
-
-See ``docs/concepts/joints_bodies_frames.md §5``.
 """
 
 from __future__ import annotations
