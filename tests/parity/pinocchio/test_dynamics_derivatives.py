@@ -15,7 +15,7 @@ from __future__ import annotations
 import torch
 
 import better_robot as br
-from better_robot.dynamics.state import forward_dynamics, inverse_dynamics, mass_matrix
+from better_robot.dynamics import forward_dynamics, inverse_dynamics, mass_matrix
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import panda_urdf
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.dynamics.state import (
+from better_robot.dynamics import (
     centroidal_map,
     centroidal_momentum,
     forward_dynamics,

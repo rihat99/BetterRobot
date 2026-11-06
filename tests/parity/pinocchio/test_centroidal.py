@@ -23,7 +23,7 @@ from __future__ import annotations
 import torch
 
 import better_robot as br
-from better_robot.dynamics.state import center_of_mass, centroidal_map, centroidal_momentum
+from better_robot.dynamics import center_of_mass, centroidal_map, centroidal_momentum
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import g1_urdf, panda_urdf
 

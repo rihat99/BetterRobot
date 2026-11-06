@@ -1,18 +1,21 @@
-"""``better_robot.dynamics`` — RNEA, ABA, CRBA, and centroidal quantities on a ``KinematicState``.
+"""``better_robot.dynamics``: inverse and forward dynamics, the mass matrix and centroidal quantities of a ``KinematicState``.
 
-``inverse_dynamics``, ``mass_matrix``, ``forward_dynamics``, ``centroidal_map``,
-``centroidal_momentum`` and ``center_of_mass`` share the world-frame core in ``_world``.
+``inverse_dynamics`` (``inverse_dynamics.py``), ``mass_matrix`` and ``forward_dynamics`` (``mass_matrix.py``), and
+``center_of_mass``, ``centroidal_map`` and ``centroidal_momentum`` (``centroidal.py``) share the world-frame core in
+``_world``.
 """
 
 from __future__ import annotations
 
-from .state import center_of_mass, centroidal_map, centroidal_momentum, forward_dynamics, inverse_dynamics, mass_matrix
+from .centroidal import center_of_mass, centroidal_map, centroidal_momentum
+from .inverse_dynamics import inverse_dynamics
+from .mass_matrix import forward_dynamics, mass_matrix
 
 __all__ = [
-    "inverse_dynamics",
-    "mass_matrix",
-    "forward_dynamics",
+    "center_of_mass",
     "centroidal_map",
     "centroidal_momentum",
-    "center_of_mass",
+    "forward_dynamics",
+    "inverse_dynamics",
+    "mass_matrix",
 ]

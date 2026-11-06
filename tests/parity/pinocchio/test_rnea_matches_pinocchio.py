@@ -7,7 +7,7 @@ import pinocchio as pin
 import pytest
 import torch
 
-from better_robot.dynamics.state import inverse_dynamics
+from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import forward_kinematics
 
 from .conftest import sample_panda_q
@@ -25,8 +25,8 @@ def _random_v(nv: int, seed: int) -> torch.Tensor:
     return torch.rand(nv, generator=rng, dtype=torch.float64) * 2.0 - 1.0
 
 
-def _random_matched_fext(br_model, pin_model, seed: int) -> tuple[torch.Tensor, list]:
-    """Build matching ``fext`` vectors for BetterRobot and Pinocchio.
+def _random_matched_external_forces(br_model, pin_model, seed: int) -> tuple[torch.Tensor, list]:
+    """Build matching per-joint external wrenches for BetterRobot and Pinocchio.
 
     BetterRobot keeps every URDF joint (including fixed ones) as a Model joint
     (njoints=14 for Panda); Pinocchio collapses fixed joints into the parent
@@ -35,21 +35,21 @@ def _random_matched_fext(br_model, pin_model, seed: int) -> tuple[torch.Tensor, 
     wrench, and Pinocchio's matching vector is sized to ``pin_model.njoints``.
     """
     rng = torch.Generator().manual_seed(seed)
-    br_fext = torch.zeros(br_model.njoints, 6, dtype=torch.float64)
-    pin_fext = pin.StdVec_Force()
+    br_forces = torch.zeros(br_model.njoints, 6, dtype=torch.float64)
+    pin_forces = pin.StdVec_Force()
     for _ in range(pin_model.njoints):
-        pin_fext.append(pin.Force.Zero())
+        pin_forces.append(pin.Force.Zero())
 
     for br_jid, name in enumerate(br_model.joint_names):
         if name == "universe" or not pin_model.existJointName(name):
             continue
         wrench = torch.rand(6, generator=rng, dtype=torch.float64) * 2.0 - 1.0
-        br_fext[br_jid] = wrench
+        br_forces[br_jid] = wrench
         pin_jid = pin_model.getJointId(name)
         w = wrench.numpy()
-        pin_fext[pin_jid] = pin.Force(w[:3], w[3:])
+        pin_forces[pin_jid] = pin.Force(w[:3], w[3:])
 
-    return br_fext, pin_fext
+    return br_forces, pin_forces
 
 
 # ─────────────────────────── tests ──────────────────────────────────
@@ -96,22 +96,28 @@ def test_rnea_full_matches_pinocchio(panda_both, i):
 
 
 @pytest.mark.parametrize("i", range(4))
-def test_rnea_with_fext_matches_pinocchio(panda_both, i):
-    """Random fext in local joint frames."""
+def test_rnea_with_external_forces_matches_pinocchio(panda_both, i):
+    """Random external wrenches in local joint frames."""
     br_model, pin_model, pin_data, _ = panda_both
     q = sample_panda_q(n=4)[i]
     v = _random_v(br_model.nv, seed=400 + i)
     a = _random_v(br_model.nv, seed=500 + i)
-    br_fext, fext_pin = _random_matched_fext(br_model, pin_model, seed=600 + i)
+    br_forces, pin_forces = _random_matched_external_forces(br_model, pin_model, seed=600 + i)
 
-    tau_br = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a, fext=br_fext).detach().cpu().numpy()
+    state = forward_kinematics(br_model, q)
+    tau_br = inverse_dynamics(br_model, state, v=v, a=a, external_forces=br_forces).detach().cpu().numpy()
 
     tau_pin = np.asarray(
         pin.rnea(
-            pin_model, pin_data, q.detach().cpu().numpy(), v.detach().cpu().numpy(), a.detach().cpu().numpy(), fext_pin
+            pin_model,
+            pin_data,
+            q.detach().cpu().numpy(),
+            v.detach().cpu().numpy(),
+            a.detach().cpu().numpy(),
+            pin_forces,
         )
     )
-    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL)
+    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL, err_msg="RNEA with external forces")
 
 
 def test_rnea_bias_forces_matches_rnea_zero_accel(panda_both):

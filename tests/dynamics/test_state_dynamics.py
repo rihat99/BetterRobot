@@ -6,7 +6,7 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.dynamics.state import centroidal_map, forward_dynamics, inverse_dynamics, mass_matrix
+from better_robot.dynamics import centroidal_map, forward_dynamics, inverse_dynamics, mass_matrix
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import g1_urdf
 
@@ -21,17 +21,19 @@ def _inputs(model: br.Model, batch: tuple[int, ...], seed: int = 0):
     q = torch.stack([model.random_configuration(generator=generator) for _ in range(int(torch.tensor(batch).prod()))])
     q = q.view(*batch, model.nq)
     v = torch.randn(*batch, model.nv, dtype=torch.float64, generator=generator)
-    fext = torch.randn(*batch, model.njoints, 6, dtype=torch.float64, generator=generator)
-    return q, v, fext
+    external_forces = torch.randn(*batch, model.njoints, 6, dtype=torch.float64, generator=generator)
+    return q, v, external_forces
 
 
 def test_forward_dynamics_inverts_inverse_dynamics_with_leading_batch_axes(g1: br.Model) -> None:
-    q, v, fext = _inputs(g1, (2, 3))
+    q, v, external_forces = _inputs(g1, (2, 3))
     a = torch.randn(2, 3, g1.nv, dtype=torch.float64)
     state = forward_kinematics(g1, q)
-    tau = inverse_dynamics(g1, state, v=v, a=a, fext=fext)
+    tau = inverse_dynamics(g1, state, v=v, a=a, external_forces=external_forces)
     assert tau.shape == (2, 3, g1.nv)
-    torch.testing.assert_close(forward_dynamics(g1, state, v=v, tau=tau, fext=fext), a, rtol=1e-9, atol=1e-9)
+    torch.testing.assert_close(
+        forward_dynamics(g1, state, v=v, tau=tau, external_forces=external_forces), a, rtol=1e-9, atol=1e-9
+    )
 
 
 def test_mass_matrix_is_the_acceleration_jacobian_of_inverse_dynamics(g1: br.Model) -> None:
@@ -51,11 +53,11 @@ def test_mass_matrix_is_the_acceleration_jacobian_of_inverse_dynamics(g1: br.Mod
 
 
 def test_inverse_dynamics_gradcheck_through_the_state(g1: br.Model) -> None:
-    q, v, fext = _inputs(g1, (1,), seed=2)
+    q, v, external_forces = _inputs(g1, (1,), seed=2)
     a = torch.randn(1, g1.nv, dtype=torch.float64)
 
     def function(q_: torch.Tensor, v_: torch.Tensor, a_: torch.Tensor) -> torch.Tensor:
-        return inverse_dynamics(g1, forward_kinematics(g1, q_), v=v_, a=a_, fext=fext)
+        return inverse_dynamics(g1, forward_kinematics(g1, q_), v=v_, a=a_, external_forces=external_forces)
 
     # q is a point on the free-flyer manifold; gradcheck perturbs it in the ambient space, which
     # is fine for finite differences of a smooth map.
@@ -88,16 +90,20 @@ def test_state_reuse_sees_the_inertias_of_another_model(g1: br.Model) -> None:
 
 
 def test_armature_adds_to_the_torque_and_the_mass_matrix_diagonal(g1: br.Model) -> None:
-    q, v, fext = _inputs(g1, (2, 3), seed=5)
+    q, v, external_forces = _inputs(g1, (2, 3), seed=5)
     generator = torch.Generator().manual_seed(6)
     a = torch.randn(2, 3, g1.nv, dtype=torch.float64, generator=generator)
     armature = torch.cat((torch.zeros(6), 0.03 * torch.rand(g1.nv - 6, generator=generator))).double()  # free flyer: 0
     geared = g1.with_values(armature=armature)
     state = forward_kinematics(g1, q)
-    tau = inverse_dynamics(geared, state, v=v, a=a, fext=fext)
-    torch.testing.assert_close(tau, inverse_dynamics(g1, state, v=v, a=a, fext=fext) + armature * a)
+    tau = inverse_dynamics(geared, state, v=v, a=a, external_forces=external_forces)
+    torch.testing.assert_close(
+        tau, inverse_dynamics(g1, state, v=v, a=a, external_forces=external_forces) + armature * a
+    )
     mass = mass_matrix(geared, state)
     torch.testing.assert_close(mass, mass_matrix(g1, state) + torch.diag(armature))
     torch.testing.assert_close(mass, mass.mT, rtol=0, atol=1e-12)
     assert (torch.linalg.eigvalsh(mass) > 0).all()
-    torch.testing.assert_close(forward_dynamics(geared, state, v=v, tau=tau, fext=fext), a, rtol=1e-9, atol=1e-9)
+    torch.testing.assert_close(
+        forward_dynamics(geared, state, v=v, tau=tau, external_forces=external_forces), a, rtol=1e-9, atol=1e-9
+    )

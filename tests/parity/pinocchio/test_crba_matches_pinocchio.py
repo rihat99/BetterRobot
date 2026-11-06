@@ -14,7 +14,7 @@ import numpy as np
 import pinocchio as pin
 import torch
 
-from better_robot.dynamics.state import inverse_dynamics, mass_matrix
+from better_robot.dynamics import inverse_dynamics, mass_matrix
 from better_robot.kinematics import forward_kinematics
 
 from .conftest import sample_panda_q

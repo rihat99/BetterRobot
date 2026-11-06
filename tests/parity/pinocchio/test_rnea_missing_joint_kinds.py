@@ -9,7 +9,7 @@ import torch
 
 from better_robot.model.joints import JointHelical, JointPlanar, JointRevolute, JointRevoluteUnbounded, JointTranslation
 from better_robot.io import ModelBuilder, build_model
-from better_robot.dynamics.state import inverse_dynamics
+from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import difference, forward_kinematics, integrate
 
 from .conftest import rot_matrix_from_pose
