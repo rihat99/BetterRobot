@@ -221,7 +221,14 @@ class Model:
         )
 
     def random_configuration(self, *, generator: torch.Generator) -> torch.Tensor:
-        """A configuration ``(nq,)`` drawn inside the position limits (revolute joints without limits: ``[-pi, pi]``)."""
+        """A configuration ``(nq,)`` drawn inside the position limits (revolute joints without limits: ``[-pi, pi]``).
+
+        The generator is required (principle 05: a draw is reproducible by construction), never the global RNG.
+        """
+        if not isinstance(generator, torch.Generator):
+            raise ArgumentError(
+                f"random_configuration needs generator=torch.Generator().manual_seed(seed), got {generator!r}"
+            )
         parts = []
         for joint_id, joint in enumerate(self.joints):
             width, start = self.nqs[joint_id], self.idx_qs[joint_id]

@@ -47,9 +47,9 @@ class JointModel(ABC):
         """The configuration ``(nq,)`` with the identity placement, float32 on the CPU."""
 
     @abstractmethod
-    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        """A configuration ``(nq,)`` drawn inside ``lower, upper: (nq,)`` where the kind has limits; rotations and
-        angles without finite limits are drawn uniformly over their full range."""
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        """A configuration ``(nq,)`` in the limits' dtype, drawn inside ``lower, upper: (nq,)`` where the kind has
+        limits; rotations and angles without finite limits are drawn uniformly over their full range."""
 
 
 def check_axis(axis: object) -> None:

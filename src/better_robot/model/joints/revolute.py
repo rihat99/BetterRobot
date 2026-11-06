@@ -12,11 +12,11 @@ from ..manifolds import CIRCLE, EUCLIDEAN, Manifold
 from .base import JointModel, _axis_column, check_axis
 
 
-def _random_angle(generator: torch.Generator | None, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+def _random_angle(generator: torch.Generator, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
     """Uniform angle ``(1,)`` in ``[lower, upper]``; a missing limit is replaced by ``-pi`` or ``pi``."""
     lower = torch.where(torch.isfinite(lower), lower, torch.full_like(lower, -torch.pi))
     upper = torch.where(torch.isfinite(upper), upper, torch.full_like(upper, torch.pi))
-    return lower + (upper - lower) * torch.rand(1, generator=generator)
+    return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype)
 
 
 @final
@@ -41,7 +41,7 @@ class JointRevolute(JointModel):
     def neutral(self) -> torch.Tensor:
         return torch.zeros(1)
 
-    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         return _random_angle(generator, lower, upper)
 
 
@@ -67,7 +67,7 @@ class JointRevoluteUnbounded(JointModel):
     def neutral(self) -> torch.Tensor:
         return torch.tensor([1.0, 0.0])
 
-    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         # Drawn in the limits' dtype: a float32 (cos, sin) pair cast to float64 is not unit.
         angle = (torch.rand(1, generator=generator, dtype=lower.dtype) * 2.0 - 1.0) * torch.pi
         return torch.cat((torch.cos(angle), torch.sin(angle)))

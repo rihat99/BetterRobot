@@ -1,20 +1,34 @@
 """Equality and hashing (decision record 0010): a ``Model`` compares by identity; ``structure_key`` compares the
-static fields, so two loads of one description share a key and a model with scaled links keeps it."""
+static fields, so two builds of one description share a key and a model with scaled links keeps it. Three
+topologies: the Panda (fixed base), the G1 (free flyer) and the branching tree (free flyer plus spherical joints)."""
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from better_robot import load
+from tests.support.branching_tree import make_branching_tree_model
 from tests.support.robots import g1_urdf, panda_urdf
 
+TOPOLOGIES = [
+    pytest.param(lambda: load(panda_urdf()), id="panda"),
+    pytest.param(lambda: load(g1_urdf(), free_flyer=True), id="g1"),
+    pytest.param(make_branching_tree_model, id="branching_tree"),
+]
 
-def test_two_loads_are_distinct_models_with_one_structure_key() -> None:
-    first, second = load(panda_urdf()), load(panda_urdf())
+
+@pytest.mark.parametrize("build", TOPOLOGIES)
+def test_two_builds_are_distinct_models_with_one_structure_key(build) -> None:
+    first, second = build(), build()
     assert first != second and hash(first) != hash(second)
     assert first.structure_key == second.structure_key
     assert hash(first.structure_key) == hash(second.structure_key)
-    assert load(g1_urdf(), free_flyer=True).structure_key != first.structure_key
+
+
+def test_different_topologies_have_different_structure_keys() -> None:
+    keys = [build.values[0]().structure_key for build in TOPOLOGIES]
+    assert len(set(keys)) == len(keys)
 
 
 def test_with_values_keeps_the_structure_key() -> None:

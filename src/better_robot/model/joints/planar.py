@@ -37,10 +37,9 @@ class JointPlanar(JointModel):
     def neutral(self) -> torch.Tensor:
         return torch.tensor([0.0, 0.0, 1.0, 0.0])
 
-    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        """``x`` and ``y`` uniform inside their limits, ``θ`` uniform on the circle."""
-        x = lower[0] + (upper[0] - lower[0]) * torch.rand(1, generator=generator)
-        y = lower[1] + (upper[1] - lower[1]) * torch.rand(1, generator=generator)
-        # Drawn in the limits' dtype: a float32 (cos, sin) pair cast to float64 is not unit.
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        """``x`` and ``y`` uniform inside their limits, ``θ`` uniform on the circle, all in the limits' dtype."""
+        x = lower[0] + (upper[0] - lower[0]) * torch.rand(1, generator=generator, dtype=lower.dtype)
+        y = lower[1] + (upper[1] - lower[1]) * torch.rand(1, generator=generator, dtype=lower.dtype)
         angle = (torch.rand(1, generator=generator, dtype=lower.dtype) * 2.0 - 1.0) * torch.pi
         return torch.cat((x, y, torch.cos(angle), torch.sin(angle)))

@@ -34,5 +34,5 @@ class JointPrismatic(JointModel):
     def neutral(self) -> torch.Tensor:
         return torch.zeros(1)
 
-    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        return lower + (upper - lower) * torch.rand(1, generator=generator)
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype)

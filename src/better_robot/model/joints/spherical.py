@@ -32,6 +32,6 @@ class JointSpherical(JointModel):
     def neutral(self) -> torch.Tensor:
         return torch.tensor([0.0, 0.0, 0.0, 1.0])
 
-    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         quaternion = torch.randn(4, generator=generator, dtype=lower.dtype)
         return quaternion / quaternion.norm().clamp(min=1e-8)

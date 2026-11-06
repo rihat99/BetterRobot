@@ -7,7 +7,7 @@ from typing import ClassVar, final
 
 import torch
 
-from ..manifolds import EUCLIDEAN, Manifold
+from ..manifolds import FIXED, Manifold
 from .base import JointModel
 
 
@@ -18,7 +18,7 @@ class JointFixed(JointModel):
 
     nq: ClassVar[int] = 0
     nv: ClassVar[int] = 0
-    manifold: ClassVar[Manifold] = EUCLIDEAN
+    manifold: ClassVar[Manifold] = FIXED
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
@@ -30,5 +30,5 @@ class JointFixed(JointModel):
     def neutral(self) -> torch.Tensor:
         return torch.zeros(0)
 
-    def random(self, generator: torch.Generator | None, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        return torch.zeros(0)
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        return torch.zeros(0, dtype=lower.dtype)

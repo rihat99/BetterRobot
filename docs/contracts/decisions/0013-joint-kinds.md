@@ -27,7 +27,7 @@ class JointRevolute(JointModel):
     nv: ClassVar[int] = 1
     manifold: ClassVar[Manifold] = EUCLIDEAN
 
-builder.add_revolute("elbow", parent="upper_arm", child="forearm", axis=(0, 1, 0), lower=-2.0, upper=2.0)
+builder.add_revolute("elbow", parent="upper_arm", child="forearm", axis=torch.tensor([0.0, 1.0, 0.0]), lower=-2.0, upper=2.0)
 model.joints[3].axis        # the studio reads the axis as data, not a kind string
 q_next = br.kinematics.integrate(model, q, v)   # was model.integrate(q, v)
 ```

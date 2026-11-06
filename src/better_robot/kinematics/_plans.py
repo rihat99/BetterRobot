@@ -12,6 +12,7 @@ from typing import final
 
 import torch
 
+from ..lie.tangents import hat_so3
 from ..model.joints import JointFreeFlyer, JointPrismatic, JointRevolute, JointRevoluteUnbounded, JointSpherical
 from ..model.model import Model
 from ..model.topology import build_supports
@@ -69,12 +70,6 @@ class JacobianPlan:
     support_mask: torch.Tensor  #: ``(njoints, 1, nv_full)`` bool: True where ``column_owner`` supports the row joint.
 
 
-def _hat(v: torch.Tensor) -> torch.Tensor:
-    """Skew matrix of ``v: (3,)``."""
-    x, y, z = v.tolist()
-    return v.new_tensor([[0.0, -z, y], [z, 0.0, -x], [-y, x, 0.0]])  # bench-ok: plan construction, once per model
-
-
 def _tree_levels(model: Model) -> list[list[int]]:
     """Joint ids grouped by depth in the tree; parents come before children."""
     parents = model.parents
@@ -105,7 +100,7 @@ def _feature_map(
         return out
 
     for index, (joint, _) in enumerate(rotary):  # R = (I + K²) + sin · K - cos · K²
-        K = _hat(axes[joint] / axes[joint].norm())  # unit within 1e-6 (joints.check_axis); exact here, in float64
+        K = hat_so3(axes[joint] / axes[joint].norm())  # unit within 1e-6 (check_axis); exact here, in float64
         bias[slot[joint], :3, :3] += K @ K
         entries[slot[joint]] += [(index, block(K)), (n_rot + index, block(-K @ K))]
     base = 2 * n_rot
