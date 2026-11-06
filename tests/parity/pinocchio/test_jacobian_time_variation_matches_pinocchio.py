@@ -140,23 +140,23 @@ def _sample_g1(br_model, seed):
 
 @pytest.mark.parametrize(("reference", "pin_reference"), _REFERENCES)
 def test_joint_time_variation_free_flyer_matches_pinocchio(g1_both, reference, pin_reference):
-    """Free-flyer (nq != nv) joint J̇ agrees with Pinocchio."""
-    br_model, pin_model, pin_data = g1_both
+    """Free-flyer (nq != nv) joint J̇ agrees with Pinocchio, columns gathered by joint name."""
+    br_model, pin_model, pin_data, perm_q, perm_v = g1_both
     q, v = _sample_g1(br_model, seed=7)
 
-    state = br.forward_kinematics(br_model, q)
+    state = br.forward_kinematics(br_model, q[perm_q])
     pin.computeJointJacobiansTimeVariation(pin_model, pin_data, q.numpy(), v.numpy())
 
     for joint_name in ["root_joint", "left_hip_yaw_joint", "right_wrist_yaw_joint"]:
         br_jid = br_model.joint_id(joint_name)
         pin_jid = pin_model.getJointId(joint_name)
         J_br = (
-            joint_jacobian_time_variation(br_model, state, v=v, joint=br_jid, reference=reference)
+            joint_jacobian_time_variation(br_model, state, v=v[perm_v], joint=br_jid, reference=reference)
             .detach()
             .cpu()
             .numpy()
         )
-        J_pin = pin.getJointJacobianTimeVariation(pin_model, pin_data, pin_jid, pin_reference)
+        J_pin = pin.getJointJacobianTimeVariation(pin_model, pin_data, pin_jid, pin_reference)[:, perm_v]
         np.testing.assert_allclose(
             J_br, J_pin, atol=2e-6, rtol=1e-5, err_msg=f"joint {joint_name}, reference {reference}"
         )

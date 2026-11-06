@@ -5,9 +5,9 @@
 * **Spherical**: a 2-body programmatic model built through
   :class:`ModelBuilder`, compared against a hand-assembled ``pin.Model``.
 
-Since BetterRobot switched to DFS topological ordering (matching Pinocchio), the
-``q``/``v``/``tau`` indexings align 1-to-1 with Pinocchio for URDF-loaded models,
-so comparisons are direct tensor operations.
+Pinocchio orders the joints depth-first while BetterRobot keeps the URDF's order, so the
+G1 cases sample ``q``, ``v`` and ``a`` in Pinocchio's layout and gather them into BetterRobot's
+through the ``perm_q``/``perm_v`` indices of the ``g1_both`` fixture (``Model.q_permutation``).
 """
 
 from __future__ import annotations
@@ -29,9 +29,9 @@ from .conftest import _build_spherical_chain
 
 @pytest.mark.parametrize("seed", [1, 2, 3])
 def test_rnea_free_flyer_g1_matches_pinocchio(g1_both, seed):
-    br_m, pin_m, pin_d = g1_both
+    br_m, pin_m, pin_d, perm_q, perm_v = g1_both
 
-    # Random q with valid free-flyer quat
+    # Random q in Pinocchio's layout, with a valid free-flyer quaternion
     rng = torch.Generator().manual_seed(seed)
     q = torch.zeros(br_m.nq, dtype=torch.float64)
     # Base translation
@@ -46,21 +46,22 @@ def test_rnea_free_flyer_g1_matches_pinocchio(g1_both, seed):
     v = torch.randn(br_m.nv, generator=rng, dtype=torch.float64) * 0.2
     a = torch.randn(br_m.nv, generator=rng, dtype=torch.float64) * 0.2
 
-    tau_br = inverse_dynamics(br_m, forward_kinematics(br_m, q), v=v, a=a).detach().cpu().numpy()
+    state = forward_kinematics(br_m, q[perm_q])
+    tau_br = inverse_dynamics(br_m, state, v=v[perm_v], a=a[perm_v]).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), v.numpy(), a.numpy()))
 
-    np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10)
+    np.testing.assert_allclose(tau_br, tau_pin[perm_v], atol=1e-10, err_msg=f"G1 rnea by joint name, seed {seed}")
 
 
 def test_rnea_free_flyer_base_wrench_matches_pinocchio(g1_both):
     """The base wrench (first 6 components) is always at v-index 0 in both."""
-    br_m, pin_m, pin_d = g1_both
+    br_m, pin_m, pin_d, _, _ = g1_both
     q = torch.zeros(br_m.nq, dtype=torch.float64)
     q[6] = 1.0  # identity quat
     zero = torch.zeros(br_m.nv, dtype=torch.float64)
     tau_br = inverse_dynamics(br_m, forward_kinematics(br_m, q), v=zero, a=zero).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), zero.numpy(), zero.numpy()))
-    np.testing.assert_allclose(tau_br[:6], tau_pin[:6], atol=1e-10)
+    np.testing.assert_allclose(tau_br[:6], tau_pin[:6], atol=1e-10, err_msg="G1 base wrench at rest")
 
 
 # ───────────────────────── spherical joint ─────────────────────────

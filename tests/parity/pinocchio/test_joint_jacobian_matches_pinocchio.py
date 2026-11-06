@@ -107,11 +107,11 @@ def _sample_g1_q(br_model, seed):
     _REFERENCES,
 )
 def test_joint_jacobian_free_flyer_matches_pinocchio(g1_both, reference, pin_reference):
-    """Free-flyer (nq != nv) joint Jacobians agree with Pinocchio."""
-    br_model, pin_model, pin_data = g1_both
+    """Free-flyer (nq != nv) joint Jacobians agree with Pinocchio, columns gathered by joint name."""
+    br_model, pin_model, pin_data, perm_q, perm_v = g1_both
     q = _sample_g1_q(br_model, seed=7)
 
-    state = br.forward_kinematics(br_model, q)
+    state = br.forward_kinematics(br_model, q[perm_q])
     q_pin = q.detach().cpu().numpy()
     pin.forwardKinematics(pin_model, pin_data, q_pin)
     pin.computeJointJacobians(pin_model, pin_data, q_pin)
@@ -120,7 +120,7 @@ def test_joint_jacobian_free_flyer_matches_pinocchio(g1_both, reference, pin_ref
         br_jid = br_model.joint_id(joint_name)
         pin_jid = pin_model.getJointId(joint_name)
         J_br = joint_jacobian(br_model, state, joint=br_jid, reference=reference).detach().cpu().numpy()
-        J_pin = pin.getJointJacobian(pin_model, pin_data, pin_jid, pin_reference)
+        J_pin = pin.getJointJacobian(pin_model, pin_data, pin_jid, pin_reference)[:, perm_v]
         np.testing.assert_allclose(
             J_br, J_pin, atol=2e-6, rtol=1e-5, err_msg=f"joint {joint_name}, reference {reference}"
         )

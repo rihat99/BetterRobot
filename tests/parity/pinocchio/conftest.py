@@ -104,12 +104,18 @@ def sample_panda_v(n: int = 16, seed: int = 1) -> torch.Tensor:
 
 @pytest.fixture(scope="module")
 def g1_both():
-    """Load G1 with free-flyer in both libraries (nq != nv fixture)."""
+    """G1 with a free-flyer root in both libraries (nq != nv), plus the gather indices from Pinocchio's layout.
+
+    Pinocchio orders the joints depth-first; BetterRobot keeps the URDF's order. ``q_pin[perm_q]`` and
+    ``v_pin[perm_v]`` are the BetterRobot vectors, and ``tau_pin[perm_v]`` lines Pinocchio's torques up with
+    BetterRobot's; the base's coordinates come first in both.
+    """
 
     br_m = br.load(g1_urdf(), free_flyer=True, dtype=torch.float64)
     pin_m = pin.buildModelFromUrdf(str(g1_urdf()), pin.JointModelFreeFlyer())
     pin_d = pin_m.createData()
-    return br_m, pin_m, pin_d
+    perm_q, perm_v = br_m.q_permutation([pin_m.names[i] for i in range(1, pin_m.njoints)])
+    return br_m, pin_m, pin_d, perm_q, perm_v
 
 
 def _build_spherical_chain():
