@@ -69,7 +69,7 @@ Keyword arguments of `load`:
 | `preserve_joint_order` | `False` | keep an already-topological source joint order instead of depth-first order |
 | `device`, `dtype` | `None`, `torch.float32` | where and in what precision the values live |
 
-Mesh and package paths in a URDF are resolved by the asset resolvers in `better_robot.io.assets`.
+Mesh URIs stay the strings the file wrote; `viewer.robot_meshes(geometry, root=)` reads them under a root you name.
 
 ## Build a robot in code with `ModelBuilder`
 

@@ -15,13 +15,6 @@ import torch
 from ..model.geometry import Geometry
 from ..model.joints import JointModel
 from ..model.model import Model
-from .assets import (
-    AssetResolver,
-    CachedDownloadResolver,
-    CompositeResolver,
-    FilesystemResolver,
-    PackageResolver,
-)
 from .build_geometry import build_geometry
 from .build_model import build_model
 from .ir import (
@@ -136,9 +129,4 @@ __all__ = [
     "IRFrame",
     "IRShape",
     "ModelBuilder",
-    "AssetResolver",
-    "FilesystemResolver",
-    "PackageResolver",
-    "CompositeResolver",
-    "CachedDownloadResolver",
 ]

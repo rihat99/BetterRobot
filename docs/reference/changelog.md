@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+- Io: the asset resolvers (`AssetResolver`, `FilesystemResolver`, `PackageResolver`, `CompositeResolver`,
+  `CachedDownloadResolver`) are gone (record 0038): mesh URIs stay strings on `Mesh` shapes and `viewer.robot_meshes`
+  reads them under `root`.
 - Viewer: `robot_meshes(geometry, *, root=None, collision=False, default_color)` reads the meshes of a `Geometry`
   under `root` (`package://<package>/<rel>` and relative URIs under it, absolute paths as written) and raises
   `ModelError` naming body and URI on an unreadable file; `RobotView` and `robot_layers` are gone (record 0016):

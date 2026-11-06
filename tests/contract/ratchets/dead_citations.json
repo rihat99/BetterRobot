@@ -91,7 +91,6 @@
   "examples/07_branching_tree_body.py: examples/04_branching_tree_body.py": "cites a path that is not tracked",
   "pyproject.toml: pinocchio/__init__.py": "a file of the installed pinocchio package; name the package, not a path",
   "src/better_robot/io/__init__.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
-  "src/better_robot/io/assets.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/build_model.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/build_model.py: docs/conventions/contracts.md": "cites a docs page of the old layout that no longer exists",
   "src/better_robot/io/builders/__init__.py: docs/concepts/parsers_and_ir.md": "cites a docs page of the old layout that no longer exists",
