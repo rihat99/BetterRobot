@@ -6,7 +6,7 @@ import torch
 from better_robot.model.model import Model
 from better_robot.exceptions import ArgumentError, ModelError
 from better_robot.io.build_model import build_model
-from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import difference, integrate, subtree, support
 
 

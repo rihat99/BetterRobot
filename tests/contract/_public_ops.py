@@ -15,7 +15,7 @@ import torch
 
 from better_robot import dynamics, kinematics
 from better_robot.io.build_model import build_model
-from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.io.builder import ModelBuilder
 from better_robot.lie import se3, so3
 from better_robot.spatial import (
     cross_force,

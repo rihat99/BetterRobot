@@ -9,7 +9,7 @@ import torch
 
 from better_robot.exceptions import ModelError, UnknownNameError
 from better_robot.io.ir import IRModel, IRShape
-from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.io.builder import ModelBuilder
 from better_robot.model.geometry import Sphere
 from better_robot.model.joints import JointRevolute
 

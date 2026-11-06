@@ -7,7 +7,7 @@ import torch
 
 from better_robot.exceptions import UnknownNameError
 from better_robot.io.build_model import build_model
-from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import (
     forward_kinematics,
     subtree,

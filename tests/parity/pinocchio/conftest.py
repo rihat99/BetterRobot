@@ -119,7 +119,7 @@ def g1_both():
 def _build_spherical_chain():
     """2-body chain: spherical joint + revolute RZ. Same in BR and Pinocchio."""
     from better_robot.io.build_model import build_model
-    from better_robot.io.parsers.programmatic import ModelBuilder
+    from better_robot.io.builder import ModelBuilder
 
     mass1, com1, I1 = 1.5, torch.tensor([0.0, 0.0, -0.2]), torch.diag(torch.tensor([0.04, 0.05, 0.01]))
     mass2, com2, I2 = 0.8, torch.tensor([0.0, 0.0, -0.15]), torch.diag(torch.tensor([0.02, 0.02, 0.005]))

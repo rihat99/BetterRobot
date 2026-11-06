@@ -14,10 +14,10 @@ from typing import final
 
 import torch
 
-from ...exceptions import ArgumentError, ModelError, UnknownNameError
-from ...lie import se3
-from ...model.geometry import Shape
-from ...model.joints import (
+from ..exceptions import ArgumentError, ModelError, UnknownNameError
+from ..lie import se3
+from ..model.geometry import Shape
+from ..model.joints import (
     JointFixed,
     JointFreeFlyer,
     JointHelical,
@@ -28,7 +28,7 @@ from ...model.joints import (
     JointRevoluteUnbounded,
     JointSpherical,
 )
-from ..ir import IRBody, IRFrame, IRJoint, IRModel, IRShape
+from .ir import IRBody, IRFrame, IRJoint, IRModel, IRShape
 
 
 def _axis(axis: Sequence[float] | torch.Tensor) -> tuple[float, ...]:

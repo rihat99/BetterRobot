@@ -14,7 +14,7 @@ import math
 import torch
 
 from better_robot.io.build_model import build_model
-from better_robot.io.parsers.programmatic import ModelBuilder
+from better_robot.io.builder import ModelBuilder
 from better_robot.lie import so3
 from better_robot.kinematics import forward_kinematics, integrate
 
