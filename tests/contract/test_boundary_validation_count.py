@@ -15,14 +15,14 @@ from ._public_ops import CASE_NAMES, build_case
 _CPU = torch.device("cpu")
 
 #: ``check_tensor`` calls per public call; a name absent here makes none (Jacobians read the state, lie/spatial
-#: take plain tensors). ``forward_dynamics`` checks ``v``, the zero acceleration of its bias call and ``tau``;
+#: take plain tensors). ``forward_dynamics`` checks ``v`` and ``tau`` (its bias call takes a zero acceleration unchecked);
 #: ``integrate`` and ``difference`` check their two configuration-space inputs.
 EXPECTED_CHECKS = {
     "forward_kinematics": 1,
     "frame_jacobian_time_variation": 1,
     "joint_jacobian_time_variation": 1,
     "inverse_dynamics": 2,
-    "forward_dynamics": 3,
+    "forward_dynamics": 2,
     "centroidal_momentum": 1,
     "integrate": 2,
     "difference": 2,

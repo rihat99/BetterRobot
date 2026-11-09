@@ -13,9 +13,10 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from ..model.model import Model
+from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..kinematics import KinematicState
-from .distance import sphere_sphere
+from ..model.model import Model
+from .distance import sphere_sphere_raw
 
 if TYPE_CHECKING:
     from .robot_capsules import RobotCapsules
@@ -71,7 +72,12 @@ class RobotSpheres:
         )
 
     def centers(self, state: KinematicState) -> torch.Tensor:
-        """Sphere centres ``(B..., S, 3)`` in ``WORLD``, from the frame poses in ``state`` (``KinematicState``)."""
+        """Sphere centres ``(B..., S, 3)`` in ``WORLD``, from the frame poses in ``state`` (``KinematicState``).
+
+        Raises ``DtypeMismatchError`` or ``DeviceMismatchError`` when the spheres are not in the state's dtype and on
+        its device (move them with ``to``).
+        """
+        _check_attached("spheres", self.offsets, state)
         # A product-sum: a batched 3x3 matmul was 2.5x slower forward + backward. Advanced indexing, not index_select,
         # whose CUDA backward adds with atomics and so is not bitwise reproducible.
         rotation = state.frame_rotations[..., self.frame_ids, :, :]
@@ -104,6 +110,10 @@ def self_collision_pairs(
     body_of = [body(joint) for joint in model.frame_parent_joint_ids]
     pairs = []
     frame_ids = spheres.frame_ids.tolist()
+    if any(not 0 <= frame < model.nframes for frame in frame_ids):
+        raise ArgumentError(
+            f"spheres.frame_ids must lie in [0, {model.nframes}) for this model; build them with from_frames(model, ...)"
+        )
     for i, frame_i in enumerate(frame_ids):
         for j in range(i + 1, len(frame_ids)):
             body_i, body_j = body_of[frame_i], body_of[frame_ids[j]]
@@ -115,9 +125,37 @@ def self_collision_pairs(
 
 
 def self_distances(spheres: RobotSpheres, state: KinematicState, *, pairs: torch.Tensor) -> torch.Tensor:
-    """Signed distances ``(B..., P)`` between the sphere pairs ``pairs: (P, 2)``."""
+    """Signed distances ``(B..., P)`` between the sphere pairs ``pairs: (P, 2)``. Raises as `RobotSpheres.centers`, and
+    ``ShapeError``/``DtypeMismatchError``/``DeviceMismatchError`` for ``pairs`` that is not a ``(P, 2)`` long tensor
+    on the spheres' device."""
+    _check_pairs(pairs, spheres.frame_ids.device)
     centers = spheres.centers(state)
     first, second = pairs[:, 0], pairs[:, 1]
-    return sphere_sphere(
+    return sphere_sphere_raw(
         centers[..., first, :], spheres.radii[first], center_b=centers[..., second, :], radius_b=spheres.radii[second]
     )
+
+
+def _check_attached(name: str, values: torch.Tensor, state: KinematicState) -> None:
+    """Raise unless ``values`` (a sphere or capsule table) is in ``state``'s dtype and on its device."""
+    if not isinstance(state, KinematicState):
+        raise TypeError(f"state must be a KinematicState, got {type(state).__name__}")
+    dtype, device = state.frame_transforms.dtype, state.frame_transforms.device
+    if values.dtype != dtype:
+        raise DtypeMismatchError(f"{name}.dtype={values.dtype} != state.dtype={dtype}; pass {name}.to(dtype={dtype})")
+    if values.device != device:
+        raise DeviceMismatchError(
+            f"{name}.device={values.device} != state.device={device}; pass {name}.to(device={device})"
+        )
+
+
+def _check_pairs(pairs: object, device: torch.device) -> None:
+    """Raise unless ``pairs`` is a ``(P, 2)`` long tensor on ``device``."""
+    if not isinstance(pairs, torch.Tensor):
+        raise TypeError(f"pairs must be a torch.Tensor, got {type(pairs).__name__}")
+    if pairs.dtype != torch.long:
+        raise DtypeMismatchError(f"pairs.dtype={pairs.dtype} is not torch.int64; pass pairs.long()")
+    if pairs.ndim != 2 or pairs.shape[-1] != 2:
+        raise ShapeError(f"pairs must have shape (P, 2), got {tuple(pairs.shape)}")
+    if pairs.device != device:
+        raise DeviceMismatchError(f"pairs.device={pairs.device} != spheres.device={device}; pass pairs.to({device})")

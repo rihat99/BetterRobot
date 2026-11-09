@@ -17,7 +17,7 @@ from ..model.model import Model
 from ._fk import placement_matrices, world_transforms
 from ._jacobian import world_column_table
 from ._plans import fk_plan, jacobian_plan
-from .configuration import full_configuration
+from .configuration import full_configuration_raw
 
 _T = TypeVar("_T")
 
@@ -153,7 +153,7 @@ def forward_kinematics(model: Model, q: torch.Tensor, *, check_quaternion_norm: 
         placements = placements.broadcast_to(*batch, nj, 4, 4).reshape(count, nj, 4, 4)
     if frames.ndim > 3:
         frames = frames.broadcast_to(*batch, nf, 4, 4).reshape(count, nf, 4, 4)
-    q_full = full_configuration(model, q).reshape(count, model.nq_full)
+    q_full = full_configuration_raw(model, q).reshape(count, model.nq_full)
     if check_quaternion_norm:
         _check_quaternion_norms(model, q_full)
     joints, frames = world_transforms(model, q_full, placements, frames)

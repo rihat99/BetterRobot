@@ -68,7 +68,17 @@ def mimic_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> Mim
 
 
 def full_configuration(model: Model, q: torch.Tensor) -> torch.Tensor:
-    """``q: (B..., nq)`` with the mimic targets filled in, ``(B..., nq_full)``; ``q`` itself without mimics."""
+    """``q: (B..., nq)`` with the mimic targets filled in, ``(B..., nq_full)``; ``q`` itself without mimics.
+
+    Raises ``TypeError``, ``ShapeError``, ``DtypeMismatchError`` or ``DeviceMismatchError`` for a ``q`` that is not a
+    tensor of the model's dtype and device ending in ``nq``.
+    """
+    check_tensor("q", q, shape=(model.nq,), dtype=model.dtype, device=model.device)
+    return full_configuration_raw(model, q)
+
+
+def full_configuration_raw(model: Model, q: torch.Tensor) -> torch.Tensor:
+    """`full_configuration` without input checks, for a checked ``q: (B..., nq) → (B..., nq_full)``."""
     if model.nq_full == model.nq:
         return q
     plan = mimic_plan(model, dtype=q.dtype, device=q.device)

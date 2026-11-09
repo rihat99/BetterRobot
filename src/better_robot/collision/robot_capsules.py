@@ -12,9 +12,10 @@ from dataclasses import dataclass
 
 import torch
 
-from ..model.model import Model
 from ..kinematics import KinematicState
-from .distance import capsule_capsule
+from ..model.model import Model
+from .distance import capsule_capsule_raw
+from .robot_spheres import _check_attached, _check_pairs
 
 
 @dataclass(frozen=True)
@@ -59,7 +60,11 @@ class RobotCapsules:
         )
 
     def segments(self, state: KinematicState) -> tuple[torch.Tensor, torch.Tensor]:
-        """End points ``(starts, ends)``, each ``(B..., C, 3)`` in ``WORLD``, from the frame poses in ``state``."""
+        """End points ``(starts, ends)``, each ``(B..., C, 3)`` in ``WORLD``, from the frame poses in ``state``.
+
+        Raises as `RobotSpheres.centers`.
+        """
+        _check_attached("capsules", self.starts, state)
         # Advanced indexing, as in RobotSpheres.centers: index_select's CUDA backward is not bitwise reproducible.
         rotation = state.frame_rotations[..., self.frame_ids, :, :]
         translation = state.frame_translations[..., self.frame_ids, :]
@@ -68,10 +73,14 @@ class RobotCapsules:
 
 
 def self_capsule_distances(capsules: RobotCapsules, state: KinematicState, *, pairs: torch.Tensor) -> torch.Tensor:
-    """Signed distances ``(B..., P)`` between the capsule pairs ``pairs: (P, 2)`` (see ``self_collision_pairs``)."""
+    """Signed distances ``(B..., P)`` between the capsule pairs ``pairs: (P, 2)`` (see ``self_collision_pairs``).
+
+    Raises as `self_distances`.
+    """
+    _check_pairs(pairs, capsules.frame_ids.device)
     starts, ends = capsules.segments(state)
     first, second = pairs[:, 0], pairs[:, 1]
-    return capsule_capsule(
+    return capsule_capsule_raw(
         starts[..., first, :],
         ends[..., first, :],
         radius_a=capsules.radii[first],

@@ -11,7 +11,7 @@ from ..kinematics.configuration import full_tangent, reduced_columns
 from ..lie._checks import check_tensor
 from ..model._checks import expand_batch
 from ..model.model import Model
-from ._world import inverse_dynamics_full, world_kinematics
+from ._world import WorldKinematics, inverse_dynamics_full, world_kinematics
 
 
 def _full_tangent(model: Model, batch: tuple[int, ...], value: torch.Tensor, name: str) -> torch.Tensor:
@@ -40,15 +40,27 @@ def inverse_dynamics(
     above and a batch that broadcasts to the state's.
     """
     kin = world_kinematics(model, state)
-    count = math.prod(kin.batch)
     v_full, a_full = _full_tangent(model, kin.batch, v, "v"), _full_tangent(model, kin.batch, a, "a")
-    if external_forces is not None:
-        event = (model.njoints, 6)
-        check_tensor("external_forces", external_forces, shape=event, dtype=model.dtype, device=model.device)
-        external_forces = expand_batch("external_forces", external_forces, kin.batch, event).reshape(count, *event)
-    gravity = model.gravity.broadcast_to(*kin.batch, 6).reshape(count, 6)
-    tau_full = inverse_dynamics_full(kin, gravity, v_full, a_full, external_forces)
-    return reduced_columns(model, tau_full).view(*kin.batch, model.nv) + model.armature * a
+    forces = _external_forces(model, kin.batch, external_forces)
+    return _torques(model, kin, v_full, a_full, forces) + model.armature * a
+
+
+def _external_forces(model: Model, batch: tuple[int, ...], forces: torch.Tensor | None) -> torch.Tensor | None:
+    """Checked ``external_forces (B..., njoints, 6)`` broadcast to the state's batch, flattened to ``(N, njoints, 6)``."""
+    if forces is None:
+        return None
+    event = (model.njoints, 6)
+    check_tensor("external_forces", forces, shape=event, dtype=model.dtype, device=model.device)
+    return expand_batch("external_forces", forces, batch, event).reshape(math.prod(batch), *event)
+
+
+def _torques(
+    model: Model, kin: WorldKinematics, v_full: torch.Tensor, a_full: torch.Tensor, forces: torch.Tensor | None
+) -> torch.Tensor:
+    """RNEA torques ``(B..., nv)`` without the armature term, from checked, flattened ``(N, nv_full)`` inputs."""
+    gravity = model.gravity.broadcast_to(*kin.batch, 6).reshape(math.prod(kin.batch), 6)
+    tau_full = inverse_dynamics_full(kin, gravity, v_full, a_full, forces)
+    return reduced_columns(model, tau_full).view(*kin.batch, model.nv)
 
 
 __all__ = ["inverse_dynamics"]

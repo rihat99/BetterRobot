@@ -28,6 +28,8 @@ PLAIN_RAISES_RATCHET = REPO / "tests" / "contract" / "ratchets" / "plain_raises.
 BUILTIN_RAISES = {"ValueError", "TypeError", "RuntimeError"}
 _NOT_A_TENSOR = "a value that is not a torch.Tensor is a Python TypeError; the tree has no node for it"
 PLAIN_RAISES: dict[str, str] = {
+    "src/better_robot/collision/robot_spheres.py::_check_attached": "a state that is not a KinematicState is a Python TypeError",
+    "src/better_robot/collision/robot_spheres.py::_check_pairs": _NOT_A_TENSOR,
     "src/better_robot/lie/_checks.py::check_tensor": _NOT_A_TENSOR,
     "src/better_robot/spatial/inertia.py::_check_mesh_structure": _NOT_A_TENSOR,
     "src/better_robot/spatial/inertia.py::_density_tensor": _NOT_A_TENSOR,

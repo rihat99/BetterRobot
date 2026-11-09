@@ -10,7 +10,7 @@ from ..lie._checks import check_tensor
 from ..model._checks import expand_batch
 from ..model.model import Model
 from ._world import mass_matrix_full, world_kinematics
-from .inverse_dynamics import inverse_dynamics
+from .inverse_dynamics import _external_forces, _full_tangent, _torques
 
 
 def mass_matrix(model: Model, state: KinematicState) -> torch.Tensor:
@@ -37,9 +37,11 @@ def forward_dynamics(
     ``v, tau: (B..., nv)``; ``external_forces`` as in `inverse_dynamics`. The bias forces come from
     `inverse_dynamics` with zero acceleration, then a Cholesky solve with `mass_matrix`. Raises as `inverse_dynamics`.
     """
-    bias = inverse_dynamics(model, state, v=v, a=torch.zeros_like(v), external_forces=external_forces)
+    kin = world_kinematics(model, state)
+    v_full = _full_tangent(model, kin.batch, v, "v")
+    bias = _torques(model, kin, v_full, torch.zeros_like(v_full), _external_forces(model, kin.batch, external_forces))
     check_tensor("tau", tau, shape=(model.nv,), dtype=model.dtype, device=model.device)
-    tau = expand_batch("tau", tau, tuple(bias.shape[:-1]), (model.nv,))
+    tau = expand_batch("tau", tau, kin.batch, (model.nv,))
     factor = torch.linalg.cholesky(mass_matrix(model, state))
     return torch.cholesky_solve((tau - bias).unsqueeze(-1), factor).squeeze(-1)
 
