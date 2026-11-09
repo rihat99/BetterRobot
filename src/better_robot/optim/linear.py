@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import final
 
 import torch
 
 
+@final
 @dataclass(frozen=True)
 class Normal:
     """Gauss-Newton model ``loss(delta) ≈ loss + g·delta + ½ delta·H·delta`` per batch element."""
@@ -63,6 +65,7 @@ class Normal:
         return -(self.g * delta).sum(-1) - 0.5 * curvature
 
 
+@final
 @dataclass(frozen=True)
 class BandLayout:
     """Where each tangent column sits in a block-tridiagonal arrangement of the time axis.
@@ -85,6 +88,7 @@ class BandLayout:
         return position if self.time_columns is None else position[self.time_columns]
 
 
+@final
 @dataclass(frozen=True)
 class BandedNormal:
     """Normal equations of a trajectory problem stored as a block-tridiagonal matrix.
@@ -202,6 +206,7 @@ class BandedNormal:
         return full[:, position[:, None], position[None, :]]
 
 
+@final
 @dataclass(frozen=True)
 class ArrowNormal:
     """Block-tridiagonal normal equations bordered by variables shared over time (an arrowhead matrix).
@@ -293,6 +298,7 @@ class ArrowNormal:
         return full
 
 
+@final
 class DenseSink:
     """Accumulates Jacobian products into a dense ``H: (B, N, N)``."""
 
@@ -312,6 +318,7 @@ class DenseSink:
         return Normal(H=self.H, g=g)
 
 
+@final
 class BandSink:
     """Accumulates Jacobian products into block-tridiagonal storage."""
 
@@ -346,6 +353,7 @@ class BandSink:
         return BandedNormal(diagonal=diagonal, upper=upper, g=g, layout=layout)
 
 
+@final
 class ArrowSink:
     """Accumulates Jacobian products into a band, a border and a dense corner.
 

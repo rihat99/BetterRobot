@@ -26,13 +26,13 @@ result = solve(problem, LevenbergMarquardt(), iterations=20)  # result.x["x"]: (
 
 from __future__ import annotations
 
-from .kernels import Cauchy, GemanMcClure, Huber, Tukey
+from .kernels import Cauchy, GemanMcClure, Huber, RobustKernel, Tukey
 from .constrained import solve_constrained
 from .linear import ArrowNormal, BandedNormal, Normal
 from .manifold import Euclidean, Manifold
 from .phases import Phase, Result, run, solve, solve_layer
 from .linearization import check_jacobian
-from .problem import Problem, TermFn
+from .problem import Problem, Term, TermFn
 from .solvers import LBFGS, GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
 
 __all__ = [
@@ -50,8 +50,10 @@ __all__ = [
     "Phase",
     "Problem",
     "Result",
+    "RobustKernel",
     "Solver",
     "State",
+    "Term",
     "TermFn",
     "TorchOptim",
     "Tukey",

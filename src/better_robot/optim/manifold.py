@@ -7,34 +7,36 @@ ambient tensor and calls ``Manifold.project`` afterwards.
 
 from __future__ import annotations
 
-from typing import Protocol
+from abc import ABC, abstractmethod
+from typing import final
 
 import torch
 
 
-class Manifold(Protocol):
-    """What the optimizer needs to know about a non-Euclidean variable."""
+class Manifold(ABC):
+    """What the optimizer needs to know about a variable that is not a plain tensor; a new one subclasses this."""
 
+    @abstractmethod
     def tangent_dim(self, x: torch.Tensor) -> int:
         """Tangent size ``n`` of one batch element of ``x: (B, *event)``."""
-        ...
 
+    @abstractmethod
     def retract(self, x: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         """Step ``x: (B, *event)`` along ``delta: (B, n)``; ``retract(x, 0) == x``."""
-        ...
 
+    @abstractmethod
     def project(self, x: torch.Tensor) -> torch.Tensor:
-        """Map an ambient tensor back onto the manifold."""
-        ...
+        """Map an ambient tensor ``(B, *event)`` back onto the manifold."""
 
+    @abstractmethod
     def tangent_bounds(
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Allowed step range ``(B, n), (B, n)`` at ``x`` for box bounds on the ambient tensor."""
-        ...
 
 
-class Euclidean:
+@final
+class Euclidean(Manifold):
     """Plain tensor: the tangent is the flattened event."""
 
     def tangent_dim(self, x: torch.Tensor) -> int:

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from typing import final
 
 import torch
 
@@ -19,10 +20,11 @@ from ..kinematics.configuration import difference, integrate, manifold_plan
 from ..kinematics import KinematicState, forward_kinematics, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inverse_se3
-from ..optim import TermFn
+from ..optim import Manifold, TermFn
 
 
-class RobotManifold:
+@final
+class RobotManifold(Manifold):
     """Configuration manifold of ``model``: ``q: (B, nq)`` or ``(B, T, nq)``, tangent ``nv`` per configuration.
 
     ``retract`` is ``kinematics.integrate``; ``project`` integrates a zero step, which renormalizes quaternion joints.

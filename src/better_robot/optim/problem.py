@@ -14,7 +14,7 @@ import inspect
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any
+from typing import Any, final
 
 import torch
 
@@ -26,6 +26,7 @@ from .linearization import gradient, linearize
 from .manifold import Euclidean, Manifold
 
 
+@final
 @dataclass(frozen=True)
 class TermFn:
     """A term function bundled with the names it reads and, optionally, its analytic Jacobian and time window.
@@ -43,6 +44,7 @@ class TermFn:
     window: int | None = None
 
 
+@final
 @dataclass(frozen=True)
 class Term:
     """One registered cost term."""
@@ -57,6 +59,7 @@ class Term:
     window: int | None = None  #: time-local term: row ``t`` reads knots ``t .. t + window - 1``.
 
 
+@final
 class Problem:
     """A batch of independent optimization problems over named tensors, read-only once built.
 

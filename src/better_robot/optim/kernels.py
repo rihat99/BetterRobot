@@ -1,37 +1,32 @@
-"""Robust objectives and IRLS weights for least-squares problems."""
+"""Robust kernels: objectives and IRLS weights that down-weight outliers of least-squares terms."""
 
 from __future__ import annotations
 
 import math
-from typing import Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+from typing import final
 
 import torch
 
 
-@runtime_checkable
-class RobustKernel(Protocol):
-    """Down-weight outliers without changing residual structure."""
+class RobustKernel(ABC):
+    """Down-weights outliers without changing residual structure; a new kernel subclasses this.
 
+    ``Problem.residual(..., kernel=)`` applies it to the squared norm of each group (the last axis of the
+    weighted residual); without a kernel the loss is the plain half squared norm.
+    """
+
+    @abstractmethod
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        """Map squared residual norms to objective values."""
-        ...
+        """Objective values ``(...)`` of squared residual norms ``(...)``."""
 
+    @abstractmethod
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        """Map squared residual norms to IRLS row weights."""
-        ...
+        """IRLS row weights ``(...)`` of squared residual norms ``(...)``: ``rho'``."""
 
 
-class L2:
-    """The ordinary half-squared L2 objective."""
-
-    def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        return 0.5 * squared_norm
-
-    def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        return torch.ones_like(squared_norm)
-
-
-class Huber:
+@final
+class Huber(RobustKernel):
     """Quadratic loss inside ``delta`` and linear loss outside it."""
 
     def __init__(self, *, delta: float = 1.0) -> None:
@@ -62,7 +57,8 @@ class Huber:
         )
 
 
-class Cauchy:
+@final
+class Cauchy(RobustKernel):
     """Cauchy (Lorentzian) loss."""
 
     def __init__(self, *, c: float = 1.0) -> None:
@@ -77,7 +73,8 @@ class Cauchy:
         return 1.0 / (1.0 + squared_norm / c2)
 
 
-class Tukey:
+@final
+class Tukey(RobustKernel):
     """Tukey biweight loss with a re-descending cutoff."""
 
     def __init__(self, *, c: float = 4.685) -> None:
@@ -92,7 +89,8 @@ class Tukey:
         return (1.0 - squared_norm / (self.c * self.c)).clamp(min=0.0).square()
 
 
-class GemanMcClure:
+@final
+class GemanMcClure(RobustKernel):
     """Smooth, bounded, re-descending Geman--McClure loss."""
 
     def __init__(self, *, c: float = 1.0) -> None:
@@ -110,4 +108,4 @@ class GemanMcClure:
         return (c2 / (c2 + squared_norm)).square()
 
 
-__all__ = ["Cauchy", "GemanMcClure", "Huber", "L2", "RobustKernel", "Tukey"]
+__all__ = ["Cauchy", "GemanMcClure", "Huber", "RobustKernel", "Tukey"]

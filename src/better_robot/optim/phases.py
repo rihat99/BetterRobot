@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import KW_ONLY, dataclass, field, replace
-from typing import Any
+from typing import Any, final
 
 import torch
 
@@ -13,6 +13,7 @@ from .problem import Problem
 from .solvers import DIAGNOSTICS, Solver, State
 
 
+@final
 @dataclass(frozen=True)
 class Phase:
     """One stage of a solve.
@@ -41,6 +42,7 @@ class Phase:
     stop_every: int = 1
 
 
+@final
 @dataclass(frozen=True)
 class Result:
     """Outcome of ``run``: the solved variables ``x`` (``result.x["q"]``), their loss and the solve's record."""
