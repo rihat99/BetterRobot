@@ -48,13 +48,13 @@ class Phase:
 class Result:
     """Outcome of ``run``: the solved variables ``x`` (``result.x["q"]``), their loss and the solve's record."""
 
-    x: dict[str, torch.Tensor]
-    loss: torch.Tensor  #: ``(B,)`` final loss under the last phase's weights.
-    done: torch.Tensor  #: ``(B,)`` convergence flag of the last phase.
+    x: dict[str, torch.Tensor] = field(repr=False)
+    loss: torch.Tensor = field(repr=False)  #: ``(B,)`` final loss under the last phase's weights.
+    done: torch.Tensor = field(repr=False)  #: ``(B,)`` convergence flag of the last phase.
     iterations: int  #: total steps taken.
-    history: dict[str, torch.Tensor] = field(default_factory=dict)  #: ``{phase: (steps, B)}`` losses.
+    history: dict[str, torch.Tensor] = field(default_factory=dict, repr=False)  #: ``{phase: (steps, B)}`` losses.
     #: ``{phase: {key: (steps, B)}}`` per-step solver diagnostics (key set: ``State`` docstring).
-    diagnostics: dict[str, dict[str, torch.Tensor]] = field(default_factory=dict)
+    diagnostics: dict[str, dict[str, torch.Tensor]] = field(default_factory=dict, repr=False)
     state: State | None = None  #: final solver state of the last phase; pass as ``state=`` to warm-start.
 
 

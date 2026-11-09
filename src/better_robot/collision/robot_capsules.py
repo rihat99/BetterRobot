@@ -39,6 +39,10 @@ class RobotCapsules:
     ends: torch.Tensor
     radii: torch.Tensor
 
+    def __repr__(self) -> str:
+        dtype = str(self.radii.dtype).removeprefix("torch.")
+        return f"RobotCapsules({self.frame_ids.shape[0]} capsules, {dtype}, {self.radii.device})"
+
     @classmethod
     def from_frames(
         cls, model: Model, capsules: Mapping[str | int, Sequence[tuple[Sequence[float], Sequence[float], float]]]

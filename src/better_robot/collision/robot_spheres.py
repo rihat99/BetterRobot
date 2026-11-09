@@ -42,6 +42,10 @@ class RobotSpheres:
     offsets: torch.Tensor
     radii: torch.Tensor
 
+    def __repr__(self) -> str:
+        dtype = str(self.radii.dtype).removeprefix("torch.")
+        return f"RobotSpheres({self.frame_ids.shape[0]} spheres, {dtype}, {self.radii.device})"
+
     @classmethod
     def from_frames(
         cls, model: Model, spheres: Mapping[str | int, Sequence[tuple[Sequence[float], float]]]

@@ -45,6 +45,9 @@ class IRJoint:
     armature: float = 0.0
     neutral: torch.Tensor | None = None
 
+    def __repr__(self) -> str:
+        return f"IRJoint({self.name!r}, {self.parent_body!r} -> {self.child_body!r}, {self.joint!r})"
+
 
 @final
 @dataclass(frozen=True, kw_only=True)
@@ -63,8 +66,8 @@ class IRBody:
 
     name: str
     mass: float = 0.0
-    com: torch.Tensor = field(default_factory=lambda: torch.zeros(3))
-    inertia: torch.Tensor = field(default_factory=lambda: torch.zeros(3, 3))
+    com: torch.Tensor = field(default_factory=lambda: torch.zeros(3), repr=False)
+    inertia: torch.Tensor = field(default_factory=lambda: torch.zeros(3, 3), repr=False)
 
 
 @final
@@ -91,3 +94,7 @@ class IRModel:
     gravity: torch.Tensor = field(
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0], dtype=torch.float64)
     )
+
+    def __repr__(self) -> str:
+        sizes = f"bodies={len(self.bodies)}, joints={len(self.joints)}, frames={len(self.frames)}, shapes={len(self.shapes)}"
+        return f"IRModel({self.name!r}, {sizes})"

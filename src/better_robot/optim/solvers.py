@@ -37,12 +37,12 @@ class State:
     ``solver`` is the class of the solver that made the state; a warm start needs a solver of that class.
     """
 
-    x: dict[str, torch.Tensor]  #: variables, each ``(B, *event)``.
-    loss: torch.Tensor  #: ``(B,)`` loss at ``x``.
-    done: torch.Tensor  #: ``(B,)`` bool, per-problem convergence.
+    x: dict[str, torch.Tensor] = field(repr=False)  #: variables, each ``(B, *event)``.
+    loss: torch.Tensor = field(repr=False)  #: ``(B,)`` loss at ``x``.
+    done: torch.Tensor = field(repr=False)  #: ``(B,)`` bool, per-problem convergence.
     solver: type[Solver]  #: the solver kind that made this state.
     iteration: int = 0  #: steps taken so far.
-    extra: dict[str, Any] = field(default_factory=dict)  #: solver-owned (damping, moments, ...).
+    extra: dict[str, Any] = field(default_factory=dict, repr=False)  #: solver-owned (damping, moments, ...).
 
 
 DIAGNOSTICS = ("grad_norm", "step_norm", "accepted", "damping")

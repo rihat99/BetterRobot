@@ -90,3 +90,7 @@ class Geometry:
     """The shapes attached to a robot's bodies, in description order."""
 
     shapes: tuple[AttachedShape, ...]
+
+    def __repr__(self) -> str:
+        collision = sum(shape.collision for shape in self.shapes)
+        return f"Geometry({len(self.shapes)} shapes, {collision} for collision)"

@@ -18,6 +18,10 @@ class Normal:
     lower: torch.Tensor | None = None  #: ``(B, N)`` most negative allowed step, or ``None``.
     upper: torch.Tensor | None = None  #: ``(B, N)`` most positive allowed step, or ``None``.
 
+    def __repr__(self) -> str:
+        dtype = str(self.g.dtype).removeprefix("torch.")
+        return f"Normal(B={self.g.shape[0]}, N={self.g.shape[1]}, {dtype}, {self.g.device})"
+
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> Normal:
         """Box-constrain the step to ``[lower, upper]`` (projected Newton, one active-set pass).
 
@@ -103,6 +107,11 @@ class BandedNormal:
     layout: BandLayout
     lower: torch.Tensor | None = None
     upper_bound: torch.Tensor | None = None
+
+    def __repr__(self) -> str:
+        batch, blocks, size = self.diagonal.shape[:3]
+        dtype = str(self.g.dtype).removeprefix("torch.")
+        return f"BandedNormal(B={batch}, N={self.g.shape[1]}, K={blocks}, S={size}, {dtype}, {self.g.device})"
 
     def _to_band(self, vector: torch.Tensor, fill: float = 0.0) -> torch.Tensor:
         """``(B, N, ...)`` in problem order to ``(B, K, S, ...)`` in banded order."""
@@ -221,6 +230,12 @@ class ArrowNormal:
     g: torch.Tensor  #: ``(B, N)``
     lower: torch.Tensor | None = None
     upper: torch.Tensor | None = None
+
+    def __repr__(self) -> str:
+        batch, blocks, size, shared = self.border.shape
+        dtype = str(self.g.dtype).removeprefix("torch.")
+        sizes = f"B={batch}, N={self.g.shape[1]}, K={blocks}, S={size}, Ns={shared}"
+        return f"ArrowNormal({sizes}, {dtype}, {self.g.device})"
 
     def masked(self, keep: torch.Tensor) -> ArrowNormal:
         """Freeze columns where ``keep: (B or 1, N)`` is 0: zero gradient, identity row and column."""
