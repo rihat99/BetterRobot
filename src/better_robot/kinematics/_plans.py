@@ -66,7 +66,9 @@ class JacobianPlan:
 
     max_nv: int  #: widest per-joint subspace.
     column_owner: torch.Tensor  #: ``(nv_full,)`` long: joint owning each full-width v-column.
-    column_subspace: torch.Tensor  #: ``(nv_full, 6)``: the constant joint-frame motion subspace column of each column.
+    #: ``(nv_full, 3, 2)``: each column's constant joint-frame motion subspace column, its linear part in
+    #: ``[..., 0]`` and its angular part in ``[..., 1]``, so one matmul rotates both.
+    column_subspace: torch.Tensor
     support_mask: torch.Tensor  #: ``(njoints, 1, nv_full)`` bool: True where ``column_owner`` supports the row joint.
 
 
@@ -211,10 +213,11 @@ def build_jacobian_plan(model: Model, dtype: torch.dtype, device: torch.device) 
             subspaces[joint_id, :, : joint.nv] = joint.motion_subspace(neutral).to(device=device, dtype=dtype)
     column_owner = torch.tensor(owner, dtype=torch.long, device=device)
     column_gather = torch.tensor(gather, dtype=torch.long, device=device)
+    columns = subspaces.transpose(-2, -1).reshape(-1, 6).index_select(0, column_gather)  # (nv_full, 6)
     return JacobianPlan(
         max_nv=max_nv,
         column_owner=column_owner,
-        column_subspace=subspaces.transpose(-2, -1).reshape(-1, 6).index_select(0, column_gather).contiguous(),
+        column_subspace=columns.reshape(-1, 2, 3).mT.contiguous(),
         support_mask=is_support.index_select(-1, column_owner).unsqueeze(-2).contiguous(),
     )
 

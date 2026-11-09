@@ -95,7 +95,9 @@ class Model:
     _memo: dict = field(default_factory=dict, init=False, repr=False, compare=False)
     # A copy keeps every static field and plans derive from those alone, so `with_values` and `to` point their copy
     # at the first model of the line, and `_plan` takes that model's plans instead of building them again. Not in
-    # `structure_key`, the pytree context or the value memo.
+    # `structure_key`, the pytree context or the value memo. The link is strong: a copy keeps that model, with its
+    # tensors and value memo, alive and pickles it along. A weak link would make every copy unpicklable and rebuild
+    # the plans once the first model is dropped; `_plans` itself cannot be handed over, as it is `init=False`.
     _plan_owner: Model | None = field(default=None, repr=False, compare=False, kw_only=True)
 
     @property
@@ -255,7 +257,8 @@ class Model:
         """Copy with the given tensor fields replaced (``joint_placements=``, ``body_inertias=``, ...).
 
         Placements are normalised. ``joint_placements``, ``body_inertias`` and ``frame_placements`` may carry a
-        batch ``I...`` that broadcasts across the three; the other fields have exactly their event shape.
+        batch ``I...`` that broadcasts across the three; the other fields have exactly their event shape. The copy
+        shares the plans of the first model of its line and keeps that model alive while it lives.
         """
         unknown = sorted(set(fields) - set(_TENSOR_FIELDS))
         if unknown:
@@ -276,8 +279,9 @@ class Model:
         return dataclasses.replace(self, **checked, _plan_owner=self if self._plan_owner is None else self._plan_owner)
 
     def to(self, device: torch.device | str | None = None, dtype: torch.dtype | None = None) -> Model:
-        """Copy with every tensor field on ``device`` in ``dtype``; it shares this model's plans (a plan for a new
-        dtype or device is built there on demand)."""
+        """Copy with every tensor field on ``device`` in ``dtype``; it shares the plans of the first model of its line
+        (a plan for a new dtype or device is built there on demand) and keeps that model, tensors included, alive
+        while it lives: ``load(...).to("cuda")`` holds the CPU model too."""
         moved = {name: getattr(self, name).to(device=device, dtype=dtype) for name in _TENSOR_FIELDS}
         return dataclasses.replace(self, **moved, _plan_owner=self if self._plan_owner is None else self._plan_owner)
 

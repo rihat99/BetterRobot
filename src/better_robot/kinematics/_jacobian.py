@@ -22,20 +22,17 @@ import torch
 from ._plans import JacobianPlan
 
 
-def world_column_table(rotations: torch.Tensor, translations: torch.Tensor, plan: JacobianPlan) -> torch.Tensor:
-    """``(B..., 6, nv_full)`` world column table from world joint rotations ``(B..., njoints, 3, 3)`` and origins
-    ``(B..., njoints, 3)``.
+def world_column_table(transforms: torch.Tensor, plan: JacobianPlan) -> torch.Tensor:
+    """``(B..., 6, nv_full)`` world column table from world joint transforms ``[R | p]: (B..., njoints, 3, 4)``.
 
     Column ``c`` holds ``Ad(oM_a) @ S_a[:, k]`` for the owning joint ``a = plan.column_owner[c]`` and its local
     column ``k``: the world Jacobian content of that column, independent of the row joint that reads it. Per-joint
     masking and mimic reduction are the caller's job. Trusts validated inputs.
     """
-    owner = plan.column_owner
-    rotation = rotations.index_select(-3, owner)  # (B..., nv_full, 3, 3)
-    translation = translations.index_select(-2, owner)  # (B..., nv_full, 3)
-    subspace = plan.column_subspace  # (nv_full, 6)
-    angular = (rotation @ subspace[:, 3:, None]).squeeze(-1)
-    linear = (rotation @ subspace[:, :3, None]).squeeze(-1) + torch.linalg.cross(translation, angular)
+    owners = transforms.index_select(-3, plan.column_owner)  # (B..., nv_full, 3, 4)
+    rotated = owners[..., :3] @ plan.column_subspace  # (B..., nv_full, 3, 2): R s_linear, R s_angular
+    angular = rotated[..., 1]
+    linear = rotated[..., 0] + torch.linalg.cross(owners[..., 3], angular)
     return torch.cat((linear, angular), dim=-1).transpose(-1, -2)  # (B..., 6, nv_full)
 
 
@@ -53,11 +50,12 @@ def geometry_about_first_joint(
     nj, nv_full = joint_transforms.shape[-3], columns.shape[-1]
     count = math.prod(joint_transforms.shape[:-3])
     transforms = joint_transforms.reshape(count, nj, 3, 4)
-    origin = transforms[:, min(1, nj - 1), :, 3]
+    translations = transforms[..., 3]
+    origin = translations[:, min(1, nj - 1)]
     columns = columns.reshape(count, 6, nv_full)
-    linear = columns[:, :3] + torch.linalg.cross(columns[:, 3:], origin.unsqueeze(-1), dim=-2)
-    columns = torch.cat((linear, columns[:, 3:]), dim=-2)
-    return columns, transforms[..., :3], transforms[..., 3] - origin.unsqueeze(-2), origin
+    angular = columns[:, 3:]
+    linear = columns[:, :3] + torch.linalg.cross(angular, origin.unsqueeze(-1), dim=-2)
+    return torch.cat((linear, angular), dim=-2), transforms[..., :3], translations - origin.unsqueeze(-2), origin
 
 
 __all__ = ["geometry_about_first_joint", "world_column_table"]
