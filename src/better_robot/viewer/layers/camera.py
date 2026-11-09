@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -11,6 +11,7 @@ from .._math import RGB, as_frames, rgb_uint8, xyzw_to_wxyz
 from ..layer import Layer
 
 
+@final
 class CameraLayer(Layer):
     """Camera frustums at ``poses (T, 7)`` (camera-to-world, OpenCV ``+z`` forward), optional images.
 

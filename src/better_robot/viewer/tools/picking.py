@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
 
+@final
 @dataclass(frozen=True)
 class CameraFrustum:
     """What is needed to project world points the way viser's client does."""

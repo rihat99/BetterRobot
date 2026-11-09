@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -24,6 +24,7 @@ _PALETTE = (
 )
 
 
+@final
 class PlotPanel(Layer):
     """Series ``(T, K)`` against time ``t = step / fps`` (uPlot); a dot per series marks the step.
 

@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass, field
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -21,6 +21,7 @@ from .timeline import Timeline
 _EMPTY_SCENE_POINTS = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
 
 
+@final
 @dataclass
 class _Entry:
     layer: Layer
@@ -29,6 +30,7 @@ class _Entry:
     shown: bool = True  # nodes shown; False while a visible layer sits on a sample its ``valid`` marks invalid
 
 
+@final
 @dataclass
 class _Group:
     node: Any
@@ -36,6 +38,7 @@ class _Group:
     offset: tuple[float, float, float] | None = None
 
 
+@final
 class Viewer:
     """Interactive viewer: ``add`` layers into groups, ``show`` a step, ``play`` the timeline.
 

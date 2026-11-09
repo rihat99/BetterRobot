@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -12,6 +12,7 @@ from .._math import RGB, quat_z_to, rgb_uint8
 from ..layer import Layer
 
 
+@final
 class GroundLayer(Layer):
     """Grid ``size`` wide in the ``plane`` at ``height`` along its normal, ``cell_size`` cells, a line every ``section_size``.
 

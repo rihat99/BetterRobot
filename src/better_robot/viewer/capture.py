@@ -15,7 +15,7 @@ import subprocess
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -95,6 +95,7 @@ def fit_camera(
     return look_at + distance * direction, look_at
 
 
+@final
 class HeadlessClient:
     """A headless Chromium connected to a ``Viewer``; ``render`` screenshots what that browser shows.
 

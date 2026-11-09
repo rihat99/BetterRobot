@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -14,6 +14,7 @@ from ..layer import Layer
 _IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
 
+@final
 class MeshLayer(Layer):
     """One triangle mesh: static ``vertices (V, 3)`` or deforming ``(T, V, 3)``, ``faces (F, 3)``."""
 
@@ -55,7 +56,8 @@ class MeshLayer(Layer):
         self._mesh.vertices = self.vertices[step]
 
 
-@dataclass
+@final
+@dataclass(frozen=True)
 class MeshSpec:
     """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body step).
 
@@ -71,6 +73,7 @@ class MeshSpec:
     trimesh: Any = None
 
 
+@final
 class RigidMeshLayer(Layer):
     """Rigid meshes following ``body_poses (T, B, 7)``: one node per mesh, per step only poses move.
 
@@ -121,6 +124,7 @@ class RigidMeshLayer(Layer):
             node.wxyz = wxyz[index]
 
 
+@final
 class SpheresLayer(Layer):
     """Spheres with ``centers (T, S, 3)`` and ``radii (S,)`` as one batched node (collision models, contacts).
 

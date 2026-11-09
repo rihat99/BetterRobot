@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, final
 
 
 from ._math import RGB, rgb_uint8
 
 
+@final
 @dataclass(frozen=True)
 class Theme:
     """Colours in ``[0, 1]`` RGB plus the few scene settings the viewer applies at start-up."""

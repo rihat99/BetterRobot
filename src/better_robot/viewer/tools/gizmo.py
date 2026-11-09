@@ -5,13 +5,14 @@ from __future__ import annotations
 import threading
 import traceback
 from collections.abc import Callable
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
 from .._math import xyzw_to_wxyz
 
 
+@final
 class PoseGizmo:
     """Transform controls at ``pose`` ``[x, y, z, qx, qy, qz, qw]``; ``on_change(pose)`` fires on drags.
 

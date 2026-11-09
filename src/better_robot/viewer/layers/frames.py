@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -11,6 +11,7 @@ from .._math import as_frames, xyzw_to_wxyz
 from ..layer import Layer
 
 
+@final
 class FramesLayer(Layer):
     """Poses ``(T, F, 7)`` as ``[x, y, z, qx, qy, qz, qw]`` (BetterRobot order) drawn as axes."""
 

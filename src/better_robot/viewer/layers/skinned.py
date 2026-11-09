@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -14,6 +14,7 @@ from .camera import CameraLayer
 __all__ = ["CameraLayer", "SkinnedMeshLayer"]
 
 
+@final
 class SkinnedMeshLayer(Layer):
     """Bind-pose ``vertices (V, 3)``, ``faces (F, 3)``, ``weights (V, J)`` and ``bone_poses (T, J, 7)``.
 

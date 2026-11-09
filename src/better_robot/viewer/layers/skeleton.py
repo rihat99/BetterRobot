@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -63,6 +63,7 @@ def marker_extent(marker: str) -> tuple[float, float]:
     return _EXTENT[marker]
 
 
+@final
 class SkeletonLayer(Layer):
     """Joints ``(T, J, 3)`` positions or ``(T, J, 7)`` poses (xyzw) and ``parents (J,)`` (``-1`` for roots)
     drawn as a stick figure.

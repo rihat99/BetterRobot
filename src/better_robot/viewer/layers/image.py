@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -11,6 +11,7 @@ from ...exceptions import ArgumentError, ShapeError
 from ..layer import Layer
 
 
+@final
 class ImagePanel(Layer):
     """Sidebar image per step: ``images`` ``(T, H, W, 3)`` uint8, one ``(H, W, 3)``, or a callable ``step -> image``.
 

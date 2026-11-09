@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
@@ -11,6 +11,7 @@ from .._math import RGB, as_frames, quat_z_to, rgb_uint8, unit_cone, unit_cylind
 from ..layer import Layer
 
 
+@final
 class ArrowsLayer(Layer):
     """Arrows from ``origins (T, N, 3)`` along ``vectors (T, N, 3) * scale``.
 

@@ -5,11 +5,12 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, final
 
 from ..exceptions import ArgumentError
 
 
+@final
 class Timeline:
     """Step counter for ``nsteps`` steps at ``fps``.
 
