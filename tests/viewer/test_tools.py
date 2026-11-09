@@ -6,6 +6,7 @@ import threading
 import time
 
 import numpy as np
+import pytest
 
 from better_robot.viewer.tools import CameraFrustum, PoseGizmo, project, ray_hit, vertices_in_rect, vertices_in_sphere
 from better_robot.viewer.viewer import Viewer
@@ -27,6 +28,23 @@ def test_gizmo_reports_poses_in_xyzw_order_and_fires_callbacks() -> None:
     np.testing.assert_allclose(seen[-1], [4.0, 5.0, 6.0, 0.0, 0.0, 0.0, 1.0])
     gizmo.pose = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     np.testing.assert_allclose(handle.wxyz, [0.0, 1.0, 0.0, 0.0])
+
+
+def test_a_failing_gizmo_callback_stops_the_worker_and_raises_on_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    reported: list[BaseException] = []
+    monkeypatch.setattr(threading, "excepthook", lambda hook: reported.append(hook.exc_value))
+
+    def broken(pose: np.ndarray) -> None:
+        raise ArithmeticError("IK diverged")
+
+    server = FakeServer()
+    gizmo = PoseGizmo(Viewer(server=server), "target", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], on_change=broken)
+    handle = server.scene.nodes["/tools/target"]
+    handle.position, handle.wxyz = np.zeros(3), np.array([1.0, 0.0, 0.0, 0.0])
+    handle.fire()
+    with pytest.raises(ArithmeticError, match="IK diverged"):
+        gizmo.wait(timeout=5.0)
+    assert [type(error) for error in reported] == [ArithmeticError]  # printed by the default hook, not swallowed
 
 
 def test_gizmo_drops_stale_poses_and_calls_back_off_the_caller_thread() -> None:

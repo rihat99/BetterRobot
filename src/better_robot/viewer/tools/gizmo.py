@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-import traceback
 from collections.abc import Callable
 from typing import Any, final
 
@@ -19,7 +18,8 @@ class PoseGizmo:
     Callbacks run on one worker thread owned by the gizmo, never on viser's callback pool: a drag
     overwrites a single pending pose and the worker handles only the newest one (latest wins), so a
     slow callback such as an IK solve never piles up behind the mouse. Releasing the handle queues
-    a final call with the resting pose. :meth:`wait` blocks until the worker is idle.
+    a final call with the resting pose. :meth:`wait` blocks until the worker is idle. A callback that raises stops
+    the worker: its traceback goes to ``threading.excepthook`` (printed by default) and the next :meth:`wait` raises it.
     Tools are not layers: they hold the viewer and callbacks and sit outside the step loop.
     ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). Extra
     ``options`` go to viser's ``add_transform_controls`` (``disable_sliders=True`` and
@@ -45,6 +45,7 @@ class PoseGizmo:
         self._pending: np.ndarray | None = None
         self._busy = False
         self._closed = False
+        self._error: BaseException | None = None  # what a callback raised; the worker stopped on it
         threading.Thread(target=self._run, name=f"gizmo:{name}", daemon=True).start()
         self.handle.on_update(lambda _: self._submit())
         self.handle.on_drag_end(lambda _: self._submit())
@@ -66,9 +67,17 @@ class PoseGizmo:
         self._callbacks.append(callback)
 
     def wait(self, timeout: float | None = None) -> bool:
-        """Block until no pose is pending or being handled; ``False`` if ``timeout`` ran out."""
+        """Block until no pose is pending or being handled; ``False`` if ``timeout`` ran out.
+
+        Raises what a callback raised, once the worker has stopped on it.
+        """
         with self._condition:
-            return self._condition.wait_for(lambda: self._pending is None and not self._busy, timeout)
+            idle = self._condition.wait_for(
+                lambda: (self._pending is None and not self._busy) or self._error is not None, timeout
+            )
+        if self._error is not None:
+            raise self._error
+        return idle
 
     def remove(self) -> None:
         """Remove the handle from the scene and stop the worker."""
@@ -89,11 +98,14 @@ class PoseGizmo:
                 if self._closed:
                     return
                 pose, self._pending, self._busy = self._pending, None, True
-            for callback in self._callbacks:
-                try:
+            try:
+                for callback in self._callbacks:
                     callback(pose)
-                except Exception:  # a failing callback must not kill the worker; report and go on
-                    traceback.print_exc()
-            with self._condition:
-                self._busy = False
-                self._condition.notify_all()
+            except BaseException as error:
+                with self._condition:
+                    self._error, self._closed = error, True
+                raise
+            finally:
+                with self._condition:
+                    self._busy = False
+                    self._condition.notify_all()
