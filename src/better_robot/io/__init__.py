@@ -16,8 +16,8 @@ from ..exceptions import ModelError
 from ..model.geometry import Geometry
 from ..model.joints import JointModel
 from ..model.model import Model
-from .build_geometry import build_geometry
-from .build_model import build_model
+from .geometry_from_ir import build_geometry
+from .model_from_ir import build_model
 from .builder import ModelBuilder
 from .ir import (
     IRBody,

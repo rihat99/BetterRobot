@@ -14,6 +14,6 @@
 from __future__ import annotations
 
 from . import se3, so3, tangents
-from .umeyama import umeyama
+from .alignment import umeyama
 
 __all__ = ["se3", "so3", "tangents", "umeyama"]

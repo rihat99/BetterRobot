@@ -8,7 +8,7 @@ import torch
 from better_robot import load
 from better_robot.dynamics import inverse_dynamics, mass_matrix
 from better_robot.exceptions import QuaternionNormError
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import panda_urdf

@@ -14,7 +14,7 @@ import torch
 
 from better_robot.exceptions import DtypeMismatchError
 from better_robot.io.builder import ModelBuilder
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.model import JointFreeFlyer
 from better_robot.kinematics import forward_kinematics
 from better_robot.terms import frame_pose

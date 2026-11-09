@@ -19,7 +19,7 @@ import torch
 
 from better_robot import exceptions as exc
 from better_robot.io import ModelBuilder, build_model, load
-from better_robot.io.build_model import _check_topology_invariants
+from better_robot.io.model_from_ir import _check_topology_invariants
 from better_robot.kinematics import forward_kinematics
 
 REPO = Path(__file__).resolve().parents[2]

@@ -15,7 +15,7 @@ from better_robot.exceptions import (
 )
 from better_robot import dynamics, kinematics, load
 from better_robot.dynamics._world import dynamics_plan
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics._plans import fk_plan, jacobian_plan
 from better_robot.kinematics.configuration import manifold_plan, mimic_plan

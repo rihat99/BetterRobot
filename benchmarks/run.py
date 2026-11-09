@@ -26,7 +26,7 @@ from torch.profiler import ProfilerActivity, profile
 
 import better_robot as br
 from better_robot.kinematics import forward_kinematics, frame_jacobian
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

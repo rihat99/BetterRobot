@@ -11,7 +11,7 @@ from typing import ClassVar, final
 import pytest
 import torch
 
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.io.ir import IRBody, IRFrame, IRJoint, IRModel
 from better_robot.kinematics import subtree
