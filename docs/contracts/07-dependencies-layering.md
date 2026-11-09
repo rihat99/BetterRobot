@@ -3,8 +3,7 @@
 The packages under `src/better_robot/` import each other along one edge table, the `ALLOWED` table in
 `tests/contract/test_layer_dependencies.py`: one row per package, naming the packages it may import. The table has no
 cycle, and a new package gets its row through an ADR (`00-index`, "When to write an ADR"). The root
-`src/better_robot/__init__.py` re-exports the packages and has no row. The edges that exist today outside the table are
-listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, which only shrinks.
+`src/better_robot/__init__.py` re-exports the packages and has no row.
 
 | Package | May import |
 |---|---|
