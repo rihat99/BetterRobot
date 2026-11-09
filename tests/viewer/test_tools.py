@@ -30,6 +30,18 @@ def test_gizmo_reports_poses_in_xyzw_order_and_fires_callbacks() -> None:
     np.testing.assert_allclose(handle.wxyz, [0.0, 1.0, 0.0, 0.0])
 
 
+def test_one_drag_reaches_the_gizmo_once() -> None:
+    server = FakeServer()
+    seen: list[np.ndarray] = []
+    gizmo = PoseGizmo(Viewer(server=server), "once", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], on_change=seen.append)
+    handle = server.scene.nodes["/tools/once"]
+    handle.position, handle.wxyz = np.zeros(3), np.array([1.0, 0.0, 0.0, 0.0])
+    assert len(handle.callbacks) == 1  # viser's on_update already fires on the drag's end phase
+    handle.fire()
+    assert gizmo.wait(timeout=5.0) and len(seen) == 1
+    gizmo.remove()
+
+
 def test_a_failing_gizmo_callback_stops_the_worker_and_raises_on_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     reported: list[BaseException] = []
     monkeypatch.setattr(threading, "excepthook", lambda hook: reported.append(hook.exc_value))

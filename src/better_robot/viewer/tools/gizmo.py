@@ -17,10 +17,10 @@ class PoseGizmo:
 
     Callbacks run on one worker thread owned by the gizmo, never on viser's callback pool: a drag
     overwrites a single pending pose and the worker handles only the newest one (latest wins), so a
-    slow callback such as an IK solve never piles up behind the mouse. Releasing the handle queues
-    a final call with the resting pose. :meth:`wait` blocks until the worker is idle. A callback that raises stops
-    the worker: its traceback goes to ``threading.excepthook`` (printed by default) and every later :meth:`wait`
-    raises it. The worker is a daemon thread: it ends with :meth:`remove` and never keeps the interpreter alive.
+    slow callback such as an IK solve never piles up behind the mouse. Releasing the handle (viser's end phase of
+    ``on_update``) queues a final call with the resting pose. :meth:`wait` blocks until the worker is idle. A
+    callback that raises stops the worker: its traceback goes to ``threading.excepthook`` (printed by default) and
+    every later :meth:`wait` raises it. The worker is a daemon thread: it ends with :meth:`remove` and never keeps the interpreter alive.
     Tools are not layers: they hold the viewer and callbacks and sit outside the step loop.
     ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). Extra
     ``options`` go to viser's ``add_transform_controls`` (``disable_sliders=True`` and
@@ -49,8 +49,7 @@ class PoseGizmo:
         self._error: BaseException | None = None  # what a callback raised; the worker stopped on it
         self._worker = threading.Thread(target=self._run, name=f"gizmo:{name}", daemon=True)
         self._worker.start()
-        self.handle.on_update(lambda _: self._submit())
-        self.handle.on_drag_end(lambda _: self._submit())
+        self.handle.on_update(lambda _: self._submit())  # also fires on the drag's end phase
 
     @property
     def pose(self) -> np.ndarray:

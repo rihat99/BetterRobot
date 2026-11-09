@@ -12,6 +12,7 @@ import pytest
 
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layer import Layer
+from better_robot.viewer.tools import PoseGizmo
 from better_robot.viewer.viewer import Viewer
 
 
@@ -92,5 +93,16 @@ def test_a_layer_that_fails_on_a_real_server_leaves_the_scene_as_it_was() -> Non
         np.testing.assert_array_equal(
             viewer.server.scene._handle_from_node_name["/scene/kept/points"].points, kept.points[3]
         )
+    finally:
+        viewer.server.stop()
+
+
+@pytest.mark.slow
+def test_a_pose_gizmo_on_a_real_server_uses_no_deprecated_viser_call() -> None:
+    viewer = Viewer(port=_free_port())
+    try:
+        gizmo = PoseGizmo(viewer, "target", np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]))  # warnings are errors
+        np.testing.assert_allclose(gizmo.pose, [0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
+        gizmo.remove()
     finally:
         viewer.server.stop()
