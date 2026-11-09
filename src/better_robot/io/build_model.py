@@ -17,18 +17,8 @@ import torch
 
 from ..exceptions import ModelError
 from ..lie import se3
-from ..model.joints import (
-    JointFixed,
-    JointFreeFlyer,
-    JointHelical,
-    JointModel,
-    JointPlanar,
-    JointPrismatic,
-    JointRevolute,
-    JointRevoluteUnbounded,
-    JointSpherical,
-    JointTranslation,
-)
+from ..model.joints import JointFixed, JointHelical, JointModel, JointPrismatic, JointRevolute
+from ..model.manifolds import CIRCLE, PLANE, RIGID, ROTATION, JointManifold
 from ..model.model import Model
 from .ir import IRBody, IRJoint, IRModel
 
@@ -36,6 +26,14 @@ from .ir import IRBody, IRJoint, IRModel
 _WORLD_SENTINEL = "world"
 _SUPPORTED_MIMIC_JOINTS = (JointRevolute, JointPrismatic, JointHelical)
 _INF = float("inf")
+#: Position bounds a manifold puts on its coordinates (a quaternion lies in ``[-1, 1]``); a joint on any other
+#: manifold takes its IR joint's ``lower`` and ``upper``.
+_MANIFOLD_BOUNDS: dict[JointManifold, tuple[list[float], list[float]]] = {
+    CIRCLE: ([-_INF] * 2, [_INF] * 2),
+    ROTATION: ([-1.0] * 4, [1.0] * 4),
+    PLANE: ([-_INF, -_INF, -1.0, -1.0], [_INF, _INF, 1.0, 1.0]),
+    RIGID: ([-_INF] * 7, [_INF] * 7),
+}
 
 
 @final
@@ -226,24 +224,20 @@ def _cumulative(widths: tuple[int, ...]) -> tuple[tuple[int, ...], int]:
 def _joint_limits(
     joint: JointModel, ir_joint: IRJoint | None
 ) -> tuple[list[float], list[float], list[float], list[float]]:
-    """Lower, upper, velocity and effort limits of one joint's coordinates: the kind fixes the shape of its
-    coordinates (a quaternion lies in ``[-1, 1]``, a free flyer is unbounded), the IR joint's scalars fill the rest."""
-    velocity = ir_joint.velocity_limit if ir_joint is not None and ir_joint.velocity_limit is not None else 0.0
-    effort = ir_joint.effort_limit if ir_joint is not None and ir_joint.effort_limit is not None else 0.0
-    by_kind: dict[type[JointModel], tuple[list[float], list[float], list[float], list[float]]] = {
-        JointFreeFlyer: ([-_INF] * 7, [_INF] * 7, [_INF] * 6, [_INF] * 6),
-        JointRevoluteUnbounded: ([-_INF, -_INF], [_INF, _INF], [velocity], [effort]),
-        JointSpherical: ([-1.0] * 4, [1.0] * 4, [velocity] * 3, [effort] * 3),
-        JointPlanar: ([-_INF, -_INF, -1.0, -1.0], [_INF, _INF, 1.0, 1.0], [0.0] * 3, [0.0] * 3),
-        JointTranslation: ([-_INF] * 3, [_INF] * 3, [0.0] * 3, [0.0] * 3),
-    }
-    if type(joint) in by_kind:
-        return by_kind[type(joint)]
-    if ir_joint is None:
-        return [-_INF] * joint.nq, [_INF] * joint.nq, [_INF] * joint.nv, [_INF] * joint.nv
-    lower = ir_joint.lower if ir_joint.lower is not None else -_INF
-    upper = ir_joint.upper if ir_joint.upper is not None else _INF
-    return [lower] * joint.nq, [upper] * joint.nq, [velocity] * joint.nv, [effort] * joint.nv
+    """Lower, upper, velocity and effort limits of one joint's coordinates. The joint's manifold bounds its
+    coordinates where it has bounds, else the IR joint's ``lower`` and ``upper`` do. A joint no IR joint describes
+    (a synthetic root) and a free flyer move unlimited; an IR joint's scalars fill the rest, 0.0 where it has none."""
+    if ir_joint is None or joint.manifold is RIGID:
+        velocity = effort = _INF
+    else:
+        velocity = ir_joint.velocity_limit if ir_joint.velocity_limit is not None else 0.0
+        effort = ir_joint.effort_limit if ir_joint.effort_limit is not None else 0.0
+    if joint.manifold in _MANIFOLD_BOUNDS:
+        lower, upper = _MANIFOLD_BOUNDS[joint.manifold]
+    else:
+        lower = [ir_joint.lower if ir_joint is not None and ir_joint.lower is not None else -_INF] * joint.nq
+        upper = [ir_joint.upper if ir_joint is not None and ir_joint.upper is not None else _INF] * joint.nq
+    return lower, upper, [velocity] * joint.nv, [effort] * joint.nv
 
 
 def _limits(topology: _Topology, dtype: torch.dtype) -> _Limits:
@@ -254,7 +248,9 @@ def _limits(topology: _Topology, dtype: torch.dtype) -> _Limits:
     effort: list[float] = []
     armature: list[float] = []
     damping: list[float] = []
-    for joint, ir_joint in zip(topology.joints, topology.ir_joints):
+    for joint, behind in zip(topology.joints, topology.ir_joints):
+        # A root_joint= that replaced the description's world joint keeps only that joint's placement.
+        ir_joint = behind if behind is not None and behind.joint is joint else None
         joint_lower, joint_upper, joint_velocity, joint_effort = _joint_limits(joint, ir_joint)
         lower.extend(joint_lower)
         upper.extend(joint_upper)

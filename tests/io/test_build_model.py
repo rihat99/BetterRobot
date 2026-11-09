@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import dataclasses
 import math
+from dataclasses import dataclass
+from typing import ClassVar, final
 
 import pytest
 import torch
@@ -12,7 +14,21 @@ from better_robot.io.build_model import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import subtree
 from better_robot.exceptions import ModelError
-from better_robot.model.joints import JointFixed, JointFreeFlyer, JointRevolute, JointRevoluteUnbounded, JointSpherical
+from better_robot.model.joints import (
+    JointFixed,
+    JointFreeFlyer,
+    JointHelical,
+    JointModel,
+    JointPlanar,
+    JointPrismatic,
+    JointRevolute,
+    JointRevoluteUnbounded,
+    JointSpherical,
+    JointTranslation,
+)
+from better_robot.model.manifolds import ROTATION, JointManifold
+
+_INF = math.inf
 
 
 def _id7() -> torch.Tensor:
@@ -63,6 +79,81 @@ def test_limits():
     assert abs(float(model.upper_position_limit[0]) - math.pi) < 1e-5
     assert abs(float(model.velocity_limit[0]) - 2.0) < 1e-5
     assert abs(float(model.effort_limit[0]) - 100.0) < 1e-5
+
+
+def _limits(model) -> list[list[float]]:
+    return [t.tolist() for t in (model.lower_position_limit, model.upper_position_limit, model.velocity_limit)] + [
+        model.effort_limit.tolist()
+    ]
+
+
+@pytest.mark.parametrize(
+    ("root_joint", "lower", "upper"),
+    [
+        pytest.param(JointFreeFlyer(), [-_INF] * 7, [_INF] * 7, id="free_flyer"),
+        pytest.param(JointSpherical(), [-1.0] * 4, [1.0] * 4, id="spherical"),
+        pytest.param(JointPlanar(), [-_INF, -_INF, -1.0, -1.0], [_INF, _INF, 1.0, 1.0], id="planar"),
+        pytest.param(JointTranslation(), [-_INF] * 3, [_INF] * 3, id="translation"),
+        pytest.param(JointRevoluteUnbounded(axis=(0.0, 0.0, 1.0)), [-_INF] * 2, [_INF] * 2, id="continuous"),
+        pytest.param(JointRevolute(axis=(0.0, 0.0, 1.0)), [-_INF], [_INF], id="revolute"),
+        pytest.param(JointPrismatic(axis=(1.0, 0.0, 0.0)), [-_INF], [_INF], id="prismatic"),
+        pytest.param(JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.1), [-_INF], [_INF], id="helical"),
+    ],
+)
+def test_a_synthetic_root_moves_unlimited_inside_its_manifold_bounds(root_joint, lower, upper):
+    """A root no description wrote has no velocity or effort limit (zero would pin it); the arm keeps its own."""
+    model = build_model(_simple_arm_ir(), root_joint=root_joint, dtype=torch.float64)
+    nv = root_joint.nv
+    assert _limits(model) == [lower + [-math.pi], upper + [math.pi], [_INF] * nv + [2.0], [_INF] * nv + [100.0]]
+
+
+def test_a_root_joint_that_replaces_the_world_joint_keeps_only_its_placement():
+    builder = ModelBuilder("mounted")
+    builder.add_body("base")
+    mount = torch.tensor([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
+    limits = {"lower": -0.5, "upper": 0.5, "velocity_limit": 1.0, "effort_limit": 1.0}
+    builder.add_revolute("mount", axis=(0.0, 0.0, 1.0), parent="world", child="base", origin=mount, **limits)
+
+    model = build_model(builder.finalize(), root_joint=JointSpherical())
+
+    assert torch.equal(model.joint_placements[1], mount)
+    assert _limits(model) == [[-1.0] * 4, [1.0] * 4, [_INF] * 3, [_INF] * 3]
+
+
+@final
+@dataclass(frozen=True)
+class _Ball(JointModel):
+    """An out-of-tree ball joint: a kind on the ROTATION manifold that ``io`` does not know (record 0025)."""
+
+    nq: ClassVar[int] = 4
+    nv: ClassVar[int] = 3
+    manifold: ClassVar[JointManifold] = ROTATION
+    axis: ClassVar[None] = None
+
+    def placement(self, q: torch.Tensor) -> torch.Tensor:
+        return JointSpherical().placement(q)
+
+    def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
+        return JointSpherical().motion_subspace(q)
+
+    def neutral(self) -> torch.Tensor:
+        return JointSpherical().neutral()
+
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        return JointSpherical().random(generator, lower=lower, upper=upper)
+
+
+@pytest.mark.parametrize("kind", [pytest.param(JointSpherical(), id="built_in"), pytest.param(_Ball(), id="custom")])
+def test_the_position_bounds_follow_the_joint_manifold(kind):
+    """A quaternion lies in [-1, 1] whatever the kind; the IR joint's angle bounds do not apply to it."""
+    builder = ModelBuilder("ball")
+    builder.add_body("base")
+    builder.add_body("tip")
+    builder.add_joint("ball", kind=kind, parent="base", child="tip", lower=-0.5, upper=0.5, velocity_limit=3.0)
+
+    model = build_model(builder.finalize())
+
+    assert _limits(model) == [[-1.0] * 4, [1.0] * 4, [3.0] * 3, [0.0] * 3]
 
 
 @pytest.mark.parametrize(

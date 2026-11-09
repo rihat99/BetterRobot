@@ -51,8 +51,8 @@ model tensors in place.
 
 Subclass `JointModel` in `joints/` as a `@final` frozen dataclass declaring
 `nq`, `nv`, `manifold` and `axis`, run `better_robot.testing.check_joint_model`
-on it, export it from `src/better_robot/model/__init__.py`, then map its IR kind string in
-`io/build_model.py`. `src/better_robot/kinematics/_plans.py` reads a kind's class only for
+on it and export it from `src/better_robot/model/__init__.py`; `io/build_model.py` needs no
+entry, it reads the limits' shape from the kind's `manifold`. `src/better_robot/kinematics/_plans.py` reads a kind's class only for
 the affine fast path; every other kind goes through `placement`. Joints carry
 no kind string. Preserve scalar-last quaternions and linear-first tangents
 throughout.
