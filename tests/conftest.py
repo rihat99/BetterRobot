@@ -1,13 +1,15 @@
-"""Fixtures shared by every test folder, and the hooks that turn every skip or xfail into a failure."""
+"""Fixtures shared by every test folder; the plugin ``better_robot.testing.no_skips`` fails every skip or xfail."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from itertools import product
 from typing import TypeAlias, cast
 
 import pytest
 import torch
+
+pytest_plugins = ["better_robot.testing.no_skips"]
 
 BatchOutput: TypeAlias = torch.Tensor | tuple[torch.Tensor, ...]
 
@@ -75,40 +77,3 @@ def assert_value_batched_matches_loop(
 def value_batch_loop_oracle() -> Callable[..., None]:
     """Expose the T3.2 value-batch oracle without coupling tests to conftest."""
     return assert_value_batched_matches_loop
-
-
-def _fail_skip(report: pytest.TestReport | pytest.CollectReport) -> None:
-    """Turn a skip or xfail into a failure that names it (principle 6.5, decision record 0033).
-
-    A skipped or xfailed gate reports green while checking nothing. Reading the report catches every spelling:
-    ``pytest.skip``, an aliased ``pytest`` or ``mark``, ``unittest.skip``, ``raise SkipTest`` and ``xfail`` with
-    either strictness. A test that needs a GPU carries the ``cuda`` marker instead, which deselects it.
-    """
-    if hasattr(report, "wasxfail"):
-        what = f"xfail ({report.wasxfail or 'no reason given'})"
-        del report.wasxfail
-    elif report.skipped:
-        what = f"skip ({report.longrepr[2]})"
-    else:
-        return
-    report.outcome = "failed"
-    report.longrepr = (
-        f"{report.nodeid}: {what}. No test skips or xfails (decision record 0033): mark a GPU test `cuda`; a missing "
-        "oracle, fixture or browser is an error to fix."
-    )
-
-
-@pytest.hookimpl(wrapper=True, tryfirst=True)
-def pytest_runtest_makereport() -> Generator[None, pytest.TestReport, pytest.TestReport]:
-    """Fail a test whose setup, call or teardown skipped or xfailed."""
-    report = yield
-    _fail_skip(report)
-    return report
-
-
-@pytest.hookimpl(wrapper=True, tryfirst=True)
-def pytest_make_collect_report() -> Generator[None, pytest.CollectReport, pytest.CollectReport]:
-    """Fail a module that skips at collection (``importorskip`` or ``skip(allow_module_level=True)``)."""
-    report = yield
-    _fail_skip(report)
-    return report

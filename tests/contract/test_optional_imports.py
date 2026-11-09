@@ -36,6 +36,7 @@ IMPORTERS: dict[str, set[str]] = {
     "mujoco": {"io"},  # extra mjcf
     "trimesh": {"viewer"},  # extra meshes
     "robot_descriptions": set(),  # extra demos: the examples and docs load robots with it
+    "pytest": {"testing"},  # extra testing: the no-skip plugin, better_robot.testing.no_skips
 }
 MODULES = {"pillow": "PIL"}  # the import name of a distribution whose name differs from it
 BOUNDARY: dict[str, set[str]] = {
