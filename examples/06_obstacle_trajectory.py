@@ -31,7 +31,6 @@ SPHERES = {
 
 
 def main() -> None:
-    torch.set_num_threads(4)
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     spheres = collision.RobotSpheres.from_frames(model, SPHERES)
     q_a, q_b = torch.tensor(READY, dtype=torch.float64), torch.tensor(READY, dtype=torch.float64)

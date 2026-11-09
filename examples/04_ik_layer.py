@@ -19,15 +19,15 @@ FRAME = "panda_hand"
 
 
 def main() -> None:
-    torch.manual_seed(0)
+    generator = torch.Generator().manual_seed(0)
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     frame_id = model.frame_id(FRAME)
     q_home = torch.tensor([0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.02], dtype=torch.float64)
     home_pose = forward_kinematics(model, q_home[None]).frame_poses[0, frame_id]
 
     # Ground truth: each task code moves the hand by a fixed linear map of the code.
-    codes = torch.randn(64, 4, dtype=torch.float64)
-    true_map = 0.05 * torch.randn(4, 3, dtype=torch.float64)
+    codes = torch.randn(64, 4, generator=generator, dtype=torch.float64)
+    true_map = 0.05 * torch.randn(4, 3, generator=generator, dtype=torch.float64)
 
     def solve(offset: torch.Tensor) -> torch.Tensor:
         """Joint configuration ``(B, nq)`` that puts the hand at ``home + offset``; differentiable in ``offset``."""
