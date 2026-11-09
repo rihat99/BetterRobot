@@ -20,7 +20,8 @@ the scene without rebuilding anything.
 
 ```python
 import numpy as np
-from better_robot.viewer import GroundLayer, PointsLayer, Viewer
+from better_robot import Viewer
+from better_robot.viewer import GroundLayer, PointsLayer
 
 viewer = Viewer()                        # viser server on http://127.0.0.1:8080
 cloud = np.random.rand(100, 50, 3)       # T = 100 frames of 50 points

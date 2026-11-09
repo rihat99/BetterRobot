@@ -24,7 +24,8 @@ The example below builds a two-joint arm with the dependency-free [`ModelBuilder
 
 ```python
 import torch
-from better_robot.io import ModelBuilder, build_model
+from better_robot import ModelBuilder
+from better_robot.io import build_model
 
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 for body in ("base", "link1", "link2"):
@@ -107,7 +108,7 @@ three tensors; everything else is derived on demand and memoized.
 | `frame_pose_of(frame)` | `(B..., 7)` | one frame's pose, by id or name |
 
 ```python
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics
 
 q = torch.zeros(4, model.nq)
 state = forward_kinematics(model, q)

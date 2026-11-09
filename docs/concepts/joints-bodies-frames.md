@@ -18,7 +18,8 @@ The example builds the same two-joint arm as [Model and state](model-and-state.m
 
 ```python
 import torch
-from better_robot.io import ModelBuilder, build_model
+from better_robot import ModelBuilder
+from better_robot.io import build_model
 
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 for body in ("base", "link1", "link2"):
@@ -95,7 +96,7 @@ declare it directly with `add_free_flyer_root`, and `better_robot.load` takes th
 argument (see [Loading robots](io.md)).
 
 ```python
-from better_robot.model import JointFreeFlyer
+from better_robot import JointFreeFlyer
 
 floating = build_model(ir, root_joint=JointFreeFlyer())
 print(floating.nq, floating.nv)        # 9 8
@@ -154,7 +155,7 @@ A frame's world pose comes from forward kinematics. The returned `KinematicState
 frame transform; `frame_pose_of(frame_id)` gives one pose `(B..., 7)`.
 
 ```python
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics
 
 state = forward_kinematics(model, torch.tensor([0.0, 0.5]))
 print(state.frame_pose_of(tool))   # tensor([0.1199, 0.0000, 0.5194, 0.0000, 0.2474, 0.0000, 0.9689])

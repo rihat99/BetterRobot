@@ -53,7 +53,7 @@ differ. Use `kinematics.integrate` and `kinematics.difference` instead of adding
 *The G1 with `root_joint=JointFreeFlyer()`: the first seven entries of `q` place the pelvis in the world.*
 
 ```python
-floating = br.load(panda_description.URDF_PATH, root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
+floating = br.load(panda_description.URDF_PATH, root_joint=br.JointFreeFlyer(), dtype=torch.float64)
 print(floating.nq - model.nq, floating.nv - model.nv)  # 7 6
 q0 = floating.q_neutral
 print(q0[:7])  # identity base pose: [0, 0, 0, 0, 0, 0, 1]
@@ -132,7 +132,7 @@ the message:
 
 ```python
 from better_robot.exceptions import ShapeError
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics
 
 try:
     forward_kinematics(model, torch.zeros(model.nq + 1, dtype=torch.float64))

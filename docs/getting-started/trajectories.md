@@ -12,8 +12,7 @@ import math
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics, optim, terms
 
 FRAME, KNOTS, DT = "panda_hand", 20, 0.05
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]

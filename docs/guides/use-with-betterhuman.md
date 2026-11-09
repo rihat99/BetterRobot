@@ -38,7 +38,7 @@ q[:, 1] = 1.0                                    # root 1 m up (y-up, metres)
 state = identity.forward(q)                      # HumanState for 4 poses
 print(state.vertices().shape, state.joints.shape)  # (4, 6890, 3) (4, 24, 3)
 
-from better_robot.viewer import Viewer
+from better_robot import Viewer
 
 view = HumanView(identity.forward(identity.q_neutral))   # viewer layers with T = 1, updated in place
 viewer = Viewer()

@@ -31,7 +31,8 @@ option below.
 
 ```python
 import better_robot as br
-from better_robot.io import ModelBuilder, build_model
+from better_robot import ModelBuilder
+from better_robot.io import build_model
 
 builder = ModelBuilder("arm")
 builder.add_body("base", mass=1.0)
@@ -89,7 +90,8 @@ frames, then call `finalize()`.
 ```python
 import torch
 import better_robot as br
-from better_robot.io import ModelBuilder, build_model
+from better_robot import ModelBuilder
+from better_robot.io import build_model
 
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 builder.add_body("base", mass=2.0)
@@ -121,7 +123,7 @@ put a six-DoF free-flyer between the world and the root body; `build_model` take
 an IR:
 
 ```python
-floating = br.io.build_model(builder.finalize(), root_joint=br.model.JointFreeFlyer())
+floating = br.io.build_model(builder.finalize(), root_joint=br.JointFreeFlyer())
 print(floating.nq, floating.nv)              # 8 7
 ```
 ```output

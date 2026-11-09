@@ -16,9 +16,8 @@ against the state's batch axes in `centers`, while `frame_ids` and `radii` stay 
 
 ```python
 import torch
-from better_robot import collision, optim, terms
-from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import forward_kinematics
+from better_robot import ModelBuilder, collision, forward_kinematics, optim, terms
+from better_robot.io import build_model
 
 builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
 for body in ("base", "link1", "link2"):

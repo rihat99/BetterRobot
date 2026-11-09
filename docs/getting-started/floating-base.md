@@ -12,9 +12,9 @@ the root body (the pelvis), so the base pose becomes part of the configuration:
 import torch
 import better_robot as br
 from robot_descriptions import g1_description
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics
 
-model = br.load(g1_description.URDF_PATH, root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
+model = br.load(g1_description.URDF_PATH, root_joint=br.JointFreeFlyer(), dtype=torch.float64)
 print(model.joint_names[:3], type(model.joints[1]).__name__)
 print("nq =", model.nq, "nv =", model.nv)  # 36, 35
 ```
@@ -81,7 +81,7 @@ A Jacobian maps velocities, so it has `nv` columns, not `nq`. The first six belo
 the other 29 to the joints:
 
 ```python
-from better_robot.kinematics import frame_jacobian
+from better_robot import frame_jacobian
 
 J = frame_jacobian(model, state, frame="left_ankle_roll_link")
 print(J.shape)  # (6, 35)

@@ -73,8 +73,7 @@ exactly (equality) and keeps the elbow at least 3 cm lower than at the start (in
 ```python
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot import terms
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics, terms
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 hand, elbow = model.frame_id("panda_hand"), model.frame_id("panda_link4")

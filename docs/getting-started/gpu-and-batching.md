@@ -15,7 +15,7 @@ Everything before that is batch, and you may use any number of batch axes. Resul
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.kinematics import forward_kinematics, frame_jacobian
+from better_robot import forward_kinematics, frame_jacobian
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float32)
 hand = model.frame_id("panda_hand")

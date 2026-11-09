@@ -12,8 +12,7 @@ you sample random configurations and take their hand poses as targets:
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics, optim, terms
 
 FRAME = "panda_hand"
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)

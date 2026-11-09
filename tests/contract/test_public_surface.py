@@ -3,13 +3,15 @@
 The root ``__all__`` is exactly its twelve subpackages and fourteen first-level names. Walking the tree
 (``better_robot.testing.public_objects``: the root, each listed name, the listed modules recursively) every listed
 name resolves and no ``__all__`` lists a name twice; the root has no other public attribute; no module is named like a
-function its package lists; ``testing`` is listed and documented, and ``FakeServer`` is defined once.
+function its package lists; docs and examples take a first-level name from the root; ``testing`` is listed and
+documented, and ``FakeServer`` is defined once.
 """
 
 from __future__ import annotations
 
 import inspect
 import pkgutil
+import re
 import subprocess
 from pathlib import Path
 
@@ -48,6 +50,8 @@ FIRST_LEVEL = [
     "Viewer",
 ]
 PUBLIC = public_objects("better_robot")
+SUBPACKAGE_IMPORT = re.compile(r"from better_robot\.[\w.]+ import ([\w, ]+)")
+QUALIFIED = re.compile(r"\bbr\.[a-z_]+\.(" + "|".join(FIRST_LEVEL) + r")\b")
 MODULES = {path: module for path, module in PUBLIC.items() if inspect.ismodule(module)}
 
 
@@ -81,6 +85,34 @@ def test_no_module_is_named_like_a_function_its_package_lists() -> None:
     assert shadowed == []
 
 
+def _tracked(*patterns: str) -> list[str]:
+    return subprocess.run(
+        ["git", "ls-files", "--", *patterns], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.split()
+
+
+def test_docs_and_examples_take_first_level_names_from_the_root() -> None:
+    """A reader meets ``br.forward_kinematics``, never also ``br.kinematics.forward_kinematics`` (record 0019).
+
+    Contract pages show library-internal imports and accepted records never change, so ``docs/contracts`` and the
+    changelog are not read.
+    """
+    files = [
+        path
+        for path in _tracked("README.md", "docs/*.md", "examples/*.py")
+        if not path.startswith("docs/contracts/") and path != "docs/reference/changelog.md"
+    ]
+    offenders = [
+        f"{path}: {line.strip()}"
+        for path in files
+        for line in (REPO / path).read_text().splitlines()
+        if QUALIFIED.search(line)
+        or {name.strip() for match in SUBPACKAGE_IMPORT.finditer(line) for name in match[1].split(",")}
+        & set(FIRST_LEVEL)
+    ]
+    assert offenders == [], "import these names from better_robot:\n  " + "\n  ".join(offenders)
+
+
 def test_testing_is_listed_and_documented() -> None:
     """Record 0035: the shared test helpers are a documented public module."""
     assert "better_robot.testing" in MODULES
@@ -89,11 +121,7 @@ def test_testing_is_listed_and_documented() -> None:
 
 def test_fake_server_is_defined_once() -> None:
     """Record 0035: one stand-in viser server; a second copy is the duplicate the record removed."""
-    found = subprocess.run(
-        ["git", "grep", "-l", "-E", r"^\s*class FakeServer\b", "--", "*.py"],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        check=False,
-    ).stdout.split()
-    assert found == ["src/better_robot/testing/fake_server.py"]
+    defining = [
+        path for path in _tracked("*.py") if re.search(r"^\s*class FakeServer\b", (REPO / path).read_text(), re.M)
+    ]
+    assert defining == ["src/better_robot/testing/fake_server.py"]

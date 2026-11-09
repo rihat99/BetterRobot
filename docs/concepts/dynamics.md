@@ -29,8 +29,8 @@ $C v + g - J^\top f_\text{ext}$ with one RNEA pass at zero acceleration, factors
 
 ```python
 import torch
-from better_robot.io import ModelBuilder, build_model
-from better_robot.kinematics import forward_kinematics
+from better_robot import ModelBuilder, forward_kinematics
+from better_robot.io import build_model
 from better_robot.dynamics import (
     inverse_dynamics, mass_matrix, forward_dynamics,
     center_of_mass, centroidal_map, centroidal_momentum,

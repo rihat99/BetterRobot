@@ -11,7 +11,7 @@ Continue with the Panda from [the previous page](first-model.md):
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.kinematics import forward_kinematics, frame_jacobian
+from better_robot import forward_kinematics, frame_jacobian
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 q = model.q_neutral

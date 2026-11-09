@@ -14,10 +14,9 @@ import torch
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot import terms
-from better_robot.kinematics import forward_kinematics
+from better_robot import Viewer, forward_kinematics, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
+from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, robot_meshes, robot_skeleton
 from better_robot.viewer.tools import PoseGizmo
 
 FRAME = "panda_hand"

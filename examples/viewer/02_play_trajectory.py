@@ -17,11 +17,9 @@ import torch
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot import optim, terms
-from better_robot.dynamics import inverse_dynamics
-from better_robot.kinematics import forward_kinematics
+from better_robot import Viewer, forward_kinematics, inverse_dynamics, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
+from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, robot_meshes, robot_skeleton
 
 FRAME, KNOTS, DT = "panda_hand", 60, 1.0 / 30.0
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
