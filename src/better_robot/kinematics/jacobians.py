@@ -26,7 +26,7 @@ from ..model._checks import expand_batch
 from ..model.model import Model
 from ._plans import jacobian_plan
 from .configuration import reduced_columns
-from .forward_kinematics import KinematicState
+from .forward_kinematics import KinematicState, check_state
 
 _Reference = Literal["world", "local", "local_world_aligned"]
 
@@ -35,6 +35,7 @@ def frame_jacobian(
     model: Model, state: KinematicState, *, frame: int | str, reference: _Reference = "local_world_aligned"
 ) -> torch.Tensor:
     """Jacobian of one frame (id or name), ``(B..., 6, nv)`` with rows ``[linear, angular]``."""
+    check_state(model, state)
     frame_id = model.frame_id(frame)
     world = _world_jacobian(model, state, model.frame_parent_joint_ids[frame_id])
     return _express(
@@ -46,6 +47,7 @@ def joint_jacobian(
     model: Model, state: KinematicState, *, joint: int | str, reference: _Reference = "local_world_aligned"
 ) -> torch.Tensor:
     """Jacobian of one joint (id or name), ``(B..., 6, nv)`` with rows ``[linear, angular]``; references as `frame_jacobian`."""
+    check_state(model, state)
     joint = model.joint_id(joint)
     world = _world_jacobian(model, state, joint)
     return _express(world, state.joint_translations[..., joint, :], state.joint_rotations[..., joint, :, :], reference)
@@ -62,6 +64,7 @@ def point_jacobian(
     world forces ``f: (B..., K, 3, 1)`` at the points to one generalized force per point, ``(B..., K, nv, 1)``; sum
     over ``K`` (``.sum(-3)``) for the generalized force of them all.
     """
+    check_state(model, state)
     if not frames:
         raise ArgumentError("frames is empty; point_jacobian needs at least one frame")
     check_tensor("points", points, shape=(len(frames), 3), dtype=model.dtype, device=model.device)
@@ -93,6 +96,7 @@ def frame_jacobian_time_variation(
     ``a = J v̇ + J̇ v`` is the spatial acceleration for ``"world"`` and ``"local"``, the classical acceleration of the
     frame origin for ``"local_world_aligned"``.
     """
+    check_state(model, state)
     v = _tangent(model, state, v)
     frame_id = model.frame_id(frame)
     jacobian, variation = _world_time_variation(model, state, v, model.frame_parent_joint_ids[frame_id])
@@ -109,6 +113,7 @@ def joint_jacobian_time_variation(
     reference: _Reference = "local_world_aligned",
 ) -> torch.Tensor:
     """Time derivative ``dJ/dt`` of `joint_jacobian` along ``v: (B..., nv)``, ``(B..., 6, nv)``; pairing as `frame_jacobian_time_variation`."""
+    check_state(model, state)
     v = _tangent(model, state, v)
     joint = model.joint_id(joint)
     jacobian, variation = _world_time_variation(model, state, v, joint)

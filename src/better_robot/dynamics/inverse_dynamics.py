@@ -7,6 +7,7 @@ import math
 import torch
 
 from ..kinematics import KinematicState
+from ..kinematics.forward_kinematics import check_state
 from ..kinematics.configuration import full_tangent, reduced_columns
 from ..lie._checks import check_tensor
 from ..model._checks import expand_batch
@@ -39,6 +40,7 @@ def inverse_dynamics(
     ``DeviceMismatchError`` for an input that is not a tensor of the model's dtype and device with the trailing shape
     above and a batch that broadcasts to the state's.
     """
+    check_state(model, state)
     kin = world_kinematics(model, state)
     v_full, a_full = _full_tangent(model, kin.batch, v, "v"), _full_tangent(model, kin.batch, a, "a")
     forces = _external_forces(model, kin.batch, external_forces)

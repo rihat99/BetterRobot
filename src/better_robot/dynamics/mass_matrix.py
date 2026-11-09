@@ -5,11 +5,12 @@ from __future__ import annotations
 import torch
 
 from ..kinematics import KinematicState
+from ..kinematics.forward_kinematics import check_state
 from ..kinematics.configuration import reduced_mass_matrix
 from ..lie._checks import check_tensor
 from ..model._checks import expand_batch
 from ..model.model import Model
-from ._world import mass_matrix_full, world_kinematics
+from ._world import WorldKinematics, mass_matrix_full, world_kinematics
 from .inverse_dynamics import _external_forces, _full_tangent, _torques
 
 
@@ -19,7 +20,12 @@ def mass_matrix(model: Model, state: KinematicState) -> torch.Tensor:
     The motor armature ``model.armature (nv,)`` is added on the diagonal. Composite rigid bodies in the world frame
     (`_world`).
     """
-    kin = world_kinematics(model, state)
+    check_state(model, state)
+    return _mass_matrix(model, world_kinematics(model, state))
+
+
+def _mass_matrix(model: Model, kin: WorldKinematics) -> torch.Tensor:
+    """`mass_matrix` of the world kinematics ``kin`` of a checked state, ``(B..., nv, nv)``."""
     mass = reduced_mass_matrix(model, mass_matrix_full(kin))
     return mass.view(*kin.batch, model.nv, model.nv) + torch.diag(model.armature)
 
@@ -37,12 +43,13 @@ def forward_dynamics(
     ``v, tau: (B..., nv)``; ``external_forces`` as in `inverse_dynamics`. The bias forces come from
     `inverse_dynamics` with zero acceleration, then a Cholesky solve with `mass_matrix`. Raises as `inverse_dynamics`.
     """
+    check_state(model, state)
     kin = world_kinematics(model, state)
     v_full = _full_tangent(model, kin.batch, v, "v")
     bias = _torques(model, kin, v_full, torch.zeros_like(v_full), _external_forces(model, kin.batch, external_forces))
     check_tensor("tau", tau, shape=(model.nv,), dtype=model.dtype, device=model.device)
     tau = expand_batch("tau", tau, kin.batch, (model.nv,))
-    factor = torch.linalg.cholesky(mass_matrix(model, state))
+    factor = torch.linalg.cholesky(_mass_matrix(model, kin))
     return torch.cholesky_solve((tau - bias).unsqueeze(-1), factor).squeeze(-1)
 
 

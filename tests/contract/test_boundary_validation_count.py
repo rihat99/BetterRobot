@@ -19,6 +19,7 @@ _CPU = torch.device("cpu")
 #: ``integrate`` and ``difference`` check their two configuration-space inputs.
 EXPECTED_CHECKS = {
     "forward_kinematics": 1,
+    "point_jacobian": 1,
     "frame_jacobian_time_variation": 1,
     "joint_jacobian_time_variation": 1,
     "inverse_dynamics": 2,

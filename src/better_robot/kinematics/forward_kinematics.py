@@ -9,7 +9,7 @@ from typing import Any, TypeVar, final
 
 import torch
 
-from ..exceptions import QuaternionNormError
+from ..exceptions import DeviceMismatchError, DtypeMismatchError, ModelError, QuaternionNormError
 from ..lie import so3
 from ..lie._checks import check_tensor
 from ..model._checks import batch_shape, expand_batch
@@ -111,6 +111,34 @@ class KinematicState:
         if key not in self._memo:
             self._memo[key] = derive()
         return self._memo[key]
+
+
+def check_state(model: Model, state: KinematicState) -> None:
+    """Raise unless ``state`` comes from ``model`` or from a model of the same structure in its dtype and device.
+
+    Every public function taking ``(model, state)`` calls it once (contract 06, C-STATE-6). The usual call passes
+    the state's own model and returns at the identity test; a copy of the same robot (``with_values``, ``to``) is
+    compared by `Model.structure_key`. ``TypeError`` for a non-state, ``ModelError`` for another structure,
+    ``DtypeMismatchError`` / ``DeviceMismatchError`` for a state in another dtype or on another device.
+    """
+    if not isinstance(state, KinematicState):
+        raise TypeError(f"state must be a KinematicState, got {type(state).__name__}")
+    if state.model is model:
+        return
+    if state.model.structure_key != model.structure_key:
+        raise ModelError(
+            f"state comes from model {state.model.name!r}, whose structure differs from model {model.name!r}; "
+            "pass the state of forward_kinematics(model, q)"
+        )
+    dtype, device = state.q.dtype, state.q.device
+    if dtype != model.dtype:
+        raise DtypeMismatchError(
+            f"state.dtype={dtype} != model.dtype={model.dtype}; pass the state of forward_kinematics(model, q)"
+        )
+    if device != model.device:
+        raise DeviceMismatchError(
+            f"state.device={device} != model.device={model.device}; pass the state of forward_kinematics(model, q)"
+        )
 
 
 def _check_quaternion_norms(model: Model, q_full: torch.Tensor) -> None:

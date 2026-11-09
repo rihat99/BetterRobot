@@ -99,6 +99,10 @@ Enforcement: `tests/optim/test_problem.py`; `[review]`.
 `Model.to(device, dtype)` returns a new `Model` with every tensor field moved; it never moves tensors in
 place. Caches hang off the object they derive from: the plans in `Model._plans` and the world geometry in
 `KinematicState._memo`. A moved model therefore starts with empty caches, and a state made from the old model is
-not valid for the moved one; recompute it with `forward_kinematics`.
+not valid for the moved one; recompute it with `forward_kinematics`. Every function taking `(model, state)` calls
+`check_state` (`src/better_robot/kinematics/forward_kinematics.py::check_state`) once: a state in another dtype or
+on another device raises `DtypeMismatchError` or `DeviceMismatchError`, a state of another structure `ModelError`;
+a copy of the same robot (`with_values`) is accepted.
 
-Enforcement: `tests/contract/test_caches.py`, `tests/contract/test_dtype_device.py`; `[review]`.
+Enforcement: `tests/contract/test_caches.py`, `tests/contract/test_dtype_device.py`,
+`tests/contract/test_state_attachment.py`; `[review]`.

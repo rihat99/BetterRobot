@@ -40,7 +40,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-STATE-3 | `tests/contract/test_no_inplace.py` |
 | C-STATE-4 | `tests/contract/test_caches.py`, `[review]` |
 | C-STATE-5 | `tests/optim/test_problem.py`, `[review]` |
-| C-STATE-6 | `tests/contract/test_caches.py`, `tests/contract/test_dtype_device.py`, `[review]` |
+| C-STATE-6 | `tests/contract/test_caches.py`, `tests/contract/test_dtype_device.py`, `tests/contract/test_state_attachment.py`, `[review]` |
 | C-DIFF-1 | `tests/lie/test_torch_backend_gradcheck.py`, `[review]` |
 | C-DIFF-2 | `tests/autograd/test_vmap.py` [planned: L-8], `[review]` |
 | C-DIFF-3 | `tests/lie/test_torch_backend_gradcheck.py`, `[review]` |

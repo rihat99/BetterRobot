@@ -1,7 +1,7 @@
 # 06 Validation and errors
 
 A *public boundary* is a function listed in a package `__all__`. It validates structure (shapes, dtype,
-device, model attachment, id resolution) once; everything it calls trusts the validated input. Validation
+device, model attachment through `check_state` (C-STATE-6), id resolution) once; everything it calls trusts the validated input. Validation
 is about structure, not values: no finiteness scans by default. A value check is allowed only behind a keyword
 flag that defaults to off, such as `check_quaternion_norm=False` on `forward_kinematics`
 (`src/better_robot/kinematics/forward_kinematics.py::forward_kinematics`), so the hot path pays nothing unless the caller asks.
@@ -32,8 +32,8 @@ per tensor input, `EXPECTED_CHECKS`); `[review]`.
 
 Every raised error is a subclass of `better_robot.exceptions.BetterRobotError` (`ShapeError`,
 `DeviceMismatchError`, `ModelError`, `UnknownNameError`, ...). Plain `ValueError`/`RuntimeError` are not raised by the library. The one
-exception: a value that is not a `torch.Tensor` where a tensor is required raises Python's `TypeError` (a wrong
-Python type, for which the tree has no node; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
+exception: a value of the wrong Python type (not a `torch.Tensor`, not a `KinematicState`) raises Python's
+`TypeError` (the tree has no node for it; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
 site). An exception class exists only if something raises it; never-raised types are removed.
 An unknown joint, frame or body name raises `UnknownNameError` (also a `KeyError`); every public id
 argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.

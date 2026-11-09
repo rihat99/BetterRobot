@@ -71,6 +71,11 @@ def _kinematic_cases(dtype: torch.dtype, device: torch.device) -> dict[str, Case
         "forward_kinematics": (kinematics.forward_kinematics, (model, q), {}),
         "frame_jacobian": (kinematics.frame_jacobian, (model, state), {"frame": frame}),
         "joint_jacobian": (kinematics.joint_jacobian, (model, state), {"joint": 2}),
+        "point_jacobian": (
+            kinematics.point_jacobian,
+            (model, state),
+            {"frames": [frame], "points": torch.tensor([[0.1, 0.0, 0.2]], dtype=dtype, device=device)},
+        ),
         "frame_jacobian_time_variation": (
             kinematics.frame_jacobian_time_variation,
             (model, state),
