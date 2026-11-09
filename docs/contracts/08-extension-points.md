@@ -59,7 +59,7 @@ abstract or final, every kind a frozen `JointModel`); `tests/model/test_joints.p
 A name is public when it is in its package `__all__` and has no `_` prefix; everything else may change
 without notice. Private helpers across packages are imported from their package, not re-exported.
 
-Enforcement: `tests/contract/test_public_api.py`, `tests/contract/test_submodule_public_imports.py`;
+Enforcement: `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py`;
 `[ruff:SLF001]` [planned: L-7] (no `obj._private` access across modules).
 
 ## C-EXT-4 Deprecate for one minor release before removing (SHOULD)

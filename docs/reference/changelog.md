@@ -305,7 +305,7 @@ and the current [migration details](https://github.com/rihat99/BetterRobot/blob/
   `URDFMeshMode`, draggable IK target gizmos, frame-axes / grid /
   force-vector overlays, minimal `TrajectoryPlayer`.
 - **Public API.** 26 frozen symbols at `better_robot.__init__`,
-  enforced by `tests/contract/test_public_api.py`.
+  enforced by `tests/contract/test_public_surface.py`.
 
 ### Public API
 

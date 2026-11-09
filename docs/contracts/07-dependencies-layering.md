@@ -7,7 +7,7 @@ cycle, and a new package gets its row through an ADR (`00-index`, "When to write
 
 | Package | May import |
 |---|---|
-| `exceptions`, `_version` | nothing from the package |
+| `exceptions` | nothing from the package |
 | `lie` | `exceptions` |
 | `spatial` | `exceptions`, `lie` |
 | `model` | `exceptions`, `lie`, `spatial` |

@@ -61,7 +61,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | Test | Guards |
 |------|--------|
 | `test_layer_dependencies.py` | every import between packages is in the `ALLOWED` edge table (`optim` imports only `exceptions`) |
-| `test_public_api.py` | the top-level `better_robot` API surface |
+| `test_public_surface.py` | the root `__all__` is the decided list; every name of the `__all__` tree resolves |
 | `test_submodule_public_imports.py` | symbols documented under `better_robot.<submodule>` import from there |
 | `test_docstrings.py` | every public symbol has a docstring |
 | `test_boundary_validation_count.py` | public functions validate inputs once; raw passes below do not re-validate |

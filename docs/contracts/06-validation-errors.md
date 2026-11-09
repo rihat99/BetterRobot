@@ -39,7 +39,7 @@ An unknown name (a model's joint, frame or body, a problem's term or variable, a
 `UnknownNameError` (also a `KeyError`) with one message shape, `unknown <kind> '<name>' (valid names: [...])`; every
 public id argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.
 
-Enforcement: `tests/contract/test_public_api.py` (every class in `exceptions.__all__` is raised somewhere in
+Enforcement: `tests/contract/test_error_tree.py` (every class in `exceptions.__all__` is raised somewhere in
 `src/`); `[review]`.
 
 ## C-ERR-3 Messages say expected vs received (MUST)

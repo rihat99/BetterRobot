@@ -16,7 +16,6 @@ ROOT = "better_robot"
 SRC = Path(__file__).resolve().parents[2] / "src"
 
 ALLOWED: dict[str, set[str]] = {
-    "_version": set(),
     "exceptions": set(),
     "lie": {"exceptions"},
     "spatial": {"exceptions", "lie"},

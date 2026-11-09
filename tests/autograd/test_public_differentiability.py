@@ -100,11 +100,11 @@ def _crba(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:
 
 
 def _centroidal_map(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:
-    return br.centroidal_map(model, br.forward_kinematics(model, q))
+    return br.dynamics.centroidal_map(model, br.forward_kinematics(model, q))
 
 
 def _centroidal_momentum(model, q, velocity, _acceleration, _torque) -> torch.Tensor:
-    return br.centroidal_momentum(model, br.forward_kinematics(model, q), v=velocity)
+    return br.dynamics.centroidal_momentum(model, br.forward_kinematics(model, q), v=velocity)
 
 
 def _center_of_mass(model, q, _velocity, _acceleration, _torque) -> torch.Tensor:

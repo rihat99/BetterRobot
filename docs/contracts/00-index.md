@@ -47,10 +47,10 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-API-1 | `[review]` |
 | C-API-2 | `tests/contract/test_keyword_only.py` |
 | C-API-3 | `[ruff:FBT001,FBT002]` |
-| C-API-4 | `tests/contract/test_public_api.py`, `[review]` |
-| C-API-5 | `tests/contract/test_public_api.py`, `tests/contract/test_submodule_public_imports.py` |
+| C-API-4 | `tests/contract/test_public_surface.py`, `[review]` |
+| C-API-5 | `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py` |
 | C-ERR-1 | `tests/contract/test_boundary_validation_count.py`, `[review]` |
-| C-ERR-2 | `tests/contract/test_public_api.py`, `[review]` |
+| C-ERR-2 | `tests/contract/test_error_tree.py`, `[review]` |
 | C-ERR-3 | `[review]` |
 | C-ERR-4 | `[ruff:BLE001,E722]`, `[review]` |
 | C-ERR-5 | `tests/optim/test_problem.py::test_unknown_read_fails_at_registration` |
@@ -60,7 +60,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-DEP-4 | `[review]` |
 | C-EXT-1 | `[review]` |
 | C-EXT-2 | `tests/contract/test_abstract_or_final.py`, `tests/model/test_joints.py`, `[review]` |
-| C-EXT-3 | `tests/contract/test_public_api.py`, `tests/contract/test_submodule_public_imports.py`, `[ruff:SLF001]` [planned: L-7] |
+| C-EXT-3 | `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py`, `[ruff:SLF001]` [planned: L-7] |
 | C-EXT-4 | `[review]` |
 | C-EXT-5 | `tests/contract/test_layer_dependencies.py`, `[review]` |
 | C-EXT-6 | `[review]` |
