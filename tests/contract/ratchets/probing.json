@@ -1,7 +1,5 @@
 {
   "src/better_robot/optim/phases.py::run": "R7 rewrites optim",
-  "src/better_robot/optim/problem.py::_resolve_reads": "R7 rewrites optim",
-  "src/better_robot/optim/problem.py::residual": "R7 rewrites optim",
   "src/better_robot/viewer/layers/plot.py::__init__": "R8 rewrites the viewer",
   "src/better_robot/viewer/viewer.py::_push": "R8 rewrites the viewer",
   "src/better_robot/viewer/viewer.py::set_visible": "R8 rewrites the viewer"

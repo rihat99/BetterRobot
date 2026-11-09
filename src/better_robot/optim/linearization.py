@@ -1,6 +1,6 @@
 """Gauss-Newton normal equations of a ``Problem``: Jacobian blocks by route, accumulated into one sink.
 
-A term's Jacobian comes from its analytic ``jac``, from autodiff by knot colours for a time-local term
+A term's Jacobian comes from its analytic ``jacobian``, from autodiff by knot colours for a time-local term
 (``window=``), or from one batched backward pass shared by every other term. ``linearize`` adds each
 block's ``JᵀJ`` and ``Jᵀr`` to a dense, banded or arrowhead sink; ``check_jacobian`` compares each route
 with plain autodiff.
@@ -68,7 +68,7 @@ def linearize(problem: Problem, x: Values | None = None) -> tuple[Normal | Bande
     """Gauss-Newton normal equations and the loss ``(B,)`` at ``x`` (default: the problem's variables)."""
     x = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
     terms = active_terms(problem)
-    traced = [t for t in terms if t.kind == "scalar" or t.jac is None]
+    traced = [t for t in terms if t.kind == "scalar" or t.jacobian is None]
     loss = zero_loss(problem)
     batch, size = loss.shape[0], problem.tangent_dim
     layout = _band_layout(problem, terms)
@@ -93,7 +93,7 @@ def linearize(problem: Problem, x: Values | None = None) -> tuple[Normal | Bande
                 continue
             loss = loss + residual_loss(term, value).detach()
             reweighted = value * irls(term, value)
-            if term.jac is not None:
+            if term.jacobian is not None:
                 with torch.no_grad():
                     pieces = _analytic_pieces(problem, term, evaluation, value)
             elif term.window is not None:
@@ -216,8 +216,8 @@ def _window_columns(problem: Problem, name: str, rows: int, offset: int, device:
 def _analytic_pieces(
     problem: Problem, term: Term, evaluation: Evaluation, weighted_value: torch.Tensor
 ) -> list[_Piece]:
-    """Pieces of the weighted, reweighted residual from the blocks returned by ``term.jac``."""
-    blocks = term.jac(*evaluation.args(term.reads))
+    """Pieces of the weighted, reweighted residual from the blocks returned by ``term.jacobian``."""
+    blocks = term.jacobian(*evaluation.args(term.reads))
     weight = weight_of(problem, term)
     scale = (weight.sqrt() if isinstance(weight, torch.Tensor) else weight**0.5) * irls(term, weighted_value)
     batch = weighted_value.shape[0]
@@ -291,7 +291,7 @@ def _windowed_pieces(problem: Problem, term: Term, reweighted: torch.Tensor, del
         if not torch.allclose(got, expected, rtol=1e-3, atol=1e-6 * float(expected.abs().max()) + 1e-30):
             raise ArgumentError(
                 f"term {term.name!r}: the autodiff Jacobian w.r.t. variables without a time axis is wrong, "
-                "because an operation on that path cannot be differentiated twice. Give the term a `jac`."
+                "because an operation on that path cannot be differentiated twice. Give the term a `jacobian`."
             )
         pieces.append(_Piece(columns.expand(rows, -1), block))
     for name in sorted(read_variables & set(problem.time)):
@@ -308,18 +308,18 @@ def _windowed_pieces(problem: Problem, term: Term, reweighted: torch.Tensor, del
 def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float]:
     """Largest absolute difference between each term's own Jacobian route and plain autodiff.
 
-    Checks every residual term that has an analytic ``jac`` or a ``window``; the reference
+    Checks every residual term that has an analytic ``jacobian`` or a ``window``; the reference
     differentiates the same term row by row with no assumption. Returns ``{term name: error}``
     measured on ``H`` and ``g``, relative to the largest entry of ``H``.
     """
     errors = {}
     for term in active_terms(problem):
-        if term.kind != "residual" or (term.jac is None and term.window is None):
+        if term.kind != "residual" or (term.jacobian is None and term.window is None):
             continue
         only = {name: 0.0 for name in problem.terms if name != term.name}
         analytic = problem.with_(weights=only)
         autodiff = copy.copy(analytic)
-        autodiff.terms = {**problem.terms, term.name: replace(term, jac=None, window=None)}
+        autodiff.terms = {**problem.terms, term.name: replace(term, jacobian=None, window=None)}
         normal_a, _ = linearize(analytic, x)
         normal_b, _ = linearize(autodiff, x)
         H_a = normal_a.H if isinstance(normal_a, Normal) else normal_a.dense()

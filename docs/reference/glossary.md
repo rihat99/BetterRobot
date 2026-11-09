@@ -61,10 +61,10 @@ derivative method.
 
 | Term | Meaning |
 |---|---|
-| **term** | A plain function of named tensors (variables and data) that returns a residual `(B, ..., k)` the solver drives towards zero, or a scalar cost. Its Jacobian comes from autograd unless the term supplies `jac`. |
+| **term** | A plain function of named tensors (variables and data) that returns a residual `(B, ..., k)` the solver drives towards zero, or a scalar cost. Its Jacobian comes from autograd unless the term supplies `jacobian`. |
 | **`Problem`** | The container of variables, data and weighted terms. `Problem.loss` feeds autograd optimizers; `Problem.linearize` builds normal equations for the Gauss--Newton family. |
 | **`Phase`** | One stage of a staged solve: term weight overrides, frozen coordinates, an iteration budget and an optional start hook, run in sequence by `optim.run`. |
-| **`CacheRef`** | What `Problem.cached(fn, name=...)` returns: a named value computed once per evaluation (for example the kinematic state) that every term reading that name shares. |
+| **cached value** | What `Problem.cached(fn, name=...)` registers and names: a value computed once per evaluation (for example the kinematic state) that every term reading that name shares. |
 | **window** | The number of consecutive knots a time-local term reads. A window of 2 couples knot `t` with `t + 1`. |
 | **banded normal** | The block-banded normal matrix that time-local terms produce; with time-free variables it gains an arrow border. Both are solved in time linear in the number of knots. |
 | **variable** | A value the optimizer may change. One problem can contain several variables with different shapes and manifolds. |

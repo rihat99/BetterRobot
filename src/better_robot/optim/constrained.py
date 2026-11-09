@@ -20,10 +20,10 @@ def _shifted(term, shift_name: str, *, inequality: bool):
         value = term.fn(*args[:-1]) + args[-1]
         return value.clamp_min(0.0) if inequality else value
 
-    jac = None
-    if term.jac is not None and not inequality:
-        jac = lambda *args: term.jac(*args[:-1])  # noqa: E731 - the shift is constant
-    return dataclasses.replace(term, fn=fn, reads=(*term.reads, shift_name), jac=jac, kernel=None)
+    jacobian = None
+    if term.jacobian is not None and not inequality:
+        jacobian = lambda *args: term.jacobian(*args[:-1])  # noqa: E731 - the shift is constant
+    return dataclasses.replace(term, fn=fn, reads=(*term.reads, shift_name), jacobian=jacobian, kernel=None)
 
 
 def solve_constrained(

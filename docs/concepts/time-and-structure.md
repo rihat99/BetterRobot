@@ -78,12 +78,12 @@ problem = Problem(
     data={"target": torch.randn(B, T, 2)},
     time=("x",),
 )
-def track_jac(x, offset, target):
+def track_jacobian(x, offset, target):
     eye = torch.eye(2).expand(B, T, 2, 2)
     return {"x": eye[:, :, :, None, :], "offset": eye}  # (B, T, m, k, n) and (B, T, m, n)
 
 track = TermFn(lambda x, offset, target: x + offset[:, None] - target,
-               reads=("x", "offset", "target"), jac=track_jac)
+               reads=("x", "offset", "target"), jacobian=track_jacobian)
 problem.residual("track", track, window=1)
 problem.residual("velocity", lambda x: x[:, 1:] - x[:, :-1], weight=10.0, window=2)
 problem.residual("offset_prior", lambda offset: offset, weight=1e-2)

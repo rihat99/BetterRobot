@@ -7,10 +7,10 @@ Optimization layer over named tensors. It imports only torch. Robot terms live i
 - A variable is a named tensor `(B, *event)`; the `B` problems of a batch are independent.
 - A term is a plain function. Its parameter names are the variables, data tensors or cached
   values it reads (`reads=` overrides). `TermFn` bundles a function with `reads`, an analytic
-  `jac` and a `window`.
+  `jacobian` and a `window`.
 - `Problem.loss` is an ordinary differentiable `(B,)` tensor. `Problem.linearize` builds
   Gauss-Newton normal equations from the same terms: one traced evaluation for all autodiff
-  terms, analytic blocks where a term has `jac`.
+  terms, analytic blocks where a term has `jacobian`.
 - `Problem(time=(...))` marks variables `(B, T, *event)`. A residual with `window=k` reads `k`
   consecutive knots. If every residual is time-local or reads no time variable, the normal
   equations are block-tridiagonal (`BandedNormal`), bordered by variables without a time axis
@@ -26,7 +26,7 @@ Optimization layer over named tensors. It imports only torch. Robot terms live i
   stops once every problem has its step: one read per trial); shapes never change. Done or
   rejected batch elements keep their old values through `torch.where`.
 - Cached values are computed at most once per evaluation and stay inside the autodiff trace.
-- `window=` is trusted; `check_jacobian` is the test for it and for every analytic `jac`.
+- `window=` is trusted; `check_jacobian` is the test for it and for every analytic `jacobian`.
 - After `step`, `State.extra` carries the diagnostic keys named in `solvers.DIAGNOSTICS` (key set in the
   `State` docstring); `run` stacks them into `Result.diagnostics`. A solver's `warm_keys` are the `extra`
   entries a warm start (`state=`) keeps; everything else is recomputed by `init`. Every solver also writes

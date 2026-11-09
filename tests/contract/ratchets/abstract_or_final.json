@@ -24,7 +24,6 @@
   "better_robot.optim.manifold.Manifold": "R7 rewrites optim",
   "better_robot.optim.phases.Phase": "R7 rewrites optim",
   "better_robot.optim.phases.Result": "R7 rewrites optim",
-  "better_robot.optim.problem.CacheRef": "R7 rewrites optim",
   "better_robot.optim.problem.Problem": "R7 rewrites optim",
   "better_robot.optim.problem.Term": "R7 rewrites optim",
   "better_robot.optim.problem.TermFn": "R7 rewrites optim",

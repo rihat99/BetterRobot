@@ -37,10 +37,10 @@ assert result.x["x"].shape == (4, 2) and bool(result.done.all())
 
 ## Terms are functions
 
-`residual(name, fn, weight=, kernel=, jac=, reads=, window=)` adds a least-squares term. `fn` returns
+`residual(name, fn, weight=, kernel=, reads=, jacobian=, window=)` adds a least-squares term. `fn` returns
 `(B, ..., k)` and its loss is `½ · weight · Σ r²`. `scalar(name, fn, weight=)` adds a term that already
 returns a `(B,)` loss. `cached(fn, name=)` registers an intermediate that several terms read, such as a
-kinematic state; it is computed at most once per evaluation.
+kinematic state, and returns its name; it is computed at most once per evaluation.
 
 ```python
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
@@ -66,8 +66,8 @@ diagnostics (a contact count, an inlier ratio) that is detached and never enters
 
 ### Analytic Jacobians and `TermFn`
 
-Without `jac`, the Jacobian comes from autodiff. A `TermFn(fn, reads, jac=, window=)` bundles a function
-with what it reads and, optionally, an analytic Jacobian. `jac(*reads)` returns `{variable: (B, m, n)}`,
+Without `jacobian`, the Jacobian comes from autodiff. A `TermFn(fn, reads, jacobian=, window=)` bundles a
+function with what it reads and, optionally, an analytic Jacobian. `jacobian(*reads)` returns `{variable: (B, m, n)}`,
 one block per variable in that variable's tangent coordinates, with the chain rule through any cached
 value already applied. `window=k` declares a time-local term; see
 [Time and structure](time-and-structure.md#windows-make-terms-time-local).
@@ -75,16 +75,16 @@ value already applied. `window=k` declares a time-local term; see
 ```python
 from better_robot.optim import TermFn, check_jacobian
 
-def fit_jac(x, target):
+def fit_jacobian(x, target):
     return {"x": torch.eye(2).expand(x.shape[0], 2, 2)}
 
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
-problem.residual("fit", TermFn(lambda x, target: x - target, reads=("x", "target"), jac=fit_jac))
+problem.residual("fit", TermFn(lambda x, target: x - target, reads=("x", "target"), jacobian=fit_jacobian))
 errors = check_jacobian(problem)
 assert errors["fit"] < 1e-6
 ```
 
-`check_jacobian(problem, x=None)` compares every term that has a `jac` or a `window` with plain
+`check_jacobian(problem, x=None)` compares every term that has a `jacobian` or a `window` with plain
 row-by-row autodiff and returns `{term: error}`, measured on `H` and `g` relative to the largest entry of
 `H`. Run it in a test for every term you write; [Write a term](../guides/write-a-term.md) walks through one.
 

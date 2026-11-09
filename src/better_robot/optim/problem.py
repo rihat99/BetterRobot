@@ -17,6 +17,7 @@ from typing import Any
 
 import torch
 
+from ..exceptions import ArgumentError
 from .evaluation import Values, evaluate, residuals
 from .kernels import RobustKernel
 from .linear import ArrowNormal, BandedNormal, BandLayout, Normal
@@ -25,31 +26,20 @@ from .manifold import Euclidean, Manifold
 
 
 @dataclass(frozen=True)
-class CacheRef:
-    """Handle to a value registered with ``Problem.cached``; ``str(ref)`` is its name."""
-
-    name: str
-
-    def __str__(self) -> str:
-        return self.name
-
-
-@dataclass(frozen=True)
 class TermFn:
-    """A term function bundled with what it reads and, optionally, its analytic Jacobian.
+    """A term function bundled with the names it reads and, optionally, its analytic Jacobian and time window.
 
-    ``fn(*reads)`` returns the residual. ``jac(*reads)`` returns ``{variable: (B, m, n)}``:
+    ``fn(*reads)`` returns the residual. ``jacobian(*reads)`` returns ``{variable: (B, m, n)}``:
     one block per variable, in that variable's tangent coordinates, with the chain rule
-    through any cached value already applied.
+    through any cached value already applied. ``window`` declares a time-local term (see
+    ``Problem.residual``). ``Problem.residual``, ``scalar`` and ``cached`` take a ``TermFn`` in place of
+    a plain function.
     """
 
     fn: Callable[..., torch.Tensor]
     reads: tuple[str, ...]
-    jac: Callable[..., dict[str, torch.Tensor]] | None = None
+    jacobian: Callable[..., dict[str, torch.Tensor]] | None = None
     window: int | None = None
-
-    def __call__(self, *args: Any) -> torch.Tensor:
-        return self.fn(*args)
 
 
 @dataclass(frozen=True)
@@ -62,7 +52,7 @@ class Term:
     reads: tuple[str, ...]
     weight: float | torch.Tensor
     kernel: RobustKernel | None
-    jac: Callable[..., dict[str, torch.Tensor]] | None
+    jacobian: Callable[..., dict[str, torch.Tensor]] | None
     window: int | None = None  #: time-local term: row ``t`` reads knots ``t .. t + window - 1``.
 
 
@@ -134,27 +124,28 @@ class Problem:
     # ── registration ────────────────────────────────────────────────────
 
     def cached(
-        self, fn: Callable[..., Any], *, name: str | None = None, reads: tuple[str, ...] | None = None
-    ) -> CacheRef:
-        """Register a value shared by terms, computed at most once per evaluation.
+        self, fn: Callable[..., Any] | TermFn, *, name: str | None = None, reads: tuple[str, ...] | None = None
+    ) -> str:
+        """Register a value shared by terms, computed at most once per evaluation; returns its name.
 
-        Usable as a decorator; the name defaults to the function name. Returns a `CacheRef`
-        handle that terms accept wherever they take a cached-value name.
+        Usable as a decorator; the name defaults to the function name. Terms read the value by that name.
         """
+        if isinstance(fn, TermFn):
+            fn, reads = fn.fn, reads if reads is not None else fn.reads
         name = name or fn.__name__
         self._require_new_name(name)
         self._cached[name] = (fn, self._resolve_reads(name, fn, reads))
-        return CacheRef(name)
+        return name
 
     def residual(
         self,
         name: str,
-        fn: Callable[..., torch.Tensor],
+        fn: Callable[..., torch.Tensor] | TermFn,
         *,
         weight: float | torch.Tensor = 1.0,
         kernel: RobustKernel | None = None,
-        jac: Callable[..., dict[str, torch.Tensor]] | None = None,
         reads: tuple[str, ...] | None = None,
+        jacobian: Callable[..., dict[str, torch.Tensor]] | None = None,
         window: int | None = None,
     ) -> None:
         """Add a least-squares term ``fn(...) -> (B, ..., k)``.
@@ -162,24 +153,29 @@ class Problem:
         Its loss is ``½ · weight · Σ r²``; with a ``kernel`` the last axis is one robust
         group and the loss is ``Σ kernel.rho(weight · ‖r‖²)`` over the other axes.
         A tensor ``weight`` has the shape of the output, with or without the batch axis.
-        ``jac`` is optional: without it the Jacobian comes from autodiff.
+        ``reads`` defaults to the parameter names of ``fn``. ``jacobian`` is optional: without it the
+        Jacobian comes from autodiff. A ``TermFn`` brings its own ``reads``, ``jacobian`` and ``window``;
+        a keyword given here replaces the bundle's.
 
         ``window=k`` declares a time-local term: the output is ``(B, T - k + 1, m)`` and row
         ``t`` depends only on knots ``t .. t + k - 1`` of the time variables (``k=1`` for a
         per-knot term, 2 for velocities, 3 for accelerations). Its autodiff Jacobian then costs
-        ``k · m`` backward passes instead of one per row, and an analytic ``jac`` returns blocks
+        ``k · m`` backward passes instead of one per row, and an analytic ``jacobian`` returns blocks
         ``(B, T - k + 1, m, k, n)`` per time variable and ``(B, T - k + 1, m, n)`` per variable
         without a time axis. The declaration is trusted: a row that reads outside its window
         gives a wrong Jacobian. ``check_jacobian`` tests it.
         """
-        jac = jac if jac is not None else getattr(fn, "jac", None)
-        window = window if window is not None else getattr(fn, "window", None)
-        self._add(name, fn, "residual", weight, kernel, jac, reads, window)
+        if isinstance(fn, TermFn):
+            reads = reads if reads is not None else fn.reads
+            jacobian = jacobian if jacobian is not None else fn.jacobian
+            window = window if window is not None else fn.window
+            fn = fn.fn
+        self._add(name, fn, "residual", weight, kernel, jacobian, reads, window)
 
     def scalar(
         self,
         name: str,
-        fn: Callable[..., torch.Tensor],
+        fn: Callable[..., torch.Tensor] | TermFn,
         *,
         weight: float | torch.Tensor = 1.0,
         reads: tuple[str, ...] | None = None,
@@ -187,8 +183,13 @@ class Problem:
         """Add a term ``fn(...) -> (B,)`` that is already a loss.
 
         First-order solvers minimize it like any other term. Gauss-Newton and LM only add its
-        gradient; its curvature is ignored.
+        gradient; its curvature is ignored. A ``TermFn`` brings its ``reads``; it may not carry a
+        ``jacobian`` or a ``window``.
         """
+        if isinstance(fn, TermFn):
+            if fn.jacobian is not None or fn.window is not None:
+                raise ArgumentError(f"scalar term {name!r}: a scalar term takes no jacobian or window")
+            fn, reads = fn.fn, reads if reads is not None else fn.reads
         self._add(name, fn, "scalar", weight, None, None, reads, None)
 
     def with_(
@@ -299,19 +300,17 @@ class Problem:
 
     # ── internals ───────────────────────────────────────────────────────
 
-    def _add(self, name, fn, kind, weight, kernel, jac, reads, window) -> None:
+    def _add(self, name, fn, kind, weight, kernel, jacobian, reads, window) -> None:
         if name in self.terms:
             raise ValueError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
-        self.terms[name] = Term(name, fn, kind, reads, weight, kernel, jac, window)
+        self.terms[name] = Term(name, fn, kind, reads, weight, kernel, jacobian, window)
 
     def _require_new_name(self, name: str) -> None:
         if name in self.variables or name in self.data or name in self._cached:
             raise ValueError(f"name {name!r} is already used by a variable, data tensor or cached value")
 
     def _resolve_reads(self, name: str, fn: Callable[..., Any], reads: tuple[str, ...] | None) -> tuple[str, ...]:
-        if reads is None:
-            reads = getattr(fn, "reads", None)
         if reads is None:
             reads = tuple(inspect.signature(fn).parameters)
         known = set(self.variables) | set(self.data) | set(self._cached)
@@ -339,4 +338,4 @@ class Problem:
         return x
 
 
-__all__ = ["CacheRef", "Problem", "Term", "TermFn"]
+__all__ = ["Problem", "Term", "TermFn"]

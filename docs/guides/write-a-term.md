@@ -25,12 +25,12 @@ problem = Problem({"x": start}, data={"radius": torch.tensor(2.0, dtype=torch.fl
 problem.residual("circle", on_circle, window=1)
 ```
 
-This already works: without a `jac` the Jacobian comes from autodiff. `window=1` says that row `t` reads
+This already works: without a `jacobian` the Jacobian comes from autodiff. `window=1` says that row `t` reads
 only knot `t`, which keeps the normal equations banded and lets autodiff differentiate all rows at once.
 
 ## Add an analytic Jacobian
 
-For a windowed term, `jac` takes the same arguments as the function and returns one block per variable it
+For a windowed term, `jacobian` takes the same arguments as the function and returns one block per variable it
 differentiates:
 
 | Variable | Block shape |
@@ -42,11 +42,11 @@ differentiates:
 Wrap the function and its Jacobian in a `TermFn` together with what it reads:
 
 ```python
-def on_circle_jac(x, radius):
+def on_circle_jacobian(x, radius):
     direction = x / x.norm(dim=-1, keepdim=True)  # (B, T, 2)
     return {"x": direction[:, :, None, None, :]}  # (B, T, m=1, k=1, n=2)
 
-circle = TermFn(on_circle, reads=("x", "radius"), jac=on_circle_jac, window=1)
+circle = TermFn(on_circle, reads=("x", "radius"), jacobian=on_circle_jacobian, window=1)
 ```
 
 A velocity term reads two knots, so `window=2` and the block holds `-I` for knot `t` and `+I` for knot
@@ -56,15 +56,15 @@ A velocity term reads two knots, so `window=2` and the block holds `-I` for knot
 def velocity(x):
     return x[:, 1:] - x[:, :-1]  # (B, T - 1, 2)
 
-def velocity_jac(x):
+def velocity_jacobian(x):
     eye = torch.eye(2, dtype=x.dtype)
     block = torch.stack([-eye, eye], dim=-2)  # (m=2, k=2, n=2)
     return {"x": block.expand(x.shape[0], x.shape[1] - 1, 2, 2, 2)}
 
-smooth = TermFn(velocity, reads=("x",), jac=velocity_jac, window=2)
+smooth = TermFn(velocity, reads=("x",), jacobian=velocity_jacobian, window=2)
 ```
 
-`Problem.residual` picks up `jac` and `window` from a `TermFn`, so you register it like any function:
+`Problem.residual` picks up `jacobian` and `window` from a `TermFn`, so you register it like any function:
 
 ```python
 problem = Problem({"x": start}, data={"radius": torch.tensor(2.0, dtype=torch.float64)}, time=("x",))
@@ -74,9 +74,9 @@ problem.residual("smooth", smooth, weight=0.1)
 
 ## Verify with `check_jacobian`
 
-`check_jacobian(problem)` differentiates every term that has a `jac` or a `window` row by row with plain
+`check_jacobian(problem)` differentiates every term that has a `jacobian` or a `window` row by row with plain
 autodiff and reports the largest error on `H` and `g`, relative to the largest entry of `H`. Put this in
-your test suite: a wrong `jac` or a row that reads outside its `window` gives a wrong step with no error.
+your test suite: a wrong `jacobian` or a row that reads outside its `window` gives a wrong step with no error.
 
 ```python
 errors = check_jacobian(problem)
@@ -98,7 +98,7 @@ Use float64 when you check: in float32 the reference itself has errors around `1
 
 When several terms need the same intermediate, such as a kinematic state, register it once with
 `problem.cached(fn, name=...)` and read it by name. It is computed once per evaluation. If a term reads a
-cached value, its `jac` still returns blocks for the *variables*, with the chain rule through the cached
+cached value, its `jacobian` still returns blocks for the *variables*, with the chain rule through the cached
 value already applied. The robot terms in `better_robot.terms` (`terms/robot.py`, `terms/collision.py`) are
 built this way: factories that return `TermFn`s reading the cached `state`.
 
@@ -106,7 +106,7 @@ built this way: factories that return `TermFn`s reading the cached `state`.
 
 - Parameter names match variables, data or cached names, or pass `reads=`.
 - Output `(B, ..., m)`; with `window=k`, `(B, T - k + 1, m)`.
-- `jac` blocks in tangent coordinates, shapes from the table above.
+- `jacobian` blocks in tangent coordinates, shapes from the table above.
 - `check_jacobian` below `1e-9` in float64 in a test.
 
 ## Where next

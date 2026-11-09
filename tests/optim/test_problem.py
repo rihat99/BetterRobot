@@ -66,7 +66,9 @@ def test_analytic_blocks_equal_autodiff_and_free_mask_freezes():
     goal = torch.tensor([[1.0, 2.0]], dtype=torch.float64).expand(3, 2)
     problem = optim.Problem({"x": x0}, data={"goal": goal})
     term = optim.TermFn(
-        fn=lambda x, goal: x @ matrix.T - goal, reads=("x", "goal"), jac=lambda x, goal: {"x": matrix.expand(3, 2, 3)}
+        fn=lambda x, goal: x @ matrix.T - goal,
+        reads=("x", "goal"),
+        jacobian=lambda x, goal: {"x": matrix.expand(3, 2, 3)},
     )
     problem.residual("linear", term, weight=3.0)
     problem.residual("prior", lambda x: 0.1 * x)
@@ -120,7 +122,7 @@ def test_time_local_terms_match_row_by_row_autodiff():
     velocity = optim.TermFn(
         fn=lambda path: path[:, 1:] - path[:, :-1],
         reads=("path",),
-        jac=lambda path: {
+        jacobian=lambda path: {
             "path": (torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None, None] * torch.eye(3, dtype=path.dtype))
             .permute(1, 0, 2)
             .expand(2, 6, 3, 2, 3)
@@ -206,7 +208,7 @@ def test_shared_variables_border_the_band_and_equal_dense(knots):
                 (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True) - force[:, :-1] * shape[:, None, 2:]
             ),
             reads=("path", "force", "shape"),
-            jac=lambda path, force, shape: {
+            jacobian=lambda path, force, shape: {
                 "path": torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None].expand(*path[:, 1:, :1].shape, 2, 2),
                 "force": torch.stack(
                     [-shape[:, None, 2:].expand_as(force[:, :-1]), torch.zeros_like(force[:, :-1])], -2
@@ -370,7 +372,7 @@ def test_augmented_lagrangian_reaches_the_constrained_optimum():
     expected = torch.tensor([[0.2, 0.55, 0.25], [-0.2, 0.5, 0.7]], dtype=torch.float64)
     torch.testing.assert_close(result.x["x"], expected, atol=1e-7, rtol=0.0)
     assert bool(result.done.all()) and result.history["violation"].shape[1] == 2
-    assert "total.shift" not in problem.data and problem.terms["cap"].fn is cap
+    assert "total.shift" not in problem.data and problem.terms["cap"].fn is cap.fn
     torch.testing.assert_close(result.loss, 0.5 * (expected - a).square().sum(-1), atol=1e-7, rtol=0.0)
 
 
@@ -393,11 +395,11 @@ def test_shared_columns_through_a_once_differentiable_op_fail_loudly():
         problem.linearize()
 
 
-def test_cached_returns_handle_and_unknown_cached_read_fails_at_registration():
+def test_cached_returns_its_name_and_unknown_cached_read_fails_at_registration():
     problem = optim.Problem({"x": torch.zeros(2, 3)})
-    ref = problem.cached(lambda x: 2.0 * x, name="doubled")
-    assert isinstance(ref, optim.CacheRef) and str(ref) == "doubled"
-    problem.residual("fit", lambda doubled: doubled, reads=(str(ref),))
+    name = problem.cached(lambda x: 2.0 * x, name="doubled")
+    assert name == "doubled"
+    problem.residual("fit", lambda doubled: doubled, reads=(name,))
     with pytest.raises(KeyError, match="tripled"):
         problem.residual("bad", lambda tripled: tripled, reads=("tripled",))
 

@@ -19,7 +19,7 @@ from ..kinematics.configuration import difference, integrate, manifold_plan
 from ..kinematics import KinematicState, forward_kinematics, frame_jacobian
 from ..lie import se3
 from ..lie.tangents import right_jacobian_inverse_se3
-from ..optim import CacheRef, TermFn
+from ..optim import TermFn
 
 
 class RobotManifold:
@@ -59,36 +59,34 @@ def kinematic_state(model: Model, *, q: str = "q") -> TermFn:
     return TermFn(fn=lambda value: forward_kinematics(model, value), reads=(q,))
 
 
-def frame_pose(model: Model, *, frame: int | str, target: str, state: CacheRef | str = "state", q: str = "q") -> TermFn:
+def frame_pose(model: Model, *, frame: int | str, target: str, state: str = "state", q: str = "q") -> TermFn:
     """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``."""
     frame_id = model.frame_id(frame)
 
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
         return se3.log(se3.compose(se3.inverse(goal), kinematics.frame_pose_of(frame_id)))
 
-    def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
+    def jacobian(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         local = frame_jacobian(model, kinematics, frame=frame_id, reference="local")
         return {q: right_jacobian_inverse_se3(error(kinematics, goal)) @ local}
 
-    return TermFn(fn=error, reads=(str(state), target), jac=jac)
+    return TermFn(fn=error, reads=(state, target), jacobian=jacobian)
 
 
-def frame_position(
-    model: Model, *, frame: int | str, target: str, state: CacheRef | str = "state", q: str = "q"
-) -> TermFn:
+def frame_position(model: Model, *, frame: int | str, target: str, state: str = "state", q: str = "q") -> TermFn:
     """Position error of ``frame`` against data ``target: (B, 3)``. Residual ``(B, 3)``."""
     frame_id = model.frame_id(frame)
 
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
         return kinematics.frame_translations[..., frame_id, :] - goal
 
-    def jac(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
+    def jacobian(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         return {q: frame_jacobian(model, kinematics, frame=frame_id)[..., :3, :]}
 
-    return TermFn(fn=error, reads=(str(state), target), jac=jac)
+    return TermFn(fn=error, reads=(state, target), jacobian=jacobian)
 
 
-def _identity_jac(model: Model, q: str, sign_fn: Callable[[torch.Tensor], torch.Tensor]):
+def _identity_jacobian(model: Model, q: str, sign_fn: Callable[[torch.Tensor], torch.Tensor]):
     """Diagonal Jacobian for models whose configuration is its own tangent (``nq == nv``); else autodiff."""
     if model.nq != model.nv:
         return None
@@ -105,7 +103,7 @@ def joint_limits(model: Model, *, q: str = "q") -> TermFn:
     def slope(value: torch.Tensor) -> torch.Tensor:
         return ((value > upper) | (value < lower)).to(value.dtype)
 
-    return TermFn(fn=violation, reads=(q,), jac=_identity_jac(model, q, slope))
+    return TermFn(fn=violation, reads=(q,), jacobian=_identity_jacobian(model, q, slope))
 
 
 def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
@@ -114,7 +112,7 @@ def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
     def offset(value: torch.Tensor) -> torch.Tensor:
         return difference(model, q_rest.expand_as(value), value)
 
-    return TermFn(fn=offset, reads=(q,), jac=_identity_jac(model, q, torch.ones_like))
+    return TermFn(fn=offset, reads=(q,), jacobian=_identity_jacobian(model, q, torch.ones_like))
 
 
 def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", world_translation: bool = False) -> TermFn:
@@ -141,19 +139,19 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
             out = (out[:, 1:] - out[:, :-1]) / dt
         return out
 
-    jac = None
+    jacobian = None
     if model.nq == model.nv:
         # Built in float64 and rounded once to the working dtype by ``.to(value)``; a float32 stencil was off by
         # ~1e-7 (relative) in a float64 problem.
         coefficients = [(-1.0) ** (order - i) * math.comb(order, i) for i in range(order + 1)]
         stencil = torch.tensor(coefficients, dtype=torch.float64) / dt**order
 
-        def jac(value: torch.Tensor) -> dict[str, torch.Tensor]:
+        def jacobian(value: torch.Tensor) -> dict[str, torch.Tensor]:
             eye = torch.eye(model.nv, dtype=value.dtype, device=value.device)
             block = stencil.to(value)[:, None, None] * eye  # (window, nv, nv)
             return {q: block.permute(1, 0, 2).expand(value.shape[0], value.shape[1] - order, -1, -1, -1)}
 
-    return TermFn(fn=derivative, reads=(q,), jac=jac, window=order + 1)
+    return TermFn(fn=derivative, reads=(q,), jacobian=jacobian, window=order + 1)
 
 
 def velocity_limit(model: Model, *, dt: float, fraction: float = 1.0, q: str = "q") -> TermFn:
