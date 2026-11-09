@@ -176,7 +176,7 @@ def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> 
     np.testing.assert_allclose(heads.props["batched_scales"][0], [0.05, 0.05, 0.1])
     np.testing.assert_allclose(heads.props["batched_positions"][0], [0.0, 0.0, 1.9])
     np.testing.assert_allclose(heads.props["batched_scales"][1], 0.0)
-    np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["args"][0][0, 1], [0.0, 0.0, 2.0])
+    np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["points"][0, 1], [0.0, 0.0, 2.0])
 
 
 def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
@@ -233,7 +233,7 @@ def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_an
         valid=keep,
     )
     shafts, heads = server.scene.nodes["/scene/f/shafts"], server.scene.nodes["/scene/f/heads"]
-    assert shafts.kind == "batched_meshes_simple"
+    assert shafts.kind == "BatchedMeshHandle"
     viewer.show(0)
     # Long arrow: shaft up to the head's base, head of full size. Short arrow (0.05 m, under head_size / 0.35): the
     # long one scaled by 0.05 * 0.35 / 0.1 = 0.175, head 35 % of it, so still a shaft and a head.
@@ -315,8 +315,8 @@ def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     panel = viewer.add_plot("tau", np.random.default_rng(0).normal(size=(20, 3)), labels=["a", "b", "c"])
-    plot = next(control for control in server.gui.controls if control.kind == "uplot")
-    assert len(plot.props["args"][0]) == 4 and plot.props["args"][0][0][-1] == pytest.approx(19 / 30)
+    plot = next(control for control in server.gui.controls if control.kind == "GuiUplotHandle")
+    assert len(plot.props["data"]) == 4 and plot.props["data"][0][-1] == pytest.approx(19 / 30)
     viewer.show(7)
     assert plot.series[1]["points"]["filter"] == (7,) and plot.series[1]["label"] == "a"
     assert panel.nsteps == 20 and viewer.timeline.nsteps == 20
@@ -332,7 +332,7 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     asked = []
     lazy = ImagePanel("lazy", lambda step: asked.append(step) or frames[step], nsteps=4)
     viewer.add([lazy], group="video", times=np.arange(4) / 10.0)  # a 10 Hz video on the 30 fps timeline
-    eager_image, lazy_image = (control for control in server.gui.controls if control.kind == "image")
+    eager_image, lazy_image = (control for control in server.gui.controls if control.kind == "GuiImageHandle")
     viewer.show(3)  # 0.1 s: the lazy panel's sample 1
     np.testing.assert_array_equal(eager_image.image, frames[3])
     np.testing.assert_array_equal(lazy_image.image, frames[1])
@@ -391,7 +391,11 @@ def test_layers_folder_checkboxes_follow_set_visible_and_survive_rebuild() -> No
     viewer.add([arm], group="robot")
 
     def boxes() -> dict[str, object]:
-        return {c.name: c for c in server.gui.controls if c.kind == "checkbox" and c.name != "Loop" and not c.removed}
+        return {
+            c.name: c
+            for c in server.gui.controls
+            if c.kind == "GuiCheckboxHandle" and c.name != "Loop" and not c.removed
+        }
 
     assert list(boxes()) == ["skel", "robot/arm"]
     assert [control.name for control in server.gui.controls].count("Layers") == 1

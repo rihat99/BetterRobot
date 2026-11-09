@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from better_robot.viewer import CameraLayer, SkinnedMeshLayer
+from better_robot.viewer import CameraLayer, SkinnedMeshLayer, Viewer
 from better_robot.viewer.layers.skinned import top_k_weights
 
 from better_robot.testing import FakeServer
@@ -31,12 +31,12 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     np.testing.assert_allclose(bent[8], [0.1, -1.0, 1.0], atol=1e-6)  # tip: (0.1, 0, 2) rotated about bone 1
 
     server = FakeServer()
-    layer.build(server.scene, "/g/body")
+    viewer = Viewer(server=server)
+    viewer.add([layer], group="g")
     node = server.scene.nodes["/g/body/mesh"]
     assert node.props["skin_weights"].shape == (9, 2)
     np.testing.assert_allclose(node.props["bone_wxyzs"][1], [1.0, 0.0, 0.0, 0.0])
-    node.bones = [server.scene.nodes["/g/body/mesh"].__class__(None, "bone", f"b{i}", {}) for i in range(2)]
-    layer.set_step(1)
+    viewer.show(1)
     np.testing.assert_allclose(node.bones[1].wxyz, [half, half, 0.0, 0.0], atol=1e-6)
     np.testing.assert_allclose(node.bones[1].position, [0.0, 0.0, 1.0])
 
