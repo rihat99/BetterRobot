@@ -68,8 +68,6 @@
   "src/better_robot/model/CLAUDE.md: kinematics/configuration.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "tests/bench/README.md: baselines/torch_filtered_smpl_b1_rtx6000_ada.json": "a path relative to the citing file's folder outside a Markdown link; cite it from the repository root",
   "tests/bench/definitions.md: baselines/torch_filtered_smpl_b1_rtx6000_ada.json": "a path relative to the citing file's folder outside a Markdown link; cite it from the repository root",
-  "tests/contract/test_docstrings.py: docs/conventions/contracts.md": "cites a docs page of the old layout that no longer exists",
-  "tests/contract/test_docstrings.py: docs/conventions/extension.md": "cites a docs page of the old layout that no longer exists",
   "tests/contract/test_hot_path_lint.py: docs/conventions/performance.md": "cites a docs page of the old layout that no longer exists",
   "tests/contract/test_hot_path_lint.py: docs/conventions/testing.md": "cites a docs page of the old layout that no longer exists",
   "tests/contract/test_hot_path_lint.py: optim/solvers.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",

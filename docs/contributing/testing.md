@@ -68,7 +68,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_layer_dependencies.py` | every import between packages is in the `ALLOWED` edge table (`optim` imports only `exceptions`) |
 | `test_public_surface.py` | the root `__all__` is the decided list; every name of the `__all__` tree resolves |
 | `test_submodule_public_imports.py` | symbols documented under `better_robot.<submodule>` import from there |
-| `test_docstrings.py` | every public symbol has a docstring |
+| `test_docstrings.py` | every public object has a docstring that gives each tensor parameter's shape |
 | `test_boundary_validation_count.py` | public functions validate inputs once; raw passes below do not re-validate |
 | `test_hot_path_lint.py` | no `torch.compile`-breaking patterns (host syncs, `.item()`, Python branching on tensors) in kinematics and dynamics |
 | `test_naming.py` | old Pinocchio-style storage names do not come back |

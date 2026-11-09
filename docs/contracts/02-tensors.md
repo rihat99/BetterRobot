@@ -56,8 +56,8 @@ Tensor, shape (..., nframes, 7)
 """Return frame poses."""
 ```
 
-Enforcement: `tests/contract/test_docstrings.py` (every `__all__` symbol has a docstring; if its return
-annotation is `Tensor`, the docstring contains `shape (`).
+Enforcement: `tests/contract/test_docstrings.py` (every object of the `__all__` tree has a docstring, and the
+shape of each tensor parameter is in it).
 
 ## C-TENS-4 No host synchronisation in library paths (MUST)
 
