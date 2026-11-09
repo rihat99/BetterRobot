@@ -6,12 +6,10 @@ from collections.abc import Mapping
 
 import torch
 
-from ..model.manifolds import EUCLIDEAN
-from ..kinematics.configuration import manifold_plan
-from ..model.model import Model
+from ..exceptions import ArgumentError
+from ..model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
-from ..optim.solvers import select
-from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest
+from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest, vector_columns
 
 
 def ik_problem(
@@ -46,11 +44,14 @@ def ik_problem(
     return problem
 
 
-def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator | None = None) -> torch.Tensor:
-    """Copy of ``q0: (B, nq)`` with every vector-space joint that has finite limits sampled uniformly."""
-    index = manifold_plan(model, dtype=model.dtype, device=model.device).columns(EUCLIDEAN)[0].reshape(-1)
+def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator) -> torch.Tensor:
+    """Copy of ``q0: (B, nq)`` with every vector-space joint that has finite limits sampled uniformly.
+
+    The draw happens on ``q0``'s device, so ``generator`` must live there.
+    """
+    index, _ = vector_columns(model)
     lower, upper = model.lower_position_limit[index], model.upper_position_limit[index]
-    sample = torch.rand(q0.shape[0], index.numel(), generator=generator, dtype=q0.dtype).to(q0.device)
+    sample = torch.rand(q0.shape[0], index.numel(), generator=generator, dtype=q0.dtype, device=q0.device)
     sample = lower + (upper - lower) * sample
     out = q0.clone()
     out[:, index] = torch.where(torch.isfinite(sample), sample, q0[:, index])
@@ -69,9 +70,12 @@ def solve_ik(
 ) -> Result:
     """Solve ``ik_problem`` with LM (or ``solver``). The configuration is ``result.x["q"]``.
 
-    ``restarts`` extra attempts start from random configurations; each batch element keeps
-    its best attempt. This is what gets past the local minima of a single start.
+    ``restarts`` extra attempts start from random configurations drawn with ``generator`` (required when
+    ``restarts > 0``); each batch element keeps its best attempt. This is what gets past the local minima of a
+    single start.
     """
+    if restarts > 0 and generator is None:
+        raise ArgumentError("restarts draw random starts; pass a generator on q0's device")
     problem = ik_problem(model, targets, q0=q0)
     solver = solver or LevenbergMarquardt()
     best = solve(problem, solver, iterations=iterations)
@@ -79,7 +83,7 @@ def solve_ik(
         attempt = solve(problem, solver, iterations=iterations, x={"q": random_start(model, q0, generator=generator)})
         better = attempt.loss < best.loss
         best = Result(
-            x=select(better, attempt.x, best.x),
+            x={"q": torch.where(better[:, None], attempt.x["q"], best.x["q"])},
             loss=torch.where(better, attempt.loss, best.loss),
             done=torch.where(better, attempt.done, best.done),
             iterations=best.iterations + attempt.iterations,

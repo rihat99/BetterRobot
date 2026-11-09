@@ -45,6 +45,13 @@ def test_ik_with_restarts_reaches_every_target_inside_limits(panda):
     assert bool(((q >= panda.lower_position_limit) & (q <= panda.upper_position_limit)).all())
 
 
+def test_ik_restarts_need_a_generator(panda):
+    q0 = panda.q_neutral[None]
+    goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
+    with pytest.raises(br.exceptions.ArgumentError, match="generator"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=1)
+
+
 def test_ik_problem_terms_read_the_state_by_name(panda):
     goal = forward_kinematics(panda, _random_q(panda, 4, 2)).frame_poses[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))

@@ -26,7 +26,8 @@ target = forward_kinematics(model, q_goal).frame_poses[:, hand]  # (32, 7)
 ```
 
 `terms.random_start` redraws every bounded vector-space joint inside its limits for every row of `q0`; free-flyer,
-spherical and unbounded joints keep their `q0` values.
+spherical and unbounded joints keep their `q0` values. The draw happens on `q0`'s device, so the generator lives there
+too (`torch.Generator(device=q0.device)`).
 
 ## Solve with one call
 

@@ -65,7 +65,7 @@ class Solver(ABC):
         """One iteration for every batch element; done or rejected elements keep their values."""
 
 
-def select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """Per batch element, take ``new`` where ``mask: (B,)`` is true, else ``old``."""
     return {
         name: torch.where(mask.reshape(-1, *([1] * (value.ndim - 1))), value, old[name]) for name, value in new.items()
@@ -140,7 +140,7 @@ class LevenbergMarquardt(Solver):
         small_gradient = grad_norm < gradient_tolerance
         small_change = accept & ((decrease <= loss_tolerance * state.loss.abs()) | (step_norm < step_tolerance))
         return State(
-            x=select(accept, candidate, state.x),
+            x=_select(accept, candidate, state.x),
             loss=torch.where(accept, loss_new, state.loss),
             done=state.done | small_gradient | small_change | (new_damping >= 1e12),
             iteration=state.iteration + 1,
@@ -186,7 +186,7 @@ class GaussNewton(Solver):
         done = state.done | (grad_norm < gradient_tolerance) | (step_norm < step_tolerance)
         extra = {"grad_norm": grad_norm, "step_norm": torch.where(move, step_norm, torch.zeros_like(step_norm))}
         return State(
-            x=select(move, candidate, state.x),
+            x=_select(move, candidate, state.x),
             loss=torch.where(move, loss_new, state.loss),
             done=done,
             iteration=state.iteration + 1,
@@ -293,7 +293,7 @@ class LBFGS(Solver):
                 slope = (g * step).sum(-1).clamp_max(0.0)
                 ok = (loss <= state.loss + self.armijo * slope) & torch.isfinite(loss) & ~found
                 ok &= ~state.done
-                best_x = select(ok, candidate, best_x)
+                best_x = _select(ok, candidate, best_x)
                 best_loss = torch.where(ok, loss, best_loss)
                 best_step = torch.where(ok.unsqueeze(-1), step, best_step)
                 best_terms = _selected_terms(ok, terms, best_terms)
@@ -393,4 +393,4 @@ class TorchOptim(Solver):
             )
 
 
-__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim", "select"]
+__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim"]

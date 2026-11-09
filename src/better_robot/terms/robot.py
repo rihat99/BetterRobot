@@ -14,13 +14,23 @@ from typing import final
 import torch
 
 from ..exceptions import ArgumentError
-from ..model.manifolds import EUCLIDEAN, RIGID
-from ..model.model import Model
-from ..kinematics.configuration import difference, integrate, manifold_plan
-from ..kinematics import KinematicState, forward_kinematics, frame_jacobian
-from ..lie import se3
-from ..lie.tangents import right_jacobian_inverse_se3
+from ..kinematics import KinematicState, difference, forward_kinematics, frame_jacobian, integrate
+from ..lie import se3, tangents
+from ..model import JointFreeFlyer, Model
 from ..optim import Manifold, TermFn
+
+
+def vector_columns(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
+    """``(q columns (n,), v columns (n,))``, long on the model's device: the coordinates of the joints whose
+    configuration is its own tangent (``nq == nv``: revolute, prismatic, helical, translation)."""
+    pairs = [
+        (model.idx_qs[joint] + k, model.idx_vs[joint] + k)
+        for joint in range(len(model.joints))
+        if model.nqs[joint] == model.nvs[joint]
+        for k in range(model.nqs[joint])
+    ]
+    columns = torch.tensor(pairs, dtype=torch.long, device=model.device).reshape(-1, 2)
+    return columns[:, 0], columns[:, 1]
 
 
 @final
@@ -33,6 +43,7 @@ class RobotManifold(Manifold):
 
     def __init__(self, model: Model) -> None:
         self.model = model
+        self._q_columns, self._v_columns = vector_columns(model)
 
     def tangent_dim(self, x: torch.Tensor) -> int:
         return x.shape[1:].numel() // self.model.nq * self.model.nv
@@ -47,12 +58,10 @@ class RobotManifold(Manifold):
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Step range of the vector-space joints; quaternion coordinates are unbounded."""
-        plan = manifold_plan(self.model, dtype=x.dtype, device=x.device)
-        q_index, v_index = (columns.reshape(-1) for columns in plan.columns(EUCLIDEAN))
         low = x.new_full((*x.shape[:-1], self.model.nv), -float("inf"))
         high = x.new_full((*x.shape[:-1], self.model.nv), float("inf"))
-        low[..., v_index] = (lower - x)[..., q_index]
-        high[..., v_index] = (upper - x)[..., q_index]
+        low[..., self._v_columns] = (lower - x)[..., self._q_columns]
+        high[..., self._v_columns] = (upper - x)[..., self._q_columns]
         return low.flatten(1), high.flatten(1)
 
 
@@ -70,7 +79,7 @@ def frame_pose(model: Model, *, frame: int | str, target: str, state: str = "sta
 
     def jacobian(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         local = frame_jacobian(model, kinematics, frame=frame_id, reference="local")
-        return {q: right_jacobian_inverse_se3(error(kinematics, goal)) @ local}
+        return {q: tangents.right_jacobian_inverse_se3(error(kinematics, goal)) @ local}
 
     return TermFn(fn=error, reads=(state, target), jacobian=jacobian)
 
@@ -128,9 +137,14 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
     """
     if order < 1:
         raise ArgumentError(f"order must be at least 1, got {order}")
-    plan = manifold_plan(model, dtype=model.dtype, device=model.device)
-    rigid_q, rigid_v = plan.columns(RIGID)
-    position_q, position_v = rigid_q[:, :3].reshape(-1), rigid_v[:, :3].reshape(-1)
+    # A free flyer's q and v both start with its position [tx, ty, tz].
+    free_flyers = [joint for joint, kind in enumerate(model.joints) if isinstance(kind, JointFreeFlyer)]
+    position_q = torch.tensor(
+        [model.idx_qs[j] + k for j in free_flyers for k in range(3)], dtype=torch.long, device=model.device
+    )
+    position_v = torch.tensor(
+        [model.idx_vs[j] + k for j in free_flyers for k in range(3)], dtype=torch.long, device=model.device
+    )
 
     def derivative(value: torch.Tensor) -> torch.Tensor:
         out = difference(model, value[:, :-1], value[:, 1:])
