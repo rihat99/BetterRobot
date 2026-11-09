@@ -54,7 +54,6 @@
   "docs/contracts/decisions/0022-viewer-boundary.md: viewer/robot.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "docs/contracts/decisions/0022-viewer-boundary.md: viz/studio/layers.py::_quat_matrix": "a BetterHuman path without the BetterHuman/ prefix",
   "docs/contracts/decisions/0024-surface-trim.md: spatial/ops.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
-  "docs/contracts/decisions/0024-surface-trim.md: tests/contract/test_api_snapshot.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0024-surface-trim.md: viewer/app.py": "names no tracked file",
   "docs/contracts/decisions/0026-coupling-standard-page.md: tests/contract/test_coupling_standard.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0027-shared-vocabulary.md: tests/contract/test_vocabulary.py::test_glossary_words": "the record's enforcement test, written by the work package that implements the record",
