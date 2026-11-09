@@ -24,13 +24,15 @@ world quantities are taken about that origin, the first joint's position in each
 sample, so lever arms stay of the robot's size and float32 accuracy does not degrade far from the world origin (G1 at
 100 m: mass matrix within 4.8e-6 of float64).
 
-* RNEA forms wrenches in the joint frames, where the inertia is constant; CRBA needs the world inertia (`spatial`'s
-  packed inertia rotated by ``R I_c Rᵀ``, then its 6x6 matrix).
+* RNEA forms wrenches in the joint frames, where the inertia is constant; CRBA needs the world inertia (the centre of mass
+  and ``R I_c Rᵀ`` handed unpacked to `spatial`'s 6x6 kernel `inertia_matrix_from_mass_com_raw`).
 * Twists and wrenches change frame with the joint's rotation matrix and origin (two ``3x3`` products and a cross
   product), not through a ``6x6`` adjoint and not through `spatial.transform_motion`/`transform_force`, which take
   quaternion poses: on one CPU thread those cost 2-3x the matrix form (41 joints at batch 4096: 30.5 against 15.7 ms
   per twist change, 18.9 against 7.4 ms per wrench change) plus 24.8 ms to convert the state's matrices to
-  quaternions (0.16 ms at batch 1).
+  quaternions (0.16 ms at batch 1). `spatial` does not take ``(..., 3, 4)`` transforms instead: one input form per
+  public name (principles 2.2, 2.5). `tests/dynamics/test_world_frames.py` pins these copies, and
+  `world_inertias`, against `spatial.transform_*`.
 * Cross products and inertia matrices are `spatial`'s unchecked ``*_raw`` twins: the public wrappers check every input
   once, and the checked forms add 2.2-3.1 us per call at batch 1.
 * Constant matrices multiply from the right (``x.mT @ support``) so torch folds the batch into one ``mm``; a left
@@ -53,7 +55,7 @@ from ..kinematics._plans import JacobianPlan, jacobian_plan
 from ..model.model import Model
 from ..model.topology import build_supports
 from ..spatial.algebra import cross_force_raw, cross_motion_raw
-from ..spatial.inertia import inertia_matrix_raw, rotational_inertia_raw
+from ..spatial.inertia import inertia_matrix_from_mass_com_raw, inertia_matrix_raw, rotational_inertia_raw
 
 
 @dataclass(frozen=True)
@@ -126,15 +128,13 @@ class WorldKinematics:
         """Spatial inertia of every body about ``origin`` in world axes, ``(N, njoints, 6, 6)``.
 
         The packed inertia's centre of mass and rotational inertia rotated with ``3x3`` products (``R c + p``,
-        ``R I_c Rᵀ``); the ``6x6`` congruence with the adjoint costs several times more memory traffic. The rotated
-        inertia is packed from its diagonal and upper triangle: `inertia_from_mass_com_raw`'s symmetrisation and
-        per-entry stack cost 14 more operators per call.
+        ``R I_c Rᵀ``) and handed unpacked to `spatial`'s matrix kernel; the ``6x6`` congruence with the adjoint costs
+        several times more memory traffic.
         """
         com_world = (self.rotations @ self.body_inertias[..., 1:4, None]).squeeze(-1) + self.translations
         rotational = self.rotations @ rotational_inertia_raw(self.body_inertias) @ self.rotations.mT
-        mass = self.body_inertias[..., :1].expand(*com_world.shape[:-1], 1)
-        upper = (rotational.diagonal(dim1=-2, dim2=-1), rotational[..., 0, 1:], rotational[..., 1, 2:])
-        return inertia_matrix_raw(torch.cat((mass, com_world, *upper), dim=-1))
+        mass = self.body_inertias[..., 0].expand(com_world.shape[:-1])
+        return inertia_matrix_from_mass_com_raw(mass, com_world, rotational_inertia=rotational)
 
 
 def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:

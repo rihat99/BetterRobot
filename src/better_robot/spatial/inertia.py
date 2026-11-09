@@ -7,7 +7,8 @@ inertia about the frame origin as ``[Ixx, Ixy, Iyy, Ixz, Iyz, Izz]``. The 6x6 ma
 is ``[[m I3, -m hat(c)], [m hat(c), I_c - m hat(c)^2]]``. Every function is differentiable in its tensor inputs and
 broadcasts leading axes. Every public function checks types, trailing shapes, dtypes and devices and reads no tensor
 value, except ``inertia_of_mesh(..., check_mesh=True)``; `inertia_matrix`, `rotational_inertia` and
-`inertia_from_mass_com` have unchecked ``*_raw`` twins for callers whose inputs are already checked (dynamics).
+`inertia_from_mass_com` have unchecked ``*_raw`` twins for callers whose inputs are already checked, and
+`inertia_matrix_from_mass_com_raw` builds the matrix from unpacked parts for dynamics.
 """
 
 from __future__ import annotations
@@ -36,10 +37,23 @@ def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
 
 def inertia_matrix_raw(inertia: torch.Tensor) -> torch.Tensor:
     """`inertia_matrix` without input checks, for checked inputs: ``(..., 10) → (..., 6, 6)``."""
-    mass, com = inertia[..., 0], inertia[..., 1:4]
+    return inertia_matrix_from_mass_com_raw(
+        inertia[..., 0], inertia[..., 1:4], rotational_inertia=rotational_inertia_raw(inertia)
+    )
+
+
+def inertia_matrix_from_mass_com_raw(
+    mass: torch.Tensor, com: torch.Tensor, *, rotational_inertia: torch.Tensor
+) -> torch.Tensor:
+    """Spatial inertia matrix ``(..., 6, 6)`` from unpacked, checked parts, for in-library callers.
+
+    ``mass (...)``, ``com (..., 3)`` and ``rotational_inertia (..., 3, 3)`` (about the centre of mass, symmetric)
+    share their leading axes. Callers that hold the parts (dynamics' world inertias) skip the pack and unpack of
+    `inertia_matrix_raw`.
+    """
     hat_com = hat_so3_raw(com)
-    inertia_origin = rotational_inertia_raw(inertia) - mass[..., None, None] * (hat_com @ hat_com)
-    eye = torch.eye(3, dtype=inertia.dtype, device=inertia.device)
+    inertia_origin = rotational_inertia - mass[..., None, None] * (hat_com @ hat_com)
+    eye = torch.eye(3, dtype=com.dtype, device=com.device)
     mass_eye = mass[..., None, None] * eye
     mass_hat = mass[..., None, None] * hat_com
     top = torch.cat((mass_eye, -mass_hat), dim=-1)
