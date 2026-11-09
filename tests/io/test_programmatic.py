@@ -103,7 +103,10 @@ def test_add_shape():
     sphere = Sphere(radius=0.05, placement=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0))
     b.add_shape("link1", sphere)
     b.add_shape("base", sphere, collision=False)
-    assert b.finalize().shapes == [IRShape("link1", sphere, collision=True), IRShape("base", sphere, collision=False)]
+    assert b.finalize().shapes == [
+        IRShape(body="link1", shape=sphere, collision=True),
+        IRShape(body="base", shape=sphere, collision=False),
+    ]
     with pytest.raises(UnknownNameError, match="'link2'"):
         b.add_shape("link2", sphere)
 

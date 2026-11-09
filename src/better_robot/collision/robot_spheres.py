@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RobotSpheres:
     """``S`` spheres, each rigidly attached to a model frame.
 

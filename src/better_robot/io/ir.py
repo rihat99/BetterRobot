@@ -18,7 +18,7 @@ from ..model.joints import JointModel
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRJoint:
     """A joint of the description: ``joint`` is its kind, ``origin (7,)`` its placement in the parent body's frame.
 
@@ -47,7 +47,7 @@ class IRJoint:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class IRShape:
     """A shape of the description fixed to the body named ``body``: collision geometry, or display only."""
 
@@ -57,7 +57,7 @@ class IRShape:
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRBody:
     """A rigid body: ``mass`` in kg, ``com (3,)`` and ``inertia (3, 3)`` about the centre of mass, in the body frame."""
 
@@ -68,7 +68,7 @@ class IRBody:
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRFrame:
     """A named frame placed by ``placement (7,)`` on the body ``parent_body``."""
 
@@ -78,7 +78,7 @@ class IRFrame:
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRModel:
     """Flat, unordered intermediate representation of a robot; ``gravity (6,)`` is the world's spatial acceleration."""
 

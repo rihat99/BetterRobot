@@ -414,8 +414,11 @@ def _named_ir(joints: list[tuple[str, str, str]], bodies: list[str], frames: tup
     return IRModel(
         name="names",
         bodies=[IRBody(name=body) for body in bodies],
-        joints=[IRJoint(name, parent, child, JointRevolute(axis=axis)) for name, parent, child in joints],
-        frames=[IRFrame(name, parent_body=bodies[0], placement=_id7()) for name in frames],
+        joints=[
+            IRJoint(name=name, parent_body=parent, child_body=child, joint=JointRevolute(axis=axis))
+            for name, parent, child in joints
+        ],
+        frames=[IRFrame(name=name, parent_body=bodies[0], placement=_id7()) for name in frames],
     )
 
 

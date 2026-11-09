@@ -32,7 +32,7 @@ _BATCHED_FIELDS = ("joint_placements", "body_inertias", "frame_placements")
 
 
 @final
-@dataclass(frozen=True, eq=False, repr=False)
+@dataclass(frozen=True, eq=False, repr=False, kw_only=True)
 class Model:
     """A robot: static topology plus the tensors that parametrize it. Build one with ``better_robot.load``.
 

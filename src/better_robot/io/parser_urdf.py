@@ -88,11 +88,14 @@ def _shapes(link: yourdfpy.Link, materials: dict[str, yourdfpy.Material], path: 
     """The ``<visual>`` (display only) and ``<collision>`` shapes of ``link``, in file order."""
     element = f"{path}: <link name={link.name!r}>"
     visuals = [
-        IRShape(link.name, _shape(v.geometry, v.origin, _color(v.material, materials), element), collision=False)
+        IRShape(
+            body=link.name, shape=_shape(v.geometry, v.origin, _color(v.material, materials), element), collision=False
+        )
         for v in link.visuals
     ]
     collisions = [
-        IRShape(link.name, _shape(c.geometry, c.origin, None, element), collision=True) for c in link.collisions
+        IRShape(body=link.name, shape=_shape(c.geometry, c.origin, None, element), collision=True)
+        for c in link.collisions
     ]
     return visuals + collisions
 

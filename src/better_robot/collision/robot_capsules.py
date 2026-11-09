@@ -20,7 +20,7 @@ from .robot_spheres import _check_attached, _check_pairs
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RobotCapsules:
     """``C`` capsules, each rigidly attached to a model frame.
 

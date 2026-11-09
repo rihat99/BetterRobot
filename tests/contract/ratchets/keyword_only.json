@@ -1,0 +1,20 @@
+{
+  "better_robot.exceptions.UnknownNameError": "valid becomes keyword-only after wp/R7fix and wp/R8fix merge: optim and viewer raise it positionally (and BetterHuman, 8 sites)",
+  "better_robot.lie.se3.sclerp": "t keyword-only together with the parked lie keyword renames (P-2)",
+  "better_robot.lie.so3.slerp": "t keyword-only together with the parked lie keyword renames (P-2)",
+  "better_robot.optim.ArrowNormal": "kw_only=True after the rebase onto wp/R7fix, which edits these classes",
+  "better_robot.optim.BandedNormal": "kw_only=True after the rebase onto wp/R7fix, which edits these classes",
+  "better_robot.optim.Normal": "kw_only=True after the rebase onto wp/R7fix, which edits these classes",
+  "better_robot.optim.Result": "kw_only=True after the rebase onto wp/R7fix, which edits these classes",
+  "better_robot.optim.State": "kw_only=True after the rebase onto wp/R7fix, which edits these classes",
+  "better_robot.optim.Term": "kw_only=True after the rebase onto wp/R7fix, which edits these classes",
+  "better_robot.optim.TermFn": "kw_only=True after the rebase onto wp/R7fix, which edits these classes",
+  "better_robot.viewer.ArrowsLayer": "wp/R8fix",
+  "better_robot.viewer.MeshLayer": "wp/R8fix",
+  "better_robot.viewer.MeshSpec": "wp/R8fix",
+  "better_robot.viewer.RigidMeshLayer": "wp/R8fix",
+  "better_robot.viewer.SkeletonLayer": "wp/R8fix",
+  "better_robot.viewer.SkinnedMeshLayer": "wp/R8fix",
+  "better_robot.viewer.SpheresLayer": "wp/R8fix",
+  "better_robot.viewer.Theme": "wp/R8fix"
+}

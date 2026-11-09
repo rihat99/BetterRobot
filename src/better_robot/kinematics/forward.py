@@ -31,7 +31,7 @@ def _poses(transforms: torch.Tensor) -> torch.Tensor:
 
 
 @final
-@dataclass(frozen=True, eq=False)
+@dataclass(frozen=True, eq=False, kw_only=True)
 class KinematicState:
     """World placements of every joint and frame at one configuration batch, as ``[R | p]`` matrices.
 

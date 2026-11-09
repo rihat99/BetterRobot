@@ -18,7 +18,7 @@ Color = tuple[float, float, float, float]
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Sphere:
     """A sphere of ``radius`` centred at ``placement``."""
 
@@ -28,7 +28,7 @@ class Sphere:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Box:
     """A box of full extents ``size`` ``(x, y, z)`` centred at ``placement``."""
 
@@ -38,7 +38,7 @@ class Box:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Cylinder:
     """A cylinder of ``radius`` and ``length`` along the z axis of ``placement``, centred there."""
 
@@ -49,7 +49,7 @@ class Cylinder:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Capsule:
     """A cylinder of ``radius`` and ``length`` along the z axis of ``placement`` with a hemisphere on each end."""
 
@@ -60,7 +60,7 @@ class Capsule:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Mesh:
     """A mesh file named by ``uri`` as the description wrote it (a path or ``package://...``), scaled per axis."""
 
@@ -75,7 +75,7 @@ Shape = Sphere | Box | Cylinder | Capsule | Mesh
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class AttachedShape:
     """``shape`` fixed to the body with id ``body``: collision geometry, or with ``collision=False`` display only."""
 
