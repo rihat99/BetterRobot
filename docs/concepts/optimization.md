@@ -160,8 +160,8 @@ print(state.iteration, state.loss)
   the next solve with the same solver kind (LM keeps its damping, L-BFGS its curvature memory) from `x`, else
   `state.x`; a state from another kind raises `ArgumentError`.
   `Result.diagnostics[phase][key]` stacks the diagnostic keys per step, `(steps, B)`.
-  `Result` has `x`, `loss`, `done`, `iterations` and a per-phase loss `history`;
-  `result["q"]` is shorthand for `result.x["q"]`.
+  `Result` has `x` (the solved variables, `result.x["q"]`), `loss`, `done`, `iterations` and a per-phase loss
+  `history`.
 - `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
   coordinates ([Fit a clip](../guides/fit-a-clip.md)).
 - `solve_layer(problem, solver, *, iterations=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
