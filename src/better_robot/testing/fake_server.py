@@ -67,20 +67,28 @@ class FakeScene:
     def __init__(self) -> None:
         self.nodes: dict[str, FakeHandle] = {}
         self.log: list[tuple[str, str]] = []
-        self.pointer: tuple[str, Any] | None = None
+        self.pointers: list[tuple[str, Any]] = []  # (event type, callback) registered through on_click/on_rect_select
 
-    def on_pointer_event(self, event_type: str) -> Any:
-        """viser's single pointer slot: registering while one is held is a bug in the caller."""
-        assert self.pointer is None, "pointer slot already taken"
+    def on_click(self) -> Any:
+        """viser's scene click registration: a decorator that adds ``("click", callback)`` to ``pointers``."""
+        return self._register("click")
 
+    def on_rect_select(self) -> Any:
+        """viser's box-select registration: a decorator that adds ``("rect-select", callback)`` to ``pointers``."""
+        return self._register("rect-select")
+
+    def remove_click_callback(self, callback: Any) -> None:
+        self.pointers.remove(("click", callback))
+
+    def remove_rect_select_callback(self, callback: Any) -> None:
+        self.pointers.remove(("rect-select", callback))
+
+    def _register(self, event_type: str) -> Any:
         def register(callback: Any) -> Any:
-            self.pointer = (event_type, callback)
+            self.pointers.append((event_type, callback))
             return callback
 
         return register
-
-    def remove_pointer_callback(self) -> None:
-        self.pointer = None
 
     def __getattr__(self, method: str) -> Any:
         if not method.startswith(("add_", "set_", "configure_")):

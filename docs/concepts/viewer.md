@@ -185,9 +185,11 @@ IK and call `robot.update(q)` live. Picking is plain numpy over vertices, so it 
 showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
 `vertices_in_sphere` and `vertices_in_rect`.
 
-viser has a single scene-pointer slot, so the viewer owns it: a tool calls `viewer.on_pointer("click", callback)`
-(or `"rect-select"`) and `viewer.clear_pointer()` when it is done. A new registration replaces the previous one;
-never call `viewer.server.scene.on_pointer_event` directly.
+The viewer holds one pointer callback so that tools never fight over the scene: a tool calls
+`viewer.on_pointer("click", callback)` (viser's `SceneClickEvent`: `ray_origin`, `ray_direction`, `screen_pos`) or
+`viewer.on_pointer("rect-select", callback)` (`SceneRectSelectEvent`: `screen_min`, `screen_max`), and
+`viewer.clear_pointer()` when it is done. A new registration replaces the previous one; never register on
+`viewer.server.scene` directly.
 
 ```python
 from better_robot.viewer.tools import vertices_in_sphere

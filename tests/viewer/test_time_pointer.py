@@ -80,19 +80,19 @@ def test_times_are_set_per_add_and_not_on_a_refused_add() -> None:
         viewer.add(first)
 
 
-def test_on_pointer_owns_the_single_scene_pointer_slot() -> None:
+def test_on_pointer_holds_one_scene_pointer_callback() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     clicks: list[object] = []
     viewer.on_pointer("click", clicks.append)
-    # A second registration replaces the first instead of tripping viser's single slot.
-    viewer.on_pointer("rect-select", clicks.append)
-    kind, callback = server.scene.pointer
+    assert server.scene.pointers == [("click", clicks.append)]
+    viewer.on_pointer("rect-select", clicks.append)  # replaces the click callback
+    [(kind, callback)] = server.scene.pointers
     assert kind == "rect-select"
     callback("event")
     assert clicks == ["event"]
     viewer.clear_pointer()
-    assert server.scene.pointer is None
+    assert server.scene.pointers == []
     viewer.clear_pointer()
     with pytest.raises(ArgumentError, match="kind"):
         viewer.on_pointer("hover", clicks.append)

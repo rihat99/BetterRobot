@@ -71,7 +71,7 @@ class Viewer:
         self.theme = theme or LIGHT
         self.theme.apply(server)
         self.timeline = Timeline(1, fps=fps)
-        self._pointer: str | None = None
+        self._pointer: tuple[str, Callable[[Any], None]] | None = None  # (kind, callback) held by on_pointer
         self.timeline.on_step(lambda step: self._push_all(step, force=False))
         self._groups: dict[str, _Group] = {}
         self._lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes
@@ -428,21 +428,26 @@ class Viewer:
         raise ArgumentError(f"layer {layer.name!r} is not in this viewer; add it first")
 
     def on_pointer(self, kind: str, callback: Callable[[Any], None]) -> None:
-        """Route viser's scene pointer events of ``kind`` (``"click"`` or ``"rect-select"``) to ``callback``.
+        """Route scene clicks (``kind="click"``) or box selections (``"rect-select"``) to ``callback``.
 
-        viser has one scene-pointer slot; the viewer owns it so tools never fight over it. A new
-        registration replaces the previous one.
+        A click arrives as viser's ``SceneClickEvent`` (``ray_origin``, ``ray_direction``, ``screen_pos``), a box as
+        its ``SceneRectSelectEvent`` (``screen_min``, ``screen_max``; image coordinates in ``[0, 1]``, top-left
+        origin). The viewer holds one pointer callback so tools never fight over the scene: a new registration
+        replaces the previous one.
         """
         if kind not in ("click", "rect-select"):
             raise ArgumentError(f"kind must be 'click' or 'rect-select', got {kind!r}")
         self.clear_pointer()
-        self.server.scene.on_pointer_event(event_type=kind)(callback)
-        self._pointer = kind
+        scene = self.server.scene
+        (scene.on_click if kind == "click" else scene.on_rect_select)()(callback)
+        self._pointer = (kind, callback)
 
     def clear_pointer(self) -> None:
-        """Release the scene-pointer slot (no-op when nothing is registered)."""
+        """Release the pointer callback (no-op when nothing is registered)."""
         if self._pointer is not None:
-            self.server.scene.remove_pointer_callback()
+            kind, callback = self._pointer
+            scene = self.server.scene
+            (scene.remove_click_callback if kind == "click" else scene.remove_rect_select_callback)(callback)
             self._pointer = None
 
     def _fit_timeline(self) -> None:
