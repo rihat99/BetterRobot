@@ -42,9 +42,37 @@ def test_a_failing_gizmo_callback_stops_the_worker_and_raises_on_wait(monkeypatc
     handle = server.scene.nodes["/tools/target"]
     handle.position, handle.wxyz = np.zeros(3), np.array([1.0, 0.0, 0.0, 0.0])
     handle.fire()
-    with pytest.raises(ArithmeticError, match="IK diverged"):
-        gizmo.wait(timeout=5.0)
+    for _ in range(2):  # the gizmo stays stopped: every wait raises
+        with pytest.raises(ArithmeticError, match="IK diverged"):
+            gizmo.wait(timeout=5.0)
     assert [type(error) for error in reported] == [ArithmeticError]  # printed by the default hook, not swallowed
+
+
+def test_remove_finishes_the_running_callback_drops_the_pending_pose_and_releases_waiters() -> None:
+    server = FakeServer()
+    running, release, calls = threading.Event(), threading.Event(), []
+
+    def slow(pose: np.ndarray) -> None:
+        running.set()
+        release.wait(5.0)
+        calls.append(pose)
+
+    gizmo = PoseGizmo(Viewer(server=server), "removed", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], on_change=slow)
+    handle = server.scene.nodes["/tools/removed"]
+    handle.position, handle.wxyz = np.zeros(3), np.array([1.0, 0.0, 0.0, 0.0])
+    handle.fire()
+    assert running.wait(5.0)
+    handle.fire()  # pending behind the running callback
+    waiter = threading.Thread(target=gizmo.wait, daemon=True)  # no timeout: returns once the gizmo is removed
+    waiter.start()
+    threading.Timer(0.1, release.set).start()
+    gizmo.remove()
+    assert len(calls) == 1  # the running callback finished before remove returned; the pending pose was dropped
+    waiter.join(5.0)
+    assert not waiter.is_alive()
+    handle.fire()  # a late drag reaches no one
+    assert gizmo.wait(timeout=5.0) and len(calls) == 1
+    assert not any(thread.name == "gizmo:removed" for thread in threading.enumerate())
 
 
 def test_gizmo_drops_stale_poses_and_calls_back_off_the_caller_thread() -> None:
