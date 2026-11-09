@@ -80,6 +80,7 @@ mjcf = [
     { name = "mujoco" },
 ]
 viewer = [
+    { name = "pillow" },
     { name = "viser" },
 ]
 
@@ -104,10 +105,11 @@ test-oracles = [
 requires-dist = [
     { name = "mujoco", marker = "extra == 'mjcf'", specifier = ">=3.1" },
     { name = "numpy", specifier = ">=2.0" },
+    { name = "pillow", marker = "extra == 'viewer'", specifier = ">=10" },
     { name = "robot-descriptions", marker = "extra == 'demos'", specifier = ">=1.0.0" },
     { name = "torch", specifier = ">=2.4", index = "https://download.pytorch.org/whl/cu129" },
     { name = "trimesh", marker = "extra == 'meshes'", specifier = ">=4.0.0" },
-    { name = "viser", marker = "extra == 'viewer'", specifier = ">=1.0.18" },
+    { name = "viser", marker = "extra == 'viewer'", specifier = ">=1.0.30" },
     { name = "yourdfpy", specifier = ">=0.0.14" },
 ]
 provides-extras = ["viewer", "mjcf", "meshes", "demos"]
@@ -2481,7 +2483,7 @@ wheels = [
 
 [[package]]
 name = "viser"
-version = "1.0.26"
+version = "1.0.30"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "imageio" },
@@ -2493,12 +2495,11 @@ dependencies = [
     { name = "trimesh" },
     { name = "typing-extensions" },
     { name = "websockets" },
-    { name = "yourdfpy" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/ce/82a0e50fae21f5e02fcc5d9aff2ab59dccb9c319b6c4cf528f2228049b05/viser-1.0.26.tar.gz", hash = "sha256:dc08c6f505e70324b0603bdddf9714c00ac828c259ee49abd8ad094bfc90c91c", size = 4828261, upload-time = "2026-03-30T11:43:19.513Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/9a/85f9a82eac4e067fb1bc34cf4f7865b0d914a3ce91f5b0da47dcef549930/viser-1.0.30.tar.gz", hash = "sha256:6a849a9ef141c97d4ac7bd7d970b81265e6d0130ee8ef1c2e18c0b46aa6b6283", size = 4924612, upload-time = "2026-06-03T16:02:38.552Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/f7/762a2d5fab509d0c632b271e21e634462397cc02cca649771c3e9d2e0bcc/viser-1.0.26-py3-none-any.whl", hash = "sha256:03b177b4ef584f58f7b74fdf44cccb165b8a220ffd90728ef5c1e3d1b1fcf258", size = 4922888, upload-time = "2026-03-30T11:43:21.355Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/c9/9a4ca25b505303d5557c98786ac0bf7081c76a7262e1b6c87b899bccc7b8/viser-1.0.30-py3-none-any.whl", hash = "sha256:43089f50acdd45c19b23101c9a2cf8edcc52d052bf7f53ed0b2b6a932c71b5d1", size = 5027789, upload-time = "2026-06-03T16:02:40.331Z" },
 ]
 
 [[package]]
