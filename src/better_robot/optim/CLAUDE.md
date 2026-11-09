@@ -47,8 +47,12 @@ Each invariant names its enforcer; `[review]` means a reviewer checks it.
   goes dense. Normal equations are built through a sink (`add`/`finish`); a new structure is a new sink.
   `tests/optim/test_solver_state.py::test_time_problem_without_window_warns_on_dense_fallback`,
   `tests/optim/test_problem.py::test_block_tridiagonal_path_equals_dense`, `[review]`.
-- A `Problem` is read-only once built: registration adds names only, `with_` returns a new problem and
-  leaves its parent as it was. `tests/optim/test_problem.py::test_problem_is_immutable`.
+- Registration (`residual`, `scalar`, `cached`) only adds names to the problem it is called on; every field of
+  a registered term is fixed; changes go through `with_`, which returns a new problem and leaves its parent as
+  it was. The problems `with_` returns and the views `run`, `solve_constrained` and `solve_layer` make are
+  sealed: registration on them raises `ArgumentError`, so a callback cannot change a solve.
+  `tests/optim/test_problem.py::test_problem_is_immutable`,
+  `tests/optim/test_problem.py::test_callbacks_cannot_register_on_the_views_run_hands_them`.
 - Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype. `[review]`.
 - Every class here is abstract or `@final`. `tests/contract/test_abstract_or_final.py`.
 - Every error is a class of the error tree in `better_robot.exceptions` (record 0020), never a builtin

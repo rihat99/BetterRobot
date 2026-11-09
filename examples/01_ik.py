@@ -40,8 +40,7 @@ def main() -> None:
 
     # 2. Open problem: add a term that is just a function of named tensors. Its Jacobian is automatic.
     problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
-    problem = problem.with_(data={"preferred_elbow": torch.tensor(-1.8, dtype=torch.float64)})
-    problem.residual("elbow", lambda q, preferred_elbow: q[:, 3:4] - preferred_elbow, weight=1e-3)
+    problem.residual("elbow", lambda q: q[:, 3:4] + 1.8, weight=1e-3)
     result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
     print(
         f"custom term : per-term loss {{{', '.join(f'{k}: {float(v.mean()):.2e}' for k, v in problem.losses(result.x).items())}}}"

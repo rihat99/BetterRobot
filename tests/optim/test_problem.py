@@ -301,7 +301,8 @@ def test_solve_layer_gradient_matches_finite_differences():
 
 
 def test_problem_is_immutable():
-    """Record 0017: no public path mutates a Problem; ``with_`` returns a new problem and leaves its parent as it was."""
+    """Registration only adds names to the problem it is called on; every field of a registered term is fixed; changes
+    go through ``with_``, which returns a new, sealed problem and leaves its parent as it was."""
     target = torch.ones(2, 3)
     problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": target}, bounds={"x": (-target, target)})
     problem.residual("fit", lambda x, target: x - target)
@@ -311,16 +312,53 @@ def test_problem_is_immutable():
     for field in "variables data manifolds bounds time dense terms weights free tangent_dim".split():
         with pytest.raises(AttributeError):
             setattr(problem, field, None)
+    with pytest.raises(AttributeError):
+        problem.terms["fit"].weight = 3.0
     with pytest.raises(exceptions.ArgumentError, match="already exists"):
         problem.residual("fit", lambda x: x)  # registration only adds names
     with pytest.raises(exceptions.ArgumentError, match="already used"):
         problem.with_(data={"x": target})
     moved = problem.with_(data={"target": 2 * target, "offset": target}, weights={"fit": 2.0}, free={"x": target > 0})
-    moved.residual("offset", lambda x, offset: x - offset)
+    for register in (
+        lambda: moved.residual("offset", lambda x, offset: x - offset),
+        lambda: moved.scalar("bowl", lambda x: x.square().sum(-1)),
+        lambda: moved.cached(lambda x: 2 * x, name="doubled"),
+    ):
+        with pytest.raises(exceptions.ArgumentError, match="sealed; register every term on the problem before"):
+            register()
     assert moved is not problem and moved.data["target"] is not target
     assert problem.data["target"] is target and dict(problem.weights) == {} and problem.free is None
     assert list(problem.data) == ["target"] and list(problem.terms) == ["fit"]
-    assert list(moved.terms) == ["fit", "offset"] and moved.weights["fit"] == 2.0
+    assert list(moved.terms) == ["fit"] and moved.weights["fit"] == 2.0
+    problem.residual("late", lambda x: x)  # the parent still takes new names; the derived problem does not see them
+    assert list(problem.terms) == ["fit", "late"] and list(moved.terms) == ["fit"]
+
+
+@pytest.mark.parametrize(
+    "solver",
+    [
+        optim.LevenbergMarquardt(),
+        optim.GaussNewton(),
+        optim.LBFGS(),
+        optim.TorchOptim(lambda params: torch.optim.SGD(params, lr=0.1)),
+    ],
+)
+def test_callbacks_cannot_register_on_the_views_run_hands_them(solver):
+    """A phase callback receives a sealed view, so it cannot change the solve it runs in (it used to crash LM)."""
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": torch.ones(2, 3)})
+    problem.residual("fit", lambda x, target: x - target)
+
+    def on_step(view, state):
+        view.residual("late", lambda x: 10 * (x - 7.0))
+
+    def on_start(view, x):
+        view.residual("sneak", lambda x: x - 5.0)
+        return x, {}
+
+    for phase in (optim.Phase(solver, 3, on_step=on_step), optim.Phase(solver, 3, on_start=on_start)):
+        with pytest.raises(exceptions.ArgumentError, match="register every term on the problem before solving"):
+            optim.run(problem, [phase])
+    assert list(problem.terms) == ["fit"]
 
 
 def test_review_regressions():
@@ -329,7 +367,8 @@ def test_review_regressions():
     )
     base.residual("fit", lambda x, a: x - a)
     view = base.with_(weights={"fit": 2.0})
-    view.residual("extra", lambda x: x)
+    with pytest.raises(exceptions.ArgumentError, match="sealed"):
+        view.residual("extra", lambda x: x)
     assert "extra" not in base.terms, "a view must not register terms on its base problem"
 
     base.residual("bad_weight", lambda x: x.unsqueeze(1).expand(2, 3, 2), weight=torch.ones(2, dtype=torch.float64))

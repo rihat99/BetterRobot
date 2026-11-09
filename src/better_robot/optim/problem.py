@@ -66,8 +66,10 @@ class Problem:
     Register terms with ``residual`` (least squares) or ``scalar`` (any ``(B,)`` loss) and shared
     intermediates with ``cached``; then minimize with ``solve`` or ``run``. A term may return
     ``(value, info)`` to report diagnostics beside its value (see ``evaluate``). Registration only adds
-    new names; everything else is fixed at construction and read through read-only mappings.
-    ``with_`` returns a new problem with other data, weights or frozen coordinates.
+    new names to the problem it is called on; everything else, and every field of a registered term, is
+    fixed and read through read-only mappings. ``with_`` returns a new problem with other data, weights or
+    frozen coordinates. That problem is sealed, like the views ``run``, ``solve_constrained`` and
+    ``solve_layer`` make and hand to callbacks: registering on it raises ``ArgumentError``.
 
     - ``variables``: initial values, each ``(B, *event)`` with the same ``B``.
     - ``manifolds``: per-variable ``Manifold``; missing entries are ``Euclidean``.
@@ -119,6 +121,7 @@ class Problem:
         self._free: dict[str, torch.Tensor] | None = None
         self._cached: dict[str, tuple[Callable[..., Any], tuple[str, ...]]] = {}
         self._layouts: dict[tuple[int, int], BandLayout] = {}
+        self._sealed = False
         self._slices: dict[str, slice] = {}
         offset = 0
         for name, value in self._variables.items():
@@ -191,6 +194,7 @@ class Problem:
         if isinstance(fn, TermFn):
             fn, reads = fn.fn, reads if reads is not None else fn.reads
         name = name or fn.__name__
+        self._require_unsealed(name)
         self._require_new_name(name)
         self._cached[name] = (fn, self._resolve_reads(name, fn, reads))
         return name
@@ -263,7 +267,7 @@ class Problem:
         cached value. ``weights[name] = 0`` switches a term off. ``free[variable]``
         is a bool mask over that variable's tangent coordinates, ``(n,)`` or ``(B, n)``; unlisted variables
         stay free. For a time variable the mask may cover one knot; it is then repeated over time. This
-        problem is left as it was, and terms registered on the new one stay there.
+        problem is left as it was. The new problem is sealed: register every term before calling ``with_``.
         """
         problem = self._copy()
         if data is not None:
@@ -369,16 +373,26 @@ class Problem:
     # ── internals ───────────────────────────────────────────────────────
 
     def _add(self, name, fn, kind, weight, kernel, jacobian, reads, window) -> None:
+        self._require_unsealed(name)
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
         self._terms[name] = Term(name, fn, kind, reads, weight, kernel, jacobian, window)
 
     def _copy(self) -> Problem:
-        """A problem sharing this one's tensors, with registries of its own."""
+        """A sealed problem sharing this one's tensors, with registries of its own."""
         problem = copy.copy(self)
         problem._terms, problem._cached = dict(self._terms), dict(self._cached)
+        problem._sealed = True
         return problem
+
+    def _require_unsealed(self, name: str) -> None:
+        if self._sealed:
+            raise ArgumentError(
+                f"cannot register {name!r}: this problem was made by with_ (or by run, solve_constrained or "
+                "solve_layer for a callback) and is sealed; register every term on the problem before solving it "
+                "or deriving it with with_, and change data, weights or free masks with with_"
+            )
 
     def _with_terms(self, terms: Mapping[str, Term]) -> Problem:
         """A copy with ``terms`` in place of the registered terms of their names (``solve_constrained``)."""

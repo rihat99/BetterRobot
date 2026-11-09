@@ -75,8 +75,7 @@ named tensors that returns a residual; its Jacobian comes from autograd. Here a 
 
 ```python
 problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
-problem = problem.with_(data={"preferred_elbow": torch.tensor(-1.8, dtype=torch.float64)})
-problem.residual("elbow", lambda q, preferred_elbow: q[:, 3:4] - preferred_elbow, weight=1e-3)
+problem.residual("elbow", lambda q: q[:, 3:4] + 1.8, weight=1e-3)
 
 result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
 for name, loss in problem.losses(result.x).items():
@@ -87,8 +86,10 @@ pose/panda_hand: 2.27e-02
 elbow: 6.95e-04
 ```
 
-The lambda's argument names select the tensors it receives: `q` is the variable, `preferred_elbow` comes
-from `problem.data`. A problem never changes once built: `with_(data=)` returns a new one with the entry added.
+The lambda's argument names select the tensors it receives: `q` is the variable; a name in `problem.data`
+would bring that tensor. Registering a term only adds a name to the problem it is called on. Register every
+term before solving: `with_(data=, weights=, free=)` returns a new problem that is sealed, and so is the view a
+phase callback receives.
 
 ## Swap the optimizer
 

@@ -166,9 +166,13 @@ print(state.iteration, state.loss)
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard
   constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)).
 
-A `Problem` never changes once built. `problem.with_(data=, weights=, free=)` returns a new problem with data
-entries added or replaced, term weights overridden (`0` switches a term off) and tangent coordinates frozen by
-a bool mask `(n,)` or `(B, n)`; the original stays as it was. `Phase` uses it internally.
+Registration (`residual`, `scalar`, `cached`) only adds names to the problem it is called on, and every field
+of a registered term is fixed; changes go through `with_`. `problem.with_(data=, weights=, free=)` returns a
+new problem with data entries added or replaced, term weights overridden (`0` switches a term off) and tangent
+coordinates frozen by a bool mask `(n,)` or `(B, n)`; the original stays as it was. The new problem is sealed:
+registering on it raises `ArgumentError`, so register every term before solving or deriving. The views that
+`run`, `solve_constrained` and `solve_layer` make (the ones `Phase.on_start` and `on_step` receive) are sealed
+too, so a callback cannot change the solve it runs in.
 
 ```python
 from better_robot.optim import TorchOptim
