@@ -15,7 +15,7 @@ from better_robot.io.build_model import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.io.ir import IRBody, IRFrame, IRJoint, IRModel
 from better_robot.kinematics import subtree
-from better_robot.exceptions import ModelError
+from better_robot.exceptions import ModelError, UnknownNameError
 from better_robot.model.joints import (
     JointFixed,
     JointFreeFlyer,
@@ -457,6 +457,23 @@ def _named_ir(joints: list[tuple[str, str, str]], bodies: list[str], frames: tup
 def test_a_name_used_twice_raises_and_says_which(ir, message):
     """Names address joints, bodies and frames, so a description that repeats one cannot be built."""
     with pytest.raises(ModelError, match=re.escape(message)):
+        build_model(ir)
+
+
+@pytest.mark.parametrize(("parent", "child"), [("base", "nowhere"), ("nowhere", "tip")])
+def test_a_builder_joint_names_bodies_added_before(parent, child):
+    builder = ModelBuilder("r")
+    builder.add_body("base")
+    builder.add_body("tip")
+    with pytest.raises(UnknownNameError, match=re.escape("unknown body 'nowhere'")):
+        builder.add_revolute("j", parent=parent, child=child, axis=(0.0, 0.0, 1.0))
+
+
+def test_an_ir_joint_to_a_missing_body_says_what_to_add():
+    ir = _named_ir([("j", "b0", "b1")], ["b0"])
+    with pytest.raises(
+        ModelError, match=re.escape("body 'b1' is moved by a joint but is not among the IR bodies; add")
+    ):
         build_model(ir)
 
 

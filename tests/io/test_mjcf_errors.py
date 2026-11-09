@@ -59,6 +59,12 @@ def _write(tmp_path: Path, text: str) -> Path:
             "joint equality off is not an active linear coupling of two joints",
             id="inactive_joint_equality",
         ),
+        pytest.param(
+            '<mujoco><worldbody><body name="a"><joint name="h" type="hinge"/><geom type="ellipsoid" size=".1 .2 .3"/>'
+            "</body></worldbody></mujoco>",
+            "geom 0 of body 'a' is a mjGEOM_ELLIPSOID, which BetterRobot has no shape for; use a sphere",
+            id="ellipsoid",
+        ),
     ],
 )
 def test_what_the_tree_cannot_express_raises(tmp_path: Path, text: str, message: str) -> None:

@@ -128,6 +128,9 @@ class ModelBuilder:
             raise ArgumentError(f"kind must be a JointModel instance, got {type(kind).__name__}")
         if name in self._joint_names:
             raise ModelError(f"joint {name!r} already exists")
+        for body in (child,) if parent == "world" else (parent, child):
+            if body not in self._body_names:
+                raise UnknownNameError("body", body, sorted(self._body_names))
         self._joint_names.add(name)
         self._joints.append(
             IRJoint(

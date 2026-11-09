@@ -126,7 +126,10 @@ def _shapes(mujoco: ModuleType, compiled: Any, spec: Any, body: int, offset: np.
             x, y, z = (float(value) for value in mesh.scale)
             shape = Mesh(uri=uri, scale=(x, y, z), placement=placement, color=color)
         else:
-            raise ModelError(f"{path}: geom {geom} of body {name!r} has type {geom_type!r}, not a shape")
+            raise ModelError(
+                f"{path}: geom {geom} of body {name!r} is a {mujoco.mjtGeom(int(geom_type)).name}, which BetterRobot "
+                "has no shape for; use a sphere, capsule, cylinder, box or mesh"
+            )
         # MuJoCo's collision filter: a geom with contype and conaffinity both 0 never collides.
         collision = int(compiled.geom_contype[geom]) != 0 or int(compiled.geom_conaffinity[geom]) != 0
         shapes.append(IRShape(body=name, shape=shape, collision=collision))

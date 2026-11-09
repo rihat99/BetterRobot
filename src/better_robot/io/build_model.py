@@ -302,7 +302,9 @@ def _inertias(ir: IRModel, body_names: tuple[str, ...], dtype: torch.dtype) -> t
     rows = [torch.zeros(10, dtype=dtype)]
     for name in body_names[1:]:
         if name not in bodies:
-            raise ModelError(f"body {name!r} is moved by a joint but is not among the IR bodies")
+            raise ModelError(
+                f"body {name!r} is moved by a joint but is not among the IR bodies; add an IRBody of that name"
+            )
         rows.append(_pack_inertia(bodies[name], dtype))
     return torch.stack(rows, dim=0)
 
