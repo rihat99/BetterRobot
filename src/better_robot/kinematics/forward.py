@@ -93,9 +93,7 @@ class KinematicState:
         Jacobian is this table masked by the joint's support and reduced to the public ``nv`` (`jacobians`).
         """
         plan = jacobian_plan(self.model, dtype=self.q.dtype, device=self.q.device)
-        return self._memoised(
-            "jacobian_columns", lambda: world_column_table(self.joint_rotations, self.joint_translations, plan)
-        )
+        return self._memoised("jacobian_columns", lambda: world_column_table(self.joint_transforms, plan))
 
     @property
     def world_geometry(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
