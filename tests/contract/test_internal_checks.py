@@ -7,8 +7,9 @@ of an expression, ``.item()``, ``.any()``, ``.all()``, ``.tolist()``, ``torch.al
 caller's opt-in ``if check_<what>:``, or inside a ``_check_<what>`` helper whose every call is so guarded. Every call
 of an ``_internal_checks`` function sits under ``if _internal_checks.ENABLED:``.
 
-Permanent exceptions: ``_internal_checks.py`` itself (its functions are the guarded invariants), ``io`` (it checks a
-robot description's values once, at load, where it parses them), and numpy reads (no device sync). The unguarded
+Permanent exceptions to the value-check rule (calls of ``_internal_checks`` are guarded everywhere):
+``_internal_checks.py`` itself (its functions are the guarded invariants), ``io`` (it checks a robot description's
+values once, at load, where it parses them), and numpy reads (no device sync). The unguarded
 checks that exist today sit in ``tests/contract/ratchets/value_checks.json`` (``path::function``); it only shrinks.
 """
 
@@ -24,7 +25,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from better_robot._internal_checks import check_rotations
+from better_robot._internal_checks import check_unit_quaternions
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
 RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / "value_checks.json").read_text())
@@ -96,9 +97,11 @@ def _unguarded() -> dict[str, str]:
     sites: dict[str, dict[str, list[tuple[str, int, bool, str]]]] = {}
     for path in sorted(SRC.rglob("*.py")):
         relative = path.relative_to(SRC).as_posix()
+        functions: dict[str, list[tuple[str, int, bool, str]]] = {}
+        _walk(ast.parse(path.read_text()), [], False, functions)
         if relative in EXEMPT or relative.split("/")[0] in EXEMPT:
-            continue
-        _walk(ast.parse(path.read_text()), [], False, sites.setdefault(f"src/better_robot/{relative}", {}))
+            functions = {name: [item for item in items if item[0] == "call"] for name, items in functions.items()}
+        sites[f"src/better_robot/{relative}"] = functions
     helpers = {
         function.rsplit(".", 1)[-1]
         for functions in sites.values()
@@ -147,10 +150,10 @@ def test_value_check_ratchet_has_no_stale_entries() -> None:
     assert not stale, "remove these entries from tests/contract/ratchets/value_checks.json:\n  " + "\n  ".join(stale)
 
 
-def test_a_rotation_off_orthonormal_fails_and_a_non_finite_one_passes() -> None:
+def test_a_quaternion_off_unit_norm_fails_and_a_non_finite_one_passes() -> None:
     """The invariant fires on the library's own bug, not on a caller's NaN."""
-    transforms = torch.eye(3, 4, dtype=torch.float64).repeat(2, 1, 1)
-    check_rotations(transforms, name="joint_transforms")
-    with pytest.raises(AssertionError, match="joint_transforms: a rotation block is 0.21 from orthonormal"):
-        check_rotations(transforms * 1.1, name="joint_transforms")
-    check_rotations(torch.full((2, 3, 4), torch.nan, dtype=torch.float64), name="joint_transforms")
+    poses = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]] * 2, dtype=torch.float64)
+    check_unit_quaternions(poses, name="joint_placements")
+    with pytest.raises(AssertionError, match="joint_placements: a quaternion is 0.1 from unit norm"):
+        check_unit_quaternions(poses * 1.1, name="joint_placements")
+    check_unit_quaternions(torch.full((2, 7), torch.nan, dtype=torch.float64), name="joint_placements")

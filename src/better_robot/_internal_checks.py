@@ -16,27 +16,22 @@ import torch
 ENABLED: bool = os.environ.get("BETTER_ROBOT_INTERNAL_CHECKS") == "1"
 
 
-def check_rotations(transforms: torch.Tensor, *, name: str) -> None:
-    """Raise ``AssertionError`` unless the rotation block of every finite transform is orthonormal.
+def check_unit_quaternions(poses: torch.Tensor, *, name: str) -> None:
+    """Raise ``AssertionError`` unless the quaternion of every finite pose has unit norm.
 
     Parameters
     ----------
-    transforms
-        ``(..., 3, 4)`` rigid transforms ``[R | p]`` the library computed.
+    poses
+        ``(..., 7)`` poses ``[tx, ty, tz, qx, qy, qz, qw]`` the library normalised.
     name
-        The field the transforms fill, for the message.
+        The field the poses fill, for the message.
 
-    The tolerance is ``sqrt(eps)`` of the dtype (``3.5e-4`` in float32, ``1.5e-8`` in float64) on every entry of
-    ``R @ R.T - I``. A non-finite transform passes: it comes from a non-finite input, which only an opt-in check of
-    that input may reject. Under ``torch.compile`` the check returns at once: a host read would break the graph, and
-    the eager run of the same code checks it.
+    The tolerance is ``sqrt(eps)`` of the dtype, never tighter than float32's (``3.5e-4``): a model built in float32
+    and moved to float64 keeps float32-unit quaternions. A non-finite pose passes: it comes from a non-finite input,
+    which only a check of that input may reject.
     """
-    if torch.compiler.is_compiling():
-        return
-    rotations = transforms[..., :3]
-    identity = torch.eye(3, dtype=transforms.dtype, device=transforms.device)
-    error = (rotations @ rotations.transpose(-1, -2) - identity).abs().amax(dim=(-2, -1))
-    tolerance = torch.finfo(transforms.dtype).eps ** 0.5
+    tolerance = max(torch.finfo(poses.dtype).eps, torch.finfo(torch.float32).eps) ** 0.5
+    error = (torch.linalg.vector_norm(poses[..., 3:], dim=-1) - 1.0).abs()
     if bool((error > tolerance).any()):
         largest = float(error.nan_to_num(0.0).max())
-        raise AssertionError(f"{name}: a rotation block is {largest:.3g} from orthonormal; a library bug")
+        raise AssertionError(f"{name}: a quaternion is {largest:.3g} from unit norm; a library bug")

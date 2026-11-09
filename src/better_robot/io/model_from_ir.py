@@ -15,6 +15,7 @@ from typing import final
 
 import torch
 
+from .. import _internal_checks
 from ..exceptions import ModelError
 from ..lie import se3
 from ..model.joints import JointFixed, JointHelical, JointModel, JointPrismatic, JointRevolute
@@ -554,4 +555,7 @@ def build_model(
         gravity=ir.gravity.to(dtype=dtype),
         q_neutral=_neutral(topology, public, reduction.limits, dtype),
     )
+    if _internal_checks.ENABLED:
+        _internal_checks.check_unit_quaternions(model.joint_placements, name="joint_placements")
+        _internal_checks.check_unit_quaternions(model.frame_placements, name="frame_placements")
     return model if device is None else model.to(device=device)

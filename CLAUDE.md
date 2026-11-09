@@ -35,10 +35,10 @@ _internal_checks -> nothing
 lie         -> exceptions
 spatial     -> exceptions lie
 model       -> exceptions lie spatial
-kinematics  -> exceptions _internal_checks lie model
+kinematics  -> exceptions lie model
 dynamics    -> exceptions lie spatial model kinematics
 collision   -> exceptions lie model kinematics
-io          -> exceptions lie model
+io          -> exceptions _internal_checks lie model
 optim       -> exceptions
 terms       -> exceptions lie model kinematics collision optim
 viewer      -> exceptions lie model kinematics collision

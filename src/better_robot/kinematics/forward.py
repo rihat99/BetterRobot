@@ -9,7 +9,6 @@ from typing import Any, TypeVar, final
 
 import torch
 
-from .. import _internal_checks
 from ..exceptions import DeviceMismatchError, DtypeMismatchError, ModelError, QuaternionNormError
 from ..lie import so3
 from ..lie._checks import check_tensor
@@ -196,8 +195,6 @@ def forward_kinematics(model: Model, q: torch.Tensor, *, check_quaternion_norm: 
     if check_quaternion_norm:
         _check_quaternion_norms(model, q_full)
     joints, frames = world_transforms(model, q_full, placements, frames)
-    if _internal_checks.ENABLED:
-        _internal_checks.check_rotations(joints, name="joint_transforms")
     return KinematicState(
         model=model,
         q=q,
