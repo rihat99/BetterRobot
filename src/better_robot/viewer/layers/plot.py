@@ -7,7 +7,7 @@ from typing import Any, final
 import numpy as np
 
 from ...exceptions import ShapeError
-from .._math import as_frames
+from ..layer import as_frames
 from ..layer import Layer
 
 _PALETTE = (

@@ -7,7 +7,8 @@ from typing import Any, final
 import numpy as np
 
 from ...exceptions import ShapeError
-from .._math import as_frames, xyzw_to_wxyz
+from .._lie import to_wxyz
+from ..layer import as_frames
 from ..layer import Layer
 
 
@@ -32,7 +33,7 @@ class FramesLayer(Layer):
         self._axes = self._track(
             scene.add_batched_axes(
                 f"{root}/axes",
-                batched_wxyzs=xyzw_to_wxyz(self.poses[0, :, 3:]),
+                batched_wxyzs=to_wxyz(self.poses[0, :, 3:]),
                 batched_positions=self.poses[0, :, :3],
                 axes_length=self.axes_length,
                 axes_radius=self.axes_radius,
@@ -47,4 +48,4 @@ class FramesLayer(Layer):
         if self._axes is None:
             return
         self._axes.batched_positions = self.poses[step, :, :3]
-        self._axes.batched_wxyzs = xyzw_to_wxyz(self.poses[step, :, 3:])
+        self._axes.batched_wxyzs = to_wxyz(self.poses[step, :, 3:])

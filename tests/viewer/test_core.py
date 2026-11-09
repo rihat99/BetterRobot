@@ -7,7 +7,8 @@ import time
 import numpy as np
 import pytest
 
-from better_robot.viewer._math import quat_z_to, rotate, unit_cone, unit_cylinder, unit_sphere
+from better_robot.viewer._lie import act, from_z, to_wxyz
+from better_robot.viewer._primitives import unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, SpheresLayer
@@ -295,7 +296,7 @@ def test_quaternion_z_to_direction_and_closed_unit_meshes() -> None:
     directions = np.random.default_rng(1).normal(size=(50, 3))
     directions[0] = [0.0, 0.0, -1.0]
     directions[1] = 0.0
-    q = quat_z_to(directions)
+    q = to_wxyz(from_z(directions))
     w, x, y, z = q.T
     rotated_z = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)
     unit = directions / np.maximum(np.linalg.norm(directions, axis=-1, keepdims=True), 1e-9)
@@ -356,7 +357,7 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
     GroundLayer(origin=(1.0, 2.0, 3.0), normal=(0.0, 1.0, 1.0), height=0.5, fill=0.4).build(scene, "/g/floor")
     grid = scene.nodes["/g/floor/grid"].props
     w, x, y, z = grid["wxyz"]
-    np.testing.assert_allclose(rotate(np.array([x, y, z, w]), np.array([0.0, 0.0, 1.0])), normal, atol=1e-6)
+    np.testing.assert_allclose(act(np.array([x, y, z, w]), np.array([0.0, 0.0, 1.0])), normal, atol=1e-6)
     np.testing.assert_allclose(grid["position"], np.array([1.0, 2.0, 3.0]) + 0.5 * normal)
     assert grid["plane"] == "xy" and grid["plane_opacity"] == 0.4
     GroundLayer(plane="xz").build(scene, "/g/flat")

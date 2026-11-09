@@ -8,7 +8,7 @@ import torch
 
 import better_robot as br
 from better_robot.lie.se3 import compose
-from better_robot.viewer._math import compose_poses
+from better_robot.viewer import _lie
 from better_robot.viewer.layers.frames import FramesLayer
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import robot_meshes, robot_skeleton, spread_offsets
@@ -26,15 +26,6 @@ def _random_poses(shape: tuple[int, ...], seed: int = 0) -> np.ndarray:
     return np.concatenate([rng.normal(size=(*shape, 3)), quat], axis=-1).astype(np.float32)
 
 
-def test_numpy_pose_composition_matches_the_torch_lie_layer() -> None:
-    a, b = _random_poses((5, 3), 1), _random_poses((5, 3), 2)
-    expected = compose(torch.from_numpy(a).double(), torch.from_numpy(b).double()).numpy()
-    got = compose_poses(a, b)
-    sign = np.sign(np.sum(got[..., 3:] * expected[..., 3:], axis=-1, keepdims=True))
-    np.testing.assert_allclose(got[..., :3], expected[..., :3], atol=1e-5)
-    np.testing.assert_allclose(got[..., 3:] * sign, expected[..., 3:], atol=1e-5)
-
-
 def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
     scene = FakeServer().scene
     body_poses = _random_poses((4, 3))
@@ -47,7 +38,7 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
     layer = RigidMeshLayer("meshes", specs, body_poses)
     layer.build(scene, "/r/meshes")
     layer.set_step(3)
-    expected = compose_poses(body_poses[3, 2], origin)
+    expected = _lie.compose(body_poses[3, 2], origin)
     node = scene.nodes["/r/meshes/mesh_0"]
     np.testing.assert_allclose(node.position, expected[:3], atol=1e-6)
     np.testing.assert_allclose(node.wxyz, expected[[6, 3, 4, 5]], atol=1e-6)
@@ -92,7 +83,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     meshes = layers["robot collision"].meshes
     hand_mesh = next(i for i, spec in enumerate(meshes) if spec.body == model.body_id("panda_hand"))
     node = server.scene.nodes[f"/panda/robot collision/mesh_{hand_mesh}"]
-    expected = compose_poses(state.joint_poses[4, model.body_id("panda_hand")].numpy(), meshes[hand_mesh].origin)
+    expected = _lie.compose(state.joint_poses[4, model.body_id("panda_hand")].numpy(), meshes[hand_mesh].origin)
     np.testing.assert_allclose(node.position, expected[:3], atol=1e-5)
 
 
@@ -298,7 +289,6 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
     under 1 cm folded into the longest), turn at right angles, start on the parent's drawn centre and sum to the
     drawn centre difference; bones without an axis marker at either end, and bones over 15 cm from a joint with one
     child (the G1 thighs), stay straight. "tilted": every joint frame rotated, links of a few cm."""
-    from better_robot.viewer._math import rotate  # noqa: PLC0415
     from better_robot.viewer.layers.skeleton import marker_of  # noqa: PLC0415
     from better_robot.viewer.robot import skeleton_spec  # noqa: PLC0415
 
@@ -308,7 +298,7 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
     child = np.nonzero(layer.parents >= 0)[0]
     parent = layer.parents[child]
     rotations = poses[0, 1:, 3:].astype(np.float64)
-    centres = poses[0, 1:, :3] + rotate(rotations, layer.offsets.astype(np.float64))
+    centres = poses[0, 1:, :3] + _lie.act(rotations, layer.offsets.astype(np.float64))
     node = server.scene.nodes["/scene/skeleton/bones"]
     w, x, y, z = np.asarray(node.batched_wxyzs, np.float64).T
     direction = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
@@ -322,7 +312,7 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
     np.testing.assert_allclose(np.cross(legs, direction), 0.0, atol=1e-5)
     np.testing.assert_allclose(legs.sum(1), centres[child] - centres[parent], atol=1e-5)
 
-    local = np.abs(rotate(rotations[parent, None] * [-1.0, -1.0, -1.0, 1.0], legs))  # (B, L, 3) parent frame
+    local = np.abs(_lie.act(_lie.inverse(rotations[parent, None]), legs))  # (B, L, 3) parent frame
     drawn, dominant = local.max(-1) > 1e-6, local.argmax(-1)
     folded = np.where(np.arange(3) == dominant[..., None], 0.0, local)  # (B, L, 3) the parts off the leg's axis
     axial = np.array([marker_of(kind) in ("cylinder", "box") for kind in skeleton_spec(model)[0]])
@@ -358,7 +348,6 @@ def test_spread_layout_draws_left_and_right_joints_as_mirror_images() -> None:
 def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images() -> None:
     """Pitch joints at (0, +-0.1, -0.1), each with a co-located roll whose axis is +x on the left and -x on the right:
     the rolls tie (their origins lie in the root's plane normal to x) and both slide to +x, as mirror images."""
-    from better_robot.viewer._math import rotate  # noqa: PLC0415
 
     builder = br.ModelBuilder("mirror")
     for name in ("pelvis", "left_upper", "left_lower", "right_upper", "right_lower"):
@@ -371,14 +360,14 @@ def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images()
                              axis=torch.tensor([sign, 0.0, 0.0]), effort_limit=10.0)  # fmt: skip
     model = br.io.build_model(builder.finalize(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     poses = br.forward_kinematics(model, model.q_neutral).joint_poses[1:].numpy()
-    drawn = dict(zip(model.joint_names[1:], poses[:, :3] + rotate(poses[:, 3:], spread_offsets(model))))
+    drawn = dict(zip(model.joint_names[1:], poses[:, :3] + _lie.act(poses[:, 3:], spread_offsets(model))))
     assert drawn["left_roll"][0] > 0.02  # slid off its pitch joint, to +x
     np.testing.assert_allclose(drawn["right_roll"], drawn["left_roll"] * [1.0, -1.0, 1.0], atol=1e-6)
 
 
 def test_robot_skeleton_shows_the_joint_load_in_colour_and_thickness_at_a_fixed_instance_count() -> None:
     from better_robot.viewer import LIGHT, robot_skeleton  # noqa: PLC0415
-    from better_robot.viewer._math import colormap, rgb_uint8  # noqa: PLC0415
+    from better_robot.viewer.theme import colormap, rgb_uint8  # noqa: PLC0415
 
     model = _g1()
     limits = model.effort_limit.numpy()
@@ -422,7 +411,7 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     point, as thick as the bone into that joint, with no marker and no load of its own."""
     from better_robot.lie.se3 import act  # noqa: PLC0415
     from better_robot.viewer import LIGHT, robot_skeleton  # noqa: PLC0415
-    from better_robot.viewer._math import rgb_uint8  # noqa: PLC0415
+    from better_robot.viewer.theme import rgb_uint8  # noqa: PLC0415
 
     builder = br.ModelBuilder("arm")
     base, upper, hand = (builder.add_body(name, mass=1.0) for name in ("base", "upper", "hand"))

@@ -7,7 +7,20 @@ from typing import Any
 
 import numpy as np
 
-from ..exceptions import ArgumentError
+from ..exceptions import ArgumentError, ShapeError
+
+
+def as_frames(array: np.ndarray | object, event_ndim: int) -> np.ndarray:
+    """Promote an array to ``(T, ...)`` float32: a static array (no leading axis) becomes ``T = 1``.
+
+    ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``.
+    """
+    out = np.asarray(array, dtype=np.float32)
+    if out.ndim == event_ndim:
+        out = out[None]
+    if out.ndim != event_ndim + 1:
+        raise ShapeError(f"expected {event_ndim} or {event_ndim + 1} axes, got shape {out.shape}")
+    return np.ascontiguousarray(out)
 
 
 class Layer(ABC):

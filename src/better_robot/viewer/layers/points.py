@@ -6,7 +6,8 @@ from typing import Any, final
 
 import numpy as np
 
-from .._math import RGB, as_frames, rgb_uint8
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 

@@ -2,7 +2,9 @@
 
 One viewer on viser. Read `docs/concepts/viewer.md` first.
 
-- `viewer.py` (`Viewer`), `timeline.py`, `layer.py`, `theme.py`, `_math.py` are the core; `layers/`
+- `viewer.py` (`Viewer`), `timeline.py`, `layer.py` (`Layer`, `as_frames`), `theme.py` (colours) are the core;
+  `_lie.py` runs every quaternion operation through `better_robot.lie` on numpy arrays (no numpy copy of `lie`);
+  `_primitives.py` holds the unit meshes; `layers/`
   are the built-in layers; `robot.py` is the only file that knows `Model`; `tools/` are gizmo and
   picking; `capture.py` drives a headless Chromium for `Viewer.record`.
 - Layers take numpy `(T, ...)` arrays (`as_frames` promotes static input to `T = 1`) and keep them by

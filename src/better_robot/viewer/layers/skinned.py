@@ -7,7 +7,9 @@ from typing import Any, final
 import numpy as np
 
 from ...exceptions import ShapeError
-from .._math import RGB, as_frames, rgb_uint8, rotate, xyzw_to_wxyz
+from .._lie import act, inverse, to_wxyz
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 from .camera import CameraLayer
 
@@ -54,7 +56,7 @@ class SkinnedMeshLayer(Layer):
                 f"{root}/mesh",
                 self.vertices,
                 self.faces,
-                bone_wxyzs=xyzw_to_wxyz(self.bind_poses[:, 3:]),
+                bone_wxyzs=to_wxyz(self.bind_poses[:, 3:]),
                 bone_positions=self.bind_poses[:, :3],
                 skin_weights=self.weights,
                 color=rgb_uint8(self.color),
@@ -64,7 +66,7 @@ class SkinnedMeshLayer(Layer):
 
     def set_step(self, step: int) -> None:
         poses = self.bone_poses[step]
-        wxyz = xyzw_to_wxyz(poses[:, 3:])
+        wxyz = to_wxyz(poses[:, 3:])
         for bone, handle in enumerate(self._mesh.bones):
             handle.wxyz = wxyz[bone]
             handle.position = poses[bone, :3]
@@ -81,9 +83,8 @@ class SkinnedMeshLayer(Layer):
         """Posed vertices ``(V, 3)`` of ``step`` by linear blend skinning (CPU, numpy)."""
         bind, posed = self.bind_poses, self.bone_poses[step]
         local = self.vertices[:, None] - bind[None, :, :3]  # (V, J, 3)
-        conj = bind[:, 3:] * np.array([-1.0, -1.0, -1.0, 1.0], dtype=np.float32)
-        local = rotate(conj[None], local)
-        world = rotate(posed[None, :, 3:], local) + posed[None, :, :3]
+        local = act(inverse(bind[None, :, 3:]), local)
+        world = act(posed[None, :, 3:], local) + posed[None, :, :3]
         return np.einsum("vj,vjk->vk", self.weights, world).astype(np.float32)
 
 

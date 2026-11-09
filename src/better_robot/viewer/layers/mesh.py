@@ -8,7 +8,10 @@ from typing import Any, final
 import numpy as np
 
 from ...exceptions import ArgumentError, ShapeError
-from .._math import RGB, as_frames, compose_poses, rgb_uint8, rotate, unit_sphere, xyzw_to_wxyz
+from .._lie import act, compose, to_wxyz
+from .._primitives import unit_sphere
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 _IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
@@ -119,14 +122,12 @@ class RigidMeshLayer(Layer):
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
         if not self.meshes:
             return None
-        world = compose_poses(self.body_poses[step, self._bodies], self._origins)
-        return np.concatenate(
-            [rotate(world[i, 3:], spec.vertices) + world[i, :3] for i, spec in enumerate(self.meshes)]
-        )
+        world = compose(self.body_poses[step, self._bodies], self._origins)
+        return np.concatenate([act(world[i, 3:], spec.vertices) + world[i, :3] for i, spec in enumerate(self.meshes)])
 
     def set_step(self, step: int) -> None:
-        world = compose_poses(self.body_poses[step, self._bodies], self._origins)
-        wxyz = xyzw_to_wxyz(world[:, 3:])
+        world = compose(self.body_poses[step, self._bodies], self._origins)
+        wxyz = to_wxyz(world[:, 3:])
         for index, node in enumerate(self._nodes):
             node.position = world[index, :3]
             node.wxyz = wxyz[index]
@@ -178,7 +179,7 @@ class SpheresLayer(Layer):
                 f"{root}/spheres",
                 vertices,
                 faces,
-                batched_wxyzs=np.tile(xyzw_to_wxyz(_IDENTITY_POSE[3:]), (n, 1)),
+                batched_wxyzs=np.tile(to_wxyz(_IDENTITY_POSE[3:]), (n, 1)),
                 batched_positions=self.centers[0],
                 batched_scales=self.radii,
                 batched_colors=self._colors if self._colors.ndim == 2 else self._colors[0],

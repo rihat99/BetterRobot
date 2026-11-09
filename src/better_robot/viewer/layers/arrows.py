@@ -7,7 +7,10 @@ from typing import Any, final
 import numpy as np
 
 from ...exceptions import ShapeError
-from .._math import RGB, as_frames, quat_z_to, rgb_uint8, unit_cone, unit_cylinder
+from .._lie import from_z, to_wxyz
+from .._primitives import unit_cone, unit_cylinder
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 
@@ -159,7 +162,7 @@ class ArrowsLayer(Layer):
             radius = (self.head_radius * shrink).astype(np.float32)
         base = self.origins[step] + vector - unit * head[:, None]
         scales = np.stack([radius, radius, head], axis=-1)
-        return base, quat_z_to(vector), scales
+        return base, to_wxyz(from_z(vector)), scales
 
     def _shrink(self, length: np.ndarray) -> np.ndarray:
         """Solid arrows: the scale ``(N,)`` of each arrow's head and thickness, 1 down to ``head_size /
@@ -175,4 +178,4 @@ class ArrowsLayer(Layer):
         radius = np.where(shaft > 0.0, self.shaft_radius * shrink, 0.0).astype(np.float32)
         unit = vector / np.maximum(length, 1e-9)[:, None]
         centre = self.origins[step] + unit * (shaft * 0.5)[:, None]
-        return centre, quat_z_to(vector), np.stack([radius, radius, shaft], axis=-1).astype(np.float32)
+        return centre, to_wxyz(from_z(vector)), np.stack([radius, radius, shaft], axis=-1).astype(np.float32)

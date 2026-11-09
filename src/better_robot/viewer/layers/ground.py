@@ -8,7 +8,8 @@ from typing import Any, final
 import numpy as np
 
 from ...exceptions import ArgumentError
-from .._math import RGB, quat_z_to, rgb_uint8
+from .._lie import from_z, to_wxyz
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 
@@ -69,7 +70,7 @@ class GroundLayer(Layer):
             plane = "xy"  # the grid's own normal is +z; rotate it onto ``normal``
             axis = np.asarray(self.normal, dtype=np.float64).reshape(3)
             axis = axis / np.linalg.norm(axis)
-            wxyz = quat_z_to(axis)
+            wxyz = to_wxyz(from_z(axis))
         origin = np.zeros(3) if self.origin is None else np.asarray(self.origin, dtype=np.float64).reshape(3)
         self._track(
             scene.add_grid(

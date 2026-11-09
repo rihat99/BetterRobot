@@ -27,7 +27,8 @@ from ..model.joints import (
     JointTranslation,
 )
 from ..model.geometry import AttachedShape, Box, Cylinder, Geometry, Mesh, Sphere
-from ._math import colormap, rotate
+from ._lie import act, inverse
+from .theme import colormap
 from .layers.mesh import MeshSpec
 from .layers.skeleton import SkeletonLayer, marker_extent, marker_of
 from .theme import LIGHT, Theme
@@ -110,9 +111,9 @@ def _end_poses(
     frame_ids = [model.frame_id(frame) for frame in end_points]
     joints = np.array([model.frame_parent_joint_ids[frame_id] for frame_id in frame_ids], dtype=np.int64)
     placement = model.frame_placements[..., frame_ids, :].detach().cpu().numpy().astype(np.float32)
-    local = placement[:, :3] + rotate(placement[:, 3:], np.asarray(list(end_points.values()), dtype=np.float32))
+    local = placement[:, :3] + act(placement[:, 3:], np.asarray(list(end_points.values()), dtype=np.float32))
     rotations = joint_poses[:, joints, 3:]
-    return np.concatenate([joint_poses[:, joints, :3] + rotate(rotations, local), rotations], axis=-1), joints
+    return np.concatenate([joint_poses[:, joints, :3] + act(rotations, local), rotations], axis=-1), joints
 
 
 _KIND_WORD = {
@@ -162,9 +163,9 @@ def spread_offsets(
     with torch.no_grad():
         poses = forward_kinematics(model, model.q_neutral).joint_poses[1:].cpu().numpy().astype(np.float64)
     origins = poses[:, :3]
-    directions = rotate(poses[:, 3:], axes.astype(np.float64))
+    directions = act(poses[:, 3:], axes.astype(np.float64))
     # Tie sign: the axis's largest component in the root joint's frame positive (rounded, so mirror images agree).
-    in_root = np.round(rotate(poses[0, 3:] * (-1.0, -1.0, -1.0, 1.0), directions), 6)
+    in_root = np.round(act(inverse(poses[0, 3:]), directions), 6)
     tie_sign = np.sign(in_root[np.arange(len(in_root)), np.abs(in_root).argmax(axis=1)])
     markers = [marker_of(kind) for kind in kinds]
     extent = np.array([marker_extent(m) if m else (0.0, 0.0) for m in markers]) * radius  # (radius, half-length)

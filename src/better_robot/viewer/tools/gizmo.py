@@ -9,7 +9,7 @@ from typing import Any, final
 
 import numpy as np
 
-from .._math import xyzw_to_wxyz
+from .._lie import to_wxyz
 
 
 @final
@@ -38,7 +38,7 @@ class PoseGizmo:
     ) -> None:
         pose = np.asarray(pose, dtype=np.float32)
         self.handle = viewer.server.scene.add_transform_controls(
-            f"/tools/{name}", scale=scale, position=pose[:3], wxyz=xyzw_to_wxyz(pose[3:]), **options
+            f"/tools/{name}", scale=scale, position=pose[:3], wxyz=to_wxyz(pose[3:]), **options
         )
         self._callbacks: list[Callable[[np.ndarray], None]] = [on_change] if on_change else []
         self._condition = threading.Condition()
@@ -59,7 +59,7 @@ class PoseGizmo:
     def pose(self, pose: np.ndarray) -> None:
         pose = np.asarray(pose, dtype=np.float32)
         self.handle.position = pose[:3]
-        self.handle.wxyz = xyzw_to_wxyz(pose[3:])
+        self.handle.wxyz = to_wxyz(pose[3:])
 
     def on_change(self, callback: Callable[[np.ndarray], None]) -> None:
         """Also call ``callback(pose (7,))`` on drags (on the gizmo's worker thread)."""
