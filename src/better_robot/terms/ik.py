@@ -7,9 +7,10 @@ from collections.abc import Mapping
 import torch
 
 from ..exceptions import ArgumentError
+from ..kinematics import euclidean_columns
 from ..model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
-from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest, vector_columns
+from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest
 
 
 def ik_problem(
@@ -45,11 +46,11 @@ def ik_problem(
 
 
 def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator) -> torch.Tensor:
-    """Copy of ``q0: (B, nq)`` with every vector-space joint that has finite limits sampled uniformly.
+    """Copy of ``q0: (B, nq)`` with every ``EUCLIDEAN`` coordinate that has finite limits sampled uniformly.
 
     The draw happens on ``q0``'s device, so ``generator`` must live there.
     """
-    index, _ = vector_columns(model)
+    index, _ = euclidean_columns(model)
     lower, upper = model.lower_position_limit[index], model.upper_position_limit[index]
     sample = torch.rand(q0.shape[0], index.numel(), generator=generator, dtype=q0.dtype, device=q0.device)
     sample = lower + (upper - lower) * sample
