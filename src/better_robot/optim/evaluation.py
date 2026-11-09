@@ -20,13 +20,13 @@ class Evaluation:
     """Values of one evaluation: variables, data and cached values computed at most once."""
 
     def __init__(self, problem: Problem, x: Values) -> None:
-        self._problem = problem
+        self._cached = problem.cached_values
         self._values: dict[str, Any] = {**problem.data, **x}
 
     def __getitem__(self, name: str) -> Any:
         if name not in self._values:
-            fn, reads = self._problem._cached[name]
-            self._values[name] = fn(*(self[read] for read in reads))
+            cached = self._cached[name]
+            self._values[name] = cached.fn(*(self[read] for read in cached.reads))
         return self._values[name]
 
     def args(self, reads: tuple[str, ...]) -> list[Any]:
@@ -61,8 +61,8 @@ def depends(problem: Problem, reads: tuple[str, ...]) -> set[str]:
     for read in reads:
         if read in problem.variables:
             out.add(read)
-        elif read in problem._cached:
-            out |= depends(problem, problem._cached[read][1])
+        elif read in problem.cached_values:
+            out |= depends(problem, problem.cached_values[read].reads)
     return out
 
 

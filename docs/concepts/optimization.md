@@ -40,7 +40,8 @@ assert result.x["x"].shape == (4, 2) and bool(result.done.all())
 `residual(name, fn, weight=, kernel=, reads=, jacobian=, window=)` adds a least-squares term. `fn` returns
 `(B, ..., k)` and its loss is `½ · weight · Σ r²`. `scalar(name, fn, weight=)` adds a term that already
 returns a `(B,)` loss. `cached(fn, name=)` registers an intermediate that several terms read, such as a
-kinematic state, and returns its name; it is computed at most once per evaluation.
+kinematic state, and returns its name; it is computed at most once per evaluation. `problem.terms` and
+`problem.cached_values` are read-only mappings of what is registered.
 
 ```python
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
@@ -126,8 +127,9 @@ treat it as a first-order term.
 A solver subclasses the abstract `Solver`: `init(problem, x) -> State` and
 `step(problem, state) -> State`, and `warm_keys` names the `State.extra` entries a warm start keeps. After each step a solver writes fixed diagnostic keys into `State.extra`,
 each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
-`State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`, the step
-count `iteration`, and `extra` for solver-owned values (damping, moments). Every solver also writes
+`State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`,
+`solver` (the class of the solver that made it), the step count `iteration`, and `extra` for solver-owned values
+(damping, moments). Every solver also writes
 `extra["terms"]`, the detached `(B,)` loss of each active term from the evaluation `loss` comes from, and
 `TorchOptim` writes `extra["info"]`, so a `Phase.on_step` logger needs no second forward.
 
@@ -155,7 +157,8 @@ print(state.iteration, state.loss)
 
 - `solve(problem, solver, *, iterations=50, x=None, state=None) -> Result` runs one solver until every problem is
   done or `iterations` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
-  the next solve (LM keeps its damping, L-BFGS its curvature memory) from `x`, else `state.x`.
+  the next solve with the same solver kind (LM keeps its damping, L-BFGS its curvature memory) from `x`, else
+  `state.x`; a state from another kind raises `ArgumentError`.
   `Result.diagnostics[phase][key]` stacks the diagnostic keys per step, `(steps, B)`.
   `Result` has `x`, `loss`, `done`, `iterations` and a per-phase loss `history`;
   `result["q"]` is shorthand for `result.x["q"]`.

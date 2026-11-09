@@ -34,11 +34,13 @@ class State:
     Every solver also writes ``terms``, ``{name: (B,)}``: the detached loss of each active term from
     the evaluation that ``loss`` comes from, so logging needs no second forward. ``TorchOptim`` adds
     ``info``, the ``{name: info}`` dicts of terms returning ``(value, info)`` (see ``Problem.evaluate``).
+    ``solver`` is the class of the solver that made the state; a warm start needs a solver of that class.
     """
 
     x: dict[str, torch.Tensor]  #: variables, each ``(B, *event)``.
     loss: torch.Tensor  #: ``(B,)`` loss at ``x``.
     done: torch.Tensor  #: ``(B,)`` bool, per-problem convergence.
+    solver: type[Solver]  #: the solver kind that made this state.
     iteration: int = 0  #: steps taken so far.
     extra: dict[str, Any] = field(default_factory=dict)  #: solver-owned (damping, moments, ...).
 
@@ -51,7 +53,8 @@ class Solver(ABC):
 
     ``solve`` and ``run`` call ``init`` once and then ``step`` up to the iteration budget, stopping
     early once every batch element is done (see ``Phase.stop_every``). ``warm_keys`` names the
-    ``State.extra`` entries a warm start (``run(..., state=)``) keeps; ``init`` recomputes the rest.
+    ``State.extra`` entries a warm start (``run(..., state=)``) keeps; ``init`` recomputes the rest. Every
+    ``State`` a solver returns names it (``solver=type(self)``) and carries its ``warm_keys`` entries.
     """
 
     warm_keys: ClassVar[tuple[str, ...]] = ()
@@ -115,7 +118,9 @@ class LevenbergMarquardt(Solver):
         with torch.no_grad():
             loss, terms, _ = problem.evaluate(x)
         extra = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0), "terms": terms}
-        return State(x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), extra=extra)
+        return State(
+            x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
+        )
 
     def step(self, problem: Problem, state: State) -> State:
         damping, growth = state.extra["damping"], state.extra["growth"]
@@ -143,6 +148,7 @@ class LevenbergMarquardt(Solver):
             x=_select(accept, candidate, state.x),
             loss=torch.where(accept, loss_new, state.loss),
             done=state.done | small_gradient | small_change | (new_damping >= 1e12),
+            solver=type(self),
             iteration=state.iteration + 1,
             extra={
                 "damping": new_damping,
@@ -167,7 +173,13 @@ class GaussNewton(Solver):
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         with torch.no_grad():
             loss, terms, _ = problem.evaluate(x)
-        return State(x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), extra={"terms": terms})
+        return State(
+            x=dict(x),
+            loss=loss,
+            done=torch.zeros_like(loss, dtype=torch.bool),
+            solver=type(self),
+            extra={"terms": terms},
+        )
 
     def step(self, problem: Problem, state: State) -> State:
         normal, _ = problem.linearize(state.x)
@@ -189,6 +201,7 @@ class GaussNewton(Solver):
             x=_select(move, candidate, state.x),
             loss=torch.where(move, loss_new, state.loss),
             done=done,
+            solver=type(self),
             iteration=state.iteration + 1,
             extra={**extra, "accepted": move, "terms": _selected_terms(move, terms_new, state.extra["terms"])},
         )
@@ -245,7 +258,9 @@ class LBFGS(Solver):
         loss, g, terms = problem.gradient(x)
         memory = g.new_zeros(g.shape[0], self.history, g.shape[1])
         extra = {"g": g, "s": memory, "y": memory.clone(), "rho": g.new_zeros(g.shape[0], self.history), "terms": terms}
-        return State(x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), extra=extra)
+        return State(
+            x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
+        )
 
     def _direction(self, g: torch.Tensor, s: torch.Tensor, y: torch.Tensor, rho: torch.Tensor) -> torch.Tensor:
         """Two-loop recursion; slots with ``rho == 0`` are empty and drop out."""
@@ -317,7 +332,7 @@ class LBFGS(Solver):
         done = state.done | (grad_norm < gradient_tolerance) | (first_step & ~found)
         extra = {"g": g_new, "s": s_new, "y": y_new, "rho": rho_new, "grad_norm": grad_norm}
         extra.update(step_norm=best_step.abs().amax(-1), accepted=found, terms=best_terms)
-        return State(x=best_x, loss=best_loss, done=done, iteration=state.iteration + 1, extra=extra)
+        return State(x=best_x, loss=best_loss, done=done, solver=type(self), iteration=state.iteration + 1, extra=extra)
 
 
 @final
@@ -350,7 +365,7 @@ class TorchOptim(Solver):
         extra = {"params": params, "optimizer": optimizer}
         if self.scheduler is not None:
             extra["scheduler"] = self.scheduler(optimizer)
-        return State(x=params, loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), extra=extra)
+        return State(x=params, loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra)
 
     def step(self, problem: Problem, state: State) -> State:
         params, optimizer = state.extra["params"], state.extra["optimizer"]
@@ -366,14 +381,16 @@ class TorchOptim(Solver):
             return total
 
         optimizer.step(closure)
-        if "scheduler" in state.extra:
+        if self.scheduler is not None:
             state.extra["scheduler"].step()
         with torch.no_grad():
             for name, value in problem.project(params).items():
                 params[name].copy_(value)
         current = {name: value.detach().clone() for name, value in params.items()}
         extra = {**state.extra, "terms": last["terms"], "info": last["info"]}
-        return State(x=current, loss=last["loss"], done=state.done, iteration=state.iteration + 1, extra=extra)
+        return State(
+            x=current, loss=last["loss"], done=state.done, solver=type(self), iteration=state.iteration + 1, extra=extra
+        )
 
     @staticmethod
     def _mask_gradients(problem: Problem, params: dict[str, torch.Tensor]) -> None:

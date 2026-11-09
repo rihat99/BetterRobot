@@ -10,11 +10,11 @@ import torch
 from ..exceptions import ArgumentError, UnknownNameError
 from .evaluation import zero_loss
 from .phases import Result, solve
-from .problem import Problem
+from .problem import Problem, Term
 from .solvers import Solver
 
 
-def _shifted(term, shift_name: str, *, inequality: bool):
+def _shifted(term: Term, shift_name: str, *, inequality: bool) -> Term:
     """The term ``c + shift`` (clamped at 0 from below for ``c <= 0``), reading the shift from data."""
 
     def fn(*args):
@@ -25,6 +25,39 @@ def _shifted(term, shift_name: str, *, inequality: bool):
     if term.jacobian is not None and not inequality:
         jacobian = lambda *args: term.jacobian(*args[:-1])  # noqa: E731 - the shift is constant
     return dataclasses.replace(term, fn=fn, reads=(*term.reads, shift_name), jacobian=jacobian, kernel=None)
+
+
+def _augmented(problem: Problem, terms: Mapping[str, Term], shifts: Mapping[str, torch.Tensor]) -> Problem:
+    """``problem`` with ``terms`` in place of the terms of their names and ``shifts`` added to its data, sealed.
+
+    Built from the public fields: the same variables, cached values and terms in the same order, and the same
+    weight overrides and free masks.
+    """
+    out = Problem(
+        problem.variables,
+        manifolds=problem.manifolds,
+        bounds=problem.bounds,
+        data={**problem.data, **shifts},
+        time=problem.time,
+        dense=problem.dense,
+    )
+    for name, cached in problem.cached_values.items():
+        out.cached(cached, name=name)
+    for name in problem.terms:
+        term = terms.get(name, problem.terms[name])
+        if term.kind == "scalar":
+            out.scalar(name, term.fn, weight=term.weight, reads=term.reads)
+        else:
+            out.residual(
+                name,
+                term.fn,
+                weight=term.weight,
+                kernel=term.kernel,
+                reads=term.reads,
+                jacobian=term.jacobian,
+                window=term.window,
+            )
+    return out.with_(weights=problem.weights, free=problem.free)
 
 
 def solve_constrained(
@@ -65,8 +98,10 @@ def solve_constrained(
     with torch.no_grad():
         values = plain.residuals(current)
     multipliers = {name: torch.zeros_like(values[name]) for name in names}
-    shifted = problem.with_(data={f"{name}.shift": multipliers[name] for name in names})._with_terms(
-        {name: _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities) for name in names}
+    shifted = _augmented(
+        problem,
+        {name: _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities) for name in names},
+        {f"{name}.shift": multipliers[name] for name in names},
     )
     rho = zero_loss(problem) + penalty
     previous = torch.full_like(rho, float("inf"))

@@ -21,7 +21,7 @@ import torch
 from ..exceptions import ArgumentError, ShapeError, UnknownNameError
 from .evaluation import Values, evaluate, residuals
 from .kernels import RobustKernel
-from .linear import ArrowNormal, BandedNormal, BandLayout, Normal
+from .linear import ArrowNormal, BandedNormal, Normal
 from .linearization import gradient, linearize
 from .manifold import Euclidean, Manifold
 
@@ -119,8 +119,7 @@ class Problem:
         self._terms: dict[str, Term] = {}
         self._weights: dict[str, float | torch.Tensor] = {}
         self._free: dict[str, torch.Tensor] | None = None
-        self._cached: dict[str, tuple[Callable[..., Any], tuple[str, ...]]] = {}
-        self._layouts: dict[tuple[int, int], BandLayout] = {}
+        self._cached: dict[str, TermFn] = {}
         self._sealed = False
         self._slices: dict[str, slice] = {}
         offset = 0
@@ -168,6 +167,11 @@ class Problem:
         return MappingProxyType(self._terms)
 
     @property
+    def cached_values(self) -> Mapping[str, TermFn]:
+        """Registered cached values by name, in registration order: each the function and the names it reads."""
+        return MappingProxyType(self._cached)
+
+    @property
     def weights(self) -> Mapping[str, float | torch.Tensor]:
         """Weight overrides by term name, set by ``with_(weights=)``."""
         return MappingProxyType(self._weights)
@@ -196,7 +200,7 @@ class Problem:
         name = name or fn.__name__
         self._require_unsealed(name)
         self._require_new_name(name)
-        self._cached[name] = (fn, self._resolve_reads(name, fn, reads))
+        self._cached[name] = TermFn(fn=fn, reads=self._resolve_reads(name, fn, reads))
         return name
 
     def residual(
@@ -347,7 +351,9 @@ class Problem:
 
     def retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
         """Step every variable along ``delta: (B, N)`` and clamp to bounds."""
-        return self._clamp(self._retract(x, delta))
+        return self._clamp(
+            {name: self._manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
+        )
 
     def project(self, x: Values) -> dict[str, torch.Tensor]:
         """Map ambient tensors back onto their manifolds and bounds."""
@@ -394,14 +400,6 @@ class Problem:
                 "or deriving it with with_, and change data, weights or free masks with with_"
             )
 
-    def _with_terms(self, terms: Mapping[str, Term]) -> Problem:
-        """A copy with ``terms`` in place of the registered terms of their names (``solve_constrained``)."""
-        problem = self._copy()
-        for name, term in terms.items():
-            problem._resolve_reads(name, term.fn, term.reads)
-        problem._terms.update(terms)
-        return problem
-
     def _require_new_name(self, name: str) -> None:
         if name in self._variables or name in self._data or name in self._cached:
             raise ArgumentError(f"name {name!r} is already used by a variable, data tensor or cached value")
@@ -423,9 +421,6 @@ class Problem:
             if name not in self._variables:
                 raise UnknownNameError("variable", name, list(self._variables))
         return mapping
-
-    def _retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
-        return {name: self._manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
 
     def _clamp(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         for name, (lower, upper) in self._bounds.items():

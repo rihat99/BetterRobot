@@ -1,5 +1,8 @@
 """``optim``: linearization against autograd and finite differences, cache, bounds, masks, solvers."""
 
+import ast
+from pathlib import Path
+
 import pytest
 import torch
 
@@ -492,3 +495,19 @@ def test_scalar_term_that_reads_only_data_linearizes():
     expected_loss, expected_g, _ = problem.gradient()
     torch.testing.assert_close(loss, expected_loss)
     torch.testing.assert_close(normal.g, expected_g)
+
+
+def test_each_private_name_is_used_only_by_the_module_that_defines_it():
+    """The split modules (evaluation, linearization, phases, constrained) read a ``Problem`` through its public fields."""
+    reach_ins = []
+    for path in sorted(Path(optim.__file__).parent.glob("*.py")):
+        tree = ast.parse(path.read_text())
+        defined = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.ClassDef))}
+        defined |= {
+            node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store)
+        }
+        for node in ast.walk(tree):
+            private = isinstance(node, ast.Attribute) and node.attr.startswith("_") and not node.attr.startswith("__")
+            if private and node.attr not in defined:
+                reach_ins.append(f"{path.name}:{node.lineno} {ast.unparse(node)}")
+    assert reach_ins == []

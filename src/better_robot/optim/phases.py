@@ -69,8 +69,8 @@ def run(
 
     ``state`` (a previous ``Result.state``) warm-starts the first phase: its solver keeps the
     ``warm_keys`` entries of ``state.extra`` (LM damping, L-BFGS memory) and recomputes the rest
-    at the start point, which is ``x``, else ``state.x``, else the problem's variables. The batch
-    size must match.
+    at the start point, which is ``x``, else ``state.x``, else the problem's variables. The state must
+    come from the same solver kind as the first phase's, and the batch size must match.
     """
     if state is not None and not isinstance(state, State):
         raise ArgumentError(f"state must be a solver State (e.g. Result.state), got {type(state).__name__}")
@@ -87,11 +87,16 @@ def run(
             view = view.with_(data=data)
         state = phase.solver.init(view, current)
         if warm is not None:
+            if warm.solver is not type(phase.solver):
+                raise ArgumentError(
+                    f"warm-start state comes from {warm.solver.__name__}, but phase {phase.name!r} runs "
+                    f"{type(phase.solver).__name__}; warm-start a solver with a state of its own kind"
+                )
             if warm.done.shape != state.done.shape:
                 raise ShapeError(
                     f"warm-start state has batch {tuple(warm.done.shape)}, problem has {tuple(state.done.shape)}"
                 )
-            kept = {key: warm.extra[key] for key in phase.solver.warm_keys if key in warm.extra}
+            kept = {key: warm.extra[key] for key in phase.solver.warm_keys}
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []
         for iteration in range(phase.iterations):
@@ -158,7 +163,9 @@ def solve_layer(
         blocked = ((lower >= -1e-9) & (normal.g > 0)) | ((upper <= 1e-9) & (normal.g < 0))
         normal, g = normal.masked(~blocked), g * ~blocked
     step = normal.solve(damping, g=g)
-    attached = problem._retract(result.x, step - step.detach())
+    # The unclamped retract: x* itself, carrying the derivative of the step (an active bound has none).
+    slices, zero = problem.slices(), step - step.detach()
+    attached = {name: problem.manifolds[name].retract(value, zero[:, slices[name]]) for name, value in result.x.items()}
     return replace(result, x=attached)
 
 
