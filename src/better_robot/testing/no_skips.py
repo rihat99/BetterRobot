@@ -17,15 +17,9 @@ import pytest
 __all__: list[str] = []
 
 
-def _fail_skip(report: pytest.TestReport | pytest.CollectReport) -> None:
-    """Turn a skip or xfail into a failure that names it."""
-    if hasattr(report, "wasxfail"):
-        what = f"xfail ({report.wasxfail or 'no reason given'})"
-        del report.wasxfail
-    elif report.skipped:
-        what = f"skip ({report.longrepr[2] if isinstance(report.longrepr, tuple) else report.longrepr})"
-    else:
-        return
+def _fail(report: pytest.TestReport | pytest.CollectReport) -> None:
+    """Turn a skipped, xfailed or xpassed report into a failure that names it."""
+    what = report.longrepr[2] if isinstance(report.longrepr, tuple) else "xfail"
     report.outcome = "failed"
     report.longrepr = (
         f"{report.nodeid}: {what}. No test skips or xfails (BetterRobot decision record 0033): mark a test that "
@@ -35,10 +29,11 @@ def _fail_skip(report: pytest.TestReport | pytest.CollectReport) -> None:
 
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
-def pytest_runtest_makereport() -> Generator[None, pytest.TestReport, pytest.TestReport]:
-    """Fail a test whose setup, call or teardown skipped or xfailed."""
+def pytest_runtest_makereport(item: pytest.Item) -> Generator[None, pytest.TestReport, pytest.TestReport]:
+    """Fail a test whose setup, call or teardown skipped or xfailed, and an xfail-marked test that passed."""
     report = yield
-    _fail_skip(report)
+    if report.skipped or (report.when == "call" and item.get_closest_marker("xfail") is not None):
+        _fail(report)
     return report
 
 
@@ -46,5 +41,6 @@ def pytest_runtest_makereport() -> Generator[None, pytest.TestReport, pytest.Tes
 def pytest_make_collect_report() -> Generator[None, pytest.CollectReport, pytest.CollectReport]:
     """Fail a module that skips at collection (``importorskip`` or ``skip(allow_module_level=True)``)."""
     report = yield
-    _fail_skip(report)
+    if report.skipped:
+        _fail(report)
     return report
