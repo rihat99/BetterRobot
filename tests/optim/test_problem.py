@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from better_robot import optim
+from better_robot import exceptions, optim
 
 
 def _toy_problem(kernel=None, with_scalar=False):
@@ -66,14 +66,16 @@ def test_analytic_blocks_equal_autodiff_and_free_mask_freezes():
     goal = torch.tensor([[1.0, 2.0]], dtype=torch.float64).expand(3, 2)
     problem = optim.Problem({"x": x0}, data={"goal": goal})
     term = optim.TermFn(
-        fn=lambda x, goal: x @ matrix.T - goal, reads=("x", "goal"), jac=lambda x, goal: {"x": matrix.expand(3, 2, 3)}
+        fn=lambda x, goal: x @ matrix.T - goal,
+        reads=("x", "goal"),
+        jacobian=lambda x, goal: {"x": matrix.expand(3, 2, 3)},
     )
     problem.residual("linear", term, weight=3.0)
     problem.residual("prior", lambda x: 0.1 * x)
     assert optim.check_jacobian(problem)["linear"] < 1e-12
 
     frozen = problem.with_(free={"x": torch.tensor([True, False, True])})
-    result = optim.solve(frozen, optim.LevenbergMarquardt(), iters=30)
+    result = optim.solve(frozen, optim.LevenbergMarquardt(), iterations=30)
     assert torch.all(result.x["x"][:, 1] == 0.0)
     assert float(result.loss.max()) < float(problem.loss().min())
 
@@ -88,9 +90,9 @@ def test_same_problem_under_adam_gauss_newton_and_lm_with_active_bound():
     )
     problem.residual("fit", lambda x: x @ matrix.T - goal)
 
-    lm = optim.solve(problem, optim.LevenbergMarquardt(), iters=50)
-    gn = optim.solve(problem, optim.GaussNewton(), iters=50)
-    adam = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iters=3000)
+    lm = optim.solve(problem, optim.LevenbergMarquardt(), iterations=50)
+    gn = optim.solve(problem, optim.GaussNewton(), iterations=50)
+    adam = optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.05)), iterations=3000)
     assert bool(lm.done.all())
     assert float(lm.x["x"][:, 0].max()) <= 0.05
     torch.testing.assert_close(gn.x["x"], lm.x["x"], atol=1e-8, rtol=0.0)
@@ -120,7 +122,7 @@ def test_time_local_terms_match_row_by_row_autodiff():
     velocity = optim.TermFn(
         fn=lambda path: path[:, 1:] - path[:, :-1],
         reads=("path",),
-        jac=lambda path: {
+        jacobian=lambda path: {
             "path": (torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None, None] * torch.eye(3, dtype=path.dtype))
             .permute(1, 0, 2)
             .expand(2, 6, 3, 2, 3)
@@ -173,8 +175,8 @@ def test_block_tridiagonal_path_equals_dense(knots):
     torch.testing.assert_close(normal_b.predicted_decrease(delta), normal_d.predicted_decrease(delta))
 
     free = {"path": torch.arange(knots * 2) % 3 != 0}
-    result_b = optim.solve(banded.with_(free=free), optim.LevenbergMarquardt(), iters=40)
-    result_d = optim.solve(dense.with_(free=free), optim.LevenbergMarquardt(), iters=40)
+    result_b = optim.solve(banded.with_(free=free), optim.LevenbergMarquardt(), iterations=40)
+    result_d = optim.solve(dense.with_(free=free), optim.LevenbergMarquardt(), iterations=40)
     torch.testing.assert_close(result_b.x["path"], result_d.x["path"], atol=1e-7, rtol=0.0)
     torch.testing.assert_close(result_b.x["force"], result_d.x["force"], atol=1e-7, rtol=0.0)
     assert float(result_b.x["force"].abs().max()) <= 0.2
@@ -206,7 +208,7 @@ def test_shared_variables_border_the_band_and_equal_dense(knots):
                 (path[:, 1:] - path[:, :-1]).sum(-1, keepdim=True) - force[:, :-1] * shape[:, None, 2:]
             ),
             reads=("path", "force", "shape"),
-            jac=lambda path, force, shape: {
+            jacobian=lambda path, force, shape: {
                 "path": torch.tensor([-1.0, 1.0], dtype=path.dtype)[:, None].expand(*path[:, 1:, :1].shape, 2, 2),
                 "force": torch.stack(
                     [-shape[:, None, 2:].expand_as(force[:, :-1]), torch.zeros_like(force[:, :-1])], -2
@@ -234,8 +236,8 @@ def test_shared_variables_border_the_band_and_equal_dense(knots):
     torch.testing.assert_close(normal_a.predicted_decrease(delta), normal_d.predicted_decrease(delta))
 
     free = {"path": torch.arange(knots * 2) % 3 != 0, "shape": torch.tensor([True, False, True])}
-    result_a = optim.solve(arrow.with_(free=free), optim.LevenbergMarquardt(), iters=40)
-    result_d = optim.solve(dense.with_(free=free), optim.LevenbergMarquardt(), iters=40)
+    result_a = optim.solve(arrow.with_(free=free), optim.LevenbergMarquardt(), iterations=40)
+    result_d = optim.solve(dense.with_(free=free), optim.LevenbergMarquardt(), iterations=40)
     for name in ("path", "shape", "force"):
         torch.testing.assert_close(result_a.x[name], result_d.x[name], atol=1e-7, rtol=0.0)
     torch.testing.assert_close(result_a.x["shape"][:, 1], shape[:, 1].clamp(-0.4, 0.4))
@@ -258,8 +260,8 @@ def _curve_problem(goal):
 def test_batched_lbfgs_matches_lm():
     goal = torch.randn(6, 4, generator=torch.Generator().manual_seed(5), dtype=torch.float64)
     problem = _curve_problem(goal)
-    lm = optim.solve(problem, optim.LevenbergMarquardt(), iters=100)
-    lbfgs = optim.solve(problem, optim.LBFGS(), iters=300)
+    lm = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
+    lbfgs = optim.solve(problem, optim.LBFGS(), iterations=300)
     torch.testing.assert_close(lbfgs.loss, lm.loss, atol=1e-9, rtol=0.0)
     torch.testing.assert_close(lbfgs.x["x"], lm.x["x"], atol=1e-4, rtol=0.0)
 
@@ -278,7 +280,7 @@ def test_solve_layer_gradient_matches_finite_differences():
             },
         )
         problem.residual("fit", lambda x, goal: x + 0.2 * x.roll(1, -1) ** 2 - goal)
-        return optim.solve_layer(problem, optim.LevenbergMarquardt(), iters=200).x["x"]
+        return optim.solve_layer(problem, optim.LevenbergMarquardt(), iterations=200).x["x"]
 
     weights = torch.randn(4, 3, generator=torch.Generator().manual_seed(7), dtype=torch.float64)
     attached = goal.clone().requires_grad_(True)
@@ -296,6 +298,29 @@ def test_solve_layer_gradient_matches_finite_differences():
     # Row 0 sits on its bound: the clamped coordinate does not react to its own target.
     (bound_sensitivity,) = torch.autograd.grad(solution(attached)[0, 2], attached)
     assert float(bound_sensitivity.abs().max()) == 0.0
+
+
+def test_problem_is_immutable():
+    """Record 0017: no public path mutates a Problem; ``with_`` returns a new problem and leaves its parent as it was."""
+    target = torch.ones(2, 3)
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": target}, bounds={"x": (-target, target)})
+    problem.residual("fit", lambda x, target: x - target)
+    for mapping in (problem.variables, problem.data, problem.manifolds, problem.bounds, problem.terms, problem.weights):
+        with pytest.raises(TypeError):
+            mapping["x"] = target
+    for field in "variables data manifolds bounds time dense terms weights free tangent_dim".split():
+        with pytest.raises(AttributeError):
+            setattr(problem, field, None)
+    with pytest.raises(exceptions.ArgumentError, match="already exists"):
+        problem.residual("fit", lambda x: x)  # registration only adds names
+    with pytest.raises(exceptions.ArgumentError, match="already used"):
+        problem.with_(data={"x": target})
+    moved = problem.with_(data={"target": 2 * target, "offset": target}, weights={"fit": 2.0}, free={"x": target > 0})
+    moved.residual("offset", lambda x, offset: x - offset)
+    assert moved is not problem and moved.data["target"] is not target
+    assert problem.data["target"] is target and dict(problem.weights) == {} and problem.free is None
+    assert list(problem.data) == ["target"] and list(problem.terms) == ["fit"]
+    assert list(moved.terms) == ["fit", "offset"] and moved.weights["fit"] == 2.0
 
 
 def test_review_regressions():
@@ -316,7 +341,7 @@ def test_review_regressions():
     )
     scalar.scalar("bowl", lambda x, a: ((x - a) ** 2).sum(-1))
     with pytest.raises(ValueError, match="scalar"):
-        optim.solve_layer(scalar, optim.LBFGS(), iters=5)
+        optim.solve_layer(scalar, optim.LBFGS(), iterations=5)
 
 
 def test_phase_hooks_scheduler_and_per_knot_free_mask():
@@ -326,23 +351,24 @@ def test_phase_hooks_scheduler_and_per_knot_free_mask():
     rates, seen = [], []
 
     def retarget(view, x):
-        view.data["goal"] = view.data["goal"] * 2.0
+        return x, {"goal": view.data["goal"] * 2.0}
 
     adam = optim.TorchOptim(
-        torch.optim.Adam, lr=0.1, scheduler=lambda o: torch.optim.lr_scheduler.MultiStepLR(o, milestones=[2], gamma=0.1)
+        lambda params: torch.optim.Adam(params, lr=0.1),
+        scheduler=lambda o: torch.optim.lr_scheduler.MultiStepLR(o, milestones=[2], gamma=0.1),
     )
     free = {"path": torch.tensor([True, False, True])}
     phases = [
         optim.Phase(
             adam,
-            iters=4,
+            iterations=4,
             free=free,
             stop_every=0,
             on_step=lambda view, state: rates.append(state.extra["optimizer"].param_groups[0]["lr"]),
         ),
         optim.Phase(
             optim.LevenbergMarquardt(),
-            iters=10,
+            iterations=10,
             free=free,
             on_start=retarget,
             on_step=lambda view, state: seen.append(view.losses(state.x)["fit"]),
@@ -370,7 +396,7 @@ def test_augmented_lagrangian_reaches_the_constrained_optimum():
     expected = torch.tensor([[0.2, 0.55, 0.25], [-0.2, 0.5, 0.7]], dtype=torch.float64)
     torch.testing.assert_close(result.x["x"], expected, atol=1e-7, rtol=0.0)
     assert bool(result.done.all()) and result.history["violation"].shape[1] == 2
-    assert "total.shift" not in problem.data and problem.terms["cap"].fn is cap
+    assert "total.shift" not in problem.data and problem.terms["cap"].fn is cap.fn
     torch.testing.assert_close(result.loss, 0.5 * (expected - a).square().sum(-1), atol=1e-7, rtol=0.0)
 
 
@@ -393,23 +419,28 @@ def test_shared_columns_through_a_once_differentiable_op_fail_loudly():
         problem.linearize()
 
 
-def test_cached_returns_handle_and_unknown_cached_read_fails_at_registration():
+def test_cached_returns_its_name_and_unknown_cached_read_fails_at_registration():
     problem = optim.Problem({"x": torch.zeros(2, 3)})
-    ref = problem.cached(lambda x: 2.0 * x, name="doubled")
-    assert isinstance(ref, optim.CacheRef) and str(ref) == "doubled"
-    problem.residual("fit", lambda doubled: doubled, reads=(str(ref),))
+    name = problem.cached(lambda x: 2.0 * x, name="doubled")
+    assert name == "doubled"
+    problem.residual("fit", lambda doubled: doubled, reads=(name,))
     with pytest.raises(KeyError, match="tripled"):
         problem.residual("bad", lambda tripled: tripled, reads=("tripled",))
 
 
 @pytest.mark.parametrize(
     "solver",
-    [optim.LevenbergMarquardt(), optim.GaussNewton(), optim.LBFGS(), optim.TorchOptim(torch.optim.Adam, lr=0.1)],
+    [
+        optim.LevenbergMarquardt(),
+        optim.GaussNewton(),
+        optim.LBFGS(),
+        optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.1)),
+    ],
 )
 def test_solvers_accept_an_empty_batch(solver):
     problem = optim.Problem({"x": torch.zeros(0, 2)}, data={"goal": torch.zeros(0, 2)})
     problem.residual("fit", lambda x, goal: x - goal)
-    result = optim.solve(problem, solver, iters=2)
+    result = optim.solve(problem, solver, iterations=2)
     assert result.x["x"].shape == (0, 2) and result.loss.shape == (0,)
 
 

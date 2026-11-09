@@ -160,7 +160,7 @@ problem.residual("velocity", terms.finite_difference(model, order=1, dt=dt), wei
 problem.residual("clearance", terms.sphere_clearance(spheres, to_obstacle, margin=margin),
                  weight=1e2, window=1)
 
-result = optim.solve(problem, optim.LevenbergMarquardt(), iters=100)
+result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
 print(f"straight {clearance(straight):+.3f} m, optimized {clearance(result.x['q'][0]):+.3f} m")
 # straight -0.070 m, optimized +0.019 m
 assert clearance(result.x["q"][0]) > clearance(straight)

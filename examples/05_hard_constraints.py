@@ -39,7 +39,7 @@ def main() -> None:
     problem.residual("reach", terms.frame_position(model, frame=HAND, target="goal"))
     problem.residual("under", lambda state, ceiling: state.frame_poses[:, elbow, 2:3] - ceiling)
 
-    soft = optim.solve(problem.with_(weights={"reach": 100.0, "under": 0.0}), optim.LevenbergMarquardt(), iters=50)
+    soft = optim.solve(problem.with_(weights={"reach": 100.0, "under": 0.0}), optim.LevenbergMarquardt(), iterations=50)
     hard = optim.solve_constrained(
         problem, optim.LevenbergMarquardt(), equalities=("reach",), inequalities=("under",), tolerance=1e-8
     )
@@ -52,7 +52,7 @@ def main() -> None:
             f"{label:25s}: worst reach error {float(reach):.1e} m, elbow above ceiling by at most "
             f"{float(over):+.1e} m, mean joint motion {float(moved):.3f} rad"
         )
-    print(f"rounds: {hard.history['violation'].shape[0]}, LM steps: {hard.iters}")
+    print(f"rounds: {hard.history['violation'].shape[0]}, LM steps: {hard.iterations}")
 
 
 if __name__ == "__main__":

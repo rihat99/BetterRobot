@@ -7,6 +7,8 @@ from collections.abc import Mapping, Sequence
 
 import torch
 
+from ..exceptions import ArgumentError, UnknownNameError
+from .evaluation import zero_loss
 from .phases import Result, solve
 from .problem import Problem
 from .solvers import Solver
@@ -19,10 +21,10 @@ def _shifted(term, shift_name: str, *, inequality: bool):
         value = term.fn(*args[:-1]) + args[-1]
         return value.clamp_min(0.0) if inequality else value
 
-    jac = None
-    if term.jac is not None and not inequality:
-        jac = lambda *args: term.jac(*args[:-1])  # noqa: E731 - the shift is constant
-    return dataclasses.replace(term, fn=fn, reads=(*term.reads, shift_name), jac=jac, kernel=None)
+    jacobian = None
+    if term.jacobian is not None and not inequality:
+        jacobian = lambda *args: term.jacobian(*args[:-1])  # noqa: E731 - the shift is constant
+    return dataclasses.replace(term, fn=fn, reads=(*term.reads, shift_name), jacobian=jacobian, kernel=None)
 
 
 def solve_constrained(
@@ -32,7 +34,7 @@ def solve_constrained(
     equalities: Sequence[str] = (),
     inequalities: Sequence[str] = (),
     outer: int = 10,
-    iters: int = 30,
+    iterations: int = 30,
     penalty: float = 10.0,
     growth: float = 10.0,
     tolerance: float = 1e-6,
@@ -42,7 +44,7 @@ def solve_constrained(
 
     The constraints are residual terms already registered on ``problem``, named here; their
     own weight and kernel are ignored. Each of at most ``outer`` rounds runs ``solver`` for
-    ``iters`` steps on the problem with every constraint replaced by the least-squares term
+    ``iterations`` steps on the problem with every constraint replaced by the least-squares term
     ``½ ρ ‖c + λ/ρ‖²``, then updates the multipliers ``λ``. The penalty ``ρ`` (per batch
     element, starting at ``penalty``) grows by ``growth`` when the violation did not fall
     to a quarter. Stops when the largest violation of every batch element is below
@@ -50,30 +52,33 @@ def solve_constrained(
     ``Result.history["violation"]`` is ``(rounds, B)``.
     """
     names = [*equalities, *inequalities]
-    unknown = [name for name in names if name not in problem.terms or problem.terms[name].kind != "residual"]
-    if unknown or not names:
-        raise KeyError(f"constraints must name residual terms of the problem; not found: {unknown}")
-    if outer < 1:
-        raise ValueError(f"outer must be at least 1, got {outer}")
-    view = problem.with_()
+    if not names:
+        raise ArgumentError("solve_constrained needs at least one equality or inequality")
+    residuals = [name for name, term in problem.terms.items() if term.kind == "residual"]
     for name in names:
-        view.terms[name] = _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities)
+        if name not in residuals:
+            raise UnknownNameError("residual term", name, residuals)
+    if outer < 1:
+        raise ArgumentError(f"outer must be at least 1, got {outer}")
     plain = problem.with_(weights=dict.fromkeys(names, 1.0))
     current = {key: value.detach() for key, value in (x if x is not None else problem.variables).items()}
     with torch.no_grad():
         values = plain.residuals(current)
     multipliers = {name: torch.zeros_like(values[name]) for name in names}
-    rho = problem._zeros() + penalty
+    shifted = problem.with_(data={f"{name}.shift": multipliers[name] for name in names})._with_terms(
+        {name: _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities) for name in names}
+    )
+    rho = zero_loss(problem) + penalty
     previous = torch.full_like(rho, float("inf"))
     violations, total, result = [], 0, None
     for _ in range(outer):
-        weights = {}
+        weights, shifts = {}, {}
         for name in names:
             shaped = rho.reshape(-1, *([1] * (multipliers[name].ndim - 1)))
-            view.data[f"{name}.shift"] = multipliers[name] / shaped
+            shifts[f"{name}.shift"] = multipliers[name] / shaped
             weights[name] = shaped
-        result = solve(view.with_(weights=weights), solver, iters=iters, x=current)
-        current, total = result.x, total + result.iters
+        result = solve(shifted.with_(data=shifts, weights=weights), solver, iterations=iterations, x=current)
+        current, total = result.x, total + result.iterations
         with torch.no_grad():
             values = plain.residuals(current)
         violation = torch.zeros_like(rho)
@@ -93,7 +98,7 @@ def solve_constrained(
     history = {"violation": torch.stack(violations)}
     with torch.no_grad():
         loss = problem.with_(weights=dict.fromkeys(names, 0.0)).loss(current)
-    return Result(x=current, loss=loss, done=violations[-1] < tolerance, iters=total, history=history)
+    return Result(x=current, loss=loss, done=violations[-1] < tolerance, iterations=total, history=history)
 
 
 __all__ = ["solve_constrained"]

@@ -78,19 +78,19 @@ problem = Problem(
     data={"target": torch.randn(B, T, 2)},
     time=("x",),
 )
-def track_jac(x, offset, target):
+def track_jacobian(x, offset, target):
     eye = torch.eye(2).expand(B, T, 2, 2)
     return {"x": eye[:, :, :, None, :], "offset": eye}  # (B, T, m, k, n) and (B, T, m, n)
 
 track = TermFn(lambda x, offset, target: x + offset[:, None] - target,
-               reads=("x", "offset", "target"), jac=track_jac)
+               reads=("x", "offset", "target"), jacobian=track_jacobian)
 problem.residual("track", track, window=1)
 problem.residual("velocity", lambda x: x[:, 1:] - x[:, :-1], weight=10.0, window=2)
 problem.residual("offset_prior", lambda offset: offset, weight=1e-2)
 
 normal, _ = problem.linearize(problem.variables)
 print(type(normal).__name__)  # ArrowNormal
-result = solve(problem, LevenbergMarquardt(), iters=30)
+result = solve(problem, LevenbergMarquardt(), iterations=30)
 ```
 ```output
 ArrowNormal
@@ -119,19 +119,19 @@ coordinates per variable (`False` freezes). The next phase starts from the previ
 from better_robot.optim import Phase, run
 
 phases = [
-    Phase(LevenbergMarquardt(), iters=20, name="smooth", weights={"track": 0.1},
+    Phase(LevenbergMarquardt(), iterations=20, name="smooth", weights={"track": 0.1},
           free={"offset": torch.zeros(2, dtype=torch.bool)}),
-    Phase(LevenbergMarquardt(), iters=30, name="fit"),
+    Phase(LevenbergMarquardt(), iterations=30, name="fit"),
 ]
 result = run(problem, phases)
-print(result.iters, {name: tuple(h.shape) for name, h in result.history.items()})
+print(result.iterations, {name: tuple(h.shape) for name, h in result.history.items()})
 ```
 ```output
 28 {'smooth': (15, 2), 'fit': (13, 2)}
 ```
 
-`Phase.on_start(problem, x)` runs before the first step and may return new variables or refresh
-`problem.data` (the phase's own copy), for example contact labels; `on_step(problem, state)` runs after each
+`Phase.on_start(problem, x) -> (x, data)` runs before the first step: the phase starts from the returned
+variables, and `data` replaces entries of the phase's problem, for example contact labels; `on_step(problem, state)` runs after each
 step for logging. `Result.history[name]` is the `(steps, B)` loss of each phase. A full example with weight
 schedules and free masks is [Fit a clip](../guides/fit-a-clip.md).
 

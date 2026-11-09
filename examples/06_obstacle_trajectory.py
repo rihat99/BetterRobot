@@ -31,7 +31,6 @@ SPHERES = {
 
 
 def main() -> None:
-    torch.set_num_threads(4)
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
     spheres = collision.RobotSpheres.from_frames(model, SPHERES)
     q_a, q_b = torch.tensor(READY, dtype=torch.float64), torch.tensor(READY, dtype=torch.float64)
@@ -68,7 +67,7 @@ def main() -> None:
     print(f"straight path: minimum clearance {clearance(straight):+.3f} m (negative = penetration)")
     runs = {
         "soft penalty (LM)": lambda: optim.solve(
-            problem.with_(weights={"keep_out": 0.0}), optim.LevenbergMarquardt(), iters=200
+            problem.with_(weights={"keep_out": 0.0}), optim.LevenbergMarquardt(), iterations=200
         ),
         "hard inequality": lambda: optim.solve_constrained(
             problem.with_(weights={"clearance": 0.0}), optim.LevenbergMarquardt(), inequalities=("keep_out",)
@@ -84,7 +83,7 @@ def main() -> None:
         print(
             f"{label:18s}: minimum clearance {clearance(q):+.3f} m, joint path length {length:.3f} rad "
             f"(straight {float((q_b - q_a).norm()):.3f}), end error {end_error:.1e} rad, "
-            f"{result.iters} LM steps in {seconds * 1e3:.0f} ms"
+            f"{result.iterations} LM steps in {seconds * 1e3:.0f} ms"
         )
 
 

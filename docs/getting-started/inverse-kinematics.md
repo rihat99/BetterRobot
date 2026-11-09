@@ -26,7 +26,8 @@ target = forward_kinematics(model, q_goal).frame_poses[:, hand]  # (32, 7)
 ```
 
 `terms.random_start` redraws every bounded vector-space joint inside its limits for every row of `q0`; free-flyer,
-spherical and unbounded joints keep their `q0` values.
+spherical and unbounded joints keep their `q0` values. The draw happens on `q0`'s device, so the generator lives there
+too (`torch.Generator(device=q0.device)`).
 
 ## Solve with one call
 
@@ -55,11 +56,10 @@ print(f"reached (<0.1 mm): {float((error < 1e-4).float().mean()):.2f}, median er
 reached (<0.1 mm): 0.97, median error 2.3e-12 m
 ```
 
-`result.x` is a dict of the solved variables; IK has one variable, `"q"`, and `result[name]` is shorthand for `result.x[name]`:
+`result.x` is a dict of the solved variables; IK has one variable, `"q"`:
 
 ```python
-q = result["q"]  # (32, nq)
-assert q is result.x["q"]
+q = result.x["q"]  # (32, nq)
 ```
 
 <figure markdown>
@@ -75,10 +75,10 @@ named tensors that returns a residual; its Jacobian comes from autograd. Here a 
 
 ```python
 problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
-problem.data["preferred_elbow"] = torch.tensor(-1.8, dtype=torch.float64)
+problem = problem.with_(data={"preferred_elbow": torch.tensor(-1.8, dtype=torch.float64)})
 problem.residual("elbow", lambda q, preferred_elbow: q[:, 3:4] - preferred_elbow, weight=1e-3)
 
-result = optim.solve(problem, optim.LevenbergMarquardt(), iters=100)
+result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
 for name, loss in problem.losses(result.x).items():
     print(f"{name}: {float(loss.mean()):.2e}")
 ```
@@ -88,14 +88,14 @@ elbow: 6.95e-04
 ```
 
 The lambda's argument names select the tensors it receives: `q` is the variable, `preferred_elbow` comes
-from `problem.data`.
+from `problem.data`. A problem never changes once built: `with_(data=)` returns a new one with the entry added.
 
 ## Swap the optimizer
 
 The same problem runs under any `torch.optim` optimizer. Adam needs many more steps than LM:
 
 ```python
-result = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iters=300)
+result = optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.05)), iterations=300)
 ```
 
 ## Where next

@@ -19,7 +19,7 @@ from better_robot.optim import LevenbergMarquardt, Problem, solve
 torch.manual_seed(0)
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
 problem.residual("fit", lambda x, target: x - target)
-result = solve(problem, LevenbergMarquardt(), iters=20)
+result = solve(problem, LevenbergMarquardt(), iterations=20)
 assert result.x["x"].shape == (4, 2) and bool(result.done.all())
 ```
 
@@ -37,10 +37,10 @@ assert result.x["x"].shape == (4, 2) and bool(result.done.all())
 
 ## Terms are functions
 
-`residual(name, fn, weight=, kernel=, jac=, reads=, window=)` adds a least-squares term. `fn` returns
+`residual(name, fn, weight=, kernel=, reads=, jacobian=, window=)` adds a least-squares term. `fn` returns
 `(B, ..., k)` and its loss is `½ · weight · Σ r²`. `scalar(name, fn, weight=)` adds a term that already
 returns a `(B,)` loss. `cached(fn, name=)` registers an intermediate that several terms read, such as a
-kinematic state; it is computed at most once per evaluation.
+kinematic state, and returns its name; it is computed at most once per evaluation.
 
 ```python
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
@@ -66,8 +66,8 @@ diagnostics (a contact count, an inlier ratio) that is detached and never enters
 
 ### Analytic Jacobians and `TermFn`
 
-Without `jac`, the Jacobian comes from autodiff. A `TermFn(fn, reads, jac=, window=)` bundles a function
-with what it reads and, optionally, an analytic Jacobian. `jac(*reads)` returns `{variable: (B, m, n)}`,
+Without `jacobian`, the Jacobian comes from autodiff. A `TermFn(fn, reads, jacobian=, window=)` bundles a
+function with what it reads and, optionally, an analytic Jacobian. `jacobian(*reads)` returns `{variable: (B, m, n)}`,
 one block per variable in that variable's tangent coordinates, with the chain rule through any cached
 value already applied. `window=k` declares a time-local term; see
 [Time and structure](time-and-structure.md#windows-make-terms-time-local).
@@ -75,16 +75,16 @@ value already applied. `window=k` declares a time-local term; see
 ```python
 from better_robot.optim import TermFn, check_jacobian
 
-def fit_jac(x, target):
+def fit_jacobian(x, target):
     return {"x": torch.eye(2).expand(x.shape[0], 2, 2)}
 
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
-problem.residual("fit", TermFn(lambda x, target: x - target, reads=("x", "target"), jac=fit_jac))
+problem.residual("fit", TermFn(lambda x, target: x - target, reads=("x", "target"), jacobian=fit_jacobian))
 errors = check_jacobian(problem)
 assert errors["fit"] < 1e-6
 ```
 
-`check_jacobian(problem, x=None)` compares every term that has a `jac` or a `window` with plain
+`check_jacobian(problem, x=None)` compares every term that has a `jacobian` or a `window` with plain
 row-by-row autodiff and returns `{term: error}`, measured on `H` and `g` relative to the largest entry of
 `H`. Run it in a test for every term you write; [Write a term](../guides/write-a-term.md) walks through one.
 
@@ -123,29 +123,29 @@ treat it as a first-order term.
 
 ## Solvers are `init` and `step`
 
-A solver implements the `Solver` protocol: `init(problem, x) -> State` and
-`step(problem, state) -> State`. After each step a solver writes fixed diagnostic keys into `State.extra`,
+A solver subclasses the abstract `Solver`: `init(problem, x) -> State` and
+`step(problem, state) -> State`, and `warm_keys` names the `State.extra` entries a warm start keeps. After each step a solver writes fixed diagnostic keys into `State.extra`,
 each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
 `State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`, the step
-count `it`, and `extra` for solver-owned values (damping, moments). Every solver also writes
+count `iteration`, and `extra` for solver-owned values (damping, moments). Every solver also writes
 `extra["terms"]`, the detached `(B,)` loss of each active term from the evaluation `loss` comes from, and
 `TorchOptim` writes `extra["info"]`, so a `Phase.on_step` logger needs no second forward.
 
 | Solver | Uses | Notes |
 |---|---|---|
-| `LevenbergMarquardt(damping=, gtol=, ftol=, xtol=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
+| `LevenbergMarquardt(damping=, gradient_tolerance=, loss_tolerance=, step_tolerance=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
 | `GaussNewton(damping=0.0)` | `linearize` | full step, optional fixed damping; fast near a good start |
 | `LBFGS(history=10, line_search=20)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one; the first trial carries its gradient, so a step that every problem takes there costs one evaluation; bounds by projection |
-| `TorchOptim(torch.optim.Adam, lr=...)` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
+| `TorchOptim(lambda params: torch.optim.Adam(params, lr=...))` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
 
 Because a solver is two functions, you can drive it yourself:
 
 ```python
 solver = LevenbergMarquardt()
 state = solver.init(problem, dict(problem.variables))
-while not bool(state.done.all()) and state.it < 50:
+while not bool(state.done.all()) and state.iteration < 50:
     state = solver.step(problem, state)
-print(state.it, state.loss)
+print(state.iteration, state.loss)
 ```
 ```output
 4 tensor([0., 0., 0., 0.])
@@ -153,27 +153,28 @@ print(state.it, state.loss)
 
 ## `solve`, `run` and friends
 
-- `solve(problem, solver, *, iters=50, x=None, state=None) -> Result` runs one solver until every problem is
-  done or `iters` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
+- `solve(problem, solver, *, iterations=50, x=None, state=None) -> Result` runs one solver until every problem is
+  done or `iterations` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
   the next solve (LM keeps its damping, L-BFGS its curvature memory) from `x`, else `state.x`.
   `Result.diagnostics[phase][key]` stacks the diagnostic keys per step, `(steps, B)`.
-  `Result` has `x`, `loss`, `done`, `iters` and a per-phase loss `history`;
+  `Result` has `x`, `loss`, `done`, `iterations` and a per-phase loss `history`;
   `result["q"]` is shorthand for `result.x["q"]`.
 - `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
   coordinates ([Fit a clip](../guides/fit-a-clip.md)).
-- `solve_layer(problem, solver, *, iters=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
+- `solve_layer(problem, solver, *, iterations=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
   ([Own the loop](../guides/own-the-loop.md)).
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard
   constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)).
 
-`problem.with_(weights=, free=)` returns a view with term weights overridden (`0` switches a term off) and
-tangent coordinates frozen by a bool mask `(n,)` or `(B, n)`. `Phase` uses it internally.
+A `Problem` never changes once built. `problem.with_(data=, weights=, free=)` returns a new problem with data
+entries added or replaced, term weights overridden (`0` switches a term off) and tangent coordinates frozen by
+a bool mask `(n,)` or `(B, n)`; the original stays as it was. `Phase` uses it internally.
 
 ```python
 from better_robot.optim import TorchOptim
 
 loose = problem.with_(weights={"fit": 0.5})
-result = solve(loose, TorchOptim(torch.optim.Adam, lr=0.1), iters=100)
+result = solve(loose, TorchOptim(lambda params: torch.optim.Adam(params, lr=0.1)), iterations=100)
 print(result.loss)
 ```
 ```output

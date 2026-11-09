@@ -23,7 +23,6 @@ KNOTS, FPS = 120, 30.0
 
 
 def main() -> None:
-    torch.set_num_threads(8)
     model = br.load(g1_description.URDF_PATH, root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     markers = [n for n in model.frame_names if any(k in n for k in ("pelvis", "ankle_roll", "wrist_yaw", "head"))][:6]
     marker_ids = [model.frame_id(n) for n in markers]

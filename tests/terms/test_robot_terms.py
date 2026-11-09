@@ -25,7 +25,7 @@ def test_analytic_jacobians_match_autodiff(panda):
     q = _random_q(panda, 6, 0)
     goal = forward_kinematics(panda, _random_q(panda, 6, 1)).frame_poses[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=q + 4.0, limit_weight=2.0, rest_weight=0.5)
-    problem.data["point"] = goal[:, :3]
+    problem = problem.with_(data={"point": goal[:, :3]})
     problem.residual(
         "position", terms.frame_position(panda, frame=FRAME, target="point"), kernel=optim.Huber(delta=0.1)
     )
@@ -45,10 +45,15 @@ def test_ik_with_restarts_reaches_every_target_inside_limits(panda):
     assert bool(((q >= panda.lower_position_limit) & (q <= panda.upper_position_limit)).all())
 
 
-def test_result_getitem_and_ik_problem_state_handle(panda):
+def test_ik_restarts_need_a_generator(panda):
+    q0 = panda.q_neutral[None]
+    goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
+    with pytest.raises(br.exceptions.ArgumentError, match="generator"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=1)
+
+
+def test_ik_problem_terms_read_the_state_by_name(panda):
     goal = forward_kinematics(panda, _random_q(panda, 4, 2)).frame_poses[:, panda.frame_id(FRAME)]
-    result = terms.solve_ik(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))
-    assert result["q"] is result.x["q"]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))
     assert problem.terms[f"pose/{FRAME}"].reads[0] == "state"
 
@@ -59,7 +64,7 @@ def test_robot_manifold_accepts_an_empty_batch(panda):
         {"q": torch.zeros(0, panda.nq, dtype=torch.float64)}, manifolds={"q": terms.RobotManifold(panda)}
     )
     problem.residual("rest", terms.rest(panda, torch.zeros(panda.nq, dtype=torch.float64)))
-    result = optim.solve(problem, optim.LevenbergMarquardt(), iters=2)
+    result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=2)
     assert result.x["q"].shape == (0, panda.nq) and result.loss.shape == (0,)
 
 

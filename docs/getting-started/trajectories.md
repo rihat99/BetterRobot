@@ -71,11 +71,11 @@ Each piece does one job:
 ## Solve and check
 
 ```python
-result = optim.solve(problem, optim.LevenbergMarquardt(), iters=200)
+result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=200)
 q = result.x["q"][0]  # (KNOTS, nq)
 
 reached = forward_kinematics(model, q).frame_poses[:, hand]
-print(f"{result.iters} LM steps, goal error {float((reached[-1, :3] - pose_goal[:3]).norm()):.1e} m")
+print(f"{result.iterations} LM steps, goal error {float((reached[-1, :3] - pose_goal[:3]).norm()):.1e} m")
 print(f"peak joint speed {float(((q[1:] - q[:-1]) / DT).abs().max()):.2f} rad/s")
 ```
 ```output

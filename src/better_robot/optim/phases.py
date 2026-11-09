@@ -3,54 +3,59 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import KW_ONLY, dataclass, field, replace
+from typing import Any, final
 
 import torch
 
+from ..exceptions import ArgumentError, ShapeError
+from .evaluation import active_terms
 from .problem import Problem
 from .solvers import DIAGNOSTICS, Solver, State
 
 
+@final
 @dataclass(frozen=True)
 class Phase:
     """One stage of a solve.
 
     ``weights`` overrides term weights by name (0 switches a term off). ``free`` freezes
-    tangent coordinates (see ``Problem.with_``). ``on_start(problem, x)`` runs before
-    the first step; it may return replacement variables and may write ``problem.data`` (the
-    phase's own copy) to refresh what terms read, such as contact labels.
+    tangent coordinates (see ``Problem.with_``). ``on_start(problem, x) -> (x, data)`` runs before
+    the first step: the phase starts from the returned variables, and ``data`` replaces entries of the
+    phase's problem (``Problem.with_(data=)``) to refresh what terms read, such as contact labels;
+    ``(x, {})`` changes nothing.
     ``on_step(problem, state)`` runs after every step, for logging; ``state.extra["terms"]`` holds
     the loss of every term (and, under ``TorchOptim``, ``state.extra["info"]`` the terms' info dicts)
     from the step's own evaluation, so logging costs no second forward. Every ``stop_every``
-    iterations the driver stops early if all problems are done; 0 runs exactly ``iters`` steps.
+    iterations the driver stops early if all problems are done; 0 runs exactly ``iterations`` steps.
     """
 
     solver: Solver
-    iters: int
+    iterations: int
+    _: KW_ONLY
     name: str = "phase"
     weights: Mapping[str, float] | None = None
     free: Mapping[str, torch.Tensor] | None = None
-    on_start: Callable[[Problem, dict[str, torch.Tensor]], dict[str, torch.Tensor] | None] | None = None
+    on_start: (
+        Callable[[Problem, dict[str, torch.Tensor]], tuple[Mapping[str, torch.Tensor], Mapping[str, Any]]] | None
+    ) = None
     on_step: Callable[[Problem, State], None] | None = None
     stop_every: int = 1
 
 
+@final
 @dataclass(frozen=True)
 class Result:
-    """Outcome of ``run``."""
+    """Outcome of ``run``: the solved variables ``x`` (``result.x["q"]``), their loss and the solve's record."""
 
     x: dict[str, torch.Tensor]
     loss: torch.Tensor  #: ``(B,)`` final loss under the last phase's weights.
     done: torch.Tensor  #: ``(B,)`` convergence flag of the last phase.
-    iters: int  #: total steps taken.
+    iterations: int  #: total steps taken.
     history: dict[str, torch.Tensor] = field(default_factory=dict)  #: ``{phase: (steps, B)}`` losses.
     #: ``{phase: {key: (steps, B)}}`` per-step solver diagnostics (key set: ``State`` docstring).
     diagnostics: dict[str, dict[str, torch.Tensor]] = field(default_factory=dict)
     state: State | None = None  #: final solver state of the last phase; pass as ``state=`` to warm-start.
-
-    def __getitem__(self, name: str) -> torch.Tensor:
-        """Final value of variable ``name``; shorthand for ``result.x[name]``."""
-        return self.x[name]
 
 
 def run(
@@ -68,7 +73,7 @@ def run(
     size must match.
     """
     if state is not None and not isinstance(state, State):
-        raise TypeError(f"state must be a solver State (e.g. Result.state), got {type(state).__name__}")
+        raise ArgumentError(f"state must be a solver State (e.g. Result.state), got {type(state).__name__}")
     start = x if x is not None else state.x if state is not None else problem.variables
     current = {name: value.detach() for name, value in start.items()}
     history: dict[str, torch.Tensor] = {}
@@ -77,18 +82,19 @@ def run(
     for phase in phases:
         view = problem.with_(weights=phase.weights, free=phase.free)
         if phase.on_start is not None:
-            current = phase.on_start(view, current) or current
+            current, data = phase.on_start(view, current)
+            current = dict(current)
+            view = view.with_(data=data)
         state = phase.solver.init(view, current)
         if warm is not None:
-            # optim imports only torch, so a plain ValueError stands in for ShapeError here.
             if warm.done.shape != state.done.shape:
-                raise ValueError(
+                raise ShapeError(
                     f"warm-start state has batch {tuple(warm.done.shape)}, problem has {tuple(state.done.shape)}"
                 )
-            kept = {key: warm.extra[key] for key in getattr(phase.solver, "warm_keys", ()) if key in warm.extra}
+            kept = {key: warm.extra[key] for key in phase.solver.warm_keys if key in warm.extra}
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []
-        for iteration in range(phase.iters):
+        for iteration in range(phase.iterations):
             state = phase.solver.step(view, state)
             losses.append(state.loss)
             steps.append({key: state.extra[key] for key in DIAGNOSTICS if key in state.extra})
@@ -96,7 +102,7 @@ def run(
                 phase.on_step(view, state)
             if phase.stop_every and (iteration + 1) % phase.stop_every == 0 and bool(state.done.all()):
                 break
-        total += state.it
+        total += state.iteration
         current = {name: value.detach() for name, value in state.x.items()}
         if losses:
             history[phase.name] = torch.stack(losses)
@@ -104,26 +110,28 @@ def run(
     with torch.no_grad():
         loss = view.loss(current)
     done = state.done if state is not None else torch.zeros_like(loss, dtype=torch.bool)
-    return Result(x=current, loss=loss, done=done, iters=total, history=history, diagnostics=diagnostics, state=state)
+    return Result(
+        x=current, loss=loss, done=done, iterations=total, history=history, diagnostics=diagnostics, state=state
+    )
 
 
 def solve(
     problem: Problem,
     solver: Solver,
     *,
-    iters: int = 50,
+    iterations: int = 50,
     x: Mapping[str, torch.Tensor] | None = None,
     state: State | None = None,
 ) -> Result:
-    """Run one solver for at most ``iters`` steps; ``state`` warm-starts it (see ``run``)."""
-    return run(problem, [Phase(solver=solver, iters=iters)], x=x, state=state)
+    """Run one solver for at most ``iterations`` steps; ``state`` warm-starts it (see ``run``)."""
+    return run(problem, [Phase(solver=solver, iterations=iterations)], x=x, state=state)
 
 
 def solve_layer(
     problem: Problem,
     solver: Solver,
     *,
-    iters: int = 50,
+    iterations: int = 50,
     x: Mapping[str, torch.Tensor] | None = None,
     damping: float = 1e-6,
 ) -> Result:
@@ -138,10 +146,10 @@ def solve_layer(
     redundant arm), where the sensitivity is zero. Problems with scalar terms are rejected:
     their curvature is not in ``H``, so the derivative would be wrong.
     """
-    scalars = [term.name for term in problem._active() if term.kind == "scalar"]
+    scalars = [term.name for term in active_terms(problem) if term.kind == "scalar"]
     if scalars:
-        raise ValueError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
-    result = solve(problem, solver, iters=iters, x=x)
+        raise ArgumentError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
+    result = solve(problem, solver, iterations=iterations, x=x)
     normal, _ = problem.linearize(result.x)
     _, g, _ = problem.gradient(result.x, create_graph=True)
     bounds = problem.step_bounds(result.x)

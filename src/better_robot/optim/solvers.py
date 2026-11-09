@@ -8,15 +8,18 @@ per trial, to stop once every problem has its step.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, ClassVar, final
 
 import torch
 
+from ..exceptions import ArgumentError, ShapeError
 from .problem import Problem
 
 
+@final
 @dataclass
 class State:
     """Optimizer state of a batch of problems.
@@ -26,7 +29,7 @@ class State:
     (largest entry of the step taken, 0 where none was taken), ``accepted`` (bool, the step
     moved the variables) and ``damping`` (LM only, damping for the next step). LM, Gauss-Newton
     and L-BFGS write the first three; ``TorchOptim`` writes none. ``run`` stacks them into
-    ``Result.diagnostics``. ``warm_keys`` on a solver names the ``extra`` entries a warm start keeps.
+    ``Result.diagnostics``. ``Solver.warm_keys`` names the ``extra`` entries a warm start keeps.
 
     Every solver also writes ``terms``, ``{name: (B,)}``: the detached loss of each active term from
     the evaluation that ``loss`` comes from, so logging needs no second forward. ``TorchOptim`` adds
@@ -36,28 +39,33 @@ class State:
     x: dict[str, torch.Tensor]  #: variables, each ``(B, *event)``.
     loss: torch.Tensor  #: ``(B,)`` loss at ``x``.
     done: torch.Tensor  #: ``(B,)`` bool, per-problem convergence.
-    it: int = 0  #: steps taken so far.
+    iteration: int = 0  #: steps taken so far.
     extra: dict[str, Any] = field(default_factory=dict)  #: solver-owned (damping, moments, ...).
 
 
 DIAGNOSTICS = ("grad_norm", "step_norm", "accepted", "damping")
 
 
-class Solver(Protocol):
-    """Anything with ``init`` and ``step`` is a solver.
+class Solver(ABC):
+    """A solver is ``init(problem, x) -> State`` and ``step(problem, state) -> State``; a new one subclasses this.
 
     ``solve`` and ``run`` call ``init`` once and then ``step`` up to the iteration budget, stopping
-    early once every batch element is done (see ``Phase.stop_every``).
+    early once every batch element is done (see ``Phase.stop_every``). ``warm_keys`` names the
+    ``State.extra`` entries a warm start (``run(..., state=)``) keeps; ``init`` recomputes the rest.
     """
 
+    warm_keys: ClassVar[tuple[str, ...]] = ()
+
+    @abstractmethod
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         """Start state at variables ``x``: loss evaluated, nothing done, solver-owned ``extra`` set up."""
 
+    @abstractmethod
     def step(self, problem: Problem, state: State) -> State:
         """One iteration for every batch element; done or rejected elements keep their values."""
 
 
-def select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """Per batch element, take ``new`` where ``mask: (B,)`` is true, else ``old``."""
     return {
         name: torch.where(mask.reshape(-1, *([1] * (value.ndim - 1))), value, old[name]) for name, value in new.items()
@@ -72,29 +80,36 @@ def _selected_terms(
 
 
 def _tolerances(
-    dtype: torch.dtype, gtol: float | None, ftol: float | None, xtol: float | None
+    dtype: torch.dtype, gradient: float | None, loss: float | None, step: float | None
 ) -> tuple[float, float, float]:
     """Fill unset tolerances with values the dtype can resolve (gradient, relative loss, step)."""
     defaults = (1e-8, 1e-12, 1e-10) if dtype == torch.float64 else (1e-7, 0.0, 0.0)
-    return tuple(default if value is None else value for value, default in zip((gtol, ftol, xtol), defaults))
+    return tuple(default if value is None else value for value, default in zip((gradient, loss, step), defaults))
 
 
-class LevenbergMarquardt:
+@final
+class LevenbergMarquardt(Solver):
     """Levenberg-Marquardt with per-problem damping (Nielsen update) and Marquardt scaling.
 
-    A problem is done when its gradient is below ``gtol``, an accepted step changes the loss
-    by less than ``ftol`` (relative) or the variables by less than ``xtol``, or its damping
-    has reached the maximum (no step is accepted any more). ``damping`` is the initial damping.
-    ``gtol`` bounds the largest gradient entry; a tolerance left at ``None`` takes a default the
+    A problem is done when its gradient is below ``gradient_tolerance``, an accepted step changes the loss
+    by less than ``loss_tolerance`` (relative) or the variables by less than ``step_tolerance``, or its
+    damping has reached the maximum (no step is accepted any more). ``damping`` is the initial damping.
+    ``gradient_tolerance`` bounds the largest gradient entry; a tolerance left at ``None`` takes a default the
     dtype can resolve (``1e-8, 1e-12, 1e-10`` in float64, ``1e-7, 0, 0`` otherwise).
     """
 
     warm_keys = ("damping", "growth")
 
     def __init__(
-        self, *, damping: float = 1e-3, gtol: float | None = None, ftol: float | None = None, xtol: float | None = None
+        self,
+        *,
+        damping: float = 1e-3,
+        gradient_tolerance: float | None = None,
+        loss_tolerance: float | None = None,
+        step_tolerance: float | None = None,
     ) -> None:
-        self.damping, self.gtol, self.ftol, self.xtol = damping, gtol, ftol, xtol
+        self.damping, self.gradient_tolerance = damping, gradient_tolerance
+        self.loss_tolerance, self.step_tolerance = loss_tolerance, step_tolerance
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         with torch.no_grad():
@@ -118,15 +133,17 @@ class LevenbergMarquardt:
         shrink = (1.0 - (2.0 * gain - 1.0) ** 3).clamp(min=1.0 / 3.0, max=1.0)
         new_damping = torch.where(accept, damping * shrink, damping * growth).clamp(1e-12, 1e12)
         new_growth = torch.where(accept, torch.full_like(growth, 2.0), growth * 2.0)
-        gtol, ftol, xtol = _tolerances(state.loss.dtype, self.gtol, self.ftol, self.xtol)
+        gradient_tolerance, loss_tolerance, step_tolerance = _tolerances(
+            state.loss.dtype, self.gradient_tolerance, self.loss_tolerance, self.step_tolerance
+        )
         grad_norm, step_norm = normal.g.abs().amax(-1), delta.abs().amax(-1)
-        small_gradient = grad_norm < gtol
-        small_change = accept & ((decrease <= ftol * state.loss.abs()) | (step_norm < xtol))
+        small_gradient = grad_norm < gradient_tolerance
+        small_change = accept & ((decrease <= loss_tolerance * state.loss.abs()) | (step_norm < step_tolerance))
         return State(
-            x=select(accept, candidate, state.x),
+            x=_select(accept, candidate, state.x),
             loss=torch.where(accept, loss_new, state.loss),
             done=state.done | small_gradient | small_change | (new_damping >= 1e12),
-            it=state.it + 1,
+            iteration=state.iteration + 1,
             extra={
                 "damping": new_damping,
                 "growth": new_growth,
@@ -138,11 +155,14 @@ class LevenbergMarquardt:
         )
 
 
-class GaussNewton:
+@final
+class GaussNewton(Solver):
     """Gauss-Newton: full step of the linearized problem, with optional fixed damping."""
 
-    def __init__(self, *, damping: float = 0.0, gtol: float | None = None, xtol: float | None = None) -> None:
-        self.damping, self.gtol, self.xtol = damping, gtol, xtol
+    def __init__(
+        self, *, damping: float = 0.0, gradient_tolerance: float | None = None, step_tolerance: float | None = None
+    ) -> None:
+        self.damping, self.gradient_tolerance, self.step_tolerance = damping, gradient_tolerance, step_tolerance
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         with torch.no_grad():
@@ -159,15 +179,17 @@ class GaussNewton:
             candidate = problem.retract(state.x, delta)
             loss_new, terms_new, _ = problem.evaluate(candidate)
         move = torch.isfinite(loss_new) & ~state.done
-        gtol, _, xtol = _tolerances(state.loss.dtype, self.gtol, None, self.xtol)
+        gradient_tolerance, _, step_tolerance = _tolerances(
+            state.loss.dtype, self.gradient_tolerance, None, self.step_tolerance
+        )
         grad_norm, step_norm = normal.g.abs().amax(-1), delta.abs().amax(-1)
-        done = state.done | (grad_norm < gtol) | (step_norm < xtol)
+        done = state.done | (grad_norm < gradient_tolerance) | (step_norm < step_tolerance)
         extra = {"grad_norm": grad_norm, "step_norm": torch.where(move, step_norm, torch.zeros_like(step_norm))}
         return State(
-            x=select(move, candidate, state.x),
+            x=_select(move, candidate, state.x),
             loss=torch.where(move, loss_new, state.loss),
             done=done,
-            it=state.it + 1,
+            iteration=state.iteration + 1,
             extra={**extra, "accepted": move, "terms": _selected_terms(move, terms_new, state.extra["terms"])},
         )
 
@@ -185,7 +207,8 @@ def _projected(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None
     return g * _free(g, bounds)
 
 
-class LBFGS:
+@final
+class LBFGS(Solver):
     """Batched L-BFGS in tangent coordinates: per-problem history and backtracking line search.
 
     Every step tries the step sizes 1, ½, ¼, ... (at most ``line_search`` of them) and each problem
@@ -199,16 +222,22 @@ class LBFGS:
     to the bounds. A problem that finds no step keeps its variables and drops its history; when that
     happens on a plain gradient step (no history to drop) it is done, as every later step would repeat
     the same search. ``history`` is the number of stored curvature pairs, ``line_search`` (at least 1)
-    the most trials per step, ``armijo`` the sufficient-decrease constant and ``gtol`` bounds the largest
+    the most trials per step, ``armijo`` the sufficient-decrease constant and ``gradient_tolerance`` bounds the largest
     gradient entry (``None`` takes the dtype default, as for LM).
     """
 
     def __init__(
-        self, *, history: int = 10, line_search: int = 20, armijo: float = 1e-4, gtol: float | None = None
+        self,
+        *,
+        history: int = 10,
+        line_search: int = 20,
+        armijo: float = 1e-4,
+        gradient_tolerance: float | None = None,
     ) -> None:
         if line_search < 1:
-            raise ValueError(f"line_search must be at least 1, got {line_search}")
-        self.history, self.line_search, self.armijo, self.gtol = history, line_search, armijo, gtol
+            raise ArgumentError(f"line_search must be at least 1, got {line_search}")
+        self.history, self.line_search, self.armijo = history, line_search, armijo
+        self.gradient_tolerance = gradient_tolerance
 
     warm_keys = ("s", "y", "rho")
 
@@ -264,7 +293,7 @@ class LBFGS:
                 slope = (g * step).sum(-1).clamp_max(0.0)
                 ok = (loss <= state.loss + self.armijo * slope) & torch.isfinite(loss) & ~found
                 ok &= ~state.done
-                best_x = select(ok, candidate, best_x)
+                best_x = _select(ok, candidate, best_x)
                 best_loss = torch.where(ok, loss, best_loss)
                 best_step = torch.where(ok.unsqueeze(-1), step, best_step)
                 best_terms = _selected_terms(ok, terms, best_terms)
@@ -283,15 +312,16 @@ class LBFGS:
         y_new = torch.where(keep[:, None, None], pushed(y, change), y)
         rho_new = torch.where(keep[:, None], pushed(rho, 1.0 / curvature.clamp_min(1e-30)), rho)
         rho_new = torch.where(found[:, None], rho_new, torch.zeros_like(rho_new))  # failed search: forget history
-        gtol, _, _ = _tolerances(g.dtype, self.gtol, None, None)
+        gradient_tolerance, _, _ = _tolerances(g.dtype, self.gradient_tolerance, None, None)
         grad_norm = _projected(g_new, problem.step_bounds(best_x)).abs().amax(-1)  # at the new point
-        done = state.done | (grad_norm < gtol) | (first_step & ~found)
+        done = state.done | (grad_norm < gradient_tolerance) | (first_step & ~found)
         extra = {"g": g_new, "s": s_new, "y": y_new, "rho": rho_new, "grad_norm": grad_norm}
         extra.update(step_norm=best_step.abs().amax(-1), accepted=found, terms=best_terms)
-        return State(x=best_x, loss=best_loss, done=done, it=state.it + 1, extra=extra)
+        return State(x=best_x, loss=best_loss, done=done, iteration=state.iteration + 1, extra=extra)
 
 
-class TorchOptim:
+@final
+class TorchOptim(Solver):
     """Run any ``torch.optim`` optimizer on the problem's loss.
 
     The optimizer steps the ambient tensors; afterwards they are projected onto their
@@ -299,23 +329,23 @@ class TorchOptim:
     ``extra["terms"]`` and ``extra["info"]`` come from the same, last closure evaluation.
     Adam-like optimizers keep batch elements independent; ``torch.optim.LBFGS`` couples them
     through its line search and treats the batch as one problem.
-    ``scheduler(optimizer)`` may return a ``torch.optim.lr_scheduler`` object; its ``step()``
-    is called without arguments once per solver step. Extra keyword arguments go to
-    ``optimizer_cls``, e.g. ``TorchOptim(torch.optim.Adam, lr=1e-2)``.
+    ``factory(params)`` builds the optimizer over the list of variable tensors, e.g.
+    ``TorchOptim(lambda params: torch.optim.Adam(params, lr=1e-2))``. ``scheduler(optimizer)`` may
+    return a ``torch.optim.lr_scheduler`` object; its ``step()`` is called without arguments once per
+    solver step.
     """
 
     def __init__(
         self,
-        optimizer_cls: type[torch.optim.Optimizer],
+        factory: Callable[[list[torch.Tensor]], torch.optim.Optimizer],
         *,
         scheduler: Callable[[torch.optim.Optimizer], Any] | None = None,
-        **kwargs: Any,
     ) -> None:
-        self.optimizer_cls, self.scheduler, self.kwargs = optimizer_cls, scheduler, kwargs
+        self.factory, self.scheduler = factory, scheduler
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         params = {name: value.detach().clone().requires_grad_(True) for name, value in x.items()}
-        optimizer = self.optimizer_cls(list(params.values()), **self.kwargs)
+        optimizer = self.factory(list(params.values()))
         loss = next(iter(x.values())).new_full((next(iter(x.values())).shape[0],), float("inf"))
         extra = {"params": params, "optimizer": optimizer}
         if self.scheduler is not None:
@@ -343,7 +373,7 @@ class TorchOptim:
                 params[name].copy_(value)
         current = {name: value.detach().clone() for name, value in params.items()}
         extra = {**state.extra, "terms": last["terms"], "info": last["info"]}
-        return State(x=current, loss=last["loss"], done=state.done, it=state.it + 1, extra=extra)
+        return State(x=current, loss=last["loss"], done=state.done, iteration=state.iteration + 1, extra=extra)
 
     @staticmethod
     def _mask_gradients(problem: Problem, params: dict[str, torch.Tensor]) -> None:
@@ -352,7 +382,7 @@ class TorchOptim:
             if gradient is None:
                 continue
             if gradient.shape[1:].numel() != mask.shape[-1]:
-                raise ValueError(
+                raise ShapeError(
                     f"free mask of {name!r} is in tangent coordinates ({mask.shape[-1]}) but the variable has "
                     f"{gradient.shape[1:].numel()} ambient coordinates; use a second-order solver for this phase"
                 )
@@ -363,4 +393,4 @@ class TorchOptim:
             )
 
 
-__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim", "select"]
+__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim"]
