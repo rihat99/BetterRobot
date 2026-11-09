@@ -14,6 +14,8 @@ from typing import Any, final
 
 import numpy as np
 
+from .._lie import act, inverse
+
 
 @final
 @dataclass(frozen=True)
@@ -95,22 +97,12 @@ def vertices_in_rect(
 
 def project(vertices: np.ndarray, camera: CameraFrustum) -> tuple[np.ndarray, np.ndarray]:
     """``(screen (V, 2) in [0, 1], depth (V,))`` of world points under viser's screen convention."""
-    rotation = _rotation_from_wxyz(camera.wxyz)
-    camera_space = (np.asarray(vertices, dtype=np.float64) - camera.position) @ rotation
+    wxyz = np.asarray(camera.wxyz, dtype=np.float64)
+    xyzw = wxyz[[1, 2, 3, 0]] / max(float(np.linalg.norm(wxyz)), 1e-8)
+    camera_space = act(inverse(xyzw), np.asarray(vertices, dtype=np.float64) - camera.position)
     depth = camera_space[..., 2]
     safe_depth = np.where(depth > 0, depth, 1.0)
     tan_half = math.tan(camera.fov / 2.0)
     ndc_x = camera_space[..., 0] / safe_depth / (tan_half * camera.aspect)
     ndc_y = camera_space[..., 1] / safe_depth / tan_half
     return np.stack([0.5 + 0.5 * ndc_x, 0.5 + 0.5 * ndc_y], axis=-1), depth
-
-
-def _rotation_from_wxyz(wxyz: np.ndarray) -> np.ndarray:
-    w, x, y, z = np.asarray(wxyz, dtype=np.float64) / max(float(np.linalg.norm(wxyz)), 1e-8)
-    return np.array(
-        [
-            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
-            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
-            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
-        ]
-    )
