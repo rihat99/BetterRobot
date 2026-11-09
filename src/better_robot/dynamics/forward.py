@@ -5,13 +5,13 @@ from __future__ import annotations
 import torch
 
 from ..kinematics import KinematicState
-from ..kinematics.forward_kinematics import check_state
+from ..kinematics.forward import check_state
 from ..kinematics.configuration import reduced_mass_matrix
 from ..lie._checks import check_tensor
 from ..model._checks import expand_batch
 from ..model.model import Model
 from ._world import WorldKinematics, mass_matrix_full, world_kinematics
-from .inverse_dynamics import _external_forces, _full_tangent, _torques
+from .inverse import _external_forces, _full_tangent, _torques
 
 
 def mass_matrix(model: Model, state: KinematicState) -> torch.Tensor:

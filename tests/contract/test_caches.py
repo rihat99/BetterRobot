@@ -29,7 +29,7 @@ CACHE_WRITERS = {
     "_plans": {("src/better_robot/model/model.py", "_plan")},
     "_memo": {
         ("src/better_robot/model/model.py", "_value"),
-        ("src/better_robot/kinematics/forward_kinematics.py", "_memoised"),
+        ("src/better_robot/kinematics/forward.py", "_memoised"),
     },
 }
 

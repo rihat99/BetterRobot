@@ -4,7 +4,7 @@ A *public boundary* is a function listed in a package `__all__`. It validates st
 device, model attachment through `check_state` (C-STATE-6), id resolution) once; everything it calls trusts the validated input. Validation
 is about structure, not values: no finiteness scans by default. A value check is allowed only behind a keyword
 flag that defaults to off, such as `check_quaternion_norm=False` on `forward_kinematics`
-(`src/better_robot/kinematics/forward_kinematics.py::forward_kinematics`), so the hot path pays nothing unless the caller asks.
+(`src/better_robot/kinematics/forward.py::forward_kinematics`), so the hot path pays nothing unless the caller asks.
 
 ## C-ERR-1 Validate at public boundaries only (MUST)
 
@@ -16,7 +16,7 @@ Validation must not read tensor values (no `isfinite`, no `.item()`), because th
 breaks `vmap` (`04`).
 
 ```python { .no-run }
-# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward.py::forward_kinematics)
 def forward_kinematics(model, q):
     check_tensor("q", q, shape=(model.nq,), dtype=model.dtype, device=model.device)
     return _forward_kinematics(model, q)

@@ -26,7 +26,7 @@ from ..model._checks import expand_batch
 from ..model.model import Model
 from ._plans import jacobian_plan
 from .configuration import reduced_columns
-from .forward_kinematics import KinematicState, check_state
+from .forward import KinematicState, check_state
 
 _Reference = Literal["world", "local", "local_world_aligned"]
 

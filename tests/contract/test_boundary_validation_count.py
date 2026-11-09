@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import importlib
-
 import pytest
 import torch
 
 from better_robot import dynamics, kinematics
+from better_robot.dynamics import forward as dynamics_forward
+from better_robot.dynamics import inverse as dynamics_inverse
+from better_robot.kinematics import forward as kinematics_forward
 from better_robot.lie import _checks
 
 from ._public_ops import CASE_NAMES, build_case
@@ -41,11 +42,11 @@ def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         return original(name, value, **kwargs)
 
     boundaries = (
-        importlib.import_module("better_robot.kinematics.forward_kinematics"),  # the function shadows the module
+        kinematics_forward,
         kinematics.jacobians,
         kinematics.configuration,
-        importlib.import_module("better_robot.dynamics.inverse_dynamics"),
-        importlib.import_module("better_robot.dynamics.mass_matrix"),
+        dynamics_inverse,
+        dynamics_forward,
         dynamics.centroidal,
     )
     for module in boundaries:

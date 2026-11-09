@@ -12,7 +12,7 @@ Model parameters live on one device; a query tensor on another device is an erro
 (`06`), not a hidden `.to()`.
 
 ```python { .no-run }
-# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward.py::forward_kinematics)
 out = torch.empty((*q.shape[:-1], 7), dtype=q.dtype, device=q.device)
 # bad
 out = torch.empty((*q.shape[:-1], 7))          # default dtype, cpu

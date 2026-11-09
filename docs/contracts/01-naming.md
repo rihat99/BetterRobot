@@ -15,7 +15,7 @@ Composition reads left to right: `X_WB = X_WA @ X_AB`. Use these names for local
 `lie`, `spatial`, `kinematics`, `dynamics` and nowhere else.
 
 ```python { .no-run }
-# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward.py::forward_kinematics)
 X_WB = X_WA @ X_AB
 V_WB = adjoint(X_WB) @ V_B
 # bad

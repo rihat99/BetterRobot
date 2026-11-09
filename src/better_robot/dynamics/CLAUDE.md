@@ -1,8 +1,8 @@
 # dynamics/ — inverse and forward dynamics, mass matrix, centroidal quantities
 
 Entry points, all on `(model, state, ...)` with `state = forward_kinematics(model, q)`:
-`inverse_dynamics(*, v, a, external_forces=None)` (`inverse_dynamics.py`), `mass_matrix`,
-`forward_dynamics(*, v, tau, external_forces=None)` (`mass_matrix.py`), `center_of_mass`, `centroidal_map`,
+`inverse_dynamics(*, v, a, external_forces=None)` (`inverse.py`), `mass_matrix`,
+`forward_dynamics(*, v, tau, external_forces=None)` (`forward.py`), `center_of_mass`, `centroidal_map`,
 `centroidal_momentum(*, v)` (`centroidal.py`). Design notes and numbers live in the `_world.py` docstring;
 contracts in `docs/contracts/00-index.md`.
 
@@ -24,5 +24,3 @@ contracts in `docs/contracts/00-index.md`.
 - The kernel calls `spatial`'s unchecked `*_raw` twins; only the public wrappers check inputs, once.
 - Frame changes use the joint rotation matrices; the quaternion `spatial.transform_*` cost 2-3x here.
 - Pinocchio parity (`tests/parity/pinocchio/`) is the oracle; never weaken it.
-- The functions `inverse_dynamics` and `mass_matrix` shadow their modules in the package namespace: reach a
-  module with `importlib.import_module("better_robot.dynamics.mass_matrix")`.

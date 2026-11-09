@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .configuration import difference, full_configuration, integrate
-from .forward_kinematics import KinematicState, forward_kinematics
+from .forward import KinematicState, forward_kinematics
 from .jacobians import (
     frame_jacobian,
     frame_jacobian_time_variation,

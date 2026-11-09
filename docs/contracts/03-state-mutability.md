@@ -13,7 +13,7 @@ construction too (the freeze is shallow): an in-place write and `requires_grad_(
 user must not make; build a new model with `with_values` (record [0040](decisions/0040-model-value-memo.md)).
 
 ```python { .no-run }
-# good  (src/better_robot/kinematics/forward_kinematics.py)
+# good  (src/better_robot/kinematics/forward.py)
 @dataclass(frozen=True)
 class KinematicState:
     q: Tensor                  # (B..., nq)
@@ -63,7 +63,7 @@ tensor's `_version` counter is unchanged).
 If a function caches (for example a joint-ordering table), the cache lives in a named attribute or a
 `functools.lru_cache` keyed on immutable inputs, never in a module-level mutable or a hidden attribute set on
 the user's object. A cache never changes a result, only its cost. Documented exception: `KinematicState._memo`
-(`src/better_robot/kinematics/forward_kinematics.py::KinematicState`) is a private memo dict inside the frozen
+(`src/better_robot/kinematics/forward.py::KinematicState`) is a private memo dict inside the frozen
 state, keyed by `(name, grad mode)` and written only by `KinematicState._memoised`, so a value made under
 `torch.no_grad` never serves a differentiable call. Its allowed names, each derived only from the state's own
 `joint_transforms`/`frame_transforms` and the model structure, are:
@@ -100,7 +100,7 @@ Enforcement: `tests/optim/test_problem.py`; `[review]`.
 place. Caches hang off the object they derive from: the plans in `Model._plans` and the world geometry in
 `KinematicState._memo`. A moved model therefore starts with empty caches, and a state made from the old model is
 not valid for the moved one; recompute it with `forward_kinematics`. Every function taking `(model, state)` calls
-`check_state` (`src/better_robot/kinematics/forward_kinematics.py::check_state`) once: a state in another dtype or
+`check_state` (`src/better_robot/kinematics/forward.py::check_state`) once: a state in another dtype or
 on another device raises `DtypeMismatchError` or `DeviceMismatchError`, a state of another structure `ModelError`;
 a copy of the same robot (`with_values`) is accepted.
 

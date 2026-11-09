@@ -49,14 +49,14 @@ Enforcement: `[ruff:FBT001,FBT002]`.
 
 Any parameter that identifies a frame, joint or body accepts the index *or* the name `[planned: L-2]`.
 Today `Model.frame_id(name)` takes a `str` only and
-`KinematicState.frame_pose_of(frame_id)` (`src/better_robot/kinematics/forward_kinematics.py::KinematicState.frame_pose_of`) an `int` only; the ledger entry widens
+`KinematicState.frame_pose_of(frame_id)` (`src/better_robot/kinematics/forward.py::KinematicState.frame_pose_of`) an `int` only; the ledger entry widens
 `frame_id` to `int | str` and routes every public id parameter through it. `terms.frame_poses`
 (`terms/robot.py:62`) already accepts `int | str`.
 
 ```python { .no-run }
 # good  (terms/robot.py:62)
 frame_pose(model, frame="panda_hand", target="goal"); frame_pose(model, frame=8, target="goal")
-# bad  (src/better_robot/kinematics/forward_kinematics.py::KinematicState.frame_pose_of, until L-2 lands)
+# bad  (src/better_robot/kinematics/forward.py::KinematicState.frame_pose_of, until L-2 lands)
 def frame_pose_of(self, frame_id: int): ...   # forces users to look up ids themselves
 ```
 

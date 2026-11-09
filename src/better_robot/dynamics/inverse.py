@@ -7,7 +7,7 @@ import math
 import torch
 
 from ..kinematics import KinematicState
-from ..kinematics.forward_kinematics import check_state
+from ..kinematics.forward import check_state
 from ..kinematics.configuration import full_tangent, reduced_columns
 from ..lie._checks import check_tensor
 from ..model._checks import expand_batch

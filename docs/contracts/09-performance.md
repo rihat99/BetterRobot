@@ -20,7 +20,7 @@ Work over a batch axis is one tensor op. A Python loop is allowed only over a *s
 is a Python int fixed by the model (joints in a kinematic chain, LM iterations), never over batch elements.
 
 ```python { .no-run }
-# good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
+# good  (illustrative; real entry point: src/better_robot/kinematics/forward.py::forward_kinematics)
 for joint in model.joints:                 # structural, len = model.njoints
     X_WB = X_WB @ joint_placement(joint, q[..., joint.idx_q])   # batched over `...`
 # bad

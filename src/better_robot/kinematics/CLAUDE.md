@@ -46,5 +46,3 @@ of `_fk.py`, `_jacobian.py` and `_plans.py`; contracts in `docs/contracts/00-ind
   `full_configuration` expands `q`, `reduced_columns` contracts Jacobian columns and generalized forces.
 - Rare joint kinds (planar, translation, helical, custom) go through the joint's own `placement` inside the
   kernel; a new kind is a `JointModel` subclass, never a branch in `_fk.py`.
-- The function `forward_kinematics` shadows its module in the package namespace: reach the module with
-  `importlib.import_module("better_robot.kinematics.forward_kinematics")`.

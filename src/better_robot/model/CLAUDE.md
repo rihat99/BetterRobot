@@ -4,7 +4,7 @@
 parent joint ids, the `q`/`v` layout, the resolved mimic chain) and eleven tensor
 fields (placements, inertias, limits, armature, damping, gravity, `q_neutral`).
 The class docstring holds the field table. Query results live in a frozen
-`KinematicState` (`src/better_robot/kinematics/forward_kinematics.py`), never on the model; do not mutate
+`KinematicState` (`src/better_robot/kinematics/forward.py`), never on the model; do not mutate
 model tensors in place.
 
 - No `__post_init__` validation: `io/build_model.py` constructs the record;
