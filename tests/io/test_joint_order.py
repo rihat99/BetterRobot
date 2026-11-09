@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+from xml.etree import ElementTree
 
 import torch
 
@@ -10,6 +11,7 @@ import better_robot as br
 from better_robot.io import ModelBuilder, build_model
 
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body, make_branching_tree_model
+from tests.support.robots import g1_urdf
 
 
 def test_a_topological_description_keeps_its_order_exactly():
@@ -17,6 +19,12 @@ def test_a_topological_description_keeps_its_order_exactly():
     model = build_model(ir)
     assert model.joint_names[1:] == tuple(joint.name for joint in ir.joints) == ("root", *JOINT_NAMES[1:])
     assert all(parent < joint for joint, parent in enumerate(model.parent_joint_ids) if joint)
+
+
+def test_g1_joint_names_equal_the_urdf_source_order():
+    """G1's URDF writes its joints parents first, so they follow the universe and the added root as written."""
+    written = [joint.get("name") for joint in ElementTree.parse(g1_urdf()).getroot().findall("joint")]
+    assert br.load(g1_urdf()).joint_names == ("universe", "root_joint", *written)
 
 
 def test_a_child_declared_before_its_parent_is_repaired_deterministically():
