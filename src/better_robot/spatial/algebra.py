@@ -27,17 +27,20 @@ def cross_motion(twist: torch.Tensor, other: torch.Tensor) -> torch.Tensor:
     ``DeviceMismatchError`` for mismatched devices.
     """
     check_tensors(twist=(twist, (6,)), other=(other, (6,)))
-    return cross_motion_raw(twist, other)
+    return cross_motion_raw(*torch.broadcast_tensors(twist, other))
 
 
 def cross_motion_raw(twist: torch.Tensor, other: torch.Tensor) -> torch.Tensor:
-    """`cross_motion` without input checks, for checked inputs: ``(..., 6), (..., 6) → (..., 6)``."""
-    twist, other = torch.broadcast_tensors(twist, other)
+    """`cross_motion` without input checks, for checked inputs with as many axes: ``(..., 6), (..., 6) → (..., 6)``.
+
+    ``torch.linalg.cross`` broadcasts sizes but not a missing axis; `cross_motion` aligns the axes first.
+    """
     linear, angular = twist[..., :3], twist[..., 3:]
+    other_linear, other_angular = other[..., :3], other[..., 3:]
     return torch.cat(
         (
-            torch.linalg.cross(angular, other[..., :3]) + torch.linalg.cross(linear, other[..., 3:]),
-            torch.linalg.cross(angular, other[..., 3:]),
+            torch.linalg.cross(angular, other_linear) + torch.linalg.cross(linear, other_angular),
+            torch.linalg.cross(angular, other_angular),
         ),
         dim=-1,
     )
@@ -50,17 +53,17 @@ def cross_force(twist: torch.Tensor, wrench: torch.Tensor) -> torch.Tensor:
     ``cross_force(twist, wrench) · other == -wrench · cross_motion(twist, other)``. Raises as `cross_motion`.
     """
     check_tensors(twist=(twist, (6,)), wrench=(wrench, (6,)))
-    return cross_force_raw(twist, wrench)
+    return cross_force_raw(*torch.broadcast_tensors(twist, wrench))
 
 
 def cross_force_raw(twist: torch.Tensor, wrench: torch.Tensor) -> torch.Tensor:
-    """`cross_force` without input checks, for checked inputs: ``(..., 6), (..., 6) → (..., 6)``."""
-    twist, wrench = torch.broadcast_tensors(twist, wrench)
+    """`cross_force` without input checks, for checked inputs with as many axes: ``(..., 6), (..., 6) → (..., 6)``."""
     linear, angular = twist[..., :3], twist[..., 3:]
+    force, torque = wrench[..., :3], wrench[..., 3:]
     return torch.cat(
         (
-            torch.linalg.cross(angular, wrench[..., :3]),
-            torch.linalg.cross(angular, wrench[..., 3:]) + torch.linalg.cross(linear, wrench[..., :3]),
+            torch.linalg.cross(angular, force),
+            torch.linalg.cross(angular, torque) + torch.linalg.cross(linear, force),
         ),
         dim=-1,
     )
