@@ -50,7 +50,7 @@ model64 = model.to(dtype=torch.float64)
 print(forward_kinematics(model64, q64).frame_poses.dtype)
 ```
 ```output
-DtypeMismatchError q.dtype=torch.float64 != model.dtype=torch.float32; cast q or call model.to(dtype=q.dtype)
+DtypeMismatchError q.dtype=torch.float64 != model.dtype=torch.float32; pass q.to(torch.float32)
 torch.float64
 ```
 
