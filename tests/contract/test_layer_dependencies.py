@@ -17,10 +17,11 @@ SRC = Path(__file__).resolve().parents[2] / "src"
 
 ALLOWED: dict[str, set[str]] = {
     "exceptions": set(),
+    "_internal_checks": set(),
     "lie": {"exceptions"},
     "spatial": {"exceptions", "lie"},
     "model": {"exceptions", "lie", "spatial"},
-    "kinematics": {"exceptions", "lie", "model"},
+    "kinematics": {"exceptions", "_internal_checks", "lie", "model"},
     "dynamics": {"exceptions", "lie", "spatial", "model", "kinematics"},
     "collision": {"exceptions", "lie", "model", "kinematics"},
     "io": {"exceptions", "lie", "model"},

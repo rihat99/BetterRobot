@@ -48,7 +48,6 @@
   "docs/contracts/decisions/0016-geometry-out-of-model.md: io/build_model.py::build_model": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "docs/contracts/decisions/0016-geometry-out-of-model.md: viewer/robot.py::robot_meshes": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "docs/contracts/decisions/0021-validation-ladder.md: kinematics/state.py::_validate_q": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
-  "docs/contracts/decisions/0021-validation-ladder.md: tests/contract/test_internal_checks.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0022-viewer-boundary.md: viewer/_math.py::compose_poses": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "docs/contracts/decisions/0022-viewer-boundary.md: viewer/layer.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",
   "docs/contracts/decisions/0022-viewer-boundary.md: viewer/robot.py": "a path inside src/better_robot/ written without that prefix; cite it from the repository root",

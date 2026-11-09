@@ -7,11 +7,11 @@ cycle, and a new package gets its row through an ADR (`00-index`, "When to write
 
 | Package | May import |
 |---|---|
-| `exceptions` | nothing from the package |
+| `exceptions`, `_internal_checks` | nothing from the package |
 | `lie` | `exceptions` |
 | `spatial` | `exceptions`, `lie` |
 | `model` | `exceptions`, `lie`, `spatial` |
-| `kinematics` | `exceptions`, `lie`, `model` |
+| `kinematics` | `exceptions`, `_internal_checks`, `lie`, `model` |
 | `dynamics` | `exceptions`, `lie`, `spatial`, `model`, `kinematics` |
 | `collision` | `exceptions`, `lie`, `model`, `kinematics` |
 | `io` | `exceptions`, `lie`, `model` |
