@@ -46,13 +46,13 @@ def from_z(direction: np.ndarray) -> np.ndarray:
 
     A zero direction gives the identity, one opposite ``+z`` a half turn about ``x``.
     """
-    (direction,) = _tensors(direction)
-    axis = torch.stack([-direction[..., 1], direction[..., 0], torch.zeros_like(direction[..., 0])], dim=-1)
+    (target,) = _tensors(direction)
+    axis = torch.stack([-target[..., 1], target[..., 0], torch.zeros_like(target[..., 0])], dim=-1)
     sine = torch.linalg.vector_norm(axis, dim=-1, keepdim=True)
-    angle = torch.atan2(sine, direction[..., 2:])
-    flip = torch.tensor([1.0, 0.0, 0.0], dtype=direction.dtype)  # the axis of a half turn, where z x d vanishes
+    angle = torch.atan2(sine, target[..., 2:])
+    flip = torch.tensor([1.0, 0.0, 0.0], dtype=target.dtype)  # the axis of a half turn, where z x d vanishes
     unit = torch.where(sine > 1e-9, axis / sine.clamp_min(1e-30), flip)
-    return so3.exp(unit * torch.where(sine > 1e-9, angle, torch.where(direction[..., 2:] < 0, math.pi, 0.0))).numpy()
+    return so3.exp(unit * torch.where(sine > 1e-9, angle, torch.where(target[..., 2:] < 0, math.pi, 0.0))).numpy()
 
 
 def to_wxyz(quaternion: np.ndarray) -> np.ndarray:

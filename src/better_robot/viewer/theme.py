@@ -7,15 +7,21 @@ from typing import Any, final
 
 import numpy as np
 
+from ..exceptions import ArgumentError, ShapeError
 
 RGB = tuple[float, float, float]
+_UP_AXES = ("+x", "-x", "+y", "-y", "+z", "-z")  # what viser's set_up_direction takes as a word
 
 
 def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
-    """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour."""
+    """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour; a colour that is not an
+    RGB triple, or a count other than ``shape``, raises ``ShapeError``."""
     out = np.asarray(color, dtype=np.float32)
-    if out.ndim == 1 and shape:
+    if out.shape == (3,) and shape:
         out = np.broadcast_to(out, (*shape, 3))
+    if out.shape[-1:] != (3,) or (shape and out.shape != (*shape, 3)):
+        expected = f"one RGB or {(*shape, 3)}, one per element" if shape else "RGB triples (..., 3)"
+        raise ShapeError(f"colors must be {expected}, got shape {np.shape(color)}")
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
@@ -30,7 +36,7 @@ def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Theme:
     """Colours in ``[0, 1]`` RGB plus the few scene settings the viewer applies at start-up."""
 
@@ -54,12 +60,20 @@ class Theme:
     grid_section: RGB = (0.70, 0.72, 0.76)
     up: str = "+z"
 
+    def __repr__(self) -> str:
+        return f"Theme(dark={self.dark}, up={self.up!r})"
+
+    def __post_init__(self) -> None:
+        if self.up not in _UP_AXES:
+            raise ArgumentError(f"up must be one of {list(_UP_AXES)}, got {self.up!r}")
+
     @property
     def up_vector(self) -> tuple[float, float, float]:
         """``up`` as a unit vector, e.g. ``"+y"`` -> ``(0, 1, 0)``."""
         sign = -1.0 if self.up.startswith("-") else 1.0
         axis = "xyz".index(self.up[-1])
-        return tuple(sign if index == axis else 0.0 for index in range(3))
+        x, y, z = (sign if index == axis else 0.0 for index in range(3))
+        return x, y, z
 
     def apply(self, server: Any) -> None:
         """Configure the GUI theme, up direction and viser's default lights on a viser server."""

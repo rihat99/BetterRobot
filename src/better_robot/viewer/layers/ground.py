@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, final
+from typing import TYPE_CHECKING, Any, final
 
 import numpy as np
 
@@ -11,6 +11,9 @@ from ...exceptions import ArgumentError
 from .._lie import from_z, to_wxyz
 from ..theme import RGB, rgb_uint8
 from ..layer import Layer
+
+if TYPE_CHECKING:
+    from ..theme import Theme
 
 
 @final
@@ -43,6 +46,8 @@ class GroundLayer(Layer):
         fill_color: RGB = (0.80, 0.80, 0.80),
     ) -> None:
         super().__init__(name, 1)
+        if plane not in (None, "xy", "xz", "yz"):
+            raise ArgumentError(f"plane must be 'xy', 'xz', 'yz' or None (follow the theme's up axis), got {plane!r}")
         if normal is not None and not np.linalg.norm(np.asarray(normal, dtype=np.float64).reshape(3)) > 0.0:
             raise ArgumentError(f"normal must be a non-zero 3-vector, got {normal!r}")
         self.size = size
@@ -57,7 +62,7 @@ class GroundLayer(Layer):
         self.section_color = section_color
         self.fill_color = fill_color
 
-    def apply_theme(self, theme: Any) -> None:
+    def apply_theme(self, theme: Theme) -> None:
         if self.plane is None:
             self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
 

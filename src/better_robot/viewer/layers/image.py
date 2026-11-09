@@ -36,7 +36,7 @@ class ImagePanel(Layer):
             images = images[None] if images.ndim == 3 else images
             if images.ndim != 4:
                 raise ShapeError(f"images must be (H, W, 3) or (T, H, W, 3), got shape {images.shape}")
-            nsteps = images.shape[0]
+            nsteps = len(images)
         super().__init__(name, nsteps)
         self._images = images
         self.format = format

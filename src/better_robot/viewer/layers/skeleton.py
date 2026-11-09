@@ -7,7 +7,7 @@ from typing import Any, final
 
 import numpy as np
 
-from ...exceptions import ShapeError
+from ...exceptions import ArgumentError, ShapeError, UnknownNameError
 from .._lie import act, compose_rotations, from_z, inverse, to_wxyz
 from .._primitives import unit_box, unit_cylinder, unit_sphere
 from ..layer import as_frames
@@ -19,7 +19,7 @@ _IDENTITY_XYZW = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 _FOLD = 0.01  # m: a bone leg shorter than this folds into the bone's longest leg
 _STRAIGHT = 0.15  # m: a longer bone from a joint with one child stays straight (a thigh)
 _CORNER = 0.98  # corner sphere radius per bone radius: inside the bone's 16 flat sides, so no scalloped seam
-# Joint kind word (``robot.skeleton_spec``) -> marker; fixed joints draw nothing, unknown words are spheres.
+# Joint kind word (``robot.skeleton_spec``) -> marker; fixed joints draw nothing.
 _MARKER = {
     "revolute": "cylinder", "continuous": "cylinder", "helical": "cylinder", "prismatic": "box",
     "spherical": "sphere", "free_flyer": "axes", "planar": "cube", "translation": "cube", "fixed": None,
@@ -44,8 +44,10 @@ _EXTENT = {
 
 def marker_of(kind: str) -> str | None:
     """The marker a joint kind word is drawn as: ``"cylinder"``, ``"box"``, ``"sphere"``, ``"axes"``, ``"cube"``,
-    or None for fixed joints (nothing drawn)."""
-    return _MARKER.get(kind, "sphere")
+    or None for fixed joints (nothing drawn); an unknown word raises ``UnknownNameError``."""
+    if kind not in _MARKER:
+        raise UnknownNameError("joint kind", kind, valid=list(_MARKER))
+    return _MARKER[kind]
 
 
 def marker_extent(marker: str) -> tuple[float, float]:
@@ -89,8 +91,8 @@ class SkeletonLayer(Layer):
         self,
         name: str,
         joints: np.ndarray,
-        parent_ids: np.ndarray | list[int],
         *,
+        parent_ids: np.ndarray | list[int],
         kinds: Sequence[str] | None = None,
         axes: np.ndarray | None = None,
         radius: float | np.ndarray = 0.02,
@@ -100,7 +102,7 @@ class SkeletonLayer(Layer):
         colors: np.ndarray | RGB = (0.20, 0.60, 1.00),
         bone_color: RGB = (0.72, 0.72, 0.72),
     ) -> None:
-        joints = as_frames(joints, 2)
+        joints = as_frames(joints, 2, name="joints")
         if joints.shape[-1] not in (3, 7):
             raise ShapeError(f"joints must be (T, J, 3) positions or (T, J, 7) poses, got {joints.shape}")
         # Both are views into the caller's array (kept by reference); positions-only input has no rotation.
@@ -115,13 +117,20 @@ class SkeletonLayer(Layer):
             raise ShapeError(
                 f"parent_ids must be (J,) = ({n_joints},), one entry per joint, got {self.parent_ids.shape}"
             )
-        kinds = ["spherical"] * n_joints if kinds is None else list(kinds)
-        if len(kinds) != n_joints:
+        if ((self.parent_ids < -1) | (self.parent_ids >= n_joints)).any():
+            raise ArgumentError(
+                f"parent_ids must be joint indices in [0, {n_joints}) or -1 for a root, got {self.parent_ids.tolist()}"
+            )
+        kind_names = ["spherical"] * n_joints if kinds is None else list(kinds)
+        if len(kind_names) != n_joints:
             raise ShapeError("kinds must have one entry per joint")
-        markers = [marker_of(kind) for kind in kinds]
-        self.groups = {m: np.array([j for j in range(n_joints) if markers[j] == m]) for m in set(markers) - {None}}
-        axes = (0.0, 0.0, 1.0) if axes is None else axes
-        self.axes = np.broadcast_to(np.asarray(axes, dtype=np.float32), (n_joints, 3))
+        markers = [marker_of(kind) for kind in kind_names]
+        drawn = {marker for marker in markers if marker is not None}
+        self.groups = {m: np.array([j for j in range(n_joints) if markers[j] == m]) for m in drawn}
+        axes_array = np.asarray((0.0, 0.0, 1.0) if axes is None else axes, dtype=np.float32)
+        if axes_array.shape not in ((3,), (n_joints, 3)):
+            raise ShapeError(f"axes must be (3,) or (J, 3) = ({n_joints}, 3), got {axes_array.shape}")
+        self.axes = np.broadcast_to(axes_array, (n_joints, 3))
         radius = np.asarray(radius, dtype=np.float32)
         self.radius = radius if radius.ndim == 2 else np.broadcast_to(radius, (n_joints,))
         if self.radius.shape[-1] != n_joints or (radius.ndim == 2 and len(radius) != self.nsteps):
@@ -134,6 +143,10 @@ class SkeletonLayer(Layer):
             raise ShapeError(f"offsets must be (J, 3) = ({n_joints}, 3), got {self.offsets.shape}")
         # A float or (J,) per bone, entry j for the bone into joint j; read at every step.
         self.bone_radius = float(self.radius.max()) * 0.6 if bone_radius is None else bone_radius
+        if np.shape(self.bone_radius) not in ((), (n_joints,)):
+            raise ShapeError(
+                f"bone_radius must be one float or (J,) = ({n_joints},), one per bone, got {np.shape(self.bone_radius)}"
+            )
         self.bone_color = bone_color
         self._child = np.nonzero(self.parent_ids >= 0)[0]
         self._parent = self.parent_ids[self._child]

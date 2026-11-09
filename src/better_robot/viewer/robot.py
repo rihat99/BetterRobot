@@ -27,11 +27,12 @@ from ..model.joints import (
     JointTranslation,
 )
 from ..model.geometry import AttachedShape, Box, Cylinder, Geometry, Mesh, Sphere
+from ._extras import needs_extra
 from ._lie import act, inverse
 from .layer import as_frames
 from .layers.mesh import MeshSpec
 from .layers.skeleton import SkeletonLayer, marker_extent, marker_of
-from .theme import LIGHT, Theme, colormap
+from .theme import LIGHT, RGB, Theme, colormap
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -66,7 +67,12 @@ def robot_skeleton(
     (names or ids) to a point ``(3,)`` in each frame: a bone, as thick as the one into the frame's parent joint, runs
     from that joint to the point, such as a hand out to where its contacts are, past the last wrist joint.
     """
-    joint_poses = as_frames(joint_poses, 2)
+    joint_poses = as_frames(joint_poses, 2, name="joint_poses", width=7)
+    if joint_poses.shape[1] != model.njoints:
+        raise ShapeError(
+            f"joint_poses must be (T, njoints, 7) = (T, {model.njoints}, 7), one pose per joint of the model "
+            f"(KinematicState.joint_poses), got {joint_poses.shape}"
+        )
     parent_ids = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
     poses, offsets = joint_poses[:, 1:], spread_offsets(model, radius=radius)
@@ -76,7 +82,7 @@ def robot_skeleton(
         poses = np.concatenate([poses, ends], axis=1)
         parent_ids = np.concatenate([parent_ids, end_joints - 1])
         kinds += ["fixed"] * count
-        axes = np.concatenate([axes, np.tile(np.float32([0.0, 0.0, 1.0]), (count, 1))])
+        axes = np.concatenate([axes, np.tile(np.array([0.0, 0.0, 1.0], dtype=np.float32), (count, 1))])
         offsets = np.concatenate([offsets, np.zeros((count, 3), dtype=np.float32)])
         if np.ndim(bone_radius):
             bone_radius = np.concatenate([bone_radius, np.asarray(bone_radius)[end_joints - 1]])
@@ -92,7 +98,7 @@ def robot_skeleton(
     return SkeletonLayer(
         name,
         poses,
-        parent_ids,
+        parent_ids=parent_ids,
         kinds=kinds,
         axes=axes,
         offsets=offsets,
@@ -232,6 +238,8 @@ def _torque_colors(ratio: np.ndarray, limited: np.ndarray, theme: Theme) -> np.n
 def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarray, np.ndarray]:
     """``|tau| / effort_limit`` ``(nsteps, njoints - 1)`` of joints 1.. for ``tau (nsteps or 1, nv)``, the largest
     over each joint's dofs, and ``(njoints - 1,)`` whether a joint has a dof with a finite positive limit."""
+    if tau.ndim not in (1, 2) or tau.shape[-1] != model.nv:
+        raise ShapeError(f"tau must be (T, nv) or (nv,) with nv = {model.nv}, got {tau.shape}")
     tau = tau.reshape(-1, model.nv)
     if tau.shape[0] not in (1, nsteps):
         raise ShapeError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
@@ -250,7 +258,7 @@ def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarra
 
 
 def robot_meshes(
-    geometry: Geometry, *, root: Path | None = None, collision: bool = False, default_color: Any = (0.8, 0.8, 0.8)
+    geometry: Geometry, *, root: Path | None = None, collision: bool = False, default_color: RGB = (0.8, 0.8, 0.8)
 ) -> list[MeshSpec]:
     """Mesh specs for the collision shapes of ``geometry`` or, by default, its display shapes (record 0016).
 
@@ -271,12 +279,13 @@ def _mesh_path(uri: str, root: Path | None) -> Path:
     return path if path.is_absolute() or root is None else root / path
 
 
-def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: Any) -> MeshSpec:
-    import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: RGB) -> MeshSpec:
+    with needs_extra("meshes"):
+        import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
     shape = attached.shape
     origin = np.asarray(shape.placement, dtype=np.float32)
-    color = shape.color[:3] if shape.color is not None else tuple(default_color)
+    color = shape.color[:3] if shape.color is not None else default_color
     if isinstance(shape, Mesh):
         path = _mesh_path(shape.uri, root)
         if not path.is_file():
@@ -299,7 +308,7 @@ def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: Any) -
         mesh, source = trimesh.creation.capsule(radius=shape.radius, height=shape.length), None
     vertices = np.asarray(mesh.vertices, dtype=np.float32)
     faces = np.asarray(mesh.faces, dtype=np.uint32)
-    return MeshSpec(vertices, faces, attached.body, origin, color=color, trimesh=source)
+    return MeshSpec(vertices, faces, body=attached.body, origin=origin, color=color, trimesh=source)
 
 
 def _has_own_colors(mesh: Any) -> bool:

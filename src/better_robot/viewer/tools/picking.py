@@ -9,10 +9,12 @@ radians and ``aspect`` is width over height.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import Any, final
 
 import numpy as np
+
+from .._lie import act, inverse
 
 
 @final
@@ -22,6 +24,7 @@ class CameraFrustum:
 
     position: np.ndarray  #: ``(3,)`` world position.
     wxyz: np.ndarray  #: ``(4,)`` scalar-first orientation, ``R_world_camera``.
+    _: KW_ONLY
     fov: float  #: vertical field of view, radians.
     aspect: float  #: width / height.
 
@@ -31,13 +34,13 @@ class CameraFrustum:
         return cls(
             np.asarray(camera.position, dtype=np.float64),
             np.asarray(camera.wxyz, dtype=np.float64),
-            float(camera.fov),
-            float(camera.aspect),
+            fov=float(camera.fov),
+            aspect=float(camera.aspect),
         )
 
 
 def ray_hit(
-    origin: np.ndarray, direction: np.ndarray, vertices: np.ndarray, faces: np.ndarray
+    origin: np.ndarray, direction: np.ndarray, *, vertices: np.ndarray, faces: np.ndarray
 ) -> tuple[np.ndarray, int] | None:
     """Nearest double-sided Möller–Trumbore intersection ahead of ``origin``: ``(point (3,), face)`` or ``None``."""
     origin = np.asarray(origin, dtype=np.float64)
@@ -63,7 +66,7 @@ def ray_hit(
     return origin + t[face] * direction, face
 
 
-def nearest_on_ray(points: np.ndarray, origin: np.ndarray, direction: np.ndarray, radius: float) -> int | None:
+def nearest_on_ray(points: np.ndarray, origin: np.ndarray, *, direction: np.ndarray, radius: float) -> int | None:
     """Index of the point ``(N, 3)`` within ``radius`` of the ray nearest its ``origin (3,)``, or ``None``.
 
     ``direction (3,)`` need not be unit length; points behind the origin are ignored.
@@ -75,14 +78,14 @@ def nearest_on_ray(points: np.ndarray, origin: np.ndarray, direction: np.ndarray
     return None if hits.size == 0 else int(hits[np.argmin(along[hits])])
 
 
-def vertices_in_sphere(vertices: np.ndarray, center: np.ndarray, radius: float) -> np.ndarray:
+def vertices_in_sphere(vertices: np.ndarray, center: np.ndarray, *, radius: float) -> np.ndarray:
     """Indices of ``vertices (V, 3)`` within ``radius`` of ``center (3,)``."""
     distance_squared = ((np.asarray(vertices) - np.asarray(center)) ** 2).sum(-1)
     return np.nonzero(distance_squared <= radius * radius)[0]
 
 
 def vertices_in_rect(
-    vertices: np.ndarray, camera: CameraFrustum, rect_min: np.ndarray, rect_max: np.ndarray
+    vertices: np.ndarray, camera: CameraFrustum, *, rect_min: np.ndarray, rect_max: np.ndarray
 ) -> np.ndarray:
     """Indices of vertices inside a screen marquee (corners in ``[0, 1]``, top-left origin), in front of the camera."""
     lower = np.minimum(rect_min, rect_max)
@@ -94,22 +97,12 @@ def vertices_in_rect(
 
 def project(vertices: np.ndarray, camera: CameraFrustum) -> tuple[np.ndarray, np.ndarray]:
     """``(screen (V, 2) in [0, 1], depth (V,))`` of world points under viser's screen convention."""
-    rotation = _rotation_from_wxyz(camera.wxyz)
-    camera_space = (np.asarray(vertices, dtype=np.float64) - camera.position) @ rotation
+    wxyz = np.asarray(camera.wxyz, dtype=np.float64)
+    xyzw = wxyz[[1, 2, 3, 0]] / max(float(np.linalg.norm(wxyz)), 1e-8)
+    camera_space = act(inverse(xyzw), np.asarray(vertices, dtype=np.float64) - camera.position)
     depth = camera_space[..., 2]
     safe_depth = np.where(depth > 0, depth, 1.0)
     tan_half = math.tan(camera.fov / 2.0)
     ndc_x = camera_space[..., 0] / safe_depth / (tan_half * camera.aspect)
     ndc_y = camera_space[..., 1] / safe_depth / tan_half
     return np.stack([0.5 + 0.5 * ndc_x, 0.5 + 0.5 * ndc_y], axis=-1), depth
-
-
-def _rotation_from_wxyz(wxyz: np.ndarray) -> np.ndarray:
-    w, x, y, z = np.asarray(wxyz, dtype=np.float64) / max(float(np.linalg.norm(wxyz)), 1e-8)
-    return np.array(
-        [
-            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
-            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
-            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
-        ]
-    )

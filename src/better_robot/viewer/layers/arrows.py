@@ -37,8 +37,8 @@ class ArrowsLayer(Layer):
         self,
         name: str,
         origins: np.ndarray,
-        vectors: np.ndarray,
         *,
+        vectors: np.ndarray,
         scale: float = 1.0,
         colors: np.ndarray | RGB = (0.90, 0.25, 0.20),
         head_size: float = 0.03,
@@ -47,8 +47,8 @@ class ArrowsLayer(Layer):
         head_radius: float | None = None,
         min_length: float = 1e-6,
     ) -> None:
-        self.origins = as_frames(origins, 2)
-        self.vectors = as_frames(vectors, 2) * np.float32(scale)
+        self.origins = as_frames(origins, 2, name="origins", width=3)
+        self.vectors = as_frames(vectors, 2, name="vectors", width=3) * np.float32(scale)
         if self.origins.shape != self.vectors.shape:
             raise ShapeError(
                 f"origins and vectors must have the same shape, got {self.origins.shape} and {self.vectors.shape}"

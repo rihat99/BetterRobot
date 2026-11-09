@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 
 import numpy as np
 import pytest
 
 from better_robot.viewer._lie import act, from_z, to_wxyz
+from better_robot.viewer.layer import Layer
 from better_robot.viewer._primitives import unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
-from better_robot.viewer.layers.mesh import MeshLayer, SpheresLayer
+from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
+from better_robot.viewer.layers.skinned import SkinnedMeshLayer
 from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
@@ -30,7 +33,7 @@ def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block()
     viewer = Viewer(server=server)
     viewer.add([_skeleton(10)])
     viewer.add([GroundLayer()])
-    arrows = ArrowsLayer("f", np.zeros((5, 2, 3)), np.ones((5, 2, 3)))
+    arrows = ArrowsLayer("f", np.zeros((5, 2, 3)), vectors=np.ones((5, 2, 3)))
     viewer.add([arrows], group="forces")
     server.scene.log.clear()
     blocks = server.atomic_blocks
@@ -168,13 +171,15 @@ def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> 
     half = np.sqrt(0.5)
     np.testing.assert_allclose(bones.props["batched_wxyzs"][1], [half, 0.0, half, 0.0], atol=1e-6)
 
-    arrows = ArrowsLayer("a", np.zeros((1, 2, 3)), [[[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], scale=2.0, head_size=0.1)
+    arrows = ArrowsLayer(
+        "a", np.zeros((1, 2, 3)), vectors=[[[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], scale=2.0, head_size=0.1
+    )
     arrows.build(scene, "/g/a")
     heads = scene.nodes["/g/a/heads"]
     np.testing.assert_allclose(heads.props["batched_scales"][0], [0.05, 0.05, 0.1])
     np.testing.assert_allclose(heads.props["batched_positions"][0], [0.0, 0.0, 1.9])
     np.testing.assert_allclose(heads.props["batched_scales"][1], 0.0)
-    np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["args"][0][0, 1], [0.0, 0.0, 2.0])
+    np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["points"][0, 1], [0.0, 0.0, 2.0])
 
 
 def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
@@ -203,15 +208,21 @@ def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_
     viewer = Viewer(server=server)
     joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]]] * 2, dtype=np.float32)
     thickness = np.array([[1.0, 1.0], [2.0, 3.0]], dtype=np.float32)  # (T, J): per step
-    viewer.add([SkeletonLayer("s", joints, [-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness)])
+    viewer.add(
+        [
+            SkeletonLayer(
+                "s", joints, parent_ids=[-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness
+            )
+        ]
+    )
     viewer.show(1)
     nodes = server.scene.nodes
     np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
     np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
     with pytest.raises(ShapeError, match="thickness"):
-        SkeletonLayer("bad", joints, [-1, 0], thickness=np.ones((3, 2)))
+        SkeletonLayer("bad", joints, parent_ids=[-1, 0], thickness=np.ones((3, 2)))
     with pytest.raises(ShapeError, match="offsets"):
-        SkeletonLayer("bad", joints, [-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
+        SkeletonLayer("bad", joints, parent_ids=[-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
 
 
 def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_and_invalid_vectors() -> None:
@@ -225,13 +236,19 @@ def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_an
     viewer.add(
         [
             ArrowsLayer(
-                "f", np.zeros((2, 3, 3)), vectors, colors=colours, head_size=0.1, shaft_radius=0.02, head_radius=0.04
+                "f",
+                np.zeros((2, 3, 3)),
+                vectors=vectors,
+                colors=colours,
+                head_size=0.1,
+                shaft_radius=0.02,
+                head_radius=0.04,
             )
         ],
         valid=keep,
     )
     shafts, heads = server.scene.nodes["/scene/f/shafts"], server.scene.nodes["/scene/f/heads"]
-    assert shafts.kind == "batched_meshes_simple"
+    assert shafts.kind == "BatchedMeshHandle"
     viewer.show(0)
     # Long arrow: shaft up to the head's base, head of full size. Short arrow (0.05 m, under head_size / 0.35): the
     # long one scaled by 0.05 * 0.35 / 0.1 = 0.175, head 35 % of it, so still a shaft and a head.
@@ -258,7 +275,11 @@ def test_arrows_draw_nothing_up_to_min_length(shaft_radius: float | None) -> Non
     vectors[..., 2] = lengths
     for name, min_length in (("default", {}), ("coarse", {"min_length": 0.01})):
         viewer.add(
-            [ArrowsLayer(name, np.ones((1, 4, 3)), vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length)]
+            [
+                ArrowsLayer(
+                    name, np.ones((1, 4, 3)), vectors=vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length
+                )
+            ]
         )
     viewer.show(0)
     for name, shown in (("default", [False, False, True, True]), ("coarse", [False, False, False, True])):
@@ -275,8 +296,8 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     viewer = Viewer(server=server)
     colours = np.zeros((3, 2, 3))
     colours[1, 0] = (1.0, 0.0, 0.0)  # contact 0 turns red at step 1
-    viewer.add([SpheresLayer("contacts", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=colours)])
-    viewer.add([ArrowsLayer("forces", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=colours)])
+    viewer.add([SpheresLayer("contacts", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=colours)])
+    viewer.add([ArrowsLayer("forces", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=colours)])
     spheres, heads = server.scene.nodes["/scene/contacts/spheres"], server.scene.nodes["/scene/forces/heads"]
     shafts = server.scene.nodes["/scene/forces/shafts"]
     viewer.show(1)
@@ -285,11 +306,11 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     np.testing.assert_array_equal(shafts.colors[0], [[255, 0, 0], [255, 0, 0]])
     viewer.show(2)
     assert not spheres.batched_colors.any()
-    static = SpheresLayer("static", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=(0.0, 1.0, 0.0))
+    static = SpheresLayer("static", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=(0.0, 1.0, 0.0))
     viewer.add([static])
     assert static._colors.shape == (2, 3)  # one colour stays static: never rewritten per step
     with pytest.raises(ShapeError, match="per-step colors"):
-        ArrowsLayer("bad", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
+        ArrowsLayer("bad", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
 
 def test_quaternion_z_to_direction_and_closed_unit_meshes() -> None:
@@ -313,8 +334,8 @@ def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     panel = viewer.add_plot("tau", np.random.default_rng(0).normal(size=(20, 3)), labels=["a", "b", "c"])
-    plot = next(control for control in server.gui.controls if control.kind == "uplot")
-    assert len(plot.props["args"][0]) == 4 and plot.props["args"][0][0][-1] == pytest.approx(19 / 30)
+    plot = next(control for control in server.gui.controls if control.kind == "GuiUplotHandle")
+    assert len(plot.props["data"]) == 4 and plot.props["data"][0][-1] == pytest.approx(19 / 30)
     viewer.show(7)
     assert plot.series[1]["points"]["filter"] == (7,) and plot.series[1]["label"] == "a"
     assert panel.nsteps == 20 and viewer.timeline.nsteps == 20
@@ -330,7 +351,7 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     asked = []
     lazy = ImagePanel("lazy", lambda step: asked.append(step) or frames[step], nsteps=4)
     viewer.add([lazy], group="video", times=np.arange(4) / 10.0)  # a 10 Hz video on the 30 fps timeline
-    eager_image, lazy_image = (control for control in server.gui.controls if control.kind == "image")
+    eager_image, lazy_image = (control for control in server.gui.controls if control.kind == "GuiImageHandle")
     viewer.show(3)  # 0.1 s: the lazy panel's sample 1
     np.testing.assert_array_equal(eager_image.image, frames[3])
     np.testing.assert_array_equal(lazy_image.image, frames[1])
@@ -366,6 +387,14 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
         GroundLayer(normal=(0.0, 0.0, 0.0))
 
 
+def test_a_blocking_play_stops_playback_when_serving_ends() -> None:
+    """Ctrl-C ends viser's serve; a playback thread left running dies inside torch at exit (SIGABRT)."""
+    viewer = Viewer(server=FakeServer())  # the stand-in's serve returns at once
+    viewer.add([_skeleton(10)])
+    viewer.play(block=True)
+    assert not viewer.timeline.playing
+
+
 def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
@@ -389,7 +418,11 @@ def test_layers_folder_checkboxes_follow_set_visible_and_survive_rebuild() -> No
     viewer.add([arm], group="robot")
 
     def boxes() -> dict[str, object]:
-        return {c.name: c for c in server.gui.controls if c.kind == "checkbox" and c.name != "Loop" and not c.removed}
+        return {
+            c.name: c
+            for c in server.gui.controls
+            if c.kind == "GuiCheckboxHandle" and c.name != "Loop" and not c.removed
+        }
 
     assert list(boxes()) == ["skel", "robot/arm"]
     assert [control.name for control in server.gui.controls].count("Layers") == 1
@@ -434,12 +467,48 @@ def test_replace_puts_the_new_layer_in_the_old_ones_place_and_visibility() -> No
         viewer.replace(old, _skeleton(5, "again"))
 
 
+class _Broken(Layer):
+    """Builds one node, then raises in ``build`` or on its first push, as a layer with inconsistent arrays does."""
+
+    def __init__(self, name: str, *, fails_in: str) -> None:
+        super().__init__(name, 20)
+        self.fails_in = fails_in
+
+    def build(self, scene: Any, root: str) -> None:
+        self._track(scene.add_frame(f"{root}/part", show_axes=False))
+        if self.fails_in == "build":
+            raise RuntimeError("broken build")
+
+    def set_step(self, step: int) -> None:
+        raise RuntimeError("broken push")
+
+
+@pytest.mark.parametrize("fails_in", ["build", "set_step"])
+def test_a_layer_that_fails_in_add_or_replace_leaves_the_viewer_as_it_was(fails_in: str) -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    kept = _skeleton(4, "kept")
+    viewer.add([kept])
+    with pytest.raises(RuntimeError, match="broken"):
+        viewer.add([_skeleton(8, "fine"), _Broken("bad", fails_in=fails_in)], group="new")
+    assert viewer.layers == [kept] and viewer.timeline.nsteps == 4
+    assert all(node.removed for name, node in server.scene.nodes.items() if name.startswith("/new"))
+    assert [c.name for c in server.gui.controls if c.name.startswith("new/") and not c.removed] == []
+    with pytest.raises(RuntimeError, match="broken"):
+        viewer.replace(kept, _Broken("kept", fails_in=fails_in))
+    assert viewer.layers == [kept] and viewer.timeline.nsteps == 4
+    assert not server.scene.nodes["/scene/kept/joints"].removed
+    assert [c.name for c in server.gui.controls if c.name == "kept" and not c.removed] == ["kept"]
+    viewer.show(2)
+    np.testing.assert_array_equal(server.scene.nodes["/scene/kept/joints"].batched_positions, kept.joints[2])
+
+
 def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    mesh = MeshLayer("mesh", np.zeros((3, 3)), np.array([[0, 1, 2]]))
+    mesh = MeshLayer("mesh", np.zeros((3, 3)), faces=np.array([[0, 1, 2]]))
     viewer.add([mesh])
-    spheres = SpheresLayer("balls", np.zeros((2, 3)), np.ones(2), opacity=1.0)
+    spheres = SpheresLayer("balls", np.zeros((2, 3)), radii=np.ones(2), opacity=1.0)
     viewer.add([spheres])
     mesh.set_opacity(0.4)
     spheres.set_opacity(0.4)
@@ -453,3 +522,64 @@ def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None
         mesh.set_opacity(0.0)
     with pytest.raises(ArgumentError, match="draws no surface"):
         PointsLayer("cloud", np.zeros((1, 3))).set_opacity(0.5)
+
+
+def test_mesh_layers_check_opacity_at_construction_as_set_opacity_does() -> None:
+    vertices, faces = np.zeros((3, 3)), np.array([[0, 1, 2]])
+    spec = MeshSpec(vertices=vertices, faces=faces, body=0, origin=np.array([0, 0, 0, 0, 0, 0, 1.0]))
+    weights, bind = np.ones((3, 4)) / 4, np.tile(np.array([0, 0, 0, 0, 0, 0, 1.0]), (4, 1))
+    builders = [
+        lambda opacity: MeshLayer("mesh", vertices, faces=faces, opacity=opacity),
+        lambda opacity: RigidMeshLayer("rigid", [spec], body_poses=bind[None, :1], opacity=opacity),
+        lambda opacity: SpheresLayer("balls", vertices, radii=np.ones(3), opacity=opacity),
+        lambda opacity: SkinnedMeshLayer(
+            "skin", vertices, faces=faces, weights=weights, bind_poses=bind, bone_poses=bind, opacity=opacity
+        ),
+    ]
+    for build in builders:
+        for bad in (0.0, 5.0, float("nan")):
+            with pytest.raises(ArgumentError, match=r"opacity must be in \(0, 1\]"):
+                build(bad)
+        layer = build(0.5)
+        assert layer.opacity == 0.5
+        with pytest.raises(ArgumentError, match=r"opacity must be in \(0, 1\]"):
+            layer.set_opacity(1.5)
+
+
+def test_every_public_viewer_type_has_a_one_line_repr_with_its_name_and_no_data() -> None:
+    import inspect  # noqa: PLC0415
+
+    import better_robot.viewer as viewer_package  # noqa: PLC0415
+
+    viewer = Viewer(server=FakeServer())
+    points, faces, poses = np.zeros((4, 300, 3)), np.array([[0, 1, 2]]), np.tile(np.eye(1, 7, 6), (4, 3, 1))
+    spec = MeshSpec(points[0], faces, body=0, origin=poses[0, 0])
+    objects = [
+        viewer,
+        viewer.timeline,
+        spec,
+        Theme(up="+y"),
+        PointsLayer("points", points),
+        SkeletonLayer("skeleton", points[:, :3], parent_ids=[-1, 0, 1]),
+        FramesLayer("frames", poses),
+        ArrowsLayer("arrows", points, vectors=points),
+        GroundLayer(),
+        RigidMeshLayer("rigid", [spec], body_poses=poses),
+        MeshLayer("mesh", points, faces=faces),
+        SpheresLayer("spheres", points, radii=np.ones(300)),
+        SkinnedMeshLayer(
+            "skinned", points[0], faces=faces, weights=np.ones((300, 3)), bind_poses=poses[0], bone_poses=poses
+        ),
+        viewer_package.CameraLayer("camera", poses[:, 0], fov=1.0, aspect=1.0),
+        ImagePanel("image", np.zeros((4, 2, 2, 3), np.uint8)),
+        viewer_package.PlotPanel("plot", points[:, :, 0]),
+    ]
+    public = {
+        name
+        for name in viewer_package.__all__
+        if inspect.isclass(getattr(viewer_package, name)) and not inspect.isabstract(getattr(viewer_package, name))
+    }
+    assert {type(value).__name__ for value in objects} == public
+    for value in objects:
+        text = repr(value)
+        assert text.startswith(type(value).__name__) and "\n" not in text and len(text) < 200, text

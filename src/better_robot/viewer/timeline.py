@@ -34,6 +34,9 @@ class Timeline:
         self._gui_slider: Any = None
         self._gui_play: Any = None
 
+    def __repr__(self) -> str:
+        return f"Timeline(nsteps={self.nsteps}, step={self._step}, fps={self.fps}, playing={self.playing})"
+
     @property
     def step(self) -> int:
         """Current step index; assigning clamps to ``[0, nsteps - 1]`` and runs the ``on_step`` callbacks."""

@@ -80,7 +80,9 @@ def main() -> None:
     viewer.add([GroundLayer()])
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
     hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id(FRAME)]].numpy())
-    viewer.add([RigidMeshLayer("panda", meshes, poses), robot_skeleton(model, poses, tau=tau), hand], group="panda")
+    viewer.add(
+        [RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses, tau=tau), hand], group="panda"
+    )
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
     viewer.add_plot("torque", tau.numpy(), labels=moving)
     if args.check:

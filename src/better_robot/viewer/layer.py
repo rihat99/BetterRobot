@@ -3,24 +3,39 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from ..exceptions import ArgumentError, ShapeError
 
+if TYPE_CHECKING:
+    from .theme import Theme
 
-def as_frames(array: np.ndarray | object, event_ndim: int) -> np.ndarray:
+
+def as_frames(
+    array: np.ndarray | object, event_ndim: int, *, name: str = "array", width: int | None = None
+) -> np.ndarray:
     """Promote an array to ``(T, ...)`` float32: a static array (no leading axis) becomes ``T = 1``.
 
-    ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``.
+    ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``; ``width``, when given,
+    is the size of the last axis. A wrong shape raises ``ShapeError`` naming the argument ``name``.
     """
     out = np.asarray(array, dtype=np.float32)
     if out.ndim == event_ndim:
         out = out[None]
-    if out.ndim != event_ndim + 1:
-        raise ShapeError(f"expected {event_ndim} or {event_ndim + 1} axes, got shape {out.shape}")
+    if out.ndim != event_ndim + 1 or (width is not None and out.shape[-1] != width):
+        last = "" if width is None else f" with a last axis of {width}"
+        raise ShapeError(f"{name} must have {event_ndim} or {event_ndim + 1} axes{last}, got shape {out.shape}")
     return np.ascontiguousarray(out)
+
+
+def as_triangles(faces: np.ndarray) -> np.ndarray:
+    """``faces`` as contiguous uint32 ``(F, 3)`` vertex indices of triangles; another shape raises ``ShapeError``."""
+    out = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
+    if out.ndim != 2 or out.shape[1] != 3:
+        raise ShapeError(f"faces must be (F, 3) vertex indices of triangles, got {out.shape}")
+    return out
 
 
 class Layer(ABC):
@@ -34,31 +49,39 @@ class Layer(ABC):
 
     Subclasses implement ``build`` and ``set_step``; ``build_gui``, ``world_points`` and, for a layer that draws
     surfaces, ``set_opacity`` are optional.
-    ``listed = False`` keeps a layer out of the sidebar's Layers folder.
+    ``listed = False`` keeps a layer out of the sidebar's Layers folder. ``scene`` and ``gui`` are viser's
+    ``SceneApi`` and ``GuiApi`` or the stand-ins of ``testing.FakeServer``, typed ``Any`` because only ``viewer.py``
+    imports viser.
     """
 
     listed: bool = True
-    #: Sample times ``(nsteps,)`` in seconds, set by ``Viewer.add(times=...)``; ``None`` = one sample per step.
-    times: np.ndarray | None = None
     #: Per-sample validity, set by ``Viewer.add(valid=...)``: ``(nsteps,)`` bool hides the whole layer on invalid
     #: samples, ``(nsteps, N)`` hides single elements; ``None`` = always shown.
     valid: np.ndarray | None = None
-    #: ``N`` for layers that hide single elements under a ``(nsteps, N)`` ``valid``; ``None`` = whole-layer only.
-    _elements: int | None = None
+    _elements: int | None = None  # set by a layer that hides single elements; read through ``elements``
+    #: Opacity in ``(0, 1]`` (1 is opaque) of the surfaces a mesh layer draws; ``set_opacity`` changes it.
+    opacity: float = 1.0
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
         if nsteps < 1:
             raise ArgumentError(f"layer {name!r}: nsteps must be at least 1, got {nsteps}")
         self.name = name
         self.nsteps = nsteps
-        self.root = ""
         self._handles: list[Any] = []
         self._visible = True
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.name!r}, nsteps={self.nsteps}, visible={self.visible})"
 
     @property
     def visible(self) -> bool:
         """Whether the layer is switched on; ``Viewer.set_visible`` switches it and catches it up to the current step."""
         return self._visible
+
+    @property
+    def elements(self) -> int | None:
+        """``N`` when the layer draws ``N`` elements that a ``(nsteps, N)`` ``valid`` hides one by one, else ``None``."""
+        return self._elements
 
     @abstractmethod
     def build(self, scene: Any, root: str) -> None:
@@ -71,7 +94,7 @@ class Layer(ABC):
     def build_gui(self, gui: Any) -> None:
         """Add per-layer controls to an open GUI folder; nothing by default."""
 
-    def apply_theme(self, theme: Any) -> None:
+    def apply_theme(self, theme: Theme) -> None:
         """Adopt defaults from the viewer's ``Theme`` before ``build``; nothing by default."""
 
     def world_points(self, step: int) -> np.ndarray | None:
@@ -105,10 +128,15 @@ class Layer(ABC):
         self._handles.append(handle)
         return handle
 
-    def _fade(self, opacity: float) -> None:
-        """``set_opacity`` of a layer whose tracked handles are all surfaces."""
+    def _store_opacity(self, opacity: float) -> None:
+        """Keep ``opacity`` once it is in ``(0, 1]``: the one check of the constructors and ``set_opacity``."""
         if not 0.0 < opacity <= 1.0:
             raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
         self.opacity = float(opacity)
-        for handle in self._handles:
-            handle.opacity = None if opacity >= 1.0 else self.opacity
+
+    def _fade(self, opacity: float, surfaces: list[Any] | None = None) -> None:
+        """``set_opacity`` of a mesh layer: keep ``opacity`` and write it to ``surfaces`` (every tracked handle when
+        ``None``)."""
+        self._store_opacity(opacity)
+        for handle in self._handles if surfaces is None else surfaces:
+            handle.opacity = None if self.opacity >= 1.0 else self.opacity

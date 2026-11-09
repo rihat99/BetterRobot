@@ -5,10 +5,14 @@ from __future__ import annotations
 import socket
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+import pytest
 
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
+from better_robot.viewer.layer import Layer
+from better_robot.viewer.tools import PoseGizmo
 from better_robot.viewer.viewer import Viewer
 
 
@@ -28,8 +32,8 @@ def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None
         poses[..., :3] = joints
         poses[..., 6] = 1.0
         viewer.add([GroundLayer()])
-        viewer.add([SkeletonLayer("skeleton", joints, parent_ids)])
-        viewer.add([ArrowsLayer("forces", joints[:, :4], rng.normal(size=(50, 4, 3)) * 0.2)])
+        viewer.add([SkeletonLayer("skeleton", joints, parent_ids=parent_ids)])
+        viewer.add([ArrowsLayer("forces", joints[:, :4], vectors=rng.normal(size=(50, 4, 3)) * 0.2)])
         viewer.add([FramesLayer("frames", poses)])
         viewer.add([PointsLayer("cloud", rng.normal(size=(50, 1000, 3)))], group="scan")
         start = time.perf_counter()
@@ -59,3 +63,46 @@ def test_url_follows_viser_when_requested_port_is_taken() -> None:
             assert viewer.url == f"http://127.0.0.1:{viewer.port}"
         finally:
             viewer.server.stop()
+
+
+class _BrokenPush(Layer):
+    """Builds a point cloud, then raises on its first push."""
+
+    def build(self, scene: Any, root: str) -> None:
+        self._track(scene.add_point_cloud(f"{root}/points", np.zeros((2, 3)), np.zeros((2, 3), np.uint8)))
+
+    def set_step(self, step: int) -> None:
+        raise RuntimeError("broken push")
+
+
+@pytest.mark.slow
+def test_a_layer_that_fails_on_a_real_server_leaves_the_scene_as_it_was() -> None:
+    viewer = Viewer(port=_free_port())
+    try:
+        kept = PointsLayer("kept", np.random.default_rng(0).normal(size=(5, 4, 3)))
+        viewer.add([kept])
+        nodes = set(viewer.server.scene._handle_from_node_name)
+        with pytest.raises(RuntimeError, match="broken push"):
+            viewer.add([PointsLayer("fine", np.zeros((3, 4, 3))), _BrokenPush("bad", 9)], group="new")
+        with pytest.raises(RuntimeError, match="broken push"):
+            viewer.replace(kept, _BrokenPush("kept", 9))
+        assert viewer.layers == [kept] and viewer.timeline.nsteps == 5
+        assert set(viewer.server.scene._handle_from_node_name) == nodes
+        viewer.show(3)
+        viewer.set_fps(10.0)
+        np.testing.assert_array_equal(
+            viewer.server.scene._handle_from_node_name["/scene/kept/points"].points, kept.points[3]
+        )
+    finally:
+        viewer.server.stop()
+
+
+@pytest.mark.slow
+def test_a_pose_gizmo_on_a_real_server_uses_no_deprecated_viser_call() -> None:
+    viewer = Viewer(port=_free_port())
+    try:
+        gizmo = PoseGizmo(viewer, "target", pose=np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]))  # warnings are errors
+        np.testing.assert_allclose(gizmo.pose, [0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
+        gizmo.remove()
+    finally:
+        viewer.server.stop()

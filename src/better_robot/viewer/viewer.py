@@ -7,15 +7,21 @@ import threading
 from dataclasses import dataclass, field
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, final
+from typing import TYPE_CHECKING, Any, Literal, final
 
 import numpy as np
 
 from ..exceptions import ArgumentError, ShapeError, UnknownNameError
+from ._extras import needs_extra
 from .layer import Layer
 from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
 from .timeline import Timeline
+
+if TYPE_CHECKING:
+    from viser import SceneClickEvent, SceneRectSelectEvent
+
+    PointerCallback = Callable[[SceneClickEvent], None] | Callable[[SceneRectSelectEvent], None]
 
 #: What the camera fits when no visible layer has points: a 2 x 2 x 1 m box standing on the origin.
 _EMPTY_SCENE_POINTS = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
@@ -25,7 +31,9 @@ _EMPTY_SCENE_POINTS = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
 @dataclass
 class _Entry:
     layer: Layer
-    node: Any  # the frame ``/<group>/<layer.name>`` the layer builds under; hidden on samples ``valid`` marks invalid
+    root: str  # the scene path ``/<group>/<layer.name>`` the layer builds under
+    node: Any  # the frame at ``root``; hidden on samples the layer's ``valid`` marks invalid
+    times: np.ndarray | None = None  # ``add(times=)``: sample times (nsteps,) in seconds; None = one sample per step
     step: int = -1  # last step pushed; -1 = never
     checkbox: Any = None  # the layer's row in the sidebar's Layers folder
 
@@ -48,7 +56,8 @@ class Viewer:
     block, and layers that already show that step are skipped.
 
     ``server`` is the underlying ``viser.ViserServer`` (escape hatch for custom GUI); pass one
-    in to reuse a server or a fake in tests. The default host is loopback only.
+    in to reuse a server or a fake in tests (``testing.FakeServer``, hence typed ``Any``). The default host is
+    loopback only.
     """
 
     def __init__(
@@ -61,7 +70,8 @@ class Viewer:
         server: Any | None = None,
     ) -> None:
         if server is None:
-            import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
+            with needs_extra("viewer"):
+                import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
 
             server = viser.ViserServer(host=host, port=port, verbose=False)
             # viser moves to the next free port when ``port`` is taken; ``url`` (and record) must follow it.
@@ -71,12 +81,17 @@ class Viewer:
         self.theme = theme or LIGHT
         self.theme.apply(server)
         self.timeline = Timeline(1, fps=fps)
-        self._pointer: tuple[str, Callable[[Any], None]] | None = None  # (kind, callback) held by on_pointer
+        self._pointer: tuple[str, PointerCallback] | None = None  # (kind, callback) held by on_pointer
         self.timeline.on_step(lambda step: self._push_all(step, force=False))
         self._groups: dict[str, _Group] = {}
         self._lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes
         self._timeline_folder: Any = None  # built when the first multi-step layer arrives
         self._layers_folder: Any = None
+
+    def __repr__(self) -> str:
+        return (
+            f"Viewer({self.url}, groups={list(self._groups)}, layers={len(self.layers)}, nsteps={self.timeline.nsteps})"
+        )
 
     @property
     def url(self) -> str:
@@ -104,10 +119,12 @@ class Viewer:
         step ``k`` then shows the latest sample at or before ``k / fps``. ``None`` keeps one sample per step.
         ``valid`` ``(T,)`` bool hides the layers on the samples where it is false (a person not tracked in that
         frame); ``(T, N)`` hides single elements of a layer that draws ``N`` (``SpheresLayer``, ``ArrowsLayer``). It
-        is kept by reference, like the layers' arrays. Nothing is added when any layer is refused.
+        is kept by reference, like the layers' arrays. Nothing is added when any layer is refused, or raises while it
+        builds or shows its first step: that error propagates and the viewer is as it was.
         """
-        if isinstance(layers, Layer):
-            raise ArgumentError(f"add takes an iterable of layers; pass [{type(layers).__name__}(...)]")
+        if isinstance(layers, (Layer, str)) or not isinstance(layers, Iterable):
+            hint = f"[{type(layers).__name__}(...)]" if isinstance(layers, Layer) else "[layer, ...]"
+            raise ArgumentError(f"add takes an iterable of layers; pass {hint}, got {type(layers).__name__}")
         layers = list(layers)
         if times is not None:
             times = np.asarray(times, dtype=np.float64)
@@ -117,8 +134,46 @@ class Viewer:
                 raise ArgumentError("times must be non-decreasing")
         if valid is not None:
             valid = np.asarray(valid, dtype=bool)
+        self._check_layers(layers, group, times, valid)
+        with self._lock:
+            group_state = self._groups.get(group)
+            new_group = group_state is None
+            if group_state is None:
+                group_state = _Group(self.server.scene.add_frame(f"/{group}", show_axes=False))
+            placed: list[_Entry] = []
+            try:
+                for layer in layers:
+                    # Always assigned, so a re-added layer never keeps the validity of an earlier add.
+                    layer.valid = valid
+                    placed.append(self._place(layer, group, times))
+            except BaseException:
+                for entry in placed:
+                    self._teardown(entry)
+                if new_group:
+                    group_state.node.remove()
+                raise
+            self._groups[group] = group_state
+            group_state.entries.update((entry.layer.name, entry) for entry in placed)
+            if offset is not None:
+                group_state.node.position = offset
+                group_state.offset = offset
+            for entry in placed:
+                self.timeline.extend(self._span(entry))
+            self._timeline_gui()
+
+    def _check_layers(
+        self, layers: list[Layer], group: str, times: np.ndarray | None, valid: np.ndarray | None
+    ) -> None:
+        """Refuse ``add``'s layers before anything is built: a layer already present, a name taken in ``group``, or
+        ``times`` / ``valid`` of the wrong shape."""
         taken = set(self._groups[group].entries) if group in self._groups else set()
-        for layer in layers:
+        for index, layer in enumerate(layers):
+            if not isinstance(layer, Layer):
+                raise ArgumentError(f"add takes Layer objects, got {type(layer).__name__} at index {index}")
+            if self._holds(layer) or any(layer is other for other in layers[:index]):
+                raise ArgumentError(
+                    f"layer {layer.name!r} is already in this viewer; a layer draws in one place, so build a new one"
+                )
             if layer.name in taken:
                 raise ArgumentError(
                     f"group {group!r} already has a layer named {layer.name!r}; give the new layer another name"
@@ -127,43 +182,26 @@ class Viewer:
             if times is not None and times.shape != (layer.nsteps,):
                 raise ShapeError(f"times must have shape ({layer.nsteps},) for layer {layer.name!r}, got {times.shape}")
             if valid is not None:
-                shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer._elements)] if layer._elements is not None else [])
+                shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer.elements)] if layer.elements is not None else [])
                 if valid.shape not in shapes:
                     raise ShapeError(
                         f"valid must have shape {' or '.join(map(str, shapes))} for layer {layer.name!r}, "
                         f"got {valid.shape}"
                     )
-        with self._lock:
-            for layer in layers:
-                self._add(layer, group, offset, times, valid)
 
-    def _add(
-        self,
-        layer: Layer,
-        group: str,
-        offset: tuple[float, float, float] | None,
-        times: np.ndarray | None,
-        valid: np.ndarray | None,
-    ) -> None:
-        group_state = self._groups.get(group)
-        if group_state is None:
-            node = self.server.scene.add_frame(f"/{group}", show_axes=False)
-            group_state = self._groups[group] = _Group(node)
-        if offset is not None:
-            group_state.node.position = offset
-            group_state.offset = offset
-        # Always assigned, so a re-added layer never keeps the times or validity of an earlier add.
-        layer.times, layer.valid = times, valid
-        entry = group_state.entries[layer.name] = self._entry_for(layer, group)
-        self._build(entry, group)
-        self.timeline.extend(self._span(layer))
-        self._timeline_gui()
-        self._push(entry, self.timeline.step)
-
-    def _entry_for(self, layer: Layer, group: str) -> _Entry:
+    def _place(self, layer: Layer, group: str, times: np.ndarray | None, *, order: float | None = None) -> _Entry:
+        """Build ``layer`` under ``/<group>/<layer.name>`` and push the current step to it, or remove what it built and
+        re-raise."""
         layer.apply_theme(self.theme)
-        layer.root = f"/{group}/{layer.name}"
-        return _Entry(layer, self.server.scene.add_frame(layer.root, show_axes=False))
+        root = f"/{group}/{layer.name}"
+        entry = _Entry(layer, root, self.server.scene.add_frame(root, show_axes=False), times)
+        try:
+            self._build(entry, group, order=order)
+            self._push(entry, self.timeline.step)
+        except BaseException:
+            self._teardown(entry)
+            raise
+        return entry
 
     def _timeline_gui(self) -> None:
         """Build the Timeline folder once the timeline has more than one step."""
@@ -172,7 +210,9 @@ class Viewer:
             with self._timeline_folder:
                 self.timeline.build_gui(self.server.gui)
 
-    def add_plot(self, name: str, series: Any, *, labels: list[str] | None = None, group: str = "plots") -> PlotPanel:
+    def add_plot(
+        self, name: str, series: np.ndarray, *, labels: list[str] | None = None, group: str = "plots"
+    ) -> PlotPanel:
         """Sidebar chart of ``series (T, K)`` against time with a marker at the current step."""
         panel = PlotPanel(name, series, labels=labels, fps=self.timeline.fps)
         self.add([panel], group=group)
@@ -232,6 +272,8 @@ class Viewer:
         With no argument, re-push the current step to every visible layer even if it already shows it; call this
         after editing a layer's arrays in place.
         """
+        if step is not None and not isinstance(step, int | np.integer):
+            raise ArgumentError(f"step must be an int, got {step!r}")
         if step is None or step == self.timeline.step:
             self._push_all(self.timeline.step, force=True)
         else:
@@ -257,7 +299,7 @@ class Viewer:
         size: tuple[int, int] = (960, 540),
         fps: float | None = None,
         gpu: bool = False,
-        camera: tuple[Sequence[float], Sequence[float]] | None = None,
+        camera: tuple[np.ndarray | Sequence[float], np.ndarray | Sequence[float]] | None = None,
     ) -> Path:
         """Screenshot the live scene in a headless Chromium for each step and write ``.webm``, ``.gif`` or PNGs.
 
@@ -329,7 +371,7 @@ class Viewer:
                 if not entry.layer.visible:
                     continue
                 for step in steps:
-                    index = self._index(entry.layer, step)
+                    index = self._index(entry, step)
                     valid = entry.layer.valid
                     if valid is not None and valid.ndim == 1 and not valid[index]:
                         continue
@@ -352,7 +394,6 @@ class Viewer:
                 entry.checkbox.remove()
                 entry.checkbox = None
             self._build(entry, group, order=order)
-            layer.set_visible(layer.visible)
             if layer.visible:
                 self._push(entry, self.timeline.step)
 
@@ -361,10 +402,17 @@ class Viewer:
 
         ``old``'s scene nodes and controls go; ``new`` is built under ``/<group>/<new.name>`` and the timeline is fitted
         to the layers now present. ``new`` arrives without ``times`` or ``valid`` (``add``'s per-layer options); a
-        new name must be free in the group. Use it to swap the data a layer draws, such as a body switched in a studio.
+        new name must be free in the group, and ``new`` must not be in the viewer yet (``rebuild`` redraws a layer in
+        place). Use it to swap the data a layer draws, such as a body switched in a studio. When ``new`` raises while it
+        builds or shows its first step, ``old`` is drawn again and the error propagates.
         """
         with self._lock:
             entry = self._entry(old)
+            if self._holds(new):
+                raise ArgumentError(
+                    f"layer {new.name!r} is already in this viewer; replace takes a new layer object "
+                    "(rebuild redraws a layer in place)"
+                )
             group = next(name for name, state in self._groups.items() if state.entries.get(old.name) is entry)
             entries = self._groups[group].entries
             if new.name != old.name and new.name in entries:
@@ -372,45 +420,55 @@ class Viewer:
                     f"group {group!r} already has a layer named {new.name!r}; give the new layer another name"
                 )
             order = None if entry.checkbox is None else entry.checkbox.order
+            # viser keys scene nodes by path, so ``new`` cannot be built beside ``old`` under the same name: ``old``
+            # goes first and comes back when ``new`` fails.
             self._teardown(entry)
-            new.times = new.valid = None
+            new.valid = None
             new.set_visible(old.visible)
-            replacement = self._entry_for(new, group)
+            try:
+                replacement = self._place(new, group, None, order=order)
+            except BaseException:
+                entries[old.name] = self._place(old, group, entry.times, order=order)
+                raise
             self._groups[group].entries = {
                 (new.name if name == old.name else name): (replacement if name == old.name else value)
                 for name, value in entries.items()
             }
-            self._build(replacement, group, order=order)
-            new.set_visible(new.visible)
             self._fit_timeline()
             self._timeline_gui()
-            if new.visible:
-                self._push(replacement, self.timeline.step)
 
     def play(self, *, block: bool = True) -> None:
-        """Start playback (a no-op for a single-step scene); with ``block`` keep serving until interrupted."""
+        """Start playback (a no-op for a single-step scene); with ``block`` keep serving until interrupted, then pause."""
         self.timeline.play()
         if block:
-            self.server.sleep_forever()
+            try:
+                self.server.sleep_forever()
+            finally:
+                # A playback thread still running at interpreter exit dies inside torch and aborts the process.
+                self.timeline.pause()
 
     def _build(self, entry: _Entry, group: str, *, order: float | None = None) -> None:
         """Build ``entry``'s layer and, for a listed layer, its Layers checkbox (at ``order`` when it replaces one)."""
         layer = entry.layer
-        layer.build(self.server.scene, layer.root)
-        if not layer.listed:
+        layer.build(self.server.scene, entry.root)
+        if layer.listed:
+            if self._layers_folder is None:
+                self._layers_folder = self.server.gui.add_folder("Layers")
+            label = layer.name if group == "scene" else f"{group}/{layer.name}"
+            with self._layers_folder:
+                checkbox = entry.checkbox = self.server.gui.add_checkbox(
+                    label, initial_value=layer.visible, order=order
+                )
+                checkbox.on_update(lambda _: self.set_visible(layer, bool(checkbox.value)))
+                layer.build_gui(self.server.gui)
+        else:
             layer.build_gui(self.server.gui)
-            return
-        if self._layers_folder is None:
-            self._layers_folder = self.server.gui.add_folder("Layers")
-        label = layer.name if group == "scene" else f"{group}/{layer.name}"
-        with self._layers_folder:
-            checkbox = entry.checkbox = self.server.gui.add_checkbox(label, initial_value=layer.visible, order=order)
-            checkbox.on_update(lambda _: self.set_visible(layer, bool(checkbox.value)))
-            layer.build_gui(self.server.gui)
+        if not layer.visible:
+            layer.set_visible(False)  # new handles start shown
 
     def _group(self, group: str) -> _Group:
         if group not in self._groups:
-            raise UnknownNameError("group", group, list(self._groups))
+            raise UnknownNameError("group", group, valid=list(self._groups))
         return self._groups[group]
 
     def _teardown(self, entry: _Entry) -> None:
@@ -427,17 +485,25 @@ class Viewer:
                     return entry
         raise ArgumentError(f"layer {layer.name!r} is not in this viewer; add it first")
 
-    def on_pointer(self, kind: str, callback: Callable[[Any], None]) -> None:
+    def _holds(self, layer: Layer) -> bool:
+        """Whether ``layer`` (this object, not its name) is in the viewer."""
+        return any(entry.layer is layer for group in self._groups.values() for entry in group.entries.values())
+
+    def on_pointer(self, kind: Literal["click", "rect-select"], callback: PointerCallback) -> None:
         """Route scene clicks (``kind="click"``) or box selections (``"rect-select"``) to ``callback``.
 
         A click arrives as viser's ``SceneClickEvent`` (``ray_origin``, ``ray_direction``, ``screen_pos``), a box as
         its ``SceneRectSelectEvent`` (``screen_min``, ``screen_max``; image coordinates in ``[0, 1]``, top-left
-        origin). The viewer holds one pointer callback so tools never fight over the scene: a new registration
-        replaces the previous one.
+        origin). The viewer holds one pointer callback so tools never fight over the scene: while one is held, a new
+        registration raises ``ArgumentError``; a tool that takes the pointer over calls ``clear_pointer`` first.
         """
         if kind not in ("click", "rect-select"):
             raise ArgumentError(f"kind must be 'click' or 'rect-select', got {kind!r}")
-        self.clear_pointer()
+        if self._pointer is not None:
+            raise ArgumentError(
+                f"the viewer already holds a {self._pointer[0]!r} callback; call clear_pointer() before registering "
+                "another"
+            )
         scene = self.server.scene
         (scene.on_click if kind == "click" else scene.on_rect_select)()(callback)
         self._pointer = (kind, callback)
@@ -452,24 +518,25 @@ class Viewer:
 
     def _fit_timeline(self) -> None:
         """Size the timeline to the longest layer, one step when there is none."""
-        self.timeline.resize(max((self._span(layer) for layer in self.layers), default=1))
+        spans = (self._span(entry) for group in self._groups.values() for entry in group.entries.values())
+        self.timeline.resize(max(spans, default=1))
 
-    def _span(self, layer: Layer) -> int:
-        """Timeline steps ``layer`` needs: its sample count, or enough steps to reach its last time."""
-        if layer.times is None:
-            return layer.nsteps
-        return int(np.floor(layer.times[-1] * self.timeline.fps + 1e-9)) + 1
+    def _span(self, entry: _Entry) -> int:
+        """Timeline steps ``entry``'s layer needs: its sample count, or enough steps to reach its last time."""
+        if entry.times is None:
+            return entry.layer.nsteps
+        return int(np.floor(entry.times[-1] * self.timeline.fps + 1e-9)) + 1
 
-    def _index(self, layer: Layer, step: int) -> int:
-        """Sample of ``layer`` shown at timeline ``step``: the step itself, or the nearest earlier time."""
-        if layer.times is None:
-            return min(step, layer.nsteps - 1)
+    def _index(self, entry: _Entry, step: int) -> int:
+        """Sample of ``entry``'s layer shown at timeline ``step``: the step itself, or the nearest earlier time."""
+        if entry.times is None:
+            return min(step, entry.layer.nsteps - 1)
         # The tolerance keeps a sample stamped exactly on a step from rounding to the previous one.
-        index = int(np.searchsorted(layer.times, step / self.timeline.fps + 1e-9, side="right")) - 1
-        return min(max(index, 0), layer.nsteps - 1)
+        index = int(np.searchsorted(entry.times, step / self.timeline.fps + 1e-9, side="right")) - 1
+        return min(max(index, 0), entry.layer.nsteps - 1)
 
     def _push(self, entry: _Entry, step: int, *, force: bool = True) -> None:
-        step = self._index(entry.layer, step)
+        step = self._index(entry, step)
         if force or step != entry.step:
             entry.layer.set_step(step)
             entry.step = step

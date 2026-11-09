@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from better_robot.viewer import CameraLayer, SkinnedMeshLayer
+from better_robot.viewer import CameraLayer, SkinnedMeshLayer, Viewer
 from better_robot.viewer.layers.skinned import top_k_weights
 
 from better_robot.testing import FakeServer
@@ -23,7 +23,7 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     # Frame 1: bone 1 rotated 90° about x at its own position → the upper half folds towards -y.
     half = math.sqrt(0.5)
     posed = np.stack([bind, np.array([[0, 0, 0, 0, 0, 0, 1.0], [0, 0, 1.0, half, 0, 0, half]], dtype=np.float32)])
-    layer = SkinnedMeshLayer("body", vertices, faces, weights, bind, posed)
+    layer = SkinnedMeshLayer("body", vertices, faces=faces, weights=weights, bind_poses=bind, bone_poses=posed)
     assert layer.nsteps == 2
     np.testing.assert_allclose(layer.skin(0), vertices, atol=1e-6)
     bent = layer.skin(1)
@@ -31,12 +31,14 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     np.testing.assert_allclose(bent[8], [0.1, -1.0, 1.0], atol=1e-6)  # tip: (0.1, 0, 2) rotated about bone 1
 
     server = FakeServer()
-    layer.build(server.scene, "/g/body")
+    viewer = Viewer(server=server)
+    viewer.add([layer], group="g")
     node = server.scene.nodes["/g/body/mesh"]
-    assert node.props["skin_weights"].shape == (9, 2)
+    # viser needs four bones: two unweighted bones at the origin pad the mesh and never move.
+    assert node.props["skin_weights"].shape == (9, 4) and not node.props["skin_weights"][:, 2:].any()
     np.testing.assert_allclose(node.props["bone_wxyzs"][1], [1.0, 0.0, 0.0, 0.0])
-    node.bones = [server.scene.nodes["/g/body/mesh"].__class__(None, "bone", f"b{i}", {}) for i in range(2)]
-    layer.set_step(1)
+    viewer.show(1)
+    assert len(node.bones) == 4 and not node.bones[2].writes and not node.bones[3].writes
     np.testing.assert_allclose(node.bones[1].wxyz, [half, half, 0.0, 0.0], atol=1e-6)
     np.testing.assert_allclose(node.bones[1].position, [0.0, 0.0, 1.0])
 

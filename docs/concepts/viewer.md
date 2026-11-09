@@ -33,7 +33,9 @@ http://127.0.0.1:8080 100
 ```
 
 The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
-`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`; `viewer.add_plot` adds a
+`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`. Each layer of data takes its name and
+its main array by position and every other argument by keyword, as in `SpheresLayer("contacts", centers, radii=radii)`.
+`viewer.add_plot` adds a
 `PlotPanel` of time series to the GUI, and `ImagePanel(name, images)` puts an image per step there, such as the input
 video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `PointsLayer`, `SkeletonLayer`,
 `SpheresLayer` and `ArrowsLayer` take one colour, one per element `(N, 3)`, or one per step `(T, N, 3)`, such as a
@@ -42,7 +44,7 @@ contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixel
 `head_radius`, so forces keep their thickness at any zoom; a head takes at most 35 % of its arrow, so a short solid
 arrow is the long one scaled down, never a lone head. An arrow no longer than `min_length` metres (default
 `1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
-forces too small to read. `SkeletonLayer(name, joints, parent_ids)` draws joints `(T, J, 3)` (or poses
+forces too small to read. `SkeletonLayer(name, joints, parent_ids=)` draws joints `(T, J, 3)` (or poses
 `(T, J, 7)`) as a stick figure, a bone from each joint to its parent (`parent_ids (J,)`, `-1` for a root); it takes a
 joint `radius` per joint `(J,)` or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
 length, `offsets (J, 3)` in each joint's frame that move a marker off its joint origin (bones then join the drawn
@@ -140,7 +142,7 @@ poses = state.joint_poses.numpy()                                        # (30, 
 
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
 hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-viewer.add([RigidMeshLayer("panda", meshes, poses), robot_skeleton(model, poses), hand], group="panda")
+viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], group="panda")
 
 ghost = robot_skeleton(model, poses, name="ghost")
 viewer.add([ghost], group="ghost", offset=(0.0, 1.0, 0.0))
@@ -186,7 +188,7 @@ viewer.add([robot_skeleton(model, poses, name="panda load", tau=tau, end_points=
 
 ## Tools: a gizmo and numpy picking
 
-`better_robot.viewer.tools` holds two things. `PoseGizmo(viewer, name, pose, on_change=...)` is a draggable
+`better_robot.viewer.tools` holds two things. `PoseGizmo(viewer, name, pose=, on_change=...)` is a draggable
 transform handle that calls `on_change(pose)` on every drag; `examples/viewer/03_ik_gizmo.py` uses it to re-solve
 IK and call `robot.update(q)` live. A callback that raises stops the gizmo, and `gizmo.wait()` raises its error in
 your thread. Picking is plain numpy over vertices, so it also works on data you never
@@ -196,8 +198,8 @@ showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radiu
 The viewer holds one pointer callback so that tools never fight over the scene: a tool calls
 `viewer.on_pointer("click", callback)` (viser's `SceneClickEvent`: `ray_origin`, `ray_direction`, `screen_pos`) or
 `viewer.on_pointer("rect-select", callback)` (`SceneRectSelectEvent`: `screen_min`, `screen_max`), and
-`viewer.clear_pointer()` when it is done. A new registration replaces the previous one; never register on
-`viewer.server.scene` directly.
+`viewer.clear_pointer()` when it is done. While one callback is held, a new registration raises `ArgumentError`:
+the tool taking the pointer over calls `clear_pointer()` first. Never register on `viewer.server.scene` directly.
 
 ```python
 from better_robot.viewer.tools import vertices_in_sphere
@@ -258,8 +260,9 @@ print(y_up_viewer.theme.up_vector)
 ```
 
 `Viewer(server=...)` reuses an existing `viser.ViserServer`, or takes `better_robot.testing.FakeServer`, the
-stand-in that records scene calls without a port or a browser (the tests and the examples' `--check` run on it);
-`viewer.server` is the escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
+stand-in that records scene calls without a port or a browser (the tests and the examples' `--check` run on it). It
+declares each viser call the viewer makes with viser's parameters, and a test of the full tier binds them against
+viser, so a call viser would refuse fails on the stand-in too; `viewer.server` is the escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
 forward the port over SSH to view it remotely.
 
 ## Lazy inputs

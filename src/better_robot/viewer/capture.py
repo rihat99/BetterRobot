@@ -15,11 +15,15 @@ import subprocess
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, final
+from typing import TYPE_CHECKING, Any, final
 
 import numpy as np
 
 from ..exceptions import ArgumentError, OptionalDependencyError
+from ._extras import needs_extra
+
+if TYPE_CHECKING:
+    from .viewer import Viewer
 
 _CHROME_NAMES = ("chromium", "google-chrome", "chrome-headless-shell")
 FOV = math.radians(50.0)  # vertical field of view `fit_camera` assumes and `HeadlessClient.set_camera` sets
@@ -83,6 +87,7 @@ def fit_camera(
     look_at = look_at + float((points @ direction).mean()) * direction
     tan_y = fill * math.tan(fov / 2.0)
     tan_x = tan_y * aspect
+    distance = 0.0  # set by the loop, which always runs
     for _ in range(8):
         offset = points - look_at
         depth_needed = np.maximum(np.abs(offset @ screen_up) / tan_y, np.abs(offset @ right) / tan_x)
@@ -104,7 +109,7 @@ class HeadlessClient:
     """
 
     def __init__(
-        self, viewer: Any, *, size: tuple[int, int] = (960, 540), gpu: bool = False, timeout: float = 30.0
+        self, viewer: Viewer, *, size: tuple[int, int] = (960, 540), gpu: bool = False, timeout: float = 30.0
     ) -> None:
         self.viewer, self.size, self.gpu, self.timeout = viewer, size, gpu, timeout
         self.client: Any = None
@@ -159,7 +164,9 @@ class HeadlessClient:
             image = (image[..., :3] * alpha + 255.0 * (1.0 - alpha)).round().astype(np.uint8)
         return image
 
-    def set_camera(self, position: Sequence[float], look_at: Sequence[float], up: Sequence[float]) -> None:
+    def set_camera(
+        self, position: np.ndarray | Sequence[float], look_at: np.ndarray | Sequence[float], *, up: Sequence[float]
+    ) -> None:
         """Place the browser's camera; call it after the scene has arrived (first ``render``)."""
         with self.client.atomic():
             self.client.camera.fov = FOV
@@ -174,7 +181,8 @@ def write_frames(frames: Sequence[np.ndarray], path: str | Path, *, fps: float) 
     PNG output: ``name.png`` writes ``name_000.png, name_001.png, ...``; a path without a suffix is a directory
     that receives ``frame_000.png, ...``. Returns ``path``.
     """
-    from PIL import Image  # noqa: PLC0415 - optional at the boundary
+    with needs_extra("viewer"):
+        from PIL import Image  # noqa: PLC0415 - optional at the boundary
 
     path = Path(path)
     suffix = path.suffix.lower()

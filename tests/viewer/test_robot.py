@@ -35,7 +35,7 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
         MeshSpec(triangle, np.array([[0, 1, 2]]), body=2, origin=origin),
         MeshSpec(triangle, np.array([[0, 1, 2]]), body=0, origin=np.array([0, 0, 0, 0, 0, 0, 1.0])),
     ]
-    layer = RigidMeshLayer("meshes", specs, body_poses)
+    layer = RigidMeshLayer("meshes", specs, body_poses=body_poses)
     layer.build(scene, "/r/meshes")
     layer.set_step(3)
     expected = _lie.compose(body_poses[3, 2], origin)
@@ -44,11 +44,11 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
     np.testing.assert_allclose(node.wxyz, expected[[6, 3, 4, 5]], atol=1e-6)
     np.testing.assert_allclose(scene.nodes["/r/meshes/mesh_1"].position, body_poses[3, 0, :3])
 
-    deforming = MeshLayer("soft", np.zeros((6, 3, 3)), np.array([[0, 1, 2]]))
+    deforming = MeshLayer("soft", np.zeros((6, 3, 3)), faces=np.array([[0, 1, 2]]))
     deforming.build(scene, "/r/soft")
     deforming.set_step(5)
     assert deforming.nsteps == 6 and ("/r/soft/mesh", "vertices") in scene.log
-    SpheresLayer("s", np.zeros((2, 4, 3)), np.ones(4)).build(scene, "/r/s")
+    SpheresLayer("s", np.zeros((2, 4, 3)), radii=np.ones(4)).build(scene, "/r/s")
     assert scene.nodes["/r/s/spheres"].props["batched_scales"].shape == (4,)
 
 
@@ -64,7 +64,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     assert len(meshes) == 17  # nine STL meshes and eight finger boxes
     hand_frame = model.frame_id("panda_hand")
     layers = {
-        "robot collision": RigidMeshLayer("robot collision", meshes, joint_poses, opacity=0.4),
+        "robot collision": RigidMeshLayer("robot collision", meshes, body_poses=joint_poses, opacity=0.4),
         "robot skeleton": robot_skeleton(model, joint_poses, name="robot skeleton", tau=tau),
         "robot frames": FramesLayer("robot frames", state.frame_poses[:, [hand_frame]].numpy()),
     }
@@ -116,7 +116,7 @@ def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
     layer = SkeletonLayer(
         "s",
         poses,
-        [-1, 0, 1],
+        parent_ids=[-1, 0, 1],
         kinds=["free_flyer", "revolute", "fixed"],
         axes=[[0, 0, 1], [1, 0, 0], [0, 0, 1]],
     )

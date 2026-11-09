@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import Any, final
 
 import numpy as np
@@ -10,7 +10,7 @@ import numpy as np
 from ...exceptions import ArgumentError, ShapeError
 from .._lie import act, compose, to_wxyz
 from .._primitives import unit_sphere
-from ..layer import as_frames
+from ..layer import as_frames, as_triangles
 from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
@@ -25,17 +25,17 @@ class MeshLayer(Layer):
         self,
         name: str,
         vertices: np.ndarray,
-        faces: np.ndarray,
         *,
+        faces: np.ndarray,
         color: RGB = (0.80, 0.80, 0.80),
         opacity: float = 1.0,
         flat_shading: bool = False,
     ) -> None:
-        self.vertices = as_frames(vertices, 2)
+        self.vertices = as_frames(vertices, 2, name="vertices", width=3)
         super().__init__(name, self.vertices.shape[0])
-        self.faces = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
+        self.faces = as_triangles(faces)
         self.color = color
-        self.opacity = opacity
+        self._store_opacity(opacity)
         self.flat_shading = flat_shading
         self._mesh: Any = None
 
@@ -74,10 +74,14 @@ class MeshSpec:
 
     vertices: np.ndarray
     faces: np.ndarray
+    _: KW_ONLY
     body: int
     origin: np.ndarray
     color: RGB = (0.80, 0.80, 0.80)
-    trimesh: Any = None
+    trimesh: Any = None  # a trimesh.Trimesh; trimesh is imported in robot.py only
+
+    def __repr__(self) -> str:
+        return f"MeshSpec(V={len(self.vertices)}, F={len(self.faces)}, body={self.body})"
 
 
 @final
@@ -88,11 +92,18 @@ class RigidMeshLayer(Layer):
     ``viewer.show()`` updates the scene (live tools).
     """
 
-    def __init__(self, name: str, meshes: list[MeshSpec], body_poses: np.ndarray, *, opacity: float = 1.0) -> None:
-        self.body_poses = as_frames(body_poses, 2)
+    def __init__(self, name: str, meshes: list[MeshSpec], *, body_poses: np.ndarray, opacity: float = 1.0) -> None:
+        self.body_poses = as_frames(body_poses, 2, name="body_poses", width=7)
         super().__init__(name, self.body_poses.shape[0])
+        n_bodies = self.body_poses.shape[1]
+        outside = [spec.body for spec in meshes if not 0 <= spec.body < n_bodies]
+        if outside:
+            raise ArgumentError(
+                f"MeshSpec.body {outside} out of range for body_poses with {n_bodies} bodies; pass every body's pose "
+                "(KinematicState.body_poses)"
+            )
         self.meshes = meshes
-        self.opacity = opacity
+        self._store_opacity(opacity)
         self._bodies = np.array([spec.body for spec in meshes], dtype=np.int64)
         self._origins = (
             np.stack([spec.origin for spec in meshes]).astype(np.float32) if meshes else np.zeros((0, 7), np.float32)
@@ -135,11 +146,7 @@ class RigidMeshLayer(Layer):
     def set_opacity(self, opacity: float) -> None:
         """Draw the meshes at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a textured or
         vertex-coloured mesh (``MeshSpec.trimesh``) stays opaque."""
-        if not 0.0 < opacity <= 1.0:
-            raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
-        self.opacity = float(opacity)
-        for node in self._plain:
-            node.opacity = None if opacity >= 1.0 else self.opacity
+        self._fade(opacity, self._plain)
 
 
 @final
@@ -153,12 +160,12 @@ class SpheresLayer(Layer):
         self,
         name: str,
         centers: np.ndarray,
-        radii: np.ndarray,
         *,
+        radii: np.ndarray,
         colors: np.ndarray | RGB = (0.95, 0.45, 0.20),
         opacity: float = 0.5,
     ) -> None:
-        self.centers = as_frames(centers, 2)
+        self.centers = as_frames(centers, 2, name="centers", width=3)
         super().__init__(name, self.centers.shape[0])
         self.radii = np.asarray(radii, dtype=np.float32)
         if self.radii.shape != (self.centers.shape[1],):
@@ -167,7 +174,7 @@ class SpheresLayer(Layer):
         self._colors = rgb_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.centers.shape:
             raise ShapeError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
-        self.opacity = opacity
+        self._store_opacity(opacity)
         self._elements = self.centers.shape[1]
         self._spheres: Any = None
 
