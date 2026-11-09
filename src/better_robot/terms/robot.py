@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import final
 
 import torch
@@ -28,16 +29,15 @@ from ..optim import Manifold, TermFn
 
 
 @final
+@dataclass(frozen=True)
 class RobotManifold(Manifold):
     """Configuration manifold of ``model``: ``q: (B, nq)`` or ``(B, T, nq)``, tangent ``nv`` per configuration.
 
     ``retract`` is ``kinematics.integrate``; ``project`` integrates a zero step, which renormalizes quaternion joints.
-    Pass it as ``Problem(..., manifolds={"q": RobotManifold(model)})``.
+    Pass it as ``Problem(..., manifolds={"q": RobotManifold(model)})``. A frozen value: its model cannot be swapped.
     """
 
-    def __init__(self, model: Model) -> None:
-        self.model = model
-        self._q_columns, self._v_columns = euclidean_columns(model)
+    model: Model
 
     def tangent_dim(self, x: torch.Tensor) -> int:
         return x.shape[1:].numel() // self.model.nq * self.model.nv
@@ -52,10 +52,11 @@ class RobotManifold(Manifold):
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Step range of the coordinates on the ``EUCLIDEAN`` manifold; every other coordinate is unbounded."""
+        q_columns, v_columns = euclidean_columns(self.model)
         low = x.new_full((*x.shape[:-1], self.model.nv), -float("inf"))
         high = x.new_full((*x.shape[:-1], self.model.nv), float("inf"))
-        low[..., self._v_columns] = (lower - x)[..., self._q_columns]
-        high[..., self._v_columns] = (upper - x)[..., self._q_columns]
+        low[..., v_columns] = (lower - x)[..., q_columns]
+        high[..., v_columns] = (upper - x)[..., q_columns]
         return low.flatten(1), high.flatten(1)
 
 

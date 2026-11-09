@@ -76,6 +76,13 @@ def test_ik_problem_terms_read_the_state_by_name(panda):
     assert problem.terms[f"pose/{FRAME}"].reads[0] == "state"
 
 
+def test_robot_manifold_is_a_frozen_value(panda):
+    manifold = terms.RobotManifold(panda)
+    with pytest.raises(AttributeError):
+        manifold.model = None
+    assert manifold == terms.RobotManifold(panda)
+
+
 def test_robot_manifold_accepts_an_empty_batch(panda):
     # tangent_dim used to index x[0], which raises IndexError for B == 0.
     problem = optim.Problem(

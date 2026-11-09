@@ -84,12 +84,33 @@ class Problem:
       in time linear in ``T``.
     - ``dense``: force dense normal equations (``Normal``) even when the banded form applies.
 
+    Tensors are held by reference, never copied: the variables, data and bounds given here, the data and weight
+    tensors given to ``with_``, and everything a ``with_`` result shares with its parent, free masks included. The
+    read-only mappings fix the names, not the values: a tensor edited in place changes every problem that holds
+    it, so build a new problem or call ``with_`` instead.
+
     ```python
     problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
     problem.residual("fit", lambda x, target: x - target)
     normal, loss = problem.linearize(problem.variables)  # Normal, (4,)
     ```
     """
+
+    __slots__ = (
+        "_variables",
+        "_data",
+        "_manifolds",
+        "_bounds",
+        "_time",
+        "_dense",
+        "_terms",
+        "_weights",
+        "_free",
+        "_cached",
+        "_sealed",
+        "_slices",
+        "_tangent_dim",
+    )
 
     def __init__(
         self,

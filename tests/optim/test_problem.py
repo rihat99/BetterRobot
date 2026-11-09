@@ -317,6 +317,16 @@ def test_problem_is_immutable():
             setattr(problem, field, None)
     with pytest.raises(AttributeError):
         problem.terms["fit"].weight = 3.0
+    with pytest.raises(AttributeError):
+        problem.foo = 1  # __slots__: no attribute beyond the fields
+    for kernel, field in (
+        (optim.Huber(delta=0.1), "delta"),
+        (optim.Cauchy(c=1.0), "c"),
+        (optim.Tukey(c=4.0), "c"),
+        (optim.GemanMcClure(c=1.0), "c"),
+    ):
+        with pytest.raises(AttributeError):
+            setattr(kernel, field, 100.0)  # a kernel held by a term cannot change under it
     with pytest.raises(exceptions.ArgumentError, match="already exists"):
         problem.residual("fit", lambda x: x)  # registration only adds names
     with pytest.raises(exceptions.ArgumentError, match="already used"):
