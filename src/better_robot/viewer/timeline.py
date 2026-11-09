@@ -19,7 +19,7 @@ class Timeline:
     clock, so slow pushes drop steps instead of slowing playback.
     """
 
-    def __init__(self, nsteps: int = 1, fps: float = 30.0, loop: bool = True) -> None:
+    def __init__(self, nsteps: int, *, fps: float = 30.0, loop: bool = True) -> None:
         if nsteps < 1 or fps <= 0.0:
             raise ArgumentError(f"Timeline needs nsteps >= 1 and fps > 0, got nsteps={nsteps}, fps={fps}")
         self.nsteps = nsteps

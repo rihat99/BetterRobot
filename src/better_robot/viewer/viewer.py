@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import threading
 from dataclasses import dataclass, field
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any, final
 
@@ -70,7 +70,7 @@ class Viewer:
         self.host, self.port = host, port
         self.theme = theme or LIGHT
         self.theme.apply(server)
-        self.timeline = Timeline(1, fps)
+        self.timeline = Timeline(1, fps=fps)
         self._pointer: str | None = None
         self.timeline.on_step(lambda step: self._push_all(step, force=False))
         self._groups: dict[str, _Group] = {}
@@ -90,46 +90,61 @@ class Viewer:
 
     def add(
         self,
-        layer: Layer,
-        group: str = "scene",
+        layers: Iterable[Layer],
         *,
+        group: str = "scene",
         offset: tuple[float, float, float] | None = None,
         times: np.ndarray | Sequence[float] | None = None,
         valid: np.ndarray | None = None,
-    ) -> Layer:
-        """Build ``layer`` under ``/<group>/<layer.name>`` and push the current step to it.
+    ) -> None:
+        """Build each of ``layers`` under ``/<group>/<layer.name>`` and push the current step to it.
 
-        ``offset`` moves the whole group (side-by-side comparisons). ``times`` ``(T,)`` gives the
-        non-decreasing sample times of the layer in seconds (``T = layer.nsteps``); timeline step ``k``
-        then shows the latest sample at or before ``k / fps``. ``None`` keeps one sample per step.
-        ``valid`` ``(T,)`` bool hides the layer on the samples where it is false (a person not tracked in
-        that frame); ``(T, N)`` hides single elements of a layer that draws ``N`` (``SpheresLayer``,
-        ``ArrowsLayer``). It is kept by reference, like the layer's arrays. Returns the layer.
+        One layer is ``add([layer])``. ``offset`` moves the whole group (side-by-side comparisons). ``times`` ``(T,)``
+        gives the non-decreasing sample times in seconds of every layer of the call (``T = layer.nsteps``); timeline
+        step ``k`` then shows the latest sample at or before ``k / fps``. ``None`` keeps one sample per step.
+        ``valid`` ``(T,)`` bool hides the layers on the samples where it is false (a person not tracked in that
+        frame); ``(T, N)`` hides single elements of a layer that draws ``N`` (``SpheresLayer``, ``ArrowsLayer``). It
+        is kept by reference, like the layers' arrays. Nothing is added when any layer is refused.
         """
+        if isinstance(layers, Layer):
+            raise ArgumentError(f"add takes an iterable of layers; pass [{type(layers).__name__}(...)]")
+        layers = list(layers)
         if times is not None:
             times = np.asarray(times, dtype=np.float64)
-            if times.shape != (layer.nsteps,):
-                raise ShapeError(f"times must have shape ({layer.nsteps},), got {times.shape}")
             if not np.all(np.isfinite(times)):
                 raise ArgumentError("times must be finite")
             if np.any(np.diff(times) < 0):
                 raise ArgumentError("times must be non-decreasing")
         if valid is not None:
             valid = np.asarray(valid, dtype=bool)
-            shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer._elements)] if layer._elements is not None else [])
-            if valid.shape not in shapes:
-                raise ShapeError(f"valid must have shape {' or '.join(map(str, shapes))}, got {valid.shape}")
+        taken = set(self._groups[group].entries) if group in self._groups else set()
+        for layer in layers:
+            if layer.name in taken:
+                raise ArgumentError(
+                    f"group {group!r} already has a layer named {layer.name!r}; give the new layer another name"
+                )
+            taken.add(layer.name)
+            if times is not None and times.shape != (layer.nsteps,):
+                raise ShapeError(f"times must have shape ({layer.nsteps},) for layer {layer.name!r}, got {times.shape}")
+            if valid is not None:
+                shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer._elements)] if layer._elements is not None else [])
+                if valid.shape not in shapes:
+                    raise ShapeError(
+                        f"valid must have shape {' or '.join(map(str, shapes))} for layer {layer.name!r}, "
+                        f"got {valid.shape}"
+                    )
         with self._lock:
-            return self._add(layer, group, offset, times, valid)
+            for layer in layers:
+                self._add(layer, group, offset, times, valid)
 
     def _add(
         self,
         layer: Layer,
         group: str,
         offset: tuple[float, float, float] | None,
-        times: np.ndarray | None = None,
-        valid: np.ndarray | None = None,
-    ) -> Layer:
+        times: np.ndarray | None,
+        valid: np.ndarray | None,
+    ) -> None:
         group_state = self._groups.get(group)
         if group_state is None:
             node = self.server.scene.add_frame(f"/{group}", show_axes=False)
@@ -137,19 +152,13 @@ class Viewer:
         if offset is not None:
             group_state.node.position = offset
             group_state.offset = offset
-        if layer.name in group_state.entries:
-            raise ArgumentError(
-                f"group {group!r} already has a layer named {layer.name!r}; give the new layer another name"
-            )
-        # Assigned only once the add can no longer be refused, and always, so a re-added layer
-        # never keeps the times or validity of an earlier add.
+        # Always assigned, so a re-added layer never keeps the times or validity of an earlier add.
         layer.times, layer.valid = times, valid
         entry = group_state.entries[layer.name] = self._entry_for(layer, group)
         self._build(entry, group)
         self.timeline.extend(self._span(layer))
         self._timeline_gui()
         self._push(entry, self.timeline.step)
-        return layer
 
     def _entry_for(self, layer: Layer, group: str) -> _Entry:
         layer.apply_theme(self.theme)
@@ -165,7 +174,9 @@ class Viewer:
 
     def add_plot(self, name: str, series: Any, *, labels: list[str] | None = None, group: str = "plots") -> PlotPanel:
         """Sidebar chart of ``series (T, K)`` against time with a marker at the current step."""
-        return self.add(PlotPanel(name, series, labels=labels, fps=self.timeline.fps), group=group)  # type: ignore[return-value]
+        panel = PlotPanel(name, series, labels=labels, fps=self.timeline.fps)
+        self.add([panel], group=group)
+        return panel
 
     def remove_group(self, group: str) -> None:
         """Dispose every layer of ``group``, remove its scene node and GUI folder, and fit the timeline to the rest.
@@ -376,7 +387,7 @@ class Viewer:
             if new.visible:
                 self._push(replacement, self.timeline.step)
 
-    def play(self, block: bool = True) -> None:
+    def play(self, *, block: bool = True) -> None:
         """Start playback (a no-op for a single-step scene); with ``block`` keep serving until interrupted."""
         self.timeline.play()
         if block:
@@ -452,7 +463,7 @@ class Viewer:
         index = int(np.searchsorted(layer.times, step / self.timeline.fps + 1e-9, side="right")) - 1
         return min(max(index, 0), layer.nsteps - 1)
 
-    def _push(self, entry: _Entry, step: int, force: bool = True) -> None:
+    def _push(self, entry: _Entry, step: int, *, force: bool = True) -> None:
         step = self._index(entry.layer, step)
         if force or step != entry.step:
             entry.layer.set_step(step)
@@ -463,9 +474,9 @@ class Viewer:
             if entry.node.visible != shown:
                 entry.node.visible = shown
 
-    def _push_all(self, step: int, force: bool) -> None:
+    def _push_all(self, step: int, *, force: bool) -> None:
         with self._lock, self.server.atomic():
             for group in self._groups.values():
                 for entry in group.entries.values():
                     if entry.layer.visible:
-                        self._push(entry, step, force)
+                        self._push(entry, step, force=force)

@@ -24,8 +24,8 @@ from better_robot.viewer import GroundLayer, PointsLayer, Viewer
 
 viewer = Viewer()                        # viser server on http://127.0.0.1:8080
 cloud = np.random.rand(100, 50, 3)       # T = 100 frames of 50 points
-points = viewer.add(PointsLayer("cloud", cloud))
-viewer.add(GroundLayer(size=3.0))
+points = PointsLayer("cloud", cloud)
+viewer.add([points, GroundLayer(size=3.0)])   # an iterable of layers; one layer is add([layer])
 print(viewer.url, viewer.timeline.nsteps)
 ```
 ```output
@@ -54,13 +54,13 @@ that `record`'s camera fits).
 
 ## A group is the unit you toggle and remove
 
-`viewer.add(layer, group="...")` puts the layer under the scene node `/<group>/<layer.name>`. The default group is
+`viewer.add(layers, group="...")` puts each layer under the scene node `/<group>/<layer.name>`. The default group is
 `"scene"`. Each group gets a GUI folder with one visibility checkbox per layer, and `remove_group` tears the whole
 group down and shrinks the timeline to the longest remaining layer, so a clip browser can swap one clip's group for
 the next. Layer names must be unique inside a group.
 
 ```python
-viewer.add(PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3)), group="debug")
+viewer.add([PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3))], group="debug")
 viewer.remove_group("debug")
 ```
 
@@ -74,17 +74,17 @@ shorter than the timeline holds its last step. `show(k)` is the only place steps
 layer gets its sample for step `k` inside one atomic server update, and layers already on that sample are skipped.
 `show()` with no argument re-pushes the current step, which is what you call after editing arrays in place.
 
-A layer recorded at another rate passes its sample times in seconds: `viewer.add(layer, times=t)` with `t` of
+A layer recorded at another rate passes its sample times in seconds: `viewer.add([layer], times=t)` with `t` of
 shape `(T,)`, non-decreasing. Step `k` then shows the latest sample at or before `k / fps`, so a 10 Hz layer and a
 30 Hz layer play in sync on a 30 fps timeline. Without `times` (the default) sample `k` is shown at step `k`. The
 layer itself still receives a plain integer sample index in `set_step`. `viewer.set_fps(f)` changes the rate of the
 timeline itself, keeping one step per frame of the clip on screen; a clip browser calls it when it switches clips.
 
 ```python { .no-run }
-viewer.add(PointsLayer("mocap", markers_10hz), times=np.arange(len(markers_10hz)) / 10.0)
+viewer.add([PointsLayer("mocap", markers_10hz)], times=np.arange(len(markers_10hz)) / 10.0)
 ```
 
-`viewer.add(layer, valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
+`viewer.add([layer], valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
 as a person who is not tracked in that frame; its sidebar switch stays on. A `(T, N)` mask hides single spheres of a
 `SpheresLayer` or arrows of an `ArrowsLayer`. Like the layer's arrays, `v` is kept by reference.
 
@@ -132,12 +132,11 @@ state = br.forward_kinematics(model, q)
 poses = state.joint_poses.numpy()                                        # (30, njoints, 7)
 
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
-viewer.add(robot_skeleton(model, poses), group="panda")
-viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()), group="panda")
+hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
+viewer.add([RigidMeshLayer("panda", meshes, poses), robot_skeleton(model, poses), hand], group="panda")
 
 ghost = robot_skeleton(model, poses, name="ghost")
-viewer.add(ghost, group="ghost", offset=(0.0, 1.0, 0.0))
+viewer.add([ghost], group="ghost", offset=(0.0, 1.0, 0.0))
 backwards = br.forward_kinematics(model, q.flip(0)).joint_poses.numpy()   # same length, played backwards
 ghost.joints[:] = backwards[:, 1:, :3]
 ghost.rotations[:] = backwards[:, 1:, 3:]
@@ -175,7 +174,7 @@ from better_robot.viewer import robot_skeleton
 poses = br.forward_kinematics(model, q).joint_poses.numpy()   # (30, njoints, 7)
 tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
 fingers = {"panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
-viewer.add(robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers), group="panda")
+viewer.add([robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers)], group="panda")
 ```
 
 ## Tools: a gizmo and numpy picking

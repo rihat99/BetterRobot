@@ -74,11 +74,10 @@ def main() -> None:
     state = forward_kinematics(model, q)
     poses = state.joint_poses.numpy()
     viewer = Viewer(fps=1.0 / DT)
-    viewer.add(GroundLayer())
+    viewer.add([GroundLayer()])
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-    viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
-    viewer.add(robot_skeleton(model, poses, tau=tau), group="panda")
-    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id(FRAME)]].numpy()), group="panda")
+    hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id(FRAME)]].numpy())
+    viewer.add([RigidMeshLayer("panda", meshes, poses), robot_skeleton(model, poses, tau=tau), hand], group="panda")
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
     viewer.add_plot("torque", tau.numpy(), labels=moving)
     if args.check:

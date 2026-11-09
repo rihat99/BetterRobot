@@ -49,8 +49,9 @@ def main() -> None:
         from better_robot.viewer import GroundLayer, Viewer, robot_skeleton  # noqa: PLC0415 - optional viewer extra
 
         viewer = Viewer(port=8081)
-        viewer.add(GroundLayer())
-        viewer.add(robot_skeleton(model, state.joint_poses.numpy()))  # no meshes for a programmatic body
+        viewer.add(
+            [GroundLayer(), robot_skeleton(model, state.joint_poses.numpy())]
+        )  # no meshes for a programmatic body
         viewer.show()
         print(f"\nOpening viewer at {viewer.url} — press Ctrl-C to exit.")
         viewer.server.sleep_forever()

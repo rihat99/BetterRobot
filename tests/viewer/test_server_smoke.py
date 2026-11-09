@@ -27,11 +27,11 @@ def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None
         poses = np.zeros((50, 24, 7), dtype=np.float32)
         poses[..., :3] = joints
         poses[..., 6] = 1.0
-        viewer.add(GroundLayer())
-        viewer.add(SkeletonLayer("skeleton", joints, parents))
-        viewer.add(ArrowsLayer("forces", joints[:, :4], rng.normal(size=(50, 4, 3)) * 0.2))
-        viewer.add(FramesLayer("frames", poses))
-        viewer.add(PointsLayer("cloud", rng.normal(size=(50, 1000, 3))), group="scan")
+        viewer.add([GroundLayer()])
+        viewer.add([SkeletonLayer("skeleton", joints, parents)])
+        viewer.add([ArrowsLayer("forces", joints[:, :4], rng.normal(size=(50, 4, 3)) * 0.2)])
+        viewer.add([FramesLayer("frames", poses)])
+        viewer.add([PointsLayer("cloud", rng.normal(size=(50, 1000, 3)))], group="scan")
         start = time.perf_counter()
         for step in range(50):
             viewer.show(step)

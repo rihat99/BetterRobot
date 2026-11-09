@@ -49,7 +49,7 @@ def test_record_frames_the_offset_group_after_the_first_render_and_writes_pngs(
     viewer = Viewer(server=FakeServer())
     points = np.zeros((3, 2, 3), dtype=np.float32)
     points[:, 1, 2] = 1.0
-    viewer.add(PointsLayer("pts", points), group="g", offset=(10.0, 0.0, 0.0))
+    viewer.add([PointsLayer("pts", points)], group="g", offset=(10.0, 0.0, 0.0))
     viewer.record(tmp_path / "clip.png", size=(8, 6))
     kinds = [call[0] for call in FakeClient.calls]
     assert kinds == ["render", "camera", "render", "render", "render", "exit"]
@@ -78,7 +78,7 @@ def test_find_chrome_reports_how_to_install(monkeypatch: pytest.MonkeyPatch) -> 
 def test_record_screenshots_a_real_scene(tmp_path: Path) -> None:
     viewer = Viewer(port=int(os.environ.get("BETTER_ROBOT_TEST_PORT", "8094")))
     try:
-        viewer.add(PointsLayer("pts", np.zeros((2, 1, 3), dtype=np.float32)))
+        viewer.add([PointsLayer("pts", np.zeros((2, 1, 3), dtype=np.float32))])
         viewer.record(tmp_path / "shot.png", steps=[1], size=(64, 48))
     finally:
         viewer.server.stop()
@@ -88,9 +88,10 @@ def test_record_screenshots_a_real_scene(tmp_path: Path) -> None:
 def test_points_apply_group_offset_and_skip_hidden_or_pointless_layers() -> None:
     """``Viewer._points`` (the camera-fit input) is ``Layer.world_points`` shifted by the group's ``offset``."""
     viewer = Viewer(server=FakeServer())
-    viewer.add(GroundLayer())
-    viewer.add(PointsLayer("p", np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])), group="a", offset=(0.0, 2.0, 0.0))
-    hidden = viewer.add(PointsLayer("h", np.full((1, 3), 50.0)), group="b")
+    viewer.add([GroundLayer()])
+    viewer.add([PointsLayer("p", np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]))], group="a", offset=(0.0, 2.0, 0.0))
+    hidden = PointsLayer("h", np.full((1, 3), 50.0))
+    viewer.add([hidden], group="b")
     viewer.set_visible(hidden, False)
     np.testing.assert_allclose(viewer._points([0]), [[0.0, 2.0, 0.0], [1.0, 2.0, 0.0]])
 
@@ -103,7 +104,7 @@ def test_aim_points_new_and_connected_browsers_at_the_visible_layers() -> None:
     points = np.zeros((3, 2, 3), dtype=np.float32)
     points[:, 1, 2] = 1.0
     points[2, :, 0] = 5.0  # the last step moves away
-    viewer.add(PointsLayer("pts", points), group="g", offset=(0.0, 2.0, 0.0))
+    viewer.add([PointsLayer("pts", points)], group="g", offset=(0.0, 2.0, 0.0))
     up = np.asarray(viewer.theme.up_vector)
     position, look_at = viewer.aim()  # the current step only
     for camera in (server.initial_camera, client.camera):
@@ -121,7 +122,7 @@ def test_aim_skips_steps_with_nothing_visible() -> None:
     points = np.zeros((3, 2, 3))
     points[:, :, 0] = 5.0
     points[:, 1, 2] = 1.0
-    viewer.add(PointsLayer("pts", points), valid=np.array([True, False, True]))
+    viewer.add([PointsLayer("pts", points)], valid=np.array([True, False, True]))
     np.testing.assert_allclose(viewer.aim(steps=range(3)), viewer.aim(steps=[0, 2]))  # step 1 does not pull to 0
     empty = capture.fit_camera(np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]]), up=viewer.theme.up_vector)
     np.testing.assert_allclose(viewer.aim(steps=[1]), empty)  # nothing visible at all: the default box

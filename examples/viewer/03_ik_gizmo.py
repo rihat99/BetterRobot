@@ -35,14 +35,13 @@ def main() -> None:
     pose = start.frame_poses[0, hand]
 
     viewer = Viewer()
-    viewer.add(GroundLayer())
+    viewer.add([GroundLayer()])
     meshes = RigidMeshLayer(
         "panda", robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH)), start.joint_poses.numpy()
     )
     skeleton = robot_skeleton(model, start.joint_poses.numpy())
     frames = FramesLayer("hand", start.frame_poses[:, [hand]].numpy())
-    for layer in (meshes, skeleton, frames):
-        viewer.add(layer, group="panda")
+    viewer.add([meshes, skeleton, frames], group="panda")
     # PoseGizmo calls ``follow`` on its own worker thread with only the newest pose, one call at a
     # time, so ``state`` has a single writer. A short warm-started solve keeps up with the mouse.
     state = {"q": q}

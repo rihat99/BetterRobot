@@ -87,7 +87,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     for layer in layers.values():
-        viewer.add(layer, group="panda")
+        viewer.add([layer], group="panda")
     viewer.show(4)
     meshes = layers["robot collision"].meshes
     hand_mesh = next(i for i, spec in enumerate(meshes) if spec.body == model.body_id("panda_hand"))
@@ -103,7 +103,7 @@ def test_in_place_pose_edits_reach_the_scene_on_show() -> None:
     skeleton = robot_skeleton(model, poses_0, name="robot skeleton")
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(skeleton)
+    viewer.add([skeleton])
     node = "/scene/robot skeleton/joints_cylinder"  # Panda's revolute joints
     before = server.scene.nodes[node].batched_positions.copy()
     skeleton.joints[:] = poses_1[:, 1:, :3]
@@ -112,7 +112,7 @@ def test_in_place_pose_edits_reach_the_scene_on_show() -> None:
     after = server.scene.nodes[node].batched_positions
     assert not np.allclose(before, after)
     fresh_server = FakeServer()
-    Viewer(server=fresh_server).add(robot_skeleton(model, poses_1, name="robot skeleton"))
+    Viewer(server=fresh_server).add([robot_skeleton(model, poses_1, name="robot skeleton")])
     np.testing.assert_allclose(after, fresh_server.scene.nodes[node].batched_positions, atol=1e-6)
 
 
@@ -130,7 +130,7 @@ def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
         axes=[[0, 0, 1], [1, 0, 0], [0, 0, 1]],
     )
     server = FakeServer()
-    Viewer(server=server).add(layer)
+    Viewer(server=server).add([layer])
     assert {"/scene/s/joints_axes", "/scene/s/joints_cylinder"} <= set(server.scene.nodes)
     assert "/scene/s/joints" not in server.scene.nodes
     wxyz = server.scene.nodes["/scene/s/joints_cylinder"].batched_wxyzs[0]
@@ -177,7 +177,7 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
     joint_poses = br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32)
     layer = robot_skeleton(model, joint_poses)
     server = FakeServer()
-    Viewer(server=server).add(layer)
+    Viewer(server=server).add([layer])
 
     checked = 0
     for marker in ("cylinder", "box"):
@@ -208,7 +208,7 @@ def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
     assert massless.any()
     layer = robot_skeleton(model, poses, bone_radius=np.where(massless, 0.0, 0.01))
     server = FakeServer()
-    Viewer(server=server).add(layer)
+    Viewer(server=server).add([layer])
     child = layer.parents >= 0
     scales = server.scene.nodes["/scene/skeleton/bones"].props["batched_scales"].reshape(child.sum(), -1, 3)
     drawn = scales[..., 2] > 1e-6  # the legs a bone uses
@@ -237,7 +237,7 @@ def _drawn_skeleton(model: br.Model, q: torch.Tensor, radius: float = 0.025, tau
     poses = br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32)
     layer = robot_skeleton(model, poses, radius=radius, tau=tau)
     server = FakeServer()
-    Viewer(server=server).add(layer)
+    Viewer(server=server).add([layer])
     return (poses, layer, server, *_drawn_markers(layer, server, "cylinder"))
 
 
@@ -405,7 +405,7 @@ def test_robot_skeleton_shows_the_joint_load_in_colour_and_thickness_at_a_fixed_
     # Per step only transforms, scales and colours change: the instance count of every node is fixed.
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(layer)
+    viewer.add([layer])
     counts = {path: len(node.batched_positions) for path, node in server.scene.nodes.items() if "/skeleton/" in path}
     assert {"/scene/skeleton/bones", "/scene/skeleton/bone_corners"} <= set(counts)
     viewer.show(1)
@@ -448,7 +448,7 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
 
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(layer)
+    viewer.add([layer])
     for step in range(2):
         viewer.show(step)
         cylinders = server.scene.nodes["/scene/skeleton/joints_cylinder"]

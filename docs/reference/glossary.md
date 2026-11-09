@@ -126,6 +126,6 @@ solver model.
 
 | Term | Meaning |
 |---|---|
-| **`Viewer`** | The browser viewer on viser. `viewer.add(layer, group=...)` adds a layer, `viewer.show(step)` draws one step, `Viewer.record(path, *, steps, size, fps, gpu, camera)` screenshots the live scene through headless Chromium into a clip. |
+| **`Viewer`** | The browser viewer on viser. `viewer.add(layers, group=...)` adds an iterable of layers, `viewer.show(step)` draws one step, `Viewer.record(path, *, steps, size, fps, gpu, camera)` screenshots the live scene through headless Chromium into a clip. |
 | **`Layer`** | One drawable thing (a robot, frames, points, a skeleton) holding a whole clip. The viewer calls `layer.set_step(k)`; `layer.nsteps` is its clip length. |
 | **step** | One frame of the shared timeline. The timeline is as long as the longest layer; a shorter layer holds its last step. |
