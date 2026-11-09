@@ -14,7 +14,7 @@ from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer,
 from better_robot.viewer.robot import robot_meshes, robot_skeleton, spread_offsets
 from better_robot.viewer.viewer import Viewer
 
-from .fake_server import FakeServer
+from better_robot.testing import FakeServer
 from tests.support.robots import g1_urdf, panda_urdf
 
 

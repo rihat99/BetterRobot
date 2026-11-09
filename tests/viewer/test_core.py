@@ -15,7 +15,7 @@ from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
 
-from .fake_server import FakeServer
+from better_robot.testing import FakeServer
 
 
 def _skeleton(nsteps: int = 10, name: str = "skel") -> SkeletonLayer:

@@ -11,7 +11,7 @@ from better_robot.viewer.layers.skinned import CameraLayer as SkinnedCameraLayer
 from better_robot.viewer.tools import nearest_on_ray
 from better_robot.viewer.viewer import Viewer
 
-from .fake_server import FakeServer
+from better_robot.testing import FakeServer
 
 
 class _Recorder(Layer):

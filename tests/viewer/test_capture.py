@@ -15,7 +15,7 @@ from better_robot.viewer import capture
 from better_robot.viewer.layers import GroundLayer, PointsLayer
 from better_robot.viewer.viewer import Viewer
 
-from .fake_server import FakeHandle, FakeServer
+from better_robot.testing import FakeServer
 
 
 class FakeClient:
@@ -96,7 +96,7 @@ def test_points_apply_group_offset_and_skip_hidden_or_pointless_layers() -> None
 
 def test_aim_points_new_and_connected_browsers_at_the_visible_layers() -> None:
     server = FakeServer()
-    client = SimpleNamespace(camera=FakeHandle(None, "camera", "client", {}))
+    client = SimpleNamespace(camera=FakeServer().initial_camera)  # a connected browser's camera handle
     server.clients[0] = client
     viewer = Viewer(server=server)
     points = np.zeros((3, 2, 3), dtype=np.float32)

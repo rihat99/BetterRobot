@@ -10,7 +10,7 @@ import numpy as np
 from better_robot.viewer.tools import CameraFrustum, PoseGizmo, project, ray_hit, vertices_in_rect, vertices_in_sphere
 from better_robot.viewer.viewer import Viewer
 
-from .fake_server import FakeServer
+from better_robot.testing import FakeServer
 
 
 def test_gizmo_reports_poses_in_xyzw_order_and_fires_callbacks() -> None:
