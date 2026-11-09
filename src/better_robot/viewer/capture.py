@@ -15,9 +15,11 @@ import subprocess
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, final
 
 import numpy as np
+
+from ..exceptions import ArgumentError, OptionalDependencyError
 
 _CHROME_NAMES = ("chromium", "google-chrome", "chrome-headless-shell")
 FOV = math.radians(50.0)  # vertical field of view `fit_camera` assumes and `HeadlessClient.set_camera` sets
@@ -27,9 +29,10 @@ def find_chrome() -> str:
     """Path of a Chromium binary: ``$BETTER_ROBOT_CHROME``, else the first of ``chromium``/``google-chrome``/``chrome-headless-shell`` on ``PATH``."""
     path = os.environ.get("BETTER_ROBOT_CHROME") or next(filter(None, map(shutil.which, _CHROME_NAMES)), None)
     if path is None:
-        raise RuntimeError(
-            "Viewer.record needs a Chromium binary: install chromium (or google-chrome / chrome-headless-shell, e.g. "
-            "`npx playwright install chromium-headless-shell`) and put it on PATH or set BETTER_ROBOT_CHROME"
+        raise OptionalDependencyError(
+            "Chromium (Viewer.record)",
+            install="npx playwright install chromium-headless-shell, then put chrome-headless-shell on PATH or point "
+            "BETTER_ROBOT_CHROME at it (chromium or google-chrome work too)",
         )
     return path
 
@@ -38,7 +41,10 @@ def find_ffmpeg() -> str:
     """Path of ``ffmpeg``: ``$FFMPEG``, else ``ffmpeg`` on ``PATH``."""
     path = os.environ.get("FFMPEG") or shutil.which("ffmpeg")
     if path is None:
-        raise RuntimeError("writing .webm needs ffmpeg: install it, or set FFMPEG to its path; or record .png/.gif")
+        raise OptionalDependencyError(
+            "ffmpeg (Viewer.record to .webm)",
+            install="apt install ffmpeg, or set FFMPEG to its path; or record .png/.gif",
+        )
     return path
 
 
@@ -89,6 +95,7 @@ def fit_camera(
     return look_at + distance * direction, look_at
 
 
+@final
 class HeadlessClient:
     """A headless Chromium connected to a ``Viewer``; ``render`` screenshots what that browser shows.
 
@@ -128,9 +135,12 @@ class HeadlessClient:
                 self.client = new[0]
             elif self._process.poll() is not None or time.monotonic() > deadline:
                 self.__exit__(None, None, None)
-                raise RuntimeError(
-                    f"headless Chromium did not connect to {self.viewer.url} within {self.timeout:.0f} s "
-                    f"(exit code {self._process.returncode}); if it exits at once, see better_robot.viewer.capture"
+                # A Chromium that exits at once or never connects is a broken install, mostly a missing libasound.
+                raise OptionalDependencyError(
+                    f"a headless Chromium that connects to {self.viewer.url} within {self.timeout:.0f} s "
+                    f"(exit code {self._process.returncode})",
+                    install="put libasound.so.2 on LD_LIBRARY_PATH (see better_robot.viewer.capture), or point "
+                    "BETTER_ROBOT_CHROME at a Chromium that starts headless",
                 )
             else:
                 time.sleep(0.05)
@@ -215,5 +225,5 @@ def write_frames(frames: Sequence[np.ndarray], path: str | Path, *, fps: float) 
         for k, frame in enumerate(frames):
             Image.fromarray(frame).save(folder / f"{stem}_{k:03d}.png")
     else:
-        raise ValueError(f"record writes .webm, .gif, .png or a directory, not {path.name!r}")
+        raise ArgumentError(f"record writes .webm, .gif, .png or a directory, not {path.name!r}")
     return path

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
-from .._math import as_frames
+from ...exceptions import ShapeError
+from ..layer import as_frames
 from ..layer import Layer
 
 _PALETTE = (
@@ -23,6 +24,7 @@ _PALETTE = (
 )
 
 
+@final
 class PlotPanel(Layer):
     """Series ``(T, K)`` against time ``t = step / fps`` (uPlot); a dot per series marks the step.
 
@@ -33,27 +35,20 @@ class PlotPanel(Layer):
         self.series = as_frames(series, 1)
         super().__init__(name, self.series.shape[0])
         if labels is not None and len(labels) != self.series.shape[1]:
-            raise ValueError("one label per series")
+            raise ShapeError(f"labels must have one entry per series ({self.series.shape[1]}), got {len(labels)}")
         self.labels = labels or [f"{name} {k}" for k in range(self.series.shape[1])]
         self.time = np.arange(self.series.shape[0], dtype=np.float64) / fps
         self._plot: Any = None
-        self._visible = True
 
     def build(self, scene: Any, root: str) -> None:
         pass
 
     def build_gui(self, gui: Any) -> None:
         data = (self.time, *(self.series[:, k].astype(np.float64) for k in range(self.series.shape[1])))
-        self._plot = gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False})
+        self._plot = self._track(gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False}))
 
     def set_step(self, step: int) -> None:
         self._plot.series = self._series_config(step)
-
-    def set_visible(self, visible: bool) -> None:
-        self._plot.visible = visible
-
-    def dispose(self) -> None:
-        self._plot.remove()
 
     def _series_config(self, step: int) -> tuple[dict[str, Any], ...]:
         marker = {"show": True, "size": 8, "filter": (step,)}

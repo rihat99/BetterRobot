@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
-from .._math import RGB, as_frames, quat_z_to, rgb_uint8, unit_cone, unit_cylinder
+from ...exceptions import ShapeError
+from .._lie import from_z, to_wxyz
+from .._primitives import unit_cone, unit_cylinder
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 
+@final
 class ArrowsLayer(Layer):
     """Arrows from ``origins (T, N, 3)`` along ``vectors (T, N, 3) * scale``.
 
@@ -45,7 +50,9 @@ class ArrowsLayer(Layer):
         self.origins = as_frames(origins, 2)
         self.vectors = as_frames(vectors, 2) * np.float32(scale)
         if self.origins.shape != self.vectors.shape:
-            raise ValueError("origins and vectors must have the same shape")
+            raise ShapeError(
+                f"origins and vectors must have the same shape, got {self.origins.shape} and {self.vectors.shape}"
+            )
         super().__init__(name, self.origins.shape[0])
         self.head_size = head_size
         self.line_width = line_width
@@ -56,7 +63,7 @@ class ArrowsLayer(Layer):
         colors = np.asarray(colors, dtype=np.float32)
         self._colors = rgb_uint8(colors, (n_arrows,)) if colors.ndim <= 2 else rgb_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.origins.shape:
-            raise ValueError(f"per-step colors must be (T, N, 3) = {self.origins.shape}, got {self._colors.shape}")
+            raise ShapeError(f"per-step colors must be (T, N, 3) = {self.origins.shape}, got {self._colors.shape}")
         self._shafts: Any = None
         self._heads: Any = None
 
@@ -155,7 +162,7 @@ class ArrowsLayer(Layer):
             radius = (self.head_radius * shrink).astype(np.float32)
         base = self.origins[step] + vector - unit * head[:, None]
         scales = np.stack([radius, radius, head], axis=-1)
-        return base, quat_z_to(vector), scales
+        return base, to_wxyz(from_z(vector)), scales
 
     def _shrink(self, length: np.ndarray) -> np.ndarray:
         """Solid arrows: the scale ``(N,)`` of each arrow's head and thickness, 1 down to ``head_size /
@@ -171,4 +178,4 @@ class ArrowsLayer(Layer):
         radius = np.where(shaft > 0.0, self.shaft_radius * shrink, 0.0).astype(np.float32)
         unit = vector / np.maximum(length, 1e-9)[:, None]
         centre = self.origins[step] + unit * (shaft * 0.5)[:, None]
-        return centre, quat_z_to(vector), np.stack([radius, radius, shaft], axis=-1).astype(np.float32)
+        return centre, to_wxyz(from_z(vector)), np.stack([radius, radius, shaft], axis=-1).astype(np.float32)

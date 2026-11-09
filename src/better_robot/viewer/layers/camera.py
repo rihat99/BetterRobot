@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
-from .._math import RGB, as_frames, rgb_uint8, xyzw_to_wxyz
+from .._lie import to_wxyz
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 
+@final
 class CameraLayer(Layer):
     """Camera frustums at ``poses (T, 7)`` (camera-to-world, OpenCV ``+z`` forward), optional images.
 
@@ -52,13 +55,13 @@ class CameraLayer(Layer):
                 scale=self.scale,
                 color=rgb_uint8(self.color),
                 image=self.image_at(0),
-                wxyz=xyzw_to_wxyz(self.poses[0, 3:]),
+                wxyz=to_wxyz(self.poses[0, 3:]),
                 position=self.poses[0, :3],
             )
         )
 
     def set_step(self, step: int) -> None:
         self._frustum.position = self.poses[step, :3]
-        self._frustum.wxyz = xyzw_to_wxyz(self.poses[step, 3:])
+        self._frustum.wxyz = to_wxyz(self.poses[step, 3:])
         if self._image is not None and (callable(self._image) or self._image.ndim == 4):
             self._frustum.image = self.image_at(step)

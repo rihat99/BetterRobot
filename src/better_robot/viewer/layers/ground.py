@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
-from .._math import RGB, quat_z_to, rgb_uint8
+from ...exceptions import ArgumentError
+from .._lie import from_z, to_wxyz
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 
+@final
 class GroundLayer(Layer):
     """Grid ``size`` wide in the ``plane`` at ``height`` along its normal, ``cell_size`` cells, a line every ``section_size``.
 
@@ -41,7 +44,7 @@ class GroundLayer(Layer):
     ) -> None:
         super().__init__(name, 1)
         if normal is not None and not np.linalg.norm(np.asarray(normal, dtype=np.float64).reshape(3)) > 0.0:
-            raise ValueError("normal must be a non-zero 3-vector")
+            raise ArgumentError(f"normal must be a non-zero 3-vector, got {normal!r}")
         self.size = size
         self.height = height
         self.cell_size = cell_size
@@ -67,7 +70,7 @@ class GroundLayer(Layer):
             plane = "xy"  # the grid's own normal is +z; rotate it onto ``normal``
             axis = np.asarray(self.normal, dtype=np.float64).reshape(3)
             axis = axis / np.linalg.norm(axis)
-            wxyz = quat_z_to(axis)
+            wxyz = to_wxyz(from_z(axis))
         origin = np.zeros(3) if self.origin is None else np.asarray(self.origin, dtype=np.float64).reshape(3)
         self._track(
             scene.add_grid(

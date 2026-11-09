@@ -40,7 +40,10 @@ class QuaternionNormError(BetterRobotError, ValueError):
 
 
 class UnknownNameError(BetterRobotError, KeyError):
-    """A joint, frame or body name is not in the model; the message lists the valid names when there are at most 20."""
+    """A name is not among the valid ones: a model's joints, frames or bodies, a problem's terms, a viewer's groups.
+
+    The message lists the valid names when there are at most 20.
+    """
 
     def __init__(self, kind: str, name: str, valid: Sequence[str]) -> None:
         names = f"valid {kind}s: {list(valid)}" if len(valid) <= 20 else f"{len(valid)} {kind}s"

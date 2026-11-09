@@ -20,7 +20,7 @@ import numpy as np
 from better_robot.viewer import PointsLayer, Viewer
 
 viewer = Viewer()
-viewer.add(PointsLayer("cloud", np.random.rand(100, 50, 3)))  # T = 100 frames of 50 points
+viewer.add([PointsLayer("cloud", np.random.rand(100, 50, 3))])  # T = 100 frames of 50 points
 viewer.play()  # blocks until Ctrl-C
 ```
 """

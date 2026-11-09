@@ -7,6 +7,21 @@ from typing import Any
 
 import numpy as np
 
+from ..exceptions import ArgumentError, ShapeError
+
+
+def as_frames(array: np.ndarray | object, event_ndim: int) -> np.ndarray:
+    """Promote an array to ``(T, ...)`` float32: a static array (no leading axis) becomes ``T = 1``.
+
+    ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``.
+    """
+    out = np.asarray(array, dtype=np.float32)
+    if out.ndim == event_ndim:
+        out = out[None]
+    if out.ndim != event_ndim + 1:
+        raise ShapeError(f"expected {event_ndim} or {event_ndim + 1} axes, got shape {out.shape}")
+    return np.ascontiguousarray(out)
+
 
 class Layer(ABC):
     """Base class for everything the viewer draws.
@@ -14,9 +29,11 @@ class Layer(ABC):
     A layer owns its preloaded arrays and the viser handles it creates in ``build``. The viewer
     calls ``set_step(k)`` to write slice ``k`` into those handles; a static layer has
     ``nsteps == 1`` and is pushed once. Handles registered with ``_track`` get the default
-    ``set_visible`` and ``dispose``.
+    ``set_visible`` and ``dispose``; ``visible`` and ``set_visible`` are the one way to read and switch a layer, and
+    an override of ``set_visible`` or ``dispose`` calls the base method.
 
-    Subclasses implement ``build`` and ``set_step``; ``build_gui`` and ``world_points`` are optional.
+    Subclasses implement ``build`` and ``set_step``; ``build_gui``, ``world_points`` and, for a layer that draws
+    surfaces, ``set_opacity`` are optional.
     ``listed = False`` keeps a layer out of the sidebar's Layers folder.
     """
 
@@ -31,7 +48,7 @@ class Layer(ABC):
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
         if nsteps < 1:
-            raise ValueError("nsteps must be at least 1")
+            raise ArgumentError(f"layer {name!r}: nsteps must be at least 1, got {nsteps}")
         self.name = name
         self.nsteps = nsteps
         self.root = ""
@@ -40,7 +57,7 @@ class Layer(ABC):
 
     @property
     def visible(self) -> bool:
-        """Whether the layer is shown; change it with ``Viewer.set_visible``."""
+        """Whether the layer is switched on; ``Viewer.set_visible`` switches it and catches it up to the current step."""
         return self._visible
 
     @abstractmethod
@@ -64,11 +81,19 @@ class Layer(ABC):
         """
         return None
 
-    def set_visible(self, visible: bool) -> None:
+    def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Show or hide every tracked handle."""
         self._visible = visible
         for handle in self._handles:
             handle.visible = visible
+
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the layer's surfaces at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild.
+
+        The mesh layers implement it; a layer without surfaces (points, frames, lines, the grid, a panel) raises
+        ``ArgumentError``.
+        """
+        raise ArgumentError(f"{type(self).__name__} {self.name!r} draws no surface to fade; set_opacity is for meshes")
 
     def dispose(self) -> None:
         """Remove every tracked handle from the scene."""
@@ -79,3 +104,11 @@ class Layer(ABC):
     def _track(self, handle: Any) -> Any:
         self._handles.append(handle)
         return handle
+
+    def _fade(self, opacity: float) -> None:
+        """``set_opacity`` of a layer whose tracked handles are all surfaces."""
+        if not 0.0 < opacity <= 1.0:
+            raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
+        self.opacity = float(opacity)
+        for handle in self._handles:
+            handle.opacity = None if opacity >= 1.0 else self.opacity

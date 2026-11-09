@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
+from ..exceptions import ModelError, ShapeError
 from ..model.joints import (
     JointFixed,
     JointFreeFlyer,
@@ -25,12 +26,12 @@ from ..model.joints import (
     JointSpherical,
     JointTranslation,
 )
-from ..exceptions import ModelError
 from ..model.geometry import AttachedShape, Box, Cylinder, Geometry, Mesh, Sphere
-from ._math import colormap, rotate
+from ._lie import act, inverse
+from .layer import as_frames
 from .layers.mesh import MeshSpec
 from .layers.skeleton import SkeletonLayer, marker_extent, marker_of
-from .theme import LIGHT, Theme
+from .theme import LIGHT, Theme, colormap
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -50,10 +51,10 @@ def robot_skeleton(
     bone_radius: float | np.ndarray = 0.008,
     end_points: Mapping[str | int, Sequence[float]] | None = None,
 ) -> SkeletonLayer:
-    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``;
-    a revolute joint is a cylinder of ``radius`` and length 2.4 ``radius``), laid out by ``spread_offsets``: markers
-    that would overlap slide apart along their own axes, and bones join the drawn marker centres as axis-aligned legs
-    (``SkeletonLayer``).
+    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)`` (one pose ``(njoints, 7)`` counts as ``T = 1``),
+    one marker per joint kind (``skeleton_spec``; a revolute joint is a cylinder of ``radius`` and length 2.4
+    ``radius``), laid out by ``spread_offsets``: markers that would overlap slide apart along their own axes, and
+    bones join the drawn marker centres as axis-aligned legs (``SkeletonLayer``).
 
     ``tau`` ``(T, nv)`` or ``(nv,)`` shows each joint's load ``|tau| / effort_limit`` on its marker, in colour
     (``theme.torque_ramp`` up to the limit, ``theme.over_limit`` past it) and thickness (its cross-section from 0.8
@@ -65,14 +66,15 @@ def robot_skeleton(
     (names or ids) to a point ``(3,)`` in each frame: a bone, as thick as the one into the frame's parent joint, runs
     from that joint to the point, such as a hand out to where its contacts are, past the last wrist joint.
     """
-    parents = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
+    joint_poses = as_frames(joint_poses, 2)
+    parent_ids = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
     poses, offsets = joint_poses[:, 1:], spread_offsets(model, radius=radius)
     if end_points:  # each end point joins the skeleton as a joint without a marker
         ends, end_joints = _end_poses(model, joint_poses, end_points)
         count = len(end_joints)
         poses = np.concatenate([poses, ends], axis=1)
-        parents = np.concatenate([parents, end_joints - 1])
+        parent_ids = np.concatenate([parent_ids, end_joints - 1])
         kinds += ["fixed"] * count
         axes = np.concatenate([axes, np.tile(np.float32([0.0, 0.0, 1.0]), (count, 1))])
         offsets = np.concatenate([offsets, np.zeros((count, 3), dtype=np.float32)])
@@ -90,7 +92,7 @@ def robot_skeleton(
     return SkeletonLayer(
         name,
         poses,
-        parents,
+        parent_ids,
         kinds=kinds,
         axes=axes,
         offsets=offsets,
@@ -110,9 +112,9 @@ def _end_poses(
     frame_ids = [model.frame_id(frame) for frame in end_points]
     joints = np.array([model.frame_parent_joint_ids[frame_id] for frame_id in frame_ids], dtype=np.int64)
     placement = model.frame_placements[..., frame_ids, :].detach().cpu().numpy().astype(np.float32)
-    local = placement[:, :3] + rotate(placement[:, 3:], np.asarray(list(end_points.values()), dtype=np.float32))
+    local = placement[:, :3] + act(placement[:, 3:], np.asarray(list(end_points.values()), dtype=np.float32))
     rotations = joint_poses[:, joints, 3:]
-    return np.concatenate([joint_poses[:, joints, :3] + rotate(rotations, local), rotations], axis=-1), joints
+    return np.concatenate([joint_poses[:, joints, :3] + act(rotations, local), rotations], axis=-1), joints
 
 
 _KIND_WORD = {
@@ -162,9 +164,9 @@ def spread_offsets(
     with torch.no_grad():
         poses = forward_kinematics(model, model.q_neutral).joint_poses[1:].cpu().numpy().astype(np.float64)
     origins = poses[:, :3]
-    directions = rotate(poses[:, 3:], axes.astype(np.float64))
+    directions = act(poses[:, 3:], axes.astype(np.float64))
     # Tie sign: the axis's largest component in the root joint's frame positive (rounded, so mirror images agree).
-    in_root = np.round(rotate(poses[0, 3:] * (-1.0, -1.0, -1.0, 1.0), directions), 6)
+    in_root = np.round(act(inverse(poses[0, 3:]), directions), 6)
     tie_sign = np.sign(in_root[np.arange(len(in_root)), np.abs(in_root).argmax(axis=1)])
     markers = [marker_of(kind) for kind in kinds]
     extent = np.array([marker_extent(m) if m else (0.0, 0.0) for m in markers]) * radius  # (radius, half-length)
@@ -232,7 +234,7 @@ def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarra
     over each joint's dofs, and ``(njoints - 1,)`` whether a joint has a dof with a finite positive limit."""
     tau = tau.reshape(-1, model.nv)
     if tau.shape[0] not in (1, nsteps):
-        raise ValueError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
+        raise ShapeError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
     limits = model.effort_limit.detach().cpu().numpy().reshape(-1)
     # Dofs without a finite effort limit (free-flyer, unbounded URDF joints) contribute a ratio of 0.
     finite = np.isfinite(limits) & (limits > 0)

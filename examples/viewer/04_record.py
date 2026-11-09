@@ -1,6 +1,7 @@
 """Record a clip as a GIF (screenshots from a headless Chromium) and export it as a ``.viser`` file.
 
     uv run python examples/viewer/04_record.py --out /tmp/panda   # writes panda.gif and panda.viser
+    uv run python examples/viewer/04_record.py --check            # build the clip on the stand-in server, no files
 
 Needs Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see ``better_robot.viewer.capture``.
 """
@@ -15,6 +16,7 @@ import torch
 from robot_descriptions import panda_description
 
 import better_robot as br
+from better_robot.testing import FakeServer
 from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 
 
@@ -23,6 +25,9 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("panda"), help="output path without extension")
     parser.add_argument("--frames", type=int, default=60)
     parser.add_argument("--size", type=int, nargs=2, default=(640, 360))
+    parser.add_argument(
+        "--check", action="store_true", help="build the clip on the stand-in server, push every frame, exit"
+    )
     args = parser.parse_args()
 
     model = br.load(panda_description.URDF_PATH)
@@ -35,13 +40,17 @@ def main() -> None:
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
     state = br.forward_kinematics(model, q)
     poses = state.joint_poses.numpy()
-    viewer = Viewer(fps=30.0)
-    viewer.add(GroundLayer(size=3.0))
+    viewer = Viewer(fps=30.0, server=FakeServer() if args.check else None)
+    viewer.add([GroundLayer(size=3.0)])
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-    viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
-    viewer.add(robot_skeleton(model, poses), group="panda")
-    viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()), group="panda")
+    hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
+    viewer.add([RigidMeshLayer("panda", meshes, poses), robot_skeleton(model, poses), hand], group="panda")
 
+    if args.check:  # recording needs a real server and Chromium
+        for step in range(args.frames):
+            viewer.show(step)
+        print(f"{len(viewer.layers)} layers, {viewer.timeline.nsteps} frames")
+        return
     args.out.parent.mkdir(parents=True, exist_ok=True)
     start = time.perf_counter()
     gif = viewer.record(args.out.with_suffix(".gif"), size=tuple(args.size))

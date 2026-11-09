@@ -7,28 +7,31 @@ import time
 import numpy as np
 import pytest
 
-from better_robot.viewer._math import quat_z_to, rotate, unit_cone, unit_cylinder, unit_sphere
+from better_robot.viewer._lie import act, from_z, to_wxyz
+from better_robot.viewer._primitives import unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
-from better_robot.viewer.layers.mesh import SpheresLayer
+from better_robot.viewer.layers.mesh import MeshLayer, SpheresLayer
 from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
 
-from .fake_server import FakeServer
+from better_robot.exceptions import ArgumentError, ShapeError, UnknownNameError
+from better_robot.testing import FakeServer
 
 
 def _skeleton(nsteps: int = 10, name: str = "skel") -> SkeletonLayer:
     joints = np.random.default_rng(0).normal(size=(nsteps, 4, 3))
-    return SkeletonLayer(name, joints, parents=[-1, 0, 1, 1])
+    return SkeletonLayer(name, joints, parent_ids=[-1, 0, 1, 1])
 
 
 def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(_skeleton(10))
-    viewer.add(GroundLayer())
-    arrows = viewer.add(ArrowsLayer("f", np.zeros((5, 2, 3)), np.ones((5, 2, 3))), group="forces")
+    viewer.add([_skeleton(10)])
+    viewer.add([GroundLayer()])
+    arrows = ArrowsLayer("f", np.zeros((5, 2, 3)), np.ones((5, 2, 3)))
+    viewer.add([arrows], group="forces")
     server.scene.log.clear()
     blocks = server.atomic_blocks
     viewer.show(3)
@@ -51,7 +54,8 @@ def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block()
 def test_hidden_layers_are_skipped_and_catch_up_when_shown_again() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    layer = viewer.add(_skeleton(10))
+    layer = _skeleton(10)
+    viewer.add([layer])
     checkbox = server.gui.control("skel")
     checkbox.value = False
     checkbox.fire()
@@ -67,26 +71,26 @@ def test_hidden_layers_are_skipped_and_catch_up_when_shown_again() -> None:
 def test_remove_group_disposes_layers_and_the_group_node() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(_skeleton(), group="ref")
-    viewer.add(PointsLayer("pts", np.zeros((3, 3))), group="ref")
-    viewer.add(_skeleton(name="keep"))
+    viewer.add([_skeleton()], group="ref")
+    viewer.add([PointsLayer("pts", np.zeros((3, 3)))], group="ref")
+    viewer.add([_skeleton(name="keep")])
     viewer.remove_group("ref")
     assert server.scene.nodes["/ref"].removed
     assert server.scene.nodes["/ref/skel/joints"].removed and server.scene.nodes["/ref/pts/points"].removed
     assert not server.scene.nodes["/scene/keep/joints"].removed
     assert [layer.name for layer in viewer.layers] == ["keep"]
-    with pytest.raises(ValueError):
-        viewer.add(_skeleton(name="keep"))
+    with pytest.raises(ArgumentError, match="already has a layer"):
+        viewer.add([_skeleton(name="keep")])
 
 
 def test_set_offset_moves_a_group_after_it_was_added() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(PointsLayer("p", np.zeros((1, 3))), group="robot", offset=(0.0, 2.0, 0.0))
+    viewer.add([PointsLayer("p", np.zeros((1, 3)))], group="robot", offset=(0.0, 2.0, 0.0))
     viewer.set_offset("robot", (0.0, 3.0, 0.0))
     assert server.scene.nodes["/robot"].position == (0.0, 3.0, 0.0)
     np.testing.assert_allclose(viewer._points([0]), [[0.0, 3.0, 0.0]])  # record and aim frame the moved group
-    with pytest.raises(KeyError):
+    with pytest.raises(UnknownNameError, match="unknown group 'missing'"):
         viewer.set_offset("missing", (0.0, 0.0, 0.0))
 
 
@@ -155,7 +159,7 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
 def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> None:
     scene = FakeServer().scene
     joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0], [1.0, 0.0, 2.0]]], dtype=np.float32)
-    skeleton = SkeletonLayer("s", joints, parents=[-1, 0, 1], radius=0.1)
+    skeleton = SkeletonLayer("s", joints, parent_ids=[-1, 0, 1], radius=0.1)
     skeleton.build(scene, "/g/s")
     bones = scene.nodes["/g/s/bones"]
     np.testing.assert_allclose(bones.props["batched_positions"], [[0.0, 0.0, 1.0], [0.5, 0.0, 2.0]])
@@ -179,8 +183,8 @@ def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
     joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 2.0]]] * 2, dtype=np.float32)
     bones = np.array([0.0, 0.05, 0.0], dtype=np.float32)  # entry j: the bone into joint j; 0 hides it
     radius = np.array([[0.1, 0.1, 0.1], [0.1, 0.2, 0.0]], dtype=np.float32)  # (T, J): sized per step
-    viewer.add(SkeletonLayer("s", joints, parents=[-1, 0, 1], radius=radius, bone_radius=bones))
-    viewer.add(SkeletonLayer("c", joints, parents=[-1, 0, 1], radius=0.1, bone_radius=0.02))
+    viewer.add([SkeletonLayer("s", joints, parent_ids=[-1, 0, 1], radius=radius, bone_radius=bones)])
+    viewer.add([SkeletonLayer("c", joints, parent_ids=[-1, 0, 1], radius=0.1, bone_radius=0.02)])
     nodes = server.scene.nodes
     viewer.show(0)
     np.testing.assert_allclose(nodes["/scene/s/bones"].batched_scales, [[0.05, 0.05, 1.0], [0.0, 0.0, 1.0]])
@@ -190,8 +194,8 @@ def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
     np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.1] * 3, [0.2] * 3, [0.0] * 3])
     # A constant radius never rewrites the joint scales: per-step cost unchanged.
     assert ("/scene/c/joints", "batched_scales") not in server.scene.log
-    with pytest.raises(ValueError, match="radius"):
-        SkeletonLayer("bad", joints, parents=[-1, 0, 1], radius=np.ones((3, 3)))
+    with pytest.raises(ShapeError, match="radius"):
+        SkeletonLayer("bad", joints, parent_ids=[-1, 0, 1], radius=np.ones((3, 3)))
 
 
 def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_whole() -> None:
@@ -199,14 +203,14 @@ def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_
     viewer = Viewer(server=server)
     joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]]] * 2, dtype=np.float32)
     thickness = np.array([[1.0, 1.0], [2.0, 3.0]], dtype=np.float32)  # (T, J): per step
-    viewer.add(SkeletonLayer("s", joints, [-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness))
+    viewer.add([SkeletonLayer("s", joints, [-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness)])
     viewer.show(1)
     nodes = server.scene.nodes
     np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
     np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
-    with pytest.raises(ValueError, match="thickness"):
+    with pytest.raises(ShapeError, match="thickness"):
         SkeletonLayer("bad", joints, [-1, 0], thickness=np.ones((3, 2)))
-    with pytest.raises(ValueError, match="offsets"):
+    with pytest.raises(ShapeError, match="offsets"):
         SkeletonLayer("bad", joints, [-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
 
 
@@ -219,9 +223,11 @@ def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_an
     keep = np.ones((2, 3), bool)
     keep[1, 0] = False
     viewer.add(
-        ArrowsLayer(
-            "f", np.zeros((2, 3, 3)), vectors, colors=colours, head_size=0.1, shaft_radius=0.02, head_radius=0.04
-        ),
+        [
+            ArrowsLayer(
+                "f", np.zeros((2, 3, 3)), vectors, colors=colours, head_size=0.1, shaft_radius=0.02, head_radius=0.04
+            )
+        ],
         valid=keep,
     )
     shafts, heads = server.scene.nodes["/scene/f/shafts"], server.scene.nodes["/scene/f/heads"]
@@ -252,7 +258,7 @@ def test_arrows_draw_nothing_up_to_min_length(shaft_radius: float | None) -> Non
     vectors[..., 2] = lengths
     for name, min_length in (("default", {}), ("coarse", {"min_length": 0.01})):
         viewer.add(
-            ArrowsLayer(name, np.ones((1, 4, 3)), vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length)
+            [ArrowsLayer(name, np.ones((1, 4, 3)), vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length)]
         )
     viewer.show(0)
     for name, shown in (("default", [False, False, True, True]), ("coarse", [False, False, False, True])):
@@ -269,8 +275,8 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     viewer = Viewer(server=server)
     colours = np.zeros((3, 2, 3))
     colours[1, 0] = (1.0, 0.0, 0.0)  # contact 0 turns red at step 1
-    viewer.add(SpheresLayer("contacts", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=colours))
-    viewer.add(ArrowsLayer("forces", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=colours))
+    viewer.add([SpheresLayer("contacts", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=colours)])
+    viewer.add([ArrowsLayer("forces", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=colours)])
     spheres, heads = server.scene.nodes["/scene/contacts/spheres"], server.scene.nodes["/scene/forces/heads"]
     shafts = server.scene.nodes["/scene/forces/shafts"]
     viewer.show(1)
@@ -279,9 +285,10 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     np.testing.assert_array_equal(shafts.colors[0], [[255, 0, 0], [255, 0, 0]])
     viewer.show(2)
     assert not spheres.batched_colors.any()
-    static = viewer.add(SpheresLayer("static", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=(0.0, 1.0, 0.0)))
+    static = SpheresLayer("static", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=(0.0, 1.0, 0.0))
+    viewer.add([static])
     assert static._colors.shape == (2, 3)  # one colour stays static: never rewritten per step
-    with pytest.raises(ValueError, match="per-step colors"):
+    with pytest.raises(ShapeError, match="per-step colors"):
         ArrowsLayer("bad", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
 
@@ -289,7 +296,7 @@ def test_quaternion_z_to_direction_and_closed_unit_meshes() -> None:
     directions = np.random.default_rng(1).normal(size=(50, 3))
     directions[0] = [0.0, 0.0, -1.0]
     directions[1] = 0.0
-    q = quat_z_to(directions)
+    q = to_wxyz(from_z(directions))
     w, x, y, z = q.T
     rotated_z = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)
     unit = directions / np.maximum(np.linalg.norm(directions, axis=-1, keepdims=True), 1e-9)
@@ -319,10 +326,10 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     server = FakeServer()
     viewer = Viewer(server=server)
     frames = np.arange(4 * 2 * 3 * 3, dtype=np.uint8).reshape(4, 2, 3, 3)
-    viewer.add(ImagePanel("video", frames), group="video")
+    viewer.add([ImagePanel("video", frames)], group="video")
     asked = []
     lazy = ImagePanel("lazy", lambda step: asked.append(step) or frames[step], nsteps=4)
-    viewer.add(lazy, group="video", times=np.arange(4) / 10.0)  # a 10 Hz video on the 30 fps timeline
+    viewer.add([lazy], group="video", times=np.arange(4) / 10.0)  # a 10 Hz video on the 30 fps timeline
     eager_image, lazy_image = (control for control in server.gui.controls if control.kind == "image")
     viewer.show(3)  # 0.1 s: the lazy panel's sample 1
     np.testing.assert_array_equal(eager_image.image, frames[3])
@@ -330,7 +337,7 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     assert asked == [0, 0, 1]  # built at sample 0, pushed at 0, then only the shown sample is decoded
     viewer.set_visible(lazy, False)
     assert lazy_image.visible is False
-    with pytest.raises(ValueError, match="nsteps"):
+    with pytest.raises(ArgumentError, match="nsteps"):
         ImagePanel("no_length", lambda step: frames[0])
     viewer.remove_group("video")
     assert eager_image.removed and lazy_image.removed
@@ -338,8 +345,9 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
 
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
     viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"))
-    assert viewer.add(GroundLayer()).plane == "xz"
-    assert viewer.add(GroundLayer("explicit", plane="xy")).plane == "xy"
+    ground, explicit = GroundLayer(), GroundLayer("explicit", plane="xy")
+    viewer.add([ground, explicit])
+    assert ground.plane == "xz" and explicit.plane == "xy"
     assert GroundLayer().world_points(0) is None  # the grid never drives Viewer.record's camera fit
 
 
@@ -349,24 +357,24 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
     GroundLayer(origin=(1.0, 2.0, 3.0), normal=(0.0, 1.0, 1.0), height=0.5, fill=0.4).build(scene, "/g/floor")
     grid = scene.nodes["/g/floor/grid"].props
     w, x, y, z = grid["wxyz"]
-    np.testing.assert_allclose(rotate(np.array([x, y, z, w]), np.array([0.0, 0.0, 1.0])), normal, atol=1e-6)
+    np.testing.assert_allclose(act(np.array([x, y, z, w]), np.array([0.0, 0.0, 1.0])), normal, atol=1e-6)
     np.testing.assert_allclose(grid["position"], np.array([1.0, 2.0, 3.0]) + 0.5 * normal)
     assert grid["plane"] == "xy" and grid["plane_opacity"] == 0.4
     GroundLayer(plane="xz").build(scene, "/g/flat")
     assert scene.nodes["/g/flat/grid"].props["plane_opacity"] == 0.0  # lines only by default
-    with pytest.raises(ValueError, match="normal"):
+    with pytest.raises(ArgumentError, match="normal"):
         GroundLayer(normal=(0.0, 0.0, 0.0))
 
 
 def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(GroundLayer())
-    viewer.add(_skeleton(1, "pose"))
+    viewer.add([GroundLayer()])
+    viewer.add([_skeleton(1, "pose")])
     assert not {"Timeline", "Play", "Step", "Speed", "Loop"} & {control.name for control in server.gui.controls}
     viewer.play(block=False)  # single step: nothing to play, the viewer just serves
     assert not viewer.timeline.playing
-    viewer.add(_skeleton(10, "clip"), group="motion")
+    viewer.add([_skeleton(10, "clip")], group="motion")
     assert server.gui.control("Step").props["max"] == 9
     assert [control.name for control in server.gui.controls].count("Timeline") == 1
 
@@ -374,9 +382,11 @@ def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
 def test_layers_folder_checkboxes_follow_set_visible_and_survive_rebuild() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add(GroundLayer())  # not listed
-    skel = viewer.add(_skeleton(10, "skel"))
-    arm = viewer.add(_skeleton(10, "arm"), group="robot")
+    viewer.add([GroundLayer()])  # not listed
+    skel = _skeleton(10, "skel")
+    viewer.add([skel])
+    arm = _skeleton(10, "arm")
+    viewer.add([arm], group="robot")
 
     def boxes() -> dict[str, object]:
         return {c.name: c for c in server.gui.controls if c.kind == "checkbox" and c.name != "Loop" and not c.removed}
@@ -399,3 +409,47 @@ def test_layers_folder_checkboxes_follow_set_visible_and_survive_rebuild() -> No
     assert skel.visible is True and viewer._entry(skel).step == 4
     viewer.set_visible(arm, True)
     assert viewer._entry(arm).step == 4
+
+
+def test_replace_puts_the_new_layer_in_the_old_ones_place_and_visibility() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    old = _skeleton(10, "body")
+    viewer.add([old], group="human")
+    viewer.add([PointsLayer("cloud", np.zeros((3, 2, 3)))], group="human")
+    viewer.set_visible(old, False)
+    viewer.show(2)
+    box = next(c for c in server.gui.controls if c.name == "human/body")
+    new = _skeleton(5, "body2")
+    viewer.replace(old, new)
+    assert server.scene.nodes["/human/body"].removed and server.scene.nodes["/human/body/joints"].removed
+    assert box.removed and [layer.name for layer in viewer.layers] == ["body2", "cloud"]
+    assert new.visible is False and server.scene.nodes["/human/body2/joints"].visible is False
+    assert viewer.timeline.nsteps == 5  # fitted to the layers now present
+    viewer.set_visible(new, True)
+    assert viewer._entry(new).step == 2
+    with pytest.raises(ArgumentError, match="already has a layer named 'cloud'"):
+        viewer.replace(new, PointsLayer("cloud", np.zeros((3, 2, 3))))
+    with pytest.raises(ArgumentError, match="not in this viewer"):
+        viewer.replace(old, _skeleton(5, "again"))
+
+
+def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    mesh = MeshLayer("mesh", np.zeros((3, 3)), np.array([[0, 1, 2]]))
+    viewer.add([mesh])
+    spheres = SpheresLayer("balls", np.zeros((2, 3)), np.ones(2), opacity=1.0)
+    viewer.add([spheres])
+    mesh.set_opacity(0.4)
+    spheres.set_opacity(0.4)
+    assert server.scene.nodes["/scene/mesh/mesh"].opacity == 0.4 and mesh.opacity == 0.4
+    assert server.scene.nodes["/scene/balls/spheres"].opacity == 0.4
+    mesh.set_opacity(1.0)
+    assert server.scene.nodes["/scene/mesh/mesh"].opacity is None  # viser's opaque
+    viewer.rebuild(mesh)
+    assert server.scene.nodes["/scene/mesh/mesh"].props["opacity"] is None
+    with pytest.raises(ArgumentError, match=r"\(0, 1\]"):
+        mesh.set_opacity(0.0)
+    with pytest.raises(ArgumentError, match="draws no surface"):
+        PointsLayer("cloud", np.zeros((1, 3))).set_opacity(0.5)

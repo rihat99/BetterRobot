@@ -4,7 +4,7 @@ The viewer works on a robot built in Python, with no URDF and no geometry: ``rob
 and the bones between them.
 
 Usage:
-    uv run python examples/07_branching_tree_body.py [--no-viewer]
+    uv run python examples/07_branching_tree_body.py [--no-viewer | --check]
 """
 
 import argparse
@@ -35,6 +35,7 @@ def make_branching_tree() -> br.Model:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-viewer", action="store_true", help="Skip the viser viewer (useful in CI)")
+    parser.add_argument("--check", action="store_true", help="build the scene on the stand-in server and exit")
     args = parser.parse_args()
 
     model = make_branching_tree()
@@ -46,12 +47,17 @@ def main() -> None:
     print(f"Root position: {state.joint_poses[0, :3]}")
 
     if not args.no_viewer:
+        from better_robot.testing import FakeServer  # noqa: PLC0415
         from better_robot.viewer import GroundLayer, Viewer, robot_skeleton  # noqa: PLC0415 - optional viewer extra
 
-        viewer = Viewer(port=8081)
-        viewer.add(GroundLayer())
-        viewer.add(robot_skeleton(model, state.joint_poses.numpy()))  # no meshes for a programmatic body
+        viewer = Viewer(port=8081, server=FakeServer() if args.check else None)
+        viewer.add(
+            [GroundLayer(), robot_skeleton(model, state.joint_poses.numpy())]
+        )  # no meshes for a programmatic body
         viewer.show()
+        if args.check:
+            print(f"{len(viewer.layers)} layers built on the stand-in server")
+            return
         print(f"\nOpening viewer at {viewer.url} — press Ctrl-C to exit.")
         viewer.server.sleep_forever()
     else:

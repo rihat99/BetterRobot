@@ -3,12 +3,33 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, final
+
+import numpy as np
 
 
-from ._math import RGB, rgb_uint8
+RGB = tuple[float, float, float]
 
 
+def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
+    """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour."""
+    out = np.asarray(color, dtype=np.float32)
+    if out.ndim == 1 and shape:
+        out = np.broadcast_to(out, (*shape, 3))
+    return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+
+
+def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:
+    """Piecewise-linear colours ``(..., 3)`` through evenly spaced ``stops`` (at least two) for ``values`` in
+    ``[0, 1]`` (clamped); two stops are a plain blend from the first to the second."""
+    stops_array = np.asarray(stops, dtype=np.float32)
+    position = np.clip(np.asarray(values, dtype=np.float32), 0.0, 1.0) * (len(stops_array) - 1)
+    segment = np.minimum(position.astype(np.int64), len(stops_array) - 2)
+    t = (position - segment)[..., None]
+    return (1.0 - t) * stops_array[segment] + t * stops_array[segment + 1]
+
+
+@final
 @dataclass(frozen=True)
 class Theme:
     """Colours in ``[0, 1]`` RGB plus the few scene settings the viewer applies at start-up."""

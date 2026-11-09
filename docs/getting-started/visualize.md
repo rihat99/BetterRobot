@@ -40,8 +40,8 @@ geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
 state = br.forward_kinematics(model, clip)
 poses = state.joint_poses.numpy()                                        # (T, njoints, 7)
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-viewer.add(RigidMeshLayer("panda", meshes, poses))
-viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()))
+hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
+viewer.add([RigidMeshLayer("panda", meshes, poses), hand])   # an iterable of layers
 print(viewer.url, len(viewer.layers))
 ```
 ```output
@@ -73,7 +73,7 @@ each solver step, write the new poses into the layer's arrays and call `viewer.s
 
 ```python
 skeleton = robot_skeleton(model, poses, name="panda_live")
-viewer.add(skeleton, group="live")
+viewer.add([skeleton], group="live")
 backwards = br.forward_kinematics(model, clip.flip(0)).joint_poses.numpy()
 skeleton.joints[:] = backwards[:, 1:, :3]
 skeleton.rotations[:] = backwards[:, 1:, 3:]

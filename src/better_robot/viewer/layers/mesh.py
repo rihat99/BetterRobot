@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
-from .._math import RGB, as_frames, compose_poses, rgb_uint8, rotate, unit_sphere, xyzw_to_wxyz
+from ...exceptions import ArgumentError, ShapeError
+from .._lie import act, compose, to_wxyz
+from .._primitives import unit_sphere
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 _IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
 
+@final
 class MeshLayer(Layer):
     """One triangle mesh: static ``vertices (V, 3)`` or deforming ``(T, V, 3)``, ``faces (F, 3)``."""
 
@@ -53,8 +58,13 @@ class MeshLayer(Layer):
     def set_step(self, step: int) -> None:
         self._mesh.vertices = self.vertices[step]
 
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
+        self._fade(opacity)
 
-@dataclass
+
+@final
+@dataclass(frozen=True)
 class MeshSpec:
     """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body step).
 
@@ -70,6 +80,7 @@ class MeshSpec:
     trimesh: Any = None
 
 
+@final
 class RigidMeshLayer(Layer):
     """Rigid meshes following ``body_poses (T, B, 7)``: one node per mesh, per step only poses move.
 
@@ -87,8 +98,10 @@ class RigidMeshLayer(Layer):
             np.stack([spec.origin for spec in meshes]).astype(np.float32) if meshes else np.zeros((0, 7), np.float32)
         )
         self._nodes: list[Any] = []
+        self._plain: list[Any] = []  # the nodes of meshes without their own colours, which take an opacity
 
     def build(self, scene: Any, root: str) -> None:
+        self._nodes, self._plain = [], []
         for index, spec in enumerate(self.meshes):
             name = f"{root}/mesh_{index}"
             if spec.trimesh is not None:
@@ -102,24 +115,34 @@ class RigidMeshLayer(Layer):
                     opacity=None if self.opacity >= 1.0 else self.opacity,
                 )
             self._nodes.append(self._track(node))
+            if spec.trimesh is None:
+                self._plain.append(node)
 
     def world_points(self, step: int) -> np.ndarray | None:
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
         if not self.meshes:
             return None
-        world = compose_poses(self.body_poses[step, self._bodies], self._origins)
-        return np.concatenate(
-            [rotate(world[i, 3:], spec.vertices) + world[i, :3] for i, spec in enumerate(self.meshes)]
-        )
+        world = compose(self.body_poses[step, self._bodies], self._origins)
+        return np.concatenate([act(world[i, 3:], spec.vertices) + world[i, :3] for i, spec in enumerate(self.meshes)])
 
     def set_step(self, step: int) -> None:
-        world = compose_poses(self.body_poses[step, self._bodies], self._origins)
-        wxyz = xyzw_to_wxyz(world[:, 3:])
+        world = compose(self.body_poses[step, self._bodies], self._origins)
+        wxyz = to_wxyz(world[:, 3:])
         for index, node in enumerate(self._nodes):
             node.position = world[index, :3]
             node.wxyz = wxyz[index]
 
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the meshes at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a textured or
+        vertex-coloured mesh (``MeshSpec.trimesh``) stays opaque."""
+        if not 0.0 < opacity <= 1.0:
+            raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
+        self.opacity = float(opacity)
+        for node in self._plain:
+            node.opacity = None if opacity >= 1.0 else self.opacity
 
+
+@final
 class SpheresLayer(Layer):
     """Spheres with ``centers (T, S, 3)`` and ``radii (S,)`` as one batched node (collision models, contacts).
 
@@ -139,11 +162,11 @@ class SpheresLayer(Layer):
         super().__init__(name, self.centers.shape[0])
         self.radii = np.asarray(radii, dtype=np.float32)
         if self.radii.shape != (self.centers.shape[1],):
-            raise ValueError("radii must have one entry per sphere")
+            raise ShapeError(f"radii must be (S,) = ({self.centers.shape[1]},), one per sphere, got {self.radii.shape}")
         colors = np.asarray(colors, dtype=np.float32)
         self._colors = rgb_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.centers.shape:
-            raise ValueError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
+            raise ShapeError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
         self.opacity = opacity
         self._elements = self.centers.shape[1]
         self._spheres: Any = None
@@ -156,7 +179,7 @@ class SpheresLayer(Layer):
                 f"{root}/spheres",
                 vertices,
                 faces,
-                batched_wxyzs=np.tile(xyzw_to_wxyz(_IDENTITY_POSE[3:]), (n, 1)),
+                batched_wxyzs=np.tile(to_wxyz(_IDENTITY_POSE[3:]), (n, 1)),
                 batched_positions=self.centers[0],
                 batched_scales=self.radii,
                 batched_colors=self._colors if self._colors.ndim == 2 else self._colors[0],
@@ -178,3 +201,7 @@ class SpheresLayer(Layer):
             self._spheres.batched_colors = self._colors[step]
         if self.valid is not None and self.valid.ndim == 2:
             self._spheres.batched_scales = self.radii * self.valid[step]  # radius 0 hides an invalid sphere
+
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the spheres at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
+        self._fade(opacity)

@@ -9,7 +9,7 @@ import numpy as np
 from better_robot.viewer import CameraLayer, SkinnedMeshLayer
 from better_robot.viewer.layers.skinned import top_k_weights
 
-from .fake_server import FakeServer
+from better_robot.testing import FakeServer
 
 
 def test_two_bone_mesh_bends_at_the_second_bone() -> None:

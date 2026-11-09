@@ -1,34 +1,45 @@
-"""A recording stand-in for ``viser.ViserServer``: no sockets, every call and property write logged."""
+"""``FakeServer``: the shipped stand-in for ``viser.ViserServer`` (decision records 0022 and 0035).
+
+No sockets and no viser import: every ``add_*`` returns a ``FakeHandle`` that records its constructor arguments and
+later attribute writes, so ``Viewer(server=FakeServer())`` builds, pushes and tears down a scene in a test or an
+example's ``--check`` run, and the test reads what the browser would have received.
+"""
 
 from __future__ import annotations
 
 import contextlib
-from typing import Any
+from collections.abc import Iterator
+from typing import Any, final
 
 
+@final
 class FakeHandle:
     """Records constructor kwargs and later attribute writes; supports GUI callbacks and folders."""
 
     def __init__(self, scene: FakeScene | None, kind: str, name: str, kwargs: dict[str, Any]) -> None:
-        object.__setattr__(self, "scene", scene)
-        object.__setattr__(self, "kind", kind)
-        object.__setattr__(self, "name", name)
-        object.__setattr__(self, "props", dict(kwargs))
-        object.__setattr__(self, "writes", [])
-        object.__setattr__(self, "callbacks", [])
-        object.__setattr__(self, "removed", False)
-        object.__setattr__(self, "visible", kwargs.get("visible", True))
-        object.__setattr__(self, "value", kwargs.get("initial_value"))
-        object.__setattr__(self, "label", name)
+        # Written through ``__dict__`` so that construction is not logged as attribute writes.
+        self.__dict__.update(
+            scene=scene,
+            kind=kind,
+            name=name,
+            props=dict(kwargs),
+            writes=[],
+            callbacks=[],
+            removed=False,
+            visible=kwargs.get("visible", True),
+            value=kwargs.get("initial_value"),
+            order=kwargs.get("order"),
+            label=name,
+        )
 
     def __setattr__(self, key: str, value: Any) -> None:
-        object.__setattr__(self, key, value)
+        self.__dict__[key] = value
         self.writes.append(key)
         if self.scene is not None:
             self.scene.log.append((self.name, key))
 
     def remove(self) -> None:
-        object.__setattr__(self, "removed", True)
+        self.__dict__["removed"] = True
         if self.scene is not None:
             self.scene.log.append((self.name, "remove"))
 
@@ -49,26 +60,35 @@ class FakeHandle:
         pass
 
 
+@final
 class FakeScene:
     """Every ``add_*`` returns a ``FakeHandle``; ``log`` lists (node, event) in order."""
 
     def __init__(self) -> None:
         self.nodes: dict[str, FakeHandle] = {}
         self.log: list[tuple[str, str]] = []
-        self.pointer: tuple[str, Any] | None = None
+        self.pointers: list[tuple[str, Any]] = []  # (event type, callback) registered through on_click/on_rect_select
 
-    def on_pointer_event(self, event_type: str) -> Any:
-        """viser's single pointer slot: registering while one is held is a bug in the caller."""
-        assert self.pointer is None, "pointer slot already taken"
+    def on_click(self) -> Any:
+        """viser's scene click registration: a decorator that adds ``("click", callback)`` to ``pointers``."""
+        return self._register("click")
 
+    def on_rect_select(self) -> Any:
+        """viser's box-select registration: a decorator that adds ``("rect-select", callback)`` to ``pointers``."""
+        return self._register("rect-select")
+
+    def remove_click_callback(self, callback: Any) -> None:
+        self.pointers.remove(("click", callback))
+
+    def remove_rect_select_callback(self, callback: Any) -> None:
+        self.pointers.remove(("rect-select", callback))
+
+    def _register(self, event_type: str) -> Any:
         def register(callback: Any) -> Any:
-            self.pointer = (event_type, callback)
+            self.pointers.append((event_type, callback))
             return callback
 
         return register
-
-    def remove_pointer_callback(self) -> None:
-        self.pointer = None
 
     def __getattr__(self, method: str) -> Any:
         if not method.startswith(("add_", "set_", "configure_")):
@@ -86,7 +106,10 @@ class FakeScene:
         return call
 
 
+@final
 class FakeGui:
+    """Every ``add_*`` returns a ``FakeHandle`` kept in ``controls``; ``control(label)`` finds one."""
+
     def __init__(self) -> None:
         self.controls: list[FakeHandle] = []
 
@@ -108,7 +131,11 @@ class FakeGui:
         return next(control for control in self.controls if control.name == label)
 
 
+@final
 class FakeServer:
+    """A ``viser.ViserServer`` without sockets: ``scene``, ``gui``, ``atomic()``, ``port`` and the camera of new
+    clients, all recorded."""
+
     def __init__(self, port: int = 8080) -> None:
         self.scene = FakeScene()
         self.gui = FakeGui()
@@ -124,6 +151,6 @@ class FakeServer:
         return dict(self.clients)
 
     @contextlib.contextmanager
-    def atomic(self):
+    def atomic(self) -> Iterator[None]:
         self.atomic_blocks += 1
         yield

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
+from ...exceptions import ArgumentError, ShapeError
 from ..layer import Layer
 
 
+@final
 class ImagePanel(Layer):
     """Sidebar image per step: ``images`` ``(T, H, W, 3)`` uint8, one ``(H, W, 3)``, or a callable ``step -> image``.
 
@@ -28,12 +30,12 @@ class ImagePanel(Layer):
     ) -> None:
         if callable(images):
             if nsteps is None:
-                raise ValueError("a callable `images` needs `nsteps`")
+                raise ArgumentError("a callable `images` needs `nsteps`: pass ImagePanel(name, images, nsteps=T)")
         else:
             images = np.asarray(images)
             images = images[None] if images.ndim == 3 else images
             if images.ndim != 4:
-                raise ValueError(f"images must be (H, W, 3) or (T, H, W, 3), got shape {images.shape}")
+                raise ShapeError(f"images must be (H, W, 3) or (T, H, W, 3), got shape {images.shape}")
             nsteps = images.shape[0]
         super().__init__(name, nsteps)
         self._images = images
@@ -48,13 +50,7 @@ class ImagePanel(Layer):
         pass
 
     def build_gui(self, gui: Any) -> None:
-        self._image = gui.add_image(self.image_at(0), label=self.name, format=self.format)
+        self._image = self._track(gui.add_image(self.image_at(0), label=self.name, format=self.format))
 
     def set_step(self, step: int) -> None:
         self._image.image = self.image_at(step)
-
-    def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - signature of Layer.set_visible
-        self._image.visible = visible
-
-    def dispose(self) -> None:
-        self._image.remove()

@@ -24,8 +24,8 @@ from better_robot.viewer import GroundLayer, PointsLayer, Viewer
 
 viewer = Viewer()                        # viser server on http://127.0.0.1:8080
 cloud = np.random.rand(100, 50, 3)       # T = 100 frames of 50 points
-points = viewer.add(PointsLayer("cloud", cloud))
-viewer.add(GroundLayer(size=3.0))
+points = PointsLayer("cloud", cloud)
+viewer.add([points, GroundLayer(size=3.0)])   # an iterable of layers; one layer is add([layer])
 print(viewer.url, viewer.timeline.nsteps)
 ```
 ```output
@@ -42,8 +42,9 @@ contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixel
 `head_radius`, so forces keep their thickness at any zoom; a head takes at most 35 % of its arrow, so a short solid
 arrow is the long one scaled down, never a lone head. An arrow no longer than `min_length` metres (default
 `1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
-forces too small to read. `SkeletonLayer` takes a joint `radius` per joint `(J,)`
-or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
+forces too small to read. `SkeletonLayer(name, joints, parent_ids)` draws joints `(T, J, 3)` (or poses
+`(T, J, 7)`) as a stick figure, a bone from each joint to its parent (`parent_ids (J,)`, `-1` for a root); it takes a
+joint `radius` per joint `(J,)` or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
 length, `offsets (J, 3)` in each joint's frame that move a marker off its joint origin (bones then join the drawn
 centres), and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint `j` (thin finger bones); a radius of
 0 hides that marker or bone. Given joint `kinds`, a bone with an axis marker at either end bends at right angles
@@ -54,13 +55,19 @@ that `record`'s camera fits).
 
 ## A group is the unit you toggle and remove
 
-`viewer.add(layer, group="...")` puts the layer under the scene node `/<group>/<layer.name>`. The default group is
+`viewer.add(layers, group="...")` puts each layer under the scene node `/<group>/<layer.name>`. The default group is
 `"scene"`. Each group gets a GUI folder with one visibility checkbox per layer, and `remove_group` tears the whole
 group down and shrinks the timeline to the longest remaining layer, so a clip browser can swap one clip's group for
-the next. Layer names must be unique inside a group.
+the next. Layer names must be unique inside a group, and a group name that `set_offset` or `remove_group` does not
+know raises `UnknownNameError`.
+
+A layer is changed through its own methods, never its fields: `viewer.set_visible(layer, False)` hides it,
+`layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`; a
+layer without surfaces raises `ArgumentError`), and `viewer.replace(old, new)` swaps the data a layer draws, such
+as a body switched in a studio: `new` takes `old`'s group, GUI row and visibility, and the current step is pushed.
 
 ```python
-viewer.add(PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3)), group="debug")
+viewer.add([PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3))], group="debug")
 viewer.remove_group("debug")
 ```
 
@@ -74,17 +81,17 @@ shorter than the timeline holds its last step. `show(k)` is the only place steps
 layer gets its sample for step `k` inside one atomic server update, and layers already on that sample are skipped.
 `show()` with no argument re-pushes the current step, which is what you call after editing arrays in place.
 
-A layer recorded at another rate passes its sample times in seconds: `viewer.add(layer, times=t)` with `t` of
+A layer recorded at another rate passes its sample times in seconds: `viewer.add([layer], times=t)` with `t` of
 shape `(T,)`, non-decreasing. Step `k` then shows the latest sample at or before `k / fps`, so a 10 Hz layer and a
 30 Hz layer play in sync on a 30 fps timeline. Without `times` (the default) sample `k` is shown at step `k`. The
 layer itself still receives a plain integer sample index in `set_step`. `viewer.set_fps(f)` changes the rate of the
 timeline itself, keeping one step per frame of the clip on screen; a clip browser calls it when it switches clips.
 
 ```python { .no-run }
-viewer.add(PointsLayer("mocap", markers_10hz), times=np.arange(len(markers_10hz)) / 10.0)
+viewer.add([PointsLayer("mocap", markers_10hz)], times=np.arange(len(markers_10hz)) / 10.0)
 ```
 
-`viewer.add(layer, valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
+`viewer.add([layer], valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
 as a person who is not tracked in that frame; its sidebar switch stays on. A `(T, N)` mask hides single spheres of a
 `SpheresLayer` or arrows of an `ArrowsLayer`. Like the layer's arrays, `v` is kept by reference.
 
@@ -132,12 +139,11 @@ state = br.forward_kinematics(model, q)
 poses = state.joint_poses.numpy()                                        # (30, njoints, 7)
 
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-viewer.add(RigidMeshLayer("panda", meshes, poses), group="panda")
-viewer.add(robot_skeleton(model, poses), group="panda")
-viewer.add(FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy()), group="panda")
+hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
+viewer.add([RigidMeshLayer("panda", meshes, poses), robot_skeleton(model, poses), hand], group="panda")
 
 ghost = robot_skeleton(model, poses, name="ghost")
-viewer.add(ghost, group="ghost", offset=(0.0, 1.0, 0.0))
+viewer.add([ghost], group="ghost", offset=(0.0, 1.0, 0.0))
 backwards = br.forward_kinematics(model, q.flip(0)).joint_poses.numpy()   # same length, played backwards
 ghost.joints[:] = backwards[:, 1:, :3]
 ghost.rotations[:] = backwards[:, 1:, 3:]
@@ -145,7 +151,7 @@ viewer.show()
 ```
 
 `robot_skeleton` takes `tau (T, nv)` (the joint load colours and thickens the markers), a `theme` and the marker
-radii; `RigidMeshLayer` an `opacity`. The skeleton draws each revolute joint as a
+radii; `RigidMeshLayer` an `opacity` (`set_opacity` changes it live). The skeleton draws each revolute joint as a
 cylinder along its axis (radius 25 mm, length 60 mm) and each prismatic joint as a thin box along it, with the axes
 from each joint's `axis`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
 as in a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its
@@ -175,20 +181,23 @@ from better_robot.viewer import robot_skeleton
 poses = br.forward_kinematics(model, q).joint_poses.numpy()   # (30, njoints, 7)
 tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
 fingers = {"panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
-viewer.add(robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers), group="panda")
+viewer.add([robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers)], group="panda")
 ```
 
 ## Tools: a gizmo and numpy picking
 
 `better_robot.viewer.tools` holds two things. `PoseGizmo(viewer, name, pose, on_change=...)` is a draggable
 transform handle that calls `on_change(pose)` on every drag; `examples/viewer/03_ik_gizmo.py` uses it to re-solve
-IK and call `robot.update(q)` live. Picking is plain numpy over vertices, so it also works on data you never
+IK and call `robot.update(q)` live. A callback that raises stops the gizmo, and `gizmo.wait()` raises its error in
+your thread. Picking is plain numpy over vertices, so it also works on data you never
 showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
 `vertices_in_sphere` and `vertices_in_rect`.
 
-viser has a single scene-pointer slot, so the viewer owns it: a tool calls `viewer.on_pointer("click", callback)`
-(or `"rect-select"`) and `viewer.clear_pointer()` when it is done. A new registration replaces the previous one;
-never call `viewer.server.scene.on_pointer_event` directly.
+The viewer holds one pointer callback so that tools never fight over the scene: a tool calls
+`viewer.on_pointer("click", callback)` (viser's `SceneClickEvent`: `ray_origin`, `ray_direction`, `screen_pos`) or
+`viewer.on_pointer("rect-select", callback)` (`SceneRectSelectEvent`: `screen_min`, `screen_max`), and
+`viewer.clear_pointer()` when it is done. A new registration replaces the previous one; never register on
+`viewer.server.scene` directly.
 
 ```python
 from better_robot.viewer.tools import vertices_in_sphere
@@ -248,8 +257,9 @@ print(y_up_viewer.theme.up_vector)
 (0.0, 1.0, 0.0)
 ```
 
-`Viewer(server=...)` reuses an existing `viser.ViserServer` (or a fake one in tests), and `viewer.server` is the
-escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
+`Viewer(server=...)` reuses an existing `viser.ViserServer`, or takes `better_robot.testing.FakeServer`, the
+stand-in that records scene calls without a port or a browser (the tests and the examples' `--check` run on it);
+`viewer.server` is the escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
 forward the port over SSH to view it remotely.
 
 ## Lazy inputs

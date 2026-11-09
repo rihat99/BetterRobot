@@ -3,27 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
-from .._math import (
-    RGB,
-    as_frames,
-    axis_wxyz,
-    quat_z_to,
-    rgb_uint8,
-    rotate,
-    unit_box,
-    unit_cylinder,
-    unit_sphere,
-    xyzw_to_wxyz,
-)
+from ...exceptions import ShapeError
+from .._lie import act, compose_rotations, from_z, inverse, to_wxyz
+from .._primitives import unit_box, unit_cylinder, unit_sphere
+from ..layer import as_frames
+from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
 _IDENTITY = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
 _IDENTITY_XYZW = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
-_CONJUGATE = np.array([-1.0, -1.0, -1.0, 1.0], dtype=np.float32)
 _FOLD = 0.01  # m: a bone leg shorter than this folds into the bone's longest leg
 _STRAIGHT = 0.15  # m: a longer bone from a joint with one child stays straight (a thigh)
 _CORNER = 0.98  # corner sphere radius per bone radius: inside the bone's 16 flat sides, so no scalloped seam
@@ -62,8 +54,9 @@ def marker_extent(marker: str) -> tuple[float, float]:
     return _EXTENT[marker]
 
 
+@final
 class SkeletonLayer(Layer):
-    """Joints ``(T, J, 3)`` positions or ``(T, J, 7)`` poses (xyzw) and ``parents (J,)`` (``-1`` for roots)
+    """Joints ``(T, J, 3)`` positions or ``(T, J, 7)`` poses (xyzw) and ``parent_ids (J,)`` (``-1`` for roots)
     drawn as a stick figure.
 
     Without ``kinds`` every joint is a sphere. With ``kinds`` (kind words, see
@@ -76,7 +69,7 @@ class SkeletonLayer(Layer):
     ``offsets (J, 3)``, in each joint's frame (``robot.spread_offsets``), move a marker off its joint
     origin, such as along its own axis; bones join the drawn marker centres, and a bone of zero length
     draws nothing. ``bone_radius`` is one float or ``(J,)`` per bone, entry ``j`` for the bone
-    from ``parents[j]`` to ``j`` (roots' entries unused); 0 hides the bone. ``colors`` is one RGB, ``(J, 3)``
+    from ``parent_ids[j]`` to ``j`` (roots' entries unused); 0 hides the bone. ``colors`` is one RGB, ``(J, 3)``
     per joint, or ``(T, J, 3)`` per step (torque colouring), kept as uint8: edit it in place and call
     ``viewer.show()`` to recolour (per-step colours only). ``joints`` ``(T, J, 3)`` and ``rotations``
     ``(T, J, 4)`` are views of the input (kept by reference). Per step only instance transforms are
@@ -96,7 +89,7 @@ class SkeletonLayer(Layer):
         self,
         name: str,
         joints: np.ndarray,
-        parents: np.ndarray | list[int],
+        parent_ids: np.ndarray | list[int],
         *,
         kinds: Sequence[str] | None = None,
         axes: np.ndarray | None = None,
@@ -109,7 +102,7 @@ class SkeletonLayer(Layer):
     ) -> None:
         joints = as_frames(joints, 2)
         if joints.shape[-1] not in (3, 7):
-            raise ValueError(f"joints must be (T, J, 3) positions or (T, J, 7) poses, got {joints.shape}")
+            raise ShapeError(f"joints must be (T, J, 3) positions or (T, J, 7) poses, got {joints.shape}")
         # Both are views into the caller's array (kept by reference); positions-only input has no rotation.
         self.joints = joints[..., :3]
         self.rotations = (
@@ -117,12 +110,14 @@ class SkeletonLayer(Layer):
         )
         super().__init__(name, self.joints.shape[0])
         n_joints = self.joints.shape[1]
-        self.parents = np.asarray(parents, dtype=np.int64)
-        if self.parents.shape != (n_joints,):
-            raise ValueError("parents must have one entry per joint")
+        self.parent_ids = np.asarray(parent_ids, dtype=np.int64)
+        if self.parent_ids.shape != (n_joints,):
+            raise ShapeError(
+                f"parent_ids must be (J,) = ({n_joints},), one entry per joint, got {self.parent_ids.shape}"
+            )
         kinds = ["spherical"] * n_joints if kinds is None else list(kinds)
         if len(kinds) != n_joints:
-            raise ValueError("kinds must have one entry per joint")
+            raise ShapeError("kinds must have one entry per joint")
         markers = [marker_of(kind) for kind in kinds]
         self.groups = {m: np.array([j for j in range(n_joints) if markers[j] == m]) for m in set(markers) - {None}}
         axes = (0.0, 0.0, 1.0) if axes is None else axes
@@ -130,18 +125,18 @@ class SkeletonLayer(Layer):
         radius = np.asarray(radius, dtype=np.float32)
         self.radius = radius if radius.ndim == 2 else np.broadcast_to(radius, (n_joints,))
         if self.radius.shape[-1] != n_joints or (radius.ndim == 2 and len(radius) != self.nsteps):
-            raise ValueError(f"radius must be one float, (J,) or (T, J) = {self.joints.shape[:2]}, got {radius.shape}")
+            raise ShapeError(f"radius must be one float, (J,) or (T, J) = {self.joints.shape[:2]}, got {radius.shape}")
         self.thickness = None if thickness is None else np.asarray(thickness, dtype=np.float32)
         if self.thickness is not None and self.thickness.shape not in ((n_joints,), (self.nsteps, n_joints)):
-            raise ValueError(f"thickness must be (J,) or (T, J) = {self.joints.shape[:2]}, got {self.thickness.shape}")
+            raise ShapeError(f"thickness must be (J,) or (T, J) = {self.joints.shape[:2]}, got {self.thickness.shape}")
         self.offsets = None if offsets is None else np.asarray(offsets, dtype=np.float32)
         if self.offsets is not None and self.offsets.shape != (n_joints, 3):
-            raise ValueError(f"offsets must be (J, 3) = ({n_joints}, 3), got {self.offsets.shape}")
+            raise ShapeError(f"offsets must be (J, 3) = ({n_joints}, 3), got {self.offsets.shape}")
         # A float or (J,) per bone, entry j for the bone into joint j; read at every step.
         self.bone_radius = float(self.radius.max()) * 0.6 if bone_radius is None else bone_radius
         self.bone_color = bone_color
-        self._child = np.nonzero(self.parents >= 0)[0]
-        self._parent = self.parents[self._child]
+        self._child = np.nonzero(self.parent_ids >= 0)[0]
+        self._parent = self.parent_ids[self._child]
         colors = np.asarray(colors, dtype=np.float32)
         self.colors = rgb_uint8(colors, (n_joints,)) if colors.ndim <= 2 else rgb_uint8(colors)
         self._legs = self._route(np.array([marker in ("cylinder", "box") for marker in markers]))
@@ -158,7 +153,7 @@ class SkeletonLayer(Layer):
                 self._nodes[marker] = self._track(
                     scene.add_batched_axes(
                         f"{root}/joints_axes",
-                        batched_wxyzs=xyzw_to_wxyz(self.rotations[0, index]),
+                        batched_wxyzs=to_wxyz(self.rotations[0, index]),
                         batched_positions=centres[index],
                         axes_length=length,
                         axes_radius=length * 0.05,
@@ -217,7 +212,7 @@ class SkeletonLayer(Layer):
             index = self.groups[marker]
             node.batched_positions = centres[index]
             if marker == "axes":
-                node.batched_wxyzs = xyzw_to_wxyz(self.rotations[step, index])
+                node.batched_wxyzs = to_wxyz(self.rotations[step, index])
                 continue
             wxyzs, scales = self._marker_transforms(marker, step)
             node.batched_wxyzs = wxyzs
@@ -242,12 +237,13 @@ class SkeletonLayer(Layer):
         """Drawn marker centres ``(J, 3)`` at ``step``: the joints moved by their ``offsets`` (joint frame)."""
         if self.offsets is None:
             return self.joints[step]
-        return self.joints[step] + rotate(self.rotations[step], self.offsets)
+        return self.joints[step] + act(self.rotations[step], self.offsets)
 
     def _marker_transforms(self, marker: str, step: int) -> tuple[np.ndarray, np.ndarray]:
         """wxyz ``(N, 4)`` and scales ``(N, 3)`` of one marker group at ``step``."""
         index = self.groups[marker]
-        wxyzs = axis_wxyz(self.rotations[step, index], self.axes[index])
+        # A +z primitive laid along each joint's axis: the joint rotation after the arc from +z to the axis.
+        wxyzs = to_wxyz(compose_rotations(self.rotations[step, index], from_z(self.axes[index])))
         radius = self.radius[step] if self.radius.ndim == 2 else self.radius
         scales = radius[index, None] * np.asarray(_MESHES[marker][1], dtype=np.float32)
         if self.thickness is not None:
@@ -256,15 +252,15 @@ class SkeletonLayer(Layer):
         return wxyzs, scales
 
     def _route(self, axial: np.ndarray) -> np.ndarray:
-        """``(B, L, 3)`` 0/1 per bone ``B`` (``parents >= 0``): the components, in the parent joint's frame, of the
+        """``(B, L, 3)`` 0/1 per bone ``B`` (``parent_ids >= 0``): the components, in the parent joint's frame, of the
         bone's centre difference that leg ``k`` carries, from step 0 and ``axial (J,)`` (joints with an axis
         marker); ``L`` is the most legs any bone has (1 when every bone is straight)."""
         child, parent = self._child, self._parent
-        inverse = self.rotations[0, parent] * _CONJUGATE
+        to_parent = inverse(self.rotations[0, parent])
         centres = self._centres(0)
-        lengths = np.abs(rotate(inverse, centres[child] - centres[parent]))  # (B, 3)
-        child_axes = rotate(inverse, rotate(self.rotations[0, child], self.axes[child]))  # (B, 3) parent frame
-        children = np.bincount(parent, minlength=len(self.parents))
+        lengths = np.abs(act(to_parent, centres[child] - centres[parent]))  # (B, 3)
+        child_axes = act(to_parent, act(self.rotations[0, child], self.axes[child]))  # (B, 3) parent frame
+        children = np.bincount(parent, minlength=len(self.parent_ids))
         legs = np.zeros((len(child), 3, 3), dtype=np.float32)
         for bone, (size, p, c) in enumerate(zip(lengths, parent, child)):
             first = int(np.argmax(np.abs(self.axes[p]))) if axial[p] else None
@@ -288,12 +284,12 @@ class SkeletonLayer(Layer):
         radii ``(B * (L - 1),)`` at ``step``; unused legs and corners have scale 0 (fixed instance counts)."""
         start = centres[self._parent]
         rotation = self.rotations[step, self._parent]
-        local = rotate(rotation * _CONJUGATE, centres[self._child] - start)  # (B, 3) parent joint frame
-        legs = rotate(rotation[:, None], self._legs * local[:, None])  # (B, L, 3) world
+        local = act(inverse(rotation), centres[self._child] - start)  # (B, 3) parent joint frame
+        legs = act(rotation[:, None], self._legs * local[:, None])  # (B, L, 3) world
         ends = start[:, None] + np.cumsum(legs, axis=1)
         starts = np.concatenate([start[:, None], ends[:, :-1]], axis=1)
         length = np.linalg.norm(legs, axis=-1)  # (B, L)
-        radius = np.broadcast_to(np.asarray(self.bone_radius, dtype=np.float32), self.parents.shape)[self._child]
+        radius = np.broadcast_to(np.asarray(self.bone_radius, dtype=np.float32), self.parent_ids.shape)[self._child]
         drawn = length > 1e-6  # a zero-length leg would draw a flat disc
         leg_radius = np.where(drawn, radius[:, None], 0.0)
         scales = np.stack([leg_radius, leg_radius, length], axis=-1).reshape(-1, 3)
@@ -303,4 +299,4 @@ class SkeletonLayer(Layer):
         # coaxial legs of two bones get the same facets, so where they overlap they do not stripe.
         directions = legs.reshape(-1, 3)
         directions = directions * np.sign(np.take_along_axis(directions, np.abs(directions).argmax(-1)[:, None], -1))
-        return positions, quat_z_to(directions), scales, ends[:, :-1].reshape(-1, 3), corner_radius
+        return positions, to_wxyz(from_z(directions)), scales, ends[:, :-1].reshape(-1, 3), corner_radius

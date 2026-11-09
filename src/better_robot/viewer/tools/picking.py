@@ -1,7 +1,7 @@
 """Ray, sphere-brush and rectangle-marquee selection over vertices (numpy, no viser import).
 
-viser conventions this reproduces (viser 1.0.26): pointer ``screen_pos`` are image coordinates in
-``[0, 1]`` with ``(0, 0)`` top-left; ``CameraHandle.wxyz`` is scalar-first with the camera frame
+viser conventions this reproduces (viser 1.0.30): pointer ``screen_pos``, ``screen_min`` and ``screen_max`` are
+image coordinates in ``[0, 1]`` with ``(0, 0)`` top-left; ``CameraHandle.wxyz`` is scalar-first with the camera frame
 following OpenCV (look ``+z``, up ``-y``, right ``+x``); ``fov`` is the vertical field of view in
 radians and ``aspect`` is width over height.
 """
@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, final
 
 import numpy as np
 
 
+@final
 @dataclass(frozen=True)
 class CameraFrustum:
     """What is needed to project world points the way viser's client does."""
