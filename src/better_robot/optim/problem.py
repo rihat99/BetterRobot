@@ -11,18 +11,17 @@ from __future__ import annotations
 
 import copy
 import inspect
-import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
 import torch
 
+from .evaluation import Values, evaluate, residuals
 from .kernels import RobustKernel
-from .linear import ArrowNormal, ArrowSink, BandedNormal, BandLayout, BandSink, DenseSink, Normal
+from .linear import ArrowNormal, BandedNormal, BandLayout, Normal
+from .linearization import gradient, linearize
 from .manifold import Euclidean, Manifold
-
-Values = Mapping[str, torch.Tensor]
 
 
 @dataclass(frozen=True)
@@ -65,52 +64,6 @@ class Term:
     kernel: RobustKernel | None
     jac: Callable[..., dict[str, torch.Tensor]] | None
     window: int | None = None  #: time-local term: row ``t`` reads knots ``t .. t + window - 1``.
-
-
-@dataclass(frozen=True)
-class _Piece:
-    """Jacobian block of one term, grouped by the columns its rows share.
-
-    ``block[b, g, r, i]`` is the derivative of row ``r`` of group ``g`` w.r.t. column
-    ``columns[g, i]``. A time-local term has one group per knot; any other term has one group.
-    """
-
-    columns: torch.Tensor  #: ``(G, n)``
-    block: torch.Tensor  #: ``(B, G, m, n)``
-
-
-def _accumulate(
-    sink: DenseSink | BandSink | ArrowSink, g: torch.Tensor, pieces: list[_Piece], rows: torch.Tensor
-) -> None:
-    """Add ``JᵀJ`` of one term to ``sink`` and ``Jᵀr`` (``rows: (B, G, m)``) to ``g: (B, N)`` in place."""
-    batch = g.shape[0]
-    for piece in pieces:
-        gradient = (piece.block.mT @ rows.unsqueeze(-1)).squeeze(-1)  # (B, G, n)
-        g.scatter_add_(1, piece.columns.reshape(1, -1).expand(batch, -1), gradient.flatten(1))
-    for first_index, first in enumerate(pieces):
-        for second in pieces[first_index:]:
-            product = first.block.mT @ second.block  # (B, G, na, nb)
-            sink.add(first.columns, second.columns, product)
-            if first is not second:
-                sink.add(second.columns, first.columns, product.mT)
-
-
-class Evaluation:
-    """Values of one evaluation: variables, data and cached values computed at most once."""
-
-    def __init__(self, problem: Problem, x: Values) -> None:
-        self._problem = problem
-        self._values: dict[str, Any] = {**problem.data, **x}
-
-    def __getitem__(self, name: str) -> Any:
-        if name not in self._values:
-            fn, reads = self._problem._cached[name]
-            self._values[name] = fn(*(self[read] for read in reads))
-        return self._values[name]
-
-    def args(self, reads: tuple[str, ...]) -> list[Any]:
-        """Values of ``reads`` in order."""
-        return [self[read] for read in reads]
 
 
 class Problem:
@@ -284,26 +237,19 @@ class Problem:
         info : dict[str, dict]
             ``{name: info}`` for the active terms that returned one.
         """
-        evaluation = Evaluation(self, x if x is not None else self.variables)
-        terms: dict[str, torch.Tensor] = {}
-        info: dict[str, dict[str, Any]] = {}
-        for term in self._active():
-            value = self._weighted(term, evaluation, info)
-            terms[term.name] = value if term.kind == "scalar" else self._residual_loss(term, value)
-        return sum(terms.values(), start=self._zeros()), terms, info
+        return evaluate(self, x)
 
     def losses(self, x: Values | None = None) -> dict[str, torch.Tensor]:
         """Loss of every active term. Returns ``{name: (B,)}``."""
-        return self.evaluate(x)[1]
+        return evaluate(self, x)[1]
 
     def loss(self, x: Values | None = None) -> torch.Tensor:
         """Total loss per batch element, differentiable w.r.t. ``x``. Returns ``(B,)``."""
-        return self.evaluate(x)[0]
+        return evaluate(self, x)[0]
 
     def residuals(self, x: Values | None = None) -> dict[str, torch.Tensor]:
         """Unweighted output of every active residual term."""
-        evaluation = Evaluation(self, x if x is not None else self.variables)
-        return {t.name: self._output(t, evaluation) for t in self._active() if t.kind == "residual"}
+        return residuals(self, x)
 
     def linearize(self, x: Values | None = None) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
         """Gauss-Newton normal equations and the loss at ``x``. Returns ``(Normal, (B,))``.
@@ -312,61 +258,7 @@ class Problem:
         evaluation, so cached values are computed once and their dependence on the variables
         is kept. Robust kernels enter as iteratively reweighted least squares.
         """
-        x = {name: value.detach() for name, value in (x if x is not None else self.variables).items()}
-        terms = self._active()
-        traced = [t for t in terms if t.kind == "scalar" or t.jac is None]
-        batch, size = self._batch(), self.tangent_dim
-        loss = self._zeros()
-        layout = self._band_layout(terms)
-        if layout is None:
-            sink = DenseSink(loss, batch, size)
-        else:
-            sink = (BandSink if layout.shared_columns is None else ArrowSink)(loss, batch, layout)
-        g = loss.new_zeros(batch, size)
-        with torch.enable_grad() if traced else torch.no_grad():
-            if traced:
-                delta = loss.new_zeros(batch, size, requires_grad=True)
-                evaluation = Evaluation(self, self._retract(x, delta))
-            else:
-                delta = None
-                evaluation = Evaluation(self, x)
-            dense_rows, scalar_total = [], None
-            for term in terms:
-                value = self._weighted(term, evaluation)
-                if term.kind == "scalar":
-                    loss = loss + value.detach()
-                    scalar_total = value if scalar_total is None else scalar_total + value
-                    continue
-                loss = loss + self._residual_loss(term, value).detach()
-                reweighted = value * self._irls(term, value)
-                if term.jac is not None:
-                    with torch.no_grad():
-                        pieces = self._analytic_pieces(term, evaluation, value)
-                elif term.window is not None:
-                    pieces = self._windowed_pieces(term, reweighted, delta)
-                else:
-                    dense_rows.append(reweighted.flatten(1))
-                    continue
-                rows = reweighted.detach()
-                _accumulate(sink, g, pieces, rows.flatten(2) if term.window is not None else rows.flatten(1)[:, None])
-            # A scalar term may read only data or cached values that do not depend on the variables.
-            if scalar_total is not None and scalar_total.requires_grad:
-                g += torch.autograd.grad(
-                    scalar_total.sum(), delta, retain_graph=True, allow_unused=True, materialize_grads=True
-                )[0]
-            if dense_rows:
-                stacked = torch.cat(dense_rows, dim=1)  # (B, M)
-                # Batch elements are independent, so row i of every element comes from one backward pass.
-                seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
-                seeds = seeds.unsqueeze(1).expand(-1, batch, -1)
-                (jacobian,) = torch.autograd.grad(stacked, delta, seeds, is_grads_batched=True)
-                # Under a time layout the only terms on this route read variables without a time axis.
-                columns = torch.arange(size, device=g.device) if layout is None else layout.shared_columns
-                block = jacobian.permute(1, 0, 2)[:, None, :, columns]
-                _accumulate(sink, g, [_Piece(columns[None], block)], stacked.detach()[:, None])
-        normal = sink.finish(g)
-        mask = self._free_mask()
-        return (normal if mask is None else normal.masked(mask)), loss
+        return linearize(self, x)
 
     def gradient(
         self, x: Values | None = None, *, create_graph: bool = False
@@ -376,14 +268,7 @@ class Problem:
 
         With ``create_graph=True`` the gradient stays differentiable w.r.t. data tensors.
         """
-        x = {name: value.detach() for name, value in (x if x is not None else self.variables).items()}
-        with torch.enable_grad():
-            delta = self._zeros().new_zeros(self._batch(), self.tangent_dim, requires_grad=True)
-            loss, terms, _ = self.evaluate(self._retract(x, delta))
-            (g,) = torch.autograd.grad(loss.sum(), delta, create_graph=create_graph)
-        mask = self._free_mask()
-        terms = {name: value.detach() for name, value in terms.items()}
-        return loss.detach(), (g if mask is None else g * mask), terms
+        return gradient(self, x, create_graph=create_graph)
 
     # ── stepping ────────────────────────────────────────────────────────
 
@@ -420,16 +305,6 @@ class Problem:
         reads = self._resolve_reads(name, fn, reads)
         self.terms[name] = Term(name, fn, kind, reads, weight, kernel, jac, window)
 
-    def _depends(self, reads: tuple[str, ...]) -> set[str]:
-        """Variables that ``reads`` depend on, following cached values."""
-        out: set[str] = set()
-        for read in reads:
-            if read in self.variables:
-                out.add(read)
-            elif read in self._cached:
-                out |= self._depends(self._cached[read][1])
-        return out
-
     def _require_new_name(self, name: str) -> None:
         if name in self.variables or name in self.data or name in self._cached:
             raise ValueError(f"name {name!r} is already used by a variable, data tensor or cached value")
@@ -455,204 +330,6 @@ class Problem:
             raise KeyError(f"{what} given for unknown variables {sorted(unknown)}")
         return mapping
 
-    def _active(self) -> list[Term]:
-        out = []
-        for term in self.terms.values():
-            weight = self.weights.get(term.name, term.weight)
-            if isinstance(weight, torch.Tensor) or weight != 0.0:
-                out.append(term)
-        return out
-
-    def _batch(self) -> int:
-        return next(iter(self.variables.values())).shape[0]
-
-    def _zeros(self) -> torch.Tensor:
-        first = next(iter(self.variables.values()))
-        return first.new_zeros(first.shape[0])
-
-    @staticmethod
-    def _output(term: Term, evaluation: Evaluation, info: dict[str, dict[str, Any]] | None = None) -> torch.Tensor:
-        """Value of ``term``; the ``info`` dict of a term returning ``(value, info)`` goes to ``info[term.name]``."""
-        value = term.fn(*evaluation.args(term.reads))
-        if isinstance(value, tuple):
-            value, extra = value
-            if info is not None:
-                info[term.name] = {key: v.detach() if isinstance(v, torch.Tensor) else v for key, v in extra.items()}
-        return value
-
-    def _weighted(
-        self, term: Term, evaluation: Evaluation, info: dict[str, dict[str, Any]] | None = None
-    ) -> torch.Tensor:
-        """Scalar term times its weight, or residual times the square root of its weight."""
-        value = self._output(term, evaluation, info)
-        weight = self.weights.get(term.name, term.weight)
-        if isinstance(weight, torch.Tensor) and weight.ndim not in (0, value.ndim - 1, value.ndim):
-            raise ValueError(
-                f"weight of {term.name!r} has shape {tuple(weight.shape)} but the term returns "
-                f"{tuple(value.shape)}; give the weight that shape, with or without the batch axis"
-            )
-        if term.kind == "scalar":
-            return value * weight
-        return value * (weight.sqrt() if isinstance(weight, torch.Tensor) else weight**0.5)
-
-    @staticmethod
-    def _residual_loss(term: Term, weighted: torch.Tensor) -> torch.Tensor:
-        if term.kernel is None:
-            return 0.5 * weighted.square().flatten(1).sum(-1)
-        return term.kernel.rho(weighted.square().sum(-1)).reshape(weighted.shape[0], -1).sum(-1)
-
-    @staticmethod
-    def _irls(term: Term, weighted: torch.Tensor) -> torch.Tensor | float:
-        """Square root of the robust weight of each group, broadcastable to the residual."""
-        if term.kernel is None:
-            return 1.0
-        return term.kernel.weight(weighted.detach().square().sum(-1)).sqrt().unsqueeze(-1)
-
-    def _band_layout(self, terms: list[Term]) -> BandLayout | None:
-        """Time layout when every residual term is time-local or reads no time variable.
-
-        Variables without a time axis become the border of an arrowhead matrix.
-        """
-        residuals = [t for t in terms if t.kind == "residual"]
-        windows = [t.window for t in residuals if t.window is not None]
-        if self.dense or not self.time or not windows:
-            return None
-        unwindowed = [t.name for t in residuals if t.window is None and self._depends(t.reads) & set(self.time)]
-        if unwindowed:
-            # Python's default filter shows this once per call site, not once per solver step.
-            warnings.warn(
-                f"time problem uses dense normal equations: residual terms {unwindowed} read a time variable "
-                "without window=; declare window= for the banded solve or pass dense=True to silence this",
-                stacklevel=2,
-            )
-            return None
-        knots = {self.variables[name].shape[1] for name in self.time}
-        if len(knots) != 1:
-            return None
-        return self._layout(knots.pop(), max(max(windows) - 1, 1))
-
-    def _layout(self, knots: int, group: int) -> BandLayout:
-        key = (knots, group)
-        if key not in self._layouts:
-            device = next(iter(self.variables.values())).device
-            knot_of = torch.zeros(self.tangent_dim, dtype=torch.long, device=device)
-            local_of = torch.zeros(self.tangent_dim, dtype=torch.long, device=device)
-            offset = 0
-            time_columns, shared_columns = [], []
-            for name in self.variables:
-                span = self._slices[name]
-                index = torch.arange(span.stop - span.start, device=device)
-                if name not in self.time:
-                    shared_columns.append(span.start + index)
-                    continue
-                n = (span.stop - span.start) // knots
-                knot_of[span] = index // n
-                local_of[span] = offset + index % n
-                offset += n
-                time_columns.append(span.start + index)
-            self._layouts[key] = BandLayout(
-                block_of_column=knot_of // group,
-                row_of_column=(knot_of % group) * offset + local_of,
-                blocks=-(-knots // group),
-                block_size=group * offset,
-                time_columns=torch.cat(time_columns) if shared_columns else None,
-                shared_columns=torch.cat(shared_columns) if shared_columns else None,
-            )
-        return self._layouts[key]
-
-    def _window_columns(self, name: str, rows: int, offset: int, device) -> torch.Tensor:
-        """Columns ``(rows, n)`` of knot ``t + offset`` of time variable ``name`` for each row ``t``."""
-        span = self._slices[name]
-        n = (span.stop - span.start) // self.variables[name].shape[1]
-        knot = torch.arange(rows, device=device) + offset
-        return span.start + knot[:, None] * n + torch.arange(n, device=device)
-
-    def _analytic_pieces(self, term: Term, evaluation: Evaluation, weighted: torch.Tensor) -> list[_Piece]:
-        """Pieces of the weighted, reweighted residual from the blocks returned by ``term.jac``."""
-        blocks = term.jac(*evaluation.args(term.reads))
-        weight = self.weights.get(term.name, term.weight)
-        scale = (weight.sqrt() if isinstance(weight, torch.Tensor) else weight**0.5) * self._irls(term, weighted)
-        batch = weighted.shape[0]
-        windowed = term.window is not None
-        if isinstance(scale, torch.Tensor):
-            scale = scale.expand_as(weighted)
-            scale = (scale.flatten(2) if windowed else scale.flatten(1)[:, None]).unsqueeze(-1)  # (B, G, m, 1)
-        pieces = []
-        for name, raw in blocks.items():
-            block = raw.detach()
-            span = self._slices[name]
-            if windowed and name in self.time:
-                if block.ndim == 4:
-                    block = block.unsqueeze(3)
-                for offset in range(block.shape[3]):
-                    columns = self._window_columns(name, block.shape[1], offset, block.device)
-                    pieces.append(_Piece(columns, block[:, :, :, offset] * scale))
-            elif windowed:
-                columns = torch.arange(span.start, span.stop, device=block.device).expand(block.shape[1], -1)
-                pieces.append(_Piece(columns, block * scale))
-            else:
-                columns = torch.arange(span.start, span.stop, device=block.device)[None]
-                # Explicit row count: a -1 is ambiguous when the batch is empty.
-                rows = weighted.shape[1:].numel()
-                pieces.append(_Piece(columns, block.reshape(batch, 1, rows, span.stop - span.start) * scale))
-        return pieces
-
-    def _windowed_pieces(self, term: Term, reweighted: torch.Tensor, delta: torch.Tensor) -> list[_Piece]:
-        """Autodiff pieces of a time-local term: rows whose windows do not overlap share a backward pass.
-
-        Columns of variables without a time axis are read by every row, so they come from one
-        forward-mode product per column, computed as the derivative of a backward pass.
-        """
-        rows_by_knot = reweighted.flatten(2)  # (B, T_out, m)
-        batch, rows, width = rows_by_knot.shape
-        window = term.window
-        color = torch.arange(rows, device=delta.device) % window
-        seeds = rows_by_knot.new_zeros(window, width, batch, rows, width)
-        for c in range(window):
-            for j in range(width):
-                seeds[c, j, :, color == c, j] = 1.0
-        (gradient,) = torch.autograd.grad(
-            rows_by_knot, delta, seeds.flatten(0, 1), is_grads_batched=True, retain_graph=True
-        )
-        gradient = gradient.view(window, width, batch, -1)
-        pieces = []
-        depends = self._depends(term.reads)
-        shared = [
-            torch.arange(s.start, s.stop, device=delta.device)
-            for n, s in self._slices.items()
-            if n in depends and n not in self.time
-        ]
-        if shared:
-            columns = torch.cat(shared)
-            probe = torch.zeros_like(rows_by_knot, requires_grad=True)
-            (pulled,) = torch.autograd.grad(rows_by_knot, delta, probe, create_graph=True)
-            eye = torch.eye(columns.numel(), dtype=pulled.dtype, device=pulled.device)
-            (block,) = torch.autograd.grad(
-                pulled[:, columns], probe, eye[:, None].expand(-1, batch, -1), is_grads_batched=True, retain_graph=True
-            )
-            block = block.permute(1, 2, 3, 0)  # (B, T_out, m, ns)
-            # An op whose backward is not itself differentiable (a custom Function, a compiled kernel)
-            # silently drops out of the product above, so compare with one ordinary backward pass.
-            weights = rows_by_knot.detach()
-            (plain,) = torch.autograd.grad(rows_by_knot, delta, weights, retain_graph=True)
-            expected = plain[:, columns]
-            got = (block * weights.unsqueeze(-1)).sum((1, 2))
-            if not torch.allclose(got, expected, rtol=1e-3, atol=1e-6 * float(expected.abs().max()) + 1e-30):
-                raise ValueError(
-                    f"term {term.name!r}: the autodiff Jacobian w.r.t. variables without a time axis is wrong, "
-                    "because an operation on that path cannot be differentiated twice. Give the term a `jac`."
-                )
-            pieces.append(_Piece(columns.expand(rows, -1), block))
-        for name in sorted(depends & set(self.time)):
-            span = self._slices[name]
-            knots = self.variables[name].shape[1]
-            by_knot = gradient[..., span].reshape(window, width, batch, knots, -1)
-            for offset in range(window):
-                knot = torch.arange(rows, device=delta.device) + offset
-                block = by_knot[color, :, :, knot]  # (T_out, m, B, n)
-                pieces.append(_Piece(self._window_columns(name, rows, offset, delta.device), block.permute(2, 0, 1, 3)))
-        return pieces
-
     def _retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
         return {name: self.manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
 
@@ -661,40 +338,5 @@ class Problem:
             x[name] = torch.minimum(torch.maximum(x[name], lower), upper)
         return x
 
-    def _free_mask(self) -> torch.Tensor | None:
-        """Float mask ``(B or 1, N)``: 1 for free tangent coordinates, 0 for frozen ones."""
-        if self.free is None:
-            return None
-        first = next(iter(self.variables.values()))
-        rows = max([1] + [mask.shape[0] for mask in self.free.values() if mask.ndim == 2])
-        out = first.new_ones(rows, self.tangent_dim)
-        for name, mask in self.free.items():
-            out[:, self._slices[name]] = mask.to(first.dtype)
-        return out
 
-
-def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float]:
-    """Largest absolute difference between each term's own Jacobian route and plain autodiff.
-
-    Checks every residual term that has an analytic ``jac`` or a ``window``; the reference
-    differentiates the same term row by row with no assumption. Returns ``{term name: error}``
-    measured on ``H`` and ``g``, relative to the largest entry of ``H``.
-    """
-    errors = {}
-    for term in problem._active():
-        if term.kind != "residual" or (term.jac is None and term.window is None):
-            continue
-        only = {name: 0.0 for name in problem.terms if name != term.name}
-        analytic = problem.with_(weights=only)
-        autodiff = copy.copy(analytic)
-        autodiff.terms = {**problem.terms, term.name: Term(**{**term.__dict__, "jac": None, "window": None})}
-        normal_a, _ = analytic.linearize(x)
-        normal_b, _ = autodiff.linearize(x)
-        H_a = normal_a.H if isinstance(normal_a, Normal) else normal_a.dense()
-        H_b = normal_b.H if isinstance(normal_b, Normal) else normal_b.dense()
-        scale = max(float(H_b.abs().max()), 1e-300)
-        errors[term.name] = max(float((H_a - H_b).abs().max()), float((normal_a.g - normal_b.g).abs().max())) / scale
-    return errors
-
-
-__all__ = ["Evaluation", "Problem", "Term", "TermFn", "check_jacobian"]
+__all__ = ["CacheRef", "Problem", "Term", "TermFn"]

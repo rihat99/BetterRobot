@@ -7,8 +7,6 @@
   "src/better_robot/optim/problem.py::with_": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
   "src/better_robot/optim/problem.py::_add": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
   "src/better_robot/optim/problem.py::_require_new_name": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
-  "src/better_robot/optim/problem.py::_weighted": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
-  "src/better_robot/optim/problem.py::_windowed_pieces": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
   "src/better_robot/optim/solvers.py::__init__": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
   "src/better_robot/optim/solvers.py::_mask_gradients": "raises a builtin; record 0020 lets optim import exceptions, the optim WP converts it",
   "src/better_robot/viewer/_math.py::as_frames": "raises a builtin; R8 rewrites the viewer on the error tree (record 0020)",

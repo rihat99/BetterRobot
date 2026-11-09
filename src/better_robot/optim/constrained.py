@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 
 import torch
 
+from .evaluation import zero_loss
 from .phases import Result, solve
 from .problem import Problem
 from .solvers import Solver
@@ -63,7 +64,7 @@ def solve_constrained(
     with torch.no_grad():
         values = plain.residuals(current)
     multipliers = {name: torch.zeros_like(values[name]) for name in names}
-    rho = problem._zeros() + penalty
+    rho = zero_loss(problem) + penalty
     previous = torch.full_like(rho, float("inf"))
     violations, total, result = [], 0, None
     for _ in range(outer):

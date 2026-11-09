@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, replace
 
 import torch
 
+from .evaluation import active_terms
 from .problem import Problem
 from .solvers import DIAGNOSTICS, Solver, State
 
@@ -138,7 +139,7 @@ def solve_layer(
     redundant arm), where the sensitivity is zero. Problems with scalar terms are rejected:
     their curvature is not in ``H``, so the derivative would be wrong.
     """
-    scalars = [term.name for term in problem._active() if term.kind == "scalar"]
+    scalars = [term.name for term in active_terms(problem) if term.kind == "scalar"]
     if scalars:
         raise ValueError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
     result = solve(problem, solver, iters=iters, x=x)
