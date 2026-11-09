@@ -488,6 +488,7 @@
   "better_robot.testing.check_joint_model": "function(joint: 'JointModel', *, dtype: 'torch.dtype', generator: 'torch.Generator') -> 'None'",
   "better_robot.testing.dead_citations": "function(repo_root: 'Path') -> 'list[str]'",
   "better_robot.testing.imported_packages": "function(src_root: 'Path', package: 'str') -> 'dict[str, set[str]]'",
+  "better_robot.testing.no_skips": "module",
   "better_robot.testing.public_api": "function(package: 'str') -> 'dict[str, str]'",
   "better_robot.testing.public_objects": "function(package: 'str') -> 'dict[str, object]'",
   "better_robot.viewer": "module",
