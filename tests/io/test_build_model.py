@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import re
 from dataclasses import dataclass
 from typing import ClassVar, final
 
@@ -12,6 +13,7 @@ import torch
 
 from better_robot.io.build_model import build_model
 from better_robot.io.builder import ModelBuilder
+from better_robot.io.ir import IRBody, IRFrame, IRJoint, IRModel
 from better_robot.kinematics import subtree
 from better_robot.exceptions import ModelError
 from better_robot.model.joints import (
@@ -403,6 +405,58 @@ def test_mimic_bad_source_raises():
     )
     ir = b.finalize()
     with pytest.raises(ModelError, match="Mimic source"):
+        build_model(ir)
+
+
+def _named_ir(joints: list[tuple[str, str, str]], bodies: list[str], frames: tuple[str, ...] = ()) -> IRModel:
+    """An IR of revolute joints ``(name, parent, child)`` between ``bodies``, plus frames on the first body."""
+    axis = (0.0, 0.0, 1.0)
+    return IRModel(
+        name="names",
+        bodies=[IRBody(name=body) for body in bodies],
+        joints=[IRJoint(name, parent, child, JointRevolute(axis=axis)) for name, parent, child in joints],
+        frames=[IRFrame(name, parent_body=bodies[0], placement=_id7()) for name in frames],
+    )
+
+
+@pytest.mark.parametrize(
+    ("ir", "message"),
+    [
+        pytest.param(
+            _named_ir([("j", "b0", "b1"), ("j", "b1", "b2")], ["b0", "b1", "b2"]),
+            "two joints are named 'j'; rename one",
+            id="two_joints",
+        ),
+        pytest.param(
+            _named_ir([("root_joint", "b0", "b1")], ["b0", "b1"]),
+            "two joints are named 'root_joint' (build_model names",
+            id="joint_named_like_the_added_root",
+        ),
+        pytest.param(
+            _named_ir([("universe", "b0", "b1")], ["b0", "b1"]),
+            "two joints are named 'universe' (build_model names",
+            id="joint_named_universe",
+        ),
+        pytest.param(
+            _named_ir([("j", "universe", "b1")], ["universe", "b1"]),
+            "two bodies are named 'universe' (build_model names",
+            id="body_named_universe",
+        ),
+        pytest.param(
+            _named_ir([("j", "b0", "b1")], ["b0", "b1", "b1"]),
+            "two bodies are named 'b1'; rename one",
+            id="two_bodies",
+        ),
+        pytest.param(
+            _named_ir([("j", "b0", "b1")], ["b0", "b1"], frames=("b1",)),
+            "frame 'b1' is already the name of a body or of another frame; rename one",
+            id="frame_named_like_a_body",
+        ),
+    ],
+)
+def test_a_name_used_twice_raises_and_says_which(ir, message):
+    """Names address joints, bodies and frames, so a description that repeats one cannot be built."""
+    with pytest.raises(ModelError, match=re.escape(message)):
         build_model(ir)
 
 

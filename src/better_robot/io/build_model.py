@@ -176,8 +176,21 @@ def _joint_order(ir: IRModel, root_body: str, indices: tuple[int, ...]) -> tuple
     return tuple(order)
 
 
+def _unique(kinds: str, names: list[str]) -> None:
+    """Raise ``ModelError`` at the first of ``names`` used twice: names are how a model is addressed."""
+    seen: set[str] = set()
+    for name in names:
+        if name in seen:
+            given = " (build_model names joint 0 and body 0 'universe', and an added root joint 'root_joint')"
+            hint = given if name in ("universe", "root_joint") else ""
+            raise ModelError(f"two {kinds} are named {name!r}{hint}; rename one")
+        seen.add(name)
+
+
 def _topology(ir: IRModel, root: _Root, order: tuple[int, ...], dtype: torch.dtype) -> _Topology:
-    """Joint 0 is the universe, joint 1 the root, then the IR joints in ``order``; a body is named by its joint."""
+    """Joint 0 is the universe, joint 1 the root, then the IR joints in ``order``; a body is named by its joint.
+    Joint names and body names are each unique, ``"universe"`` included."""
+    _unique("bodies", ["universe", *(body.name for body in ir.bodies)])
     identity = se3.identity(dtype=dtype)
     joint_names = ["universe", root.name]
     body_names = ["universe", root.body]
@@ -195,6 +208,7 @@ def _topology(ir: IRModel, root: _Root, order: tuple[int, ...], dtype: torch.dty
         joints.append(joint.joint)
         ir_joints.append(joint)
         placements.append(joint.origin.to(dtype=dtype))
+    _unique("joints", joint_names)
     return _Topology(
         joint_names=tuple(joint_names),
         body_names=tuple(body_names),
@@ -297,7 +311,7 @@ def _frames(ir: IRModel, topology: _Topology, dtype: torch.dtype) -> _Frames:
     taken = set(names)
     for frame in ir.frames:
         if frame.name in taken:
-            raise ModelError(f"frame {frame.name!r} is already the name of a body or of another frame")
+            raise ModelError(f"frame {frame.name!r} is already the name of a body or of another frame; rename one")
         if frame.parent_body not in joint_of_body:
             raise ModelError(f"frame {frame.name!r} is attached to unknown body {frame.parent_body!r}")
         taken.add(frame.name)
