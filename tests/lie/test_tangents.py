@@ -151,9 +151,15 @@ def test_left_right_se3_relation(seed):
 # ───────────── SE3 Jacobians at large rotation angles ────────────────────
 
 
+def _ad(xi: torch.Tensor) -> torch.Tensor:
+    """The se(3) adjoint ``ad([v, w]) = [[ŵ, v̂], [0, ŵ]]``, ``(..., 6) → (..., 6, 6)``."""
+    linear, angular = tangents.hat_so3(xi[..., :3]), tangents.hat_so3(xi[..., 3:])
+    return torch.cat((torch.cat((angular, linear), -1), torch.cat((torch.zeros_like(angular), angular), -1)), -2)
+
+
 def _series_right_jacobian_se3(xi: torch.Tensor, terms: int = 60) -> torch.Tensor:
     """Reference ``Jr`` from the full power series in float64."""
-    ad = tangents._ad_matrix(xi)
+    ad = _ad(xi)
     result = torch.eye(6, dtype=xi.dtype).expand_as(ad).clone()
     power = result.clone()
     for k in range(1, terms):

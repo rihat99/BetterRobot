@@ -184,26 +184,6 @@ def left_jacobian_inverse_so3(omega: torch.Tensor) -> torch.Tensor:
     return right_jacobian_inverse_so3_raw(-omega)
 
 
-# ──────────────────────── SE3 adjoint matrix ─────────────────────────────
-
-
-def _ad_matrix(xi: torch.Tensor) -> torch.Tensor:
-    """Adjoint representation of se3 tangent. ``(..., 6) → (..., 6, 6)``.
-
-    ad(xi) = ad([v, w]) = [[hat(w), hat(v)],
-                             [0,      hat(w)]]
-    """
-    v = xi[..., :3]
-    w = xi[..., 3:]
-    Vhat = hat_so3_raw(v)  # (..., 3, 3)
-    What = hat_so3_raw(w)  # (..., 3, 3)
-    *batch, _, _ = What.shape
-    zeros33 = torch.zeros(*batch, 3, 3, dtype=xi.dtype, device=xi.device)
-    top = torch.cat([What, Vhat], dim=-1)  # (..., 3, 6)
-    bottom = torch.cat([zeros33, What], dim=-1)  # (..., 3, 6)
-    return torch.cat([top, bottom], dim=-2)  # (..., 6, 6)
-
-
 # ──────────────────────── SE3 Jacobians ──────────────────────────────────
 
 

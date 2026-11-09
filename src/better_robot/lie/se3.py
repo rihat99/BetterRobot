@@ -13,7 +13,8 @@ import torch
 
 from . import so3
 from ._checks import check_tensor, check_tensors
-from .so3 import _hat3, _taylor_theta2
+from .so3 import _taylor_theta2
+from .tangents import hat_so3_raw
 
 
 def identity(
@@ -80,7 +81,7 @@ def log_raw(t: torch.Tensor) -> torch.Tensor:
     coeff_taylor = (1.0 / 12.0) + theta2 / 720.0
     coeff = torch.where(use_taylor, coeff_taylor, coeff_full)
 
-    W = _hat3(omega)
+    W = hat_so3_raw(omega)
     W2 = W @ W
     eye3 = torch.eye(3, dtype=t.dtype, device=t.device).expand_as(W)
     V_inv = eye3 - 0.5 * W + coeff.unsqueeze(-1) * W2
@@ -111,7 +112,7 @@ def exp_raw(v: torch.Tensor) -> torch.Tensor:
     c_taylor = (1.0 / 6.0) - theta2 / 120.0
     c = torch.where(use_taylor, c_taylor, c_full)
 
-    W = _hat3(omega)
+    W = hat_so3_raw(omega)
     W2 = W @ W
     eye3 = torch.eye(3, dtype=v.dtype, device=v.device).expand_as(W)
     V = eye3 + b.unsqueeze(-1) * W + c.unsqueeze(-1) * W2
@@ -133,7 +134,7 @@ def adjoint(t: torch.Tensor) -> torch.Tensor:
     check_tensor("t", t, shape=(7,))
     p = t[..., :3]
     R = so3.to_matrix_raw(t[..., 3:7])
-    pR = _hat3(p) @ R
+    pR = hat_so3_raw(p) @ R
     *batch, _, _ = R.shape
     zeros33 = torch.zeros(*batch, 3, 3, dtype=t.dtype, device=t.device)
     top = torch.cat([R, pR], dim=-1)
@@ -150,7 +151,7 @@ def adjoint_inverse(t: torch.Tensor) -> torch.Tensor:
     p = t[..., :3]
     R = so3.to_matrix_raw(t[..., 3:7])
     RT = R.transpose(-1, -2)
-    neg_RT_skew = -(RT @ _hat3(p))
+    neg_RT_skew = -(RT @ hat_so3_raw(p))
     *batch, _, _ = R.shape
     zeros33 = torch.zeros(*batch, 3, 3, dtype=t.dtype, device=t.device)
     top = torch.cat([RT, neg_RT_skew], dim=-1)

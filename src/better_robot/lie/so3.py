@@ -31,19 +31,6 @@ def _taylor_theta2(dtype: torch.dtype) -> float:
     return _TAYLOR_THETA2_FP64 if dtype == torch.float64 else _TAYLOR_THETA2_FP32
 
 
-def _hat3(v: torch.Tensor) -> torch.Tensor:
-    """Return the skew-symmetric ``3×3`` matrix for an ``(..., 3)`` vector."""
-    z = torch.zeros_like(v[..., 0])
-    return torch.stack(
-        [
-            torch.stack([z, -v[..., 2], v[..., 1]], dim=-1),
-            torch.stack([v[..., 2], z, -v[..., 0]], dim=-1),
-            torch.stack([-v[..., 1], v[..., 0], z], dim=-1),
-        ],
-        dim=-2,
-    )
-
-
 def compose_raw(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """`compose` without input checks, for checked inputs: the Hamilton product ``(..., 4), (..., 4) → (..., 4)``."""
     ax, ay, az, aw = a.unbind(-1)
