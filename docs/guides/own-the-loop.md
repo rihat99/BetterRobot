@@ -37,14 +37,14 @@ a plain tensor, you can also add it to a network's training loss.
 
 ## `TorchOptim` runs the same loop for you
 
-`TorchOptim(optimizer_cls, scheduler=None, **kwargs)` wraps any `torch.optim` optimizer as a `Solver`, so it
-works with `solve`, `run` and `Phase`. It projects onto manifolds and bounds after every step. Keyword
-arguments go to the optimizer; `scheduler(optimizer)` may return a learning-rate scheduler that is stepped
-once per solver step.
+`TorchOptim(factory, scheduler=None)` wraps any `torch.optim` optimizer as a `Solver`, so it works with
+`solve`, `run` and `Phase`. It projects onto manifolds and bounds after every step. `factory(params)` builds
+the optimizer over the variable tensors; `scheduler(optimizer)` may return a learning-rate scheduler that is
+stepped once per solver step.
 
 ```python
 solver = TorchOptim(
-    torch.optim.Adam, lr=0.05,
+    lambda params: torch.optim.Adam(params, lr=0.05),
     scheduler=lambda opt: torch.optim.lr_scheduler.StepLR(opt, step_size=100, gamma=0.5),
 )
 result = solve(problem, solver, iterations=300)

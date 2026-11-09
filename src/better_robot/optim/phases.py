@@ -89,7 +89,7 @@ def run(
                 raise ValueError(
                     f"warm-start state has batch {tuple(warm.done.shape)}, problem has {tuple(state.done.shape)}"
                 )
-            kept = {key: warm.extra[key] for key in getattr(phase.solver, "warm_keys", ()) if key in warm.extra}
+            kept = {key: warm.extra[key] for key in phase.solver.warm_keys if key in warm.extra}
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []
         for iteration in range(phase.iterations):

@@ -48,7 +48,7 @@ def main() -> None:
     )
 
     # 3. The same problem under any torch.optim optimizer.
-    result = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iterations=1500)
+    result = optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.05)), iterations=1500)
     error = position_error(model, result.x["q"], target)
     print(f"Adam        : median position error {float(error.median()):.1e} m after 1500 steps")
 

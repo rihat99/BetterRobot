@@ -92,7 +92,7 @@ def test_same_problem_under_adam_gauss_newton_and_lm_with_active_bound():
 
     lm = optim.solve(problem, optim.LevenbergMarquardt(), iterations=50)
     gn = optim.solve(problem, optim.GaussNewton(), iterations=50)
-    adam = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iterations=3000)
+    adam = optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.05)), iterations=3000)
     assert bool(lm.done.all())
     assert float(lm.x["x"][:, 0].max()) <= 0.05
     torch.testing.assert_close(gn.x["x"], lm.x["x"], atol=1e-8, rtol=0.0)
@@ -354,7 +354,8 @@ def test_phase_hooks_scheduler_and_per_knot_free_mask():
         return x, {"goal": view.data["goal"] * 2.0}
 
     adam = optim.TorchOptim(
-        torch.optim.Adam, lr=0.1, scheduler=lambda o: torch.optim.lr_scheduler.MultiStepLR(o, milestones=[2], gamma=0.1)
+        lambda params: torch.optim.Adam(params, lr=0.1),
+        scheduler=lambda o: torch.optim.lr_scheduler.MultiStepLR(o, milestones=[2], gamma=0.1),
     )
     free = {"path": torch.tensor([True, False, True])}
     phases = [
@@ -429,7 +430,12 @@ def test_cached_returns_its_name_and_unknown_cached_read_fails_at_registration()
 
 @pytest.mark.parametrize(
     "solver",
-    [optim.LevenbergMarquardt(), optim.GaussNewton(), optim.LBFGS(), optim.TorchOptim(torch.optim.Adam, lr=0.1)],
+    [
+        optim.LevenbergMarquardt(),
+        optim.GaussNewton(),
+        optim.LBFGS(),
+        optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.1)),
+    ],
 )
 def test_solvers_accept_an_empty_batch(solver):
     problem = optim.Problem({"x": torch.zeros(0, 2)}, data={"goal": torch.zeros(0, 2)})

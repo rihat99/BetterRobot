@@ -8,15 +8,17 @@ per trial, to stop once every problem has its step.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, ClassVar, final
 
 import torch
 
 from .problem import Problem
 
 
+@final
 @dataclass
 class State:
     """Optimizer state of a batch of problems.
@@ -26,7 +28,7 @@ class State:
     (largest entry of the step taken, 0 where none was taken), ``accepted`` (bool, the step
     moved the variables) and ``damping`` (LM only, damping for the next step). LM, Gauss-Newton
     and L-BFGS write the first three; ``TorchOptim`` writes none. ``run`` stacks them into
-    ``Result.diagnostics``. ``warm_keys`` on a solver names the ``extra`` entries a warm start keeps.
+    ``Result.diagnostics``. ``Solver.warm_keys`` names the ``extra`` entries a warm start keeps.
 
     Every solver also writes ``terms``, ``{name: (B,)}``: the detached loss of each active term from
     the evaluation that ``loss`` comes from, so logging needs no second forward. ``TorchOptim`` adds
@@ -43,16 +45,21 @@ class State:
 DIAGNOSTICS = ("grad_norm", "step_norm", "accepted", "damping")
 
 
-class Solver(Protocol):
-    """Anything with ``init`` and ``step`` is a solver.
+class Solver(ABC):
+    """A solver is ``init(problem, x) -> State`` and ``step(problem, state) -> State``; a new one subclasses this.
 
     ``solve`` and ``run`` call ``init`` once and then ``step`` up to the iteration budget, stopping
-    early once every batch element is done (see ``Phase.stop_every``).
+    early once every batch element is done (see ``Phase.stop_every``). ``warm_keys`` names the
+    ``State.extra`` entries a warm start (``run(..., state=)``) keeps; ``init`` recomputes the rest.
     """
 
+    warm_keys: ClassVar[tuple[str, ...]] = ()
+
+    @abstractmethod
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         """Start state at variables ``x``: loss evaluated, nothing done, solver-owned ``extra`` set up."""
 
+    @abstractmethod
     def step(self, problem: Problem, state: State) -> State:
         """One iteration for every batch element; done or rejected elements keep their values."""
 
@@ -79,7 +86,8 @@ def _tolerances(
     return tuple(default if value is None else value for value, default in zip((gradient, loss, step), defaults))
 
 
-class LevenbergMarquardt:
+@final
+class LevenbergMarquardt(Solver):
     """Levenberg-Marquardt with per-problem damping (Nielsen update) and Marquardt scaling.
 
     A problem is done when its gradient is below ``gradient_tolerance``, an accepted step changes the loss
@@ -146,7 +154,8 @@ class LevenbergMarquardt:
         )
 
 
-class GaussNewton:
+@final
+class GaussNewton(Solver):
     """Gauss-Newton: full step of the linearized problem, with optional fixed damping."""
 
     def __init__(
@@ -197,7 +206,8 @@ def _projected(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None
     return g * _free(g, bounds)
 
 
-class LBFGS:
+@final
+class LBFGS(Solver):
     """Batched L-BFGS in tangent coordinates: per-problem history and backtracking line search.
 
     Every step tries the step sizes 1, ½, ¼, ... (at most ``line_search`` of them) and each problem
@@ -309,7 +319,8 @@ class LBFGS:
         return State(x=best_x, loss=best_loss, done=done, iteration=state.iteration + 1, extra=extra)
 
 
-class TorchOptim:
+@final
+class TorchOptim(Solver):
     """Run any ``torch.optim`` optimizer on the problem's loss.
 
     The optimizer steps the ambient tensors; afterwards they are projected onto their
@@ -317,23 +328,23 @@ class TorchOptim:
     ``extra["terms"]`` and ``extra["info"]`` come from the same, last closure evaluation.
     Adam-like optimizers keep batch elements independent; ``torch.optim.LBFGS`` couples them
     through its line search and treats the batch as one problem.
-    ``scheduler(optimizer)`` may return a ``torch.optim.lr_scheduler`` object; its ``step()``
-    is called without arguments once per solver step. Extra keyword arguments go to
-    ``optimizer_cls``, e.g. ``TorchOptim(torch.optim.Adam, lr=1e-2)``.
+    ``factory(params)`` builds the optimizer over the list of variable tensors, e.g.
+    ``TorchOptim(lambda params: torch.optim.Adam(params, lr=1e-2))``. ``scheduler(optimizer)`` may
+    return a ``torch.optim.lr_scheduler`` object; its ``step()`` is called without arguments once per
+    solver step.
     """
 
     def __init__(
         self,
-        optimizer_cls: type[torch.optim.Optimizer],
+        factory: Callable[[list[torch.Tensor]], torch.optim.Optimizer],
         *,
         scheduler: Callable[[torch.optim.Optimizer], Any] | None = None,
-        **kwargs: Any,
     ) -> None:
-        self.optimizer_cls, self.scheduler, self.kwargs = optimizer_cls, scheduler, kwargs
+        self.factory, self.scheduler = factory, scheduler
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         params = {name: value.detach().clone().requires_grad_(True) for name, value in x.items()}
-        optimizer = self.optimizer_cls(list(params.values()), **self.kwargs)
+        optimizer = self.factory(list(params.values()))
         loss = next(iter(x.values())).new_full((next(iter(x.values())).shape[0],), float("inf"))
         extra = {"params": params, "optimizer": optimizer}
         if self.scheduler is not None:

@@ -123,11 +123,11 @@ treat it as a first-order term.
 
 ## Solvers are `init` and `step`
 
-A solver implements the `Solver` protocol: `init(problem, x) -> State` and
-`step(problem, state) -> State`. After each step a solver writes fixed diagnostic keys into `State.extra`,
+A solver subclasses the abstract `Solver`: `init(problem, x) -> State` and
+`step(problem, state) -> State`, and `warm_keys` names the `State.extra` entries a warm start keeps. After each step a solver writes fixed diagnostic keys into `State.extra`,
 each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
 `State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`, the step
-count `it`, and `extra` for solver-owned values (damping, moments). Every solver also writes
+count `iteration`, and `extra` for solver-owned values (damping, moments). Every solver also writes
 `extra["terms"]`, the detached `(B,)` loss of each active term from the evaluation `loss` comes from, and
 `TorchOptim` writes `extra["info"]`, so a `Phase.on_step` logger needs no second forward.
 
@@ -136,7 +136,7 @@ count `it`, and `extra` for solver-owned values (damping, moments). Every solver
 | `LevenbergMarquardt(damping=, gradient_tolerance=, loss_tolerance=, step_tolerance=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
 | `GaussNewton(damping=0.0)` | `linearize` | full step, optional fixed damping; fast near a good start |
 | `LBFGS(history=10, line_search=20)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one; the first trial carries its gradient, so a step that every problem takes there costs one evaluation; bounds by projection |
-| `TorchOptim(torch.optim.Adam, lr=...)` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
+| `TorchOptim(lambda params: torch.optim.Adam(params, lr=...))` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
 
 Because a solver is two functions, you can drive it yourself:
 
@@ -174,7 +174,7 @@ a bool mask `(n,)` or `(B, n)`; the original stays as it was. `Phase` uses it in
 from better_robot.optim import TorchOptim
 
 loose = problem.with_(weights={"fit": 0.5})
-result = solve(loose, TorchOptim(torch.optim.Adam, lr=0.1), iterations=100)
+result = solve(loose, TorchOptim(lambda params: torch.optim.Adam(params, lr=0.1)), iterations=100)
 print(result.loss)
 ```
 ```output

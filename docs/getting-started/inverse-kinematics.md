@@ -94,7 +94,7 @@ from `problem.data`. A problem never changes once built: `with_(data=)` returns 
 The same problem runs under any `torch.optim` optimizer. Adam needs many more steps than LM:
 
 ```python
-result = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iterations=300)
+result = optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.05)), iterations=300)
 ```
 
 ## Where next
