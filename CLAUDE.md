@@ -40,7 +40,7 @@ collision   -> exceptions lie model kinematics
 io          -> exceptions lie model
 optim       -> exceptions
 terms       -> exceptions lie model kinematics collision optim
-viewer      -> exceptions lie model kinematics collision    (+ io, in the edge ratchet)
+viewer      -> exceptions lie model kinematics collision
 testing     -> exceptions model
 ```
 
@@ -75,9 +75,10 @@ forward-kinematics query. Torch is the only implementation.
 `Problem` holds the variables and `TermFn` terms, and LM, Gauss-Newton, L-BFGS
 or a wrapped `torch.optim` optimizer solves it (`solve`, `run` with `Phase`s,
 `solve_layer` for differentiable use, `solve_constrained` for hard
-constraints). It imports only torch. Robot terms (poses, limits, collision,
-`ik_problem`, `solve_ik`) live in `better_robot.terms`. See
-`src/better_robot/optim/CLAUDE.md` before changing optimizer behavior.
+constraints). It imports torch and `better_robot.exceptions` only. Robot
+terms (poses, limits, collision, `ik_problem`, `solve_ik`) live in
+`better_robot.terms`. See `src/better_robot/optim/CLAUDE.md` before changing
+optimizer behavior.
 
 ## Working rules
 

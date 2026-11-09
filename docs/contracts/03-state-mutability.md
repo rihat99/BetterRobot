@@ -6,8 +6,8 @@ around, and build new ones instead of changing them. See ADR [0002](decisions/00
 
 ## C-STATE-1 Model and state dataclasses are frozen (MUST)
 
-`Model`, `KinematicState` and the `optim` result types are `@dataclass(frozen=True)` (`optim.Phase` and `optim.Result`,
-`optim/phases.py:15,38`, are not yet: `[planned: L-5]`). Derived quantities are computed by
+`Model`, `KinematicState` and the `optim` result types (`optim.Phase`, `optim.Result`) are
+`@dataclass(frozen=True)`. Derived quantities are computed by
 functions or cached properties, never by assignment after construction. The tensor fields are read-only after
 construction too (the freeze is shallow): an in-place write and `requires_grad_()` on a model tensor are edits a
 user must not make; build a new model with `with_values` (record [0040](decisions/0040-model-value-memo.md)).
@@ -86,13 +86,13 @@ records 0011 and 0040).
 
 Enforcement: `tests/contract/test_caches.py`; `[review]`.
 
-## C-STATE-5 A `Problem` is built once; `with_` returns a view (MUST)
+## C-STATE-5 A `Problem` is built once; `with_` returns a new problem (MUST)
 
-`optim.Problem` is assembled by its `add`/`cached` calls and then treated as fixed: solvers never write to it
-(`Phase.on_start` writing `problem.data` is ledger item L-5). Per-call changes go through
-`Problem.with_(weights=..., free=...)` (`optim/problem.py:226`), which returns a new view sharing the terms and
-leaves the original untouched; the view carries the overrides, so two solves with different weights can run from
-one problem.
+`optim.Problem` is assembled by its `add`/`cached` calls and then treated as fixed: solvers never write to it,
+and `Phase.on_start` returns `(x, data)` instead of writing into the problem's data. Per-call changes go through
+`Problem.with_(data=..., weights=..., free=...)` (`src/better_robot/optim/problem.py::Problem.with_`), which
+returns a new problem sharing the terms and leaves the original untouched; the new problem carries the overrides,
+so two solves with different weights can run from one problem.
 
 Enforcement: `tests/optim/test_problem.py`; `[review]`.
 

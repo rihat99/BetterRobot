@@ -77,8 +77,8 @@ Enforcement: `[ruff:BLE001,E722]`; `[review]`.
 
 ## C-ERR-5 String-wired reads fail when the problem is built (MUST)
 
-Terms and cached values name what they read by string (`reads=("state",)`). An unknown name raises `KeyError`
-from `Problem.add`/`Problem.cached` (`optim/problem.py:401`), never from inside a solve: wiring mistakes are
-found before the first step, with the message naming the known values.
+Terms and cached values name what they read by string (`reads=("state",)`). An unknown name raises
+`UnknownNameError` (a `KeyError`) from `Problem.add`/`Problem.cached` (`optim/problem.py:401`), never from inside a
+solve: wiring mistakes are found before the first step, with the message naming the known values.
 
 Enforcement: `tests/optim/test_problem.py::test_unknown_read_fails_at_registration`.
