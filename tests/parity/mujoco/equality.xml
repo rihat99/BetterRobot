@@ -1,0 +1,24 @@
+<mujoco model="equality_cases">
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="base">
+      <body name="driver_body" pos="0 0 0.1">
+        <joint name="driver" type="hinge" axis="0 0 1" ref="0.2" range="-1 1"/>
+        <geom type="capsule" fromto="0 0 0 0.2 0 0" size="0.02"/>
+        <body name="follower_body" pos="0.2 0 0">
+          <joint name="follower" type="hinge" axis="0 1 0" ref="-0.1" range="-2 2"/>
+          <geom type="sphere" size="0.03"/>
+          <body name="slider_body" pos="0.1 0 0">
+            <joint name="slider" type="slide" axis="1 0 0" ref="0.02" range="-0.5 0.5"/>
+            <geom type="box" size="0.02 0.02 0.02"/>
+            <site name="equality_tip" pos="0.05 0 0"/>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <equality>
+    <joint name="couple" joint1="follower" joint2="driver" polycoef="0.05 -1.5 0 0 0"/>
+    <joint name="slide_couple" joint1="slider" joint2="driver" polycoef="0 0.1 0 0 0"/>
+  </equality>
+</mujoco>

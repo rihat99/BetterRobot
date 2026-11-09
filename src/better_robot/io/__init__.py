@@ -62,6 +62,11 @@ def load(
     ``root_joint`` replaces the joint that holds the root body under the universe (``JointFreeFlyer()`` makes the
     base float; the description's own root joint, or a ``JointFixed``, otherwise). ``device`` and ``dtype`` set
     where and in what precision the model's tensors are built, like ``model.to(...)`` after loading.
+
+    An MJCF file loads as its passive rigid tree (bodies, joints, inertias, limits, damping, armature, geoms, sites,
+    gravity). Actuators, tendons, sensors, contact settings, joint springs and ``frictionloss``, keyframes, cameras,
+    lights and materials are ignored by rule (``docs/concepts/io.md`` lists them); a feature of the tree that the
+    model cannot express (a cone limit, a non-linear or non-joint ``<equality>``) raises ``ModelError``.
     """
     return build_model(parse(path, format=format), root_joint=root_joint, device=device, dtype=dtype)
 

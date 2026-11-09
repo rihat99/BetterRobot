@@ -49,6 +49,15 @@ checks the result against `mj_kinematics`. A model's `q` is MuJoCo's `qpos`: a j
 joint's placement, the limits stay in `qpos` units, and `q_neutral` is `qpos0` (a `ref`, a free body's
 `pos`/`quat`) clamped into the limits.
 
+The MJCF loader's scope is the passive rigid tree: bodies, joints, inertias, limits, damping, armature, geoms,
+sites and gravity. What lies in that scope but cannot be expressed raises `ModelError`: a body with two joints, a
+ball joint with a `range` (a cone limit), an `<equality>` other than an active linear coupling of two joints (that
+one becomes a mimic joint), and an ellipsoid, plane, height-field or SDF geom. What lies outside it is ignored by
+rule and never reaches the `Model`: actuators, tendons, sensors, contact settings (`<contact>` pairs and excludes,
+geom `friction`, `condim`, `solref`, `solimp`, `margin`), joint springs (`stiffness`, `springref`) and
+`frictionloss`, keyframes, cameras, lights, materials and textures (a geom keeps its `rgba`), the world body's
+geoms (scenery; its sites become frames on `"universe"`) and every simulation option but gravity.
+
 ## Load a robot description
 
 `load` takes a path to a `.urdf` or MJCF `.xml` file. The `robot_descriptions` package provides paths for

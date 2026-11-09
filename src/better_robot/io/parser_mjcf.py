@@ -12,7 +12,9 @@ model's ``q`` is MuJoCo's ``qpos``, the limits stay in ``qpos`` units and ``q_ne
 ``pos``/``quat`` included) clamped into the limits.
 A body carries at most one joint (a chain of joints in one body needs a body per joint); a body without a joint is
 attached by a fixed joint named after the body; geoms of the world body are scenery, not robot geometry, and are
-not read. ``mujoco`` is imported here only (extra ``mjcf``).
+not read; a world-body site is a frame on ``"universe"``. A linear two-joint ``<equality><joint>`` becomes a mimic
+joint. The scope is the passive rigid tree; what the parser ignores by rule and what raises is listed in
+``docs/concepts/io.md``. ``mujoco`` is imported here only (extra ``mjcf``).
 """
 
 from __future__ import annotations
@@ -61,6 +63,11 @@ def _joint(mujoco: ModuleType, compiled: Any, body: int, path: Path) -> IRJoint 
     elif joint_type == mujoco.mjtJoint.mjJNT_SLIDE:
         kind = JointPrismatic(axis=(x, y, z))
     elif joint_type == mujoco.mjtJoint.mjJNT_BALL:
+        if compiled.jnt_limited[joint]:
+            raise ModelError(
+                f"{path}: ball joint {compiled.joint(joint).name!r} has a range (a cone limit), which BetterRobot does "
+                'not model; remove the range or set limited="false"'
+            )
         kind = JointSpherical()
     else:
         kind = JointFreeFlyer()
@@ -126,6 +133,35 @@ def _shapes(mujoco: ModuleType, compiled: Any, spec: Any, body: int, offset: np.
     return shapes
 
 
+def _fold_joint_equalities(mujoco: ModuleType, compiled: Any, joints: dict[str, IRJoint], path: Path) -> None:
+    """Turn each ``<equality><joint>`` into mimic fields of its ``joint1``; any other equality raises.
+
+    MuJoCo's joint equality is ``y - y0 = a0 + a1 (x - x0) + a2 (x - x0)^2 + ...`` with ``y0``, ``x0`` the two joints'
+    ``qpos0``; its linear form is the mimic ``y = a1 x + (a0 + y0 - a1 x0)``.
+    """
+    for equality in range(compiled.neq):
+        label = compiled.equality(equality).name or f"#{equality}"
+        kind = int(compiled.eq_type[equality])
+        if kind != mujoco.mjtEq.mjEQ_JOINT:
+            raise ModelError(
+                f"{path}: equality {label} is a {mujoco.mjtEq(kind).name} constraint; BetterRobot loads the open "
+                "kinematic tree only: remove it"
+            )
+        target, source = int(compiled.eq_obj1id[equality]), int(compiled.eq_obj2id[equality])
+        a0, a1, *higher = (float(value) for value in compiled.eq_data[equality, :5])
+        if source < 0 or any(higher) or not compiled.eq_active0[equality]:
+            raise ModelError(
+                f"{path}: joint equality {label} is not an active linear coupling of two joints "
+                "(joint1, joint2 and polycoef='a0 a1 0 0 0'), the one form BetterRobot loads (as a mimic joint)"
+            )
+        target_zero = float(compiled.qpos0[int(compiled.jnt_qposadr[target])])
+        source_zero = float(compiled.qpos0[int(compiled.jnt_qposadr[source])])
+        joint = joints[compiled.joint(target).name]
+        joint.mimic_source = compiled.joint(source).name
+        joint.mimic_multiplier = a1
+        joint.mimic_offset = a0 + target_zero - a1 * source_zero
+
+
 def parse_mjcf(path: str | Path) -> IRModel:
     """Parse an MJCF file into an ``IRModel`` through MuJoCo's compiler; raises ``ModelError`` naming the file."""
     try:
@@ -188,9 +224,10 @@ def parse_mjcf(path: str | Path) -> IRModel:
         frames.append(
             IRFrame(
                 name=_named(compiled.site(site), "site", site, path),
-                parent_body=compiled.body(body).name,
+                parent_body="universe" if body == 0 else compiled.body(body).name,
                 placement=_pose(compiled.site_pos[site] - offsets[body], compiled.site_quat[site]),
             )
         )
+    _fold_joint_equalities(mujoco, compiled, {joint.name: joint for joint in ir_joints}, path)
     gravity = torch.cat([torch.tensor(compiled.opt.gravity, dtype=torch.float64), torch.zeros(3, dtype=torch.float64)])
     return IRModel(name=spec.modelname, bodies=bodies, joints=ir_joints, frames=frames, shapes=shapes, gravity=gravity)

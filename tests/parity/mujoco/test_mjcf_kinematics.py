@@ -3,9 +3,10 @@
 Body poses, site frames, geometry, joint limits and the neutral configuration of a model loaded through
 ``parse_mjcf`` match MuJoCo's own kinematics on ``cases.xml`` (body ``pos``/``quat``, ``euler`` and ``axisangle``
 orientations, degree ranges, ``limited="auto"``, a ``fromto`` capsule, a ball joint at an offset ``jnt_pos``, a
-jointless body, sites, a hinge and a slide with a ``ref``, a scaled mesh MuJoCo recentres) and ``floating.xml`` (a
-free root away from the origin, a ball joint, a hinge). Configurations are drawn from a seeded generator whose seed
-is in the test id.
+jointless body, sites (one on the world body), a hinge and a slide with a ``ref``, a scaled mesh MuJoCo recentres)
+and ``floating.xml`` (a free root away from the origin, a ball joint, a hinge); ``equality.xml`` couples two joints
+to a third by linear joint equalities. Configurations are drawn from a seeded generator whose seed is in the test
+id.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ import torch
 import better_robot as br
 
 FILES = {"cases": Path(__file__).parent / "cases.xml", "floating": Path(__file__).parent / "floating.xml"}
+EQUALITY = Path(__file__).parent / "equality.xml"
 TOLERANCE = 1e-12  # float64 end to end; quaternion-to-matrix rounding is a few eps
 
 
@@ -67,15 +69,10 @@ def _joint_offsets(compiled: mujoco.MjModel) -> np.ndarray:
     return offsets
 
 
-@pytest.mark.parametrize("seed", [0, 1, 2])
-@pytest.mark.parametrize("file", sorted(FILES))
-def test_body_and_site_poses_match_mujoco(file: str, seed: int) -> None:
-    compiled = mujoco.MjModel.from_xml_path(str(FILES[file]))
-    data = mujoco.MjData(compiled)
-    data.qpos[:] = _random_qpos(compiled, seed)
-    mujoco.mj_kinematics(compiled, data)
-    model = br.load(FILES[file], dtype=torch.float64)
-    state = br.forward_kinematics(model, _q_from_mujoco(model, compiled, data.qpos))
+def _assert_bodies_and_sites_match(
+    model: br.Model, state: br.KinematicState, compiled: mujoco.MjModel, data: mujoco.MjData
+) -> None:
+    """Every body's joint frame and every site of ``state`` where ``mj_kinematics`` put them in ``data``."""
     offsets = _joint_offsets(compiled)
     rotations = br.lie.so3.to_matrix(state.joint_poses[:, 3:]).numpy()
     for joint_id in range(1, model.njoints):
@@ -93,6 +90,45 @@ def test_body_and_site_poses_match_mujoco(file: str, seed: int) -> None:
         )
         assert site_translation_error <= TOLERANCE, compiled.site(site).name
         assert site_rotation_error <= TOLERANCE, compiled.site(site).name
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+@pytest.mark.parametrize("file", sorted(FILES))
+def test_body_and_site_poses_match_mujoco(file: str, seed: int) -> None:
+    compiled = mujoco.MjModel.from_xml_path(str(FILES[file]))
+    data = mujoco.MjData(compiled)
+    data.qpos[:] = _random_qpos(compiled, seed)
+    mujoco.mj_kinematics(compiled, data)
+    model = br.load(FILES[file], dtype=torch.float64)
+    state = br.forward_kinematics(model, _q_from_mujoco(model, compiled, data.qpos))
+    _assert_bodies_and_sites_match(model, state, compiled, data)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_a_linear_joint_equality_is_a_mimic_joint(seed: int) -> None:
+    """``equality.xml`` couples a hinge and a slide to a driver hinge, all with a ``ref``: only the driver is a
+    coordinate, and the followers sit where MuJoCo's equality puts them (its residual is checked to be zero)."""
+    compiled = mujoco.MjModel.from_xml_path(str(EQUALITY))
+    data = mujoco.MjData(compiled)
+    model = br.load(EQUALITY, dtype=torch.float64)
+    assert [name for name, width in zip(model.joint_names, model.nqs, strict=True) if width] == ["driver"]
+    driver = float(np.random.default_rng(seed).uniform(-1.0, 1.0))
+    qpos = compiled.qpos0.copy()
+    qpos[int(compiled.jnt_qposadr[compiled.joint("driver").id])] = driver
+    for equality in range(compiled.neq):  # y - y0 = a0 + a1 (x - x0), MuJoCo's linear joint equality
+        follower, source = int(compiled.eq_obj1id[equality]), int(compiled.eq_obj2id[equality])
+        a0, a1 = compiled.eq_data[equality, :2]
+        follower_zero = compiled.qpos0[int(compiled.jnt_qposadr[follower])]
+        source_zero = compiled.qpos0[int(compiled.jnt_qposadr[source])]
+        qpos[int(compiled.jnt_qposadr[follower])] = follower_zero + a0 + a1 * (driver - source_zero)
+    data.qpos[:] = qpos
+    mujoco.mj_forward(compiled, data)
+    equality_rows = data.efc_type[: data.nefc] == mujoco.mjtConstraint.mjCNSTR_EQUALITY
+    assert int(equality_rows.sum()) == 2
+    residual = float(np.abs(data.efc_pos[: data.nefc][equality_rows]).max())
+    assert residual <= TOLERANCE, "MuJoCo's equality residual at the coupled qpos"
+    state = br.forward_kinematics(model, torch.tensor([driver], dtype=torch.float64))
+    _assert_bodies_and_sites_match(model, state, compiled, data)
 
 
 #: The ``fromto`` capsule of each file: its body and the two end points the file writes in that body's frame.
