@@ -51,3 +51,4 @@ later follow this template; 0001 to 0008 predate its Example, Compatibility and 
 | [0038](0038-remove-downloader-and-registry.md) | No network downloader and no parser registry in `io` | Accepted |
 | [0039](0039-test-robot-fixtures.md) | The test robots are tracked fixtures | Accepted |
 | [0040](0040-model-value-memo.md) | A value-side memo on `Model`, keyed by grad mode | Accepted |
+| [0041](0041-world-geometry-on-the-state.md) | The world geometry is a memoised value of `KinematicState`, owned by kinematics | Accepted |

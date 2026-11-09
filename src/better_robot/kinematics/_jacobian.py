@@ -15,6 +15,8 @@ and ``torch.func``-safe; no host syncs.
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 from ._plans import JacobianPlan
@@ -37,4 +39,25 @@ def world_column_table(rotations: torch.Tensor, translations: torch.Tensor, plan
     return torch.cat((linear, angular), dim=-1).transpose(-1, -2)  # (B..., 6, nv_full)
 
 
-__all__ = ["world_column_table"]
+def geometry_about_first_joint(
+    joint_transforms: torch.Tensor, columns: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """``(columns, rotations, translations, origin)`` about each sample's first joint, the batch flattened to ``N``.
+
+    From world ``joint_transforms (B..., njoints, 3, 4)`` and the world column table ``columns (B..., 6, nv_full)``:
+    the columns moved to ``origin`` ``(N, 6, nv_full)``, the joint rotations ``(N, njoints, 3, 3)``, the joint origins
+    relative to ``origin`` ``(N, njoints, 3)`` and ``origin (N, 3)``, the position of joint 1 (joint 0 for a
+    one-joint model). A column's linear part is the velocity of the point at the world origin, so at ``origin`` it is
+    ``linear + angular × origin``. Trusts validated inputs.
+    """
+    nj, nv_full = joint_transforms.shape[-3], columns.shape[-1]
+    count = math.prod(joint_transforms.shape[:-3])
+    transforms = joint_transforms.reshape(count, nj, 3, 4)
+    origin = transforms[:, min(1, nj - 1), :, 3]
+    columns = columns.reshape(count, 6, nv_full)
+    linear = columns[:, :3] + torch.linalg.cross(columns[:, 3:], origin.unsqueeze(-1), dim=-2)
+    columns = torch.cat((linear, columns[:, 3:]), dim=-2)
+    return columns, transforms[..., :3], transforms[..., 3] - origin.unsqueeze(-2), origin
+
+
+__all__ = ["geometry_about_first_joint", "world_column_table"]

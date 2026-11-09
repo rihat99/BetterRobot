@@ -15,7 +15,7 @@ from ..lie._checks import check_tensor
 from ..model._checks import batch_shape, expand_batch
 from ..model.model import Model
 from ._fk import placement_matrices, world_transforms
-from ._jacobian import world_column_table
+from ._jacobian import geometry_about_first_joint, world_column_table
 from ._plans import fk_plan, jacobian_plan
 from .configuration import full_configuration_raw
 
@@ -95,6 +95,18 @@ class KinematicState:
         plan = jacobian_plan(self.model, dtype=self.q.dtype, device=self.q.device)
         return self._memoised(
             "jacobian_columns", lambda: world_column_table(self.joint_rotations, self.joint_translations, plan)
+        )
+
+    @property
+    def world_geometry(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """`jacobian_columns`, joint rotations and origins about each sample's first joint, for `dynamics`.
+
+        ``(columns (N, 6, nv_full), rotations (N, njoints, 3, 3), translations (N, njoints, 3), origin (N, 3))``
+        with the batch flattened to ``N``; ``origin`` is joint 1's position and ``translations`` are relative to it,
+        so float32 lever arms stay of the robot's size far from the world origin. Built on first use (record 0041).
+        """
+        return self._memoised(
+            "world_geometry", lambda: geometry_about_first_joint(self.joint_transforms, self.jacobian_columns)
         )
 
     def _memoised(self, name: str, derive: Callable[[], _T]) -> _T:

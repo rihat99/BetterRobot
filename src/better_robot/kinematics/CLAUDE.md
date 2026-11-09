@@ -23,8 +23,9 @@ of `_fk.py`, `_jacobian.py` and `_plans.py`; contracts in `docs/contracts/00-ind
   (same rotation). Compare rotations, not quaternion signs.
 - `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, grad mode)` and bypassed under
   `torch.inference_mode` and `torch.compile` like `Model._value`: `enable_grad` inside inference mode reports
-  grad mode on, so a stored inference tensor would break a later autograd call of the same state. Dynamics'
-  `"world_geometry"` goes through the same writer and the same bypass. A new name goes into the table of
+  grad mode on, so a stored inference tensor would break a later autograd call of the same state.
+  `world_geometry` (the dynamics' view of the state, record 0041) is a state property like the others; no other
+  package writes the memo. A new name goes into the table of
   `docs/contracts/03-state-mutability.md` in the same change. `dataclasses.replace` starts with an empty memo
   and recomputes.
 - Plans (`_plans.py`) are pure functions of the static fields, built by `Model._plan` once per dtype and
