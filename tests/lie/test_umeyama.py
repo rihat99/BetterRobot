@@ -99,10 +99,10 @@ def test_umeyama_rejects_mismatched_dtypes() -> None:
     source = torch.randn((5, 3), generator=generator, dtype=torch.float32)
     target = torch.randn((5, 3), generator=generator, dtype=torch.float64)
 
-    with pytest.raises(DtypeMismatchError, match="source and target must share a dtype"):
+    with pytest.raises(DtypeMismatchError, match=r"target.dtype=torch.float64 != source.dtype=torch.float32"):
         umeyama(source, target)
 
-    with pytest.raises(DtypeMismatchError, match="weights must share the source dtype"):
+    with pytest.raises(DtypeMismatchError, match=r"weights.dtype=torch.float64 != source.dtype=torch.float32"):
         umeyama(source, source.clone(), weights=torch.ones(5, dtype=torch.float64))
 
 
@@ -112,22 +112,31 @@ def test_umeyama_rejects_mismatched_devices() -> None:
     source = torch.randn((5, 3), generator=generator)
     target = torch.randn((5, 3), generator=generator).to("meta")
 
-    with pytest.raises(DeviceMismatchError, match="source and target must share a device"):
+    with pytest.raises(DeviceMismatchError, match=r"target.device=meta != source.device=cpu"):
         umeyama(source, target)
 
-    with pytest.raises(DeviceMismatchError, match="weights must share the source device"):
+    with pytest.raises(DeviceMismatchError, match=r"weights.device=meta != source.device=cpu"):
         umeyama(source, source.clone(), weights=torch.ones(5, device="meta"))
 
 
 @pytest.mark.parametrize(
     ("source", "target", "error", "match"),
     [
-        pytest.param([[0.0, 0.0, 0.0]] * 3, torch.zeros(3, 3), TypeError, "torch.Tensor values", id="list"),
-        pytest.param(torch.zeros(3, 2), torch.zeros(3, 2), ValueError, r"shape \(\.\.\., N, 3\)", id="not-3d"),
+        pytest.param(
+            [[0.0, 0.0, 0.0]] * 3, torch.zeros(3, 3), TypeError, "source must be a torch.Tensor, got list", id="list"
+        ),
+        pytest.param(
+            torch.zeros(3, 2), torch.zeros(3, 2), ValueError, r"shape \(\.\.\., 3\), got \(3, 2\)", id="not-3d"
+        ),
+        pytest.param(torch.zeros(3), torch.zeros(3), ValueError, r"shape \(\.\.\., N, 3\)", id="no-point-axis"),
         pytest.param(torch.zeros(4, 3), torch.zeros(3, 3), ValueError, "the same N", id="n-mismatch"),
         pytest.param(torch.zeros(2, 3), torch.zeros(2, 3), ValueError, "at least 3 points", id="two-points"),
         pytest.param(
-            torch.zeros(3, 3, dtype=torch.int64), torch.zeros(3, 3), DtypeMismatchError, "floating tensors", id="int"
+            torch.zeros(3, 3, dtype=torch.int64),
+            torch.zeros(3, 3),
+            DtypeMismatchError,
+            "not float32 or float64",
+            id="int",
         ),
     ],
 )

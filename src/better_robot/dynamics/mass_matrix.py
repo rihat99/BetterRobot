@@ -6,7 +6,8 @@ import torch
 
 from ..kinematics import KinematicState
 from ..kinematics.configuration import reduced_mass_matrix
-from ..model._checks import check_tensor, expand_batch
+from ..lie._checks import check_tensor
+from ..model._checks import expand_batch
 from ..model.model import Model
 from ._world import mass_matrix_full, world_kinematics
 from .inverse_dynamics import inverse_dynamics

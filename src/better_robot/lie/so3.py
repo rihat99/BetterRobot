@@ -203,7 +203,7 @@ def from_euler(euler: torch.Tensor) -> torch.Tensor:
     not accept other axis orders.  See ``to_euler`` for the inverse and
     its gimbal-lock behaviour.
     """
-    check_tensor("euler", euler, trailing=(3,))
+    check_tensor("euler", euler, shape=(3,))
 
     half = euler * torch.full_like(euler, 0.5)
     roll, pitch, yaw = half.unbind(dim=-1)
@@ -229,7 +229,7 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
     exactly ``+/- pi/2`` and the combined angle in roll, so the round trip
     through ``from_euler`` is exact.
     """
-    check_tensor("q", q, trailing=(4,))
+    check_tensor("q", q, shape=(4,))
 
     q = normalize(q)
     qx, qy, qz, qw = q.unbind(dim=-1)

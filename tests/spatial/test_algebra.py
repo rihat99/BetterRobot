@@ -196,8 +196,12 @@ def test_public_functions_check_type_dtype_trailing_size_and_device(name: str) -
     valid = [torch.zeros(2, size) for _, size in parameters]
     for index, (parameter, size) in enumerate(parameters):
         bad_inputs = [
-            (torch.zeros(2, size).tolist(), TypeError, rf"{parameter} must be a floating torch.Tensor, got list"),
-            (torch.zeros(2, size, dtype=torch.int64), ValueError, rf"{parameter}.dtype=torch.int64 is not floating"),
+            (torch.zeros(2, size).tolist(), TypeError, rf"{parameter} must be a torch.Tensor, got list"),
+            (
+                torch.zeros(2, size, dtype=torch.int64),
+                ValueError,
+                rf"{parameter}.dtype=torch.int64 is not float32 or float64",
+            ),
             (
                 torch.zeros(2, size + 1),
                 ValueError,
@@ -210,8 +214,8 @@ def test_public_functions_check_type_dtype_trailing_size_and_device(name: str) -
                 function(*arguments)
     if len(parameters) == 2:
         (first, size_first), (second, size_second) = parameters
-        with pytest.raises(ValueError, match=rf"{second}.dtype=torch.float64 differs from {first}.dtype=torch.float32"):
+        with pytest.raises(ValueError, match=rf"{second}.dtype=torch.float64 != {first}.dtype=torch.float32"):
             function(torch.zeros(size_first), torch.zeros(size_second, dtype=torch.float64))
         # A meta tensor has a device of its own, so the device check runs without an accelerator.
-        with pytest.raises(ValueError, match=rf"{second} is on meta but {first} is on cpu; pass {second}.to\(cpu\)"):
+        with pytest.raises(ValueError, match=rf"{second}.device=meta != {first}.device=cpu; pass {second}.to\(cpu\)"):
             function(torch.zeros(size_first), torch.zeros(size_second, device="meta"))

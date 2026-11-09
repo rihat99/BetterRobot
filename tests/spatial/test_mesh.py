@@ -326,7 +326,7 @@ def test_by_component_degrades_gracefully_on_boundary_and_non_manifold_input() -
 
 def test_by_component_validates_its_vertices() -> None:
     _, faces = _box_mesh()
-    with pytest.raises(DtypeMismatchError, match="not floating"):
+    with pytest.raises(DtypeMismatchError, match="not float32 or float64"):
         orient_faces_by_component(torch.zeros((8, 3), dtype=torch.int64), faces)
     with pytest.raises(ValueError, match=r"shape \(V, 3\)"):
         orient_faces_by_component(torch.zeros((2, 8, 3), dtype=torch.float32), faces)

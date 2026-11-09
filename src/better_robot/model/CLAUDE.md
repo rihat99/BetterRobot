@@ -21,9 +21,10 @@ model tensors in place.
   `Model._plan(kind, build, *, dtype, device)` and kept in `_plans`
   (`init=False`, never copied). The model is a registered pytree: leaves are
   the tensor fields, context the static fields.
-- `_checks.py` is the one structural validator (`check_tensor`, `batch_shape`,
-  `expand_batch`): every public boundary calls it once per tensor input, raw
-  passes trust the result, and a dtype or device other than the model's raises.
+- Every public boundary checks each tensor input once with the one validator,
+  `src/better_robot/lie/_checks.py::check_tensor` (a dtype or device other than the model's
+  raises), then aligns its batch with `_checks.py` (`batch_shape`,
+  `expand_batch`); raw passes trust the result.
 - `manifolds.py` holds the five `Manifold`s (Euclidean, circle, rotation, plane,
   rigid): `integrate`/`difference` written once each as the group exponential
   and logarithm; `kinematics/configuration.py` groups the public coordinates by

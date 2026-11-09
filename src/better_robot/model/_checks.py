@@ -1,7 +1,7 @@
-"""Structural checks of public tensor inputs: trailing shape, dtype, device and batch broadcast.
+"""Batch alignment of public tensor inputs with the model's value batch ``I...``.
 
-The one validator (decision record 0021): every public boundary calls `check_tensor` once per tensor argument
-and `batch_shape` / `expand_batch` to align it with the model's value batch. Raw passes below trust the result.
+Every public boundary checks each tensor input once with the one validator, `lie._checks.check_tensor`
+(contract 06), then aligns it here with `batch_shape` / `expand_batch`. Raw passes below trust the result.
 """
 
 from __future__ import annotations
@@ -10,32 +10,10 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from ..exceptions import DeviceMismatchError, DtypeMismatchError, ShapeError
+from ..exceptions import ShapeError
 
 if TYPE_CHECKING:
     from .model import Model
-
-
-def check_tensor(
-    name: str, value: object, *, shape: tuple[int, ...], dtype: torch.dtype, device: torch.device
-) -> torch.Tensor:
-    """``value`` as a tensor whose trailing axes are ``shape`` in the model's ``dtype`` on its ``device``."""
-    if not isinstance(value, torch.Tensor):
-        raise TypeError(f"{name} must be a torch.Tensor, got {type(value).__name__}")
-    if value.ndim < len(shape) or tuple(value.shape[value.ndim - len(shape) :]) != shape:
-        raise ShapeError(f"{name}.shape must end in {shape}, got {tuple(value.shape)}")
-    if value.dtype not in (torch.float32, torch.float64):
-        raise DtypeMismatchError(f"{name}.dtype={value.dtype} is unsupported; use torch.float32 or torch.float64")
-    if value.dtype != dtype:
-        raise DtypeMismatchError(
-            f"{name}.dtype={value.dtype} != model.dtype={dtype}; cast {name} or call model.to(dtype={name}.dtype)"
-        )
-    if value.device != device:
-        raise DeviceMismatchError(
-            f"{name}.device={value.device} != model.device={device}; call model.to({name}.device) or "
-            f"{name}.to(model.device)"
-        )
-    return value
 
 
 def batch_shape(model: Model, name: str, value: torch.Tensor, event: tuple[int, ...]) -> tuple[int, ...]:
@@ -59,4 +37,4 @@ def expand_batch(name: str, value: torch.Tensor, batch: tuple[int, ...], event: 
         raise ShapeError(f"cannot broadcast {name} {tuple(value.shape)} to batch {batch}") from error
 
 
-__all__ = ["batch_shape", "check_tensor", "expand_batch"]
+__all__ = ["batch_shape", "expand_batch"]

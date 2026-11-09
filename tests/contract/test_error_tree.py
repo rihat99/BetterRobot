@@ -29,10 +29,6 @@ BUILTIN_RAISES = {"ValueError", "TypeError", "RuntimeError"}
 _NOT_A_TENSOR = "a value that is not a torch.Tensor is a Python TypeError; the tree has no node for it"
 PLAIN_RAISES: dict[str, str] = {
     "src/better_robot/lie/_checks.py::check_tensor": _NOT_A_TENSOR,
-    "src/better_robot/lie/umeyama.py::_validate_point_sets": _NOT_A_TENSOR,
-    "src/better_robot/lie/umeyama.py::_normalized_fit_weights": _NOT_A_TENSOR,
-    "src/better_robot/model/_checks.py::check_tensor": _NOT_A_TENSOR,
-    "src/better_robot/spatial/_checks.py::check_tensors": _NOT_A_TENSOR,
     "src/better_robot/spatial/inertia.py::_check_mesh_structure": _NOT_A_TENSOR,
     "src/better_robot/spatial/inertia.py::_density_tensor": _NOT_A_TENSOR,
     "src/better_robot/spatial/mesh.py::_check_face_table": _NOT_A_TENSOR,

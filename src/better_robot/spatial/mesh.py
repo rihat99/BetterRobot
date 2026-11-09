@@ -19,7 +19,7 @@ from __future__ import annotations
 import torch
 
 from ..exceptions import ArgumentError, DtypeMismatchError, ShapeError
-from ._checks import check_tensors
+from ..lie._checks import check_tensors
 
 _MAX_REPORTED_EDGES = 5
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 import torch
 
 from ..lie import so3
-from ._checks import check_tensors
+from ..lie._checks import check_tensors
 from .inertia import inertia_from_mass_com_raw, rotational_inertia_raw
 
 

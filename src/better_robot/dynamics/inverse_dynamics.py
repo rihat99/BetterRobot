@@ -8,7 +8,8 @@ import torch
 
 from ..kinematics import KinematicState
 from ..kinematics.configuration import full_tangent, reduced_columns
-from ..model._checks import check_tensor, expand_batch
+from ..lie._checks import check_tensor
+from ..model._checks import expand_batch
 from ..model.model import Model
 from ._world import inverse_dynamics_full, world_kinematics
 

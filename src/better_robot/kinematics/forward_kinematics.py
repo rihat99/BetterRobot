@@ -11,7 +11,8 @@ import torch
 
 from ..exceptions import QuaternionNormError
 from ..lie import so3
-from ..model._checks import batch_shape, check_tensor, expand_batch
+from ..lie._checks import check_tensor
+from ..model._checks import batch_shape, expand_batch
 from ..model.model import Model
 from ._fk import placement_matrices, world_transforms
 from ._jacobian import world_column_table

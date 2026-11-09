@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import torch
 
-from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
+from ..exceptions import ArgumentError, ShapeError
+from ._checks import check_tensor, check_tensors
 
 
 def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:
@@ -20,22 +21,15 @@ def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:
 
 
 def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
-    if not isinstance(source, torch.Tensor) or not isinstance(target, torch.Tensor):
-        raise TypeError("source and target must be torch.Tensor values")
-    if source.ndim < 2 or target.ndim < 2 or source.shape[-1] != 3 or target.shape[-1] != 3:
+    check_tensors(source=(source, (3,)), target=(target, (3,)))
+    if source.ndim < 2 or target.ndim < 2:
         raise ShapeError(
-            f"source and target must have shape (..., N, 3); got {tuple(source.shape)} and {tuple(target.shape)}"
+            f"source and target must have shape (..., N, 3), got {tuple(source.shape)} and {tuple(target.shape)}"
         )
     if source.shape[-2] != target.shape[-2]:
-        raise ShapeError(f"source and target need the same N; got {source.shape[-2]} and {target.shape[-2]}")
+        raise ShapeError(f"source and target need the same N, got {source.shape[-2]} and {target.shape[-2]}")
     if source.shape[-2] < 3:
-        raise ShapeError(f"at least 3 points are required; got {source.shape[-2]}")
-    if not source.is_floating_point() or not target.is_floating_point():
-        raise DtypeMismatchError(f"source and target must be floating tensors; got {source.dtype} and {target.dtype}")
-    if source.dtype != target.dtype:
-        raise DtypeMismatchError(f"source and target must share a dtype; got {source.dtype} and {target.dtype}")
-    if source.device != target.device:
-        raise DeviceMismatchError(f"source and target must share a device; got {source.device} and {target.device}")
+        raise ShapeError(f"at least 3 points are required, got {source.shape[-2]}")
     _require_tensor_condition(
         torch.isfinite(source).all() & torch.isfinite(target).all(),
         "source and target must contain only finite values",
@@ -50,16 +44,11 @@ def _normalized_fit_weights(
     if weights is None:
         fit_weights = source.new_ones(weight_shape)
     else:
-        if not isinstance(weights, torch.Tensor):
-            raise TypeError("weights must be a torch.Tensor or None")
-        if weights.dtype != source.dtype:
-            raise DtypeMismatchError(f"weights must share the source dtype; got {weights.dtype} and {source.dtype}")
-        if weights.device != source.device:
-            raise DeviceMismatchError(f"weights must share the source device; got {weights.device} and {source.device}")
+        check_tensor("weights", weights, shape=(), dtype=source.dtype, device=source.device, owner="source")
         try:
             fit_weights = torch.broadcast_to(weights, weight_shape)
         except RuntimeError as exc:
-            raise ShapeError(f"weights must broadcast to {tuple(weight_shape)}; got {tuple(weights.shape)}") from exc
+            raise ShapeError(f"weights must broadcast to {tuple(weight_shape)}, got {tuple(weights.shape)}") from exc
 
     _require_tensor_condition(
         torch.isfinite(fit_weights).all() & (fit_weights >= 0).all(),

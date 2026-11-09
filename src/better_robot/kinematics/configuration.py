@@ -18,7 +18,7 @@ from typing import final
 import torch
 
 from ..exceptions import ShapeError
-from ..model._checks import check_tensor
+from ..lie._checks import check_tensor
 from ..model.manifolds import Manifold
 from ..model.model import Model
 

@@ -203,12 +203,10 @@ def test_unchecked_call_reads_no_values() -> None:
             None,
             1.0,
             ValueError,
-            "vertices.dtype=torch.int64 is not floating",
+            "vertices.dtype=torch.int64 is not float32 or float64",
             id="int-vertices",
         ),
-        pytest.param(
-            [[0.0] * 3] * 8, None, 1.0, TypeError, "vertices must be a floating torch.Tensor", id="list-vertices"
-        ),
+        pytest.param([[0.0] * 3] * 8, None, 1.0, TypeError, "vertices must be a torch.Tensor", id="list-vertices"),
         pytest.param(torch.zeros(8, 2), None, 1.0, ValueError, r"shape \(\.\.\., V, 3\)", id="vertex-shape"),
         pytest.param(torch.zeros(3, 3), None, 1.0, ValueError, "at least four points", id="three-vertices"),
         pytest.param(
@@ -222,7 +220,7 @@ def test_unchecked_call_reads_no_values() -> None:
             torch.zeros(12, 3, dtype=torch.long, device="meta"),
             1.0,
             ValueError,
-            r"faces is on meta but vertices is on cpu; pass faces.to\(cpu\)",
+            r"faces.device=meta != vertices.device=cpu; pass faces.to\(cpu\)",
             id="faces-device",
         ),
         pytest.param(None, None, True, TypeError, "density must be a real number", id="bool-density"),

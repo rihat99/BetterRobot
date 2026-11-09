@@ -19,7 +19,7 @@ import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..lie.tangents import hat_so3
-from ._checks import check_tensors
+from ..lie._checks import check_tensors
 
 
 def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
@@ -249,7 +249,7 @@ def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
         raise ShapeError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
     if faces.device != vertices.device:
         raise DeviceMismatchError(
-            f"faces is on {faces.device} but vertices is on {vertices.device}; pass faces.to({vertices.device})"
+            f"faces.device={faces.device} != vertices.device={vertices.device}; pass faces.to({vertices.device})"
         )
 
 

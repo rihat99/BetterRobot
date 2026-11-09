@@ -93,7 +93,7 @@ def test_se3_matrix_roundtrip_preserves_translation_and_rotation() -> None:
     ],
 )
 def test_euler_and_matrix_interop_reject_integer_tensors(function, value: torch.Tensor) -> None:
-    with pytest.raises(DtypeMismatchError, match="is not floating"):
+    with pytest.raises(DtypeMismatchError, match="is not float32 or float64"):
         function(value)
     with pytest.raises(TypeError, match="must be a torch.Tensor"):
         function(value.tolist())

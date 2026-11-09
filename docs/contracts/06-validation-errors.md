@@ -9,27 +9,32 @@ flag that defaults to off, such as `check_quaternion_norm=False` on `forward_kin
 ## C-ERR-1 Validate at public boundaries only (MUST)
 
 Private helpers (`_name`) and the raw tensor passes in `kinematics`/`dynamics` do no checks. Public wrappers
-call the helpers in `better_robot.model._checks` and nothing else re-checks. Validation must not read tensor
-values (no `isfinite`, no `.item()`), because that is a host sync (`02`) and breaks `vmap` (`04`).
+check each tensor input once with the one validator, `better_robot.lie._checks.check_tensor` (`check_tensors` for
+several tensors on one dtype and device; `lie`, `spatial` and the model boundaries all call it), align batches
+with `better_robot.model._checks`, and nothing else re-checks. The validator accepts float32 and float64 tensors.
+Validation must not read tensor values (no `isfinite`, no `.item()`), because that is a host sync (`02`) and
+breaks `vmap` (`04`).
 
 ```python { .no-run }
 # good  (illustrative; real entry point: src/better_robot/kinematics/forward_kinematics.py::forward_kinematics)
 def forward_kinematics(model, q):
-    _checks.check_tensor(q, ...)                     # shape (..., nq), dtype, device
+    check_tensor("q", q, shape=(model.nq,), dtype=model.dtype, device=model.device)
     return _forward_kinematics(model, q)
 # bad
 def _fk_pass(model, q):
     if q.shape[-1] != model.nq: raise ...           # re-validates on every internal call
 ```
 
-Enforcement: `tests/contract/test_boundary_validation_count.py` (counts validation calls per public entry;
-exactly one); `[review]`.
+Enforcement: `tests/contract/test_boundary_validation_count.py` (counts validation calls per public entry: one
+per tensor input, `EXPECTED_CHECKS`); `[review]`.
 
 ## C-ERR-2 Specific exception types from the `BetterRobotError` tree (MUST)
 
 Every raised error is a subclass of `better_robot.exceptions.BetterRobotError` (`ShapeError`,
-`DeviceMismatchError`, `ModelError`, `UnknownNameError`, ...). Plain `ValueError`/`RuntimeError` are not raised by the library. An exception
-class exists only if something raises it; never-raised types are removed.
+`DeviceMismatchError`, `ModelError`, `UnknownNameError`, ...). Plain `ValueError`/`RuntimeError` are not raised by the library. The one
+exception: a value that is not a `torch.Tensor` where a tensor is required raises Python's `TypeError` (a wrong
+Python type, for which the tree has no node; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
+site). An exception class exists only if something raises it; never-raised types are removed.
 An unknown joint, frame or body name raises `UnknownNameError` (also a `KeyError`); every public id
 argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.
 

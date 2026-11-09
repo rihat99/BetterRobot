@@ -21,7 +21,8 @@ from typing import Literal
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
-from ..model._checks import check_tensor, expand_batch
+from ..lie._checks import check_tensor
+from ..model._checks import expand_batch
 from ..model.model import Model
 from ._plans import jacobian_plan
 from .configuration import reduced_columns

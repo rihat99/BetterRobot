@@ -12,7 +12,7 @@ from torch.utils import _pytree
 
 from ..exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from ..lie import se3
-from ._checks import check_tensor
+from ..lie._checks import check_tensor
 from .joints.base import JointModel
 
 _TENSOR_FIELDS = (
@@ -261,7 +261,7 @@ class Model:
             event = tuple(current.shape[-2:]) if name in _BATCHED_FIELDS else tuple(current.shape)
             tensor = check_tensor(name, value, shape=event, dtype=self.dtype, device=self.device)
             if name not in _BATCHED_FIELDS and tensor.ndim != len(event):
-                raise ShapeError(f"{name}.shape must be {event}, got {tuple(tensor.shape)}")
+                raise ShapeError(f"{name} must have shape {event}, got {tuple(tensor.shape)}")
             checked[name] = se3.normalize(tensor) if name.endswith("placements") else tensor
         batches = {name: tuple(checked.get(name, getattr(self, name)).shape[:-2]) for name in _BATCHED_FIELDS}
         try:

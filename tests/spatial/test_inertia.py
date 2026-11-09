@@ -153,19 +153,19 @@ def test_shapes_are_differentiable() -> None:
         pytest.param(
             lambda: inertia_of_sphere(1.0, radius=torch.tensor(0.1)),
             TypeError,
-            "mass must be a floating",
+            "mass must be a torch.Tensor",
             id="python-float",
         ),
         pytest.param(
             lambda: inertia_of_sphere(torch.tensor(1), radius=torch.tensor(0.1)),
             ValueError,
-            "mass.dtype=torch.int64 is not floating",
+            "mass.dtype=torch.int64 is not float32 or float64",
             id="integer",
         ),
         pytest.param(
             lambda: inertia_of_sphere(torch.tensor(1.0), radius=torch.tensor(0.1, dtype=F64)),
             ValueError,
-            r"radius.dtype=torch.float64 differs from mass.dtype=torch.float32",
+            r"radius.dtype=torch.float64 != mass.dtype=torch.float32",
             id="dtype",
         ),
         pytest.param(
@@ -203,5 +203,5 @@ def test_constructors_reject_wrong_types_shapes_and_dtypes(build, error: type, m
 
 @pytest.mark.cuda
 def test_constructors_reject_mixed_devices() -> None:
-    with pytest.raises(ValueError, match="radius is on cuda"):
+    with pytest.raises(ValueError, match="radius.device=cuda"):
         inertia_of_sphere(torch.tensor(1.0), radius=torch.tensor(0.1, device="cuda"))

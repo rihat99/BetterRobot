@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from better_robot import dynamics, kinematics
-from better_robot.model import _checks
+from better_robot.lie import _checks
 
 from ._public_ops import CASE_NAMES, build_case
 

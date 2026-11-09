@@ -80,14 +80,14 @@ def test_with_values_accepts_every_tensor_field_and_nothing_else() -> None:
 )
 def test_with_values_rejects_wrong_event_shapes(name: str, shape: tuple[int, ...]) -> None:
     model = _model()
-    with pytest.raises(ShapeError, match=rf"{name}\.shape must end in .* got"):
+    with pytest.raises(ShapeError, match=rf"{name} must have shape \(\.\.\., .*\), got"):
         model.with_values(**{name: torch.zeros(shape)})
 
 
 def test_with_values_armature_is_unbatched() -> None:
     model = _model()
     assert model.with_values(armature=torch.tensor([0.1])).armature.tolist() == pytest.approx([0.1])
-    with pytest.raises(ShapeError, match=r"armature\.shape must be \(1,\)"):
+    with pytest.raises(ShapeError, match=r"armature must have shape \(1,\)"):
         model.with_values(armature=torch.zeros(2, 1))
 
 

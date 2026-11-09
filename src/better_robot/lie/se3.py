@@ -138,7 +138,7 @@ def from_matrix(matrix: torch.Tensor) -> torch.Tensor:
     block and translation in the last column.  The result has shape
     ``(..., 7)`` and layout ``[tx, ty, tz, qx, qy, qz, qw]``.
     """
-    check_tensor("matrix", matrix, trailing=(4, 4))
+    check_tensor("matrix", matrix, shape=(4, 4))
     translation = matrix[..., :3, 3]
     quaternion = so3.from_matrix(matrix[..., :3, :3])
     return torch.cat((translation, quaternion), dim=-1)
@@ -151,7 +151,7 @@ def to_matrix(t: torch.Tensor) -> torch.Tensor:
     ``[tx, ty, tz, qx, qy, qz, qw]``.  The result has shape
     ``(..., 4, 4)`` and bottom row ``[0, 0, 0, 1]``.
     """
-    check_tensor("t", t, trailing=(7,))
+    check_tensor("t", t, shape=(7,))
     rotation = so3.to_matrix(t[..., 3:7])
     upper = torch.cat((rotation, t[..., :3].unsqueeze(-1)), dim=-1)
     bottom = t.new_zeros((*t.shape[:-1], 1, 4))
