@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 
 import numpy as np
 import pytest
 
 from better_robot.viewer._lie import act, from_z, to_wxyz
+from better_robot.viewer.layer import Layer
 from better_robot.viewer._primitives import unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
@@ -432,6 +434,42 @@ def test_replace_puts_the_new_layer_in_the_old_ones_place_and_visibility() -> No
         viewer.replace(new, PointsLayer("cloud", np.zeros((3, 2, 3))))
     with pytest.raises(ArgumentError, match="not in this viewer"):
         viewer.replace(old, _skeleton(5, "again"))
+
+
+class _Broken(Layer):
+    """Builds one node, then raises in ``build`` or on its first push, as a layer with inconsistent arrays does."""
+
+    def __init__(self, name: str, *, fails_in: str) -> None:
+        super().__init__(name, 20)
+        self.fails_in = fails_in
+
+    def build(self, scene: Any, root: str) -> None:
+        self._track(scene.add_frame(f"{root}/part", show_axes=False))
+        if self.fails_in == "build":
+            raise RuntimeError("broken build")
+
+    def set_step(self, step: int) -> None:
+        raise RuntimeError("broken push")
+
+
+@pytest.mark.parametrize("fails_in", ["build", "set_step"])
+def test_a_layer_that_fails_in_add_or_replace_leaves_the_viewer_as_it_was(fails_in: str) -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    kept = _skeleton(4, "kept")
+    viewer.add([kept])
+    with pytest.raises(RuntimeError, match="broken"):
+        viewer.add([_skeleton(8, "fine"), _Broken("bad", fails_in=fails_in)], group="new")
+    assert viewer.layers == [kept] and viewer.timeline.nsteps == 4
+    assert all(node.removed for name, node in server.scene.nodes.items() if name.startswith("/new"))
+    assert [c.name for c in server.gui.controls if c.name.startswith("new/") and not c.removed] == []
+    with pytest.raises(RuntimeError, match="broken"):
+        viewer.replace(kept, _Broken("kept", fails_in=fails_in))
+    assert viewer.layers == [kept] and viewer.timeline.nsteps == 4
+    assert not server.scene.nodes["/scene/kept/joints"].removed
+    assert [c.name for c in server.gui.controls if c.name == "kept" and not c.removed] == ["kept"]
+    viewer.show(2)
+    np.testing.assert_array_equal(server.scene.nodes["/scene/kept/joints"].batched_positions, kept.joints[2])
 
 
 def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None:

@@ -106,7 +106,8 @@ class Viewer:
         step ``k`` then shows the latest sample at or before ``k / fps``. ``None`` keeps one sample per step.
         ``valid`` ``(T,)`` bool hides the layers on the samples where it is false (a person not tracked in that
         frame); ``(T, N)`` hides single elements of a layer that draws ``N`` (``SpheresLayer``, ``ArrowsLayer``). It
-        is kept by reference, like the layers' arrays. Nothing is added when any layer is refused.
+        is kept by reference, like the layers' arrays. Nothing is added when any layer is refused, or raises while it
+        builds or shows its first step: that error propagates and the viewer is as it was.
         """
         if isinstance(layers, Layer):
             raise ArgumentError(f"add takes an iterable of layers; pass [{type(layers).__name__}(...)]")
@@ -119,6 +120,38 @@ class Viewer:
                 raise ArgumentError("times must be non-decreasing")
         if valid is not None:
             valid = np.asarray(valid, dtype=bool)
+        self._check_layers(layers, group, times, valid)
+        with self._lock:
+            group_state = self._groups.get(group)
+            new_group = group_state is None
+            if group_state is None:
+                group_state = _Group(self.server.scene.add_frame(f"/{group}", show_axes=False))
+            placed: list[_Entry] = []
+            try:
+                for layer in layers:
+                    # Always assigned, so a re-added layer never keeps the validity of an earlier add.
+                    layer.valid = valid
+                    placed.append(self._place(layer, group, times))
+            except BaseException:
+                for entry in placed:
+                    self._teardown(entry)
+                if new_group:
+                    group_state.node.remove()
+                raise
+            self._groups[group] = group_state
+            group_state.entries.update((entry.layer.name, entry) for entry in placed)
+            if offset is not None:
+                group_state.node.position = offset
+                group_state.offset = offset
+            for entry in placed:
+                self.timeline.extend(self._span(entry))
+            self._timeline_gui()
+
+    def _check_layers(
+        self, layers: list[Layer], group: str, times: np.ndarray | None, valid: np.ndarray | None
+    ) -> None:
+        """Refuse ``add``'s layers before anything is built: a layer already present, a name taken in ``group``, or
+        ``times`` / ``valid`` of the wrong shape."""
         taken = set(self._groups[group].entries) if group in self._groups else set()
         for index, layer in enumerate(layers):
             if self._holds(layer) or any(layer is other for other in layers[:index]):
@@ -139,37 +172,20 @@ class Viewer:
                         f"valid must have shape {' or '.join(map(str, shapes))} for layer {layer.name!r}, "
                         f"got {valid.shape}"
                     )
-        with self._lock:
-            for layer in layers:
-                self._add(layer, group, offset, times, valid)
 
-    def _add(
-        self,
-        layer: Layer,
-        group: str,
-        offset: tuple[float, float, float] | None,
-        times: np.ndarray | None,
-        valid: np.ndarray | None,
-    ) -> None:
-        group_state = self._groups.get(group)
-        if group_state is None:
-            node = self.server.scene.add_frame(f"/{group}", show_axes=False)
-            group_state = self._groups[group] = _Group(node)
-        if offset is not None:
-            group_state.node.position = offset
-            group_state.offset = offset
-        # Always assigned, so a re-added layer never keeps the validity of an earlier add.
-        layer.valid = valid
-        entry = group_state.entries[layer.name] = self._entry_for(layer, group, times)
-        self._build(entry, group)
-        self.timeline.extend(self._span(entry))
-        self._timeline_gui()
-        self._push(entry, self.timeline.step)
-
-    def _entry_for(self, layer: Layer, group: str, times: np.ndarray | None) -> _Entry:
+    def _place(self, layer: Layer, group: str, times: np.ndarray | None, *, order: float | None = None) -> _Entry:
+        """Build ``layer`` under ``/<group>/<layer.name>`` and push the current step to it, or remove what it built and
+        re-raise."""
         layer.apply_theme(self.theme)
         root = f"/{group}/{layer.name}"
-        return _Entry(layer, root, self.server.scene.add_frame(root, show_axes=False), times)
+        entry = _Entry(layer, root, self.server.scene.add_frame(root, show_axes=False), times)
+        try:
+            self._build(entry, group, order=order)
+            self._push(entry, self.timeline.step)
+        except BaseException:
+            self._teardown(entry)
+            raise
+        return entry
 
     def _timeline_gui(self) -> None:
         """Build the Timeline folder once the timeline has more than one step."""
@@ -358,7 +374,6 @@ class Viewer:
                 entry.checkbox.remove()
                 entry.checkbox = None
             self._build(entry, group, order=order)
-            layer.set_visible(layer.visible)
             if layer.visible:
                 self._push(entry, self.timeline.step)
 
@@ -368,7 +383,8 @@ class Viewer:
         ``old``'s scene nodes and controls go; ``new`` is built under ``/<group>/<new.name>`` and the timeline is fitted
         to the layers now present. ``new`` arrives without ``times`` or ``valid`` (``add``'s per-layer options); a
         new name must be free in the group, and ``new`` must not be in the viewer yet (``rebuild`` redraws a layer in
-        place). Use it to swap the data a layer draws, such as a body switched in a studio.
+        place). Use it to swap the data a layer draws, such as a body switched in a studio. When ``new`` raises while it
+        builds or shows its first step, ``old`` is drawn again and the error propagates.
         """
         with self._lock:
             entry = self._entry(old)
@@ -384,20 +400,22 @@ class Viewer:
                     f"group {group!r} already has a layer named {new.name!r}; give the new layer another name"
                 )
             order = None if entry.checkbox is None else entry.checkbox.order
+            # viser keys scene nodes by path, so ``new`` cannot be built beside ``old`` under the same name: ``old``
+            # goes first and comes back when ``new`` fails.
             self._teardown(entry)
             new.valid = None
             new.set_visible(old.visible)
-            replacement = self._entry_for(new, group, None)
+            try:
+                replacement = self._place(new, group, None, order=order)
+            except BaseException:
+                entries[old.name] = self._place(old, group, entry.times, order=order)
+                raise
             self._groups[group].entries = {
                 (new.name if name == old.name else name): (replacement if name == old.name else value)
                 for name, value in entries.items()
             }
-            self._build(replacement, group, order=order)
-            new.set_visible(new.visible)
             self._fit_timeline()
             self._timeline_gui()
-            if new.visible:
-                self._push(replacement, self.timeline.step)
 
     def play(self, *, block: bool = True) -> None:
         """Start playback (a no-op for a single-step scene); with ``block`` keep serving until interrupted."""
@@ -409,16 +427,20 @@ class Viewer:
         """Build ``entry``'s layer and, for a listed layer, its Layers checkbox (at ``order`` when it replaces one)."""
         layer = entry.layer
         layer.build(self.server.scene, entry.root)
-        if not layer.listed:
+        if layer.listed:
+            if self._layers_folder is None:
+                self._layers_folder = self.server.gui.add_folder("Layers")
+            label = layer.name if group == "scene" else f"{group}/{layer.name}"
+            with self._layers_folder:
+                checkbox = entry.checkbox = self.server.gui.add_checkbox(
+                    label, initial_value=layer.visible, order=order
+                )
+                checkbox.on_update(lambda _: self.set_visible(layer, bool(checkbox.value)))
+                layer.build_gui(self.server.gui)
+        else:
             layer.build_gui(self.server.gui)
-            return
-        if self._layers_folder is None:
-            self._layers_folder = self.server.gui.add_folder("Layers")
-        label = layer.name if group == "scene" else f"{group}/{layer.name}"
-        with self._layers_folder:
-            checkbox = entry.checkbox = self.server.gui.add_checkbox(label, initial_value=layer.visible, order=order)
-            checkbox.on_update(lambda _: self.set_visible(layer, bool(checkbox.value)))
-            layer.build_gui(self.server.gui)
+        if not layer.visible:
+            layer.set_visible(False)  # new handles start shown
 
     def _group(self, group: str) -> _Group:
         if group not in self._groups:
