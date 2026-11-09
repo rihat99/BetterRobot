@@ -249,6 +249,11 @@ def _joint_limits(
     if joint.manifold in _MANIFOLD_BOUNDS:
         lower, upper = _MANIFOLD_BOUNDS[joint.manifold]
     else:
+        if ir_joint is not None and ir_joint.lower is not None and ir_joint.upper is not None:
+            if ir_joint.lower > ir_joint.upper:
+                raise ModelError(
+                    f"joint {ir_joint.name!r}: lower limit {ir_joint.lower} > upper limit {ir_joint.upper}; swap them"
+                )
         lower = [ir_joint.lower if ir_joint is not None and ir_joint.lower is not None else -_INF] * joint.nq
         upper = [ir_joint.upper if ir_joint is not None and ir_joint.upper is not None else _INF] * joint.nq
     return lower, upper, [velocity] * joint.nv, [effort] * joint.nv

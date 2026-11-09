@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from xml.etree import ElementTree
 
 import numpy as np
 import torch
@@ -123,6 +124,8 @@ def _kind(joint: yourdfpy.Joint, element: str) -> JointModel:
     if joint.type not in _AXIS_KINDS:
         raise ModelError(f"{element}: type {joint.type!r} is not one of {sorted(_KINDS | _AXIS_KINDS)}")
     axis = np.asarray(joint.axis, dtype=np.float64)
+    if axis.shape != (3,):
+        raise ModelError(f'{element}: <axis> has {axis.size} components; write xyz="x y z"')
     norm = float(np.linalg.norm(axis))
     if norm == 0.0:
         raise ModelError(f"{element}: <axis> is zero")
@@ -176,6 +179,10 @@ def parse_urdf(path: str | Path) -> IRModel:
     path = Path(path)
     if not path.is_file():
         raise ModelError(f"{path}: no such file")
+    try:  # yourdfpy recovers a broken file silently (a truncated one loads part of the robot); a strict parse first
+        ElementTree.parse(path)
+    except ElementTree.ParseError as exc:
+        raise ModelError(f"{path}: not well-formed XML at line {exc.position[0]}: {exc}") from exc
     try:
         urdf = yourdfpy.URDF.load(
             str(path),
@@ -185,22 +192,34 @@ def parse_urdf(path: str | Path) -> IRModel:
             load_collision_meshes=False,
         )
     except (yourdfpy.URDFError, SyntaxError, TypeError, ValueError, IndexError) as exc:
-        # yourdfpy 0.0.60 fails on a broken file with whatever builtin its parse stumbles on: lxml's XMLSyntaxError
-        # for an empty file, TypeError for no root element or a <visual> without <geometry>, ValueError for an
-        # unknown tag such as <capsule>, IndexError for an empty <geometry>.
+        # yourdfpy 0.0.60 fails on a broken robot with whatever builtin its parse stumbles on: TypeError for no
+        # <robot> element or a <visual> without <geometry>, ValueError for an unknown tag such as <capsule>,
+        # IndexError for an empty <geometry> (malformed XML never gets here: the strict parse above rejects it).
         raise ModelError(f"{path}: {exc}") from exc
     robot = urdf.robot
+    for tag, names in (
+        ("link", [link.name for link in robot.links]),
+        ("joint", [joint.name for joint in robot.joints]),
+    ):
+        repeated = sorted({name for name in names if names.count(name) > 1})
+        if repeated:
+            raise ModelError(f"{path}: two <{tag}> elements are named {repeated[0]!r}; rename one")
     materials = {material.name: material for material in robot.materials}
     bodies = [_body(link) for link in robot.links]
     shapes = [shape for link in robot.links for shape in _shapes(link, materials, path)]
     links = {link.name for link in robot.links}
     joints = [_joint(joint, links, path) for joint in robot.joints]
     children = {joint.child_body for joint in joints}
-    root_body = next((link.name for link in robot.links if link.name not in children), "")
+    roots = [link.name for link in robot.links if link.name not in children]
+    if len(roots) != 1:
+        raise ModelError(
+            f"{path}: {len(roots)} links are no joint's child {roots}; a URDF tree has one root link: connect or "
+            "remove the others"
+        )
     return IRModel(
         name=robot.name,
         bodies=bodies,
         joints=joints,
         shapes=shapes,
-        root_body=root_body,
+        root_body=roots[0],
     )
