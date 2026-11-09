@@ -1,6 +1,8 @@
 # optim — Agent Guide
 
-Optimization layer over named tensors. It imports only torch. Robot terms live in `better_robot.terms`.
+Optimization layer over named tensors. It imports torch and `better_robot.exceptions` only
+(`tests/contract/test_layer_dependencies.py`, `tests/contract/test_optional_imports.py`). Robot terms live in
+`better_robot.terms`.
 
 ## Model
 
@@ -21,28 +23,42 @@ Optimization layer over named tensors. It imports only torch. Robot terms live i
 
 ## Invariants
 
+Each invariant names its enforcer; `[review]` means a reviewer checks it.
+
 - Nothing inside a solver `step` reads a tensor back to Python (two exceptions: the validity check
   of autodiff columns of shared variables in a time-local term, and the `LBFGS` line search, which
   stops once every problem has its step: one read per trial); shapes never change. Done or
   rejected batch elements keep their old values through `torch.where`.
+  `tests/contract/test_hot_path_lint.py` (watches `src/better_robot/optim/solvers.py`),
+  `tests/optim/test_solver_state.py::test_lbfgs_line_search_stops_once_every_problem_has_a_step`, `[review]`.
 - Cached values are computed at most once per evaluation and stay inside the autodiff trace.
+  `tests/optim/test_problem.py::test_linearize_gradient_matches_autograd_of_loss`.
 - `window=` is trusted; `check_jacobian` is the test for it and for every analytic `jacobian`.
+  `tests/optim/test_problem.py::test_time_local_terms_match_row_by_row_autodiff`,
+  `tests/terms/test_robot_terms.py::test_analytic_jacobians_match_autodiff`.
 - After `step`, `State.extra` carries the diagnostic keys named in `solvers.DIAGNOSTICS` (key set in the
   `State` docstring); `run` stacks them into `Result.diagnostics`. A solver's `warm_keys` are the `extra`
   entries a warm start (`state=`) keeps; everything else is recomputed by `init`. Every solver also writes
   `extra["terms"]` (per-term losses of the evaluation `State.loss` comes from; `TorchOptim` adds `extra["info"]`,
   the dicts of terms returning `(value, info)`), kept as device tensors: no host sync.
+  `tests/optim/test_solver_state.py` (`test_solvers_write_diagnostics_and_run_stacks_them`,
+  `test_warm_started_lbfgs_keeps_its_memory`, `test_term_info_and_per_term_losses_come_from_the_step_evaluation`).
 - A `time=` problem that mixes windowed terms with an unwindowed term reading a time variable warns and
   goes dense. Normal equations are built through a sink (`add`/`finish`); a new structure is a new sink.
+  `tests/optim/test_solver_state.py::test_time_problem_without_window_warns_on_dense_fallback`,
+  `tests/optim/test_problem.py::test_block_tridiagonal_path_equals_dense`, `[review]`.
 - A `Problem` is read-only once built: registration adds names only, `with_` returns a new problem and
-  leaves its parent as it was.
-- Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype.
-- No `NotImplementedError` here (the contract test inventories those); raise `ValueError`.
+  leaves its parent as it was. `tests/optim/test_problem.py::test_problem_is_immutable`.
+- Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype. `[review]`.
+- Every class here is abstract or `@final`. `tests/contract/test_abstract_or_final.py`.
+- Every error is a class of the error tree in `better_robot.exceptions` (record 0020), never a builtin
+  `ValueError` and never `NotImplementedError`. `tests/contract/test_error_tree.py`,
+  `tests/contract/test_roadmap_stub_inventory.py`.
 
 ## Checks
 
 ```bash
-CUDA_VISIBLE_DEVICES="" uv run pytest tests/optim -q
+CUDA_VISIBLE_DEVICES="" uv run pytest tests/optim tests/terms -q
 uv run python examples/01_ik.py   # 02..05 likewise
 ```
 
