@@ -44,7 +44,7 @@ def test_warm_started_lm_takes_fewer_iterations() -> None:
     warm = optim.solve(moved, optim.LevenbergMarquardt(damping=1e3), iters=200, state=first.state)
     assert bool(cold.done.all()) and bool(warm.done.all())
     assert warm.iters < cold.iters
-    torch.testing.assert_close(warm["x"], cold["x"], atol=1e-6, rtol=0)
+    torch.testing.assert_close(warm.x["x"], cold.x["x"], atol=1e-6, rtol=0)
 
 
 def test_warm_start_rejects_wrong_batch_and_non_state() -> None:
@@ -127,7 +127,7 @@ def test_term_info_and_per_term_losses_come_from_the_step_evaluation() -> None:
     assert info["small"]["label"] == "x" and not info["small"]["largest"].requires_grad
     plain, _ = _counted_problem(with_info=False)
     reference = optim.run(plain, [optim.Phase(optim.TorchOptim(torch.optim.Adam, lr=1e-2), iters=3, stop_every=0)])
-    torch.testing.assert_close(result["x"], reference["x"], atol=0, rtol=0)  # info never enters the loss
+    torch.testing.assert_close(result.x["x"], reference.x["x"], atol=0, rtol=0)  # info never enters the loss
     total, per_term, term_info = problem.evaluate(result.x)
     torch.testing.assert_close(total, problem.loss(result.x))
     assert set(per_term) == set(terms) and set(term_info) == {"small"}
@@ -158,7 +158,7 @@ def test_lbfgs_with_bounds_reaches_the_nonnegative_least_squares_optimum() -> No
     problem = optim.Problem({"x": zero}, bounds={"x": (zero, torch.full_like(zero, torch.inf))}, data={"a": a, "b": b})
     problem.residual("fit", lambda x, a, b: (a @ x.unsqueeze(-1)).squeeze(-1) - b)
     result = optim.solve(problem, optim.LBFGS(line_search=4), iters=200)
-    torch.testing.assert_close(result["x"], x_star, atol=1e-6, rtol=0)
+    torch.testing.assert_close(result.x["x"], x_star, atol=1e-6, rtol=0)
 
 
 def test_lbfgs_line_search_stops_once_every_problem_has_a_step() -> None:
@@ -189,7 +189,7 @@ def test_lbfgs_is_done_when_a_plain_gradient_step_finds_no_decrease() -> None:
     problem.residual("steep", lambda x: 1e3 * x)
     result = optim.solve(problem, optim.LBFGS(line_search=1), iters=50)
     assert result.iters == 1 and bool(result.done.all())
-    assert float(result["x"][0, 0]) == 1e-3
+    assert float(result.x["x"][0, 0]) == 1e-3
 
 
 def test_lbfgs_rejects_a_clipped_step_that_raises_the_loss() -> None:
@@ -220,4 +220,4 @@ def test_lbfgs_gradient_step_backtracks_below_a_stiff_term_with_no_gradient() ->
     problem.residual("stiff", lambda x: 70.71 * x.sum(-1, keepdim=True))
     result = optim.solve(problem, optim.LBFGS(), iters=50)
     x1 = -(70.71**2) / (1 + 2 * 70.71**2)  # stationary point: x0 = 1 + x1
-    torch.testing.assert_close(result["x"], torch.tensor([[1 + x1, x1]], dtype=torch.float64), atol=1e-8, rtol=0)
+    torch.testing.assert_close(result.x["x"], torch.tensor([[1 + x1, x1]], dtype=torch.float64), atol=1e-8, rtol=0)

@@ -55,11 +55,10 @@ print(f"reached (<0.1 mm): {float((error < 1e-4).float().mean()):.2f}, median er
 reached (<0.1 mm): 0.97, median error 2.3e-12 m
 ```
 
-`result.x` is a dict of the solved variables; IK has one variable, `"q"`, and `result[name]` is shorthand for `result.x[name]`:
+`result.x` is a dict of the solved variables; IK has one variable, `"q"`:
 
 ```python
-q = result["q"]  # (32, nq)
-assert q is result.x["q"]
+q = result.x["q"]  # (32, nq)
 ```
 
 <figure markdown>

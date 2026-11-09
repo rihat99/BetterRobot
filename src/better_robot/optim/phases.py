@@ -42,7 +42,7 @@ class Phase:
 
 @dataclass(frozen=True)
 class Result:
-    """Outcome of ``run``."""
+    """Outcome of ``run``: the solved variables ``x`` (``result.x["q"]``), their loss and the solve's record."""
 
     x: dict[str, torch.Tensor]
     loss: torch.Tensor  #: ``(B,)`` final loss under the last phase's weights.
@@ -52,10 +52,6 @@ class Result:
     #: ``{phase: {key: (steps, B)}}`` per-step solver diagnostics (key set: ``State`` docstring).
     diagnostics: dict[str, dict[str, torch.Tensor]] = field(default_factory=dict)
     state: State | None = None  #: final solver state of the last phase; pass as ``state=`` to warm-start.
-
-    def __getitem__(self, name: str) -> torch.Tensor:
-        """Final value of variable ``name``; shorthand for ``result.x[name]``."""
-        return self.x[name]
 
 
 def run(

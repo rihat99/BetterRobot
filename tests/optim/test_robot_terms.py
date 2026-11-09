@@ -45,10 +45,8 @@ def test_ik_with_restarts_reaches_every_target_inside_limits(panda):
     assert bool(((q >= panda.lower_position_limit) & (q <= panda.upper_position_limit)).all())
 
 
-def test_result_getitem_and_ik_problem_state_handle(panda):
+def test_ik_problem_terms_read_the_state_by_name(panda):
     goal = forward_kinematics(panda, _random_q(panda, 4, 2)).frame_poses[:, panda.frame_id(FRAME)]
-    result = terms.solve_ik(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))
-    assert result["q"] is result.x["q"]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))
     assert problem.terms[f"pose/{FRAME}"].reads[0] == "state"
 
