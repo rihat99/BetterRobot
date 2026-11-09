@@ -8,6 +8,8 @@ from typing import final
 
 import torch
 
+from ..exceptions import ArgumentError
+
 
 class RobustKernel(ABC):
     """Down-weights outliers without changing residual structure; a new kernel subclasses this.
@@ -96,7 +98,7 @@ class GemanMcClure(RobustKernel):
     def __init__(self, *, c: float = 1.0) -> None:
         c = float(c)
         if not math.isfinite(c) or c <= 0.0:
-            raise ValueError(f"c must be finite and positive, got {c!r}")
+            raise ArgumentError(f"c must be finite and positive, got {c!r}")
         self.c = c
 
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:

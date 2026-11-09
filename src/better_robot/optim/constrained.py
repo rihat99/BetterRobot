@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 
 import torch
 
+from ..exceptions import ArgumentError, UnknownNameError
 from .evaluation import zero_loss
 from .phases import Result, solve
 from .problem import Problem
@@ -51,11 +52,14 @@ def solve_constrained(
     ``Result.history["violation"]`` is ``(rounds, B)``.
     """
     names = [*equalities, *inequalities]
-    unknown = [name for name in names if name not in problem.terms or problem.terms[name].kind != "residual"]
-    if unknown or not names:
-        raise KeyError(f"constraints must name residual terms of the problem; not found: {unknown}")
+    if not names:
+        raise ArgumentError("solve_constrained needs at least one equality or inequality")
+    residuals = [name for name, term in problem.terms.items() if term.kind == "residual"]
+    for name in names:
+        if name not in residuals:
+            raise UnknownNameError("residual term", name, residuals)
     if outer < 1:
-        raise ValueError(f"outer must be at least 1, got {outer}")
+        raise ArgumentError(f"outer must be at least 1, got {outer}")
     plain = problem.with_(weights=dict.fromkeys(names, 1.0))
     current = {key: value.detach() for key, value in (x if x is not None else problem.variables).items()}
     with torch.no_grad():

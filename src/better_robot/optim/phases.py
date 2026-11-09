@@ -8,6 +8,7 @@ from typing import Any, final
 
 import torch
 
+from ..exceptions import ArgumentError, ShapeError
 from .evaluation import active_terms
 from .problem import Problem
 from .solvers import DIAGNOSTICS, Solver, State
@@ -72,7 +73,7 @@ def run(
     size must match.
     """
     if state is not None and not isinstance(state, State):
-        raise TypeError(f"state must be a solver State (e.g. Result.state), got {type(state).__name__}")
+        raise ArgumentError(f"state must be a solver State (e.g. Result.state), got {type(state).__name__}")
     start = x if x is not None else state.x if state is not None else problem.variables
     current = {name: value.detach() for name, value in start.items()}
     history: dict[str, torch.Tensor] = {}
@@ -86,9 +87,8 @@ def run(
             view = view.with_(data=data)
         state = phase.solver.init(view, current)
         if warm is not None:
-            # optim imports only torch, so a plain ValueError stands in for ShapeError here.
             if warm.done.shape != state.done.shape:
-                raise ValueError(
+                raise ShapeError(
                     f"warm-start state has batch {tuple(warm.done.shape)}, problem has {tuple(state.done.shape)}"
                 )
             kept = {key: warm.extra[key] for key in phase.solver.warm_keys if key in warm.extra}
@@ -148,7 +148,7 @@ def solve_layer(
     """
     scalars = [term.name for term in active_terms(problem) if term.kind == "scalar"]
     if scalars:
-        raise ValueError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
+        raise ArgumentError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
     result = solve(problem, solver, iterations=iterations, x=x)
     normal, _ = problem.linearize(result.x)
     _, g, _ = problem.gradient(result.x, create_graph=True)

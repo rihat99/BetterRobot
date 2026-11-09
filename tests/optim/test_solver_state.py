@@ -5,7 +5,7 @@ import warnings
 import pytest
 import torch
 
-from better_robot import optim
+from better_robot import exceptions, optim
 
 
 def _rosenbrock(batch: int = 2, shift: float = 0.0) -> optim.Problem:
@@ -50,9 +50,9 @@ def test_warm_started_lm_takes_fewer_iterations() -> None:
 def test_warm_start_rejects_wrong_batch_and_non_state() -> None:
     first = optim.solve(_rosenbrock(batch=1), optim.LevenbergMarquardt(), iterations=5)
     wide = _rosenbrock(batch=4)
-    with pytest.raises(ValueError, match="batch"):
+    with pytest.raises(exceptions.ShapeError, match="batch"):
         optim.solve(wide, optim.LevenbergMarquardt(), iterations=5, x=wide.variables, state=first.state)
-    with pytest.raises(TypeError, match="State"):
+    with pytest.raises(exceptions.ArgumentError, match="State"):
         optim.solve(wide, optim.LevenbergMarquardt(), iterations=5, state=first)
 
 

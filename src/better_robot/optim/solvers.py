@@ -15,6 +15,7 @@ from typing import Any, ClassVar, final
 
 import torch
 
+from ..exceptions import ArgumentError, ShapeError
 from .problem import Problem
 
 
@@ -234,7 +235,7 @@ class LBFGS(Solver):
         gradient_tolerance: float | None = None,
     ) -> None:
         if line_search < 1:
-            raise ValueError(f"line_search must be at least 1, got {line_search}")
+            raise ArgumentError(f"line_search must be at least 1, got {line_search}")
         self.history, self.line_search, self.armijo = history, line_search, armijo
         self.gradient_tolerance = gradient_tolerance
 
@@ -381,7 +382,7 @@ class TorchOptim(Solver):
             if gradient is None:
                 continue
             if gradient.shape[1:].numel() != mask.shape[-1]:
-                raise ValueError(
+                raise ShapeError(
                     f"free mask of {name!r} is in tangent coordinates ({mask.shape[-1]}) but the variable has "
                     f"{gradient.shape[1:].numel()} ambient coordinates; use a second-order solver for this phase"
                 )
