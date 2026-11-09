@@ -1,8 +1,8 @@
 """The world-frame core's matrix copies of the frame changes agree with `spatial`'s public ones (principle 1.9).
 
 Oracle: `spatial.transform_motion`, `spatial.transform_force` and `spatial.transform_inertia` with quaternion poses
-(`dynamics/_world.py` keeps matrix forms for speed: `WorldKinematics.to_joint_frames`, `to_world_force` and
-`world_inertias`). Each joint's pose is taken about the state's reference ``origin`` as the copies use it.
+(`src/better_robot/dynamics/_world.py` keeps matrix forms for speed: `WorldKinematics.to_joint_frames`,
+`to_world_force` and `world_inertias`). Each joint's pose is taken about the state's reference ``origin`` as the copies use it.
 """
 
 from __future__ import annotations
