@@ -1,12 +1,4 @@
 {
-  "better_robot.collision.robot_capsules.RobotCapsules": "R5 (lane B) decides whether it is final or abstract",
-  "better_robot.collision.robot_spheres.RobotSpheres": "R5 (lane B) decides whether it is final or abstract",
-  "better_robot.dynamics._world.DynamicsPlan": "R5 (lane B) decides whether it is final or abstract",
-  "better_robot.dynamics._world.WorldKinematics": "R5 (lane B) decides whether it is final or abstract",
-  "better_robot.io.ir.IRBody": "R6 rewrites io",
-  "better_robot.io.ir.IRFrame": "R6 rewrites io",
-  "better_robot.io.ir.IRJoint": "R6 rewrites io",
-  "better_robot.io.ir.IRModel": "R6 rewrites io",
   "better_robot.optim.kernels.Cauchy": "R7 rewrites optim",
   "better_robot.optim.kernels.GemanMcClure": "R7 rewrites optim",
   "better_robot.optim.kernels.Huber": "R7 rewrites optim",

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import final
 
 import torch
 
@@ -18,6 +19,7 @@ from .distance import capsule_capsule_raw
 from .robot_spheres import _check_attached, _check_pairs
 
 
+@final
 @dataclass(frozen=True)
 class RobotCapsules:
     """``C`` capsules, each rigidly attached to a model frame.

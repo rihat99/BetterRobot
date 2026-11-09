@@ -17,6 +17,7 @@ from ..model.geometry import Shape
 from ..model.joints import JointModel
 
 
+@final
 @dataclass
 class IRJoint:
     """A joint of the description: ``joint`` is its kind, ``origin (7,)`` its placement in the parent body's frame.
@@ -52,6 +53,7 @@ class IRShape:
     collision: bool
 
 
+@final
 @dataclass
 class IRBody:
     """A rigid body: ``mass`` in kg, ``com (3,)`` and ``inertia (3, 3)`` about the centre of mass, in the body frame."""
@@ -62,6 +64,7 @@ class IRBody:
     inertia: torch.Tensor = field(default_factory=lambda: torch.zeros(3, 3))
 
 
+@final
 @dataclass
 class IRFrame:
     """A named frame placed by ``placement (7,)`` on the body ``parent_body``."""
@@ -71,6 +74,7 @@ class IRFrame:
     placement: torch.Tensor
 
 
+@final
 @dataclass
 class IRModel:
     """Flat, unordered intermediate representation of a robot; ``gravity (6,)`` is the world's spatial acceleration."""

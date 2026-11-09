@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 import torch
 
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from .robot_capsules import RobotCapsules
 
 
+@final
 @dataclass(frozen=True)
 class RobotSpheres:
     """``S`` spheres, each rigidly attached to a model frame.

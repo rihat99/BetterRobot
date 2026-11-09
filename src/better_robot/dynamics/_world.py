@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import final
 
 import torch
 
@@ -58,6 +59,7 @@ from ..spatial.algebra import cross_force_raw, cross_motion_raw
 from ..spatial.inertia import inertia_matrix_from_mass_com_raw, inertia_matrix_raw, rotational_inertia_raw
 
 
+@final
 @dataclass(frozen=True)
 class DynamicsPlan:
     """Constant support masks derived from the topology (a plan on the model)."""
@@ -94,6 +96,7 @@ def dynamics_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> 
     return model._plan("dynamics", build_plan, dtype=dtype, device=device)
 
 
+@final
 @dataclass(frozen=True)
 class WorldKinematics:
     """World-frame quantities of one state that every dynamics pass reads, the batch flattened to ``N``.
