@@ -66,14 +66,14 @@ def robot_skeleton(
     (names or ids) to a point ``(3,)`` in each frame: a bone, as thick as the one into the frame's parent joint, runs
     from that joint to the point, such as a hand out to where its contacts are, past the last wrist joint.
     """
-    parents = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
+    parent_ids = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
     poses, offsets = joint_poses[:, 1:], spread_offsets(model, radius=radius)
     if end_points:  # each end point joins the skeleton as a joint without a marker
         ends, end_joints = _end_poses(model, joint_poses, end_points)
         count = len(end_joints)
         poses = np.concatenate([poses, ends], axis=1)
-        parents = np.concatenate([parents, end_joints - 1])
+        parent_ids = np.concatenate([parent_ids, end_joints - 1])
         kinds += ["fixed"] * count
         axes = np.concatenate([axes, np.tile(np.float32([0.0, 0.0, 1.0]), (count, 1))])
         offsets = np.concatenate([offsets, np.zeros((count, 3), dtype=np.float32)])
@@ -91,7 +91,7 @@ def robot_skeleton(
     return SkeletonLayer(
         name,
         poses,
-        parents,
+        parent_ids,
         kinds=kinds,
         axes=axes,
         offsets=offsets,

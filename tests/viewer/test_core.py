@@ -22,7 +22,7 @@ from better_robot.testing import FakeServer
 
 def _skeleton(nsteps: int = 10, name: str = "skel") -> SkeletonLayer:
     joints = np.random.default_rng(0).normal(size=(nsteps, 4, 3))
-    return SkeletonLayer(name, joints, parents=[-1, 0, 1, 1])
+    return SkeletonLayer(name, joints, parent_ids=[-1, 0, 1, 1])
 
 
 def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block() -> None:
@@ -159,7 +159,7 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
 def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> None:
     scene = FakeServer().scene
     joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0], [1.0, 0.0, 2.0]]], dtype=np.float32)
-    skeleton = SkeletonLayer("s", joints, parents=[-1, 0, 1], radius=0.1)
+    skeleton = SkeletonLayer("s", joints, parent_ids=[-1, 0, 1], radius=0.1)
     skeleton.build(scene, "/g/s")
     bones = scene.nodes["/g/s/bones"]
     np.testing.assert_allclose(bones.props["batched_positions"], [[0.0, 0.0, 1.0], [0.5, 0.0, 2.0]])
@@ -183,8 +183,8 @@ def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
     joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 2.0]]] * 2, dtype=np.float32)
     bones = np.array([0.0, 0.05, 0.0], dtype=np.float32)  # entry j: the bone into joint j; 0 hides it
     radius = np.array([[0.1, 0.1, 0.1], [0.1, 0.2, 0.0]], dtype=np.float32)  # (T, J): sized per step
-    viewer.add([SkeletonLayer("s", joints, parents=[-1, 0, 1], radius=radius, bone_radius=bones)])
-    viewer.add([SkeletonLayer("c", joints, parents=[-1, 0, 1], radius=0.1, bone_radius=0.02)])
+    viewer.add([SkeletonLayer("s", joints, parent_ids=[-1, 0, 1], radius=radius, bone_radius=bones)])
+    viewer.add([SkeletonLayer("c", joints, parent_ids=[-1, 0, 1], radius=0.1, bone_radius=0.02)])
     nodes = server.scene.nodes
     viewer.show(0)
     np.testing.assert_allclose(nodes["/scene/s/bones"].batched_scales, [[0.05, 0.05, 1.0], [0.0, 0.0, 1.0]])
@@ -195,7 +195,7 @@ def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
     # A constant radius never rewrites the joint scales: per-step cost unchanged.
     assert ("/scene/c/joints", "batched_scales") not in server.scene.log
     with pytest.raises(ShapeError, match="radius"):
-        SkeletonLayer("bad", joints, parents=[-1, 0, 1], radius=np.ones((3, 3)))
+        SkeletonLayer("bad", joints, parent_ids=[-1, 0, 1], radius=np.ones((3, 3)))
 
 
 def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_whole() -> None:

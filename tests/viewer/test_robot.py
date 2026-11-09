@@ -72,7 +72,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     np.testing.assert_allclose(layers["robot frames"].poses[:, 0], hand, atol=1e-6)
     skeleton = layers["robot skeleton"]
     np.testing.assert_allclose(skeleton.joints, state.joint_poses[:, 1:, :3].numpy(), atol=1e-6)
-    assert skeleton.parents[0] == -1 and list(skeleton.parents[1:]) == [p - 1 for p in model.parent_joint_ids[2:]]
+    assert skeleton.parent_ids[0] == -1 and list(skeleton.parent_ids[1:]) == [p - 1 for p in model.parent_joint_ids[2:]]
     assert skeleton.colors.shape == (5, model.njoints - 1, 3)
 
     server = FakeServer()
@@ -200,7 +200,7 @@ def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
     layer = robot_skeleton(model, poses, bone_radius=np.where(massless, 0.0, 0.01))
     server = FakeServer()
     Viewer(server=server).add([layer])
-    child = layer.parents >= 0
+    child = layer.parent_ids >= 0
     scales = server.scene.nodes["/scene/skeleton/bones"].props["batched_scales"].reshape(child.sum(), -1, 3)
     drawn = scales[..., 2] > 1e-6  # the legs a bone uses
     np.testing.assert_allclose(scales[..., 0], np.where(drawn, np.where(massless, 0.0, 0.01)[child, None], 0.0))
@@ -295,8 +295,8 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
     model = _g1() if robot == "g1" else _every_axis_kind_model(translation=0.05)
     tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(2), dtype=torch.float64)
     poses, layer, server, *_ = _drawn_skeleton(model, br.kinematics.integrate(model, model.q_neutral, tangent))
-    child = np.nonzero(layer.parents >= 0)[0]
-    parent = layer.parents[child]
+    child = np.nonzero(layer.parent_ids >= 0)[0]
+    parent = layer.parent_ids[child]
     rotations = poses[0, 1:, 3:].astype(np.float64)
     centres = poses[0, 1:, :3] + _lie.act(rotations, layer.offsets.astype(np.float64))
     node = server.scene.nodes["/scene/skeleton/bones"]
@@ -317,7 +317,7 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
     folded = np.where(np.arange(3) == dominant[..., None], 0.0, local)  # (B, L, 3) the parts off the leg's axis
     axial = np.array([marker_of(kind) in ("cylinder", "box") for kind in skeleton_spec(model)[0]])
     length = np.linalg.norm(centres[child] - centres[parent], axis=-1)
-    one_child = np.bincount(parent, minlength=len(layer.parents))[parent] == 1
+    one_child = np.bincount(parent, minlength=len(layer.parent_ids))[parent] == 1
     straight = ~(axial[parent] | axial[child]) | ((length > 0.15) & one_child)
     assert (drawn[straight].sum(1) <= 1).all()
     assert (folded[~straight] < 0.01).all()
@@ -429,7 +429,7 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     layer = robot_skeleton(model, state.joint_poses.numpy().astype(np.float32), tau=tau, bone_radius=radii,
                            end_points={"palm": point.tolist()})  # fmt: skip
     wrist = model.joint_names.index("wrist") - 1
-    assert layer.parents[-1] == wrist and len(layer.parents) == model.njoints
+    assert layer.parent_ids[-1] == wrist and len(layer.parent_ids) == model.njoints
     expected = act(state.frame_poses[:, model.frame_id("palm")], point).numpy()  # (2, 3)
     np.testing.assert_allclose(layer.joints[:, -1], expected, atol=1e-5)
     np.testing.assert_array_equal(layer.colors[:, -1], rgb_uint8(np.tile(LIGHT.joint, (2, 1))))
