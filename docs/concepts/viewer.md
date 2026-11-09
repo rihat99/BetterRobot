@@ -42,8 +42,9 @@ contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixel
 `head_radius`, so forces keep their thickness at any zoom; a head takes at most 35 % of its arrow, so a short solid
 arrow is the long one scaled down, never a lone head. An arrow no longer than `min_length` metres (default
 `1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
-forces too small to read. `SkeletonLayer` takes a joint `radius` per joint `(J,)`
-or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
+forces too small to read. `SkeletonLayer(name, joints, parent_ids)` draws joints `(T, J, 3)` (or poses
+`(T, J, 7)`) as a stick figure, a bone from each joint to its parent (`parent_ids (J,)`, `-1` for a root); it takes a
+joint `radius` per joint `(J,)` or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
 length, `offsets (J, 3)` in each joint's frame that move a marker off its joint origin (bones then join the drawn
 centres), and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint `j` (thin finger bones); a radius of
 0 hides that marker or bone. Given joint `kinds`, a bone with an axis marker at either end bends at right angles
@@ -57,7 +58,13 @@ that `record`'s camera fits).
 `viewer.add(layers, group="...")` puts each layer under the scene node `/<group>/<layer.name>`. The default group is
 `"scene"`. Each group gets a GUI folder with one visibility checkbox per layer, and `remove_group` tears the whole
 group down and shrinks the timeline to the longest remaining layer, so a clip browser can swap one clip's group for
-the next. Layer names must be unique inside a group.
+the next. Layer names must be unique inside a group, and a group name that `set_offset` or `remove_group` does not
+know raises `UnknownNameError`.
+
+A layer is changed through its own methods, never its fields: `viewer.set_visible(layer, False)` hides it,
+`layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`; a
+layer without surfaces raises `ArgumentError`), and `viewer.replace(old, new)` swaps the data a layer draws, such
+as a body switched in a studio: `new` takes `old`'s group, GUI row and visibility, and the current step is pushed.
 
 ```python
 viewer.add([PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3))], group="debug")
@@ -144,7 +151,7 @@ viewer.show()
 ```
 
 `robot_skeleton` takes `tau (T, nv)` (the joint load colours and thickens the markers), a `theme` and the marker
-radii; `RigidMeshLayer` an `opacity`. The skeleton draws each revolute joint as a
+radii; `RigidMeshLayer` an `opacity` (`set_opacity` changes it live). The skeleton draws each revolute joint as a
 cylinder along its axis (radius 25 mm, length 60 mm) and each prismatic joint as a thin box along it, with the axes
 from each joint's `axis`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
 as in a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its
@@ -181,7 +188,8 @@ viewer.add([robot_skeleton(model, poses, name="panda load", tau=tau, end_points=
 
 `better_robot.viewer.tools` holds two things. `PoseGizmo(viewer, name, pose, on_change=...)` is a draggable
 transform handle that calls `on_change(pose)` on every drag; `examples/viewer/03_ik_gizmo.py` uses it to re-solve
-IK and call `robot.update(q)` live. Picking is plain numpy over vertices, so it also works on data you never
+IK and call `robot.update(q)` live. A callback that raises stops the gizmo, and `gizmo.wait()` raises its error in
+your thread. Picking is plain numpy over vertices, so it also works on data you never
 showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
 `vertices_in_sphere` and `vertices_in_rect`.
 
@@ -249,8 +257,9 @@ print(y_up_viewer.theme.up_vector)
 (0.0, 1.0, 0.0)
 ```
 
-`Viewer(server=...)` reuses an existing `viser.ViserServer` (or a fake one in tests), and `viewer.server` is the
-escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
+`Viewer(server=...)` reuses an existing `viser.ViserServer`, or takes `better_robot.testing.FakeServer`, the
+stand-in that records scene calls without a port or a browser (the tests and the examples' `--check` run on it);
+`viewer.server` is the escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
 forward the port over SSH to view it remotely.
 
 ## Lazy inputs
