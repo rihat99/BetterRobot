@@ -86,8 +86,7 @@ def test_crba_consistent_with_rnea(panda_both):
 def test_crba_neutral_is_spd(panda_both):
     """``M(q_neutral)`` is symmetric positive-definite."""
     br_model, _, _, _ = panda_both
-    q = br_model.q_neutral.clamp(br_model.lower_position_limit, br_model.upper_position_limit)
-    M = mass_matrix(br_model, forward_kinematics(br_model, q)).detach().cpu().double()
+    M = mass_matrix(br_model, forward_kinematics(br_model, br_model.q_neutral)).detach().cpu().double()
     # Symmetric:
     torch.testing.assert_close(M, M.transpose(-1, -2), rtol=1e-12, atol=1e-12)
     # Positive-definite (Cholesky succeeds):

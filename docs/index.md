@@ -10,8 +10,8 @@ section of the docs to open next.
 
 ## What BetterRobot is
 
-- **A robot is a `Model`.** `br.load(path)` reads a URDF, MJCF or programmatic description into an
-  immutable `Model`: joints, bodies and frames (the static topology) plus the differentiable tensors
+- **A robot is a `Model`.** `br.load(path)` reads a URDF or MJCF file (and `build_model` a robot written
+  with `ModelBuilder`) into an immutable `Model`: joints, bodies and frames (the static topology) plus the differentiable tensors
   that parametrize them. A floating base is just one more joint, a `JointFreeFlyer`.
 - **A query returns a `KinematicState`.** `br.forward_kinematics(model, q)` runs forward kinematics for a configuration
   `q` and returns a frozen state with every body and frame pose. Jacobians and dynamics

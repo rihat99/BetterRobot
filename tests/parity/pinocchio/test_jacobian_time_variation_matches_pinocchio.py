@@ -8,9 +8,8 @@ dropped transport term would hide on Panda.
 BetterRobot keeps the fixed joints Pinocchio merges, so joints/frames are
 resolved by name in both models (see ``test_joint_jacobian_matches_pinocchio``).
 
-Tolerances match the static frame-Jacobian file (``atol=2e-6, rtol=1e-5``); the
-URDF parser loads placements as fp32 (``src/better_robot/io/parser_urdf.py``), and J̇ carries one
-extra ``J × v`` product on top of that ~5e-7 drift — the kept tolerance covers it
+Tolerances match the static frame-Jacobian file (``atol=2e-6, rtol=1e-5``) and stay
+as they are; J̇ carries one extra ``J × v`` product, which the kept tolerance covers
 without widening.
 """
 

@@ -4,8 +4,8 @@
 URDF | MJCF | ModelBuilder -> IRModel -> build_model -> Model
 ```
 
-Parsers own source-format interpretation and emit flat, order-independent IR
-records. `build_model` owns tree validation, joint order, reduced mimic
+Parsers own source-format interpretation and emit flat IR records, whose
+order `build_model` keeps wherever it is topological. `build_model` owns tree validation, joint order, reduced mimic
 coordinates, packed tensors, frames and limits, as named stages into one
 `Model(...)`. Do not move format-specific cases into kinematics or dynamics.
 

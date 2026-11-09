@@ -1,7 +1,8 @@
 # Load a robot from URDF, MJCF or code
 
-`better_robot.load` turns a URDF file, an MJCF file or a programmatic builder into a frozen
-[`Model`](../reference/glossary.md#robot-model). This guide shows each path, how to add a floating base,
+`better_robot.load` turns a URDF or MJCF file into a frozen [`Model`](../reference/glossary.md#robot-model),
+and `build_model` does the same for a robot written in code with `ModelBuilder`. This guide shows each path, how
+to add a floating base,
 how to look up joint and frame names, and what the common load errors mean.
 
 ## Load a URDF
@@ -32,7 +33,9 @@ MuJoCo compiles the file and `load` reads the compiled model, so body placements
 file's angle unit, `limited="auto"` and `euler`/`axisangle` orientations come out as MuJoCo computes them
 (`tests/parity/mujoco/` checks them against `mj_kinematics`). It needs the `mjcf` extra
 (`pip install "better-robot[mjcf]"`); without it, `load` raises `OptionalDependencyError`. A body carries
-at most one joint, and names are required on every body, joint and site.
+at most one joint, and names are required on every body, joint and site. A joint `ref` keeps MuJoCo's meaning,
+so `q` is MuJoCo's `qpos`; what the loader reads and ignores is listed in
+[the io chapter](../concepts/io.md).
 
 ```python { .no-run }
 model = br.load("scene.xml")              # .xml / .mjcf picks the MJCF parser
@@ -115,13 +118,12 @@ than primitives need the `meshes` extra (`pip install "better-robot[meshes]"`, w
 
 Errors raised by the library's own checks derive from `better_robot.exceptions.BetterRobotError` and
 from the matching built-in (`ValueError`, `KeyError`, `ImportError`), so `except ValueError` keeps
-working. Loading also lets plain Python errors through: a missing file is a `FileNotFoundError`. The
-ones you meet when loading or first using a model:
+working. The ones you meet when loading or first using a model:
 
 | Error | Raised when |
 |-------|-------------|
 | `OptionalDependencyError` | an optional package (`mujoco`, `trimesh`, `viser`) is missing; the message names the install command |
-| `ModelError` | the description cannot be mapped to a model: an unknown joint kind, a cycle in the tree, a mimic chain that loops, joints whose `nq` / `nv` do not add up |
+| `ModelError` | the description cannot be mapped to a model: a missing or malformed file (the message names the file and line), an unknown joint kind, two joints, bodies or frames with one name, more than one root link, a cycle in the tree, a lower limit above the upper one, a mimic chain that loops, an MJCF feature the tree cannot express (a cone limit, a non-linear `<equality>`); the message says what to change |
 | `ShapeError` | a tensor's trailing axes do not match the model, e.g. `q` is not `(B..., nq)` |
 | `DtypeMismatchError` / `DeviceMismatchError` | an input tensor's dtype or device differs from the model's |
 
