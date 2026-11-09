@@ -35,5 +35,5 @@
 <polyline points="232,252 200,252" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
 <polyline points="112,216 112,96" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
 <text x="320" y="150" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">solve_ik(model, targets, q0=...)</text>
-<text x="320" y="170" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">LevenbergMarquardt, up to iters=100</text>
+<text x="320" y="170" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">LevenbergMarquardt, up to iterations=100</text>
 </svg>
