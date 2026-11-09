@@ -93,7 +93,13 @@ def _shapes(mujoco: ModuleType, compiled: Any, spec: Any, body: int, offset: np.
             continue
         geom_type = compiled.geom_type[geom]
         size = compiled.geom_size[geom]
-        tx, ty, tz, qx, qy, qz, qw = _pose(compiled.geom_pos[geom] - offset, compiled.geom_quat[geom]).tolist()
+        pose = _pose(compiled.geom_pos[geom] - offset, compiled.geom_quat[geom])
+        if geom_type == mujoco.mjtGeom.mjGEOM_MESH:
+            # MuJoCo recentres a mesh on its inertial frame (mesh_pos, mesh_quat) and folds that frame into the
+            # geom pose; the shape keeps the file's vertices, so the recentring is undone here.
+            data = int(compiled.geom_dataid[geom])
+            pose = se3.compose_raw(pose, se3.inverse_raw(_pose(compiled.mesh_pos[data], compiled.mesh_quat[data])))
+        tx, ty, tz, qx, qy, qz, qw = pose.tolist()
         placement = (tx, ty, tz, qx, qy, qz, qw)
         red, green, blue, alpha = (float(value) for value in compiled.geom_rgba[geom])
         color = (red, green, blue, alpha)

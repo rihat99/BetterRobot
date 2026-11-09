@@ -1,10 +1,11 @@
 """MJCF kinematics parity. Oracle: MuJoCo (``mujoco.MjModel`` and ``mj_kinematics``), record 0036.
 
-Body poses, site frames, joint limits and the neutral configuration of a model loaded through ``parse_mjcf`` match
-MuJoCo's own kinematics on ``cases.xml`` (body ``pos``/``quat``, ``euler`` and ``axisangle`` orientations, degree
-ranges, ``limited="auto"``, a ``fromto`` capsule, a ball joint at an offset ``jnt_pos``, a jointless body, sites, a
-hinge and a slide with a ``ref``) and ``floating.xml`` (a free root away from the origin, a ball joint, a hinge).
-Configurations are drawn from a seeded generator whose seed is in the test id.
+Body poses, site frames, geometry, joint limits and the neutral configuration of a model loaded through
+``parse_mjcf`` match MuJoCo's own kinematics on ``cases.xml`` (body ``pos``/``quat``, ``euler`` and ``axisangle``
+orientations, degree ranges, ``limited="auto"``, a ``fromto`` capsule, a ball joint at an offset ``jnt_pos``, a
+jointless body, sites, a hinge and a slide with a ``ref``, a scaled mesh MuJoCo recentres) and ``floating.xml`` (a
+free root away from the origin, a ball joint, a hinge). Configurations are drawn from a seeded generator whose seed
+is in the test id.
 """
 
 from __future__ import annotations
@@ -92,6 +93,79 @@ def test_body_and_site_poses_match_mujoco(file: str, seed: int) -> None:
         )
         assert site_translation_error <= TOLERANCE, compiled.site(site).name
         assert site_rotation_error <= TOLERANCE, compiled.site(site).name
+
+
+#: The ``fromto`` capsule of each file: its body and the two end points the file writes in that body's frame.
+FROMTO = {
+    "cases": ("upper", [(0.0, 0.0, 0.0), (0.0, 0.0, 0.5)]),
+    "floating": ("arm", [(0.0, 0.0, 0.0), (0.3, 0.0, 0.0)]),
+}
+
+
+def _obj_vertices(path: Path) -> np.ndarray:
+    """``(n, 3)`` the ``v`` lines of an OBJ file."""
+    rows = [line.split()[1:4] for line in path.read_text().splitlines() if line.startswith("v ")]
+    return np.array(rows, dtype=np.float64)
+
+
+def _furthest_nearest(points: np.ndarray, others: np.ndarray) -> float:
+    """The largest distance from a point of ``points (n, 3)`` to its nearest point of ``others (m, 3)``."""
+    return float(np.linalg.norm(points[:, None, :] - others[None, :, :], axis=-1).min(axis=1).max())
+
+
+@pytest.mark.parametrize("seed", [0])
+@pytest.mark.parametrize("file", sorted(FILES))
+def test_geometry_matches_mujoco(file: str, seed: int) -> None:
+    """Each geom's world pose and size, a mesh's vertices where MuJoCo puts them, a ``fromto`` capsule's end points."""
+    compiled = mujoco.MjModel.from_xml_path(str(FILES[file]))
+    data = mujoco.MjData(compiled)
+    data.qpos[:] = _random_qpos(compiled, seed)
+    mujoco.mj_kinematics(compiled, data)
+    model = br.load(FILES[file], dtype=torch.float64)
+    shapes = br.io.load_geometry(FILES[file], model).shapes
+    state = br.forward_kinematics(model, _q_from_mujoco(model, compiled, data.qpos))
+    geoms = [geom for geom in range(compiled.ngeom) if compiled.geom_bodyid[geom] != 0]
+    assert len(shapes) == len(geoms)
+    for geom, attached in zip(geoms, shapes, strict=True):
+        shape, size = attached.shape, compiled.geom_size[geom]
+        assert model.body_names[attached.body] == compiled.body(int(compiled.geom_bodyid[geom])).name
+        world = br.lie.se3.compose(state.joint_poses[attached.body], torch.tensor(shape.placement, dtype=torch.float64))
+        rotation = br.lie.so3.to_matrix(world[3:]).numpy()
+        if isinstance(shape, br.model.Mesh):
+            mesh = int(compiled.geom_dataid[geom])
+            start, count = int(compiled.mesh_vertadr[mesh]), int(compiled.mesh_vertnum[mesh])
+            recentred = compiled.mesh_vert[start : start + count].astype(np.float64)
+            local = _obj_vertices(FILES[file].parent / shape.uri) * np.array(shape.scale)
+            ours = world[:3].numpy() + local @ rotation.T
+            theirs = data.geom_xpos[geom] + recentred @ data.geom_xmat[geom].reshape(3, 3).T
+            mesh_error = max(_furthest_nearest(ours, theirs), _furthest_nearest(theirs, ours))
+            # MuJoCo stores the recentred vertices in float32: rounding noise of that storage, 4 eps at their scale.
+            mesh_tolerance = 4.0 * float(np.finfo(np.float32).eps) * float(np.abs(recentred).max())
+            assert mesh_error <= mesh_tolerance, f"mesh vertices of geom {geom}"
+            continue
+        translation_error = float(np.abs(world[:3].numpy() - data.geom_xpos[geom]).max())
+        rotation_error = float(np.abs(rotation - data.geom_xmat[geom].reshape(3, 3)).max())
+        assert translation_error <= TOLERANCE, f"geom {geom} position"
+        assert rotation_error <= TOLERANCE, f"geom {geom} orientation"
+        if isinstance(shape, br.model.Sphere):
+            sizes, expected = [shape.radius], [size[0]]
+        elif isinstance(shape, br.model.Box):
+            sizes, expected = list(shape.size), list(2.0 * size)
+        else:
+            sizes, expected = [shape.radius, shape.length], [size[0], 2.0 * size[1]]
+        size_error = float(np.abs(np.array(sizes) - np.array(expected)).max())
+        assert size_error <= TOLERANCE, f"geom {geom} size"
+    body_name, ends = FROMTO[file]
+    capsule = next(attached.shape for attached in shapes if model.body_names[attached.body] == body_name)
+    world = br.lie.se3.compose(
+        state.joint_poses[model.body_id(body_name)], torch.tensor(capsule.placement, dtype=torch.float64)
+    )
+    half = torch.tensor([0.0, 0.0, capsule.length / 2.0], dtype=torch.float64)
+    ours = torch.stack([br.lie.se3.act(world, half), br.lie.se3.act(world, -half)]).numpy()
+    body = compiled.body(body_name).id
+    theirs = data.xpos[body] + np.array(ends) @ data.xmat[body].reshape(3, 3).T
+    fromto_error = _furthest_nearest(ours, theirs)
+    assert fromto_error <= TOLERANCE, f"fromto end points of the {body_name} capsule"
 
 
 @pytest.mark.parametrize("file", sorted(FILES))
