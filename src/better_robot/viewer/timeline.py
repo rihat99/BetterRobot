@@ -7,6 +7,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from ..exceptions import ArgumentError
+
 
 class Timeline:
     """Step counter for ``nsteps`` steps at ``fps``.
@@ -18,7 +20,7 @@ class Timeline:
 
     def __init__(self, nsteps: int = 1, fps: float = 30.0, loop: bool = True) -> None:
         if nsteps < 1 or fps <= 0.0:
-            raise ValueError("nsteps must be at least 1 and fps positive")
+            raise ArgumentError(f"Timeline needs nsteps >= 1 and fps > 0, got nsteps={nsteps}, fps={fps}")
         self.nsteps = nsteps
         self.fps = fps
         self.loop = loop
@@ -67,7 +69,7 @@ class Timeline:
     def resize(self, nsteps: int) -> None:
         """Set the number of steps to ``nsteps`` (at least 1); a current step past the end moves to the new last step."""
         if nsteps < 1:
-            raise ValueError("nsteps must be at least 1")
+            raise ArgumentError(f"nsteps must be at least 1, got {nsteps}")
         self.nsteps = nsteps
         if self._gui_slider is not None:
             self._gui_slider.max = nsteps - 1

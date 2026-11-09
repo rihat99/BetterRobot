@@ -15,6 +15,7 @@ from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
 
+from better_robot.exceptions import ArgumentError, ShapeError, UnknownNameError
 from better_robot.testing import FakeServer
 
 
@@ -75,7 +76,7 @@ def test_remove_group_disposes_layers_and_the_group_node() -> None:
     assert server.scene.nodes["/ref/skel/joints"].removed and server.scene.nodes["/ref/pts/points"].removed
     assert not server.scene.nodes["/scene/keep/joints"].removed
     assert [layer.name for layer in viewer.layers] == ["keep"]
-    with pytest.raises(ValueError):
+    with pytest.raises(ArgumentError, match="already has a layer"):
         viewer.add(_skeleton(name="keep"))
 
 
@@ -86,7 +87,7 @@ def test_set_offset_moves_a_group_after_it_was_added() -> None:
     viewer.set_offset("robot", (0.0, 3.0, 0.0))
     assert server.scene.nodes["/robot"].position == (0.0, 3.0, 0.0)
     np.testing.assert_allclose(viewer._points([0]), [[0.0, 3.0, 0.0]])  # record and aim frame the moved group
-    with pytest.raises(KeyError):
+    with pytest.raises(UnknownNameError, match="unknown group 'missing'"):
         viewer.set_offset("missing", (0.0, 0.0, 0.0))
 
 
@@ -190,7 +191,7 @@ def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
     np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.1] * 3, [0.2] * 3, [0.0] * 3])
     # A constant radius never rewrites the joint scales: per-step cost unchanged.
     assert ("/scene/c/joints", "batched_scales") not in server.scene.log
-    with pytest.raises(ValueError, match="radius"):
+    with pytest.raises(ShapeError, match="radius"):
         SkeletonLayer("bad", joints, parents=[-1, 0, 1], radius=np.ones((3, 3)))
 
 
@@ -204,9 +205,9 @@ def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_
     nodes = server.scene.nodes
     np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
     np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
-    with pytest.raises(ValueError, match="thickness"):
+    with pytest.raises(ShapeError, match="thickness"):
         SkeletonLayer("bad", joints, [-1, 0], thickness=np.ones((3, 2)))
-    with pytest.raises(ValueError, match="offsets"):
+    with pytest.raises(ShapeError, match="offsets"):
         SkeletonLayer("bad", joints, [-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
 
 
@@ -281,7 +282,7 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     assert not spheres.batched_colors.any()
     static = viewer.add(SpheresLayer("static", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=(0.0, 1.0, 0.0)))
     assert static._colors.shape == (2, 3)  # one colour stays static: never rewritten per step
-    with pytest.raises(ValueError, match="per-step colors"):
+    with pytest.raises(ShapeError, match="per-step colors"):
         ArrowsLayer("bad", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
 
@@ -330,7 +331,7 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     assert asked == [0, 0, 1]  # built at sample 0, pushed at 0, then only the shown sample is decoded
     viewer.set_visible(lazy, False)
     assert lazy_image.visible is False
-    with pytest.raises(ValueError, match="nsteps"):
+    with pytest.raises(ArgumentError, match="nsteps"):
         ImagePanel("no_length", lambda step: frames[0])
     viewer.remove_group("video")
     assert eager_image.removed and lazy_image.removed
@@ -354,7 +355,7 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
     assert grid["plane"] == "xy" and grid["plane_opacity"] == 0.4
     GroundLayer(plane="xz").build(scene, "/g/flat")
     assert scene.nodes["/g/flat/grid"].props["plane_opacity"] == 0.0  # lines only by default
-    with pytest.raises(ValueError, match="normal"):
+    with pytest.raises(ArgumentError, match="normal"):
         GroundLayer(normal=(0.0, 0.0, 0.0))
 
 

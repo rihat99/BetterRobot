@@ -15,6 +15,7 @@ from better_robot.viewer import capture
 from better_robot.viewer.layers import GroundLayer, PointsLayer
 from better_robot.viewer.viewer import Viewer
 
+from better_robot.exceptions import ArgumentError, OptionalDependencyError
 from better_robot.testing import FakeServer
 
 
@@ -62,14 +63,14 @@ def test_record_frames_the_offset_group_after_the_first_render_and_writes_pngs(
 def test_write_frames_gif_and_rejects_unknown_suffix(tmp_path: Path) -> None:
     frames = [np.full((4, 5, 3), k * 50, dtype=np.uint8) for k in range(3)]
     assert capture.write_frames(frames, tmp_path / "a.gif", fps=10).stat().st_size > 0
-    with pytest.raises(ValueError, match="mp4"):
+    with pytest.raises(ArgumentError, match="mp4"):
         capture.write_frames(frames, tmp_path / "a.mp4", fps=10)
 
 
 def test_find_chrome_reports_how_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("BETTER_ROBOT_CHROME", raising=False)
     monkeypatch.setattr(shutil, "which", lambda name: None)
-    with pytest.raises(RuntimeError, match="BETTER_ROBOT_CHROME"):
+    with pytest.raises(OptionalDependencyError, match="BETTER_ROBOT_CHROME"):
         capture.find_chrome()
 
 

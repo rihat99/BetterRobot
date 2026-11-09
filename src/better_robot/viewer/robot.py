@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
+from ..exceptions import ModelError, ShapeError
 from ..model.joints import (
     JointFixed,
     JointFreeFlyer,
@@ -25,7 +26,6 @@ from ..model.joints import (
     JointSpherical,
     JointTranslation,
 )
-from ..exceptions import ModelError
 from ..model.geometry import AttachedShape, Box, Cylinder, Geometry, Mesh, Sphere
 from ._math import colormap, rotate
 from .layers.mesh import MeshSpec
@@ -232,7 +232,7 @@ def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarra
     over each joint's dofs, and ``(njoints - 1,)`` whether a joint has a dof with a finite positive limit."""
     tau = tau.reshape(-1, model.nv)
     if tau.shape[0] not in (1, nsteps):
-        raise ValueError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
+        raise ShapeError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
     limits = model.effort_limit.detach().cpu().numpy().reshape(-1)
     # Dofs without a finite effort limit (free-flyer, unbounded URDF joints) contribute a ratio of 0.
     finite = np.isfinite(limits) & (limits > 0)

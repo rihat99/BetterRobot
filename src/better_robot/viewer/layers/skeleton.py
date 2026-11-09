@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ShapeError
 from .._math import (
     RGB,
     as_frames,
@@ -109,7 +110,7 @@ class SkeletonLayer(Layer):
     ) -> None:
         joints = as_frames(joints, 2)
         if joints.shape[-1] not in (3, 7):
-            raise ValueError(f"joints must be (T, J, 3) positions or (T, J, 7) poses, got {joints.shape}")
+            raise ShapeError(f"joints must be (T, J, 3) positions or (T, J, 7) poses, got {joints.shape}")
         # Both are views into the caller's array (kept by reference); positions-only input has no rotation.
         self.joints = joints[..., :3]
         self.rotations = (
@@ -119,10 +120,10 @@ class SkeletonLayer(Layer):
         n_joints = self.joints.shape[1]
         self.parents = np.asarray(parents, dtype=np.int64)
         if self.parents.shape != (n_joints,):
-            raise ValueError("parents must have one entry per joint")
+            raise ShapeError("parents must have one entry per joint")
         kinds = ["spherical"] * n_joints if kinds is None else list(kinds)
         if len(kinds) != n_joints:
-            raise ValueError("kinds must have one entry per joint")
+            raise ShapeError("kinds must have one entry per joint")
         markers = [marker_of(kind) for kind in kinds]
         self.groups = {m: np.array([j for j in range(n_joints) if markers[j] == m]) for m in set(markers) - {None}}
         axes = (0.0, 0.0, 1.0) if axes is None else axes
@@ -130,13 +131,13 @@ class SkeletonLayer(Layer):
         radius = np.asarray(radius, dtype=np.float32)
         self.radius = radius if radius.ndim == 2 else np.broadcast_to(radius, (n_joints,))
         if self.radius.shape[-1] != n_joints or (radius.ndim == 2 and len(radius) != self.nsteps):
-            raise ValueError(f"radius must be one float, (J,) or (T, J) = {self.joints.shape[:2]}, got {radius.shape}")
+            raise ShapeError(f"radius must be one float, (J,) or (T, J) = {self.joints.shape[:2]}, got {radius.shape}")
         self.thickness = None if thickness is None else np.asarray(thickness, dtype=np.float32)
         if self.thickness is not None and self.thickness.shape not in ((n_joints,), (self.nsteps, n_joints)):
-            raise ValueError(f"thickness must be (J,) or (T, J) = {self.joints.shape[:2]}, got {self.thickness.shape}")
+            raise ShapeError(f"thickness must be (J,) or (T, J) = {self.joints.shape[:2]}, got {self.thickness.shape}")
         self.offsets = None if offsets is None else np.asarray(offsets, dtype=np.float32)
         if self.offsets is not None and self.offsets.shape != (n_joints, 3):
-            raise ValueError(f"offsets must be (J, 3) = ({n_joints}, 3), got {self.offsets.shape}")
+            raise ShapeError(f"offsets must be (J, 3) = ({n_joints}, 3), got {self.offsets.shape}")
         # A float or (J,) per bone, entry j for the bone into joint j; read at every step.
         self.bone_radius = float(self.radius.max()) * 0.6 if bone_radius is None else bone_radius
         self.bone_color = bone_color

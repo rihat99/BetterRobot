@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..exceptions import ShapeError
+
 RGB = tuple[float, float, float]
 
 
@@ -16,7 +18,7 @@ def as_frames(array: np.ndarray | object, event_ndim: int) -> np.ndarray:
     if out.ndim == event_ndim:
         out = out[None]
     if out.ndim != event_ndim + 1:
-        raise ValueError(f"expected {event_ndim} or {event_ndim + 1} axes, got shape {out.shape}")
+        raise ShapeError(f"expected {event_ndim} or {event_ndim + 1} axes, got shape {out.shape}")
     return np.ascontiguousarray(out)
 
 

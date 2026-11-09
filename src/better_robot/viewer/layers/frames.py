@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ShapeError
 from .._math import as_frames, xyzw_to_wxyz
 from ..layer import Layer
 
@@ -16,7 +17,7 @@ class FramesLayer(Layer):
     def __init__(self, name: str, poses: np.ndarray, *, axes_length: float = 0.1, axes_radius: float = 0.004) -> None:
         self.poses = as_frames(poses, 2)
         if self.poses.shape[-1] != 7:
-            raise ValueError("poses must be (T, F, 7)")
+            raise ShapeError(f"poses must be (F, 7) or (T, F, 7), got {self.poses.shape}")
         super().__init__(name, self.poses.shape[0])
         self.axes_length = axes_length
         self.axes_radius = axes_radius

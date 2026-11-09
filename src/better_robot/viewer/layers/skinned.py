@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ShapeError
 from .._math import RGB, as_frames, rgb_uint8, rotate, xyzw_to_wxyz
 from ..layer import Layer
 from .camera import CameraLayer
@@ -40,7 +41,7 @@ class SkinnedMeshLayer(Layer):
         self.bind_poses = np.asarray(bind_poses, dtype=np.float32)
         n_bones = self.bind_poses.shape[0]
         if self.bone_poses.shape[1:] != (n_bones, 7) or np.shape(weights) != (len(self.vertices), n_bones):
-            raise ValueError("bone_poses must be (T, J, 7) and weights (V, J) with J bind poses")
+            raise ShapeError("bone_poses must be (T, J, 7) and weights (V, J) with J bind poses")
         self.weights = top_k_weights(np.asarray(weights, dtype=np.float32), 4)
         self.color = color
         self.opacity = opacity

@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ArgumentError, ShapeError
 from ..layer import Layer
 
 
@@ -28,12 +29,12 @@ class ImagePanel(Layer):
     ) -> None:
         if callable(images):
             if nsteps is None:
-                raise ValueError("a callable `images` needs `nsteps`")
+                raise ArgumentError("a callable `images` needs `nsteps`: pass ImagePanel(name, images, nsteps=T)")
         else:
             images = np.asarray(images)
             images = images[None] if images.ndim == 3 else images
             if images.ndim != 4:
-                raise ValueError(f"images must be (H, W, 3) or (T, H, W, 3), got shape {images.shape}")
+                raise ShapeError(f"images must be (H, W, 3) or (T, H, W, 3), got shape {images.shape}")
             nsteps = images.shape[0]
         super().__init__(name, nsteps)
         self._images = images

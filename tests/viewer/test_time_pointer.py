@@ -11,6 +11,7 @@ from better_robot.viewer.layers.skinned import CameraLayer as SkinnedCameraLayer
 from better_robot.viewer.tools import nearest_on_ray
 from better_robot.viewer.viewer import Viewer
 
+from better_robot.exceptions import ArgumentError, ShapeError
 from better_robot.testing import FakeServer
 
 
@@ -47,22 +48,22 @@ def test_times_default_to_one_sample_per_step_and_are_validated() -> None:
     viewer = Viewer(server=FakeServer())
     layer = viewer.add(_Recorder("plain", 5))
     assert layer.times is None and viewer._index(layer, 3) == 3 and viewer._index(layer, 99) == 4
-    with pytest.raises(ValueError, match="shape"):
+    with pytest.raises(ShapeError, match="shape"):
         viewer.add(_Recorder("short", 5), times=np.arange(4) / 10.0)
-    with pytest.raises(ValueError, match="non-decreasing"):
+    with pytest.raises(ArgumentError, match="non-decreasing"):
         viewer.add(_Recorder("back", 3), times=[0.0, 0.2, 0.1])
-    with pytest.raises(ValueError, match="finite"):
+    with pytest.raises(ArgumentError, match="finite"):
         viewer.add(_Recorder("inf", 2), times=[0.0, np.inf])
 
 
 def test_times_are_set_per_add_and_not_on_a_refused_add() -> None:
     viewer = Viewer(server=FakeServer())
     timed = viewer.add(_Recorder("timed", 3), times=[0.0, 0.1, 0.2])
-    with pytest.raises(ValueError, match="already has a layer"):
+    with pytest.raises(ArgumentError, match="already has a layer"):
         viewer.add(_Recorder("timed", 3), times=[0.0, 0.5, 1.0])
     np.testing.assert_array_equal(timed.times, [0.0, 0.1, 0.2])
     refused = _Recorder("timed", 3)
-    with pytest.raises(ValueError, match="already has a layer"):
+    with pytest.raises(ArgumentError, match="already has a layer"):
         viewer.add(refused, times=[0.0, 0.5, 1.0])
     assert refused.times is None
     assert viewer.add(timed, group="other").times is None
@@ -82,7 +83,7 @@ def test_on_pointer_owns_the_single_scene_pointer_slot() -> None:
     viewer.clear_pointer()
     assert server.scene.pointer is None
     viewer.clear_pointer()
-    with pytest.raises(ValueError, match="kind"):
+    with pytest.raises(ArgumentError, match="kind"):
         viewer.on_pointer("hover", clicks.append)
 
 
@@ -119,7 +120,7 @@ def test_valid_hides_a_layer_on_invalid_samples_without_touching_its_switch() ->
     valid[2] = True  # kept by reference: edit in place and re-push
     viewer.show()
     assert cloud.visible is True
-    with pytest.raises(ValueError, match="valid must have shape"):
+    with pytest.raises(ShapeError, match="valid must have shape"):
         viewer.add(PointsLayer("bad", np.zeros((5, 4, 3))), valid=np.ones((5, 4), bool))  # points: whole layer only
 
 
@@ -165,5 +166,5 @@ def test_set_fps_changes_the_rate_and_remaps_timed_layers() -> None:
     viewer.set_fps(60.0)
     assert viewer.timeline.playing  # playback continues at the new rate
     viewer.timeline.pause()
-    with pytest.raises(ValueError, match="fps must be positive"):
+    with pytest.raises(ArgumentError, match="fps must be positive"):
         viewer.set_fps(0.0)

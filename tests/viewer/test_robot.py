@@ -14,6 +14,7 @@ from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer,
 from better_robot.viewer.robot import robot_meshes, robot_skeleton, spread_offsets
 from better_robot.viewer.viewer import Viewer
 
+from better_robot.exceptions import ShapeError
 from better_robot.testing import FakeServer
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -398,7 +399,7 @@ def test_robot_skeleton_shows_the_joint_load_in_colour_and_thickness_at_a_fixed_
     np.testing.assert_allclose(layer.thickness[0, entries], [1.15, 0.8, 0.8])
     np.testing.assert_allclose(layer.thickness[1, over - 1], 1.5)  # past the limit: the maximum
     np.testing.assert_allclose(layer.thickness[:, 0], 1.0)
-    with pytest.raises(ValueError, match="frames"):
+    with pytest.raises(ShapeError, match="frames"):
         robot_skeleton(model, poses, tau=np.zeros((3, model.nv)))
 
     # Per step only transforms, scales and colours change: the instance count of every node is fixed.

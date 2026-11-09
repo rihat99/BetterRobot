@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ShapeError
 from .._math import as_frames
 from ..layer import Layer
 
@@ -33,7 +34,7 @@ class PlotPanel(Layer):
         self.series = as_frames(series, 1)
         super().__init__(name, self.series.shape[0])
         if labels is not None and len(labels) != self.series.shape[1]:
-            raise ValueError("one label per series")
+            raise ShapeError(f"labels must have one entry per series ({self.series.shape[1]}), got {len(labels)}")
         self.labels = labels or [f"{name} {k}" for k in range(self.series.shape[1])]
         self.time = np.arange(self.series.shape[0], dtype=np.float64) / fps
         self._plot: Any = None

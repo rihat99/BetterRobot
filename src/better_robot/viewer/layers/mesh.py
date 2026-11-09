@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ShapeError
 from .._math import RGB, as_frames, compose_poses, rgb_uint8, rotate, unit_sphere, xyzw_to_wxyz
 from ..layer import Layer
 
@@ -139,11 +140,11 @@ class SpheresLayer(Layer):
         super().__init__(name, self.centers.shape[0])
         self.radii = np.asarray(radii, dtype=np.float32)
         if self.radii.shape != (self.centers.shape[1],):
-            raise ValueError("radii must have one entry per sphere")
+            raise ShapeError(f"radii must be (S,) = ({self.centers.shape[1]},), one per sphere, got {self.radii.shape}")
         colors = np.asarray(colors, dtype=np.float32)
         self._colors = rgb_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.centers.shape:
-            raise ValueError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
+            raise ShapeError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
         self.opacity = opacity
         self._elements = self.centers.shape[1]
         self._spheres: Any = None

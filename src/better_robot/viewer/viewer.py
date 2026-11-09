@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from ..exceptions import ArgumentError, ShapeError, UnknownNameError
 from .layer import Layer
 from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
@@ -105,16 +106,16 @@ class Viewer:
         if times is not None:
             times = np.asarray(times, dtype=np.float64)
             if times.shape != (layer.nsteps,):
-                raise ValueError(f"times must have shape ({layer.nsteps},), got {times.shape}")
+                raise ShapeError(f"times must have shape ({layer.nsteps},), got {times.shape}")
             if not np.all(np.isfinite(times)):
-                raise ValueError("times must be finite")
+                raise ArgumentError("times must be finite")
             if np.any(np.diff(times) < 0):
-                raise ValueError("times must be non-decreasing")
+                raise ArgumentError("times must be non-decreasing")
         if valid is not None:
             valid = np.asarray(valid, dtype=bool)
             shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer._elements)] if layer._elements is not None else [])
             if valid.shape not in shapes:
-                raise ValueError(f"valid must have shape {' or '.join(map(str, shapes))}, got {valid.shape}")
+                raise ShapeError(f"valid must have shape {' or '.join(map(str, shapes))}, got {valid.shape}")
         with self._lock:
             return self._add(layer, group, offset, times, valid)
 
@@ -134,7 +135,9 @@ class Viewer:
             group_state.node.position = offset
             group_state.offset = offset
         if layer.name in group_state.entries:
-            raise ValueError(f"group {group!r} already has a layer named {layer.name!r}")
+            raise ArgumentError(
+                f"group {group!r} already has a layer named {layer.name!r}; give the new layer another name"
+            )
         # Assigned only once the add can no longer be refused, and always, so a re-added layer
         # never keeps the times or validity of an earlier add.
         layer.times, layer.valid = times, valid
@@ -161,7 +164,8 @@ class Viewer:
         swap one clip's group for the next.
         """
         with self._lock:
-            group_state = self._groups.pop(group)
+            group_state = self._group(group)
+            del self._groups[group]
             for entry in group_state.entries.values():
                 entry.layer.dispose()
                 if entry.checkbox is not None:
@@ -172,7 +176,7 @@ class Viewer:
     def set_offset(self, group: str, offset: tuple[float, float, float]) -> None:
         """Move the whole ``group`` to ``offset``, as ``add(..., offset=)`` does, e.g. from a side-by-side slider."""
         with self._lock:
-            group_state = self._groups[group]
+            group_state = self._group(group)
             group_state.node.position = offset
             group_state.offset = offset
 
@@ -183,7 +187,7 @@ class Viewer:
         step length and the timeline is fitted to them; a `PlotPanel` keeps the time axis it was built with.
         """
         if not fps > 0.0:
-            raise ValueError(f"fps must be positive, got {fps}")
+            raise ArgumentError(f"fps must be positive, got {fps}")
         playing = self.timeline.playing
         self.timeline.pause()  # outside the lock: the playback thread takes it to push steps
         with self._lock:
@@ -355,12 +359,17 @@ class Viewer:
             checkbox.on_update(lambda _: self.set_visible(layer, bool(checkbox.value)))
             layer.build_gui(self.server.gui)
 
+    def _group(self, group: str) -> _Group:
+        if group not in self._groups:
+            raise UnknownNameError("group", group, list(self._groups))
+        return self._groups[group]
+
     def _entry(self, layer: Layer) -> _Entry:
         for group in self._groups.values():
             for entry in group.entries.values():
                 if entry.layer is layer:
                     return entry
-        raise KeyError(f"layer {layer.name!r} is not in this viewer")
+        raise ArgumentError(f"layer {layer.name!r} is not in this viewer; add it first")
 
     def on_pointer(self, kind: str, callback: Callable[[Any], None]) -> None:
         """Route viser's scene pointer events of ``kind`` (``"click"`` or ``"rect-select"``) to ``callback``.
@@ -369,7 +378,7 @@ class Viewer:
         registration replaces the previous one.
         """
         if kind not in ("click", "rect-select"):
-            raise ValueError(f"kind must be 'click' or 'rect-select', got {kind!r}")
+            raise ArgumentError(f"kind must be 'click' or 'rect-select', got {kind!r}")
         self.clear_pointer()
         self.server.scene.on_pointer_event(event_type=kind)(callback)
         self._pointer = kind

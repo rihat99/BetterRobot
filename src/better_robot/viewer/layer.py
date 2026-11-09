@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from ..exceptions import ArgumentError
+
 
 class Layer(ABC):
     """Base class for everything the viewer draws.
@@ -31,7 +33,7 @@ class Layer(ABC):
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
         if nsteps < 1:
-            raise ValueError("nsteps must be at least 1")
+            raise ArgumentError(f"layer {name!r}: nsteps must be at least 1, got {nsteps}")
         self.name = name
         self.nsteps = nsteps
         self.root = ""

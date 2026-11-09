@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ArgumentError
 from .._math import RGB, quat_z_to, rgb_uint8
 from ..layer import Layer
 
@@ -41,7 +42,7 @@ class GroundLayer(Layer):
     ) -> None:
         super().__init__(name, 1)
         if normal is not None and not np.linalg.norm(np.asarray(normal, dtype=np.float64).reshape(3)) > 0.0:
-            raise ValueError("normal must be a non-zero 3-vector")
+            raise ArgumentError(f"normal must be a non-zero 3-vector, got {normal!r}")
         self.size = size
         self.height = height
         self.cell_size = cell_size

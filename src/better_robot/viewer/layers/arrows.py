@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 
+from ...exceptions import ShapeError
 from .._math import RGB, as_frames, quat_z_to, rgb_uint8, unit_cone, unit_cylinder
 from ..layer import Layer
 
@@ -45,7 +46,9 @@ class ArrowsLayer(Layer):
         self.origins = as_frames(origins, 2)
         self.vectors = as_frames(vectors, 2) * np.float32(scale)
         if self.origins.shape != self.vectors.shape:
-            raise ValueError("origins and vectors must have the same shape")
+            raise ShapeError(
+                f"origins and vectors must have the same shape, got {self.origins.shape} and {self.vectors.shape}"
+            )
         super().__init__(name, self.origins.shape[0])
         self.head_size = head_size
         self.line_width = line_width
@@ -56,7 +59,7 @@ class ArrowsLayer(Layer):
         colors = np.asarray(colors, dtype=np.float32)
         self._colors = rgb_uint8(colors, (n_arrows,)) if colors.ndim <= 2 else rgb_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.origins.shape:
-            raise ValueError(f"per-step colors must be (T, N, 3) = {self.origins.shape}, got {self._colors.shape}")
+            raise ShapeError(f"per-step colors must be (T, N, 3) = {self.origins.shape}, got {self._colors.shape}")
         self._shafts: Any = None
         self._heads: Any = None
 
