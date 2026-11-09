@@ -97,6 +97,30 @@ def test_identity_batch_broadcasts_against_the_configuration_batch(value_batch_l
     value_batch_loop_oracle(batched_call, loop_call, execution_batch_shape=(3, 2), rtol=0.0, atol=0.0)
 
 
+def test_time_variations_broadcast_v_against_the_state_batch(value_batch_loop_oracle) -> None:
+    """``v`` of batch ``(3, 2)`` against a state of batch ``(3, 1)`` (C-TENS-2, both ways): J̇ is linear in ``v``, so
+    several velocities per configuration are well defined; every index equals the scalar loop."""
+    model = _model()
+    generator = torch.Generator().manual_seed(1)
+    q = torch.rand(3, 1, model.nq, generator=generator, dtype=torch.float64) - 0.5
+    v = torch.randn(3, 2, model.nv, generator=generator, dtype=torch.float64)
+
+    def variations(state, v: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        return (
+            frame_jacobian_time_variation(model, state, v=v, frame="tip"),
+            frame_jacobian_time_variation(model, state, v=v, frame="tip", reference="local"),
+            joint_jacobian_time_variation(model, state, v=v, joint="elbow", reference="world"),
+        )
+
+    def loop_call(index: tuple[int, ...]):
+        row, velocity = index
+        return variations(forward_kinematics(model, q[row, 0]), v[row, velocity])
+
+    value_batch_loop_oracle(
+        lambda: variations(forward_kinematics(model, q), v), loop_call, execution_batch_shape=(3, 2), rtol=0.0, atol=0.0
+    )
+
+
 def test_non_broadcastable_batches_raise() -> None:
     model = _model()
     placements, _ = _identities(model, 2)
@@ -109,3 +133,6 @@ def test_non_broadcastable_batches_raise() -> None:
         points = torch.zeros(*points_batch, 2, 3, dtype=torch.float64)
         with pytest.raises(ShapeError, match=rf"cannot broadcast points batch {re.escape(str(points_batch))} with"):
             point_jacobian(batched, state, frames=["tip", "link"], points=points)
+        v = torch.zeros(*points_batch, model.nv, dtype=torch.float64)
+        with pytest.raises(ShapeError, match=rf"cannot broadcast v batch {re.escape(str(points_batch))} with"):
+            frame_jacobian_time_variation(batched, state, v=v, frame="tip")

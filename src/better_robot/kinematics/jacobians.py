@@ -22,7 +22,6 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from ..lie._checks import check_tensor
-from ..model._checks import expand_batch
 from ..model.model import Model
 from ._plans import jacobian_plan
 from .configuration import reduced_columns
@@ -68,11 +67,7 @@ def point_jacobian(
     if not frames:
         raise ArgumentError("frames is empty; point_jacobian needs at least one frame")
     check_tensor("points", points, shape=(len(frames), 3), dtype=model.dtype, device=model.device)
-    batch, points_batch = tuple(state.q.shape[:-1]), tuple(points.shape[:-2])
-    try:
-        torch.broadcast_shapes(points_batch, batch)
-    except RuntimeError as error:
-        raise ShapeError(f"cannot broadcast points batch {points_batch} with the state batch {batch}") from error
+    _check_broadcast("points", tuple(points.shape[:-2]), state)
     frame_ids = [model.frame_id(frame) for frame in frames]
     joints = [model.frame_parent_joint_ids[frame_id] for frame_id in frame_ids]
     owners = sorted(set(joints))
@@ -93,11 +88,12 @@ def frame_jacobian_time_variation(
 ) -> torch.Tensor:
     """Time derivative ``dJ/dt`` of `frame_jacobian` along ``v: (B..., nv)``, ``(B..., 6, nv)``.
 
-    ``a = J v̇ + J̇ v`` is the spatial acceleration for ``"world"`` and ``"local"``, the classical acceleration of the
-    frame origin for ``"local_world_aligned"``.
+    ``v``'s batch broadcasts with the state's both ways (J̇ is linear in ``v``, so several velocities per
+    configuration are well defined); ``B...`` is the broadcast batch. ``a = J v̇ + J̇ v`` is the spatial acceleration
+    for ``"world"`` and ``"local"``, the classical acceleration of the frame origin for ``"local_world_aligned"``.
     """
     check_state(model, state)
-    v = _tangent(model, state, v)
+    _check_tangent(model, state, v)
     frame_id = model.frame_id(frame)
     jacobian, variation = _world_time_variation(model, state, v, model.frame_parent_joint_ids[frame_id])
     translation, rotation = state.frame_translations[..., frame_id, :], state.frame_rotations[..., frame_id, :, :]
@@ -114,17 +110,27 @@ def joint_jacobian_time_variation(
 ) -> torch.Tensor:
     """Time derivative ``dJ/dt`` of `joint_jacobian` along ``v: (B..., nv)``, ``(B..., 6, nv)``; pairing as `frame_jacobian_time_variation`."""
     check_state(model, state)
-    v = _tangent(model, state, v)
+    _check_tangent(model, state, v)
     joint = model.joint_id(joint)
     jacobian, variation = _world_time_variation(model, state, v, joint)
     translation, rotation = state.joint_translations[..., joint, :], state.joint_rotations[..., joint, :, :]
     return _express_time_variation(jacobian, variation, translation, rotation, v, reference)
 
 
-def _tangent(model: Model, state: KinematicState, v: torch.Tensor) -> torch.Tensor:
-    """``v`` checked and broadcast to the state's batch, ``(B..., nv)``."""
+def _check_tangent(model: Model, state: KinematicState, v: torch.Tensor) -> None:
+    """Check ``v: (V..., nv)``; ``V...`` must broadcast with the state's batch, and the kernels broadcast it."""
     check_tensor("v", v, shape=(model.nv,), dtype=model.dtype, device=model.device)
-    return expand_batch("v", v, tuple(state.q.shape[:-1]), (model.nv,))
+    _check_broadcast("v", tuple(v.shape[:-1]), state)
+
+
+def _check_broadcast(name: str, batch: tuple[int, ...], state: KinematicState) -> None:
+    """Raise `ShapeError` unless an input's ``batch`` broadcasts with the state's (C-TENS-2)."""
+    try:
+        torch.broadcast_shapes(batch, state.q.shape[:-1])
+    except RuntimeError as error:
+        raise ShapeError(
+            f"cannot broadcast {name} batch {batch} with the state batch {tuple(state.q.shape[:-1])}"
+        ) from error
 
 
 def _world_jacobian(model: Model, state: KinematicState, joint: int) -> torch.Tensor:
