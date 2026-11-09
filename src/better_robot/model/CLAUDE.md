@@ -12,7 +12,9 @@ model tensors in place.
   field; placements normalised; the three `I...`-batched fields must broadcast)
   and `Model.to(device, dtype)` moves every tensor field. Both return a new
   record that shares its source's plans (through `_plan_owner`) and starts
-  with an empty value memo.
+  with an empty value memo. The link is strong on purpose: a copy keeps the
+  first model of its line (tensors, value memo, plans) alive and pickles it
+  along; a weak link would break pickling and drop the sharing.
 - `nq`, `nv`, `njoints`, `dtype`, `device`, ... are derived properties. Never
   add forwarding properties or `__getattr__`.
 - `structure_key` hashes the static fields: equal keys mean the same topology
