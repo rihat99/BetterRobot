@@ -13,8 +13,13 @@ from better_robot.exceptions import (
     DtypeMismatchError,
     ShapeError,
 )
+from better_robot import dynamics, kinematics, load
+from better_robot.dynamics._world import dynamics_plan
 from better_robot.io.build_model import build_model
 from better_robot.io.builder import ModelBuilder
+from better_robot.kinematics._plans import fk_plan, jacobian_plan
+from better_robot.kinematics.configuration import manifold_plan, mimic_plan
+from tests.support.robots import panda_urdf
 
 
 def _pose(x: float = 0.0) -> torch.Tensor:
@@ -122,3 +127,54 @@ def test_to_moves_every_tensor_field_and_keeps_a_rebound_batch() -> None:
     assert moved.frame_placements.shape == frames.shape
     assert all(getattr(moved, name).dtype == torch.float64 for name in _tensor_fields(moved))
     torch.testing.assert_close(moved.frame_placements, frames.double())
+
+
+_PLANS = (fk_plan, jacobian_plan, dynamics_plan, mimic_plan, manifold_plan)
+
+
+def _queries(model) -> tuple[torch.Tensor, ...]:
+    """Every result that reads a plan: FK, a frame Jacobian, RNEA, CRBA, ABA and a configuration step."""
+    q = model.q_neutral + 0.1
+    v = torch.linspace(-0.5, 0.5, model.nv, dtype=model.dtype)
+    state = kinematics.forward_kinematics(model, q)
+    return (
+        state.frame_poses,
+        kinematics.frame_jacobian(model, state, frame=model.frame_names[-1]),
+        dynamics.inverse_dynamics(model, state, v=v, a=v),
+        dynamics.mass_matrix(model, state),
+        dynamics.forward_dynamics(model, state, v=v, tau=v),
+        kinematics.integrate(model, q, v),
+    )
+
+
+@pytest.mark.parametrize("name", _tensor_fields(_model()))
+def test_a_copy_shares_its_source_plans_and_computes_as_a_fresh_model(name: str) -> None:
+    """A ``with_values`` or ``to`` copy takes its source's plans (they depend on the static fields only) and
+    computes, bitwise, what a model with its values and plans of its own computes (so no value memo came along)."""
+    model = load(panda_urdf(), dtype=torch.float64)
+    _queries(model)  # the source builds every plan
+    changed = getattr(model, name) * 1.01  # every entry moves; placements are renormalised by with_values
+    copy = model.with_values(**{name: changed})
+    copied = _queries(copy)
+    fresh = torch.utils._pytree.tree_unflatten(*torch.utils._pytree.tree_flatten(copy))  # no plan owner
+    expected = _queries(fresh)
+
+    key = {"dtype": model.dtype, "device": model.device}
+    assert all(plan(copy, **key) is plan(model, **key) for plan in _PLANS)
+    assert all(plan(fresh, **key) is not plan(model, **key) for plan in _PLANS)
+    for result, oracle in zip(copied, expected, strict=True):
+        assert torch.equal(result, oracle), name
+    moved = copy.to(dtype=torch.float32)
+    _queries(moved)
+    assert fk_plan(moved, dtype=torch.float32, device=model.device) is fk_plan(
+        model, dtype=torch.float32, device=model.device
+    )
+
+
+def test_a_replace_that_changes_the_structure_builds_its_own_plans() -> None:
+    model = load(panda_urdf())
+    copy = model.with_values(gravity=model.gravity * 2.0)
+    renamed = dataclasses.replace(copy, name="other")  # carries the plan link; the structure key differs
+    key = {"dtype": model.dtype, "device": model.device}
+    assert fk_plan(copy, **key) is fk_plan(model, **key)
+    assert fk_plan(renamed, **key) is not fk_plan(model, **key)

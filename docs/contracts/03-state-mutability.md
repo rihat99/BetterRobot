@@ -77,9 +77,10 @@ serves a differentiable call. Its allowed names, each derived only from the stat
 | `"world_geometry"` | `KinematicState.world_geometry` (record 0041) | `(N, 6, nv_full)` columns, joint rotations, translations and origin about the first joint |
 
 A new name is added to this table in the same change that writes it. The model-side cache is `Model._plans`:
-constant tensors derived from the static fields, keyed by kind, dtype and device. `Model._memo` holds values
-derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind, grad
-mode and the tensor fields' `requires_grad` flags, written only when the value carries no autograd graph and
+constant tensors derived from the static fields, keyed by kind, dtype and device, and shared by every
+`with_values` and `to` copy of a model (`Model._plan_owner`; a copy keeps every static field). `Model._memo` holds
+values derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind,
+grad mode and the tensor fields' `requires_grad` flags, written only when the value carries no autograd graph and
 bypassed under `torch.inference_mode`, so nothing on the model is keyed by a tensor's `_version` (decision
 records 0011 and 0040).
 
@@ -99,8 +100,9 @@ Enforcement: `tests/optim/test_problem.py`; `[review]`.
 
 `Model.to(device, dtype)` returns a new `Model` with every tensor field moved; it never moves tensors in
 place. Caches hang off the object they derive from: the plans in `Model._plans` and the world geometry in
-`KinematicState._memo`. A moved model therefore starts with empty caches, and a state made from the old model is
-not valid for the moved one; recompute it with `forward_kinematics`. Every function taking `(model, state)` calls
+`KinematicState._memo`. A moved model therefore starts with an empty value memo and shares only the plans, which
+depend on the static fields, dtype and device alone; a state made from the old model is not valid for the moved
+one; recompute it with `forward_kinematics`. Every function taking `(model, state)` calls
 `check_state` (`src/better_robot/kinematics/forward.py::check_state`) once: a state in another dtype or
 on another device raises `DtypeMismatchError` or `DeviceMismatchError`, a state of another structure `ModelError`;
 a copy of the same robot (`with_values`) is accepted.

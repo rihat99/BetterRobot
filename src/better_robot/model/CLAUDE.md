@@ -11,7 +11,8 @@ model tensors in place.
   `Model.with_values(**fields)` is the validated public rebind (every tensor
   field; placements normalised; the three `I...`-batched fields must broadcast)
   and `Model.to(device, dtype)` moves every tensor field. Both return a new
-  record with no plans.
+  record that shares its source's plans (through `_plan_owner`) and starts
+  with an empty value memo.
 - `nq`, `nv`, `njoints`, `dtype`, `device`, ... are derived properties. Never
   add forwarding properties or `__getattr__`.
 - `structure_key` hashes the static fields: equal keys mean the same topology
@@ -19,8 +20,10 @@ model tensors in place.
 - Plans (constant tensors derived from the static fields: FK, Jacobian,
   dynamics, mimic, manifold) are built on first use by
   `Model._plan(kind, build, *, dtype, device)` and kept in `_plans`
-  (`init=False`, never copied). The model is a registered pytree: leaves are
-  the tensor fields, context the static fields.
+  (`init=False`, never copied; a copy with the same `structure_key` takes its
+  `_plan_owner`'s plan instead of building one). The model is a registered
+  pytree: leaves are the tensor fields, context the static fields (not the
+  plan link).
 - Every public boundary checks each tensor input once with the one validator,
   `src/better_robot/lie/_checks.py::check_tensor` (a dtype or device other than the model's
   raises), then aligns its batch with `_checks.py` (`batch_shape`,

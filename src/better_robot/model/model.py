@@ -57,6 +57,7 @@ class Model:
     | ``velocity_limit``, ``effort_limit``, ``armature``, ``damping`` | tensor | ``(nv,)`` |
     | ``gravity`` | tensor | ``(6,)`` spatial gravity ``[linear, angular]`` |
     | ``q_neutral`` | tensor | ``(nq,)`` |
+    | ``_plan_owner`` | static, not hashed | ``Model`` whose plans a ``with_values``/``to`` copy shares, else ``None`` |
     """
 
     name: str
@@ -92,6 +93,10 @@ class Model:
     _plans: dict = field(default_factory=dict, init=False, repr=False, compare=False)
     # Values derived from the tensor fields keyed by (kind, grad mode), written only without a graph; never copied.
     _memo: dict = field(default_factory=dict, init=False, repr=False, compare=False)
+    # A copy keeps every static field and plans derive from those alone, so `with_values` and `to` point their copy
+    # at the first model of the line, and `_plan` takes that model's plans instead of building them again. Not in
+    # `structure_key`, the pytree context or the value memo.
+    _plan_owner: Model | None = field(default=None, repr=False, compare=False, kw_only=True)
 
     @property
     def nq(self) -> int:
@@ -268,12 +273,13 @@ class Model:
             torch.broadcast_shapes(*batches.values())
         except RuntimeError as error:
             raise ShapeError(f"value batches do not broadcast: {batches}") from error
-        return dataclasses.replace(self, **checked)
+        return dataclasses.replace(self, **checked, _plan_owner=self if self._plan_owner is None else self._plan_owner)
 
     def to(self, device: torch.device | str | None = None, dtype: torch.dtype | None = None) -> Model:
-        """Copy with every tensor field on ``device`` in ``dtype`` (plans are rebuilt there on demand)."""
+        """Copy with every tensor field on ``device`` in ``dtype``; it shares this model's plans (a plan for a new
+        dtype or device is built there on demand)."""
         moved = {name: getattr(self, name).to(device=device, dtype=dtype) for name in _TENSOR_FIELDS}
-        return dataclasses.replace(self, **moved)
+        return dataclasses.replace(self, **moved, _plan_owner=self if self._plan_owner is None else self._plan_owner)
 
     def _plan(
         self,
@@ -283,11 +289,21 @@ class Model:
         dtype: torch.dtype,
         device: torch.device,
     ) -> Any:
-        """The ``kind`` plan for ``dtype`` and ``device``, built by ``build(model, dtype, device)`` on first use."""
+        """The ``kind`` plan for ``dtype`` and ``device``, built by ``build(model, dtype, device)`` on first use.
+
+        A ``with_values`` or ``to`` copy takes the plan of its ``_plan_owner``, building it there when missing, so
+        every copy of one model shares one plan per key; a ``dataclasses.replace`` that changed a static field has
+        another ``structure_key`` and builds its own.
+        """
         key = (kind, dtype, device)
         if key not in self._plans:
-            with torch.inference_mode(False):  # an inference tensor in a plan would break later autograd calls
-                self._plans[key] = build(self, dtype, device)
+            owner = self._plan_owner
+            if owner is None or owner.structure_key != self.structure_key:
+                owner = self
+            if key not in owner._plans:
+                with torch.inference_mode(False):  # an inference tensor in a plan would break later autograd calls
+                    owner._plans[key] = build(self, dtype, device)
+            self._plans[key] = owner._plans[key]
         return self._plans[key]
 
     def _value(self, kind: str, derive: Callable[[Model], torch.Tensor]) -> torch.Tensor:
@@ -311,14 +327,18 @@ class Model:
         return self._memo[key]
 
 
+#: The pytree context: the static fields (the plan link is not data of the robot).
+_STATIC_FIELDS = tuple(
+    f.name for f in dataclasses.fields(Model) if f.init and f.name not in (*_TENSOR_FIELDS, "_plan_owner")
+)
+
+
 def _flatten(model: Model) -> tuple[list[torch.Tensor], tuple]:
-    static = tuple(getattr(model, f.name) for f in dataclasses.fields(model) if f.init and f.name not in _TENSOR_FIELDS)
-    return [getattr(model, name) for name in _TENSOR_FIELDS], static
+    return [getattr(model, name) for name in _TENSOR_FIELDS], tuple(getattr(model, name) for name in _STATIC_FIELDS)
 
 
 def _unflatten(leaves: list, context: tuple) -> Model:
-    names = [f.name for f in dataclasses.fields(Model) if f.init and f.name not in _TENSOR_FIELDS]
-    return Model(**dict(zip(names, context, strict=True)), **dict(zip(_TENSOR_FIELDS, leaves, strict=True)))
+    return Model(**dict(zip(_STATIC_FIELDS, context, strict=True)), **dict(zip(_TENSOR_FIELDS, leaves, strict=True)))
 
 
 _pytree.register_pytree_node(Model, _flatten, _unflatten)
