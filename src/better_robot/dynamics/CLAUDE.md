@@ -11,7 +11,7 @@ contracts in `docs/contracts/00-index.md`.
 - `_world.py` is the only implementation: no per-joint loops, no second RNEA. Sums over ancestors or subtrees
   are products with the constant support matrices of `DynamicsPlan`.
 - Never write the state's memo: `world_kinematics` reads `state.world_geometry`, which kinematics memoises
-  (record 0041); the 6x6 inertias come
+  (record 0041; keyed by grad mode, bypassed under inference mode and compile); the 6x6 inertias come
   from the model's value memo (`Model._value`, record 0040), never from the state (`tests/contract/test_caches.py`).
 - World quantities are about the first joint's position (`WorldKinematics.origin`), not the world origin;
   shift twists and points by `origin`, and keep it, or float32 accuracy degrades far from the world origin

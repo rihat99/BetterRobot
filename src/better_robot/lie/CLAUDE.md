@@ -13,7 +13,9 @@ Functional API (no classes). Plain tensors in, plain tensors out.
 
 ## Implementation
 
-The pure-Torch implementations live directly in `so3.py` and `se3.py`; PyPose was removed in P10-D. Shared quaternion, matrix, hat, and Taylor-cutoff primitives live in `so3.py` and are imported by `se3.py` or `tangents.py` as needed. There is no runtime dispatch here.
+The pure-Torch implementations live directly in `so3.py`, `se3.py` and `tangents.py`; there is no runtime
+dispatch. Quaternion, matrix and Taylor-cutoff primitives live in `so3.py`; the hat map lives in `tangents.py`
+(`hat_so3_raw`), which `se3.py` imports.
 
 Every public function checks its tensor inputs with `_checks.py` (the library's one validator) and, when an
 in-library caller needs it, calls an unchecked `<name>_raw` twin; `kinematics`, `dynamics`, `spatial`, `model`

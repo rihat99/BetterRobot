@@ -4,17 +4,11 @@ The root public surface is intentionally small.
 ``tests/contract/test_public_api.py`` guards the required core without freezing
 an exact symbol count. Other documented public symbols live under qualified
 submodules; unlisted implementation details may be reshaped without a
-deprecation. See ``docs/concepts/architecture.md §Public API contract``.
+deprecation. See ``docs/concepts/architecture.md``, section "Public API is what ``__all__`` lists".
 
-Layered DAG (arrows point from dependent to dependency)::
-
-    terms → kinematics, dynamics, collision → model → spatial → lie
-      │
-      ▼
-    optim                     (imports only torch; knows nothing about robots)
-
-    io → model, lie      (io reads nothing from optim or terms)
-    viewer → terms            (topmost; no-one imports from viewer)
+Each package imports only the packages of its row in the edge table (``ALLOWED`` in
+``tests/contract/test_layer_dependencies.py``, ``docs/contracts/07-dependencies-layering.md``); ``optim`` imports
+only torch and knows nothing about robots.
 """
 
 from __future__ import annotations

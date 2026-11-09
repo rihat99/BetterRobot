@@ -64,8 +64,9 @@ If a function caches (for example a joint-ordering table), the cache lives in a 
 `functools.lru_cache` keyed on immutable inputs, never in a module-level mutable or a hidden attribute set on
 the user's object. A cache never changes a result, only its cost. Documented exception: `KinematicState._memo`
 (`src/better_robot/kinematics/forward.py::KinematicState`) is a private memo dict inside the frozen
-state, keyed by `(name, grad mode)` and written only by `KinematicState._memoised`, so a value made under
-`torch.no_grad` never serves a differentiable call. Its allowed names, each derived only from the state's own
+state, keyed by `(name, grad mode)`, written only by `KinematicState._memoised` and bypassed under
+`torch.inference_mode` and `torch.compile` like `Model._value`, so a value made under `torch.no_grad` never
+serves a differentiable call. Its allowed names, each derived only from the state's own
 `joint_transforms`/`frame_transforms` and the model structure, are:
 
 | name | filled by | value |

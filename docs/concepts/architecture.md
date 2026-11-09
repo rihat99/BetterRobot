@@ -117,9 +117,9 @@ from `__all__`, can change without a deprecation. The [API reference](../referen
 documents each package's `__all__`.
 
 ```python
-import better_robot.kinematics as kinematics_state
+from better_robot import kinematics
 
-print(br.forward_kinematics is kinematics_state.forward_kinematics)
+print(br.forward_kinematics is kinematics.forward_kinematics)
 print("Model" in br.__all__)
 ```
 ```output

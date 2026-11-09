@@ -18,15 +18,15 @@ listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, wh
 | `io` | `exceptions`, `lie`, `model` |
 | `optim` | `exceptions` |
 | `terms` | `exceptions`, `lie`, `model`, `kinematics`, `collision`, `optim` |
-| `viewer` | `exceptions`, `lie`, `model`, `kinematics`, `collision`; `io` sits in the edge ratchet |
+| `viewer` | `exceptions`, `lie`, `model`, `kinematics`, `collision` |
 | `testing` | `exceptions`, `model` |
 
 ## C-DEP-1 Imports follow the edge table, which has no cycle (MUST)
 
 A package imports only the packages its row names. No row names `viewer`, `terms` or `testing`: no other package
-depends on them. `dynamics` and `collision` import `kinematics`: `dynamics` builds its world-frame Jacobians
-on the private `src/better_robot/kinematics/_jacobian.py`, which becomes a public-internal
-`kinematics.jacobian_columns` `[planned: L-3]`. Outside the package, `lie`, `spatial` and `optim` import torch and
+depends on them. `dynamics` and `collision` import `kinematics`: `dynamics` reads the state's world column table
+and geometry (`KinematicState.jacobian_columns`, `KinematicState.world_geometry`, record 0041) and the Jacobian
+plan of `src/better_robot/kinematics/_plans.py`. Outside the package, `lie`, `spatial` and `optim` import torch and
 nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
 
 ```python { .no-run }
