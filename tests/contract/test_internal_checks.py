@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 import torch
 
+from better_robot import _internal_checks
 from better_robot._internal_checks import check_unit_quaternions
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
@@ -136,6 +137,11 @@ def test_the_switch_is_read_once_by_its_module() -> None:
             [sys.executable, "-c", script], env=environment, capture_output=True, text=True, check=True
         )
         assert result.stdout.strip() == expected
+
+
+def test_the_test_tiers_run_with_the_switch_on() -> None:
+    """``tests/conftest.py`` turns the switch on before better_robot imports, unless the environment sets it."""
+    assert _internal_checks.ENABLED == (os.environ["BETTER_ROBOT_INTERNAL_CHECKS"] == "1")
 
 
 def test_value_checks_sit_behind_the_switch_or_an_opt_in_argument() -> None:

@@ -8,7 +8,7 @@ blocking baseline or gate merges.
 ## Running
 
 ```bash
-uv run pytest tests/bench/bench_*.py -m bench --benchmark-only
+BETTER_ROBOT_INTERNAL_CHECKS=0 uv run pytest tests/bench/bench_*.py -m bench --benchmark-only
 ```
 
 `pytest -m bench` collects the `bench_*.py` files (`python_files` in

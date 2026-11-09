@@ -19,6 +19,10 @@ tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is 
 The release row is the coverage gate of `lie` and `spatial`: both are torch-only mathematics with no robot in
 sight, so every line and branch is reachable from a unit test, and the gate holds them at 100 %.
 
+Every tier runs the internal invariants (decision record 0021): `tests/conftest.py` sets
+`BETTER_ROBOT_INTERNAL_CHECKS=1` unless the environment sets it, so a library bug that breaks an invariant fails
+a test. The benchmarks set it to `0`: an invariant reads tensor values, a host sync per call.
+
 While you edit one package, run the fast tier plus that package's folder, for example
 `uv run pytest tests/kinematics -q`. The hooks live in `.pre-commit-config.yaml`;
 `uv run pre-commit install` installs them.
