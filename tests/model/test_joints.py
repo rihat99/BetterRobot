@@ -73,7 +73,7 @@ def test_kinds_are_values() -> None:
 )
 def test_axis_must_be_a_unit_tuple(make, axis, match: str) -> None:
     """A kind with an axis accepts a tuple of three finite floats of unit norm and nothing else: the kinds are
-    hashable values, and a non-unit axis would scale the placement and the Jacobian column (R1+R2 review)."""
+    hashable values, and a non-unit axis would scale the placement and the Jacobian column."""
     with pytest.raises(ArgumentError, match=match):
         make(axis)
 

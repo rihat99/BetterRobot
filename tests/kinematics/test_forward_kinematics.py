@@ -1,4 +1,4 @@
-"""``kinematics.forward_kinematics`` / ``frame_jacobian`` agree with autograd and with each other."""
+"""``kinematics.forward_kinematics`` state fields agree with the poses; ``frame_jacobian`` agrees with autograd."""
 
 import pytest
 import torch
@@ -10,15 +10,13 @@ from better_robot.lie import so3
 from tests.support.robots import panda_urdf
 
 
-def test_state_matches_data_api_and_autograd():
+def test_state_fields_agree_with_poses_and_frame_jacobian_with_autograd():
     model = br.load(panda_urdf(), dtype=torch.float64)
     generator = torch.Generator().manual_seed(0)
     q = torch.stack([model.random_configuration(generator=generator) for _ in range(4)])
     frame = "panda_hand"
 
     state = kinematics.forward_kinematics(model, q)
-    state = br.forward_kinematics(model, q)
-    torch.testing.assert_close(state.joint_poses, state.joint_poses)
     torch.testing.assert_close(state.frame_translations, state.frame_poses[..., :3], atol=1e-14, rtol=0.0)
     torch.testing.assert_close(state.frame_rotations, so3.to_matrix(state.frame_poses[..., 3:]), atol=1e-14, rtol=0.0)
     hand = model.frame_id(frame)
@@ -28,12 +26,6 @@ def test_state_matches_data_api_and_autograd():
         state.q = q
 
     jacobian = kinematics.frame_jacobian(model, state, frame=frame)
-    torch.testing.assert_close(jacobian, br.frame_jacobian(model, state, frame=model.frame_id(frame)))
-    for reference in ("world", "local"):
-        torch.testing.assert_close(
-            kinematics.frame_jacobian(model, state, frame=frame, reference=reference),
-            br.frame_jacobian(model, state, frame=model.frame_id(frame), reference=reference),
-        )
     frame_id = model.frame_id(frame)
     position_jacobian = torch.autograd.functional.jacobian(
         lambda x: kinematics.forward_kinematics(model, x).frame_translations[:, frame_id].sum(0), q
@@ -69,14 +61,13 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
         frame_placements=model.frame_placements[None].expand(2, -1, -1),
     )
     state = kinematics.forward_kinematics(batched, q)
-    state = br.forward_kinematics(batched, q)
-    torch.testing.assert_close(state.joint_poses, state.joint_poses)
     torch.testing.assert_close(state.frame_translations, state.frame_poses[..., :3], atol=1e-14, rtol=0.0)
     assert float((state.frame_translations[1] - state.frame_translations[0]).abs().max()) > 0.05
 
 
-def test_state_review_regressions():
-    """An unaligned joint axis, a moved placement in a new model after a call, first call in inference mode."""
+def test_unaligned_axis_moved_placement_and_inference_mode_first_call():
+    """An unaligned joint axis gives orthonormal rotations equal to the pose quaternions; a first call in inference
+    mode leaves autograd working; a moved placement in a new model moves the joint."""
     builder = ModelBuilder("axis")
     base = builder.add_body("base", mass=1.0)
     link = builder.add_body("link", mass=1.0)

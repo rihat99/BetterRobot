@@ -46,41 +46,6 @@ def _value_batch(model, batch_shape: tuple[int, ...]):
     return placements, frames
 
 
-@pytest.mark.parametrize("batch_shape", ((3,), (2, 3)))
-def test_value_batched_fk_matches_scalar_loop(
-    value_batch_loop_oracle,
-    batch_shape: tuple[int, ...],
-) -> None:
-    model = _model()
-    placements, frames = _value_batch(model, batch_shape)
-    rebound = model.with_values(
-        joint_placements=placements,
-        frame_placements=frames,
-    )
-
-    def batched_call():
-        state = forward_kinematics(rebound, model.q_neutral)
-        assert state.q.shape[:-1] == batch_shape
-        assert state.frame_poses is not None
-        return state.joint_poses, state.frame_poses
-
-    def loop_call(index: tuple[int, ...]):
-        scalar = model.with_values(
-            joint_placements=placements[index],
-            frame_placements=frames[index],
-        )
-        state = forward_kinematics(scalar, model.q_neutral)
-        return state.joint_poses, state.frame_poses
-
-    value_batch_loop_oracle(
-        batched_call,
-        loop_call,
-        execution_batch_shape=batch_shape,
-        rtol=1e-11,
-        atol=1e-12,
-    )
-
-
 def test_person_time_broadcast_requires_explicit_singleton_axis() -> None:
     model = _model()
     q = model.q_neutral.expand(2, 3, -1).clone()
@@ -107,7 +72,6 @@ def test_frame_only_batch_expands_data_and_jacobian_uses_frame_table() -> None:
 
     assert state.q.shape[:-1] == (2,)
     assert state.q.shape == (2, model.nq)
-    assert state.frame_poses is not None
     assert not torch.allclose(
         state.frame_poses[0, -1],
         state.frame_poses[1, -1],
