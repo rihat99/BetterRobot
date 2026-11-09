@@ -39,23 +39,16 @@ class PlotPanel(Layer):
         self.labels = labels or [f"{name} {k}" for k in range(self.series.shape[1])]
         self.time = np.arange(self.series.shape[0], dtype=np.float64) / fps
         self._plot: Any = None
-        self._visible = True
 
     def build(self, scene: Any, root: str) -> None:
         pass
 
     def build_gui(self, gui: Any) -> None:
         data = (self.time, *(self.series[:, k].astype(np.float64) for k in range(self.series.shape[1])))
-        self._plot = gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False})
+        self._plot = self._track(gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False}))
 
     def set_step(self, step: int) -> None:
         self._plot.series = self._series_config(step)
-
-    def set_visible(self, visible: bool) -> None:
-        self._plot.visible = visible
-
-    def dispose(self) -> None:
-        self._plot.remove()
 
     def _series_config(self, step: int) -> tuple[dict[str, Any], ...]:
         marker = {"show": True, "size": 8, "filter": (step,)}

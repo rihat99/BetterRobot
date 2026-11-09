@@ -106,20 +106,21 @@ def test_valid_hides_a_layer_on_invalid_samples_without_touching_its_switch() ->
     viewer = Viewer(server=server)
     valid = np.array([True, True, False, False, True])
     layer = viewer.add(PointsLayer("person", np.zeros((5, 4, 3))), valid=valid)
-    cloud = server.scene.nodes["/scene/person/points"]
+    frame, cloud = server.scene.nodes["/scene/person"], server.scene.nodes["/scene/person/points"]
     viewer.show(2)
-    assert cloud.visible is False and layer.visible  # hidden for the sample; the sidebar switch stays on
+    assert frame.visible is False and cloud.visible and layer.visible  # the layer's frame hides the sample
     viewer.show(3)
-    assert cloud.writes.count("visible") == 1  # still invalid: no second write
+    assert frame.writes.count("visible") == 1  # still invalid: no second write
     viewer.show(4)
-    assert cloud.visible is True
+    assert frame.visible is True
     viewer.set_visible(layer, False)
+    assert cloud.visible is False and not layer.visible
     viewer.show(2)
-    viewer.set_visible(layer, True)  # shown again on an invalid sample: stays hidden
-    assert cloud.visible is False and layer.visible
+    viewer.set_visible(layer, True)  # switched on again on an invalid sample: its frame keeps it hidden
+    assert frame.visible is False and cloud.visible and layer.visible
     valid[2] = True  # kept by reference: edit in place and re-push
     viewer.show()
-    assert cloud.visible is True
+    assert frame.visible is True
     with pytest.raises(ShapeError, match="valid must have shape"):
         viewer.add(PointsLayer("bad", np.zeros((5, 4, 3))), valid=np.ones((5, 4), bool))  # points: whole layer only
 

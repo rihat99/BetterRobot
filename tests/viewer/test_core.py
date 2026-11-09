@@ -10,7 +10,7 @@ import pytest
 from better_robot.viewer._math import quat_z_to, rotate, unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
-from better_robot.viewer.layers.mesh import SpheresLayer
+from better_robot.viewer.layers.mesh import MeshLayer, SpheresLayer
 from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
@@ -400,3 +400,44 @@ def test_layers_folder_checkboxes_follow_set_visible_and_survive_rebuild() -> No
     assert skel.visible is True and viewer._entry(skel).step == 4
     viewer.set_visible(arm, True)
     assert viewer._entry(arm).step == 4
+
+
+def test_replace_puts_the_new_layer_in_the_old_ones_place_and_visibility() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    old = viewer.add(_skeleton(10, "body"), group="human")
+    viewer.add(PointsLayer("cloud", np.zeros((3, 2, 3))), group="human")
+    viewer.set_visible(old, False)
+    viewer.show(2)
+    box = next(c for c in server.gui.controls if c.name == "human/body")
+    new = _skeleton(5, "body2")
+    viewer.replace(old, new)
+    assert server.scene.nodes["/human/body"].removed and server.scene.nodes["/human/body/joints"].removed
+    assert box.removed and [layer.name for layer in viewer.layers] == ["body2", "cloud"]
+    assert new.visible is False and server.scene.nodes["/human/body2/joints"].visible is False
+    assert viewer.timeline.nsteps == 5  # fitted to the layers now present
+    viewer.set_visible(new, True)
+    assert viewer._entry(new).step == 2
+    with pytest.raises(ArgumentError, match="already has a layer named 'cloud'"):
+        viewer.replace(new, PointsLayer("cloud", np.zeros((3, 2, 3))))
+    with pytest.raises(ArgumentError, match="not in this viewer"):
+        viewer.replace(old, _skeleton(5, "again"))
+
+
+def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    mesh = viewer.add(MeshLayer("mesh", np.zeros((3, 3)), np.array([[0, 1, 2]])))
+    spheres = viewer.add(SpheresLayer("balls", np.zeros((2, 3)), np.ones(2), opacity=1.0))
+    mesh.set_opacity(0.4)
+    spheres.set_opacity(0.4)
+    assert server.scene.nodes["/scene/mesh/mesh"].opacity == 0.4 and mesh.opacity == 0.4
+    assert server.scene.nodes["/scene/balls/spheres"].opacity == 0.4
+    mesh.set_opacity(1.0)
+    assert server.scene.nodes["/scene/mesh/mesh"].opacity is None  # viser's opaque
+    viewer.rebuild(mesh)
+    assert server.scene.nodes["/scene/mesh/mesh"].props["opacity"] is None
+    with pytest.raises(ArgumentError, match=r"\(0, 1\]"):
+        mesh.set_opacity(0.0)
+    with pytest.raises(ArgumentError, match="draws no surface"):
+        viewer.add(PointsLayer("cloud", np.zeros((1, 3)))).set_opacity(0.5)

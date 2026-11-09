@@ -7,7 +7,7 @@ from typing import Any, final
 
 import numpy as np
 
-from ...exceptions import ShapeError
+from ...exceptions import ArgumentError, ShapeError
 from .._math import RGB, as_frames, compose_poses, rgb_uint8, rotate, unit_sphere, xyzw_to_wxyz
 from ..layer import Layer
 
@@ -55,6 +55,10 @@ class MeshLayer(Layer):
     def set_step(self, step: int) -> None:
         self._mesh.vertices = self.vertices[step]
 
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
+        self._fade(opacity)
+
 
 @final
 @dataclass(frozen=True)
@@ -91,8 +95,10 @@ class RigidMeshLayer(Layer):
             np.stack([spec.origin for spec in meshes]).astype(np.float32) if meshes else np.zeros((0, 7), np.float32)
         )
         self._nodes: list[Any] = []
+        self._plain: list[Any] = []  # the nodes of meshes without their own colours, which take an opacity
 
     def build(self, scene: Any, root: str) -> None:
+        self._nodes, self._plain = [], []
         for index, spec in enumerate(self.meshes):
             name = f"{root}/mesh_{index}"
             if spec.trimesh is not None:
@@ -106,6 +112,8 @@ class RigidMeshLayer(Layer):
                     opacity=None if self.opacity >= 1.0 else self.opacity,
                 )
             self._nodes.append(self._track(node))
+            if spec.trimesh is None:
+                self._plain.append(node)
 
     def world_points(self, step: int) -> np.ndarray | None:
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
@@ -122,6 +130,15 @@ class RigidMeshLayer(Layer):
         for index, node in enumerate(self._nodes):
             node.position = world[index, :3]
             node.wxyz = wxyz[index]
+
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the meshes at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a textured or
+        vertex-coloured mesh (``MeshSpec.trimesh``) stays opaque."""
+        if not 0.0 < opacity <= 1.0:
+            raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
+        self.opacity = float(opacity)
+        for node in self._plain:
+            node.opacity = None if opacity >= 1.0 else self.opacity
 
 
 @final
@@ -183,3 +200,7 @@ class SpheresLayer(Layer):
             self._spheres.batched_colors = self._colors[step]
         if self.valid is not None and self.valid.ndim == 2:
             self._spheres.batched_scales = self.radii * self.valid[step]  # radius 0 hides an invalid sphere
+
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the spheres at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
+        self._fade(opacity)

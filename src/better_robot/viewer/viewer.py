@@ -25,9 +25,9 @@ _EMPTY_SCENE_POINTS = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
 @dataclass
 class _Entry:
     layer: Layer
+    node: Any  # the frame ``/<group>/<layer.name>`` the layer builds under; hidden on samples ``valid`` marks invalid
     step: int = -1  # last step pushed; -1 = never
     checkbox: Any = None  # the layer's row in the sidebar's Layers folder
-    shown: bool = True  # nodes shown; False while a visible layer sits on a sample its ``valid`` marks invalid
 
 
 @final
@@ -144,17 +144,24 @@ class Viewer:
         # Assigned only once the add can no longer be refused, and always, so a re-added layer
         # never keeps the times or validity of an earlier add.
         layer.times, layer.valid = times, valid
-        layer.apply_theme(self.theme)
-        layer.root = f"/{group}/{layer.name}"
-        entry = group_state.entries[layer.name] = _Entry(layer)
+        entry = group_state.entries[layer.name] = self._entry_for(layer, group)
         self._build(entry, group)
         self.timeline.extend(self._span(layer))
+        self._timeline_gui()
+        self._push(entry, self.timeline.step)
+        return layer
+
+    def _entry_for(self, layer: Layer, group: str) -> _Entry:
+        layer.apply_theme(self.theme)
+        layer.root = f"/{group}/{layer.name}"
+        return _Entry(layer, self.server.scene.add_frame(layer.root, show_axes=False))
+
+    def _timeline_gui(self) -> None:
+        """Build the Timeline folder once the timeline has more than one step."""
         if self.timeline.nsteps > 1 and self._timeline_folder is None:
             self._timeline_folder = self.server.gui.add_folder("Timeline")
             with self._timeline_folder:
                 self.timeline.build_gui(self.server.gui)
-        self._push(entry, self.timeline.step)
-        return layer
 
     def add_plot(self, name: str, series: Any, *, labels: list[str] | None = None, group: str = "plots") -> PlotPanel:
         """Sidebar chart of ``series (T, K)`` against time with a marker at the current step."""
@@ -170,9 +177,7 @@ class Viewer:
             group_state = self._group(group)
             del self._groups[group]
             for entry in group_state.entries.values():
-                entry.layer.dispose()
-                if entry.checkbox is not None:
-                    entry.checkbox.remove()
+                self._teardown(entry)
             group_state.node.remove()
             self._fit_timeline()
 
@@ -200,13 +205,11 @@ class Viewer:
         if playing:
             self.timeline.play()
 
-    def set_visible(self, layer: Layer, visible: bool) -> None:
+    def set_visible(self, layer: Layer, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Hide a layer (skipped by ``show``) or show it, catching up to the current step."""
         with self._lock:
             entry = self._entry(layer)
-            layer._visible = visible  # also for subclasses whose set_visible skips the base class
             layer.set_visible(visible)
-            entry.shown = visible
             if entry.checkbox is not None and entry.checkbox.value != visible:
                 entry.checkbox.value = visible
             if visible:
@@ -333,14 +336,45 @@ class Viewer:
             entry = self._entry(layer)
             group = next(name for name, state in self._groups.items() if state.entries.get(layer.name) is entry)
             layer.dispose()
+            order = None if entry.checkbox is None else entry.checkbox.order
             if entry.checkbox is not None:
                 entry.checkbox.remove()
                 entry.checkbox = None
-            self._build(entry, group)
+            self._build(entry, group, order=order)
             layer.set_visible(layer.visible)
-            entry.shown = layer.visible
             if layer.visible:
                 self._push(entry, self.timeline.step)
+
+    def replace(self, old: Layer, new: Layer) -> None:
+        """Put ``new`` where ``old`` is: same group and Layers row, ``old``'s visibility, the current step pushed.
+
+        ``old``'s scene nodes and controls go; ``new`` is built under ``/<group>/<new.name>`` and the timeline is fitted
+        to the layers now present. ``new`` arrives without ``times`` or ``valid`` (``add``'s per-layer options); a
+        new name must be free in the group. Use it to swap the data a layer draws, such as a body switched in a studio.
+        """
+        with self._lock:
+            entry = self._entry(old)
+            group = next(name for name, state in self._groups.items() if state.entries.get(old.name) is entry)
+            entries = self._groups[group].entries
+            if new.name != old.name and new.name in entries:
+                raise ArgumentError(
+                    f"group {group!r} already has a layer named {new.name!r}; give the new layer another name"
+                )
+            order = None if entry.checkbox is None else entry.checkbox.order
+            self._teardown(entry)
+            new.times = new.valid = None
+            new.set_visible(old.visible)
+            replacement = self._entry_for(new, group)
+            self._groups[group].entries = {
+                (new.name if name == old.name else name): (replacement if name == old.name else value)
+                for name, value in entries.items()
+            }
+            self._build(replacement, group, order=order)
+            new.set_visible(new.visible)
+            self._fit_timeline()
+            self._timeline_gui()
+            if new.visible:
+                self._push(replacement, self.timeline.step)
 
     def play(self, block: bool = True) -> None:
         """Start playback (a no-op for a single-step scene); with ``block`` keep serving until interrupted."""
@@ -348,7 +382,8 @@ class Viewer:
         if block:
             self.server.sleep_forever()
 
-    def _build(self, entry: _Entry, group: str) -> None:
+    def _build(self, entry: _Entry, group: str, *, order: float | None = None) -> None:
+        """Build ``entry``'s layer and, for a listed layer, its Layers checkbox (at ``order`` when it replaces one)."""
         layer = entry.layer
         layer.build(self.server.scene, layer.root)
         if not layer.listed:
@@ -358,7 +393,7 @@ class Viewer:
             self._layers_folder = self.server.gui.add_folder("Layers")
         label = layer.name if group == "scene" else f"{group}/{layer.name}"
         with self._layers_folder:
-            checkbox = entry.checkbox = self.server.gui.add_checkbox(label, initial_value=layer.visible)
+            checkbox = entry.checkbox = self.server.gui.add_checkbox(label, initial_value=layer.visible, order=order)
             checkbox.on_update(lambda _: self.set_visible(layer, bool(checkbox.value)))
             layer.build_gui(self.server.gui)
 
@@ -366,6 +401,13 @@ class Viewer:
         if group not in self._groups:
             raise UnknownNameError("group", group, list(self._groups))
         return self._groups[group]
+
+    def _teardown(self, entry: _Entry) -> None:
+        """Remove ``entry``'s scene nodes, frame and checkbox."""
+        entry.layer.dispose()
+        if entry.checkbox is not None:
+            entry.checkbox.remove()
+        entry.node.remove()
 
     def _entry(self, layer: Layer) -> _Entry:
         for group in self._groups.values():
@@ -416,10 +458,10 @@ class Viewer:
             entry.layer.set_step(step)
             entry.step = step
             valid = entry.layer.valid
-            if valid is not None and valid.ndim == 1 and bool(valid[step]) != entry.shown:
-                entry.shown = bool(valid[step])
-                entry.layer.set_visible(entry.shown)
-                entry.layer._visible = True  # hidden for this sample only; the layer's own switch stays on
+            # Hidden on an invalid sample through its frame, so the layer's own switch stays on.
+            shown = valid is None or valid.ndim != 1 or bool(valid[step])
+            if entry.node.visible != shown:
+                entry.node.visible = shown
 
     def _push_all(self, step: int, force: bool) -> None:
         with self._lock, self.server.atomic():

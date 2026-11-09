@@ -50,13 +50,7 @@ class ImagePanel(Layer):
         pass
 
     def build_gui(self, gui: Any) -> None:
-        self._image = gui.add_image(self.image_at(0), label=self.name, format=self.format)
+        self._image = self._track(gui.add_image(self.image_at(0), label=self.name, format=self.format))
 
     def set_step(self, step: int) -> None:
         self._image.image = self.image_at(step)
-
-    def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - signature of Layer.set_visible
-        self._image.visible = visible
-
-    def dispose(self) -> None:
-        self._image.remove()

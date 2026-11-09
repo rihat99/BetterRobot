@@ -28,6 +28,7 @@ class FakeHandle:
             removed=False,
             visible=kwargs.get("visible", True),
             value=kwargs.get("initial_value"),
+            order=kwargs.get("order"),
             label=name,
         )
 

@@ -69,6 +69,10 @@ class SkinnedMeshLayer(Layer):
             handle.wxyz = wxyz[bone]
             handle.position = poses[bone, :3]
 
+    def set_opacity(self, opacity: float) -> None:
+        """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
+        self._fade(opacity)
+
     def world_points(self, step: int) -> np.ndarray | None:
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
         return self.skin(step)
