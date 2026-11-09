@@ -15,7 +15,7 @@ from .joints import (
     JointSpherical,
     JointTranslation,
 )
-from .manifolds import Manifold
+from .manifolds import JointManifold
 from .model import Model
 
 __all__ = [
@@ -34,7 +34,7 @@ __all__ = [
     "JointRevoluteUnbounded",
     "JointSpherical",
     "JointTranslation",
-    "Manifold",
+    "JointManifold",
     "Mesh",
     "Model",
     "Shape",

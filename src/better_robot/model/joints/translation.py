@@ -8,7 +8,7 @@ from typing import ClassVar, final
 import torch
 
 from ...lie import se3
-from ..manifolds import EUCLIDEAN, Manifold
+from ..manifolds import EUCLIDEAN, JointManifold
 from .base import JointModel
 
 
@@ -19,7 +19,7 @@ class JointTranslation(JointModel):
 
     nq: ClassVar[int] = 3
     nv: ClassVar[int] = 3
-    manifold: ClassVar[Manifold] = EUCLIDEAN
+    manifold: ClassVar[JointManifold] = EUCLIDEAN
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:

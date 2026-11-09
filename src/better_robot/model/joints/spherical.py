@@ -8,7 +8,7 @@ from typing import ClassVar, final
 import torch
 
 from ...lie import so3
-from ..manifolds import ROTATION, Manifold
+from ..manifolds import ROTATION, JointManifold
 from .base import JointModel
 
 
@@ -19,7 +19,7 @@ class JointSpherical(JointModel):
 
     nq: ClassVar[int] = 4
     nv: ClassVar[int] = 3
-    manifold: ClassVar[Manifold] = ROTATION
+    manifold: ClassVar[JointManifold] = ROTATION
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:

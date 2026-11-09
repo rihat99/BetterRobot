@@ -7,7 +7,7 @@ from typing import ClassVar, final
 
 import torch
 
-from ..manifolds import FIXED, Manifold
+from ..manifolds import FIXED, JointManifold
 from .base import JointModel
 
 
@@ -18,7 +18,7 @@ class JointFixed(JointModel):
 
     nq: ClassVar[int] = 0
     nv: ClassVar[int] = 0
-    manifold: ClassVar[Manifold] = FIXED
+    manifold: ClassVar[JointManifold] = FIXED
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:

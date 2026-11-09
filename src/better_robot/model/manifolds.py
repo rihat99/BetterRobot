@@ -1,6 +1,6 @@
 """Configuration manifolds: how a joint's coordinates step along a tangent and how two configurations differ.
 
-Each `Manifold` is the pair ``integrate`` (the retraction ``q ⊕ v``) and ``difference`` (its inverse ``q1 ⊖ q0``)
+Each `JointManifold` is the pair ``integrate`` (the retraction ``q ⊕ v``) and ``difference`` (its inverse ``q1 ⊖ q0``)
 on coordinates of fixed width ``nq`` and tangents of width ``nv``, written once here and shared by every joint kind
 on that manifold (record 0013). Every map is the true group exponential or logarithm of its group, so the tangent is
 the twist of the joint's motion subspace: ``d/dt placement(integrate(q, t v))`` at ``t = 0`` equals ``S(q) v``.
@@ -30,7 +30,7 @@ Map = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 @final
 @dataclass(frozen=True, kw_only=True, repr=False)
-class Manifold:
+class JointManifold:
     """``integrate(q, v)`` steps ``q: (..., nq)`` along ``v: (..., nv)``; ``difference(q0, q1)`` is the tangent
     ``(..., nv)`` with ``integrate(q0, difference(q0, q1)) == q1``."""
 
@@ -41,7 +41,7 @@ class Manifold:
     difference: Map
 
     def __repr__(self) -> str:
-        return f"Manifold({self.name!r}, nq={self.nq}, nv={self.nv})"
+        return f"JointManifold({self.name!r}, nq={self.nq}, nv={self.nv})"
 
 
 def _euclidean_integrate(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
@@ -120,11 +120,13 @@ def _rigid_difference(q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
     return se3.log_raw(se3.compose_raw(se3.inverse_raw(q0), q1))
 
 
-FIXED = Manifold(name="fixed", nq=0, nv=0, integrate=_euclidean_integrate, difference=_euclidean_difference)
-EUCLIDEAN = Manifold(name="euclidean", nq=1, nv=1, integrate=_euclidean_integrate, difference=_euclidean_difference)
-CIRCLE = Manifold(name="circle", nq=2, nv=1, integrate=_circle_integrate, difference=_circle_difference)
-ROTATION = Manifold(name="rotation", nq=4, nv=3, integrate=_rotation_integrate, difference=_rotation_difference)
-PLANE = Manifold(name="plane", nq=4, nv=3, integrate=_plane_integrate, difference=_plane_difference)
-RIGID = Manifold(name="rigid", nq=7, nv=6, integrate=_rigid_integrate, difference=_rigid_difference)
+FIXED = JointManifold(name="fixed", nq=0, nv=0, integrate=_euclidean_integrate, difference=_euclidean_difference)
+EUCLIDEAN = JointManifold(
+    name="euclidean", nq=1, nv=1, integrate=_euclidean_integrate, difference=_euclidean_difference
+)
+CIRCLE = JointManifold(name="circle", nq=2, nv=1, integrate=_circle_integrate, difference=_circle_difference)
+ROTATION = JointManifold(name="rotation", nq=4, nv=3, integrate=_rotation_integrate, difference=_rotation_difference)
+PLANE = JointManifold(name="plane", nq=4, nv=3, integrate=_plane_integrate, difference=_plane_difference)
+RIGID = JointManifold(name="rigid", nq=7, nv=6, integrate=_rigid_integrate, difference=_rigid_difference)
 
-__all__ = ["CIRCLE", "EUCLIDEAN", "FIXED", "PLANE", "RIGID", "ROTATION", "Manifold"]
+__all__ = ["CIRCLE", "EUCLIDEAN", "FIXED", "PLANE", "RIGID", "ROTATION", "JointManifold"]

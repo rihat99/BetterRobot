@@ -25,7 +25,7 @@ model tensors in place.
   `src/better_robot/lie/_checks.py::check_tensor` (a dtype or device other than the model's
   raises), then aligns its batch with `_checks.py` (`batch_shape`,
   `expand_batch`); raw passes trust the result.
-- `manifolds.py` holds the five `Manifold`s (Euclidean, circle, rotation, plane,
+- `manifolds.py` holds the five `JointManifold`s (Euclidean, circle, rotation, plane,
   rigid): `integrate`/`difference` written once each as the group exponential
   and logarithm; `kinematics/configuration.py` groups the public coordinates by
   manifold and runs one batched call per group behind `kinematics.integrate`

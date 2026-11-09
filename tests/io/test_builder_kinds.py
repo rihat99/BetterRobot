@@ -25,7 +25,7 @@ from better_robot.model.joints import (
     JointSpherical,
     JointTranslation,
 )
-from better_robot.model.manifolds import EUCLIDEAN, Manifold
+from better_robot.model.manifolds import EUCLIDEAN, JointManifold
 
 
 def _assert_fk_runs(model) -> None:
@@ -106,7 +106,7 @@ class _Slider(JointModel):
 
     nq: ClassVar[int] = 1
     nv: ClassVar[int] = 1
-    manifold: ClassVar[Manifold] = EUCLIDEAN
+    manifold: ClassVar[JointManifold] = EUCLIDEAN
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:

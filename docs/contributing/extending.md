@@ -13,14 +13,14 @@ dataclass (records 0013 and 0025); the built-in kinds in the same folder (`revol
 | Member | Contract |
 |--------|----------|
 | `nq`, `nv` | class variables: the widths of the joint's `q` and `v` slices |
-| `manifold` | class variable: the `Manifold` of `better_robot.model.manifolds` whose `integrate`/`difference` step the coordinates |
+| `manifold` | class variable: the `JointManifold` of `better_robot.model.manifolds` whose `integrate`/`difference` step the coordinates |
 | `axis` | the joint axis in the joint frame as a tuple of floats (a dataclass field), or the class variable `None` |
 | `placement(q)` | `(B..., nq) -> (B..., 7)` pose of the child in the joint frame |
 | `motion_subspace(q)` | `(B..., nq) -> (B..., 6, nv)`; the child's twist in its own frame is `S(q) @ v` |
 | `neutral()` | `(nq,)` configuration with the identity placement |
 | `random(generator, *, lower, upper)` | `(nq,)` configuration inside the limits |
 
-A new manifold is a `Manifold(name=, nq=, nv=, integrate=, difference=)` whose maps are the group exponential and
+A new manifold is a `JointManifold(name=, nq=, nv=, integrate=, difference=)` whose maps are the group exponential and
 logarithm, so that `difference(q0, integrate(q0, v)) == v` and the derivative of `placement(integrate(q, t v))` at
 `t = 0` is `motion_subspace(q) @ v`. `better_robot.testing.check_joint_model(joint, dtype=, generator=)` checks
 both and the shapes; run it on every new kind.

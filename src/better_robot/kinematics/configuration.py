@@ -5,7 +5,7 @@ The public ``q`` and ``v`` omit mimic targets; the recursions run over every joi
 is a pure function of the model's static mimic fields.
 
 ``integrate`` and ``difference`` are the retraction and the tangent of the public coordinates. The coordinates are
-grouped by `Manifold`: each group is one batched call of the manifold's own map over the gathered coordinate
+grouped by `JointManifold`: each group is one batched call of the manifold's own map over the gathered coordinate
 columns, so every joint kind on a manifold shares one formula (record 0013). Mimic targets have no public
 coordinates and take no part.
 """
@@ -19,7 +19,7 @@ import torch
 
 from ..exceptions import ShapeError
 from ..lie._checks import check_tensor
-from ..model.manifolds import Manifold
+from ..model.manifolds import JointManifold
 from ..model.model import Model
 
 
@@ -113,9 +113,9 @@ class ManifoldPlan:
     """Coordinate columns of each manifold on one device: ``(manifold, q columns (n, nq), v columns (n, nv))``."""
 
     device: torch.device
-    groups: tuple[tuple[Manifold, torch.Tensor, torch.Tensor], ...]
+    groups: tuple[tuple[JointManifold, torch.Tensor, torch.Tensor], ...]
 
-    def columns(self, manifold: Manifold) -> tuple[torch.Tensor, torch.Tensor]:
+    def columns(self, manifold: JointManifold) -> tuple[torch.Tensor, torch.Tensor]:
         """``(q columns (n, manifold.nq), v columns (n, manifold.nv))`` long; ``n = 0`` when no joint lives there."""
         for candidate, q_columns, v_columns in self.groups:
             if candidate is manifold:
@@ -126,7 +126,7 @@ class ManifoldPlan:
 
 def build_manifold_plan(model: Model, dtype: torch.dtype, device: torch.device) -> ManifoldPlan:
     """Group the public coordinates by manifold (``dtype`` is unused: the columns are integers)."""
-    columns: dict[Manifold, tuple[list[list[int]], list[list[int]]]] = {}
+    columns: dict[JointManifold, tuple[list[list[int]], list[list[int]]]] = {}
     for joint_id, joint in enumerate(model.joints):
         if model.nqs[joint_id] == 0:
             continue

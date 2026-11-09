@@ -9,7 +9,7 @@ from typing import ClassVar
 import torch
 
 from ...exceptions import ArgumentError
-from ..manifolds import Manifold
+from ..manifolds import JointManifold
 
 
 class JointModel(ABC):
@@ -26,7 +26,7 @@ class JointModel(ABC):
 
     nq: ClassVar[int]
     nv: ClassVar[int]
-    manifold: ClassVar[Manifold]
+    manifold: ClassVar[JointManifold]
     axis: tuple[float, float, float] | None
 
     @abstractmethod

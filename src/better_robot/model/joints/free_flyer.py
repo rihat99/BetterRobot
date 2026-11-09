@@ -8,7 +8,7 @@ from typing import ClassVar, final
 import torch
 
 from ...lie import se3
-from ..manifolds import RIGID, Manifold
+from ..manifolds import RIGID, JointManifold
 from .base import JointModel
 
 
@@ -23,7 +23,7 @@ class JointFreeFlyer(JointModel):
 
     nq: ClassVar[int] = 7
     nv: ClassVar[int] = 6
-    manifold: ClassVar[Manifold] = RIGID
+    manifold: ClassVar[JointManifold] = RIGID
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:

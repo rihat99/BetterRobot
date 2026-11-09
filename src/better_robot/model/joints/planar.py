@@ -7,7 +7,7 @@ from typing import ClassVar, final
 
 import torch
 
-from ..manifolds import PLANE, Manifold
+from ..manifolds import PLANE, JointManifold
 from .base import JointModel
 
 
@@ -19,7 +19,7 @@ class JointPlanar(JointModel):
 
     nq: ClassVar[int] = 4
     nv: ClassVar[int] = 3
-    manifold: ClassVar[Manifold] = PLANE
+    manifold: ClassVar[JointManifold] = PLANE
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:

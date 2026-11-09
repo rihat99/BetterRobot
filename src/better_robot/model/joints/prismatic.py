@@ -8,7 +8,7 @@ from typing import ClassVar, final
 import torch
 
 from ...lie import se3
-from ..manifolds import EUCLIDEAN, Manifold
+from ..manifolds import EUCLIDEAN, JointManifold
 from .base import JointModel, _axis_column, check_axis
 
 
@@ -20,7 +20,7 @@ class JointPrismatic(JointModel):
     axis: tuple[float, float, float]
     nq: ClassVar[int] = 1
     nv: ClassVar[int] = 1
-    manifold: ClassVar[Manifold] = EUCLIDEAN
+    manifold: ClassVar[JointManifold] = EUCLIDEAN
 
     def __post_init__(self) -> None:
         check_axis(self.axis)
