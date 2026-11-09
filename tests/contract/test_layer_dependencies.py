@@ -27,7 +27,7 @@ ALLOWED: dict[str, set[str]] = {
     "model": {"exceptions", "lie", "spatial"},
     "kinematics": {"exceptions", "lie", "model"},
     "dynamics": {"exceptions", "lie", "spatial", "model", "kinematics"},
-    "collision": {"exceptions", "model", "kinematics"},
+    "collision": {"exceptions", "lie", "model", "kinematics"},
     "io": {"exceptions", "lie", "model"},
     "optim": {"exceptions"},
     "terms": {"exceptions", "lie", "model", "kinematics", "collision", "optim"},
