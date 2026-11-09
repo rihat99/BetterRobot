@@ -10,17 +10,29 @@ import numpy as np
 from ..exceptions import ArgumentError, ShapeError
 
 
-def as_frames(array: np.ndarray | object, event_ndim: int) -> np.ndarray:
+def as_frames(
+    array: np.ndarray | object, event_ndim: int, *, name: str = "array", width: int | None = None
+) -> np.ndarray:
     """Promote an array to ``(T, ...)`` float32: a static array (no leading axis) becomes ``T = 1``.
 
-    ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``.
+    ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``; ``width``, when given,
+    is the size of the last axis. A wrong shape raises ``ShapeError`` naming the argument ``name``.
     """
     out = np.asarray(array, dtype=np.float32)
     if out.ndim == event_ndim:
         out = out[None]
-    if out.ndim != event_ndim + 1:
-        raise ShapeError(f"expected {event_ndim} or {event_ndim + 1} axes, got shape {out.shape}")
+    if out.ndim != event_ndim + 1 or (width is not None and out.shape[-1] != width):
+        last = "" if width is None else f" with a last axis of {width}"
+        raise ShapeError(f"{name} must have {event_ndim} or {event_ndim + 1} axes{last}, got shape {out.shape}")
     return np.ascontiguousarray(out)
+
+
+def as_triangles(faces: np.ndarray) -> np.ndarray:
+    """``faces`` as contiguous uint32 ``(F, 3)`` vertex indices of triangles; another shape raises ``ShapeError``."""
+    out = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
+    if out.ndim != 2 or out.shape[1] != 3:
+        raise ShapeError(f"faces must be (F, 3) vertex indices of triangles, got {out.shape}")
+    return out
 
 
 class Layer(ABC):

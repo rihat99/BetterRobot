@@ -7,10 +7,10 @@ from typing import Any, final
 
 import numpy as np
 
-from ...exceptions import ShapeError
+from ...exceptions import ArgumentError, ShapeError
 from .._lie import act, compose, to_wxyz
 from .._primitives import unit_sphere
-from ..layer import as_frames
+from ..layer import as_frames, as_triangles
 from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
@@ -31,9 +31,9 @@ class MeshLayer(Layer):
         opacity: float = 1.0,
         flat_shading: bool = False,
     ) -> None:
-        self.vertices = as_frames(vertices, 2)
+        self.vertices = as_frames(vertices, 2, name="vertices", width=3)
         super().__init__(name, self.vertices.shape[0])
-        self.faces = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
+        self.faces = as_triangles(faces)
         self.color = color
         self._store_opacity(opacity)
         self.flat_shading = flat_shading
@@ -89,8 +89,15 @@ class RigidMeshLayer(Layer):
     """
 
     def __init__(self, name: str, meshes: list[MeshSpec], body_poses: np.ndarray, *, opacity: float = 1.0) -> None:
-        self.body_poses = as_frames(body_poses, 2)
+        self.body_poses = as_frames(body_poses, 2, name="body_poses", width=7)
         super().__init__(name, self.body_poses.shape[0])
+        n_bodies = self.body_poses.shape[1]
+        outside = [spec.body for spec in meshes if not 0 <= spec.body < n_bodies]
+        if outside:
+            raise ArgumentError(
+                f"MeshSpec.body {outside} out of range for body_poses with {n_bodies} bodies; pass every body's pose "
+                "(KinematicState.body_poses)"
+            )
         self.meshes = meshes
         self._store_opacity(opacity)
         self._bodies = np.array([spec.body for spec in meshes], dtype=np.int64)
@@ -154,7 +161,7 @@ class SpheresLayer(Layer):
         colors: np.ndarray | RGB = (0.95, 0.45, 0.20),
         opacity: float = 0.5,
     ) -> None:
-        self.centers = as_frames(centers, 2)
+        self.centers = as_frames(centers, 2, name="centers", width=3)
         super().__init__(name, self.centers.shape[0])
         self.radii = np.asarray(radii, dtype=np.float32)
         if self.radii.shape != (self.centers.shape[1],):

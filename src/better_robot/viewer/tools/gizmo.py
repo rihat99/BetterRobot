@@ -8,6 +8,7 @@ from typing import Any, final
 
 import numpy as np
 
+from ...exceptions import ShapeError
 from .._lie import to_wxyz
 
 
@@ -22,9 +23,8 @@ class PoseGizmo:
     callback that raises stops the worker: its traceback goes to ``threading.excepthook`` (printed by default) and
     every later :meth:`wait` raises it. The worker is a daemon thread: it ends with :meth:`remove` and never keeps the interpreter alive.
     Tools are not layers: they hold the viewer and callbacks and sit outside the step loop.
-    ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). Extra
-    ``options`` go to viser's ``add_transform_controls`` (``disable_sliders=True`` and
-    ``disable_axes=True`` make a rotation-only handle).
+    ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). ``disable_sliders=True`` and
+    ``disable_axes=True`` make a rotation-only handle; ``depth_test=False`` draws it in front of every mesh.
     """
 
     def __init__(
@@ -35,11 +35,21 @@ class PoseGizmo:
         *,
         on_change: Callable[[np.ndarray], None] | None = None,
         scale: float = 0.15,
-        **options: Any,
+        disable_sliders: bool = False,
+        disable_axes: bool = False,
+        depth_test: bool = True,
     ) -> None:
         pose = np.asarray(pose, dtype=np.float32)
+        if pose.shape != (7,):
+            raise ShapeError(f"pose must be (7,) = [x, y, z, qx, qy, qz, qw], got {pose.shape}")
         self.handle = viewer.server.scene.add_transform_controls(
-            f"/tools/{name}", scale=scale, position=pose[:3], wxyz=to_wxyz(pose[3:]), **options
+            f"/tools/{name}",
+            scale=scale,
+            disable_sliders=disable_sliders,
+            disable_axes=disable_axes,
+            depth_test=depth_test,
+            position=pose[:3],
+            wxyz=to_wxyz(pose[3:]),
         )
         self._callbacks: list[Callable[[np.ndarray], None]] = [on_change] if on_change else []
         self._condition = threading.Condition()

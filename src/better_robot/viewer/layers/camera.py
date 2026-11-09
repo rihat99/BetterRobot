@@ -32,7 +32,7 @@ class CameraLayer(Layer):
         color: RGB = (0.15, 0.15, 0.15),
         image: np.ndarray | Callable[[int], np.ndarray] | None = None,
     ) -> None:
-        self.poses = as_frames(poses, 1)
+        self.poses = as_frames(poses, 1, name="poses", width=7)
         super().__init__(name, self.poses.shape[0])
         self.fov, self.aspect, self.scale, self.color = fov, aspect, scale, color
         self._image = image

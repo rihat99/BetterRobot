@@ -20,6 +20,7 @@ from typing import Any, final
 import numpy as np
 
 from ..exceptions import ArgumentError, OptionalDependencyError
+from ._extras import needs_extra
 
 _CHROME_NAMES = ("chromium", "google-chrome", "chrome-headless-shell")
 FOV = math.radians(50.0)  # vertical field of view `fit_camera` assumes and `HeadlessClient.set_camera` sets
@@ -174,7 +175,8 @@ def write_frames(frames: Sequence[np.ndarray], path: str | Path, *, fps: float) 
     PNG output: ``name.png`` writes ``name_000.png, name_001.png, ...``; a path without a suffix is a directory
     that receives ``frame_000.png, ...``. Returns ``path``.
     """
-    from PIL import Image  # noqa: PLC0415 - optional at the boundary
+    with needs_extra("viewer"):
+        from PIL import Image  # noqa: PLC0415 - optional at the boundary
 
     path = Path(path)
     suffix = path.suffix.lower()

@@ -249,6 +249,7 @@ class FakeScene:
         scale: float = 1.0,
         disable_axes: bool = False,
         disable_sliders: bool = False,
+        depth_test: bool = True,
         wxyz: Any = _IDENTITY,
         position: Any = _ORIGIN,
         visible: bool = True,

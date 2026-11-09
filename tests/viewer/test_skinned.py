@@ -34,9 +34,11 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     viewer = Viewer(server=server)
     viewer.add([layer], group="g")
     node = server.scene.nodes["/g/body/mesh"]
-    assert node.props["skin_weights"].shape == (9, 2)
+    # viser needs four bones: two unweighted bones at the origin pad the mesh and never move.
+    assert node.props["skin_weights"].shape == (9, 4) and not node.props["skin_weights"][:, 2:].any()
     np.testing.assert_allclose(node.props["bone_wxyzs"][1], [1.0, 0.0, 0.0, 0.0])
     viewer.show(1)
+    assert len(node.bones) == 4 and not node.bones[2].writes and not node.bones[3].writes
     np.testing.assert_allclose(node.bones[1].wxyz, [half, half, 0.0, 0.0], atol=1e-6)
     np.testing.assert_allclose(node.bones[1].position, [0.0, 0.0, 1.0])
 

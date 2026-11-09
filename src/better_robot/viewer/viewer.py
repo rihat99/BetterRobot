@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, final
 import numpy as np
 
 from ..exceptions import ArgumentError, ShapeError, UnknownNameError
+from ._extras import needs_extra
 from .layer import Layer
 from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
@@ -68,7 +69,8 @@ class Viewer:
         server: Any | None = None,
     ) -> None:
         if server is None:
-            import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
+            with needs_extra("viewer"):
+                import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
 
             server = viser.ViserServer(host=host, port=port, verbose=False)
             # viser moves to the next free port when ``port`` is taken; ``url`` (and record) must follow it.
@@ -114,8 +116,9 @@ class Viewer:
         is kept by reference, like the layers' arrays. Nothing is added when any layer is refused, or raises while it
         builds or shows its first step: that error propagates and the viewer is as it was.
         """
-        if isinstance(layers, Layer):
-            raise ArgumentError(f"add takes an iterable of layers; pass [{type(layers).__name__}(...)]")
+        if isinstance(layers, (Layer, str)) or not isinstance(layers, Iterable):
+            hint = f"[{type(layers).__name__}(...)]" if isinstance(layers, Layer) else "[layer, ...]"
+            raise ArgumentError(f"add takes an iterable of layers; pass {hint}, got {type(layers).__name__}")
         layers = list(layers)
         if times is not None:
             times = np.asarray(times, dtype=np.float64)
@@ -159,6 +162,8 @@ class Viewer:
         ``times`` / ``valid`` of the wrong shape."""
         taken = set(self._groups[group].entries) if group in self._groups else set()
         for index, layer in enumerate(layers):
+            if not isinstance(layer, Layer):
+                raise ArgumentError(f"add takes Layer objects, got {type(layer).__name__} at index {index}")
             if self._holds(layer) or any(layer is other for other in layers[:index]):
                 raise ArgumentError(
                     f"layer {layer.name!r} is already in this viewer; a layer draws in one place, so build a new one"
@@ -259,6 +264,8 @@ class Viewer:
         With no argument, re-push the current step to every visible layer even if it already shows it; call this
         after editing a layer's arrays in place.
         """
+        if step is not None and not isinstance(step, int | np.integer):
+            raise ArgumentError(f"step must be an int, got {step!r}")
         if step is None or step == self.timeline.step:
             self._push_all(self.timeline.step, force=True)
         else:

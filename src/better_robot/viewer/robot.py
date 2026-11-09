@@ -27,6 +27,7 @@ from ..model.joints import (
     JointTranslation,
 )
 from ..model.geometry import AttachedShape, Box, Cylinder, Geometry, Mesh, Sphere
+from ._extras import needs_extra
 from ._lie import act, inverse
 from .layer import as_frames
 from .layers.mesh import MeshSpec
@@ -66,7 +67,12 @@ def robot_skeleton(
     (names or ids) to a point ``(3,)`` in each frame: a bone, as thick as the one into the frame's parent joint, runs
     from that joint to the point, such as a hand out to where its contacts are, past the last wrist joint.
     """
-    joint_poses = as_frames(joint_poses, 2)
+    joint_poses = as_frames(joint_poses, 2, name="joint_poses", width=7)
+    if joint_poses.shape[1] != model.njoints:
+        raise ShapeError(
+            f"joint_poses must be (T, njoints, 7) = (T, {model.njoints}, 7), one pose per joint of the model "
+            f"(KinematicState.joint_poses), got {joint_poses.shape}"
+        )
     parent_ids = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
     poses, offsets = joint_poses[:, 1:], spread_offsets(model, radius=radius)
@@ -232,6 +238,8 @@ def _torque_colors(ratio: np.ndarray, limited: np.ndarray, theme: Theme) -> np.n
 def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarray, np.ndarray]:
     """``|tau| / effort_limit`` ``(nsteps, njoints - 1)`` of joints 1.. for ``tau (nsteps or 1, nv)``, the largest
     over each joint's dofs, and ``(njoints - 1,)`` whether a joint has a dof with a finite positive limit."""
+    if tau.ndim not in (1, 2) or tau.shape[-1] != model.nv:
+        raise ShapeError(f"tau must be (T, nv) or (nv,) with nv = {model.nv}, got {tau.shape}")
     tau = tau.reshape(-1, model.nv)
     if tau.shape[0] not in (1, nsteps):
         raise ShapeError(f"tau must have {nsteps} frames or one, got {tau.shape[0]}")
@@ -272,7 +280,8 @@ def _mesh_path(uri: str, root: Path | None) -> Path:
 
 
 def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: Any) -> MeshSpec:
-    import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+    with needs_extra("meshes"):
+        import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
     shape = attached.shape
     origin = np.asarray(shape.placement, dtype=np.float32)

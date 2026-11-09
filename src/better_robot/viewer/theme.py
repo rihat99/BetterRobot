@@ -7,15 +7,21 @@ from typing import Any, final
 
 import numpy as np
 
+from ..exceptions import ArgumentError, ShapeError
 
 RGB = tuple[float, float, float]
+_UP_AXES = ("+x", "-x", "+y", "-y", "+z", "-z")  # what viser's set_up_direction takes as a word
 
 
 def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
-    """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour."""
+    """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour; a colour that is not an
+    RGB triple, or a count other than ``shape``, raises ``ShapeError``."""
     out = np.asarray(color, dtype=np.float32)
-    if out.ndim == 1 and shape:
+    if out.shape == (3,) and shape:
         out = np.broadcast_to(out, (*shape, 3))
+    if out.shape[-1:] != (3,) or (shape and out.shape != (*shape, 3)):
+        expected = f"one RGB or {(*shape, 3)}, one per element" if shape else "RGB triples (..., 3)"
+        raise ShapeError(f"colors must be {expected}, got shape {np.shape(color)}")
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
@@ -53,6 +59,10 @@ class Theme:
     grid_cell: RGB = (0.86, 0.87, 0.89)
     grid_section: RGB = (0.70, 0.72, 0.76)
     up: str = "+z"
+
+    def __post_init__(self) -> None:
+        if self.up not in _UP_AXES:
+            raise ArgumentError(f"up must be one of {list(_UP_AXES)}, got {self.up!r}")
 
     @property
     def up_vector(self) -> tuple[float, float, float]:

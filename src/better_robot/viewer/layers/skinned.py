@@ -8,12 +8,14 @@ import numpy as np
 
 from ...exceptions import ShapeError
 from .._lie import act, inverse, to_wxyz
-from ..layer import as_frames
+from ..layer import as_frames, as_triangles
 from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 from .camera import CameraLayer
 
 __all__ = ["CameraLayer", "SkinnedMeshLayer"]
+
+_IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
 
 @final
@@ -37,11 +39,15 @@ class SkinnedMeshLayer(Layer):
         color: RGB = (0.85, 0.72, 0.62),
         opacity: float = 1.0,
     ) -> None:
-        self.bone_poses = as_frames(bone_poses, 2)
+        self.bone_poses = as_frames(bone_poses, 2, name="bone_poses", width=7)
         super().__init__(name, self.bone_poses.shape[0])
         self.vertices = np.asarray(vertices, dtype=np.float32)
-        self.faces = np.asarray(faces, dtype=np.uint32)
+        if self.vertices.ndim != 2 or self.vertices.shape[1] != 3:
+            raise ShapeError(f"vertices must be (V, 3) bind-pose positions, got {self.vertices.shape}")
+        self.faces = as_triangles(faces)
         self.bind_poses = np.asarray(bind_poses, dtype=np.float32)
+        if self.bind_poses.ndim != 2 or self.bind_poses.shape[1] != 7:
+            raise ShapeError(f"bind_poses must be (J, 7) world bone poses (xyzw), got {self.bind_poses.shape}")
         n_bones = self.bind_poses.shape[0]
         if self.bone_poses.shape[1:] != (n_bones, 7) or np.shape(weights) != (len(self.vertices), n_bones):
             raise ShapeError("bone_poses must be (T, J, 7) and weights (V, J) with J bind poses")
@@ -51,14 +57,18 @@ class SkinnedMeshLayer(Layer):
         self._mesh: Any = None
 
     def build(self, scene: Any, root: str) -> None:
+        # viser takes the four largest weights per vertex and so needs four bones: fewer get unweighted bones at the
+        # origin, which never move.
+        pad = max(0, 4 - len(self.bind_poses))
+        bind = np.concatenate([self.bind_poses, np.tile(_IDENTITY_POSE, (pad, 1))])
         self._mesh = self._track(
             scene.add_mesh_skinned(
                 f"{root}/mesh",
                 self.vertices,
                 self.faces,
-                bone_wxyzs=to_wxyz(self.bind_poses[:, 3:]),
-                bone_positions=self.bind_poses[:, :3],
-                skin_weights=self.weights,
+                bone_wxyzs=to_wxyz(bind[:, 3:]),
+                bone_positions=bind[:, :3],
+                skin_weights=np.pad(self.weights, ((0, 0), (0, pad))),
                 color=rgb_uint8(self.color),
                 opacity=None if self.opacity >= 1.0 else self.opacity,
             )
@@ -67,9 +77,9 @@ class SkinnedMeshLayer(Layer):
     def set_step(self, step: int) -> None:
         poses = self.bone_poses[step]
         wxyz = to_wxyz(poses[:, 3:])
-        for bone, handle in enumerate(self._mesh.bones):
-            handle.wxyz = wxyz[bone]
-            handle.position = poses[bone, :3]
+        for handle, rotation, pose in zip(self._mesh.bones, wxyz, poses):  # padded bones stay at the origin
+            handle.wxyz = rotation
+            handle.position = pose[:3]
 
     def set_opacity(self, opacity: float) -> None:
         """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
