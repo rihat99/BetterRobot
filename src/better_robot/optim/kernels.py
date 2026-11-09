@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import final
 
 import torch
@@ -15,7 +16,8 @@ class RobustKernel(ABC):
     """Down-weights outliers without changing residual structure; a new kernel subclasses this.
 
     ``Problem.residual(..., kernel=)`` applies it to the squared norm of each group (the last axis of the
-    weighted residual); without a kernel the loss is the plain half squared norm.
+    weighted residual); without a kernel the loss is the plain half squared norm. The library's kernels are
+    frozen values, so a kernel held by a registered term cannot change under it.
     """
 
     @abstractmethod
@@ -28,11 +30,11 @@ class RobustKernel(ABC):
 
 
 @final
+@dataclass(frozen=True, kw_only=True)
 class Huber(RobustKernel):
     """Quadratic loss inside ``delta`` and linear loss outside it."""
 
-    def __init__(self, *, delta: float = 1.0) -> None:
-        self.delta = delta
+    delta: float = 1.0
 
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         d2 = self.delta * self.delta
@@ -60,11 +62,11 @@ class Huber(RobustKernel):
 
 
 @final
+@dataclass(frozen=True, kw_only=True)
 class Cauchy(RobustKernel):
     """Cauchy (Lorentzian) loss."""
 
-    def __init__(self, *, c: float = 1.0) -> None:
-        self.c = c
+    c: float = 1.0
 
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
@@ -76,11 +78,11 @@ class Cauchy(RobustKernel):
 
 
 @final
+@dataclass(frozen=True, kw_only=True)
 class Tukey(RobustKernel):
     """Tukey biweight loss with a re-descending cutoff."""
 
-    def __init__(self, *, c: float = 4.685) -> None:
-        self.c = c
+    c: float = 4.685
 
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
@@ -92,14 +94,15 @@ class Tukey(RobustKernel):
 
 
 @final
+@dataclass(frozen=True, kw_only=True)
 class GemanMcClure(RobustKernel):
     """Smooth, bounded, re-descending Geman--McClure loss."""
 
-    def __init__(self, *, c: float = 1.0) -> None:
-        c = float(c)
-        if not math.isfinite(c) or c <= 0.0:
-            raise ArgumentError(f"c must be finite and positive, got {c!r}")
-        self.c = c
+    c: float = 1.0
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.c) or self.c <= 0.0:
+            raise ArgumentError(f"c must be finite and positive, got {self.c!r}")
 
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c

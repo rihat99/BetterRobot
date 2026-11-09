@@ -1,5 +1,8 @@
 """``optim``: linearization against autograd and finite differences, cache, bounds, masks, solvers."""
 
+import ast
+from pathlib import Path
+
 import pytest
 import torch
 
@@ -300,8 +303,26 @@ def test_solve_layer_gradient_matches_finite_differences():
     assert float(bound_sensitivity.abs().max()) == 0.0
 
 
+@pytest.mark.parametrize("through_with", [False, True])
+def test_solve_layer_passes_gradcheck_wrt_data_given_at_construction_or_by_with(through_with):
+    def solution(goal):
+        problem = optim.Problem(
+            {"x": torch.zeros(goal.shape, dtype=torch.float64)},
+            data={"goal": torch.zeros_like(goal) if through_with else goal},
+        )
+        problem.residual("fit", lambda x, goal: x + 0.2 * x.roll(1, -1) ** 2 - goal)
+        if through_with:
+            problem = problem.with_(data={"goal": goal})
+        return optim.solve_layer(problem, optim.LevenbergMarquardt(), iterations=200).x["x"]
+
+    # Zero residual at the optimum and no bound active: the implicit derivative is exact.
+    goal = 0.3 * torch.randn(4, 3, generator=torch.Generator().manual_seed(6), dtype=torch.float64)
+    assert torch.autograd.gradcheck(solution, (goal.requires_grad_(True),), eps=1e-6, atol=1e-6, rtol=1e-4)
+
+
 def test_problem_is_immutable():
-    """Record 0017: no public path mutates a Problem; ``with_`` returns a new problem and leaves its parent as it was."""
+    """Registration only adds names to the problem it is called on; every field of a registered term is fixed; changes
+    go through ``with_``, which returns a new, sealed problem and leaves its parent as it was."""
     target = torch.ones(2, 3)
     problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": target}, bounds={"x": (-target, target)})
     problem.residual("fit", lambda x, target: x - target)
@@ -311,16 +332,63 @@ def test_problem_is_immutable():
     for field in "variables data manifolds bounds time dense terms weights free tangent_dim".split():
         with pytest.raises(AttributeError):
             setattr(problem, field, None)
+    with pytest.raises(AttributeError):
+        problem.terms["fit"].weight = 3.0
+    with pytest.raises(AttributeError):
+        problem.foo = 1  # __slots__: no attribute beyond the fields
+    for kernel, field in (
+        (optim.Huber(delta=0.1), "delta"),
+        (optim.Cauchy(c=1.0), "c"),
+        (optim.Tukey(c=4.0), "c"),
+        (optim.GemanMcClure(c=1.0), "c"),
+    ):
+        with pytest.raises(AttributeError):
+            setattr(kernel, field, 100.0)  # a kernel held by a term cannot change under it
     with pytest.raises(exceptions.ArgumentError, match="already exists"):
         problem.residual("fit", lambda x: x)  # registration only adds names
     with pytest.raises(exceptions.ArgumentError, match="already used"):
         problem.with_(data={"x": target})
     moved = problem.with_(data={"target": 2 * target, "offset": target}, weights={"fit": 2.0}, free={"x": target > 0})
-    moved.residual("offset", lambda x, offset: x - offset)
+    for register in (
+        lambda: moved.residual("offset", lambda x, offset: x - offset),
+        lambda: moved.scalar("bowl", lambda x: x.square().sum(-1)),
+        lambda: moved.cached(lambda x: 2 * x, name="doubled"),
+    ):
+        with pytest.raises(exceptions.ArgumentError, match="sealed; register every term on the problem before"):
+            register()
     assert moved is not problem and moved.data["target"] is not target
     assert problem.data["target"] is target and dict(problem.weights) == {} and problem.free is None
     assert list(problem.data) == ["target"] and list(problem.terms) == ["fit"]
-    assert list(moved.terms) == ["fit", "offset"] and moved.weights["fit"] == 2.0
+    assert list(moved.terms) == ["fit"] and moved.weights["fit"] == 2.0
+    problem.residual("late", lambda x: x)  # the parent still takes new names; the derived problem does not see them
+    assert list(problem.terms) == ["fit", "late"] and list(moved.terms) == ["fit"]
+
+
+@pytest.mark.parametrize(
+    "solver",
+    [
+        optim.LevenbergMarquardt(),
+        optim.GaussNewton(),
+        optim.LBFGS(),
+        optim.TorchOptim(lambda params: torch.optim.SGD(params, lr=0.1)),
+    ],
+)
+def test_callbacks_cannot_register_on_the_views_run_hands_them(solver):
+    """A phase callback receives a sealed view, so it cannot change the solve it runs in (it used to crash LM)."""
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": torch.ones(2, 3)})
+    problem.residual("fit", lambda x, target: x - target)
+
+    def on_step(view, state):
+        view.residual("late", lambda x: 10 * (x - 7.0))
+
+    def on_start(view, x):
+        view.residual("sneak", lambda x: x - 5.0)
+        return x, {}
+
+    for phase in (optim.Phase(solver, 3, on_step=on_step), optim.Phase(solver, 3, on_start=on_start)):
+        with pytest.raises(exceptions.ArgumentError, match="register every term on the problem before solving"):
+            optim.run(problem, [phase])
+    assert list(problem.terms) == ["fit"]
 
 
 def test_review_regressions():
@@ -329,7 +397,8 @@ def test_review_regressions():
     )
     base.residual("fit", lambda x, a: x - a)
     view = base.with_(weights={"fit": 2.0})
-    view.residual("extra", lambda x: x)
+    with pytest.raises(exceptions.ArgumentError, match="sealed"):
+        view.residual("extra", lambda x: x)
     assert "extra" not in base.terms, "a view must not register terms on its base problem"
 
     base.residual("bad_weight", lambda x: x.unsqueeze(1).expand(2, 3, 2), weight=torch.ones(2, dtype=torch.float64))
@@ -419,6 +488,39 @@ def test_shared_columns_through_a_once_differentiable_op_fail_loudly():
         problem.linearize()
 
 
+def test_shared_column_check_allows_round_off_at_a_converged_optimum():
+    class Once(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, value):
+            return value.clone()
+
+        @staticmethod
+        def backward(ctx, grad):
+            with torch.no_grad():
+                return grad.clone()
+
+    goal = 0.3 * torch.randn(2, 6, 2, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
+
+    def arrow(shared):
+        variables = {
+            "path": torch.zeros(2, 6, 2, dtype=torch.float64),
+            "offset": torch.zeros(2, 2, dtype=torch.float64),
+        }
+        problem = optim.Problem(variables, data={"goal": goal}, time=("path",))
+        problem.residual("fit", lambda path, offset, goal: path + shared(offset)[:, None] - goal, window=1)
+        problem.residual("anchor", lambda offset: offset)
+        problem.residual("smooth", lambda path: 0.5 * (path[:, 1:] - path[:, :-1]), window=2)
+        return problem
+
+    # The fit residuals stay nonzero at the optimum, so the offset gradient is a sum of products that
+    # cancel to round-off; this solve raised while the check ignored the size of those products.
+    solver = optim.LevenbergMarquardt(gradient_tolerance=0.0, loss_tolerance=0.0, step_tolerance=0.0)
+    result = optim.solve(arrow(lambda offset: offset), solver, iterations=400)
+    # Half of the offset path missing from the double backward is still caught at the same point.
+    with pytest.raises(exceptions.ArgumentError, match="differentiated twice"):
+        arrow(lambda offset: 0.5 * offset + 0.5 * Once.apply(offset)).linearize(result.x)
+
+
 def test_cached_returns_its_name_and_unknown_cached_read_fails_at_registration():
     problem = optim.Problem({"x": torch.zeros(2, 3)})
     name = problem.cached(lambda x: 2.0 * x, name="doubled")
@@ -453,3 +555,57 @@ def test_scalar_term_that_reads_only_data_linearizes():
     expected_loss, expected_g, _ = problem.gradient()
     torch.testing.assert_close(loss, expected_loss)
     torch.testing.assert_close(normal.g, expected_g)
+
+
+def test_each_private_name_is_used_only_by_the_module_that_defines_it():
+    """The split modules (evaluation, linearization, phases, constrained) read a ``Problem`` through its public fields."""
+    reach_ins = []
+    for path in sorted(Path(optim.__file__).parent.glob("*.py")):
+        tree = ast.parse(path.read_text())
+        defined = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.ClassDef))}
+        defined |= {
+            node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store)
+        }
+        for node in ast.walk(tree):
+            private = isinstance(node, ast.Attribute) and node.attr.startswith("_") and not node.attr.startswith("__")
+            if private and node.attr not in defined:
+                reach_ins.append(f"{path.name}:{node.lineno} {ast.unparse(node)}")
+    assert reach_ins == []
+
+
+def test_x_holds_one_batch_tensor_per_variable_and_never_overrides_data():
+    """One structural check at every entry that takes ``x``: library errors, not raw ``KeyError``/``RuntimeError``."""
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": torch.ones(2, 3)})
+    problem.residual("fit", lambda x, target: x - target)
+    zeros = torch.zeros(2, 3)
+    entries = (
+        problem.loss,
+        problem.losses,
+        problem.evaluate,
+        problem.residuals,
+        problem.linearize,
+        problem.gradient,
+        lambda x: optim.check_jacobian(problem, x),
+        lambda x: optim.solve(problem, optim.LevenbergMarquardt(), iterations=1, x=x),
+        lambda x: optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.SGD(params, lr=0.1)), x=x),
+    )
+    cases = (
+        ({}, exceptions.ArgumentError, "no value for the variables"),
+        ({"x": zeros, "target": zeros}, exceptions.UnknownNameError, "unknown variable 'target'"),
+        ({"x": torch.zeros(5, 3)}, exceptions.ShapeError, "B = 2"),
+        ({"x": torch.zeros(())}, exceptions.ShapeError, "B = 2"),
+    )
+    for x, error, message in cases:
+        for entry in entries:
+            with pytest.raises(error, match=message):
+                entry(x)
+    with pytest.raises(exceptions.ShapeError, match="0-d"):
+        optim.Problem({"x": torch.zeros(())})
+
+
+@pytest.mark.parametrize("on_start", [lambda view, x: x, lambda view, x: None, lambda view, x: (x, {}, None)])
+def test_on_start_must_return_x_and_data(on_start):
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": torch.ones(2, 3)})
+    problem.residual("fit", lambda x, target: x - target)
+    with pytest.raises(exceptions.ArgumentError, match=r"on_start\(problem, x\) must return \(x, data\)"):
+        optim.run(problem, [optim.Phase(optim.LevenbergMarquardt(), 2, on_start=on_start)])

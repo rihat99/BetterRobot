@@ -9,41 +9,35 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import final
 
 import torch
 
 from ..exceptions import ArgumentError
-from ..kinematics import KinematicState, difference, forward_kinematics, frame_jacobian, integrate
+from ..kinematics import (
+    KinematicState,
+    difference,
+    euclidean_columns,
+    forward_kinematics,
+    frame_jacobian,
+    integrate,
+)
 from ..lie import se3, tangents
 from ..model import JointFreeFlyer, Model
 from ..optim import Manifold, TermFn
 
 
-def vector_columns(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
-    """``(q columns (n,), v columns (n,))``, long on the model's device: the coordinates of the joints whose
-    configuration is its own tangent (``nq == nv``: revolute, prismatic, helical, translation)."""
-    pairs = [
-        (model.idx_qs[joint] + k, model.idx_vs[joint] + k)
-        for joint in range(len(model.joints))
-        if model.nqs[joint] == model.nvs[joint]
-        for k in range(model.nqs[joint])
-    ]
-    columns = torch.tensor(pairs, dtype=torch.long, device=model.device).reshape(-1, 2)
-    return columns[:, 0], columns[:, 1]
-
-
 @final
+@dataclass(frozen=True)
 class RobotManifold(Manifold):
     """Configuration manifold of ``model``: ``q: (B, nq)`` or ``(B, T, nq)``, tangent ``nv`` per configuration.
 
     ``retract`` is ``kinematics.integrate``; ``project`` integrates a zero step, which renormalizes quaternion joints.
-    Pass it as ``Problem(..., manifolds={"q": RobotManifold(model)})``.
+    Pass it as ``Problem(..., manifolds={"q": RobotManifold(model)})``. A frozen value: its model cannot be swapped.
     """
 
-    def __init__(self, model: Model) -> None:
-        self.model = model
-        self._q_columns, self._v_columns = vector_columns(model)
+    model: Model
 
     def tangent_dim(self, x: torch.Tensor) -> int:
         return x.shape[1:].numel() // self.model.nq * self.model.nv
@@ -57,11 +51,12 @@ class RobotManifold(Manifold):
     def tangent_bounds(
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Step range of the vector-space joints; quaternion coordinates are unbounded."""
+        """Step range of the coordinates on the ``EUCLIDEAN`` manifold; every other coordinate is unbounded."""
+        q_columns, v_columns = euclidean_columns(self.model)
         low = x.new_full((*x.shape[:-1], self.model.nv), -float("inf"))
         high = x.new_full((*x.shape[:-1], self.model.nv), float("inf"))
-        low[..., self._v_columns] = (lower - x)[..., self._q_columns]
-        high[..., self._v_columns] = (upper - x)[..., self._q_columns]
+        low[..., v_columns] = (lower - x)[..., q_columns]
+        high[..., v_columns] = (upper - x)[..., q_columns]
         return low.flatten(1), high.flatten(1)
 
 
@@ -97,9 +92,14 @@ def frame_position(model: Model, *, frame: int | str, target: str, state: str = 
     return TermFn(fn=error, reads=(state, target), jacobian=jacobian)
 
 
+def _all_euclidean(model: Model) -> bool:
+    """Whether every public coordinate is on the ``EUCLIDEAN`` manifold, so a tangent step adds to ``q`` itself."""
+    return euclidean_columns(model)[0].numel() == model.nq
+
+
 def _identity_jacobian(model: Model, q: str, sign_fn: Callable[[torch.Tensor], torch.Tensor]):
-    """Diagonal Jacobian for models whose configuration is its own tangent (``nq == nv``); else autodiff."""
-    if model.nq != model.nv:
+    """Diagonal Jacobian when every coordinate is Euclidean; else ``None``: autodiff, right on any manifold."""
+    if not _all_euclidean(model):
         return None
     return lambda value: {q: torch.diag_embed(sign_fn(value))}
 
@@ -156,7 +156,7 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
         return out
 
     jacobian = None
-    if model.nq == model.nv:
+    if _all_euclidean(model):
         # Built in float64 and rounded once to the working dtype by ``.to(value)``; a float32 stencil was off by
         # ~1e-7 (relative) in a float64 problem.
         coefficients = [(-1.0) ** (order - i) * math.comb(order, i) for i in range(order + 1)]

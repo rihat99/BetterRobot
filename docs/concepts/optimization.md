@@ -40,7 +40,8 @@ assert result.x["x"].shape == (4, 2) and bool(result.done.all())
 `residual(name, fn, weight=, kernel=, reads=, jacobian=, window=)` adds a least-squares term. `fn` returns
 `(B, ..., k)` and its loss is `½ · weight · Σ r²`. `scalar(name, fn, weight=)` adds a term that already
 returns a `(B,)` loss. `cached(fn, name=)` registers an intermediate that several terms read, such as a
-kinematic state, and returns its name; it is computed at most once per evaluation.
+kinematic state, and returns its name; it is computed at most once per evaluation. `problem.terms` and
+`problem.cached_values` are read-only mappings of what is registered.
 
 ```python
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
@@ -126,8 +127,9 @@ treat it as a first-order term.
 A solver subclasses the abstract `Solver`: `init(problem, x) -> State` and
 `step(problem, state) -> State`, and `warm_keys` names the `State.extra` entries a warm start keeps. After each step a solver writes fixed diagnostic keys into `State.extra`,
 each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
-`State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`, the step
-count `iteration`, and `extra` for solver-owned values (damping, moments). Every solver also writes
+`State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`,
+`solver` (the class of the solver that made it), the step count `iteration`, and `extra` for solver-owned values
+(damping, moments). Every solver also writes
 `extra["terms"]`, the detached `(B,)` loss of each active term from the evaluation `loss` comes from, and
 `TorchOptim` writes `extra["info"]`, so a `Phase.on_step` logger needs no second forward.
 
@@ -155,10 +157,12 @@ print(state.iteration, state.loss)
 
 - `solve(problem, solver, *, iterations=50, x=None, state=None) -> Result` runs one solver until every problem is
   done or `iterations` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
-  the next solve (LM keeps its damping, L-BFGS its curvature memory) from `x`, else `state.x`.
+  the next solve with the same solver kind (LM keeps its damping, L-BFGS its curvature memory) from `x`, else
+  `state.x`; a state from another kind raises `ArgumentError`. An `x` given to `solve`, `run` or a `Problem`
+  method holds one `(B, *event)` tensor per variable and nothing else (it never overrides a data entry).
   `Result.diagnostics[phase][key]` stacks the diagnostic keys per step, `(steps, B)`.
-  `Result` has `x`, `loss`, `done`, `iterations` and a per-phase loss `history`;
-  `result["q"]` is shorthand for `result.x["q"]`.
+  `Result` has `x` (the solved variables, `result.x["q"]`), `loss`, `done`, `iterations` and a per-phase loss
+  `history`.
 - `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
   coordinates ([Fit a clip](../guides/fit-a-clip.md)).
 - `solve_layer(problem, solver, *, iterations=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
@@ -166,9 +170,13 @@ print(state.iteration, state.loss)
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard
   constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)).
 
-A `Problem` never changes once built. `problem.with_(data=, weights=, free=)` returns a new problem with data
-entries added or replaced, term weights overridden (`0` switches a term off) and tangent coordinates frozen by
-a bool mask `(n,)` or `(B, n)`; the original stays as it was. `Phase` uses it internally.
+Registration (`residual`, `scalar`, `cached`) only adds names to the problem it is called on, and every field
+of a registered term is fixed; changes go through `with_`. `problem.with_(data=, weights=, free=)` returns a
+new problem with data entries added or replaced, term weights overridden (`0` switches a term off) and tangent
+coordinates frozen by a bool mask `(n,)` or `(B, n)`; the original stays as it was. The new problem is sealed:
+registering on it raises `ArgumentError`, so register every term before solving or deriving. The views that
+`run`, `solve_constrained` and `solve_layer` make (the ones `Phase.on_start` and `on_step` receive) are sealed
+too, so a callback cannot change the solve it runs in.
 
 ```python
 from better_robot.optim import TorchOptim

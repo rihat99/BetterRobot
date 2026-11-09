@@ -2,9 +2,9 @@
 
 Entry points: `forward_kinematics(model, q, *, check_quaternion_norm=False) -> KinematicState`;
 `frame_jacobian`, `joint_jacobian`, `point_jacobian`, `frame_jacobian_time_variation` and
-`joint_jacobian_time_variation` on `(model, state, *, ...)`; `integrate`, `difference`, `full_configuration`
-(`configuration.py`); `subtree`, `support` (`tree.py`). Design notes and numbers live in the module docstrings
-of `_fk.py`, `_jacobian.py` and `_plans.py`; contracts in `docs/contracts/00-index.md`.
+`joint_jacobian_time_variation` on `(model, state, *, ...)`; `integrate`, `difference`, `full_configuration`,
+`euclidean_columns` (`configuration.py`); `subtree`, `support` (`tree.py`). Design notes and numbers live in the
+module docstrings of `_fk.py`, `_jacobian.py` and `_plans.py`; contracts in `docs/contracts/00-index.md`.
 
 ## Traps
 

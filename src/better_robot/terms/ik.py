@@ -6,10 +6,11 @@ from collections.abc import Mapping
 
 import torch
 
-from ..exceptions import ArgumentError
+from ..exceptions import ArgumentError, ShapeError
+from ..kinematics import euclidean_columns
 from ..model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
-from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest, vector_columns
+from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest
 
 
 def ik_problem(
@@ -45,11 +46,15 @@ def ik_problem(
 
 
 def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator) -> torch.Tensor:
-    """Copy of ``q0: (B, nq)`` with every vector-space joint that has finite limits sampled uniformly.
+    """Copy of ``q0: (B, nq)`` with every ``EUCLIDEAN`` coordinate that has finite limits sampled uniformly.
 
     The draw happens on ``q0``'s device, so ``generator`` must live there.
     """
-    index, _ = vector_columns(model)
+    if generator is None:
+        raise ArgumentError("random_start draws with a generator; pass one on q0's device")
+    if q0.ndim != 2 or q0.shape[-1] != model.nq:
+        raise ShapeError(f"q0 must be (B, {model.nq}), got {tuple(q0.shape)}")
+    index, _ = euclidean_columns(model)
     lower, upper = model.lower_position_limit[index], model.upper_position_limit[index]
     sample = torch.rand(q0.shape[0], index.numel(), generator=generator, dtype=q0.dtype, device=q0.device)
     sample = lower + (upper - lower) * sample
@@ -70,10 +75,12 @@ def solve_ik(
 ) -> Result:
     """Solve ``ik_problem`` with LM (or ``solver``). The configuration is ``result.x["q"]``.
 
-    ``restarts`` extra attempts start from random configurations drawn with ``generator`` (required when
+    ``restarts`` (0 or more) extra attempts start from random configurations drawn with ``generator`` (required when
     ``restarts > 0``); each batch element keeps its best attempt. This is what gets past the local minima of a
     single start.
     """
+    if restarts < 0:
+        raise ArgumentError(f"restarts must be at least 0, got {restarts}")
     if restarts > 0 and generator is None:
         raise ArgumentError("restarts draw random starts; pass a generator on q0's device")
     problem = ik_problem(model, targets, q0=q0)

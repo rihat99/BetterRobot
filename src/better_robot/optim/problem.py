@@ -21,7 +21,7 @@ import torch
 from ..exceptions import ArgumentError, ShapeError, UnknownNameError
 from .evaluation import Values, evaluate, residuals
 from .kernels import RobustKernel
-from .linear import ArrowNormal, BandedNormal, BandLayout, Normal
+from .linear import ArrowNormal, BandedNormal, Normal
 from .linearization import gradient, linearize
 from .manifold import Euclidean, Manifold
 
@@ -66,8 +66,10 @@ class Problem:
     Register terms with ``residual`` (least squares) or ``scalar`` (any ``(B,)`` loss) and shared
     intermediates with ``cached``; then minimize with ``solve`` or ``run``. A term may return
     ``(value, info)`` to report diagnostics beside its value (see ``evaluate``). Registration only adds
-    new names; everything else is fixed at construction and read through read-only mappings.
-    ``with_`` returns a new problem with other data, weights or frozen coordinates.
+    new names to the problem it is called on; everything else, and every field of a registered term, is
+    fixed and read through read-only mappings. ``with_`` returns a new problem with other data, weights or
+    frozen coordinates. That problem is sealed, like the views ``run``, ``solve_constrained`` and
+    ``solve_layer`` make and hand to callbacks: registering on it raises ``ArgumentError``.
 
     - ``variables``: initial values, each ``(B, *event)`` with the same ``B``.
     - ``manifolds``: per-variable ``Manifold``; missing entries are ``Euclidean``.
@@ -82,12 +84,33 @@ class Problem:
       in time linear in ``T``.
     - ``dense``: force dense normal equations (``Normal``) even when the banded form applies.
 
+    Tensors are held by reference, never copied: the variables, data and bounds given here, the data and weight
+    tensors given to ``with_``, and everything a ``with_`` result shares with its parent, free masks included. The
+    read-only mappings fix the names, not the values: a tensor edited in place changes every problem that holds
+    it, so build a new problem or call ``with_`` instead.
+
     ```python
     problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
     problem.residual("fit", lambda x, target: x - target)
     normal, loss = problem.linearize(problem.variables)  # Normal, (4,)
     ```
     """
+
+    __slots__ = (
+        "_variables",
+        "_data",
+        "_manifolds",
+        "_bounds",
+        "_time",
+        "_dense",
+        "_terms",
+        "_weights",
+        "_free",
+        "_cached",
+        "_sealed",
+        "_slices",
+        "_tangent_dim",
+    )
 
     def __init__(
         self,
@@ -101,6 +124,9 @@ class Problem:
     ) -> None:
         if not variables:
             raise ArgumentError("a Problem needs at least one variable")
+        for name, value in variables.items():
+            if value.ndim == 0:
+                raise ShapeError(f"variable {name!r} is 0-d; a variable is (B, *event) with a leading batch axis")
         batch_sizes = {name: value.shape[0] for name, value in variables.items()}
         if len(set(batch_sizes.values())) != 1:
             raise ShapeError(f"variables must share the leading batch size, got {batch_sizes}")
@@ -117,8 +143,8 @@ class Problem:
         self._terms: dict[str, Term] = {}
         self._weights: dict[str, float | torch.Tensor] = {}
         self._free: dict[str, torch.Tensor] | None = None
-        self._cached: dict[str, tuple[Callable[..., Any], tuple[str, ...]]] = {}
-        self._layouts: dict[tuple[int, int], BandLayout] = {}
+        self._cached: dict[str, TermFn] = {}
+        self._sealed = False
         self._slices: dict[str, slice] = {}
         offset = 0
         for name, value in self._variables.items():
@@ -165,6 +191,11 @@ class Problem:
         return MappingProxyType(self._terms)
 
     @property
+    def cached_values(self) -> Mapping[str, TermFn]:
+        """Registered cached values by name, in registration order: each the function and the names it reads."""
+        return MappingProxyType(self._cached)
+
+    @property
     def weights(self) -> Mapping[str, float | torch.Tensor]:
         """Weight overrides by term name, set by ``with_(weights=)``."""
         return MappingProxyType(self._weights)
@@ -191,8 +222,9 @@ class Problem:
         if isinstance(fn, TermFn):
             fn, reads = fn.fn, reads if reads is not None else fn.reads
         name = name or fn.__name__
+        self._require_unsealed(name)
         self._require_new_name(name)
-        self._cached[name] = (fn, self._resolve_reads(name, fn, reads))
+        self._cached[name] = TermFn(fn=fn, reads=self._resolve_reads(name, fn, reads))
         return name
 
     def residual(
@@ -263,7 +295,7 @@ class Problem:
         cached value. ``weights[name] = 0`` switches a term off. ``free[variable]``
         is a bool mask over that variable's tangent coordinates, ``(n,)`` or ``(B, n)``; unlisted variables
         stay free. For a time variable the mask may cover one knot; it is then repeated over time. This
-        problem is left as it was, and terms registered on the new one stay there.
+        problem is left as it was. The new problem is sealed: register every term before calling ``with_``.
         """
         problem = self._copy()
         if data is not None:
@@ -343,7 +375,9 @@ class Problem:
 
     def retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
         """Step every variable along ``delta: (B, N)`` and clamp to bounds."""
-        return self._clamp(self._retract(x, delta))
+        return self._clamp(
+            {name: self._manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
+        )
 
     def project(self, x: Values) -> dict[str, torch.Tensor]:
         """Map ambient tensors back onto their manifolds and bounds."""
@@ -369,24 +403,26 @@ class Problem:
     # ── internals ───────────────────────────────────────────────────────
 
     def _add(self, name, fn, kind, weight, kernel, jacobian, reads, window) -> None:
+        self._require_unsealed(name)
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
         self._terms[name] = Term(name, fn, kind, reads, weight, kernel, jacobian, window)
 
     def _copy(self) -> Problem:
-        """A problem sharing this one's tensors, with registries of its own."""
+        """A sealed problem sharing this one's tensors, with registries of its own."""
         problem = copy.copy(self)
         problem._terms, problem._cached = dict(self._terms), dict(self._cached)
+        problem._sealed = True
         return problem
 
-    def _with_terms(self, terms: Mapping[str, Term]) -> Problem:
-        """A copy with ``terms`` in place of the registered terms of their names (``solve_constrained``)."""
-        problem = self._copy()
-        for name, term in terms.items():
-            problem._resolve_reads(name, term.fn, term.reads)
-        problem._terms.update(terms)
-        return problem
+    def _require_unsealed(self, name: str) -> None:
+        if self._sealed:
+            raise ArgumentError(
+                f"cannot register {name!r}: this problem was made by with_ (or by run, solve_constrained or "
+                "solve_layer for a callback) and is sealed; register every term on the problem before solving it "
+                "or deriving it with with_, and change data, weights or free masks with with_"
+            )
 
     def _require_new_name(self, name: str) -> None:
         if name in self._variables or name in self._data or name in self._cached:
@@ -409,9 +445,6 @@ class Problem:
             if name not in self._variables:
                 raise UnknownNameError("variable", name, list(self._variables))
         return mapping
-
-    def _retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
-        return {name: self._manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
 
     def _clamp(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         for name, (lower, upper) in self._bounds.items():

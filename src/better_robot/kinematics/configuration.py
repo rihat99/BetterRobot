@@ -19,7 +19,7 @@ import torch
 
 from ..exceptions import ShapeError
 from ..lie._checks import check_tensor
-from ..model.manifolds import JointManifold
+from ..model.manifolds import EUCLIDEAN, JointManifold
 from ..model.model import Model
 
 
@@ -154,6 +154,13 @@ def manifold_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> 
     return model._plan("manifold", build_manifold_plan, dtype=dtype, device=device)
 
 
+def euclidean_columns(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
+    """``(q columns (n,), v columns (n,))``, long on the model's device: the public coordinates whose joints declare
+    the ``EUCLIDEAN`` manifold, where ``integrate`` adds ``v`` to ``q``; the grouping ``integrate`` itself uses."""
+    q_columns, v_columns = manifold_plan(model, dtype=model.dtype, device=model.device).columns(EUCLIDEAN)
+    return q_columns.reshape(-1), v_columns.reshape(-1)
+
+
 def _pair(model: Model, name_a: str, a: torch.Tensor, name_b: str, b: torch.Tensor, width_a: int, width_b: int):
     check_tensor(name_a, a, shape=(width_a,), dtype=model.dtype, device=model.device)
     check_tensor(name_b, b, shape=(width_b,), dtype=model.dtype, device=model.device)
@@ -190,6 +197,7 @@ __all__ = [
     "ManifoldPlan",
     "MimicPlan",
     "difference",
+    "euclidean_columns",
     "full_configuration",
     "full_tangent",
     "integrate",

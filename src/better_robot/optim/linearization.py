@@ -8,6 +8,7 @@ with plain autodiff.
 
 from __future__ import annotations
 
+import functools
 import warnings
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, final
@@ -20,6 +21,7 @@ from .evaluation import (
     Evaluation,
     Values,
     active_terms,
+    checked_values,
     depends,
     evaluate,
     irls,
@@ -63,6 +65,13 @@ def _accumulate(
                 sink.add(second.columns, first.columns, product.mT)
 
 
+def _stepped(problem: Problem, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
+    """``x`` stepped along ``delta: (B, N)`` on each variable's manifold, without the bounds clamp, so a derivative
+    taken through it is that of the terms alone."""
+    slices = problem.slices()
+    return {name: problem.manifolds[name].retract(value, delta[:, slices[name]]) for name, value in x.items()}
+
+
 def linearize(problem: Problem, x: Values | None = None) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
     """Gauss-Newton normal equations and the loss ``(B,)`` at ``x`` (default: the problem's variables)."""
     return _normal_equations(problem, x, active_terms(problem))
@@ -72,7 +81,7 @@ def _normal_equations(
     problem: Problem, x: Values | None, terms: list[Term]
 ) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
     """Normal equations of ``terms`` (registered on ``problem``, or derived from its terms) and their loss."""
-    x = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
+    x = {name: value.detach() for name, value in checked_values(problem, x).items()}
     traced = [t for t in terms if t.kind == "scalar" or t.jacobian is None]
     loss = zero_loss(problem)
     batch, size = loss.shape[0], problem.tangent_dim
@@ -85,7 +94,7 @@ def _normal_equations(
     with torch.enable_grad() if traced else torch.no_grad():
         if traced:
             delta = loss.new_zeros(batch, size, requires_grad=True)
-            evaluation = Evaluation(problem, problem._retract(x, delta))
+            evaluation = Evaluation(problem, _stepped(problem, x, delta))
         else:
             delta = None
             evaluation = Evaluation(problem, x)
@@ -132,11 +141,11 @@ def gradient(
     problem: Problem, x: Values | None = None, *, create_graph: bool = False
 ) -> tuple[torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
     """Loss ``(B,)``, its gradient ``(B, N)`` in tangent coordinates (frozen ones zeroed) and the detached term losses."""
-    x = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
+    x = {name: value.detach() for name, value in checked_values(problem, x).items()}
     with torch.enable_grad():
         zeros = zero_loss(problem)
         delta = zeros.new_zeros(zeros.shape[0], problem.tangent_dim, requires_grad=True)
-        loss, terms, _ = evaluate(problem, problem._retract(x, delta))
+        loss, terms, _ = evaluate(problem, _stepped(problem, x, delta))
         (g,) = torch.autograd.grad(loss.sum(), delta, create_graph=create_graph)
     mask = free_mask(problem)
     terms = {name: value.detach() for name, value in terms.items()}
@@ -177,37 +186,40 @@ def _band_layout(problem: Problem, terms: list[Term]) -> BandLayout | None:
     knots = {problem.variables[name].shape[1] for name in problem.time}
     if len(knots) != 1:
         return None
-    return _layout(problem, knots.pop(), max(max(windows) - 1, 1))
+    spans = tuple((span.start, span.stop, name in problem.time) for name, span in problem.slices().items())
+    device = next(iter(problem.variables.values())).device
+    return _layout(spans, knots.pop(), max(max(windows) - 1, 1), device)
 
 
-def _layout(problem: Problem, knots: int, group: int) -> BandLayout:
-    """Band layout of ``knots`` knots in blocks of ``group`` knots, built once per problem structure."""
-    key = (knots, group)
-    if key not in problem._layouts:
-        device = next(iter(problem.variables.values())).device
-        knot_of = torch.zeros(problem.tangent_dim, dtype=torch.long, device=device)
-        local_of = torch.zeros(problem.tangent_dim, dtype=torch.long, device=device)
-        offset = 0
-        time_columns, shared_columns = [], []
-        for name, span in problem.slices().items():
-            index = torch.arange(span.stop - span.start, device=device)
-            if name not in problem.time:
-                shared_columns.append(span.start + index)
-                continue
-            n = (span.stop - span.start) // knots
-            knot_of[span] = index // n
-            local_of[span] = offset + index % n
-            offset += n
-            time_columns.append(span.start + index)
-        problem._layouts[key] = BandLayout(
-            block_of_column=knot_of // group,
-            row_of_column=(knot_of % group) * offset + local_of,
-            blocks=-(-knots // group),
-            block_size=group * offset,
-            time_columns=torch.cat(time_columns) if shared_columns else None,
-            shared_columns=torch.cat(shared_columns) if shared_columns else None,
-        )
-    return problem._layouts[key]
+@functools.lru_cache(maxsize=64)
+def _layout(spans: tuple[tuple[int, int, bool], ...], knots: int, group: int, device: torch.device) -> BandLayout:
+    """Band layout of ``knots`` knots in blocks of ``group`` knots, built once per problem structure (C-STATE-4).
+
+    ``spans`` gives each variable's tangent columns ``start:stop`` and whether it has a time axis.
+    """
+    size = spans[-1][1]
+    knot_of = torch.zeros(size, dtype=torch.long, device=device)
+    local_of = torch.zeros(size, dtype=torch.long, device=device)
+    offset = 0
+    time_columns, shared_columns = [], []
+    for start, stop, timed in spans:
+        index = torch.arange(stop - start, device=device)
+        if not timed:
+            shared_columns.append(start + index)
+            continue
+        n = (stop - start) // knots
+        knot_of[start:stop] = index // n
+        local_of[start:stop] = offset + index % n
+        offset += n
+        time_columns.append(start + index)
+    return BandLayout(
+        block_of_column=knot_of // group,
+        row_of_column=(knot_of % group) * offset + local_of,
+        blocks=-(-knots // group),
+        block_size=group * offset,
+        time_columns=torch.cat(time_columns) if shared_columns else None,
+        shared_columns=torch.cat(shared_columns) if shared_columns else None,
+    )
 
 
 def _window_columns(problem: Problem, name: str, rows: int, offset: int, device: torch.device) -> torch.Tensor:
@@ -292,8 +304,15 @@ def _windowed_pieces(problem: Problem, term: Term, reweighted: torch.Tensor, del
         weights = rows_by_knot.detach()
         (plain,) = torch.autograd.grad(rows_by_knot, delta, weights, retain_graph=True)
         expected = plain[:, columns]
-        got = (block * weights.unsqueeze(-1)).sum((1, 2))
-        if not torch.allclose(got, expected, rtol=1e-3, atol=1e-6 * float(expected.abs().max()) + 1e-30):
+        products = block * weights.unsqueeze(-1)  # (B, T_out, m, ns)
+        got = products.sum((1, 2))
+        # Both sides sum the same rows * width products, which cancel to ~0 at a converged optimum
+        # with nonzero residuals. A sum of n rounded products in any order is within n * eps / 2 *
+        # sum|products| of the exact sum (Higham, Accuracy and Stability of Numerical Algorithms,
+        # ch. 4); the bound covers both sums and as much again for the rounding inside each entry.
+        roundoff = 2 * rows * width * torch.finfo(got.dtype).eps * products.abs().sum((1, 2))
+        tolerance = 1e-3 * expected.abs() + 1e-6 * expected.abs().amax() + roundoff + 1e-30
+        if not bool(((got - expected).abs() <= tolerance).all()):
             raise ArgumentError(
                 f"term {term.name!r}: the autodiff Jacobian w.r.t. variables without a time axis is wrong, "
                 "because an operation on that path cannot be differentiated twice. Give the term a `jacobian`."
@@ -317,7 +336,7 @@ def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float
     differentiates the same term row by row with no assumption. Returns ``{term name: error}``
     measured on ``H`` and ``g``, relative to the largest entry of ``H``.
     """
-    errors = {}
+    x, errors = checked_values(problem, x), {}
     for term in active_terms(problem):
         if term.kind != "residual" or (term.jacobian is None and term.window is None):
             continue

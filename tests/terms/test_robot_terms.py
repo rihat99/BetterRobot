@@ -1,12 +1,17 @@
 """Robot terms: analytic Jacobians equal autodiff; IK reaches reachable targets inside the limits."""
 
+from dataclasses import dataclass
+from typing import ClassVar, final
+
 import pytest
 import torch
 
 import better_robot as br
 from better_robot import optim, terms
+from better_robot.io import ModelBuilder, build_model
 from better_robot.kinematics import forward_kinematics
 from better_robot.lie import so3
+from better_robot.model import JointManifold, JointModel, JointRevolute
 from tests.support.robots import g1_urdf, panda_urdf
 
 FRAME = "panda_hand"
@@ -25,7 +30,7 @@ def test_analytic_jacobians_match_autodiff(panda):
     q = _random_q(panda, 6, 0)
     goal = forward_kinematics(panda, _random_q(panda, 6, 1)).frame_poses[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=q + 4.0, limit_weight=2.0, rest_weight=0.5)
-    problem = problem.with_(data={"point": goal[:, :3]})
+    problem.cached(lambda pose: pose[:, :3], name="point", reads=(f"target/{FRAME}",))
     problem.residual(
         "position", terms.frame_position(panda, frame=FRAME, target="point"), kernel=optim.Huber(delta=0.1)
     )
@@ -52,10 +57,30 @@ def test_ik_restarts_need_a_generator(panda):
         terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=1)
 
 
+def test_random_start_and_solve_ik_check_their_arguments(panda):
+    q0 = panda.q_neutral.expand(2, -1)
+    generator = torch.Generator().manual_seed(0)
+    for wrong in (panda.q_neutral, q0[:, :3]):
+        with pytest.raises(br.exceptions.ShapeError, match=f"q0 must be \\(B, {panda.nq}\\)"):
+            terms.random_start(panda, wrong, generator=generator)
+    with pytest.raises(br.exceptions.ArgumentError, match="generator"):
+        terms.random_start(panda, q0, generator=None)
+    goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
+    with pytest.raises(br.exceptions.ArgumentError, match="restarts must be at least 0"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=-3)
+
+
 def test_ik_problem_terms_read_the_state_by_name(panda):
     goal = forward_kinematics(panda, _random_q(panda, 4, 2)).frame_poses[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))
     assert problem.terms[f"pose/{FRAME}"].reads[0] == "state"
+
+
+def test_robot_manifold_is_a_frozen_value(panda):
+    manifold = terms.RobotManifold(panda)
+    with pytest.raises(AttributeError):
+        manifold.model = None
+    assert manifold == terms.RobotManifold(panda)
 
 
 def test_robot_manifold_accepts_an_empty_batch(panda):
@@ -96,3 +121,71 @@ def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1)
     problem.residual("jerk", term)
     problem.residual("velocity_limit", limit)
     assert max(optim.check_jacobian(problem).values()) < 1e-9
+
+
+# A joint kind that stores a rotation vector: nq == nv == 3, but on its own manifold (record 0005 rejected this storage
+# for the library's ball joint; a user kind may still choose it, record 0025).
+ROTATION_VECTOR = JointManifold(
+    name="rotation_vector",
+    nq=3,
+    nv=3,
+    integrate=lambda q, v: so3.log(so3.compose(so3.exp(q), so3.exp(v))),
+    difference=lambda q0, q1: so3.log(so3.compose(so3.inverse(so3.exp(q0)), so3.exp(q1))),
+)
+
+
+@final
+@dataclass(frozen=True)
+class JointRotationVector(JointModel):
+    """Ball joint in exponential coordinates: ``q`` is a rotation vector, ``v`` the body angular velocity."""
+
+    nq: ClassVar[int] = 3
+    nv: ClassVar[int] = 3
+    manifold: ClassVar[JointManifold] = ROTATION_VECTOR
+    axis: ClassVar[None] = None
+
+    def placement(self, q: torch.Tensor) -> torch.Tensor:
+        return torch.cat((torch.zeros_like(q), so3.exp(q)), -1)
+
+    def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
+        eye = torch.eye(3, dtype=q.dtype, device=q.device)
+        return torch.cat((torch.zeros_like(eye), eye)).expand(*q.shape[:-1], 6, 3)
+
+    def neutral(self) -> torch.Tensor:
+        return torch.zeros(3)
+
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        return lower + (upper - lower) * torch.rand(3, generator=generator, dtype=lower.dtype)
+
+
+def test_terms_follow_the_declared_manifold_not_nq_equal_nv():
+    """A rotation-vector joint has ``nq == nv`` but is not a vector space: no bound, sample or identity Jacobian."""
+    builder = ModelBuilder("rotation_vector_arm")
+    base, link, tip = builder.add_body("base"), builder.add_body("link"), builder.add_body("tip")
+    builder.add_joint("ball", kind=JointRotationVector(), parent=base, child=link, lower=-1.0, upper=1.0)
+    origin = torch.tensor([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
+    elbow = JointRevolute(axis=(0.0, 1.0, 0.0))
+    builder.add_joint("elbow", kind=elbow, parent=link, child=tip, origin=origin, lower=-2.0, upper=2.0)
+    model = build_model(builder.finalize()).to(dtype=torch.float64)
+    q_columns, v_columns = br.kinematics.euclidean_columns(model)
+    assert q_columns.tolist() == [3] and v_columns.tolist() == [3]
+
+    manifold = terms.RobotManifold(model)
+    x = torch.tensor([[0.0, 0.0, 0.9, 0.3]], dtype=torch.float64)
+    low, high = manifold.tangent_bounds(x, lower=model.lower_position_limit, upper=model.upper_position_limit)
+    assert bool(torch.isinf(low[:, :3]).all() and torch.isinf(high[:, :3]).all())  # a rotation step is no box step
+    torch.testing.assert_close(high[:, 3:], model.upper_position_limit[3:] - x[:, 3:])
+
+    q = torch.tensor([[0.8, -0.7, 1.3, 2.5]], dtype=torch.float64)
+    for term in (terms.rest(model, model.q_neutral), terms.joint_limits(model)):
+        assert term.jacobian is None  # autodiff through retract: right on any manifold
+    path = torch.stack([q[0] * (0.2 * t) for t in range(5)])[None]
+    problem = optim.Problem({"q": path}, manifolds={"q": manifold}, time=("q",))
+    problem.residual("rest", terms.rest(model, model.q_neutral), window=1)
+    problem.residual("limits", terms.joint_limits(model), window=1)
+    problem.residual("acceleration", terms.finite_difference(model, order=2, dt=0.1))
+    errors = optim.check_jacobian(problem)
+    assert set(errors) == {"rest", "limits", "acceleration"} and max(errors.values()) < 1e-9, errors
+
+    start = terms.random_start(model, model.q_neutral.expand(4, -1), generator=torch.Generator().manual_seed(0))
+    assert bool((start[:, :3] == 0).all()) and bool((start[:, 3] != 0).all())  # only the elbow is sampled

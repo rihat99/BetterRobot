@@ -38,19 +38,34 @@ Each invariant names its enforcer; `[review]` means a reviewer checks it.
   `tests/terms/test_robot_terms.py::test_analytic_jacobians_match_autodiff`.
 - After `step`, `State.extra` carries the diagnostic keys named in `solvers.DIAGNOSTICS` (key set in the
   `State` docstring); `run` stacks them into `Result.diagnostics`. A solver's `warm_keys` are the `extra`
-  entries a warm start (`state=`) keeps; everything else is recomputed by `init`. Every solver also writes
+  entries a warm start (`state=`) keeps; everything else is recomputed by `init`. `State.solver` is the class
+  that made the state; a warm start with another kind raises `ArgumentError`. Every solver also writes
   `extra["terms"]` (per-term losses of the evaluation `State.loss` comes from; `TorchOptim` adds `extra["info"]`,
   the dicts of terms returning `(value, info)`), kept as device tensors: no host sync.
   `tests/optim/test_solver_state.py` (`test_solvers_write_diagnostics_and_run_stacks_them`,
-  `test_warm_started_lbfgs_keeps_its_memory`, `test_term_info_and_per_term_losses_come_from_the_step_evaluation`).
+  `test_warm_started_lbfgs_keeps_its_memory`, `test_warm_start_from_another_solver_kind_names_both_kinds`,
+  `test_term_info_and_per_term_losses_come_from_the_step_evaluation`).
 - A `time=` problem that mixes windowed terms with an unwindowed term reading a time variable warns and
   goes dense. Normal equations are built through a sink (`add`/`finish`); a new structure is a new sink.
   `tests/optim/test_solver_state.py::test_time_problem_without_window_warns_on_dense_fallback`,
   `tests/optim/test_problem.py::test_block_tridiagonal_path_equals_dense`, `[review]`.
-- A `Problem` is read-only once built: registration adds names only, `with_` returns a new problem and
-  leaves its parent as it was. `tests/optim/test_problem.py::test_problem_is_immutable`.
+- Registration (`residual`, `scalar`, `cached`) only adds names to the problem it is called on; every field of
+  a registered term is fixed; changes go through `with_`, which returns a new problem and leaves its parent as
+  it was. The problems `with_` returns and the views `run`, `solve_constrained` and `solve_layer` make are
+  sealed: registration on them raises `ArgumentError`, so a callback cannot change a solve.
+  `tests/optim/test_problem.py::test_problem_is_immutable`,
+  `tests/optim/test_problem.py::test_callbacks_cannot_register_on_the_views_run_hands_them`.
 - Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype. `[review]`.
 - Every class here is abstract or `@final`. `tests/contract/test_abstract_or_final.py`.
+- Every entry that takes `x` (`run`, hence `solve`; the `Problem` evaluation methods; `check_jacobian`) checks it
+  once with `evaluation.checked_values`: one `(B, *event)` tensor per variable, so `x` never overrides data.
+  `Phase.on_start` must return `(x, data)`.
+  `tests/optim/test_problem.py::test_x_holds_one_batch_tensor_per_variable_and_never_overrides_data`,
+  `tests/optim/test_problem.py::test_on_start_must_return_x_and_data`.
+- A private name is used only by the module that defines it: `evaluation`, `linearization`, `phases` and
+  `constrained` read a `Problem` through its public fields (`cached_values`, `manifolds`, `slices()`, ...).
+  The band layout is memoised by `functools.lru_cache` on the problem's structure (C-STATE-4).
+  `tests/optim/test_problem.py::test_each_private_name_is_used_only_by_the_module_that_defines_it`.
 - Every error is a class of the error tree in `better_robot.exceptions` (record 0020), never a builtin
   `ValueError` and never `NotImplementedError`. `tests/contract/test_error_tree.py`,
   `tests/contract/test_roadmap_stub_inventory.py`.
