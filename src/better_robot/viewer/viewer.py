@@ -430,10 +430,14 @@ class Viewer:
             self._timeline_gui()
 
     def play(self, *, block: bool = True) -> None:
-        """Start playback (a no-op for a single-step scene); with ``block`` keep serving until interrupted."""
+        """Start playback (a no-op for a single-step scene); with ``block`` keep serving until interrupted, then pause."""
         self.timeline.play()
         if block:
-            self.server.sleep_forever()
+            try:
+                self.server.sleep_forever()
+            finally:
+                # A playback thread still running at interpreter exit dies inside torch and aborts the process.
+                self.timeline.pause()
 
     def _build(self, entry: _Entry, group: str, *, order: float | None = None) -> None:
         """Build ``entry``'s layer and, for a listed layer, its Layers checkbox (at ``order`` when it replaces one)."""

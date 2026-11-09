@@ -387,6 +387,14 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
         GroundLayer(normal=(0.0, 0.0, 0.0))
 
 
+def test_a_blocking_play_stops_playback_when_serving_ends() -> None:
+    """Ctrl-C ends viser's serve; a playback thread left running dies inside torch at exit (SIGABRT)."""
+    viewer = Viewer(server=FakeServer())  # the stand-in's serve returns at once
+    viewer.add([_skeleton(10)])
+    viewer.play(block=True)
+    assert not viewer.timeline.playing
+
+
 def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
