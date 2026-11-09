@@ -56,7 +56,8 @@ class Viewer:
     block, and layers that already show that step are skipped.
 
     ``server`` is the underlying ``viser.ViserServer`` (escape hatch for custom GUI); pass one
-    in to reuse a server or a fake in tests. The default host is loopback only.
+    in to reuse a server or a fake in tests (``testing.FakeServer``, hence typed ``Any``). The default host is
+    loopback only.
     """
 
     def __init__(
@@ -86,6 +87,11 @@ class Viewer:
         self._lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes
         self._timeline_folder: Any = None  # built when the first multi-step layer arrives
         self._layers_folder: Any = None
+
+    def __repr__(self) -> str:
+        return (
+            f"Viewer({self.url}, groups={list(self._groups)}, layers={len(self.layers)}, nsteps={self.timeline.nsteps})"
+        )
 
     @property
     def url(self) -> str:
@@ -204,7 +210,9 @@ class Viewer:
             with self._timeline_folder:
                 self.timeline.build_gui(self.server.gui)
 
-    def add_plot(self, name: str, series: Any, *, labels: list[str] | None = None, group: str = "plots") -> PlotPanel:
+    def add_plot(
+        self, name: str, series: np.ndarray, *, labels: list[str] | None = None, group: str = "plots"
+    ) -> PlotPanel:
         """Sidebar chart of ``series (T, K)`` against time with a marker at the current step."""
         panel = PlotPanel(name, series, labels=labels, fps=self.timeline.fps)
         self.add([panel], group=group)
@@ -291,7 +299,7 @@ class Viewer:
         size: tuple[int, int] = (960, 540),
         fps: float | None = None,
         gpu: bool = False,
-        camera: tuple[Sequence[float], Sequence[float]] | None = None,
+        camera: tuple[np.ndarray | Sequence[float], np.ndarray | Sequence[float]] | None = None,
     ) -> Path:
         """Screenshot the live scene in a headless Chromium for each step and write ``.webm``, ``.gif`` or PNGs.
 

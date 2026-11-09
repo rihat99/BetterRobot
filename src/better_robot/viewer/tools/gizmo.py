@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
-from typing import Any, final
+from typing import TYPE_CHECKING, final
 
 import numpy as np
 
 from ...exceptions import ShapeError
 from .._lie import to_wxyz
+
+if TYPE_CHECKING:
+    from ..viewer import Viewer
 
 
 @final
@@ -29,7 +32,7 @@ class PoseGizmo:
 
     def __init__(
         self,
-        viewer: Any,
+        viewer: Viewer,
         name: str,
         *,
         pose: np.ndarray,
@@ -111,9 +114,10 @@ class PoseGizmo:
         while True:
             with self._condition:
                 self._condition.wait_for(lambda: self._pending is not None or self._closed)
-                if self._closed:
+                pose = self._pending
+                if self._closed or pose is None:  # remove() clears the pending pose as it closes
                     return
-                pose, self._pending, self._busy = self._pending, None, True
+                self._pending, self._busy = None, True
             try:
                 for callback in self._callbacks:
                     callback(pose)

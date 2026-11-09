@@ -121,15 +121,16 @@ class SkeletonLayer(Layer):
             raise ArgumentError(
                 f"parent_ids must be joint indices in [0, {n_joints}) or -1 for a root, got {self.parent_ids.tolist()}"
             )
-        kinds = ["spherical"] * n_joints if kinds is None else list(kinds)
-        if len(kinds) != n_joints:
+        kind_names = ["spherical"] * n_joints if kinds is None else list(kinds)
+        if len(kind_names) != n_joints:
             raise ShapeError("kinds must have one entry per joint")
-        markers = [marker_of(kind) for kind in kinds]
-        self.groups = {m: np.array([j for j in range(n_joints) if markers[j] == m]) for m in set(markers) - {None}}
-        axes = (0.0, 0.0, 1.0) if axes is None else axes
-        if np.shape(axes) not in ((3,), (n_joints, 3)):
-            raise ShapeError(f"axes must be (3,) or (J, 3) = ({n_joints}, 3), got {np.shape(axes)}")
-        self.axes = np.broadcast_to(np.asarray(axes, dtype=np.float32), (n_joints, 3))
+        markers = [marker_of(kind) for kind in kind_names]
+        drawn = {marker for marker in markers if marker is not None}
+        self.groups = {m: np.array([j for j in range(n_joints) if markers[j] == m]) for m in drawn}
+        axes_array = np.asarray((0.0, 0.0, 1.0) if axes is None else axes, dtype=np.float32)
+        if axes_array.shape not in ((3,), (n_joints, 3)):
+            raise ShapeError(f"axes must be (3,) or (J, 3) = ({n_joints}, 3), got {axes_array.shape}")
+        self.axes = np.broadcast_to(axes_array, (n_joints, 3))
         radius = np.asarray(radius, dtype=np.float32)
         self.radius = radius if radius.ndim == 2 else np.broadcast_to(radius, (n_joints,))
         if self.radius.shape[-1] != n_joints or (radius.ndim == 2 and len(radius) != self.nsteps):

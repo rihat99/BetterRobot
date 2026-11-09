@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, final
+from typing import TYPE_CHECKING, Any, final
 
 import numpy as np
 
@@ -11,6 +11,9 @@ from ...exceptions import ArgumentError
 from .._lie import from_z, to_wxyz
 from ..theme import RGB, rgb_uint8
 from ..layer import Layer
+
+if TYPE_CHECKING:
+    from ..theme import Theme
 
 
 @final
@@ -59,7 +62,7 @@ class GroundLayer(Layer):
         self.section_color = section_color
         self.fill_color = fill_color
 
-    def apply_theme(self, theme: Any) -> None:
+    def apply_theme(self, theme: Theme) -> None:
         if self.plane is None:
             self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
 

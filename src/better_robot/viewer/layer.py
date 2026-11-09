@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from ..exceptions import ArgumentError, ShapeError
+
+if TYPE_CHECKING:
+    from .theme import Theme
 
 
 def as_frames(
@@ -46,7 +49,9 @@ class Layer(ABC):
 
     Subclasses implement ``build`` and ``set_step``; ``build_gui``, ``world_points`` and, for a layer that draws
     surfaces, ``set_opacity`` are optional.
-    ``listed = False`` keeps a layer out of the sidebar's Layers folder.
+    ``listed = False`` keeps a layer out of the sidebar's Layers folder. ``scene`` and ``gui`` are viser's
+    ``SceneApi`` and ``GuiApi`` or the stand-ins of ``testing.FakeServer``, typed ``Any`` because only ``viewer.py``
+    imports viser.
     """
 
     listed: bool = True
@@ -64,6 +69,9 @@ class Layer(ABC):
         self.nsteps = nsteps
         self._handles: list[Any] = []
         self._visible = True
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.name!r}, nsteps={self.nsteps}, visible={self.visible})"
 
     @property
     def visible(self) -> bool:
@@ -86,7 +94,7 @@ class Layer(ABC):
     def build_gui(self, gui: Any) -> None:
         """Add per-layer controls to an open GUI folder; nothing by default."""
 
-    def apply_theme(self, theme: Any) -> None:
+    def apply_theme(self, theme: Theme) -> None:
         """Adopt defaults from the viewer's ``Theme`` before ``build``; nothing by default."""
 
     def world_points(self, step: int) -> np.ndarray | None:

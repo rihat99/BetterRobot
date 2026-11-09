@@ -82,7 +82,7 @@ def robot_skeleton(
         poses = np.concatenate([poses, ends], axis=1)
         parent_ids = np.concatenate([parent_ids, end_joints - 1])
         kinds += ["fixed"] * count
-        axes = np.concatenate([axes, np.tile(np.float32([0.0, 0.0, 1.0]), (count, 1))])
+        axes = np.concatenate([axes, np.tile(np.array([0.0, 0.0, 1.0], dtype=np.float32), (count, 1))])
         offsets = np.concatenate([offsets, np.zeros((count, 3), dtype=np.float32)])
         if np.ndim(bone_radius):
             bone_radius = np.concatenate([bone_radius, np.asarray(bone_radius)[end_joints - 1]])
@@ -285,7 +285,7 @@ def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: RGB) -
 
     shape = attached.shape
     origin = np.asarray(shape.placement, dtype=np.float32)
-    color = shape.color[:3] if shape.color is not None else tuple(default_color)
+    color = shape.color[:3] if shape.color is not None else default_color
     if isinstance(shape, Mesh):
         path = _mesh_path(shape.uri, root)
         if not path.is_file():

@@ -60,6 +60,9 @@ class Theme:
     grid_section: RGB = (0.70, 0.72, 0.76)
     up: str = "+z"
 
+    def __repr__(self) -> str:
+        return f"Theme(dark={self.dark}, up={self.up!r})"
+
     def __post_init__(self) -> None:
         if self.up not in _UP_AXES:
             raise ArgumentError(f"up must be one of {list(_UP_AXES)}, got {self.up!r}")
@@ -69,7 +72,8 @@ class Theme:
         """``up`` as a unit vector, e.g. ``"+y"`` -> ``(0, 1, 0)``."""
         sign = -1.0 if self.up.startswith("-") else 1.0
         axis = "xyz".index(self.up[-1])
-        return tuple(sign if index == axis else 0.0 for index in range(3))
+        x, y, z = (sign if index == axis else 0.0 for index in range(3))
+        return x, y, z
 
     def apply(self, server: Any) -> None:
         """Configure the GUI theme, up direction and viser's default lights on a viser server."""

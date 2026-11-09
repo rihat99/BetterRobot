@@ -78,7 +78,10 @@ class MeshSpec:
     body: int
     origin: np.ndarray
     color: RGB = (0.80, 0.80, 0.80)
-    trimesh: Any = None
+    trimesh: Any = None  # a trimesh.Trimesh; trimesh is imported in robot.py only
+
+    def __repr__(self) -> str:
+        return f"MeshSpec(V={len(self.vertices)}, F={len(self.faces)}, body={self.body})"
 
 
 @final

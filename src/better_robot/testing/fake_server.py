@@ -27,6 +27,15 @@ class FakeHandle:
     ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered.
     """
 
+    scene: FakeScene | None
+    kind: str
+    name: str
+    props: dict[str, Any]
+    writes: list[str]
+    calls: list[str]
+    callbacks: list[Callable[[Any], None]]
+    removed: bool
+
     def __init__(self, scene: FakeScene | None, kind: str, name: str, props: dict[str, Any], **state: Any) -> None:
         # Written through ``__dict__`` so that construction is not logged as attribute writes.
         self.__dict__.update(
