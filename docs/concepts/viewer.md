@@ -196,8 +196,8 @@ showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radiu
 The viewer holds one pointer callback so that tools never fight over the scene: a tool calls
 `viewer.on_pointer("click", callback)` (viser's `SceneClickEvent`: `ray_origin`, `ray_direction`, `screen_pos`) or
 `viewer.on_pointer("rect-select", callback)` (`SceneRectSelectEvent`: `screen_min`, `screen_max`), and
-`viewer.clear_pointer()` when it is done. A new registration replaces the previous one; never register on
-`viewer.server.scene` directly.
+`viewer.clear_pointer()` when it is done. While one callback is held, a new registration raises `ArgumentError`:
+the tool taking the pointer over calls `clear_pointer()` first. Never register on `viewer.server.scene` directly.
 
 ```python
 from better_robot.viewer.tools import vertices_in_sphere

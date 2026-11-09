@@ -16,7 +16,8 @@ One viewer on viser. Read `docs/concepts/viewer.md` first.
   `set_step` always receives a sample index. A `(T,)` `valid` (per-sample visibility) hides the layer's frame
   `/<group>/<name>` in `Viewer._push`, without touching the layer's own switch; layers that hide single elements read
   a `(T, N)` one in `set_step`. Tools register scene-pointer callbacks only through `Viewer.on_pointer` /
-  `clear_pointer` (one callback at a time, on viser's `scene.on_click` / `on_rect_select`).
+  `clear_pointer` (one callback at a time, a second registration raises; on viser's `scene.on_click` /
+  `on_rect_select`).
 - viser is imported in `viewer.py` only; trimesh in `robot.py` only; no pyrender/imageio
   (`tests/contract/test_layer_dependencies.py`). The core never imports BetterHuman.
 - Default host is `127.0.0.1`; tests use the stand-in `better_robot.testing.FakeServer`, plus one loopback smoke test.

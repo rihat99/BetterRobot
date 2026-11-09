@@ -100,7 +100,11 @@ def test_on_pointer_holds_one_scene_pointer_callback() -> None:
     clicks: list[object] = []
     viewer.on_pointer("click", clicks.append)
     assert server.scene.pointers == [("click", clicks.append)]
-    viewer.on_pointer("rect-select", clicks.append)  # replaces the click callback
+    with pytest.raises(ArgumentError, match="already holds a 'click' callback; call clear_pointer"):
+        viewer.on_pointer("rect-select", clicks.append)  # never replaces the held callback silently
+    assert server.scene.pointers == [("click", clicks.append)]
+    viewer.clear_pointer()
+    viewer.on_pointer("rect-select", clicks.append)
     [(kind, callback)] = server.scene.pointers
     assert kind == "rect-select"
     callback("event")

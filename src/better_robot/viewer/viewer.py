@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass, field
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, final
+from typing import TYPE_CHECKING, Any, Literal, final
 
 import numpy as np
 
@@ -16,6 +16,11 @@ from .layer import Layer
 from .layers.plot import PlotPanel
 from .theme import LIGHT, Theme
 from .timeline import Timeline
+
+if TYPE_CHECKING:
+    from viser import SceneClickEvent, SceneRectSelectEvent
+
+    PointerCallback = Callable[[SceneClickEvent], None] | Callable[[SceneRectSelectEvent], None]
 
 #: What the camera fits when no visible layer has points: a 2 x 2 x 1 m box standing on the origin.
 _EMPTY_SCENE_POINTS = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
@@ -73,7 +78,7 @@ class Viewer:
         self.theme = theme or LIGHT
         self.theme.apply(server)
         self.timeline = Timeline(1, fps=fps)
-        self._pointer: tuple[str, Callable[[Any], None]] | None = None  # (kind, callback) held by on_pointer
+        self._pointer: tuple[str, PointerCallback] | None = None  # (kind, callback) held by on_pointer
         self.timeline.on_step(lambda step: self._push_all(step, force=False))
         self._groups: dict[str, _Group] = {}
         self._lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes
@@ -465,17 +470,21 @@ class Viewer:
         """Whether ``layer`` (this object, not its name) is in the viewer."""
         return any(entry.layer is layer for group in self._groups.values() for entry in group.entries.values())
 
-    def on_pointer(self, kind: str, callback: Callable[[Any], None]) -> None:
+    def on_pointer(self, kind: Literal["click", "rect-select"], callback: PointerCallback) -> None:
         """Route scene clicks (``kind="click"``) or box selections (``"rect-select"``) to ``callback``.
 
         A click arrives as viser's ``SceneClickEvent`` (``ray_origin``, ``ray_direction``, ``screen_pos``), a box as
         its ``SceneRectSelectEvent`` (``screen_min``, ``screen_max``; image coordinates in ``[0, 1]``, top-left
-        origin). The viewer holds one pointer callback so tools never fight over the scene: a new registration
-        replaces the previous one.
+        origin). The viewer holds one pointer callback so tools never fight over the scene: while one is held, a new
+        registration raises ``ArgumentError``; a tool that takes the pointer over calls ``clear_pointer`` first.
         """
         if kind not in ("click", "rect-select"):
             raise ArgumentError(f"kind must be 'click' or 'rect-select', got {kind!r}")
-        self.clear_pointer()
+        if self._pointer is not None:
+            raise ArgumentError(
+                f"the viewer already holds a {self._pointer[0]!r} callback; call clear_pointer() before registering "
+                "another"
+            )
         scene = self.server.scene
         (scene.on_click if kind == "click" else scene.on_rect_select)()(callback)
         self._pointer = (kind, callback)
