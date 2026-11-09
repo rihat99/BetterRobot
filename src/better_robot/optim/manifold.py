@@ -26,13 +26,14 @@ class Manifold(ABC):
 
     @abstractmethod
     def project(self, x: torch.Tensor) -> torch.Tensor:
-        """Map an ambient tensor ``(B, *event)`` back onto the manifold."""
+        """Map an ambient tensor ``x: (B, *event)`` back onto the manifold."""
 
     @abstractmethod
     def tangent_bounds(
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Allowed step range ``(B, n), (B, n)`` at ``x`` for box bounds on the ambient tensor."""
+        """Allowed step range ``(B, n), (B, n)`` at ``x: (B, *event)`` for box bounds ``lower, upper`` that
+        broadcast to ``(B, *event)``."""
 
 
 @final

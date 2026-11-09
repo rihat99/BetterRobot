@@ -22,11 +22,11 @@ class RobustKernel(ABC):
 
     @abstractmethod
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        """Objective values ``(...)`` of squared residual norms ``(...)``."""
+        """Objective values ``(...)`` of squared residual norms ``squared_norm: (...)``."""
 
     @abstractmethod
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        """IRLS row weights ``(...)`` of squared residual norms ``(...)``: ``rho'``."""
+        """IRLS row weights ``(...)`` of squared residual norms ``squared_norm: (...)``: ``rho'``."""
 
 
 @final

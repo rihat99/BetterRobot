@@ -23,7 +23,7 @@ class Normal:
         return f"Normal(B={self.g.shape[0]}, N={self.g.shape[1]}, {dtype}, {self.g.device})"
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> Normal:
-        """Box-constrain the step to ``[lower, upper]`` (projected Newton, one active-set pass).
+        """Box-constrain the step to ``lower, upper: (B, N)`` (projected Newton, one active-set pass).
 
         A coordinate that sits on a bound and whose gradient pushes it outward is frozen: its
         gradient entry becomes 0 and its row and column of ``H`` become the identity. The step
@@ -47,7 +47,7 @@ class Normal:
         Columns are scaled to unit diagonal and the factorization runs in float64, because a
         float32 Cholesky fails on the rank-deficient ``H`` of redundant robots. A batch element
         whose factorization still fails gets ``delta = 0`` (a rejected step for LM).
-        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
         """
         H, g = self.H.double(), (self.g if g is None else g).double()
         diagonal = H.diagonal(dim1=-2, dim2=-1)
@@ -132,7 +132,7 @@ class BandedNormal:
         return BandedNormal(diagonal, upper, self.g * keep, self.layout, self.lower, self.upper_bound)
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> BandedNormal:
-        """Box-constrain the step; see ``Normal.restrict``."""
+        """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
         return BandedNormal(out.diagonal, out.upper, out.g, self.layout, lower, upper)
@@ -142,7 +142,7 @@ class BandedNormal:
     ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g`` by block-tridiagonal Cholesky in float64.
 
-        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
         """
         g = self.g if g is None else g
         scale, factorization, failed = self._factor(damping, floor)
@@ -249,7 +249,7 @@ class ArrowNormal:
         return ArrowNormal(self.band.masked(keep_time), border, corner, self.g * keep, self.lower, self.upper)
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> ArrowNormal:
-        """Box-constrain the step; see ``Normal.restrict``."""
+        """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
         return ArrowNormal(out.band, out.border, out.corner, out.g, lower, upper)
@@ -259,7 +259,7 @@ class ArrowNormal:
     ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g`` in float64. Returns ``delta: (B, N)``.
 
-        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
         """
         g = (self.g if g is None else g).double()
         layout = self.band.layout

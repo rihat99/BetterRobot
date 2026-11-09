@@ -51,7 +51,10 @@ class RobotManifold(Manifold):
     def tangent_bounds(
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Step range of the coordinates on the ``EUCLIDEAN`` manifold; every other coordinate is unbounded."""
+        """Step range ``(B, nv), (B, nv)`` at ``x: (B, nq)`` for bounds ``lower, upper: (nq,)`` or ``(B, nq)``.
+
+        Only the coordinates on the ``EUCLIDEAN`` manifold are bounded; every other coordinate is unbounded.
+        """
         q_columns, v_columns = euclidean_columns(self.model)
         low = x.new_full((*x.shape[:-1], self.model.nv), -float("inf"))
         high = x.new_full((*x.shape[:-1], self.model.nv), float("inf"))

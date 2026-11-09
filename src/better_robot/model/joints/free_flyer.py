@@ -36,7 +36,7 @@ class JointFreeFlyer(JointModel):
         return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        """Unit Gaussian translation and a uniformly random rotation; the limits are not read."""
+        """A configuration ``(7,)``: unit Gaussian translation, uniformly random rotation; ``lower, upper: (7,)`` unread."""
         translation = torch.randn(3, generator=generator, dtype=lower.dtype)
         quaternion = torch.randn(4, generator=generator, dtype=lower.dtype)
         return torch.cat((translation, quaternion / quaternion.norm().clamp(min=1e-8)))
