@@ -38,20 +38,16 @@ class Layer(ABC):
     """
 
     listed: bool = True
-    #: Sample times ``(nsteps,)`` in seconds, set by ``Viewer.add(times=...)``; ``None`` = one sample per step.
-    times: np.ndarray | None = None
     #: Per-sample validity, set by ``Viewer.add(valid=...)``: ``(nsteps,)`` bool hides the whole layer on invalid
     #: samples, ``(nsteps, N)`` hides single elements; ``None`` = always shown.
     valid: np.ndarray | None = None
-    #: ``N`` for layers that hide single elements under a ``(nsteps, N)`` ``valid``; ``None`` = whole-layer only.
-    _elements: int | None = None
+    _elements: int | None = None  # set by a layer that hides single elements; read through ``elements``
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
         if nsteps < 1:
             raise ArgumentError(f"layer {name!r}: nsteps must be at least 1, got {nsteps}")
         self.name = name
         self.nsteps = nsteps
-        self.root = ""
         self._handles: list[Any] = []
         self._visible = True
 
@@ -59,6 +55,11 @@ class Layer(ABC):
     def visible(self) -> bool:
         """Whether the layer is switched on; ``Viewer.set_visible`` switches it and catches it up to the current step."""
         return self._visible
+
+    @property
+    def elements(self) -> int | None:
+        """``N`` when the layer draws ``N`` elements that a ``(nsteps, N)`` ``valid`` hides one by one, else ``None``."""
+        return self._elements
 
     @abstractmethod
     def build(self, scene: Any, root: str) -> None:

@@ -25,7 +25,9 @@ _EMPTY_SCENE_POINTS = np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]])
 @dataclass
 class _Entry:
     layer: Layer
-    node: Any  # the frame ``/<group>/<layer.name>`` the layer builds under; hidden on samples ``valid`` marks invalid
+    root: str  # the scene path ``/<group>/<layer.name>`` the layer builds under
+    node: Any  # the frame at ``root``; hidden on samples the layer's ``valid`` marks invalid
+    times: np.ndarray | None = None  # ``add(times=)``: sample times (nsteps,) in seconds; None = one sample per step
     step: int = -1  # last step pushed; -1 = never
     checkbox: Any = None  # the layer's row in the sidebar's Layers folder
 
@@ -118,7 +120,11 @@ class Viewer:
         if valid is not None:
             valid = np.asarray(valid, dtype=bool)
         taken = set(self._groups[group].entries) if group in self._groups else set()
-        for layer in layers:
+        for index, layer in enumerate(layers):
+            if self._holds(layer) or any(layer is other for other in layers[:index]):
+                raise ArgumentError(
+                    f"layer {layer.name!r} is already in this viewer; a layer draws in one place, so build a new one"
+                )
             if layer.name in taken:
                 raise ArgumentError(
                     f"group {group!r} already has a layer named {layer.name!r}; give the new layer another name"
@@ -127,7 +133,7 @@ class Viewer:
             if times is not None and times.shape != (layer.nsteps,):
                 raise ShapeError(f"times must have shape ({layer.nsteps},) for layer {layer.name!r}, got {times.shape}")
             if valid is not None:
-                shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer._elements)] if layer._elements is not None else [])
+                shapes = [(layer.nsteps,)] + ([(layer.nsteps, layer.elements)] if layer.elements is not None else [])
                 if valid.shape not in shapes:
                     raise ShapeError(
                         f"valid must have shape {' or '.join(map(str, shapes))} for layer {layer.name!r}, "
@@ -152,18 +158,18 @@ class Viewer:
         if offset is not None:
             group_state.node.position = offset
             group_state.offset = offset
-        # Always assigned, so a re-added layer never keeps the times or validity of an earlier add.
-        layer.times, layer.valid = times, valid
-        entry = group_state.entries[layer.name] = self._entry_for(layer, group)
+        # Always assigned, so a re-added layer never keeps the validity of an earlier add.
+        layer.valid = valid
+        entry = group_state.entries[layer.name] = self._entry_for(layer, group, times)
         self._build(entry, group)
-        self.timeline.extend(self._span(layer))
+        self.timeline.extend(self._span(entry))
         self._timeline_gui()
         self._push(entry, self.timeline.step)
 
-    def _entry_for(self, layer: Layer, group: str) -> _Entry:
+    def _entry_for(self, layer: Layer, group: str, times: np.ndarray | None) -> _Entry:
         layer.apply_theme(self.theme)
-        layer.root = f"/{group}/{layer.name}"
-        return _Entry(layer, self.server.scene.add_frame(layer.root, show_axes=False))
+        root = f"/{group}/{layer.name}"
+        return _Entry(layer, root, self.server.scene.add_frame(root, show_axes=False), times)
 
     def _timeline_gui(self) -> None:
         """Build the Timeline folder once the timeline has more than one step."""
@@ -329,7 +335,7 @@ class Viewer:
                 if not entry.layer.visible:
                     continue
                 for step in steps:
-                    index = self._index(entry.layer, step)
+                    index = self._index(entry, step)
                     valid = entry.layer.valid
                     if valid is not None and valid.ndim == 1 and not valid[index]:
                         continue
@@ -361,10 +367,16 @@ class Viewer:
 
         ``old``'s scene nodes and controls go; ``new`` is built under ``/<group>/<new.name>`` and the timeline is fitted
         to the layers now present. ``new`` arrives without ``times`` or ``valid`` (``add``'s per-layer options); a
-        new name must be free in the group. Use it to swap the data a layer draws, such as a body switched in a studio.
+        new name must be free in the group, and ``new`` must not be in the viewer yet (``rebuild`` redraws a layer in
+        place). Use it to swap the data a layer draws, such as a body switched in a studio.
         """
         with self._lock:
             entry = self._entry(old)
+            if self._holds(new):
+                raise ArgumentError(
+                    f"layer {new.name!r} is already in this viewer; replace takes a new layer object "
+                    "(rebuild redraws a layer in place)"
+                )
             group = next(name for name, state in self._groups.items() if state.entries.get(old.name) is entry)
             entries = self._groups[group].entries
             if new.name != old.name and new.name in entries:
@@ -373,9 +385,9 @@ class Viewer:
                 )
             order = None if entry.checkbox is None else entry.checkbox.order
             self._teardown(entry)
-            new.times = new.valid = None
+            new.valid = None
             new.set_visible(old.visible)
-            replacement = self._entry_for(new, group)
+            replacement = self._entry_for(new, group, None)
             self._groups[group].entries = {
                 (new.name if name == old.name else name): (replacement if name == old.name else value)
                 for name, value in entries.items()
@@ -396,7 +408,7 @@ class Viewer:
     def _build(self, entry: _Entry, group: str, *, order: float | None = None) -> None:
         """Build ``entry``'s layer and, for a listed layer, its Layers checkbox (at ``order`` when it replaces one)."""
         layer = entry.layer
-        layer.build(self.server.scene, layer.root)
+        layer.build(self.server.scene, entry.root)
         if not layer.listed:
             layer.build_gui(self.server.gui)
             return
@@ -427,6 +439,10 @@ class Viewer:
                     return entry
         raise ArgumentError(f"layer {layer.name!r} is not in this viewer; add it first")
 
+    def _holds(self, layer: Layer) -> bool:
+        """Whether ``layer`` (this object, not its name) is in the viewer."""
+        return any(entry.layer is layer for group in self._groups.values() for entry in group.entries.values())
+
     def on_pointer(self, kind: str, callback: Callable[[Any], None]) -> None:
         """Route scene clicks (``kind="click"``) or box selections (``"rect-select"``) to ``callback``.
 
@@ -452,24 +468,25 @@ class Viewer:
 
     def _fit_timeline(self) -> None:
         """Size the timeline to the longest layer, one step when there is none."""
-        self.timeline.resize(max((self._span(layer) for layer in self.layers), default=1))
+        spans = (self._span(entry) for group in self._groups.values() for entry in group.entries.values())
+        self.timeline.resize(max(spans, default=1))
 
-    def _span(self, layer: Layer) -> int:
-        """Timeline steps ``layer`` needs: its sample count, or enough steps to reach its last time."""
-        if layer.times is None:
-            return layer.nsteps
-        return int(np.floor(layer.times[-1] * self.timeline.fps + 1e-9)) + 1
+    def _span(self, entry: _Entry) -> int:
+        """Timeline steps ``entry``'s layer needs: its sample count, or enough steps to reach its last time."""
+        if entry.times is None:
+            return entry.layer.nsteps
+        return int(np.floor(entry.times[-1] * self.timeline.fps + 1e-9)) + 1
 
-    def _index(self, layer: Layer, step: int) -> int:
-        """Sample of ``layer`` shown at timeline ``step``: the step itself, or the nearest earlier time."""
-        if layer.times is None:
-            return min(step, layer.nsteps - 1)
+    def _index(self, entry: _Entry, step: int) -> int:
+        """Sample of ``entry``'s layer shown at timeline ``step``: the step itself, or the nearest earlier time."""
+        if entry.times is None:
+            return min(step, entry.layer.nsteps - 1)
         # The tolerance keeps a sample stamped exactly on a step from rounding to the previous one.
-        index = int(np.searchsorted(layer.times, step / self.timeline.fps + 1e-9, side="right")) - 1
-        return min(max(index, 0), layer.nsteps - 1)
+        index = int(np.searchsorted(entry.times, step / self.timeline.fps + 1e-9, side="right")) - 1
+        return min(max(index, 0), entry.layer.nsteps - 1)
 
     def _push(self, entry: _Entry, step: int, *, force: bool = True) -> None:
-        step = self._index(entry.layer, step)
+        step = self._index(entry, step)
         if force or step != entry.step:
             entry.layer.set_step(step)
             entry.step = step

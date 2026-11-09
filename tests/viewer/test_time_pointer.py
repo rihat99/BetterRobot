@@ -39,18 +39,21 @@ def test_a_10hz_and_a_30hz_layer_share_one_30fps_timeline() -> None:
     assert viewer.timeline.nsteps == 28
     expected_slow = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3]
     for step in range(10):
-        assert viewer._index(slow, step) == expected_slow[step]
-        assert viewer._index(fast, step) == step
-    assert viewer._index(slow, 27) == 9
-    viewer.show(4)
-    assert slow.shown[-1] == 1 and fast.shown[-1] == 4
+        viewer.show(step)
+        assert slow.shown[-1] == expected_slow[step] and fast.shown[-1] == step
+    viewer.show(27)
+    assert slow.shown[-1] == 9
 
 
 def test_times_default_to_one_sample_per_step_and_are_validated() -> None:
     viewer = Viewer(server=FakeServer())
     layer = _Recorder("plain", 5)
     viewer.add([layer])
-    assert layer.times is None and viewer._index(layer, 3) == 3 and viewer._index(layer, 99) == 4
+    viewer.add([_Recorder("long", 100)], group="long")
+    viewer.show(3)
+    assert layer.shown[-1] == 3
+    viewer.show(99)
+    assert layer.shown[-1] == 4
     with pytest.raises(ShapeError, match="shape"):
         viewer.add([_Recorder("short", 5)], times=np.arange(4) / 10.0)
     with pytest.raises(ArgumentError, match="non-decreasing"):
@@ -59,25 +62,36 @@ def test_times_default_to_one_sample_per_step_and_are_validated() -> None:
         viewer.add([_Recorder("inf", 2)], times=[0.0, np.inf])
 
 
-def test_times_are_set_per_add_and_not_on_a_refused_add() -> None:
-    viewer = Viewer(server=FakeServer())
+def test_a_refused_add_changes_nothing() -> None:
+    viewer = Viewer(server=FakeServer(), fps=10.0)
     timed = _Recorder("timed", 3)
     viewer.add([timed], times=[0.0, 0.1, 0.2])
     with pytest.raises(ArgumentError, match="already has a layer"):
         viewer.add([_Recorder("timed", 3)], times=[0.0, 0.5, 1.0])
-    np.testing.assert_array_equal(timed.times, [0.0, 0.1, 0.2])
-    refused = _Recorder("timed", 3)
-    with pytest.raises(ArgumentError, match="already has a layer"):
-        viewer.add([refused], times=[0.0, 0.5, 1.0])
-    assert refused.times is None
-    viewer.add([timed], group="other")
-    assert timed.times is None
+    assert viewer.timeline.nsteps == 3  # a refused add with later times does not stretch the timeline
     first, clash = _Recorder("first", 3), _Recorder("first", 3)
     with pytest.raises(ArgumentError, match="already has a layer named 'first'"):
         viewer.add([first, clash], group="pair")  # a refused call adds none of its layers
-    assert first not in viewer.layers and first.times is None
+    assert first not in viewer.layers
     with pytest.raises(ArgumentError, match=r"an iterable of layers; pass \[_Recorder"):
         viewer.add(first)
+
+
+def test_the_same_layer_object_is_never_added_twice() -> None:
+    viewer = Viewer(server=FakeServer())
+    layer, other = _Recorder("a", 3), _Recorder("b", 3)
+    viewer.add([layer])
+    viewer.add([other], group="g")
+    with pytest.raises(ArgumentError, match="'a' is already in this viewer"):
+        viewer.add([layer], group="other")
+    with pytest.raises(ArgumentError, match="'c' is already in this viewer"):
+        twice = _Recorder("c", 3)
+        viewer.add([twice, twice], group="pair")
+    with pytest.raises(ArgumentError, match="'b' is already in this viewer; replace takes a new layer object"):
+        viewer.replace(layer, other)
+    with pytest.raises(ArgumentError, match="rebuild redraws a layer in place"):
+        viewer.replace(layer, layer)
+    assert [(entry.name, id(entry)) for entry in viewer.layers] == [("a", id(layer)), ("b", id(other))]
 
 
 def test_on_pointer_holds_one_scene_pointer_callback() -> None:
