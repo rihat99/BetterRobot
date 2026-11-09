@@ -28,6 +28,15 @@
       <body name="fixed_child" pos="0.3 0 0" euler="10 20 30">
         <geom type="sphere" size="0.05"/>
       </body>
+      <body name="ref_hinge_body" pos="0 -0.3 0.1" euler="0 30 0">
+        <joint name="ref_hinge" type="hinge" axis="0 1 1" pos="0.02 0 0" ref="30" range="-60 80"/>
+        <geom type="sphere" size="0.03"/>
+        <body name="ref_slide_body" pos="0 0 0.2">
+          <joint name="ref_slide" type="slide" axis="1 0 1" ref="0.05" range="-0.1 0.2"/>
+          <geom type="box" size="0.02 0.02 0.02"/>
+          <site name="ref_tip" pos="0.01 0 0.1"/>
+        </body>
+      </body>
     </body>
   </worldbody>
 </mujoco>

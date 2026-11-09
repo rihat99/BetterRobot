@@ -460,6 +460,18 @@ def test_a_name_used_twice_raises_and_says_which(ir, message):
         build_model(ir)
 
 
+def test_an_ir_neutral_is_the_start_clamped_into_the_limits_and_must_fit_the_joint():
+    ir = _named_ir([("j", "b0", "b1")], ["b0", "b1"])
+    ir.joints[0].lower, ir.joints[0].upper = -1.0, 1.0
+    ir.joints[0].neutral = torch.tensor([0.5])
+    assert build_model(ir).q_neutral.tolist() == [0.5]
+    ir.joints[0].neutral = torch.tensor([3.0])
+    assert build_model(ir).q_neutral.tolist() == [1.0]
+    ir.joints[0].neutral = torch.zeros(2)
+    with pytest.raises(ModelError, match=re.escape("joint 'j': neutral has shape (2,), expected (1,)")):
+        build_model(ir)
+
+
 def test_device_dtype_kwarg():
     ir = _simple_arm_ir()
     model = build_model(ir, dtype=torch.float64)

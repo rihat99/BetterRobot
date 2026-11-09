@@ -439,9 +439,18 @@ def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduc
 
 
 def _neutral(topology: _Topology, public: _Layout, limits: _Limits, dtype: torch.dtype) -> torch.Tensor:
-    """Each public joint's neutral coordinates, clamped into the limits so the neutral pose is a valid one, ``(nq,)``."""
-    parts = [joint.neutral() for joint, width in zip(topology.joints, public.nqs) if width > 0]
-    neutral = torch.cat(parts, dim=-1).to(dtype=dtype) if parts else torch.zeros(0, dtype=dtype)
+    """Each public joint's neutral coordinates (its IR joint's ``neutral``, else the kind's), clamped into the limits
+    so the neutral pose is a valid one, ``(nq,)``."""
+    parts: list[torch.Tensor] = []
+    for joint, behind, width in zip(topology.joints, topology.ir_joints, public.nqs):
+        if width == 0:
+            continue
+        # A root_joint= that replaced the description's world joint starts from its own neutral.
+        given = behind.neutral if behind is not None and behind.joint is joint else None
+        if given is not None and tuple(given.shape) != (joint.nq,):
+            raise ModelError(f"joint {behind.name!r}: neutral has shape {tuple(given.shape)}, expected ({joint.nq},)")
+        parts.append((joint.neutral() if given is None else given).to(dtype=dtype))
+    neutral = torch.cat(parts, dim=-1) if parts else torch.zeros(0, dtype=dtype)
     return torch.clamp(neutral, limits.lower, limits.upper)
 
 

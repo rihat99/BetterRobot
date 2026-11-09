@@ -13,7 +13,8 @@ coordinates, packed tensors, frames and limits, as named stages into one
 path only and picks the parser by suffix or `format`; `root_joint=` replaces
 the joint under the universe (`JointFreeFlyer()` floats the base). Joints keep
 the source's order wherever it is topological (a Kahn sort, parents first); a
-body's frame carries the body's name; `q_neutral` is clamped into the limits.
+body's frame carries the body's name; `q_neutral` is each IR joint's `neutral`
+(MJCF `qpos0`) or the kind's, clamped into the limits.
 
 `ModelBuilder` and file parsers meet at the IR boundary: every `IRJoint`
 carries its `JointModel` (`ModelBuilder.add_joint(kind=)` takes any instance).

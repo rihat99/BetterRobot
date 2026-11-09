@@ -1,13 +1,15 @@
 """MJCF kinematics parity. Oracle: MuJoCo (``mujoco.MjModel`` and ``mj_kinematics``), record 0036.
 
-Body poses, site frames and joint limits of a model loaded through ``parse_mjcf`` match MuJoCo's own kinematics on
-``cases.xml`` (body ``pos``/``quat``, ``euler`` and ``axisangle`` orientations, degree ranges, ``limited="auto"``,
-a ``fromto`` capsule, a ball joint at an offset ``jnt_pos``, a jointless body, sites) and ``floating.xml`` (a free
-root, a ball joint, a hinge). Configurations are drawn from a seeded generator whose seed is in the test id.
+Body poses, site frames, joint limits and the neutral configuration of a model loaded through ``parse_mjcf`` match
+MuJoCo's own kinematics on ``cases.xml`` (body ``pos``/``quat``, ``euler`` and ``axisangle`` orientations, degree
+ranges, ``limited="auto"``, a ``fromto`` capsule, a ball joint at an offset ``jnt_pos``, a jointless body, sites, a
+hinge and a slide with a ``ref``) and ``floating.xml`` (a free root away from the origin, a ball joint, a hinge).
+Configurations are drawn from a seeded generator whose seed is in the test id.
 """
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import mujoco
@@ -107,4 +109,18 @@ def test_scalar_joint_limits_match_mujoco(file: str) -> None:
         assert float(model.lower_position_limit[start]) == expected[0], name
         assert float(model.upper_position_limit[start]) == expected[1], name
         checked += 1
-    assert checked == (3 if file == "cases" else 1)
+    assert checked == (5 if file == "cases" else 1)
+
+
+@pytest.mark.parametrize("file", sorted(FILES))
+def test_neutral_configuration_is_qpos0(file: str) -> None:
+    """``q_neutral`` is MuJoCo's ``qpos0`` (a ``ref``, a free body's ``pos``/``quat``) clamped into the limits."""
+    compiled = mujoco.MjModel.from_xml_path(str(FILES[file]))
+    model = br.load(FILES[file], dtype=torch.float64)
+    qpos0 = _q_from_mujoco(model, compiled, compiled.qpos0)
+    expected = torch.clamp(qpos0, model.lower_position_limit, model.upper_position_limit)
+    neutral_error = float((model.q_neutral - expected).abs().max())
+    assert neutral_error <= TOLERANCE, "q_neutral vs qpos0"
+    name, coordinate, value = {"cases": ("ref_hinge", 0, math.radians(30.0)), "floating": ("root", 2, 1.0)}[file]
+    start_error = abs(float(model.q_neutral[model.idx_qs[model.joint_id(name)] + coordinate]) - value)
+    assert start_error <= TOLERANCE, f"{name} starts at its qpos0, not at the kind's neutral"

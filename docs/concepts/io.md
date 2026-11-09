@@ -45,7 +45,9 @@ assert model.nq == 1
 
 MJCF goes through MuJoCo's compiler: `parse_mjcf` reads the compiled `MjModel`, so defaults, angle units,
 `limited="auto"`, `euler`/`axisangle` orientations and `fromto` geoms are MuJoCo's own; `tests/parity/mujoco/`
-checks the result against `mj_kinematics`.
+checks the result against `mj_kinematics`. A model's `q` is MuJoCo's `qpos`: a joint `ref` is folded into the
+joint's placement, the limits stay in `qpos` units, and `q_neutral` is `qpos0` (a `ref`, a free body's
+`pos`/`quat`) clamped into the limits.
 
 ## Load a robot description
 

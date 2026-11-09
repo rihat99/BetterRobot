@@ -24,7 +24,9 @@ class IRJoint:
 
     The scalar limits apply to every coordinate of the joint; ``damping`` and ``armature`` to every velocity
     coordinate (URDF ``<dynamics>``, MJCF ``damping`` and ``armature``). A joint with ``mimic_source`` follows that
-    joint as ``mimic_multiplier * q_source + mimic_offset`` and has no coordinates of its own.
+    joint as ``mimic_multiplier * q_source + mimic_offset`` and has no coordinates of its own. ``neutral (nq,)`` is
+    the configuration the model starts from (MJCF ``qpos0``), the kind's own neutral when ``None``; ``build_model``
+    clamps it into the limits.
     """
 
     name: str
@@ -41,6 +43,7 @@ class IRJoint:
     mimic_offset: float = 0.0
     damping: float = 0.0
     armature: float = 0.0
+    neutral: torch.Tensor | None = None
 
 
 @final

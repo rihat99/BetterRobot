@@ -7,6 +7,9 @@ orientations, ``fromto`` geoms and geom-derived inertias, so nothing here re-imp
 MuJoCo moves a body about ``jnt_pos``, a point of the body frame; BetterRobot moves a body about its joint frame's
 origin. A body's joint frame is therefore its MuJoCo body frame translated by ``jnt_pos``, and every quantity
 MuJoCo gives in the body frame (centre of mass, sites, geoms, child body positions) is shifted by ``-jnt_pos``.
+MuJoCo moves a hinge or slide by ``qpos - ref``; the joint's motion at ``-ref`` is folded into its placement, so a
+model's ``q`` is MuJoCo's ``qpos``, the limits stay in ``qpos`` units and ``q_neutral`` is ``qpos0`` (a free body's
+``pos``/``quat`` included) clamped into the limits.
 A body carries at most one joint (a chain of joints in one body needs a body per joint); a body without a joint is
 attached by a fixed joint named after the body; geoms of the world body are scenery, not robot geometry, and are
 not read. ``mujoco`` is imported here only (extra ``mjcf``).
@@ -63,6 +66,10 @@ def _joint(mujoco: ModuleType, compiled: Any, body: int, path: Path) -> IRJoint 
         kind = JointFreeFlyer()
     limited = isinstance(kind, (JointRevolute, JointPrismatic)) and bool(compiled.jnt_limited[joint])
     dof = int(compiled.jnt_dofadr[joint])
+    start = int(compiled.jnt_qposadr[joint])
+    qpos0 = compiled.qpos0[start : start + kind.nq]
+    if kind.nq in (4, 7):  # MuJoCo writes a quaternion w first
+        qpos0 = np.concatenate([qpos0[:-4], qpos0[-3:], qpos0[-4:-3]])
     return IRJoint(
         name=_named(compiled.joint(joint), "joint", joint, path),
         parent_body="",  # filled by the caller, which knows the body names
@@ -72,6 +79,7 @@ def _joint(mujoco: ModuleType, compiled: Any, body: int, path: Path) -> IRJoint 
         upper=float(compiled.jnt_range[joint, 1]) if limited else None,
         damping=float(compiled.dof_damping[dof]),
         armature=float(compiled.dof_armature[dof]),
+        neutral=torch.tensor(qpos0, dtype=torch.float64),
     )
 
 
@@ -152,6 +160,10 @@ def parse_mjcf(path: str | Path) -> IRModel:
             joint = IRJoint(name=name, parent_body=parent_name, child_body=name, joint=JointFixed())
         elif isinstance(joint.joint, JointFreeFlyer):  # a free joint places the body in the world by ``qpos`` alone
             placement = se3.identity(dtype=torch.float64)
+        elif isinstance(joint.joint, (JointRevolute, JointPrismatic)):
+            # MuJoCo moves a hinge or slide by ``qpos - ref``: the joint's own motion at ``-ref`` folded into the
+            # placement keeps q equal to qpos, so the limits stay in qpos units.
+            placement = se3.compose_raw(placement, joint.joint.placement(-joint.neutral))
         joint.parent_body = parent_name
         joint.origin = placement
         ir_joints.append(joint)
