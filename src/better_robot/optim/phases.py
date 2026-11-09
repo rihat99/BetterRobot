@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import KW_ONLY, dataclass, field, replace
 from typing import Any
 
 import torch
@@ -25,11 +25,12 @@ class Phase:
     ``on_step(problem, state)`` runs after every step, for logging; ``state.extra["terms"]`` holds
     the loss of every term (and, under ``TorchOptim``, ``state.extra["info"]`` the terms' info dicts)
     from the step's own evaluation, so logging costs no second forward. Every ``stop_every``
-    iterations the driver stops early if all problems are done; 0 runs exactly ``iters`` steps.
+    iterations the driver stops early if all problems are done; 0 runs exactly ``iterations`` steps.
     """
 
     solver: Solver
-    iters: int
+    iterations: int
+    _: KW_ONLY
     name: str = "phase"
     weights: Mapping[str, float] | None = None
     free: Mapping[str, torch.Tensor] | None = None
@@ -47,7 +48,7 @@ class Result:
     x: dict[str, torch.Tensor]
     loss: torch.Tensor  #: ``(B,)`` final loss under the last phase's weights.
     done: torch.Tensor  #: ``(B,)`` convergence flag of the last phase.
-    iters: int  #: total steps taken.
+    iterations: int  #: total steps taken.
     history: dict[str, torch.Tensor] = field(default_factory=dict)  #: ``{phase: (steps, B)}`` losses.
     #: ``{phase: {key: (steps, B)}}`` per-step solver diagnostics (key set: ``State`` docstring).
     diagnostics: dict[str, dict[str, torch.Tensor]] = field(default_factory=dict)
@@ -91,7 +92,7 @@ def run(
             kept = {key: warm.extra[key] for key in getattr(phase.solver, "warm_keys", ()) if key in warm.extra}
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []
-        for iteration in range(phase.iters):
+        for iteration in range(phase.iterations):
             state = phase.solver.step(view, state)
             losses.append(state.loss)
             steps.append({key: state.extra[key] for key in DIAGNOSTICS if key in state.extra})
@@ -99,7 +100,7 @@ def run(
                 phase.on_step(view, state)
             if phase.stop_every and (iteration + 1) % phase.stop_every == 0 and bool(state.done.all()):
                 break
-        total += state.it
+        total += state.iteration
         current = {name: value.detach() for name, value in state.x.items()}
         if losses:
             history[phase.name] = torch.stack(losses)
@@ -107,26 +108,28 @@ def run(
     with torch.no_grad():
         loss = view.loss(current)
     done = state.done if state is not None else torch.zeros_like(loss, dtype=torch.bool)
-    return Result(x=current, loss=loss, done=done, iters=total, history=history, diagnostics=diagnostics, state=state)
+    return Result(
+        x=current, loss=loss, done=done, iterations=total, history=history, diagnostics=diagnostics, state=state
+    )
 
 
 def solve(
     problem: Problem,
     solver: Solver,
     *,
-    iters: int = 50,
+    iterations: int = 50,
     x: Mapping[str, torch.Tensor] | None = None,
     state: State | None = None,
 ) -> Result:
-    """Run one solver for at most ``iters`` steps; ``state`` warm-starts it (see ``run``)."""
-    return run(problem, [Phase(solver=solver, iters=iters)], x=x, state=state)
+    """Run one solver for at most ``iterations`` steps; ``state`` warm-starts it (see ``run``)."""
+    return run(problem, [Phase(solver=solver, iterations=iterations)], x=x, state=state)
 
 
 def solve_layer(
     problem: Problem,
     solver: Solver,
     *,
-    iters: int = 50,
+    iterations: int = 50,
     x: Mapping[str, torch.Tensor] | None = None,
     damping: float = 1e-6,
 ) -> Result:
@@ -144,7 +147,7 @@ def solve_layer(
     scalars = [term.name for term in active_terms(problem) if term.kind == "scalar"]
     if scalars:
         raise ValueError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
-    result = solve(problem, solver, iters=iters, x=x)
+    result = solve(problem, solver, iterations=iterations, x=x)
     normal, _ = problem.linearize(result.x)
     _, g, _ = problem.gradient(result.x, create_graph=True)
     bounds = problem.step_bounds(result.x)

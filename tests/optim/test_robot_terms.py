@@ -57,7 +57,7 @@ def test_robot_manifold_accepts_an_empty_batch(panda):
         {"q": torch.zeros(0, panda.nq, dtype=torch.float64)}, manifolds={"q": terms.RobotManifold(panda)}
     )
     problem.residual("rest", terms.rest(panda, torch.zeros(panda.nq, dtype=torch.float64)))
-    result = optim.solve(problem, optim.LevenbergMarquardt(), iters=2)
+    result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=2)
     assert result.x["q"].shape == (0, panda.nq) and result.loss.shape == (0,)
 
 

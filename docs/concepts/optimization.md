@@ -19,7 +19,7 @@ from better_robot.optim import LevenbergMarquardt, Problem, solve
 torch.manual_seed(0)
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
 problem.residual("fit", lambda x, target: x - target)
-result = solve(problem, LevenbergMarquardt(), iters=20)
+result = solve(problem, LevenbergMarquardt(), iterations=20)
 assert result.x["x"].shape == (4, 2) and bool(result.done.all())
 ```
 
@@ -133,7 +133,7 @@ count `it`, and `extra` for solver-owned values (damping, moments). Every solver
 
 | Solver | Uses | Notes |
 |---|---|---|
-| `LevenbergMarquardt(damping=, gtol=, ftol=, xtol=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
+| `LevenbergMarquardt(damping=, gradient_tolerance=, loss_tolerance=, step_tolerance=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
 | `GaussNewton(damping=0.0)` | `linearize` | full step, optional fixed damping; fast near a good start |
 | `LBFGS(history=10, line_search=20)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one; the first trial carries its gradient, so a step that every problem takes there costs one evaluation; bounds by projection |
 | `TorchOptim(torch.optim.Adam, lr=...)` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
@@ -143,9 +143,9 @@ Because a solver is two functions, you can drive it yourself:
 ```python
 solver = LevenbergMarquardt()
 state = solver.init(problem, dict(problem.variables))
-while not bool(state.done.all()) and state.it < 50:
+while not bool(state.done.all()) and state.iteration < 50:
     state = solver.step(problem, state)
-print(state.it, state.loss)
+print(state.iteration, state.loss)
 ```
 ```output
 4 tensor([0., 0., 0., 0.])
@@ -153,15 +153,15 @@ print(state.it, state.loss)
 
 ## `solve`, `run` and friends
 
-- `solve(problem, solver, *, iters=50, x=None, state=None) -> Result` runs one solver until every problem is
-  done or `iters` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
+- `solve(problem, solver, *, iterations=50, x=None, state=None) -> Result` runs one solver until every problem is
+  done or `iterations` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
   the next solve (LM keeps its damping, L-BFGS its curvature memory) from `x`, else `state.x`.
   `Result.diagnostics[phase][key]` stacks the diagnostic keys per step, `(steps, B)`.
-  `Result` has `x`, `loss`, `done`, `iters` and a per-phase loss `history`;
+  `Result` has `x`, `loss`, `done`, `iterations` and a per-phase loss `history`;
   `result["q"]` is shorthand for `result.x["q"]`.
 - `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
   coordinates ([Fit a clip](../guides/fit-a-clip.md)).
-- `solve_layer(problem, solver, *, iters=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
+- `solve_layer(problem, solver, *, iterations=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
   ([Own the loop](../guides/own-the-loop.md)).
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard
   constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)).
@@ -174,7 +174,7 @@ a bool mask `(n,)` or `(B, n)`; the original stays as it was. `Phase` uses it in
 from better_robot.optim import TorchOptim
 
 loose = problem.with_(weights={"fit": 0.5})
-result = solve(loose, TorchOptim(torch.optim.Adam, lr=0.1), iters=100)
+result = solve(loose, TorchOptim(torch.optim.Adam, lr=0.1), iterations=100)
 print(result.loss)
 ```
 ```output

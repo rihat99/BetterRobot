@@ -20,7 +20,7 @@ from better_robot.optim import LevenbergMarquardt, Problem, solve
 
 problem = Problem({"x": torch.zeros(4, 2)}, data={"target": torch.randn(4, 2)})
 problem.residual("fit", lambda x, target: x - target)
-result = solve(problem, LevenbergMarquardt(), iters=20)  # result.x["x"]: (4, 2)
+result = solve(problem, LevenbergMarquardt(), iterations=20)  # result.x["x"]: (4, 2)
 ```
 """
 

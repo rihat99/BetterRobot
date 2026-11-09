@@ -78,4 +78,4 @@ def test_solve_ik_signature_shape() -> None:
     params = inspect.signature(solve_ik).parameters
     assert list(params)[:3] == ["model", "targets", "q0"]
     assert params["solver"].kind is inspect.Parameter.KEYWORD_ONLY
-    assert params["iters"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["iterations"].kind is inspect.Parameter.KEYWORD_ONLY

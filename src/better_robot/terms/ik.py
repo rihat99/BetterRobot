@@ -63,7 +63,7 @@ def solve_ik(
     *,
     q0: torch.Tensor,
     solver: Solver | None = None,
-    iters: int = 100,
+    iterations: int = 100,
     restarts: int = 0,
     generator: torch.Generator | None = None,
 ) -> Result:
@@ -74,15 +74,15 @@ def solve_ik(
     """
     problem = ik_problem(model, targets, q0=q0)
     solver = solver or LevenbergMarquardt()
-    best = solve(problem, solver, iters=iters)
+    best = solve(problem, solver, iterations=iterations)
     for _ in range(restarts):
-        attempt = solve(problem, solver, iters=iters, x={"q": random_start(model, q0, generator=generator)})
+        attempt = solve(problem, solver, iterations=iterations, x={"q": random_start(model, q0, generator=generator)})
         better = attempt.loss < best.loss
         best = Result(
             x=select(better, attempt.x, best.x),
             loss=torch.where(better, attempt.loss, best.loss),
             done=torch.where(better, attempt.done, best.done),
-            iters=best.iters + attempt.iters,
+            iterations=best.iterations + attempt.iterations,
         )
     return best
 

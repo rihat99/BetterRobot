@@ -77,7 +77,7 @@ problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
 problem = problem.with_(data={"preferred_elbow": torch.tensor(-1.8, dtype=torch.float64)})
 problem.residual("elbow", lambda q, preferred_elbow: q[:, 3:4] - preferred_elbow, weight=1e-3)
 
-result = optim.solve(problem, optim.LevenbergMarquardt(), iters=100)
+result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
 for name, loss in problem.losses(result.x).items():
     print(f"{name}: {float(loss.mean()):.2e}")
 ```
@@ -94,7 +94,7 @@ from `problem.data`. A problem never changes once built: `with_(data=)` returns 
 The same problem runs under any `torch.optim` optimizer. Adam needs many more steps than LM:
 
 ```python
-result = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iters=300)
+result = optim.solve(problem, optim.TorchOptim(torch.optim.Adam, lr=0.05), iterations=300)
 ```
 
 ## Where next

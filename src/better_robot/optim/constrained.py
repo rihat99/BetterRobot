@@ -33,7 +33,7 @@ def solve_constrained(
     equalities: Sequence[str] = (),
     inequalities: Sequence[str] = (),
     outer: int = 10,
-    iters: int = 30,
+    iterations: int = 30,
     penalty: float = 10.0,
     growth: float = 10.0,
     tolerance: float = 1e-6,
@@ -43,7 +43,7 @@ def solve_constrained(
 
     The constraints are residual terms already registered on ``problem``, named here; their
     own weight and kernel are ignored. Each of at most ``outer`` rounds runs ``solver`` for
-    ``iters`` steps on the problem with every constraint replaced by the least-squares term
+    ``iterations`` steps on the problem with every constraint replaced by the least-squares term
     ``½ ρ ‖c + λ/ρ‖²``, then updates the multipliers ``λ``. The penalty ``ρ`` (per batch
     element, starting at ``penalty``) grows by ``growth`` when the violation did not fall
     to a quarter. Stops when the largest violation of every batch element is below
@@ -73,8 +73,8 @@ def solve_constrained(
             shaped = rho.reshape(-1, *([1] * (multipliers[name].ndim - 1)))
             shifts[f"{name}.shift"] = multipliers[name] / shaped
             weights[name] = shaped
-        result = solve(shifted.with_(data=shifts, weights=weights), solver, iters=iters, x=current)
-        current, total = result.x, total + result.iters
+        result = solve(shifted.with_(data=shifts, weights=weights), solver, iterations=iterations, x=current)
+        current, total = result.x, total + result.iterations
         with torch.no_grad():
             values = plain.residuals(current)
         violation = torch.zeros_like(rho)
@@ -94,7 +94,7 @@ def solve_constrained(
     history = {"violation": torch.stack(violations)}
     with torch.no_grad():
         loss = problem.with_(weights=dict.fromkeys(names, 0.0)).loss(current)
-    return Result(x=current, loss=loss, done=violations[-1] < tolerance, iters=total, history=history)
+    return Result(x=current, loss=loss, done=violations[-1] < tolerance, iterations=total, history=history)
 
 
 __all__ = ["solve_constrained"]

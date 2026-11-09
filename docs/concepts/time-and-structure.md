@@ -90,7 +90,7 @@ problem.residual("offset_prior", lambda offset: offset, weight=1e-2)
 
 normal, _ = problem.linearize(problem.variables)
 print(type(normal).__name__)  # ArrowNormal
-result = solve(problem, LevenbergMarquardt(), iters=30)
+result = solve(problem, LevenbergMarquardt(), iterations=30)
 ```
 ```output
 ArrowNormal
@@ -119,12 +119,12 @@ coordinates per variable (`False` freezes). The next phase starts from the previ
 from better_robot.optim import Phase, run
 
 phases = [
-    Phase(LevenbergMarquardt(), iters=20, name="smooth", weights={"track": 0.1},
+    Phase(LevenbergMarquardt(), iterations=20, name="smooth", weights={"track": 0.1},
           free={"offset": torch.zeros(2, dtype=torch.bool)}),
-    Phase(LevenbergMarquardt(), iters=30, name="fit"),
+    Phase(LevenbergMarquardt(), iterations=30, name="fit"),
 ]
 result = run(problem, phases)
-print(result.iters, {name: tuple(h.shape) for name, h in result.history.items()})
+print(result.iterations, {name: tuple(h.shape) for name, h in result.history.items()})
 ```
 ```output
 28 {'smooth': (15, 2), 'fit': (13, 2)}

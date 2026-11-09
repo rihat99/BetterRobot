@@ -83,7 +83,7 @@ errors = check_jacobian(problem)
 print(errors)  # {'circle': ~1e-16, 'smooth': ~1e-16}
 assert max(errors.values()) < 1e-9
 
-result = solve(problem, LevenbergMarquardt(), iters=50)
+result = solve(problem, LevenbergMarquardt(), iterations=50)
 radius_error = (result.x["x"].norm(dim=-1) - 2.0).abs().max()
 print(f"largest distance from the circle: {float(radius_error):.1e}")
 ```

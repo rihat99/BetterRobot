@@ -48,7 +48,7 @@ def optimize_trajectory(model: br.Model) -> torch.Tensor:
     problem.residual("ends", terms.frame_pose(model, frame=FRAME, target="target"), weight=end_weight, window=1)
     problem.residual("velocity", terms.finite_difference(model, order=1, dt=DT), weight=1e-3)
     problem.residual("acceleration", terms.finite_difference(model, order=2, dt=DT), weight=1e-4)
-    return optim.solve(problem, optim.LevenbergMarquardt(), iters=200).x["q"][0]
+    return optim.solve(problem, optim.LevenbergMarquardt(), iterations=200).x["q"][0]
 
 
 def joint_torques(model: br.Model, q: torch.Tensor) -> torch.Tensor:

@@ -26,7 +26,7 @@ def _rosenbrock(batch: int = 2, shift: float = 0.0) -> optim.Problem:
     ids=["lm", "gn", "lbfgs"],
 )
 def test_solvers_write_diagnostics_and_run_stacks_them(solver, keys) -> None:
-    result = optim.solve(_rosenbrock(), solver, iters=5)
+    result = optim.solve(_rosenbrock(), solver, iterations=5)
     diagnostics = result.diagnostics["phase"]
     assert set(diagnostics) == keys and keys <= set(result.state.extra)
     steps = result.history["phase"].shape[0]
@@ -37,32 +37,32 @@ def test_solvers_write_diagnostics_and_run_stacks_them(solver, keys) -> None:
 
 
 def test_warm_started_lm_takes_fewer_iterations() -> None:
-    first = optim.solve(_rosenbrock(), optim.LevenbergMarquardt(damping=1e3), iters=200)
+    first = optim.solve(_rosenbrock(), optim.LevenbergMarquardt(damping=1e3), iterations=200)
     assert bool(first.done.all())
     moved = _rosenbrock(shift=0.05)
-    cold = optim.solve(moved, optim.LevenbergMarquardt(damping=1e3), iters=200, x=first.x)
-    warm = optim.solve(moved, optim.LevenbergMarquardt(damping=1e3), iters=200, state=first.state)
+    cold = optim.solve(moved, optim.LevenbergMarquardt(damping=1e3), iterations=200, x=first.x)
+    warm = optim.solve(moved, optim.LevenbergMarquardt(damping=1e3), iterations=200, state=first.state)
     assert bool(cold.done.all()) and bool(warm.done.all())
-    assert warm.iters < cold.iters
+    assert warm.iterations < cold.iterations
     torch.testing.assert_close(warm.x["x"], cold.x["x"], atol=1e-6, rtol=0)
 
 
 def test_warm_start_rejects_wrong_batch_and_non_state() -> None:
-    first = optim.solve(_rosenbrock(batch=1), optim.LevenbergMarquardt(), iters=5)
+    first = optim.solve(_rosenbrock(batch=1), optim.LevenbergMarquardt(), iterations=5)
     wide = _rosenbrock(batch=4)
     with pytest.raises(ValueError, match="batch"):
-        optim.solve(wide, optim.LevenbergMarquardt(), iters=5, x=wide.variables, state=first.state)
+        optim.solve(wide, optim.LevenbergMarquardt(), iterations=5, x=wide.variables, state=first.state)
     with pytest.raises(TypeError, match="State"):
-        optim.solve(wide, optim.LevenbergMarquardt(), iters=5, state=first)
+        optim.solve(wide, optim.LevenbergMarquardt(), iterations=5, state=first)
 
 
 def test_warm_started_lbfgs_keeps_its_memory() -> None:
-    first = optim.solve(_rosenbrock(), optim.LBFGS(), iters=10)
+    first = optim.solve(_rosenbrock(), optim.LBFGS(), iterations=10)
     solver = optim.LBFGS()
     warm = solver.init(_rosenbrock(), first.x)
     assert bool((warm.extra["rho"] == 0).all())  # a cold init has no curvature pairs
-    resumed = optim.solve(_rosenbrock(), solver, iters=1, state=first.state)
-    assert resumed.iters == 1 and bool((resumed.state.extra["rho"] != 0).any())
+    resumed = optim.solve(_rosenbrock(), solver, iterations=1, state=first.state)
+    assert resumed.iterations == 1 and bool((resumed.state.extra["rho"] != 0).any())
 
 
 def test_time_problem_without_window_warns_on_dense_fallback() -> None:
@@ -83,7 +83,7 @@ def test_time_problem_without_window_warns_on_dense_fallback() -> None:
 def test_lbfgs_done_uses_gradient_at_new_point() -> None:
     problem = optim.Problem({"x": torch.full((1, 2), 3.0, dtype=torch.float64)})
     problem.residual("fit", lambda x: x - 1.0)
-    result = optim.solve(problem, optim.LBFGS(), iters=50)
+    result = optim.solve(problem, optim.LBFGS(), iterations=50)
     assert bool(result.done.all())
     assert float(result.diagnostics["phase"]["grad_norm"][-1].max()) < 1e-8
 
@@ -119,14 +119,14 @@ def test_term_info_and_per_term_losses_come_from_the_step_evaluation() -> None:
         seen.append((len(calls), state.extra["terms"], state.extra["info"], state.loss))
 
     adam = optim.TorchOptim(torch.optim.Adam, lr=1e-2)
-    result = optim.run(problem, [optim.Phase(adam, iters=3, stop_every=0, on_step=log)])
+    result = optim.run(problem, [optim.Phase(adam, iterations=3, stop_every=0, on_step=log)])
     assert [count for count, *_ in seen] == [1, 2, 3]  # one forward per step: logging re-evaluates nothing
     _, terms, info, loss = seen[-1]
     assert set(terms) == {"valley", "anchor", "small"} and terms["small"].shape == (2,)
     torch.testing.assert_close(sum(terms.values()), loss)
     assert info["small"]["label"] == "x" and not info["small"]["largest"].requires_grad
     plain, _ = _counted_problem(with_info=False)
-    reference = optim.run(plain, [optim.Phase(optim.TorchOptim(torch.optim.Adam, lr=1e-2), iters=3, stop_every=0)])
+    reference = optim.run(plain, [optim.Phase(optim.TorchOptim(torch.optim.Adam, lr=1e-2), iterations=3, stop_every=0)])
     torch.testing.assert_close(result.x["x"], reference.x["x"], atol=0, rtol=0)  # info never enters the loss
     total, per_term, term_info = problem.evaluate(result.x)
     torch.testing.assert_close(total, problem.loss(result.x))
@@ -136,7 +136,7 @@ def test_term_info_and_per_term_losses_come_from_the_step_evaluation() -> None:
 @pytest.mark.parametrize("solver", [optim.LevenbergMarquardt(), optim.GaussNewton(damping=1e-3), optim.LBFGS()])
 def test_second_order_solvers_report_per_term_losses_at_the_accepted_point(solver) -> None:
     problem, _ = _counted_problem(with_info=True)
-    result = optim.solve(problem, solver, iters=4)
+    result = optim.solve(problem, solver, iterations=4)
     terms = result.state.extra["terms"]
     expected = problem.losses(result.state.x)
     assert set(terms) == set(expected)
@@ -157,7 +157,7 @@ def test_lbfgs_with_bounds_reaches_the_nonnegative_least_squares_optimum() -> No
     zero = torch.zeros(2, 20, dtype=torch.float64)
     problem = optim.Problem({"x": zero}, bounds={"x": (zero, torch.full_like(zero, torch.inf))}, data={"a": a, "b": b})
     problem.residual("fit", lambda x, a, b: (a @ x.unsqueeze(-1)).squeeze(-1) - b)
-    result = optim.solve(problem, optim.LBFGS(line_search=4), iters=200)
+    result = optim.solve(problem, optim.LBFGS(line_search=4), iterations=200)
     torch.testing.assert_close(result.x["x"], x_star, atol=1e-6, rtol=0)
 
 
@@ -187,8 +187,8 @@ def test_lbfgs_is_done_when_a_plain_gradient_step_finds_no_decrease() -> None:
     # The single trial, a unit-length gradient step, overshoots (x: 1e-3 -> -0.999); every later step would repeat it.
     problem = optim.Problem({"x": torch.full((1, 1), 1e-3, dtype=torch.float64)})
     problem.residual("steep", lambda x: 1e3 * x)
-    result = optim.solve(problem, optim.LBFGS(line_search=1), iters=50)
-    assert result.iters == 1 and bool(result.done.all())
+    result = optim.solve(problem, optim.LBFGS(line_search=1), iterations=50)
+    assert result.iterations == 1 and bool(result.done.all())
     assert float(result.x["x"][0, 0]) == 1e-3
 
 
@@ -218,6 +218,6 @@ def test_lbfgs_gradient_step_backtracks_below_a_stiff_term_with_no_gradient() ->
     problem = optim.Problem({"x": torch.zeros(1, 2, dtype=torch.float64)})
     problem.residual("fit", lambda x: x - x.new_tensor([1.0, 0.0]))
     problem.residual("stiff", lambda x: 70.71 * x.sum(-1, keepdim=True))
-    result = optim.solve(problem, optim.LBFGS(), iters=50)
+    result = optim.solve(problem, optim.LBFGS(), iterations=50)
     x1 = -(70.71**2) / (1 + 2 * 70.71**2)  # stationary point: x0 = 1 + x1
     torch.testing.assert_close(result.x["x"], torch.tensor([[1 + x1, x1]], dtype=torch.float64), atol=1e-8, rtol=0)

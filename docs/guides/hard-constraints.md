@@ -44,7 +44,7 @@ constraint $c$ by the least-squares term
 
 $$\tfrac{1}{2}\,\rho\,\lVert c + \lambda/\rho \rVert^2,$$
 
-runs the solver for `iters` steps, then updates the multipliers $\lambda$. For an inequality the shifted residual
+runs the solver for `iterations` steps, then updates the multipliers $\lambda$. For an inequality the shifted residual
 is clipped at zero, so it only pushes when the constraint is active. The penalty $\rho$ is kept per batch element:
 it starts at `penalty` and grows by `growth` whenever that element's violation did not fall to a quarter of the
 previous round. The loop stops when every batch element's largest violation is below `tolerance`, or after
@@ -54,7 +54,7 @@ previous round. The loop stops when every batch element's largest violation is b
 |---|---|---|
 | `equalities`, `inequalities` | `()` | names of residual terms read as `c = 0` and `c <= 0` |
 | `outer` | `10` | maximum augmented-Lagrangian rounds |
-| `iters` | `30` | solver steps per round |
+| `iterations` | `30` | solver steps per round |
 | `penalty`, `growth` | `10.0`, `10.0` | initial $\rho$ and its growth factor |
 | `tolerance` | `1e-6` | stop when every element's largest violation is below this |
 | `x` | `None` | start values; defaults to the problem's variables |

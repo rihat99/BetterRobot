@@ -49,11 +49,11 @@ def main() -> None:
     problem.residual("acceleration", terms.finite_difference(model, order=2, dt=DT), weight=1e-4)
 
     start = time.perf_counter()
-    result = optim.solve(problem, optim.LevenbergMarquardt(), iters=200)
+    result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=200)
     seconds = time.perf_counter() - start
     q = result.x["q"][0]
     reached = forward_kinematics(model, q).frame_poses[:, frame_id]
-    print(f"{result.iters} LM steps in {seconds * 1e3:.0f} ms, converged: {bool(result.done[0])}")
+    print(f"{result.iterations} LM steps in {seconds * 1e3:.0f} ms, converged: {bool(result.done[0])}")
     print(
         f"start error {float((reached[0, :3] - pose_start[:3]).norm()):.1e} m, "
         f"goal error {float((reached[-1, :3] - pose_goal[:3]).norm()):.1e} m"
