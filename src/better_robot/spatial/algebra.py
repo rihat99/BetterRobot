@@ -82,8 +82,8 @@ def transform_motion_raw(pose: torch.Tensor, twist: torch.Tensor) -> torch.Tenso
     batch = torch.broadcast_shapes(pose.shape[:-1], twist.shape[:-1])
     pose, twist = pose.expand(*batch, 7), twist.expand(*batch, 6)
     rotation = pose[..., 3:7]
-    angular = so3.act(rotation, twist[..., 3:])
-    linear = so3.act(rotation, twist[..., :3]) + torch.linalg.cross(pose[..., :3], angular)
+    angular = so3.act_raw(rotation, twist[..., 3:])
+    linear = so3.act_raw(rotation, twist[..., :3]) + torch.linalg.cross(pose[..., :3], angular)
     return torch.cat((linear, angular), dim=-1)
 
 
@@ -103,8 +103,8 @@ def transform_force_raw(pose: torch.Tensor, wrench: torch.Tensor) -> torch.Tenso
     batch = torch.broadcast_shapes(pose.shape[:-1], wrench.shape[:-1])
     pose, wrench = pose.expand(*batch, 7), wrench.expand(*batch, 6)
     rotation = pose[..., 3:7]
-    linear = so3.act(rotation, wrench[..., :3])
-    angular = so3.act(rotation, wrench[..., 3:]) + torch.linalg.cross(pose[..., :3], linear)
+    linear = so3.act_raw(rotation, wrench[..., :3])
+    angular = so3.act_raw(rotation, wrench[..., 3:]) + torch.linalg.cross(pose[..., :3], linear)
     return torch.cat((linear, angular), dim=-1)
 
 
@@ -125,7 +125,7 @@ def transform_inertia_raw(pose: torch.Tensor, inertia: torch.Tensor) -> torch.Te
     """`transform_inertia` without input checks, for checked inputs: ``(..., 7), (..., 10) → (..., 10)``."""
     batch = torch.broadcast_shapes(pose.shape[:-1], inertia.shape[:-1])
     pose, inertia = pose.expand(*batch, 7), inertia.expand(*batch, 10)
-    rotation = so3.to_matrix(pose[..., 3:7])
+    rotation = so3.to_matrix_raw(pose[..., 3:7])
     com = (rotation @ inertia[..., 1:4, None]).squeeze(-1) + pose[..., :3]
     return inertia_from_mass_com_raw(
         inertia[..., 0], com, rotational_inertia=rotation @ rotational_inertia_raw(inertia) @ rotation.mT

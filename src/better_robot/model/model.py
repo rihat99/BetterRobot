@@ -262,7 +262,7 @@ class Model:
             tensor = check_tensor(name, value, shape=event, dtype=self.dtype, device=self.device)
             if name not in _BATCHED_FIELDS and tensor.ndim != len(event):
                 raise ShapeError(f"{name} must have shape {event}, got {tuple(tensor.shape)}")
-            checked[name] = se3.normalize(tensor) if name.endswith("placements") else tensor
+            checked[name] = se3.normalize_raw(tensor) if name.endswith("placements") else tensor
         batches = {name: tuple(checked.get(name, getattr(self, name)).shape[:-2]) for name in _BATCHED_FIELDS}
         try:
             torch.broadcast_shapes(*batches.values())

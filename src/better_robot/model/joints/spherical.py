@@ -23,7 +23,7 @@ class JointSpherical(JointModel):
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
-        return torch.cat((q.new_zeros(*q.shape[:-1], 3), so3.normalize(q)), dim=-1)
+        return torch.cat((q.new_zeros(*q.shape[:-1], 3), so3.normalize_raw(q)), dim=-1)
 
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         angular = torch.eye(3, dtype=q.dtype, device=q.device)

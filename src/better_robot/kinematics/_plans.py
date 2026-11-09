@@ -12,7 +12,7 @@ from typing import final
 
 import torch
 
-from ..lie.tangents import hat_so3
+from ..lie.tangents import hat_so3_raw
 from ..model.joints import JointFreeFlyer, JointPrismatic, JointRevolute, JointRevoluteUnbounded, JointSpherical
 from ..model.model import Model
 from ..model.topology import build_supports
@@ -100,7 +100,7 @@ def _feature_map(
         return out
 
     for index, (joint, _) in enumerate(rotary):  # R = (I + K²) + sin · K - cos · K²
-        K = hat_so3(axes[joint] / axes[joint].norm())  # unit within 1e-6 (check_axis); exact here, in float64
+        K = hat_so3_raw(axes[joint] / axes[joint].norm())  # unit within 1e-6 (check_axis); exact here, in float64
         bias[slot[joint], :3, :3] += K @ K
         entries[slot[joint]] += [(index, block(K)), (n_rot + index, block(-K @ K))]
     base = 2 * n_rot

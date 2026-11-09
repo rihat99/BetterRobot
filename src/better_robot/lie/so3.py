@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import math
 
-from ._checks import check_tensor
-
 import torch
+
+from ._checks import check_tensor, check_tensors
 
 
 # ``1 - cos(theta)`` loses significance much earlier in fp32 than fp64.
@@ -44,8 +44,8 @@ def _hat3(v: torch.Tensor) -> torch.Tensor:
     )
 
 
-def _quat_mul(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    """Return the Hamilton product of scalar-last quaternions ``a`` and ``b``."""
+def compose_raw(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """`compose` without input checks, for checked inputs: the Hamilton product ``(..., 4), (..., 4) → (..., 4)``."""
     ax, ay, az, aw = a.unbind(-1)
     bx, by, bz, bw = b.unbind(-1)
     qx = aw * bx + ax * bw + ay * bz - az * by
@@ -55,8 +55,8 @@ def _quat_mul(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return torch.stack([qx, qy, qz, qw], dim=-1)
 
 
-def _quat_to_matrix(q: torch.Tensor) -> torch.Tensor:
-    """Convert scalar-last quaternions ``(..., 4)`` to rotation matrices."""
+def to_matrix_raw(q: torch.Tensor) -> torch.Tensor:
+    """`to_matrix` without input checks, for checked inputs: ``(..., 4) → (..., 3, 3)``."""
     qx, qy, qz, qw = q.unbind(-1)
     xx, yy, zz = qx * qx, qy * qy, qz * qz
     xy, xz, yz = qx * qy, qx * qz, qy * qz
@@ -71,8 +71,8 @@ def _quat_to_matrix(q: torch.Tensor) -> torch.Tensor:
     )
 
 
-def _matrix_to_quat(R: torch.Tensor) -> torch.Tensor:
-    """Convert rotation matrices to stable scalar-last unit quaternions.
+def from_matrix_raw(R: torch.Tensor) -> torch.Tensor:
+    """`from_matrix` without input checks, for checked inputs: ``(..., 3, 3) → (..., 4)``.
 
     The Shepperd 1978 variant picks the largest diagonal component to avoid
     cancellation as ``qw → 0`` and keeps every branch differentiable.
@@ -123,7 +123,7 @@ def identity(
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
-    """Return an SO3 identity quaternion with the given batch shape."""
+    """SO3 identity quaternion ``(*batch_shape, 4)``."""
     out = torch.zeros((*batch_shape, 4), device=device, dtype=dtype)
     out[..., 3] = 1.0
     return out
@@ -131,16 +131,29 @@ def identity(
 
 def compose(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """SO3 composition. ``(..., 4), (..., 4) → (..., 4)``."""
-    return _quat_mul(a, b)
+    check_tensors(a=(a, (4,)), b=(b, (4,)))
+    return compose_raw(a, b)
 
 
 def inverse(q: torch.Tensor) -> torch.Tensor:
-    """SO3 inverse (quaternion conjugate for unit quats)."""
+    """SO3 inverse (the conjugate of a unit quaternion). ``(..., 4) → (..., 4)``."""
+    check_tensor("q", q, shape=(4,))
+    return inverse_raw(q)
+
+
+def inverse_raw(q: torch.Tensor) -> torch.Tensor:
+    """`inverse` without input checks, for checked inputs: ``(..., 4) → (..., 4)``."""
     return torch.cat([-q[..., :3], q[..., 3:]], dim=-1)
 
 
 def log(q: torch.Tensor) -> torch.Tensor:
     """SO3 → so3 tangent. ``(..., 4) → (..., 3)``."""
+    check_tensor("q", q, shape=(4,))
+    return log_raw(q)
+
+
+def log_raw(q: torch.Tensor) -> torch.Tensor:
+    """`log` without input checks, for checked inputs: ``(..., 4) → (..., 3)``."""
     q = torch.where(q[..., 3:4] < 0, -q, q)
     qxyz = q[..., :3]
     qw = q[..., 3:4]
@@ -158,6 +171,12 @@ def log(q: torch.Tensor) -> torch.Tensor:
 
 def exp(w: torch.Tensor) -> torch.Tensor:
     """so3 tangent → SO3. ``(..., 3) → (..., 4)``."""
+    check_tensor("w", w, shape=(3,))
+    return exp_raw(w)
+
+
+def exp_raw(w: torch.Tensor) -> torch.Tensor:
+    """`exp` without input checks, for checked inputs: ``(..., 3) → (..., 4)``."""
     theta2 = (w * w).sum(dim=-1, keepdim=True)
     use_taylor = theta2 < _taylor_theta2(w.dtype)
     theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
@@ -173,6 +192,12 @@ def exp(w: torch.Tensor) -> torch.Tensor:
 
 def act(q: torch.Tensor, p: torch.Tensor) -> torch.Tensor:
     """Rotate a point by a quaternion. ``q: (..., 4), p: (..., 3) → (..., 3)``."""
+    check_tensors(q=(q, (4,)), p=(p, (3,)))
+    return act_raw(q, p)
+
+
+def act_raw(q: torch.Tensor, p: torch.Tensor) -> torch.Tensor:
+    """`act` without input checks, for checked inputs: ``q: (..., 4), p: (..., 3) → (..., 3)``."""
     qxyz = q[..., :3]
     qw = q[..., 3:4]
     qxyz_b, p_b = torch.broadcast_tensors(qxyz, p)
@@ -183,16 +208,18 @@ def act(q: torch.Tensor, p: torch.Tensor) -> torch.Tensor:
 
 def from_matrix(R: torch.Tensor) -> torch.Tensor:
     """Rotation matrix → unit quaternion. ``(..., 3, 3) → (..., 4)``."""
-    return _matrix_to_quat(R)
+    check_tensor("R", R, shape=(3, 3))
+    return from_matrix_raw(R)
 
 
 def to_matrix(q: torch.Tensor) -> torch.Tensor:
     """Unit quaternion → rotation matrix. ``(..., 4) → (..., 3, 3)``."""
-    return _quat_to_matrix(q)
+    check_tensor("q", q, shape=(4,))
+    return to_matrix_raw(q)
 
 
 def from_euler(euler: torch.Tensor) -> torch.Tensor:
-    """Convert extrinsic XYZ Euler angles to a unit quaternion.
+    """Extrinsic XYZ Euler angles to a unit quaternion. ``(..., 3) → (..., 4)``.
 
     ``euler[..., :]`` is ``[roll, pitch, yaw]`` in radians.  The rotations
     are active and extrinsic XYZ (equivalently intrinsic ZYX), so the
@@ -219,7 +246,7 @@ def from_euler(euler: torch.Tensor) -> torch.Tensor:
 
 
 def to_euler(q: torch.Tensor) -> torch.Tensor:
-    """Convert a unit quaternion to extrinsic XYZ Euler angles.
+    """Unit quaternion to extrinsic XYZ Euler angles. ``(..., 4) → (..., 3)``.
 
     Returns ``[..., (roll, pitch, yaw)]`` in radians for the same active
     convention as ``from_euler``: ``Rz(yaw) @ Ry(pitch) @ Rx(roll)``.
@@ -231,7 +258,7 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
     """
     check_tensor("q", q, shape=(4,))
 
-    q = normalize(q)
+    q = normalize_raw(q)
     qx, qy, qz, qw = q.unbind(dim=-1)
     sin_pitch = 2.0 * (qw * qy - qz * qx)
     roll_sin, roll_cos = 2.0 * (qw * qx + qy * qz), 1.0 - 2.0 * (qx.square() + qy.square())
@@ -256,7 +283,13 @@ def to_euler(q: torch.Tensor) -> torch.Tensor:
 
 
 def from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
-    """Unit quaternion from axis-angle. axis: (...,3) unit, angle: (...,) → (...,4)."""
+    """Unit quaternion from axis-angle. ``axis: (..., 3)`` unit, ``angle: (...) → (..., 4)``."""
+    check_tensors(axis=(axis, (3,)), angle=(angle, ()))
+    return from_axis_angle_raw(axis, angle)
+
+
+def from_axis_angle_raw(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
+    """`from_axis_angle` without input checks, for checked inputs: ``angle: (...) → (..., 4)``."""
     # Python ``2.0`` promotes a forward-mode fp32 tangent to fp64 on Torch
     # 2.13, producing mixed dual tensors in FK under ``jacfwd``.
     half = angle * torch.full_like(angle, 0.5)
@@ -268,7 +301,13 @@ def from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
 
 
 def normalize(q: torch.Tensor) -> torch.Tensor:
-    """Re-normalize the quaternion to unit length."""
+    """Quaternion re-normalized to unit length. ``(..., 4) → (..., 4)``."""
+    check_tensor("q", q, shape=(4,))
+    return normalize_raw(q)
+
+
+def normalize_raw(q: torch.Tensor) -> torch.Tensor:
+    """`normalize` without input checks, for checked inputs: ``(..., 4) → (..., 4)``."""
     return q / q.norm(dim=-1, keepdim=True).clamp(min=1e-8)
 
 
@@ -285,6 +324,9 @@ def slerp(
     of ``q1``/``q2`` (scalar or tensor accepted; ``t`` outside ``[0, 1]``
     extrapolates along the geodesic).
     """
+    check_tensors(q1=(q1, (4,)), q2=(q2, (4,)))
+    if isinstance(t, torch.Tensor):
+        check_tensor("t", t, shape=(), dtype=q1.dtype, device=q1.device, owner="q1")
     t = torch.as_tensor(t, dtype=q1.dtype, device=q1.device)
     while t.dim() < q1.dim():
         t = t.unsqueeze(-1)
@@ -308,4 +350,21 @@ def slerp(
     w2 = torch.where(near_parallel, w2_lerp, w2_slerp)
 
     out = w1 * q1 + w2 * q2
-    return normalize(out)
+    return normalize_raw(out)
+
+
+__all__ = [
+    "act",
+    "compose",
+    "exp",
+    "from_axis_angle",
+    "from_euler",
+    "from_matrix",
+    "identity",
+    "inverse",
+    "log",
+    "normalize",
+    "slerp",
+    "to_euler",
+    "to_matrix",
+]

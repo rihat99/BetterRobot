@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import torch
 
+from ._checks import check_tensor
 from .so3 import _taylor_theta2
 
 # ────────────────────────── hat / vee ──────────────────────────────────────
@@ -25,6 +26,12 @@ def hat_so3(w: torch.Tensor) -> torch.Tensor:
                           [ wz,  0,  -wx],
                           [-wy,  wx,   0]]
     """
+    check_tensor("w", w, shape=(3,))
+    return hat_so3_raw(w)
+
+
+def hat_so3_raw(w: torch.Tensor) -> torch.Tensor:
+    """`hat_so3` without input checks, for checked inputs: ``(..., 3) → (..., 3, 3)``."""
     z = torch.zeros_like(w[..., 0])
     wx, wy, wz = w[..., 0], w[..., 1], w[..., 2]
     return torch.stack(
@@ -39,6 +46,12 @@ def hat_so3(w: torch.Tensor) -> torch.Tensor:
 
 def vee_so3(W: torch.Tensor) -> torch.Tensor:
     """``(..., 3, 3) → (..., 3)`` — extract 3-vector from skew-symmetric matrix."""
+    check_tensor("W", W, shape=(3, 3))
+    return vee_so3_raw(W)
+
+
+def vee_so3_raw(W: torch.Tensor) -> torch.Tensor:
+    """`vee_so3` without input checks, for checked inputs: ``(..., 3, 3) → (..., 3)``."""
     return torch.stack([W[..., 2, 1], W[..., 0, 2], W[..., 1, 0]], dim=-1)
 
 
@@ -48,9 +61,10 @@ def hat_se3(xi: torch.Tensor) -> torch.Tensor:
     hat([vx, vy, vz, wx, wy, wz]) = [[hat_so3(w), v],
                                        [0,          0]]
     """
+    check_tensor("xi", xi, shape=(6,))
     v = xi[..., :3]
     w = xi[..., 3:]
-    W = hat_so3(w)  # (..., 3, 3)
+    W = hat_so3_raw(w)  # (..., 3, 3)
     *batch, _, _ = W.shape
     zero_row = torch.zeros(*batch, 1, 3, dtype=xi.dtype, device=xi.device)
     # Build 4×4: [[W, v.unsqueeze(-1)], [0, 0]]
@@ -62,8 +76,9 @@ def hat_se3(xi: torch.Tensor) -> torch.Tensor:
 
 def vee_se3(X: torch.Tensor) -> torch.Tensor:
     """``(..., 4, 4) → (..., 6)`` — 4×4 homogeneous matrix to se3 tangent."""
+    check_tensor("X", X, shape=(4, 4))
     v = X[..., :3, 3]  # (..., 3)  translation column
-    w = vee_so3(X[..., :3, :3])  # (..., 3)  rotation part
+    w = vee_so3_raw(X[..., :3, :3])  # (..., 3)  rotation part
     return torch.cat([v, w], dim=-1)
 
 
@@ -105,9 +120,15 @@ def right_jacobian_so3(omega: torch.Tensor) -> torch.Tensor:
     Jr(phi) = I - A * hat(phi) + B * hat(phi)^2
     where A = (1-cosθ)/θ², B = (θ-sinθ)/θ³, θ = ‖phi‖.
     """
+    check_tensor("omega", omega, shape=(3,))
+    return right_jacobian_so3_raw(omega)
+
+
+def right_jacobian_so3_raw(omega: torch.Tensor) -> torch.Tensor:
+    """`right_jacobian_so3` without input checks, for checked inputs: ``(..., 3) → (..., 3, 3)``."""
     theta2 = (omega * omega).sum(dim=-1)  # (...)
     A, B = _so3_jac_coefficients(theta2)
-    H = hat_so3(omega)  # (..., 3, 3)
+    H = hat_so3_raw(omega)  # (..., 3, 3)
     H2 = H @ H  # (..., 3, 3)
     *batch, _, _ = H.shape
     I3 = torch.eye(3, dtype=omega.dtype, device=omega.device).expand(*batch, 3, 3)
@@ -122,6 +143,12 @@ def right_jacobian_inverse_so3(omega: torch.Tensor) -> torch.Tensor:
     Jr_inv(phi) = I + (1/2) * hat(phi) + C * hat(phi)^2
     where C = 1/θ² - (1+cosθ)/(2θ sinθ)  →  1/12 for θ→0.
     """
+    check_tensor("omega", omega, shape=(3,))
+    return right_jacobian_inverse_so3_raw(omega)
+
+
+def right_jacobian_inverse_so3_raw(omega: torch.Tensor) -> torch.Tensor:
+    """`right_jacobian_inverse_so3` without input checks, for checked inputs: ``(..., 3) → (..., 3, 3)``."""
     theta2 = (omega * omega).sum(dim=-1)
     use_taylor = theta2 < _taylor_theta2(omega.dtype)
     theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
@@ -134,7 +161,7 @@ def right_jacobian_inverse_so3(omega: torch.Tensor) -> torch.Tensor:
 
     C = torch.where(use_taylor, C_taylor, C_full)
 
-    H = hat_so3(omega)
+    H = hat_so3_raw(omega)
     H2 = H @ H
     *batch, _, _ = H.shape
     I3 = torch.eye(3, dtype=omega.dtype, device=omega.device).expand(*batch, 3, 3)
@@ -143,16 +170,18 @@ def right_jacobian_inverse_so3(omega: torch.Tensor) -> torch.Tensor:
 
 
 def left_jacobian_so3(omega: torch.Tensor) -> torch.Tensor:
-    """``Jl(ω)`` — left Jacobian of the SO3 exp.
+    """``Jl(ω) = Jr(-ω)`` — left Jacobian of the SO3 exp. ``(..., 3) → (..., 3, 3)``.
 
     Jl(phi) = Jr(-phi).
     """
-    return right_jacobian_so3(-omega)
+    check_tensor("omega", omega, shape=(3,))
+    return right_jacobian_so3_raw(-omega)
 
 
 def left_jacobian_inverse_so3(omega: torch.Tensor) -> torch.Tensor:
     """``Jl^{-1}(ω) = Jr^{-1}(-ω)``. ``(..., 3) → (..., 3, 3)``."""
-    return right_jacobian_inverse_so3(-omega)
+    check_tensor("omega", omega, shape=(3,))
+    return right_jacobian_inverse_so3_raw(-omega)
 
 
 # ──────────────────────── SE3 adjoint matrix ─────────────────────────────
@@ -166,8 +195,8 @@ def _ad_matrix(xi: torch.Tensor) -> torch.Tensor:
     """
     v = xi[..., :3]
     w = xi[..., 3:]
-    Vhat = hat_so3(v)  # (..., 3, 3)
-    What = hat_so3(w)  # (..., 3, 3)
+    Vhat = hat_so3_raw(v)  # (..., 3, 3)
+    What = hat_so3_raw(w)  # (..., 3, 3)
     *batch, _, _ = What.shape
     zeros33 = torch.zeros(*batch, 3, 3, dtype=xi.dtype, device=xi.device)
     top = torch.cat([What, Vhat], dim=-1)  # (..., 3, 6)
@@ -203,8 +232,8 @@ def _se3_coupling_block(v: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     c2 = torch.where(use_taylor, c2_taylor, c2_full)[..., None, None]
     c3 = torch.where(use_taylor, c3_taylor, c3_full)[..., None, None]
 
-    V = hat_so3(v)
-    W = hat_so3(w)
+    V = hat_so3_raw(v)
+    W = hat_so3_raw(w)
     WV = W @ V
     VW = V @ W
     WVW = WV @ W
@@ -225,9 +254,15 @@ def right_jacobian_se3(xi: torch.Tensor) -> torch.Tensor:
           [0,         Jr_so3(w)]]
     with ``Q`` the closed-form coupling block; exact for every rotation angle.
     """
+    check_tensor("xi", xi, shape=(6,))
+    return right_jacobian_se3_raw(xi)
+
+
+def right_jacobian_se3_raw(xi: torch.Tensor) -> torch.Tensor:
+    """`right_jacobian_se3` without input checks, for checked inputs: ``(..., 6) → (..., 6, 6)``."""
     v = xi[..., :3]
     w = xi[..., 3:]
-    return _block_upper_triangular(right_jacobian_so3(w), _se3_coupling_block(-v, -w))
+    return _block_upper_triangular(right_jacobian_so3_raw(w), _se3_coupling_block(-v, -w))
 
 
 def right_jacobian_inverse_se3(xi: torch.Tensor) -> torch.Tensor:
@@ -236,18 +271,42 @@ def right_jacobian_inverse_se3(xi: torch.Tensor) -> torch.Tensor:
     Jr^{-1} = [[Jr_so3^{-1}, -Jr_so3^{-1} Q Jr_so3^{-1}],
                [0,           Jr_so3^{-1}]]
     """
+    check_tensor("xi", xi, shape=(6,))
+    return right_jacobian_inverse_se3_raw(xi)
+
+
+def right_jacobian_inverse_se3_raw(xi: torch.Tensor) -> torch.Tensor:
+    """`right_jacobian_inverse_se3` without input checks, for checked inputs: ``(..., 6) → (..., 6, 6)``."""
     v = xi[..., :3]
     w = xi[..., 3:]
-    rotation_inv = right_jacobian_inverse_so3(w)
+    rotation_inv = right_jacobian_inverse_so3_raw(w)
     coupling = _se3_coupling_block(-v, -w)
     return _block_upper_triangular(rotation_inv, -rotation_inv @ coupling @ rotation_inv)
 
 
 def left_jacobian_se3(xi: torch.Tensor) -> torch.Tensor:
-    """``Jl(ξ)``."""
-    return right_jacobian_se3(-xi)
+    """``Jl(ξ) = Jr(-ξ)`` — left Jacobian of the SE3 exp. ``(..., 6) → (..., 6, 6)``."""
+    check_tensor("xi", xi, shape=(6,))
+    return right_jacobian_se3_raw(-xi)
 
 
 def left_jacobian_inverse_se3(xi: torch.Tensor) -> torch.Tensor:
     """``Jl^{-1}(ξ) = Jr^{-1}(-ξ)``. ``(..., 6) → (..., 6, 6)``."""
-    return right_jacobian_inverse_se3(-xi)
+    check_tensor("xi", xi, shape=(6,))
+    return right_jacobian_inverse_se3_raw(-xi)
+
+
+__all__ = [
+    "hat_se3",
+    "hat_so3",
+    "left_jacobian_inverse_se3",
+    "left_jacobian_inverse_so3",
+    "left_jacobian_se3",
+    "left_jacobian_so3",
+    "right_jacobian_inverse_se3",
+    "right_jacobian_inverse_so3",
+    "right_jacobian_se3",
+    "right_jacobian_so3",
+    "vee_se3",
+    "vee_so3",
+]

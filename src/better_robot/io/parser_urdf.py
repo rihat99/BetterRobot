@@ -44,7 +44,7 @@ def _pose(origin: np.ndarray | None) -> torch.Tensor:
     if origin is None:
         return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=torch.float64)
     matrix = torch.tensor(origin, dtype=torch.float64)
-    return torch.cat([matrix[:3, 3], so3.from_matrix(matrix[:3, :3])])
+    return torch.cat([matrix[:3, 3], so3.from_matrix_raw(matrix[:3, :3])])
 
 
 def _placement(origin: np.ndarray | None) -> Pose:

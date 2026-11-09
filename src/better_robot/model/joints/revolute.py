@@ -33,7 +33,7 @@ class JointRevolute(JointModel):
         check_axis(self.axis)
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
-        return se3.from_axis_angle(q.new_tensor(self.axis), q[..., 0])
+        return se3.from_axis_angle_raw(q.new_tensor(self.axis), q[..., 0])
 
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         return _axis_column(q.new_tensor(self.axis), q.shape[:-1], row=3)
@@ -59,7 +59,7 @@ class JointRevoluteUnbounded(JointModel):
         check_axis(self.axis)
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
-        return se3.from_axis_angle(q.new_tensor(self.axis), torch.atan2(q[..., 1], q[..., 0]))
+        return se3.from_axis_angle_raw(q.new_tensor(self.axis), torch.atan2(q[..., 1], q[..., 0]))
 
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         return _axis_column(q.new_tensor(self.axis), q.shape[:-1], row=3)

@@ -73,11 +73,11 @@ def _circle_difference(q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
 
 
 def _rotation_integrate(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-    return so3.normalize(so3.compose(q, so3.exp(v)))
+    return so3.normalize_raw(so3.compose_raw(q, so3.exp_raw(v)))
 
 
 def _rotation_difference(q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
-    return so3.log(so3.normalize(so3.compose(so3.inverse(q0), q1)))
+    return so3.log_raw(so3.normalize_raw(so3.compose_raw(so3.inverse_raw(q0), q1)))
 
 
 def _se2_coefficients(angle: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -113,11 +113,11 @@ def _plane_difference(q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
 
 
 def _rigid_integrate(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
-    return se3.normalize(se3.compose(q, se3.exp(v)))
+    return se3.normalize_raw(se3.compose_raw(q, se3.exp_raw(v)))
 
 
 def _rigid_difference(q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
-    return se3.log(se3.compose(se3.inverse(q0), q1))
+    return se3.log_raw(se3.compose_raw(se3.inverse_raw(q0), q1))
 
 
 FIXED = Manifold(name="fixed", nq=0, nv=0, integrate=_euclidean_integrate, difference=_euclidean_difference)

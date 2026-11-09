@@ -33,8 +33,8 @@ def placement_matrices(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
 
     Memoised on the model by grad mode (record 0040); placements that carry a graph are converted per call.
     """
-    joints = model._value("joint_matrices", lambda m: se3.to_matrix(m.joint_placements))
-    frames = model._value("frame_matrices", lambda m: se3.to_matrix(m.frame_placements))
+    joints = model._value("joint_matrices", lambda m: se3.to_matrix_raw(m.joint_placements))
+    frames = model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))
     return joints, frames
 
 
@@ -86,7 +86,7 @@ def world_transforms(
         joint = plan.bias + torch.einsum("njf,jfab->njab", gathered, plan.weight)
         for slot, joint_id, start, width in plan.fallbacks:
             pose = model.joints[joint_id].placement(q_full[:, start : start + width])
-            joint = joint.index_copy(1, slot, se3.to_matrix(pose).unsqueeze(1))
+            joint = joint.index_copy(1, slot, se3.to_matrix_raw(pose).unsqueeze(1))
         local = placements @ joint  # (N, nj, 4, 4), level order
     first_start, first_stop = plan.level_slices[0]
     levels = [local[:, first_start:first_stop, :3]]

@@ -27,7 +27,7 @@ class JointFreeFlyer(JointModel):
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
-        return se3.normalize(q)
+        return se3.normalize_raw(q)
 
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         return torch.eye(6, dtype=q.dtype, device=q.device).expand(*q.shape[:-1], 6, 6)

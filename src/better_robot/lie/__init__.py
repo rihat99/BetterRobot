@@ -6,7 +6,9 @@
   ``(..., 3)`` = ``[wx, wy, wz]``.
 - ``compose(a, b)`` is the matrix product ``a @ b`` (apply ``b`` first); ``exp``/``log`` are the true group
   exponential and logarithm, not a decoupled translation + rotation map.
-- Public: the function modules ``se3``, ``so3``, ``tangents`` and ``umeyama``.
+- Public: the function modules ``se3``, ``so3``, ``tangents`` and ``umeyama``. Each public function checks its
+  inputs' types, trailing shapes, dtypes and devices (never their values); in-library hot paths call its unchecked
+  ``*_raw`` twin, which each module keeps out of its ``__all__``.
 """
 
 from __future__ import annotations

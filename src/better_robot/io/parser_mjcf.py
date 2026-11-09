@@ -144,7 +144,9 @@ def parse_mjcf(path: str | Path) -> IRModel:
         # The joint's placement in the parent joint frame: the parent's offset undone, the body pose, this
         # body's offset applied.
         placement = _pose(compiled.body_pos[body] - offsets[parent], compiled.body_quat[body])
-        placement = se3.compose(placement, se3.from_translation(torch.tensor(offsets[body], dtype=torch.float64)))
+        placement = se3.compose_raw(
+            placement, se3.from_translation_raw(torch.tensor(offsets[body], dtype=torch.float64))
+        )
         joint = joints[body]
         if joint is None:
             joint = IRJoint(name=name, parent_body=parent_name, child_body=name, joint=JointFixed())
@@ -153,7 +155,7 @@ def parse_mjcf(path: str | Path) -> IRModel:
         joint.parent_body = parent_name
         joint.origin = placement
         ir_joints.append(joint)
-        inertial_rotation = so3.to_matrix(_pose(np.zeros(3), compiled.body_iquat[body])[3:])
+        inertial_rotation = so3.to_matrix_raw(_pose(np.zeros(3), compiled.body_iquat[body])[3:])
         bodies.append(
             IRBody(
                 name=name,

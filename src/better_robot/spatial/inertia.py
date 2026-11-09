@@ -18,7 +18,7 @@ from numbers import Real
 import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
-from ..lie.tangents import hat_so3
+from ..lie.tangents import hat_so3_raw
 from ..lie._checks import check_tensors
 
 
@@ -37,7 +37,7 @@ def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
 def inertia_matrix_raw(inertia: torch.Tensor) -> torch.Tensor:
     """`inertia_matrix` without input checks, for checked inputs: ``(..., 10) → (..., 6, 6)``."""
     mass, com = inertia[..., 0], inertia[..., 1:4]
-    hat_com = hat_so3(com)
+    hat_com = hat_so3_raw(com)
     inertia_origin = rotational_inertia_raw(inertia) - mass[..., None, None] * (hat_com @ hat_com)
     eye = torch.eye(3, dtype=inertia.dtype, device=inertia.device)
     mass_eye = mass[..., None, None] * eye

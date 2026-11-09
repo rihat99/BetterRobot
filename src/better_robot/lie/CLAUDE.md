@@ -15,9 +15,14 @@ Functional API (no classes). Plain tensors in, plain tensors out.
 
 The pure-Torch implementations live directly in `so3.py` and `se3.py`; PyPose was removed in P10-D. Shared quaternion, matrix, hat, and Taylor-cutoff primitives live in `so3.py` and are imported by `se3.py` or `tangents.py` as needed. There is no runtime dispatch here.
 
+Every public function checks its tensor inputs with `_checks.py` (the library's one validator) and, when an
+in-library caller needs it, calls an unchecked `<name>_raw` twin; `kinematics`, `dynamics`, `spatial`, `model`
+and `io` call the `_raw` twins on inputs their own boundary checked. A new public function goes in the module's
+`__all__` and in `tests/lie/test_boundary.py`.
+
 ## Numerics
 
-`so3.py`, `se3.py`, and `tangents.py` stitch Taylor expansions at `θ → 0` via `torch.where` against dtype-aware `θ²` cutoffs. The full-formula branches use safe dummy inputs in the Taylor region so first- and second-order gradients are finite at `θ = 0`. `_matrix_to_quat` uses Shepperd 1978 four-branch selection for stable conversion when `qw → 0`. fp64 `gradcheck` and `gradgradcheck` cover the public SE3/SO3 exp/log operations and the SO3 right Jacobians at identity and near identity.
+`so3.py`, `se3.py`, and `tangents.py` stitch Taylor expansions at `θ → 0` via `torch.where` against dtype-aware `θ²` cutoffs. The full-formula branches use safe dummy inputs in the Taylor region so first- and second-order gradients are finite at `θ = 0`. `so3.from_matrix_raw` uses Shepperd 1978 four-branch selection for stable conversion when `qw → 0`. fp64 `gradcheck` and `gradgradcheck` cover the public SE3/SO3 exp/log operations and the SO3 right Jacobians at identity and near identity.
 
 ## Modules
 

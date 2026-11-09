@@ -23,7 +23,7 @@ class JointTranslation(JointModel):
     axis: ClassVar[None] = None
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
-        return se3.from_translation(q)
+        return se3.from_translation_raw(q)
 
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         linear = torch.eye(3, dtype=q.dtype, device=q.device)

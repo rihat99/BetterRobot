@@ -27,7 +27,7 @@ _QUATERNION_NORM_TOLERANCE = 0.1
 
 def _poses(transforms: torch.Tensor) -> torch.Tensor:
     """``[R | p]: (..., 3, 4)`` to ``[x y z qx qy qz qw]: (..., 7)`` with canonical-sign quaternions."""
-    return torch.cat([transforms[..., 3], so3.from_matrix(transforms[..., :3])], dim=-1)
+    return torch.cat([transforms[..., 3], so3.from_matrix_raw(transforms[..., :3])], dim=-1)
 
 
 @final

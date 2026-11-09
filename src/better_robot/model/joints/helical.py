@@ -28,7 +28,7 @@ class JointHelical(JointModel):
 
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         axis, angle = q.new_tensor(self.axis), q[..., 0]
-        return se3.compose(se3.from_translation(axis * (self.pitch * q)), se3.from_axis_angle(axis, angle))
+        return se3.compose_raw(se3.from_translation_raw(axis * (self.pitch * q)), se3.from_axis_angle_raw(axis, angle))
 
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         axis = q.new_tensor(self.axis)
