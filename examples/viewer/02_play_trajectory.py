@@ -20,6 +20,7 @@ import better_robot as br
 from better_robot import optim, terms
 from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import forward_kinematics
+from better_robot.testing import FakeServer
 from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
 
 FRAME, KNOTS, DT = "panda_hand", 60, 1.0 / 30.0
@@ -62,7 +63,9 @@ def joint_torques(model: br.Model, q: torch.Tensor) -> torch.Tensor:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="build the scene, push every frame and exit")
+    parser.add_argument(
+        "--check", action="store_true", help="build the scene on the stand-in server, push every frame and exit"
+    )
     args = parser.parse_args()
 
     model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
@@ -73,7 +76,7 @@ def main() -> None:
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
     state = forward_kinematics(model, q)
     poses = state.joint_poses.numpy()
-    viewer = Viewer(fps=1.0 / DT)
+    viewer = Viewer(fps=1.0 / DT, server=FakeServer() if args.check else None)
     viewer.add([GroundLayer()])
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
     hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id(FRAME)]].numpy())
@@ -83,7 +86,6 @@ def main() -> None:
     if args.check:
         for step in range(KNOTS):
             viewer.show(step)
-        viewer.server.stop()
         return
     print(f"playing at {viewer.url}")
     viewer.play()

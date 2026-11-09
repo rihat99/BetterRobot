@@ -28,10 +28,10 @@ from ..model.joints import (
 )
 from ..model.geometry import AttachedShape, Box, Cylinder, Geometry, Mesh, Sphere
 from ._lie import act, inverse
-from .theme import colormap
+from .layer import as_frames
 from .layers.mesh import MeshSpec
 from .layers.skeleton import SkeletonLayer, marker_extent, marker_of
-from .theme import LIGHT, Theme
+from .theme import LIGHT, Theme, colormap
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -51,10 +51,10 @@ def robot_skeleton(
     bone_radius: float | np.ndarray = 0.008,
     end_points: Mapping[str | int, Sequence[float]] | None = None,
 ) -> SkeletonLayer:
-    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)``, one marker per joint kind (``skeleton_spec``;
-    a revolute joint is a cylinder of ``radius`` and length 2.4 ``radius``), laid out by ``spread_offsets``: markers
-    that would overlap slide apart along their own axes, and bones join the drawn marker centres as axis-aligned legs
-    (``SkeletonLayer``).
+    """Skeleton over joints 1.. of ``joint_poses (T, njoints, 7)`` (one pose ``(njoints, 7)`` counts as ``T = 1``),
+    one marker per joint kind (``skeleton_spec``; a revolute joint is a cylinder of ``radius`` and length 2.4
+    ``radius``), laid out by ``spread_offsets``: markers that would overlap slide apart along their own axes, and
+    bones join the drawn marker centres as axis-aligned legs (``SkeletonLayer``).
 
     ``tau`` ``(T, nv)`` or ``(nv,)`` shows each joint's load ``|tau| / effort_limit`` on its marker, in colour
     (``theme.torque_ramp`` up to the limit, ``theme.over_limit`` past it) and thickness (its cross-section from 0.8
@@ -66,6 +66,7 @@ def robot_skeleton(
     (names or ids) to a point ``(3,)`` in each frame: a bone, as thick as the one into the frame's parent joint, runs
     from that joint to the point, such as a hand out to where its contacts are, past the last wrist joint.
     """
+    joint_poses = as_frames(joint_poses, 2)
     parent_ids = np.asarray(model.parent_joint_ids[1:], dtype=np.int64) - 1  # the universe becomes -1
     kinds, axes = skeleton_spec(model)
     poses, offsets = joint_poses[:, 1:], spread_offsets(model, radius=radius)
