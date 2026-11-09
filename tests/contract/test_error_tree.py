@@ -148,12 +148,13 @@ def test_wrong_nq_raises_shape_error(arm_model, batch_shape, extra) -> None:
 
 
 def test_unknown_name_lists_the_valid_names(arm_model) -> None:
-    """The message names the kind, the name and, with at most 20 candidates, every valid name."""
+    """One sentence shape for every kind: the kind, the name and, with at most 20 candidates, every valid name."""
     with pytest.raises(
-        exc.UnknownNameError, match=r"unknown joint 'nope'; valid joints: \['universe', 'root_joint', 'j1'\]"
+        exc.UnknownNameError, match=r"^unknown joint 'nope' \(valid names: \['universe', 'root_joint', 'j1'\]\)$"
     ):
         arm_model.joint_id("nope")
-    assert str(exc.UnknownNameError("frame", "x", [str(i) for i in range(21)])) == "unknown frame 'x'; 21 frames"
+    assert str(exc.UnknownNameError("body", "x", ["a"])) == "unknown body 'x' (valid names: ['a'])"
+    assert str(exc.UnknownNameError("frame", "x", [str(i) for i in range(21)])) == "unknown frame 'x' (21 valid names)"
 
 
 @pytest.mark.cuda
