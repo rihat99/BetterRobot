@@ -13,7 +13,8 @@ from better_robot.viewer.layer import Layer
 from better_robot.viewer._primitives import unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layers.image import ImagePanel
-from better_robot.viewer.layers.mesh import MeshLayer, SpheresLayer
+from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
+from better_robot.viewer.layers.skinned import SkinnedMeshLayer
 from better_robot.viewer.theme import Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
@@ -495,3 +496,23 @@ def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None
         mesh.set_opacity(0.0)
     with pytest.raises(ArgumentError, match="draws no surface"):
         PointsLayer("cloud", np.zeros((1, 3))).set_opacity(0.5)
+
+
+def test_mesh_layers_check_opacity_at_construction_as_set_opacity_does() -> None:
+    vertices, faces = np.zeros((3, 3)), np.array([[0, 1, 2]])
+    spec = MeshSpec(vertices=vertices, faces=faces, body=0, origin=np.array([0, 0, 0, 0, 0, 0, 1.0]))
+    weights, bind = np.ones((3, 4)) / 4, np.tile(np.array([0, 0, 0, 0, 0, 0, 1.0]), (4, 1))
+    builders = [
+        lambda opacity: MeshLayer("mesh", vertices, faces, opacity=opacity),
+        lambda opacity: RigidMeshLayer("rigid", [spec], bind[None, :1], opacity=opacity),
+        lambda opacity: SpheresLayer("balls", vertices, np.ones(3), opacity=opacity),
+        lambda opacity: SkinnedMeshLayer("skin", vertices, faces, weights, bind, bind, opacity=opacity),
+    ]
+    for build in builders:
+        for bad in (0.0, 5.0, float("nan")):
+            with pytest.raises(ArgumentError, match=r"opacity must be in \(0, 1\]"):
+                build(bad)
+        layer = build(0.5)
+        assert layer.opacity == 0.5
+        with pytest.raises(ArgumentError, match=r"opacity must be in \(0, 1\]"):
+            layer.set_opacity(1.5)

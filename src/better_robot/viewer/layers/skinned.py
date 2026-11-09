@@ -47,7 +47,7 @@ class SkinnedMeshLayer(Layer):
             raise ShapeError("bone_poses must be (T, J, 7) and weights (V, J) with J bind poses")
         self.weights = top_k_weights(np.asarray(weights, dtype=np.float32), 4)
         self.color = color
-        self.opacity = opacity
+        self._store_opacity(opacity)
         self._mesh: Any = None
 
     def build(self, scene: Any, root: str) -> None:

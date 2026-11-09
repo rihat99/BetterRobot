@@ -42,6 +42,8 @@ class Layer(ABC):
     #: samples, ``(nsteps, N)`` hides single elements; ``None`` = always shown.
     valid: np.ndarray | None = None
     _elements: int | None = None  # set by a layer that hides single elements; read through ``elements``
+    #: Opacity in ``(0, 1]`` (1 is opaque) of the surfaces a mesh layer draws; ``set_opacity`` changes it.
+    opacity: float = 1.0
 
     def __init__(self, name: str, nsteps: int = 1) -> None:
         if nsteps < 1:
@@ -106,10 +108,15 @@ class Layer(ABC):
         self._handles.append(handle)
         return handle
 
-    def _fade(self, opacity: float) -> None:
-        """``set_opacity`` of a layer whose tracked handles are all surfaces."""
+    def _store_opacity(self, opacity: float) -> None:
+        """Keep ``opacity`` once it is in ``(0, 1]``: the one check of the constructors and ``set_opacity``."""
         if not 0.0 < opacity <= 1.0:
             raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
         self.opacity = float(opacity)
-        for handle in self._handles:
-            handle.opacity = None if opacity >= 1.0 else self.opacity
+
+    def _fade(self, opacity: float, surfaces: list[Any] | None = None) -> None:
+        """``set_opacity`` of a mesh layer: keep ``opacity`` and write it to ``surfaces`` (every tracked handle when
+        ``None``)."""
+        self._store_opacity(opacity)
+        for handle in self._handles if surfaces is None else surfaces:
+            handle.opacity = None if self.opacity >= 1.0 else self.opacity

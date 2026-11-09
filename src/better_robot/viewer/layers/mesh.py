@@ -7,7 +7,7 @@ from typing import Any, final
 
 import numpy as np
 
-from ...exceptions import ArgumentError, ShapeError
+from ...exceptions import ShapeError
 from .._lie import act, compose, to_wxyz
 from .._primitives import unit_sphere
 from ..layer import as_frames
@@ -35,7 +35,7 @@ class MeshLayer(Layer):
         super().__init__(name, self.vertices.shape[0])
         self.faces = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
         self.color = color
-        self.opacity = opacity
+        self._store_opacity(opacity)
         self.flat_shading = flat_shading
         self._mesh: Any = None
 
@@ -92,7 +92,7 @@ class RigidMeshLayer(Layer):
         self.body_poses = as_frames(body_poses, 2)
         super().__init__(name, self.body_poses.shape[0])
         self.meshes = meshes
-        self.opacity = opacity
+        self._store_opacity(opacity)
         self._bodies = np.array([spec.body for spec in meshes], dtype=np.int64)
         self._origins = (
             np.stack([spec.origin for spec in meshes]).astype(np.float32) if meshes else np.zeros((0, 7), np.float32)
@@ -135,11 +135,7 @@ class RigidMeshLayer(Layer):
     def set_opacity(self, opacity: float) -> None:
         """Draw the meshes at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a textured or
         vertex-coloured mesh (``MeshSpec.trimesh``) stays opaque."""
-        if not 0.0 < opacity <= 1.0:
-            raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
-        self.opacity = float(opacity)
-        for node in self._plain:
-            node.opacity = None if opacity >= 1.0 else self.opacity
+        self._fade(opacity, self._plain)
 
 
 @final
@@ -167,7 +163,7 @@ class SpheresLayer(Layer):
         self._colors = rgb_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.centers.shape:
             raise ShapeError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
-        self.opacity = opacity
+        self._store_opacity(opacity)
         self._elements = self.centers.shape[1]
         self._spheres: Any = None
 
