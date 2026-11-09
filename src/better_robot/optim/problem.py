@@ -103,6 +103,9 @@ class Problem:
     ) -> None:
         if not variables:
             raise ArgumentError("a Problem needs at least one variable")
+        for name, value in variables.items():
+            if value.ndim == 0:
+                raise ShapeError(f"variable {name!r} is 0-d; a variable is (B, *event) with a leading batch axis")
         batch_sizes = {name: value.shape[0] for name, value in variables.items()}
         if len(set(batch_sizes.values())) != 1:
             raise ShapeError(f"variables must share the leading batch size, got {batch_sizes}")

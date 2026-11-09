@@ -21,6 +21,7 @@ from .evaluation import (
     Evaluation,
     Values,
     active_terms,
+    checked_values,
     depends,
     evaluate,
     irls,
@@ -80,7 +81,7 @@ def _normal_equations(
     problem: Problem, x: Values | None, terms: list[Term]
 ) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
     """Normal equations of ``terms`` (registered on ``problem``, or derived from its terms) and their loss."""
-    x = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
+    x = {name: value.detach() for name, value in checked_values(problem, x).items()}
     traced = [t for t in terms if t.kind == "scalar" or t.jacobian is None]
     loss = zero_loss(problem)
     batch, size = loss.shape[0], problem.tangent_dim
@@ -140,7 +141,7 @@ def gradient(
     problem: Problem, x: Values | None = None, *, create_graph: bool = False
 ) -> tuple[torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
     """Loss ``(B,)``, its gradient ``(B, N)`` in tangent coordinates (frozen ones zeroed) and the detached term losses."""
-    x = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
+    x = {name: value.detach() for name, value in checked_values(problem, x).items()}
     with torch.enable_grad():
         zeros = zero_loss(problem)
         delta = zeros.new_zeros(zeros.shape[0], problem.tangent_dim, requires_grad=True)
@@ -328,7 +329,7 @@ def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float
     differentiates the same term row by row with no assumption. Returns ``{term name: error}``
     measured on ``H`` and ``g``, relative to the largest entry of ``H``.
     """
-    errors = {}
+    x, errors = checked_values(problem, x), {}
     for term in active_terms(problem):
         if term.kind != "residual" or (term.jacobian is None and term.window is None):
             continue

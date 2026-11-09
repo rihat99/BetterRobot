@@ -7,12 +7,32 @@ from typing import TYPE_CHECKING, Any, final
 
 import torch
 
-from ..exceptions import ShapeError
+from ..exceptions import ArgumentError, ShapeError, UnknownNameError
 
 if TYPE_CHECKING:
     from .problem import Problem, Term
 
 Values = Mapping[str, torch.Tensor]
+
+
+def checked_values(problem: Problem, x: Values | None) -> Values:
+    """``x``, or the problem's variables when ``x`` is ``None``, checked to hold one ``(B, *event)`` tensor per variable
+    with the problem's batch size ``B``: an unknown name raises ``UnknownNameError`` (``x`` never overrides data), a
+    missing variable ``ArgumentError``, another batch size or a 0-d tensor ``ShapeError``."""
+    variables = problem.variables
+    if x is None:
+        return variables
+    for name in x:
+        if name not in variables:
+            raise UnknownNameError("variable", name, list(variables))
+    missing = [name for name in variables if name not in x]
+    if missing:
+        raise ArgumentError(f"x has no value for the variables {missing}; give every variable")
+    batch = next(iter(variables.values())).shape[0]
+    for name, value in x.items():
+        if value.ndim == 0 or value.shape[0] != batch:
+            raise ShapeError(f"x[{name!r}] has shape {tuple(value.shape)}; a variable is (B, *event) with B = {batch}")
+    return x
 
 
 @final
@@ -110,7 +130,7 @@ def evaluate(
     problem: Problem, x: Values | None = None
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor], dict[str, dict[str, Any]]]:
     """Total loss ``(B,)``, the loss ``{name: (B,)}`` of every active term and the terms' ``info``."""
-    evaluation = Evaluation(problem, x if x is not None else problem.variables)
+    evaluation = Evaluation(problem, checked_values(problem, x))
     terms: dict[str, torch.Tensor] = {}
     info: dict[str, dict[str, Any]] = {}
     for term in active_terms(problem):
@@ -121,13 +141,14 @@ def evaluate(
 
 def residuals(problem: Problem, x: Values | None = None) -> dict[str, torch.Tensor]:
     """Unweighted output of every active residual term."""
-    evaluation = Evaluation(problem, x if x is not None else problem.variables)
+    evaluation = Evaluation(problem, checked_values(problem, x))
     return {t.name: term_output(t, evaluation) for t in active_terms(problem) if t.kind == "residual"}
 
 
 __all__ = [
     "Evaluation",
     "active_terms",
+    "checked_values",
     "depends",
     "evaluate",
     "irls",

@@ -9,7 +9,7 @@ from typing import Any, final
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
-from .evaluation import active_terms
+from .evaluation import active_terms, checked_values
 from .problem import Problem
 from .solvers import DIAGNOSTICS, Solver, State
 
@@ -70,21 +70,27 @@ def run(
     ``state`` (a previous ``Result.state``) warm-starts the first phase: its solver keeps the
     ``warm_keys`` entries of ``state.extra`` (LM damping, L-BFGS memory) and recomputes the rest
     at the start point, which is ``x``, else ``state.x``, else the problem's variables. The state must
-    come from the same solver kind as the first phase's, and the batch size must match.
+    come from the same solver kind as the first phase's, and the batch size must match. The start point and
+    every ``x`` an ``on_start`` returns hold one ``(B, *event)`` tensor per variable (``UnknownNameError``,
+    ``ArgumentError`` or ``ShapeError`` otherwise).
     """
     if state is not None and not isinstance(state, State):
         raise ArgumentError(f"state must be a solver State (e.g. Result.state), got {type(state).__name__}")
     start = x if x is not None else state.x if state is not None else problem.variables
-    current = {name: value.detach() for name, value in start.items()}
+    current = {name: value.detach() for name, value in checked_values(problem, start).items()}
     history: dict[str, torch.Tensor] = {}
     diagnostics: dict[str, dict[str, torch.Tensor]] = {}
     total, view, warm, state = 0, problem, state, None
     for phase in phases:
         view = problem.with_(weights=phase.weights, free=phase.free)
         if phase.on_start is not None:
-            current, data = phase.on_start(view, current)
-            current = dict(current)
-            view = view.with_(data=data)
+            returned = phase.on_start(view, current)
+            if not (isinstance(returned, tuple) and len(returned) == 2):
+                raise ArgumentError(
+                    f"phase {phase.name!r}: on_start(problem, x) must return (x, data), got {type(returned).__name__}"
+                )
+            current = dict(checked_values(view, returned[0]))
+            view = view.with_(data=returned[1])
         state = phase.solver.init(view, current)
         if warm is not None:
             if warm.solver is not type(phase.solver):

@@ -57,6 +57,11 @@ Each invariant names its enforcer; `[review]` means a reviewer checks it.
   `tests/optim/test_problem.py::test_callbacks_cannot_register_on_the_views_run_hands_them`.
 - Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype. `[review]`.
 - Every class here is abstract or `@final`. `tests/contract/test_abstract_or_final.py`.
+- Every entry that takes `x` (`run`, hence `solve`; the `Problem` evaluation methods; `check_jacobian`) checks it
+  once with `evaluation.checked_values`: one `(B, *event)` tensor per variable, so `x` never overrides data.
+  `Phase.on_start` must return `(x, data)`.
+  `tests/optim/test_problem.py::test_x_holds_one_batch_tensor_per_variable_and_never_overrides_data`,
+  `tests/optim/test_problem.py::test_on_start_must_return_x_and_data`.
 - A private name is used only by the module that defines it: `evaluation`, `linearization`, `phases` and
   `constrained` read a `Problem` through its public fields (`cached_values`, `manifolds`, `slices()`, ...).
   The band layout is memoised by `functools.lru_cache` on the problem's structure (C-STATE-4).

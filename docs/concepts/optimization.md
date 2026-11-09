@@ -158,7 +158,8 @@ print(state.iteration, state.loss)
 - `solve(problem, solver, *, iterations=50, x=None, state=None) -> Result` runs one solver until every problem is
   done or `iterations` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
   the next solve with the same solver kind (LM keeps its damping, L-BFGS its curvature memory) from `x`, else
-  `state.x`; a state from another kind raises `ArgumentError`.
+  `state.x`; a state from another kind raises `ArgumentError`. An `x` given to `solve`, `run` or a `Problem`
+  method holds one `(B, *event)` tensor per variable and nothing else (it never overrides a data entry).
   `Result.diagnostics[phase][key]` stacks the diagnostic keys per step, `(steps, B)`.
   `Result` has `x` (the solved variables, `result.x["q"]`), `loss`, `done`, `iterations` and a per-phase loss
   `history`.

@@ -57,6 +57,19 @@ def test_ik_restarts_need_a_generator(panda):
         terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=1)
 
 
+def test_random_start_and_solve_ik_check_their_arguments(panda):
+    q0 = panda.q_neutral.expand(2, -1)
+    generator = torch.Generator().manual_seed(0)
+    for wrong in (panda.q_neutral, q0[:, :3]):
+        with pytest.raises(br.exceptions.ShapeError, match=f"q0 must be \\(B, {panda.nq}\\)"):
+            terms.random_start(panda, wrong, generator=generator)
+    with pytest.raises(br.exceptions.ArgumentError, match="generator"):
+        terms.random_start(panda, q0, generator=None)
+    goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
+    with pytest.raises(br.exceptions.ArgumentError, match="restarts must be at least 0"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=-3)
+
+
 def test_ik_problem_terms_read_the_state_by_name(panda):
     goal = forward_kinematics(panda, _random_q(panda, 4, 2)).frame_poses[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=_random_q(panda, 4, 3))

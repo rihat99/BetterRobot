@@ -511,3 +511,41 @@ def test_each_private_name_is_used_only_by_the_module_that_defines_it():
             if private and node.attr not in defined:
                 reach_ins.append(f"{path.name}:{node.lineno} {ast.unparse(node)}")
     assert reach_ins == []
+
+
+def test_x_holds_one_batch_tensor_per_variable_and_never_overrides_data():
+    """One structural check at every entry that takes ``x``: library errors, not raw ``KeyError``/``RuntimeError``."""
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": torch.ones(2, 3)})
+    problem.residual("fit", lambda x, target: x - target)
+    zeros = torch.zeros(2, 3)
+    entries = (
+        problem.loss,
+        problem.losses,
+        problem.evaluate,
+        problem.residuals,
+        problem.linearize,
+        problem.gradient,
+        lambda x: optim.check_jacobian(problem, x),
+        lambda x: optim.solve(problem, optim.LevenbergMarquardt(), iterations=1, x=x),
+        lambda x: optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.SGD(params, lr=0.1)), x=x),
+    )
+    cases = (
+        ({}, exceptions.ArgumentError, "no value for the variables"),
+        ({"x": zeros, "target": zeros}, exceptions.UnknownNameError, "unknown variable 'target'"),
+        ({"x": torch.zeros(5, 3)}, exceptions.ShapeError, "B = 2"),
+        ({"x": torch.zeros(())}, exceptions.ShapeError, "B = 2"),
+    )
+    for x, error, message in cases:
+        for entry in entries:
+            with pytest.raises(error, match=message):
+                entry(x)
+    with pytest.raises(exceptions.ShapeError, match="0-d"):
+        optim.Problem({"x": torch.zeros(())})
+
+
+@pytest.mark.parametrize("on_start", [lambda view, x: x, lambda view, x: None, lambda view, x: (x, {}, None)])
+def test_on_start_must_return_x_and_data(on_start):
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": torch.ones(2, 3)})
+    problem.residual("fit", lambda x, target: x - target)
+    with pytest.raises(exceptions.ArgumentError, match=r"on_start\(problem, x\) must return \(x, data\)"):
+        optim.run(problem, [optim.Phase(optim.LevenbergMarquardt(), 2, on_start=on_start)])
