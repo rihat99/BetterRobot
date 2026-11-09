@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from typing import Any
 
 import torch
 
@@ -17,9 +18,10 @@ class Phase:
     """One stage of a solve.
 
     ``weights`` overrides term weights by name (0 switches a term off). ``free`` freezes
-    tangent coordinates (see ``Problem.with_``). ``on_start(problem, x)`` runs before
-    the first step; it may return replacement variables and may write ``problem.data`` (the
-    phase's own copy) to refresh what terms read, such as contact labels.
+    tangent coordinates (see ``Problem.with_``). ``on_start(problem, x) -> (x, data)`` runs before
+    the first step: the phase starts from the returned variables, and ``data`` replaces entries of the
+    phase's problem (``Problem.with_(data=)``) to refresh what terms read, such as contact labels;
+    ``(x, {})`` changes nothing.
     ``on_step(problem, state)`` runs after every step, for logging; ``state.extra["terms"]`` holds
     the loss of every term (and, under ``TorchOptim``, ``state.extra["info"]`` the terms' info dicts)
     from the step's own evaluation, so logging costs no second forward. Every ``stop_every``
@@ -31,7 +33,9 @@ class Phase:
     name: str = "phase"
     weights: Mapping[str, float] | None = None
     free: Mapping[str, torch.Tensor] | None = None
-    on_start: Callable[[Problem, dict[str, torch.Tensor]], dict[str, torch.Tensor] | None] | None = None
+    on_start: (
+        Callable[[Problem, dict[str, torch.Tensor]], tuple[Mapping[str, torch.Tensor], Mapping[str, Any]]] | None
+    ) = None
     on_step: Callable[[Problem, State], None] | None = None
     stop_every: int = 1
 
@@ -78,7 +82,9 @@ def run(
     for phase in phases:
         view = problem.with_(weights=phase.weights, free=phase.free)
         if phase.on_start is not None:
-            current = phase.on_start(view, current) or current
+            current, data = phase.on_start(view, current)
+            current = dict(current)
+            view = view.with_(data=data)
         state = phase.solver.init(view, current)
         if warm is not None:
             # optim imports only torch, so a plain ValueError stands in for ShapeError here.

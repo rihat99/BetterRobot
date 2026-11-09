@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from better_robot import optim
+from better_robot import exceptions, optim
 
 
 def _toy_problem(kernel=None, with_scalar=False):
@@ -300,6 +300,29 @@ def test_solve_layer_gradient_matches_finite_differences():
     assert float(bound_sensitivity.abs().max()) == 0.0
 
 
+def test_problem_is_immutable():
+    """Record 0017: no public path mutates a Problem; ``with_`` returns a new problem and leaves its parent as it was."""
+    target = torch.ones(2, 3)
+    problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": target}, bounds={"x": (-target, target)})
+    problem.residual("fit", lambda x, target: x - target)
+    for mapping in (problem.variables, problem.data, problem.manifolds, problem.bounds, problem.terms, problem.weights):
+        with pytest.raises(TypeError):
+            mapping["x"] = target
+    for field in "variables data manifolds bounds time dense terms weights free tangent_dim".split():
+        with pytest.raises(AttributeError):
+            setattr(problem, field, None)
+    with pytest.raises(exceptions.ArgumentError, match="already exists"):
+        problem.residual("fit", lambda x: x)  # registration only adds names
+    with pytest.raises(exceptions.ArgumentError, match="already used"):
+        problem.with_(data={"x": target})
+    moved = problem.with_(data={"target": 2 * target, "offset": target}, weights={"fit": 2.0}, free={"x": target > 0})
+    moved.residual("offset", lambda x, offset: x - offset)
+    assert moved is not problem and moved.data["target"] is not target
+    assert problem.data["target"] is target and dict(problem.weights) == {} and problem.free is None
+    assert list(problem.data) == ["target"] and list(problem.terms) == ["fit"]
+    assert list(moved.terms) == ["fit", "offset"] and moved.weights["fit"] == 2.0
+
+
 def test_review_regressions():
     base = optim.Problem(
         {"x": torch.zeros(2, 2, dtype=torch.float64)}, data={"a": torch.ones(2, 2, dtype=torch.float64)}
@@ -328,7 +351,7 @@ def test_phase_hooks_scheduler_and_per_knot_free_mask():
     rates, seen = [], []
 
     def retarget(view, x):
-        view.data["goal"] = view.data["goal"] * 2.0
+        return x, {"goal": view.data["goal"] * 2.0}
 
     adam = optim.TorchOptim(
         torch.optim.Adam, lr=0.1, scheduler=lambda o: torch.optim.lr_scheduler.MultiStepLR(o, milestones=[2], gamma=0.1)

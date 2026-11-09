@@ -166,8 +166,9 @@ print(state.it, state.loss)
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard
   constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)).
 
-`problem.with_(weights=, free=)` returns a view with term weights overridden (`0` switches a term off) and
-tangent coordinates frozen by a bool mask `(n,)` or `(B, n)`. `Phase` uses it internally.
+A `Problem` never changes once built. `problem.with_(data=, weights=, free=)` returns a new problem with data
+entries added or replaced, term weights overridden (`0` switches a term off) and tangent coordinates frozen by
+a bool mask `(n,)` or `(B, n)`; the original stays as it was. `Phase` uses it internally.
 
 ```python
 from better_robot.optim import TorchOptim

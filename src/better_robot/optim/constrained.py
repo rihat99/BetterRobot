@@ -56,24 +56,24 @@ def solve_constrained(
         raise KeyError(f"constraints must name residual terms of the problem; not found: {unknown}")
     if outer < 1:
         raise ValueError(f"outer must be at least 1, got {outer}")
-    view = problem.with_()
-    for name in names:
-        view.terms[name] = _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities)
     plain = problem.with_(weights=dict.fromkeys(names, 1.0))
     current = {key: value.detach() for key, value in (x if x is not None else problem.variables).items()}
     with torch.no_grad():
         values = plain.residuals(current)
     multipliers = {name: torch.zeros_like(values[name]) for name in names}
+    shifted = problem.with_(data={f"{name}.shift": multipliers[name] for name in names})._with_terms(
+        {name: _shifted(problem.terms[name], f"{name}.shift", inequality=name in inequalities) for name in names}
+    )
     rho = zero_loss(problem) + penalty
     previous = torch.full_like(rho, float("inf"))
     violations, total, result = [], 0, None
     for _ in range(outer):
-        weights = {}
+        weights, shifts = {}, {}
         for name in names:
             shaped = rho.reshape(-1, *([1] * (multipliers[name].ndim - 1)))
-            view.data[f"{name}.shift"] = multipliers[name] / shaped
+            shifts[f"{name}.shift"] = multipliers[name] / shaped
             weights[name] = shaped
-        result = solve(view.with_(weights=weights), solver, iters=iters, x=current)
+        result = solve(shifted.with_(data=shifts, weights=weights), solver, iters=iters, x=current)
         current, total = result.x, total + result.iters
         with torch.no_grad():
             values = plain.residuals(current)

@@ -8,7 +8,6 @@ with plain autodiff.
 
 from __future__ import annotations
 
-import copy
 import warnings
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, final
@@ -66,8 +65,14 @@ def _accumulate(
 
 def linearize(problem: Problem, x: Values | None = None) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
     """Gauss-Newton normal equations and the loss ``(B,)`` at ``x`` (default: the problem's variables)."""
+    return _normal_equations(problem, x, active_terms(problem))
+
+
+def _normal_equations(
+    problem: Problem, x: Values | None, terms: list[Term]
+) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
+    """Normal equations of ``terms`` (registered on ``problem``, or derived from its terms) and their loss."""
     x = {name: value.detach() for name, value in (x if x is not None else problem.variables).items()}
-    terms = active_terms(problem)
     traced = [t for t in terms if t.kind == "scalar" or t.jacobian is None]
     loss = zero_loss(problem)
     batch, size = loss.shape[0], problem.tangent_dim
@@ -316,12 +321,8 @@ def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float
     for term in active_terms(problem):
         if term.kind != "residual" or (term.jacobian is None and term.window is None):
             continue
-        only = {name: 0.0 for name in problem.terms if name != term.name}
-        analytic = problem.with_(weights=only)
-        autodiff = copy.copy(analytic)
-        autodiff.terms = {**problem.terms, term.name: replace(term, jacobian=None, window=None)}
-        normal_a, _ = linearize(analytic, x)
-        normal_b, _ = linearize(autodiff, x)
+        normal_a, _ = _normal_equations(problem, x, [term])
+        normal_b, _ = _normal_equations(problem, x, [replace(term, jacobian=None, window=None)])
         H_a = normal_a.H if isinstance(normal_a, Normal) else normal_a.dense()
         H_b = normal_b.H if isinstance(normal_b, Normal) else normal_b.dense()
         scale = max(float(H_b.abs().max()), 1e-300)

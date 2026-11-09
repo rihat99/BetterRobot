@@ -13,11 +13,12 @@ import copy
 import inspect
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 import torch
 
-from ..exceptions import ArgumentError
+from ..exceptions import ArgumentError, ShapeError, UnknownNameError
 from .evaluation import Values, evaluate, residuals
 from .kernels import RobustKernel
 from .linear import ArrowNormal, BandedNormal, BandLayout, Normal
@@ -57,11 +58,13 @@ class Term:
 
 
 class Problem:
-    """A batch of independent optimization problems over named tensors.
+    """A batch of independent optimization problems over named tensors, read-only once built.
 
     Register terms with ``residual`` (least squares) or ``scalar`` (any ``(B,)`` loss) and shared
     intermediates with ``cached``; then minimize with ``solve`` or ``run``. A term may return
-    ``(value, info)`` to report diagnostics beside its value (see ``evaluate``).
+    ``(value, info)`` to report diagnostics beside its value (see ``evaluate``). Registration only adds
+    new names; everything else is fixed at construction and read through read-only mappings.
+    ``with_`` returns a new problem with other data, weights or frozen coordinates.
 
     - ``variables``: initial values, each ``(B, *event)`` with the same ``B``.
     - ``manifolds``: per-variable ``Manifold``; missing entries are ``Euclidean``.
@@ -94,32 +97,84 @@ class Problem:
         dense: bool = False,
     ) -> None:
         if not variables:
-            raise ValueError("a Problem needs at least one variable")
+            raise ArgumentError("a Problem needs at least one variable")
         batch_sizes = {name: value.shape[0] for name, value in variables.items()}
         if len(set(batch_sizes.values())) != 1:
-            raise ValueError(f"variables must share the leading batch size, got {batch_sizes}")
-        self.variables: dict[str, torch.Tensor] = dict(variables)
-        self.data: dict[str, Any] = dict(data or {})
-        clash = set(self.variables) & set(self.data)
+            raise ShapeError(f"variables must share the leading batch size, got {batch_sizes}")
+        self._variables: dict[str, torch.Tensor] = dict(variables)
+        self._data: dict[str, Any] = dict(data or {})
+        clash = set(self._variables) & set(self._data)
         if clash:
-            raise ValueError(f"names used both as variable and data: {sorted(clash)}")
-        self.manifolds: dict[str, Manifold] = {name: Euclidean() for name in self.variables}
-        self.manifolds.update(self._known_variables(manifolds, "manifolds"))
-        self.bounds = dict(self._known_variables(bounds, "bounds"))
-        self.dense = dense
-        self._layouts: dict[tuple[int, int], BandLayout] = {}
-        self.time = tuple(self._known_variables(dict.fromkeys(time), "time"))
-        self.terms: dict[str, Term] = {}
-        self.weights: dict[str, float] = {}
-        self.free: dict[str, torch.Tensor] | None = None
+            raise ArgumentError(f"names used both as variable and data: {sorted(clash)}")
+        self._manifolds: dict[str, Manifold] = {name: Euclidean() for name in self._variables}
+        self._manifolds.update(self._known_variables(manifolds))
+        self._bounds = dict(self._known_variables(bounds))
+        self._time = tuple(self._known_variables(dict.fromkeys(time)))
+        self._dense = dense
+        self._terms: dict[str, Term] = {}
+        self._weights: dict[str, float | torch.Tensor] = {}
+        self._free: dict[str, torch.Tensor] | None = None
         self._cached: dict[str, tuple[Callable[..., Any], tuple[str, ...]]] = {}
+        self._layouts: dict[tuple[int, int], BandLayout] = {}
         self._slices: dict[str, slice] = {}
         offset = 0
-        for name, value in self.variables.items():
-            size = self.manifolds[name].tangent_dim(value)
+        for name, value in self._variables.items():
+            size = self._manifolds[name].tangent_dim(value)
             self._slices[name] = slice(offset, offset + size)
             offset += size
-        self.tangent_dim = offset
+        self._tangent_dim = offset
+
+    # ── read-only fields ────────────────────────────────────────────────
+
+    @property
+    def variables(self) -> Mapping[str, torch.Tensor]:
+        """Initial values ``{name: (B, *event)}``."""
+        return MappingProxyType(self._variables)
+
+    @property
+    def data(self) -> Mapping[str, Any]:
+        """Tensors the terms read and the solvers never change; ``with_(data=)`` adds or replaces entries."""
+        return MappingProxyType(self._data)
+
+    @property
+    def manifolds(self) -> Mapping[str, Manifold]:
+        """The ``Manifold`` of every variable."""
+        return MappingProxyType(self._manifolds)
+
+    @property
+    def bounds(self) -> Mapping[str, tuple[torch.Tensor, torch.Tensor]]:
+        """``{variable: (lower, upper)}`` box bounds on the ambient tensor."""
+        return MappingProxyType(self._bounds)
+
+    @property
+    def time(self) -> tuple[str, ...]:
+        """Names of the variables whose second axis is time."""
+        return self._time
+
+    @property
+    def dense(self) -> bool:
+        """Whether the normal equations are dense even when the banded form applies."""
+        return self._dense
+
+    @property
+    def terms(self) -> Mapping[str, Term]:
+        """Registered terms by name, in registration order."""
+        return MappingProxyType(self._terms)
+
+    @property
+    def weights(self) -> Mapping[str, float | torch.Tensor]:
+        """Weight overrides by term name, set by ``with_(weights=)``."""
+        return MappingProxyType(self._weights)
+
+    @property
+    def free(self) -> Mapping[str, torch.Tensor] | None:
+        """Free-coordinate masks ``{variable: (N_variable,) or (B, N_variable)}`` in tangent coordinates, or ``None``."""
+        return None if self._free is None else MappingProxyType(self._free)
+
+    @property
+    def tangent_dim(self) -> int:
+        """Length ``N`` of the stacked tangent vector of all variables."""
+        return self._tangent_dim
 
     # ── registration ────────────────────────────────────────────────────
 
@@ -193,31 +248,41 @@ class Problem:
         self._add(name, fn, "scalar", weight, None, None, reads, None)
 
     def with_(
-        self, *, weights: Mapping[str, float] | None = None, free: Mapping[str, torch.Tensor] | None = None
-    ) -> "Problem":
-        """Return a view of this problem with term weights overridden and/or coordinates frozen.
+        self,
+        *,
+        data: Mapping[str, Any] | None = None,
+        weights: Mapping[str, float | torch.Tensor] | None = None,
+        free: Mapping[str, torch.Tensor] | None = None,
+    ) -> Problem:
+        """A new problem with data entries added or replaced, term weights overridden and/or coordinates frozen.
 
-        ``weights[name] = 0`` switches a term off. ``free[variable]`` is a bool mask over that
-        variable's tangent coordinates, ``(n,)`` or ``(B, n)``; unlisted variables stay free.
-        For a time variable the mask may cover one knot; it is then repeated over time.
+        ``data`` adds entries, or replaces those of the same name; a new name may not be a variable or a
+        cached value. ``weights[name] = 0`` switches a term off. ``free[variable]``
+        is a bool mask over that variable's tangent coordinates, ``(n,)`` or ``(B, n)``; unlisted variables
+        stay free. For a time variable the mask may cover one knot; it is then repeated over time. This
+        problem is left as it was, and terms registered on the new one stay there.
         """
-        view = copy.copy(self)
-        view.terms, view._cached, view.data = dict(self.terms), dict(self._cached), dict(self.data)
+        problem = self._copy()
+        if data is not None:
+            for name in data:
+                if name not in self._data:
+                    self._require_new_name(name)
+            problem._data = {**self._data, **data}
         if weights is not None:
-            unknown = set(weights) - set(self.terms)
-            if unknown:
-                raise KeyError(f"weights for unknown terms {sorted(unknown)}; terms are {sorted(self.terms)}")
-            view.weights = {**self.weights, **weights}
+            for name in weights:
+                if name not in self._terms:
+                    raise UnknownNameError("term", name, list(self._terms))
+            problem._weights = {**self._weights, **weights}
         if free is not None:
-            view.free = {}
-            for name, mask in self._known_variables(free, "free").items():
+            problem._free = {}
+            for name, mask in self._known_variables(free).items():
                 span = self._slices[name]
                 size = span.stop - span.start
-                knots = self.variables[name].shape[1] if name in self.time else 1
+                knots = self._variables[name].shape[1] if name in self._time else 1
                 if mask.shape[-1] * knots != size and mask.shape[-1] != size:
-                    raise ValueError(f"free mask of {name!r} has {mask.shape[-1]} entries, expected {size}")
-                view.free[name] = mask.repeat(*([1] * (mask.ndim - 1)), size // mask.shape[-1])
-        return view
+                    raise ShapeError(f"free mask of {name!r} has {mask.shape[-1]} entries, expected {size}")
+                problem._free[name] = mask.repeat(*([1] * (mask.ndim - 1)), size // mask.shape[-1])
+        return problem
 
     # ── evaluation ──────────────────────────────────────────────────────
 
@@ -279,17 +344,17 @@ class Problem:
 
     def project(self, x: Values) -> dict[str, torch.Tensor]:
         """Map ambient tensors back onto their manifolds and bounds."""
-        return self._clamp({name: self.manifolds[name].project(value) for name, value in x.items()})
+        return self._clamp({name: self._manifolds[name].project(value) for name, value in x.items()})
 
     def step_bounds(self, x: Values) -> tuple[torch.Tensor, torch.Tensor] | None:
         """Allowed tangent step ``(lower, upper)``, each ``(B, N)``, or ``None`` without bounds."""
-        if not self.bounds:
+        if not self._bounds:
             return None
         first = next(iter(x.values()))
-        lower = first.new_full((first.shape[0], self.tangent_dim), -float("inf"))
-        upper = first.new_full((first.shape[0], self.tangent_dim), float("inf"))
-        for name, (low, high) in self.bounds.items():
-            lower[:, self._slices[name]], upper[:, self._slices[name]] = self.manifolds[name].tangent_bounds(
+        lower = first.new_full((first.shape[0], self._tangent_dim), -float("inf"))
+        upper = first.new_full((first.shape[0], self._tangent_dim), float("inf"))
+        for name, (low, high) in self._bounds.items():
+            lower[:, self._slices[name]], upper[:, self._slices[name]] = self._manifolds[name].tangent_bounds(
                 x[name], lower=low, upper=high
             )
         return lower, upper
@@ -301,39 +366,52 @@ class Problem:
     # ── internals ───────────────────────────────────────────────────────
 
     def _add(self, name, fn, kind, weight, kernel, jacobian, reads, window) -> None:
-        if name in self.terms:
-            raise ValueError(f"a term named {name!r} already exists")
+        if name in self._terms:
+            raise ArgumentError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
-        self.terms[name] = Term(name, fn, kind, reads, weight, kernel, jacobian, window)
+        self._terms[name] = Term(name, fn, kind, reads, weight, kernel, jacobian, window)
+
+    def _copy(self) -> Problem:
+        """A problem sharing this one's tensors, with registries of its own."""
+        problem = copy.copy(self)
+        problem._terms, problem._cached = dict(self._terms), dict(self._cached)
+        return problem
+
+    def _with_terms(self, terms: Mapping[str, Term]) -> Problem:
+        """A copy with ``terms`` in place of the registered terms of their names (``solve_constrained``)."""
+        problem = self._copy()
+        for name, term in terms.items():
+            problem._resolve_reads(name, term.fn, term.reads)
+        problem._terms.update(terms)
+        return problem
 
     def _require_new_name(self, name: str) -> None:
-        if name in self.variables or name in self.data or name in self._cached:
-            raise ValueError(f"name {name!r} is already used by a variable, data tensor or cached value")
+        if name in self._variables or name in self._data or name in self._cached:
+            raise ArgumentError(f"name {name!r} is already used by a variable, data tensor or cached value")
 
     def _resolve_reads(self, name: str, fn: Callable[..., Any], reads: tuple[str, ...] | None) -> tuple[str, ...]:
         if reads is None:
             reads = tuple(inspect.signature(fn).parameters)
-        known = set(self.variables) | set(self.data) | set(self._cached)
-        missing = [read for read in reads if read not in known]
-        if missing:
-            raise KeyError(
-                f"{name!r} reads {missing}, which are not variables, data or cached values. "
-                f"Known names: {sorted(known)}. Register cached values before the terms that read them."
-            )
+        known = [*self._variables, *self._data, *self._cached]
+        for read in reads:
+            if read not in known:
+                error = UnknownNameError("variable, data or cached value", read, known)
+                error.add_note(f"{name!r} reads it; register cached values before the terms that read them")
+                raise error
         return tuple(reads)
 
-    def _known_variables(self, mapping: Mapping[str, Any] | None, what: str) -> Mapping[str, Any]:
+    def _known_variables(self, mapping: Mapping[str, Any] | None) -> Mapping[str, Any]:
         mapping = mapping or {}
-        unknown = set(mapping) - set(self.variables)
-        if unknown:
-            raise KeyError(f"{what} given for unknown variables {sorted(unknown)}")
+        for name in mapping:
+            if name not in self._variables:
+                raise UnknownNameError("variable", name, list(self._variables))
         return mapping
 
     def _retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
-        return {name: self.manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
+        return {name: self._manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
 
     def _clamp(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        for name, (lower, upper) in self.bounds.items():
+        for name, (lower, upper) in self._bounds.items():
             x[name] = torch.minimum(torch.maximum(x[name], lower), upper)
         return x
 

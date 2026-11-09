@@ -130,8 +130,8 @@ print(result.iters, {name: tuple(h.shape) for name, h in result.history.items()}
 28 {'smooth': (15, 2), 'fit': (13, 2)}
 ```
 
-`Phase.on_start(problem, x)` runs before the first step and may return new variables or refresh
-`problem.data` (the phase's own copy), for example contact labels; `on_step(problem, state)` runs after each
+`Phase.on_start(problem, x) -> (x, data)` runs before the first step: the phase starts from the returned
+variables, and `data` replaces entries of the phase's problem, for example contact labels; `on_step(problem, state)` runs after each
 step for logging. `Result.history[name]` is the `(steps, B)` loss of each phase. A full example with weight
 schedules and free masks is [Fit a clip](../guides/fit-a-clip.md).
 

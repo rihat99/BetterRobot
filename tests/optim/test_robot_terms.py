@@ -25,7 +25,7 @@ def test_analytic_jacobians_match_autodiff(panda):
     q = _random_q(panda, 6, 0)
     goal = forward_kinematics(panda, _random_q(panda, 6, 1)).frame_poses[:, panda.frame_id(FRAME)]
     problem = terms.ik_problem(panda, {FRAME: goal}, q0=q + 4.0, limit_weight=2.0, rest_weight=0.5)
-    problem.data["point"] = goal[:, :3]
+    problem = problem.with_(data={"point": goal[:, :3]})
     problem.residual(
         "position", terms.frame_position(panda, frame=FRAME, target="point"), kernel=optim.Huber(delta=0.1)
     )

@@ -34,7 +34,8 @@ Optimization layer over named tensors. It imports only torch. Robot terms live i
   the dicts of terms returning `(value, info)`), kept as device tensors: no host sync.
 - A `time=` problem that mixes windowed terms with an unwindowed term reading a time variable warns and
   goes dense. Normal equations are built through a sink (`add`/`finish`); a new structure is a new sink.
-- `Problem.with_` returns a view with its own `terms`, `data`, `weights`; never mutate the parent.
+- A `Problem` is read-only once built: registration adds names only, `with_` returns a new problem and
+  leaves its parent as it was.
 - Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype.
 - No `NotImplementedError` here (the contract test inventories those); raise `ValueError`.
 
