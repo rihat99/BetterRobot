@@ -41,7 +41,7 @@ state = br.forward_kinematics(model, clip)
 poses = state.joint_poses.numpy()                                        # (T, njoints, 7)
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
 hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-viewer.add([RigidMeshLayer("panda", meshes, poses), hand])   # an iterable of layers
+viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), hand])   # an iterable of layers
 print(viewer.url, len(viewer.layers))
 ```
 ```output

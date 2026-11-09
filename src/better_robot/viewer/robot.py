@@ -32,7 +32,7 @@ from ._lie import act, inverse
 from .layer import as_frames
 from .layers.mesh import MeshSpec
 from .layers.skeleton import SkeletonLayer, marker_extent, marker_of
-from .theme import LIGHT, Theme, colormap
+from .theme import LIGHT, RGB, Theme, colormap
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -98,7 +98,7 @@ def robot_skeleton(
     return SkeletonLayer(
         name,
         poses,
-        parent_ids,
+        parent_ids=parent_ids,
         kinds=kinds,
         axes=axes,
         offsets=offsets,
@@ -258,7 +258,7 @@ def _torque_ratio(model: Model, tau: np.ndarray, nsteps: int) -> tuple[np.ndarra
 
 
 def robot_meshes(
-    geometry: Geometry, *, root: Path | None = None, collision: bool = False, default_color: Any = (0.8, 0.8, 0.8)
+    geometry: Geometry, *, root: Path | None = None, collision: bool = False, default_color: RGB = (0.8, 0.8, 0.8)
 ) -> list[MeshSpec]:
     """Mesh specs for the collision shapes of ``geometry`` or, by default, its display shapes (record 0016).
 
@@ -279,7 +279,7 @@ def _mesh_path(uri: str, root: Path | None) -> Path:
     return path if path.is_absolute() or root is None else root / path
 
 
-def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: Any) -> MeshSpec:
+def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: RGB) -> MeshSpec:
     with needs_extra("meshes"):
         import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
@@ -308,7 +308,7 @@ def _mesh_spec(attached: AttachedShape, root: Path | None, default_color: Any) -
         mesh, source = trimesh.creation.capsule(radius=shape.radius, height=shape.length), None
     vertices = np.asarray(mesh.vertices, dtype=np.float32)
     faces = np.asarray(mesh.faces, dtype=np.uint32)
-    return MeshSpec(vertices, faces, attached.body, origin, color=color, trimesh=source)
+    return MeshSpec(vertices, faces, body=attached.body, origin=origin, color=color, trimesh=source)
 
 
 def _has_own_colors(mesh: Any) -> bool:

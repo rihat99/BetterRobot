@@ -36,7 +36,7 @@ def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Theme:
     """Colours in ``[0, 1]`` RGB plus the few scene settings the viewer applies at start-up."""
 

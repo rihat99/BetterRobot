@@ -33,7 +33,7 @@ def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block()
     viewer = Viewer(server=server)
     viewer.add([_skeleton(10)])
     viewer.add([GroundLayer()])
-    arrows = ArrowsLayer("f", np.zeros((5, 2, 3)), np.ones((5, 2, 3)))
+    arrows = ArrowsLayer("f", np.zeros((5, 2, 3)), vectors=np.ones((5, 2, 3)))
     viewer.add([arrows], group="forces")
     server.scene.log.clear()
     blocks = server.atomic_blocks
@@ -171,7 +171,9 @@ def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> 
     half = np.sqrt(0.5)
     np.testing.assert_allclose(bones.props["batched_wxyzs"][1], [half, 0.0, half, 0.0], atol=1e-6)
 
-    arrows = ArrowsLayer("a", np.zeros((1, 2, 3)), [[[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], scale=2.0, head_size=0.1)
+    arrows = ArrowsLayer(
+        "a", np.zeros((1, 2, 3)), vectors=[[[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], scale=2.0, head_size=0.1
+    )
     arrows.build(scene, "/g/a")
     heads = scene.nodes["/g/a/heads"]
     np.testing.assert_allclose(heads.props["batched_scales"][0], [0.05, 0.05, 0.1])
@@ -206,15 +208,21 @@ def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_
     viewer = Viewer(server=server)
     joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]]] * 2, dtype=np.float32)
     thickness = np.array([[1.0, 1.0], [2.0, 3.0]], dtype=np.float32)  # (T, J): per step
-    viewer.add([SkeletonLayer("s", joints, [-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness)])
+    viewer.add(
+        [
+            SkeletonLayer(
+                "s", joints, parent_ids=[-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness
+            )
+        ]
+    )
     viewer.show(1)
     nodes = server.scene.nodes
     np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
     np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
     with pytest.raises(ShapeError, match="thickness"):
-        SkeletonLayer("bad", joints, [-1, 0], thickness=np.ones((3, 2)))
+        SkeletonLayer("bad", joints, parent_ids=[-1, 0], thickness=np.ones((3, 2)))
     with pytest.raises(ShapeError, match="offsets"):
-        SkeletonLayer("bad", joints, [-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
+        SkeletonLayer("bad", joints, parent_ids=[-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
 
 
 def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_and_invalid_vectors() -> None:
@@ -228,7 +236,13 @@ def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_an
     viewer.add(
         [
             ArrowsLayer(
-                "f", np.zeros((2, 3, 3)), vectors, colors=colours, head_size=0.1, shaft_radius=0.02, head_radius=0.04
+                "f",
+                np.zeros((2, 3, 3)),
+                vectors=vectors,
+                colors=colours,
+                head_size=0.1,
+                shaft_radius=0.02,
+                head_radius=0.04,
             )
         ],
         valid=keep,
@@ -261,7 +275,11 @@ def test_arrows_draw_nothing_up_to_min_length(shaft_radius: float | None) -> Non
     vectors[..., 2] = lengths
     for name, min_length in (("default", {}), ("coarse", {"min_length": 0.01})):
         viewer.add(
-            [ArrowsLayer(name, np.ones((1, 4, 3)), vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length)]
+            [
+                ArrowsLayer(
+                    name, np.ones((1, 4, 3)), vectors=vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length
+                )
+            ]
         )
     viewer.show(0)
     for name, shown in (("default", [False, False, True, True]), ("coarse", [False, False, False, True])):
@@ -278,8 +296,8 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     viewer = Viewer(server=server)
     colours = np.zeros((3, 2, 3))
     colours[1, 0] = (1.0, 0.0, 0.0)  # contact 0 turns red at step 1
-    viewer.add([SpheresLayer("contacts", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=colours)])
-    viewer.add([ArrowsLayer("forces", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=colours)])
+    viewer.add([SpheresLayer("contacts", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=colours)])
+    viewer.add([ArrowsLayer("forces", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=colours)])
     spheres, heads = server.scene.nodes["/scene/contacts/spheres"], server.scene.nodes["/scene/forces/heads"]
     shafts = server.scene.nodes["/scene/forces/shafts"]
     viewer.show(1)
@@ -288,11 +306,11 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     np.testing.assert_array_equal(shafts.colors[0], [[255, 0, 0], [255, 0, 0]])
     viewer.show(2)
     assert not spheres.batched_colors.any()
-    static = SpheresLayer("static", np.zeros((3, 2, 3)), np.full(2, 0.05), colors=(0.0, 1.0, 0.0))
+    static = SpheresLayer("static", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=(0.0, 1.0, 0.0))
     viewer.add([static])
     assert static._colors.shape == (2, 3)  # one colour stays static: never rewritten per step
     with pytest.raises(ShapeError, match="per-step colors"):
-        ArrowsLayer("bad", np.zeros((3, 2, 3)), np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
+        ArrowsLayer("bad", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
 
 def test_quaternion_z_to_direction_and_closed_unit_meshes() -> None:
@@ -480,9 +498,9 @@ def test_a_layer_that_fails_in_add_or_replace_leaves_the_viewer_as_it_was(fails_
 def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    mesh = MeshLayer("mesh", np.zeros((3, 3)), np.array([[0, 1, 2]]))
+    mesh = MeshLayer("mesh", np.zeros((3, 3)), faces=np.array([[0, 1, 2]]))
     viewer.add([mesh])
-    spheres = SpheresLayer("balls", np.zeros((2, 3)), np.ones(2), opacity=1.0)
+    spheres = SpheresLayer("balls", np.zeros((2, 3)), radii=np.ones(2), opacity=1.0)
     viewer.add([spheres])
     mesh.set_opacity(0.4)
     spheres.set_opacity(0.4)
@@ -503,10 +521,12 @@ def test_mesh_layers_check_opacity_at_construction_as_set_opacity_does() -> None
     spec = MeshSpec(vertices=vertices, faces=faces, body=0, origin=np.array([0, 0, 0, 0, 0, 0, 1.0]))
     weights, bind = np.ones((3, 4)) / 4, np.tile(np.array([0, 0, 0, 0, 0, 0, 1.0]), (4, 1))
     builders = [
-        lambda opacity: MeshLayer("mesh", vertices, faces, opacity=opacity),
-        lambda opacity: RigidMeshLayer("rigid", [spec], bind[None, :1], opacity=opacity),
-        lambda opacity: SpheresLayer("balls", vertices, np.ones(3), opacity=opacity),
-        lambda opacity: SkinnedMeshLayer("skin", vertices, faces, weights, bind, bind, opacity=opacity),
+        lambda opacity: MeshLayer("mesh", vertices, faces=faces, opacity=opacity),
+        lambda opacity: RigidMeshLayer("rigid", [spec], body_poses=bind[None, :1], opacity=opacity),
+        lambda opacity: SpheresLayer("balls", vertices, radii=np.ones(3), opacity=opacity),
+        lambda opacity: SkinnedMeshLayer(
+            "skin", vertices, faces=faces, weights=weights, bind_poses=bind, bone_poses=bind, opacity=opacity
+        ),
     ]
     for build in builders:
         for bad in (0.0, 5.0, float("nan")):

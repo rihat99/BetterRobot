@@ -160,7 +160,7 @@ class HeadlessClient:
             image = (image[..., :3] * alpha + 255.0 * (1.0 - alpha)).round().astype(np.uint8)
         return image
 
-    def set_camera(self, position: Sequence[float], look_at: Sequence[float], up: Sequence[float]) -> None:
+    def set_camera(self, position: Sequence[float], look_at: Sequence[float], *, up: Sequence[float]) -> None:
         """Place the browser's camera; call it after the scene has arrived (first ``render``)."""
         with self.client.atomic():
             self.client.camera.fov = FOV

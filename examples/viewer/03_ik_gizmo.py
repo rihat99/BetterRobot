@@ -38,7 +38,9 @@ def main() -> None:
     viewer = Viewer(server=FakeServer() if args.check else None)
     viewer.add([GroundLayer()])
     meshes = RigidMeshLayer(
-        "panda", robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH)), start.joint_poses.numpy()
+        "panda",
+        robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH)),
+        body_poses=start.joint_poses.numpy(),
     )
     skeleton = robot_skeleton(model, start.joint_poses.numpy())
     frames = FramesLayer("hand", start.frame_poses[:, [hand]].numpy())
@@ -58,7 +60,7 @@ def main() -> None:
         frames.poses[:] = moved.frame_poses[:, [hand]].numpy()
         viewer.show()
 
-    gizmo = PoseGizmo(viewer, "hand target", pose.numpy(), on_change=follow)
+    gizmo = PoseGizmo(viewer, "hand target", pose=pose.numpy(), on_change=follow)
     if args.check:
         moved = pose.clone()
         moved[0] += 0.1

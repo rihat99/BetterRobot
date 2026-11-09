@@ -7,6 +7,8 @@ One viewer on viser. Read `docs/concepts/viewer.md` first.
   `_primitives.py` holds the unit meshes; `layers/`
   are the built-in layers; `robot.py` is the only file that knows `Model`; `tools/` are gizmo and
   picking; `capture.py` drives a headless Chromium for `Viewer.record`.
+- Public callables take at most two positional parameters (a layer: its name and main array); the rest are
+  keyword-only.
 - Layers take numpy `(T, ...)` arrays (`as_frames` promotes static input to `T = 1`) and keep them by
   reference: in-place edits plus `viewer.show()` update the scene. Per step write arrays into existing
   handles; never create or remove nodes during playback.

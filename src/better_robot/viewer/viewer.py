@@ -456,7 +456,7 @@ class Viewer:
 
     def _group(self, group: str) -> _Group:
         if group not in self._groups:
-            raise UnknownNameError("group", group, list(self._groups))
+            raise UnknownNameError("group", group, valid=list(self._groups))
         return self._groups[group]
 
     def _teardown(self, entry: _Entry) -> None:

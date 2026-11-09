@@ -57,11 +57,11 @@ _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
         r"colors must be one RGB or \(4, 3\)",
     ),
     (
-        lambda: ArrowsLayer("a", np.zeros((2, 3)), np.ones((2, 3)), colors=np.zeros((3, 3))),
+        lambda: ArrowsLayer("a", np.zeros((2, 3)), vectors=np.ones((2, 3)), colors=np.zeros((3, 3))),
         ShapeError,
         "colors must be",
     ),
-    (lambda: MeshLayer("m", np.zeros((3, 3)), np.array([[0, 1, 2, 0]])), ShapeError, r"faces must be \(F, 3\)"),
+    (lambda: MeshLayer("m", np.zeros((3, 3)), faces=np.array([[0, 1, 2, 0]])), ShapeError, r"faces must be \(F, 3\)"),
     (
         lambda: CameraLayer("c", np.zeros((2, 6)), fov=1.0, aspect=1.0),
         ShapeError,
@@ -69,33 +69,40 @@ _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
     ),
     (
         lambda: SkinnedMeshLayer(
-            "k", np.zeros((3, 3)), _TRIANGLE, np.ones((3, 2)), np.zeros((2, 6)), np.zeros((1, 2, 7))
+            "k",
+            np.zeros((3, 3)),
+            faces=_TRIANGLE,
+            weights=np.ones((3, 2)),
+            bind_poses=np.zeros((2, 6)),
+            bone_poses=np.zeros((1, 2, 7)),
         ),
         ShapeError,
         r"bind_poses must be \(J, 7\)",
     ),
     (
-        lambda: SkeletonLayer("s", np.zeros((3, 3)), [-1, 0, 9]),
+        lambda: SkeletonLayer("s", np.zeros((3, 3)), parent_ids=[-1, 0, 9]),
         ArgumentError,
         r"parent_ids must be joint indices in \[0, 3\)",
     ),
     (
-        lambda: SkeletonLayer("s", np.zeros((2, 3)), [-1, 0], axes=np.zeros((3, 3))),
+        lambda: SkeletonLayer("s", np.zeros((2, 3)), parent_ids=[-1, 0], axes=np.zeros((3, 3))),
         ShapeError,
         r"axes must be \(3,\) or \(J, 3\)",
     ),
     (
-        lambda: SkeletonLayer("s", np.zeros((3, 3)), [-1, 0, 1], bone_radius=np.zeros(5)),
+        lambda: SkeletonLayer("s", np.zeros((3, 3)), parent_ids=[-1, 0, 1], bone_radius=np.zeros(5)),
         ShapeError,
         "bone_radius must be one float",
     ),
     (
-        lambda: SkeletonLayer("s", np.zeros((2, 3)), [-1, 0], kinds=["revolute", "bogus"]),
+        lambda: SkeletonLayer("s", np.zeros((2, 3)), parent_ids=[-1, 0], kinds=["revolute", "bogus"]),
         UnknownNameError,
         "unknown joint kind 'bogus'",
     ),
     (
-        lambda: RigidMeshLayer("r", [MeshSpec(np.zeros((3, 3)), _TRIANGLE, 5, _POSE)], np.zeros((10, 2, 7))),
+        lambda: RigidMeshLayer(
+            "r", [MeshSpec(np.zeros((3, 3)), _TRIANGLE, body=5, origin=_POSE)], body_poses=np.zeros((10, 2, 7))
+        ),
         ArgumentError,
         r"MeshSpec.body \[5\] out of range for body_poses with 2 bodies",
     ),
@@ -121,7 +128,7 @@ def test_robot_skeleton_names_joint_poses_and_tau_when_their_shape_is_wrong() ->
 
 def test_pose_gizmo_takes_one_pose() -> None:
     with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):
-        PoseGizmo(Viewer(server=FakeServer()), "g", np.zeros(6))
+        PoseGizmo(Viewer(server=FakeServer()), "g", pose=np.zeros(6))
 
 
 def test_a_missing_optional_package_raises_its_install_line(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -152,7 +159,12 @@ def test_a_skinned_mesh_with_fewer_than_four_bones_builds_on_a_real_server() -> 
         vertices = np.random.default_rng(0).normal(size=(6, 3))
         bind = np.tile(_POSE, (2, 1))
         layer = SkinnedMeshLayer(
-            "skin", vertices, np.array([[0, 1, 2], [3, 4, 5]]), np.ones((6, 2)) / 2, bind, bind[None]
+            "skin",
+            vertices,
+            faces=np.array([[0, 1, 2], [3, 4, 5]]),
+            weights=np.ones((6, 2)) / 2,
+            bind_poses=bind,
+            bone_poses=bind[None],
         )
         viewer.add([layer])
         viewer.show()

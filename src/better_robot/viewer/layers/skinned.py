@@ -31,11 +31,11 @@ class SkinnedMeshLayer(Layer):
         self,
         name: str,
         vertices: np.ndarray,
+        *,
         faces: np.ndarray,
         weights: np.ndarray,
         bind_poses: np.ndarray,
         bone_poses: np.ndarray,
-        *,
         color: RGB = (0.85, 0.72, 0.62),
         opacity: float = 1.0,
     ) -> None:

@@ -32,8 +32,8 @@ def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None
         poses[..., :3] = joints
         poses[..., 6] = 1.0
         viewer.add([GroundLayer()])
-        viewer.add([SkeletonLayer("skeleton", joints, parent_ids)])
-        viewer.add([ArrowsLayer("forces", joints[:, :4], rng.normal(size=(50, 4, 3)) * 0.2)])
+        viewer.add([SkeletonLayer("skeleton", joints, parent_ids=parent_ids)])
+        viewer.add([ArrowsLayer("forces", joints[:, :4], vectors=rng.normal(size=(50, 4, 3)) * 0.2)])
         viewer.add([FramesLayer("frames", poses)])
         viewer.add([PointsLayer("cloud", rng.normal(size=(50, 1000, 3)))], group="scan")
         start = time.perf_counter()
@@ -101,7 +101,7 @@ def test_a_layer_that_fails_on_a_real_server_leaves_the_scene_as_it_was() -> Non
 def test_a_pose_gizmo_on_a_real_server_uses_no_deprecated_viser_call() -> None:
     viewer = Viewer(port=_free_port())
     try:
-        gizmo = PoseGizmo(viewer, "target", np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]))  # warnings are errors
+        gizmo = PoseGizmo(viewer, "target", pose=np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]))  # warnings are errors
         np.testing.assert_allclose(gizmo.pose, [0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
         gizmo.remove()
     finally:

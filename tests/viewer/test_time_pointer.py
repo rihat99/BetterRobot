@@ -119,10 +119,10 @@ def test_on_pointer_holds_one_scene_pointer_callback() -> None:
 def test_nearest_on_ray_picks_the_closest_point_in_front_of_the_origin() -> None:
     points = np.array([[0.0, 0.0, 2.0], [0.0, 0.05, 1.0], [0.0, 0.0, -1.0], [1.0, 0.0, 0.5]])
     origin, direction = np.zeros(3), np.array([0.0, 0.0, 3.0])
-    assert nearest_on_ray(points, origin, direction, 0.1) == 1
-    assert nearest_on_ray(points, origin, direction, 0.01) == 0
-    assert nearest_on_ray(points, origin, -direction, 0.01) == 2
-    assert nearest_on_ray(points[[3]], origin, direction, 0.1) is None
+    assert nearest_on_ray(points, origin, direction=direction, radius=0.1) == 1
+    assert nearest_on_ray(points, origin, direction=direction, radius=0.01) == 0
+    assert nearest_on_ray(points, origin, direction=-direction, radius=0.01) == 2
+    assert nearest_on_ray(points[[3]], origin, direction=direction, radius=0.1) is None
 
 
 def test_camera_layer_lives_in_its_own_module_and_is_re_exported() -> None:
@@ -159,8 +159,8 @@ def test_valid_per_element_hides_single_spheres_and_arrows() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     keep = np.array([[True, False], [False, True]])
-    viewer.add([SpheresLayer("contacts", np.ones((2, 2, 3)), np.array([0.1, 0.2]))], valid=keep)
-    viewer.add([ArrowsLayer("forces", np.zeros((2, 2, 3)), np.ones((2, 2, 3)))], valid=keep)
+    viewer.add([SpheresLayer("contacts", np.ones((2, 2, 3)), radii=np.array([0.1, 0.2]))], valid=keep)
+    viewer.add([ArrowsLayer("forces", np.zeros((2, 2, 3)), vectors=np.ones((2, 2, 3)))], valid=keep)
     viewer.show(1)
     np.testing.assert_allclose(server.scene.nodes["/scene/contacts/spheres"].batched_scales, [0.0, 0.2])
     np.testing.assert_allclose(server.scene.nodes["/scene/forces/heads"].batched_scales[0], 0.0)

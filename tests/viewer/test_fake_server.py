@@ -89,20 +89,24 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
     layers = [
         GroundLayer(),
         PointsLayer("points", points),
-        MeshLayer("mesh", points, faces, opacity=0.5),
-        RigidMeshLayer("rigid", [spec], poses),
-        SkeletonLayer("skeleton", points[:, :4], [-1, 0, 1, 2], kinds=["revolute"] * 4, axes=poses[0, :, :3] + 1.0),
+        MeshLayer("mesh", points, faces=faces, opacity=0.5),
+        RigidMeshLayer("rigid", [spec], body_poses=poses),
+        SkeletonLayer(
+            "skeleton", points[:, :4], parent_ids=[-1, 0, 1, 2], kinds=["revolute"] * 4, axes=poses[0, :, :3] + 1.0
+        ),
         FramesLayer("frames", poses),
-        ArrowsLayer("arrows", points[:, :3], points[:, 3:6]),
-        ArrowsLayer("solid", points[:, :3], points[:, 3:6], shaft_radius=0.01),
-        SpheresLayer("spheres", points[:, :3], np.full(3, 0.1)),
-        SkinnedMeshLayer("skinned", points[0], faces, rng.uniform(size=(8, 4)), poses[0], poses),
+        ArrowsLayer("arrows", points[:, :3], vectors=points[:, 3:6]),
+        ArrowsLayer("solid", points[:, :3], vectors=points[:, 3:6], shaft_radius=0.01),
+        SpheresLayer("spheres", points[:, :3], radii=np.full(3, 0.1)),
+        SkinnedMeshLayer(
+            "skinned", points[0], faces=faces, weights=rng.uniform(size=(8, 4)), bind_poses=poses[0], bone_poses=poses
+        ),
         CameraLayer("camera", poses[:, 0], fov=1.0, aspect=1.5, image=np.zeros((3, 4, 4, 3), np.uint8)),
         ImagePanel("image", np.zeros((3, 4, 4, 3), np.uint8)),
         PlotPanel("plot", rng.normal(size=(3, 2))),
     ]
     viewer.add(layers)
-    viewer.add([SpheresLayer("valid", points[:, :3], np.full(3, 0.1))], group="v", valid=np.ones((3, 3), bool))
+    viewer.add([SpheresLayer("valid", points[:, :3], radii=np.full(3, 0.1))], group="v", valid=np.ones((3, 3), bool))
     for step in range(3):
         viewer.show(step)
     for layer in (layers[2], layers[3], layers[8], layers[9]):
@@ -115,7 +119,7 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
     server.gui.control("Play").fire()
     server.gui.control("Step").fire()
     viewer.timeline.pause()
-    gizmo = PoseGizmo(viewer, "target", poses[0, 0])
+    gizmo = PoseGizmo(viewer, "target", pose=poses[0, 0])
     gizmo.pose = poses[1, 0]
     gizmo.remove()
     viewer.on_pointer("click", print)

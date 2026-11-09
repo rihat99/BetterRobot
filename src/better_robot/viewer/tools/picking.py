@@ -9,7 +9,7 @@ radians and ``aspect`` is width over height.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import Any, final
 
 import numpy as np
@@ -22,6 +22,7 @@ class CameraFrustum:
 
     position: np.ndarray  #: ``(3,)`` world position.
     wxyz: np.ndarray  #: ``(4,)`` scalar-first orientation, ``R_world_camera``.
+    _: KW_ONLY
     fov: float  #: vertical field of view, radians.
     aspect: float  #: width / height.
 
@@ -31,13 +32,13 @@ class CameraFrustum:
         return cls(
             np.asarray(camera.position, dtype=np.float64),
             np.asarray(camera.wxyz, dtype=np.float64),
-            float(camera.fov),
-            float(camera.aspect),
+            fov=float(camera.fov),
+            aspect=float(camera.aspect),
         )
 
 
 def ray_hit(
-    origin: np.ndarray, direction: np.ndarray, vertices: np.ndarray, faces: np.ndarray
+    origin: np.ndarray, direction: np.ndarray, *, vertices: np.ndarray, faces: np.ndarray
 ) -> tuple[np.ndarray, int] | None:
     """Nearest double-sided Möller–Trumbore intersection ahead of ``origin``: ``(point (3,), face)`` or ``None``."""
     origin = np.asarray(origin, dtype=np.float64)
@@ -63,7 +64,7 @@ def ray_hit(
     return origin + t[face] * direction, face
 
 
-def nearest_on_ray(points: np.ndarray, origin: np.ndarray, direction: np.ndarray, radius: float) -> int | None:
+def nearest_on_ray(points: np.ndarray, origin: np.ndarray, *, direction: np.ndarray, radius: float) -> int | None:
     """Index of the point ``(N, 3)`` within ``radius`` of the ray nearest its ``origin (3,)``, or ``None``.
 
     ``direction (3,)`` need not be unit length; points behind the origin are ignored.
@@ -75,14 +76,14 @@ def nearest_on_ray(points: np.ndarray, origin: np.ndarray, direction: np.ndarray
     return None if hits.size == 0 else int(hits[np.argmin(along[hits])])
 
 
-def vertices_in_sphere(vertices: np.ndarray, center: np.ndarray, radius: float) -> np.ndarray:
+def vertices_in_sphere(vertices: np.ndarray, center: np.ndarray, *, radius: float) -> np.ndarray:
     """Indices of ``vertices (V, 3)`` within ``radius`` of ``center (3,)``."""
     distance_squared = ((np.asarray(vertices) - np.asarray(center)) ** 2).sum(-1)
     return np.nonzero(distance_squared <= radius * radius)[0]
 
 
 def vertices_in_rect(
-    vertices: np.ndarray, camera: CameraFrustum, rect_min: np.ndarray, rect_max: np.ndarray
+    vertices: np.ndarray, camera: CameraFrustum, *, rect_min: np.ndarray, rect_max: np.ndarray
 ) -> np.ndarray:
     """Indices of vertices inside a screen marquee (corners in ``[0, 1]``, top-left origin), in front of the camera."""
     lower = np.minimum(rect_min, rect_max)

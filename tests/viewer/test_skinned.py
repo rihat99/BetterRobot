@@ -23,7 +23,7 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     # Frame 1: bone 1 rotated 90° about x at its own position → the upper half folds towards -y.
     half = math.sqrt(0.5)
     posed = np.stack([bind, np.array([[0, 0, 0, 0, 0, 0, 1.0], [0, 0, 1.0, half, 0, 0, half]], dtype=np.float32)])
-    layer = SkinnedMeshLayer("body", vertices, faces, weights, bind, posed)
+    layer = SkinnedMeshLayer("body", vertices, faces=faces, weights=weights, bind_poses=bind, bone_poses=posed)
     assert layer.nsteps == 2
     np.testing.assert_allclose(layer.skin(0), vertices, atol=1e-6)
     bent = layer.skin(1)

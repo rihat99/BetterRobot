@@ -46,7 +46,7 @@ def marker_of(kind: str) -> str | None:
     """The marker a joint kind word is drawn as: ``"cylinder"``, ``"box"``, ``"sphere"``, ``"axes"``, ``"cube"``,
     or None for fixed joints (nothing drawn); an unknown word raises ``UnknownNameError``."""
     if kind not in _MARKER:
-        raise UnknownNameError("joint kind", kind, list(_MARKER))
+        raise UnknownNameError("joint kind", kind, valid=list(_MARKER))
     return _MARKER[kind]
 
 
@@ -91,8 +91,8 @@ class SkeletonLayer(Layer):
         self,
         name: str,
         joints: np.ndarray,
-        parent_ids: np.ndarray | list[int],
         *,
+        parent_ids: np.ndarray | list[int],
         kinds: Sequence[str] | None = None,
         axes: np.ndarray | None = None,
         radius: float | np.ndarray = 0.02,

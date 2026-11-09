@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import Any, final
 
 import numpy as np
@@ -25,8 +25,8 @@ class MeshLayer(Layer):
         self,
         name: str,
         vertices: np.ndarray,
-        faces: np.ndarray,
         *,
+        faces: np.ndarray,
         color: RGB = (0.80, 0.80, 0.80),
         opacity: float = 1.0,
         flat_shading: bool = False,
@@ -74,6 +74,7 @@ class MeshSpec:
 
     vertices: np.ndarray
     faces: np.ndarray
+    _: KW_ONLY
     body: int
     origin: np.ndarray
     color: RGB = (0.80, 0.80, 0.80)
@@ -88,7 +89,7 @@ class RigidMeshLayer(Layer):
     ``viewer.show()`` updates the scene (live tools).
     """
 
-    def __init__(self, name: str, meshes: list[MeshSpec], body_poses: np.ndarray, *, opacity: float = 1.0) -> None:
+    def __init__(self, name: str, meshes: list[MeshSpec], *, body_poses: np.ndarray, opacity: float = 1.0) -> None:
         self.body_poses = as_frames(body_poses, 2, name="body_poses", width=7)
         super().__init__(name, self.body_poses.shape[0])
         n_bodies = self.body_poses.shape[1]
@@ -156,8 +157,8 @@ class SpheresLayer(Layer):
         self,
         name: str,
         centers: np.ndarray,
-        radii: np.ndarray,
         *,
+        radii: np.ndarray,
         colors: np.ndarray | RGB = (0.95, 0.45, 0.20),
         opacity: float = 0.5,
     ) -> None:
