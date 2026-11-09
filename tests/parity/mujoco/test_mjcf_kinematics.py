@@ -168,6 +168,48 @@ def test_geometry_matches_mujoco(file: str, seed: int) -> None:
     assert fromto_error <= TOLERANCE, f"fromto end points of the {body_name} capsule"
 
 
+def _velocity_map(model: br.Model, compiled: mujoco.MjModel, data: mujoco.MjData) -> np.ndarray:
+    """``(nv_mujoco, nv)`` the map from a BetterRobot velocity to MuJoCo's ``qvel``: joints matched by name; a free
+    joint's linear velocity is in the body frame here and in the world frame in MuJoCo."""
+    velocity_map = np.zeros((compiled.nv, model.nv))
+    for joint_id, name in enumerate(model.joint_names):
+        width = model.nvs[joint_id]
+        if width == 0:
+            continue
+        joint = compiled.joint(name).id
+        rows = slice(int(compiled.jnt_dofadr[joint]), int(compiled.jnt_dofadr[joint]) + width)
+        columns = slice(model.idx_vs[joint_id], model.idx_vs[joint_id] + width)
+        block = np.eye(width)
+        if compiled.jnt_type[joint] == mujoco.mjtJoint.mjJNT_FREE:
+            block[:3, :3] = data.xmat[int(compiled.jnt_bodyid[joint])].reshape(3, 3)
+        velocity_map[rows, columns] = block
+    return velocity_map
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+@pytest.mark.parametrize("file", sorted(FILES))
+def test_mass_matrix_and_gravity_torque_match_mujoco(file: str, seed: int) -> None:
+    """Inertias and armature (``cases.xml`` gives every joint 0.01) through the mass matrix (``mj_fullM``), gravity
+    through the bias force at rest; the floating file compares its full matrix, base block included."""
+    compiled = mujoco.MjModel.from_xml_path(str(FILES[file]))
+    data = mujoco.MjData(compiled)
+    data.qpos[:] = _random_qpos(compiled, seed)
+    mujoco.mj_forward(compiled, data)
+    mass_matrix = np.zeros((compiled.nv, compiled.nv))
+    mujoco.mj_fullM(compiled, mass_matrix, data.qM)
+    model = br.load(FILES[file], dtype=torch.float64)
+    state = br.forward_kinematics(model, _q_from_mujoco(model, compiled, data.qpos))
+    velocity_map = _velocity_map(model, compiled, data)
+    rest = torch.zeros(model.nv, dtype=torch.float64)
+    ours = br.mass_matrix(model, state).numpy()
+    expected = velocity_map.T @ mass_matrix @ velocity_map
+    mass_matrix_error = float(np.abs(ours - expected).max())
+    assert mass_matrix_error <= TOLERANCE, "mass matrix vs mj_fullM"
+    gravity_torque = br.inverse_dynamics(model, state, v=rest, a=rest).numpy()
+    gravity_torque_error = float(np.abs(gravity_torque - velocity_map.T @ data.qfrc_bias).max())
+    assert gravity_torque_error <= TOLERANCE, "gravity torque vs qfrc_bias"
+
+
 @pytest.mark.parametrize("file", sorted(FILES))
 def test_scalar_joint_limits_match_mujoco(file: str) -> None:
     """Hinge and slide ranges in the compiled units; ``limited="auto"`` without a range is unlimited."""
