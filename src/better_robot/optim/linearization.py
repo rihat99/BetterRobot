@@ -304,8 +304,15 @@ def _windowed_pieces(problem: Problem, term: Term, reweighted: torch.Tensor, del
         weights = rows_by_knot.detach()
         (plain,) = torch.autograd.grad(rows_by_knot, delta, weights, retain_graph=True)
         expected = plain[:, columns]
-        got = (block * weights.unsqueeze(-1)).sum((1, 2))
-        if not torch.allclose(got, expected, rtol=1e-3, atol=1e-6 * float(expected.abs().max()) + 1e-30):
+        products = block * weights.unsqueeze(-1)  # (B, T_out, m, ns)
+        got = products.sum((1, 2))
+        # Both sides sum the same rows * width products, which cancel to ~0 at a converged optimum
+        # with nonzero residuals. A sum of n rounded products in any order is within n * eps / 2 *
+        # sum|products| of the exact sum (Higham, Accuracy and Stability of Numerical Algorithms,
+        # ch. 4); the bound covers both sums and as much again for the rounding inside each entry.
+        roundoff = 2 * rows * width * torch.finfo(got.dtype).eps * products.abs().sum((1, 2))
+        tolerance = 1e-3 * expected.abs() + 1e-6 * expected.abs().amax() + roundoff + 1e-30
+        if not bool(((got - expected).abs() <= tolerance).all()):
             raise ArgumentError(
                 f"term {term.name!r}: the autodiff Jacobian w.r.t. variables without a time axis is wrong, "
                 "because an operation on that path cannot be differentiated twice. Give the term a `jacobian`."

@@ -82,7 +82,9 @@ def solve_constrained(
     element, starting at ``penalty``) grows by ``growth`` when the violation did not fall
     to a quarter. Stops when the largest violation of every batch element is below
     ``tolerance``. ``Result.loss`` is the loss of the other terms only;
-    ``Result.history["violation"]`` is ``(rounds, B)``.
+    ``Result.history["violation"]`` is ``(rounds, B)``. The rounds run without a graph, so
+    ``Result.x`` is detached and no gradient reaches the problem's tensors (C-DIFF-1);
+    ``solve_layer`` is the differentiable solve, and it takes no constraints.
     """
     names = [*equalities, *inequalities]
     if not names:

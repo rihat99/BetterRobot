@@ -303,6 +303,23 @@ def test_solve_layer_gradient_matches_finite_differences():
     assert float(bound_sensitivity.abs().max()) == 0.0
 
 
+@pytest.mark.parametrize("through_with", [False, True])
+def test_solve_layer_passes_gradcheck_wrt_data_given_at_construction_or_by_with(through_with):
+    def solution(goal):
+        problem = optim.Problem(
+            {"x": torch.zeros(goal.shape, dtype=torch.float64)},
+            data={"goal": torch.zeros_like(goal) if through_with else goal},
+        )
+        problem.residual("fit", lambda x, goal: x + 0.2 * x.roll(1, -1) ** 2 - goal)
+        if through_with:
+            problem = problem.with_(data={"goal": goal})
+        return optim.solve_layer(problem, optim.LevenbergMarquardt(), iterations=200).x["x"]
+
+    # Zero residual at the optimum and no bound active: the implicit derivative is exact.
+    goal = 0.3 * torch.randn(4, 3, generator=torch.Generator().manual_seed(6), dtype=torch.float64)
+    assert torch.autograd.gradcheck(solution, (goal.requires_grad_(True),), eps=1e-6, atol=1e-6, rtol=1e-4)
+
+
 def test_problem_is_immutable():
     """Registration only adds names to the problem it is called on; every field of a registered term is fixed; changes
     go through ``with_``, which returns a new, sealed problem and leaves its parent as it was."""
@@ -469,6 +486,39 @@ def test_shared_columns_through_a_once_differentiable_op_fail_loudly():
     problem.residual("view", lambda path, cam: path.cos() * Once.apply(cam)[:, None], window=1)
     with pytest.raises(ValueError, match="differentiated twice"):
         problem.linearize()
+
+
+def test_shared_column_check_allows_round_off_at_a_converged_optimum():
+    class Once(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, value):
+            return value.clone()
+
+        @staticmethod
+        def backward(ctx, grad):
+            with torch.no_grad():
+                return grad.clone()
+
+    goal = 0.3 * torch.randn(2, 6, 2, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
+
+    def arrow(shared):
+        variables = {
+            "path": torch.zeros(2, 6, 2, dtype=torch.float64),
+            "offset": torch.zeros(2, 2, dtype=torch.float64),
+        }
+        problem = optim.Problem(variables, data={"goal": goal}, time=("path",))
+        problem.residual("fit", lambda path, offset, goal: path + shared(offset)[:, None] - goal, window=1)
+        problem.residual("anchor", lambda offset: offset)
+        problem.residual("smooth", lambda path: 0.5 * (path[:, 1:] - path[:, :-1]), window=2)
+        return problem
+
+    # The fit residuals stay nonzero at the optimum, so the offset gradient is a sum of products that
+    # cancel to round-off; this solve raised while the check ignored the size of those products.
+    solver = optim.LevenbergMarquardt(gradient_tolerance=0.0, loss_tolerance=0.0, step_tolerance=0.0)
+    result = optim.solve(arrow(lambda offset: offset), solver, iterations=400)
+    # Half of the offset path missing from the double backward is still caught at the same point.
+    with pytest.raises(exceptions.ArgumentError, match="differentiated twice"):
+        arrow(lambda offset: 0.5 * offset + 0.5 * Once.apply(offset)).linearize(result.x)
 
 
 def test_cached_returns_its_name_and_unknown_cached_read_fails_at_registration():
