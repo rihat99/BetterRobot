@@ -5,6 +5,8 @@ Walks the AST of every file under ``src/better_robot/{kinematics,dynamics,lie,sp
 
 * ``.item()`` / ``.cpu()`` — force a CUDA-host sync.
 * ``float(tensor)`` / ``bool(tensor)`` / ``int(tensor)`` — force a CUDA-host sync.
+* the implicit truth of a tensor in an ``if`` or ``while`` test (``if x.abs().max() > tol``, ``if mask.any()``) and
+  ``torch.equal(...)`` — force a CUDA-host sync.
 * ``tensor.new_tensor(...)`` — allocates a tensor on every call.
 * ``torch.zeros`` / ``torch.ones`` / ``torch.empty`` / ``torch.eye`` inside a Python loop — allocate it once outside.
 * ``if x.dim() == N`` — branches on rank, which kills compile.
@@ -87,6 +89,12 @@ _TENSOR_METHODS = {
     "transpose",
     "unsqueeze",
 }
+
+
+# a call of one of these returns a tensor, so testing its truth reads values; ``.shape`` and friends do not
+_TRUTH_METHODS = {"abs", "all", "amax", "amin", "any", "count_nonzero", "det", "eq", "ge", "gt", "isfinite", "isinf"}
+_TRUTH_METHODS |= {"isnan", "le", "lt", "max", "mean", "min", "ne", "norm", "prod", "sum"}
+_STRUCTURE = {"shape", "ndim", "dtype", "device", "is_cuda", "requires_grad", "dim", "numel", "size"}
 
 
 def _walk(node: ast.AST, parents: list[ast.AST] | None = None):
@@ -221,6 +229,41 @@ def _is_tensor_expr(  # noqa: PLR0911, PLR0912 - explicit AST cases are auditabl
         return _is_tensor_expr(node.body, tensor_names, tensor_attributes, tensor_returns) or _is_tensor_expr(
             node.orelse, tensor_names, tensor_attributes, tensor_returns
         )
+    return False
+
+
+def _is_truth_method_call(node: ast.AST) -> bool:
+    """A call of a tensor-valued method (``x.abs()``), not on ``np``, ``numpy`` or ``math``."""
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return False
+    root: ast.expr = node
+    while isinstance(root, (ast.Call, ast.Attribute, ast.Subscript)):
+        root = root.func if isinstance(root, ast.Call) else root.value
+    return node.func.attr in _TRUTH_METHODS and not (isinstance(root, ast.Name) and root.id in {"np", "numpy", "math"})
+
+
+def _tests_tensor_truth(
+    test: ast.expr, tensor_names: set[str], tensor_attributes: set[str], tensor_returns: set[str]
+) -> bool:
+    """Whether ``if test`` / ``while test`` calls a tensor's ``__bool__``: the test, a ``not``/``and``/``or`` operand or
+    an operand of a value comparison is a tensor (by evidence, or a tensor-valued call) and reads no ``.shape``."""
+    if isinstance(test, ast.BoolOp):
+        return any(_tests_tensor_truth(value, tensor_names, tensor_attributes, tensor_returns) for value in test.values)
+    if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+        return _tests_tensor_truth(test.operand, tensor_names, tensor_attributes, tensor_returns)
+    operands = [test]
+    if isinstance(test, ast.Compare):
+        if all(isinstance(op, (ast.Is, ast.IsNot, ast.In, ast.NotIn)) for op in test.ops):
+            return False
+        operands = [test.left, *test.comparators]
+    for operand in operands:
+        subs = list(ast.walk(operand))
+        if any(isinstance(sub, ast.Attribute) and sub.attr in _STRUCTURE for sub in subs):
+            continue
+        if _is_tensor_expr(operand, tensor_names, tensor_attributes, tensor_returns) or any(
+            _is_truth_method_call(sub) for sub in subs
+        ):
+            return True
     return False
 
 
@@ -433,6 +476,11 @@ def find_violations(file: Path, src: str) -> list[str]:  # noqa: PLR0912 - expli
 
         # torch.<alloc>(...) inside an explicit Python loop.
         torch_name = _torch_call_name(node.func)
+        if torch_name == "equal" and not _exempt(line):
+            violations.append(
+                f"{file.name}:{node.lineno}: torch.equal(...) — "
+                "returns a Python bool, which forces device sync; mark with `# bench-ok: <reason>` to allow"
+            )
         init_boundary = _is_named_block_solver(file) and _function_name(parents) in {
             "_static_layout",
             "init_state",
@@ -443,9 +491,19 @@ def find_violations(file: Path, src: str) -> list[str]:  # noqa: PLR0912 - expli
                 "hoist allocation; mark with `# bench-ok: <reason>` to allow"
             )
 
-    # ``if x.dim() == N`` rank branching is an ``If``, not a call, so keep
-    # this small second pass separate from the call-oriented checks above.
-    for node, _parents in _walk(tree):
+    # ``if x.dim() == N`` rank branching and the implicit truth of a tensor are ``If``/``While`` tests, not calls,
+    # so keep this small second pass separate from the call-oriented checks above.
+    for node, parents in _walk(tree):
+        if isinstance(node, (ast.If, ast.While)):
+            scope = _scope_for(parents, tree)
+            line = lines[node.lineno - 1] if node.lineno - 1 < len(lines) else ""
+            if _tests_tensor_truth(
+                node.test, tensor_names[scope], tensor_attributes[scope], tensor_returns
+            ) and not _exempt(line):
+                violations.append(
+                    f"{file.name}:{node.lineno}: implicit bool(tensor) in `{type(node).__name__.lower()}` test — "
+                    "forces device sync; mark with `# bench-ok: <reason>` to allow"
+                )
         if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):
             continue
         test = node.test

@@ -2,8 +2,8 @@
 
 ``better_robot._internal_checks`` reads ``BETTER_ROBOT_INTERNAL_CHECKS`` once, at import, and no other module reads
 it. A value-reading check is an ``if`` that raises and whose test reads tensor values (``bool``, ``float`` or ``int``
-of an expression, ``.item()``, ``.any()``, ``.all()``, ``.tolist()``, ``torch.allclose``), or a
-``torch._assert_async``. In ``src`` each one is guarded: it sits under ``if _internal_checks.ENABLED:`` or under the
+of an expression, ``.item()``, ``.any()``, ``.all()``, ``.tolist()``, ``torch.allclose``, ``torch.equal``, or the
+implicit truth of a tensor: ``if x.abs().max() > tol``, ``if x.max()``), or a ``torch._assert_async``. In ``src`` each one is guarded: it sits under ``if _internal_checks.ENABLED:`` or under the
 caller's opt-in ``if check_<what>:``, or inside a ``_check_<what>`` helper whose every call is so guarded. Every call
 of an ``_internal_checks`` function sits under ``if _internal_checks.ENABLED:``.
 
@@ -36,7 +36,43 @@ EXEMPT = {
     "_internal_checks.py": "its functions are the invariants the switch guards",
     "io": "checks a robot description's values once, at load, where it parses them",
 }
-VALUE_METHODS = {"item", "any", "all", "tolist", "allclose", "_assert_async"}
+VALUE_METHODS = {"item", "any", "all", "tolist", "allclose", "equal", "_assert_async"}
+# methods whose result is a tensor: testing its truth (alone or in a comparison) reads its values
+TENSOR_METHODS = {"abs", "amax", "amin", "count_nonzero", "det", "isfinite", "isinf", "isnan", "max", "mean", "min"}
+TENSOR_METHODS |= {"norm", "prod", "sum", "eq", "ne", "gt", "ge", "lt", "le"}
+NOT_VALUES = {"is_tensor", "is_floating_point", "is_complex", "is_grad_enabled", "is_inference_mode_enabled"}
+
+
+def _root(node: ast.expr) -> ast.expr:
+    """The name a chain of calls, attributes and subscripts starts from (``np`` in ``np.abs(x).max()``)."""
+    while isinstance(node, (ast.Call, ast.Attribute, ast.Subscript)):
+        node = node.func if isinstance(node, ast.Call) else node.value
+    return node
+
+
+def _is_tensor_call(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return False
+    root = _root(node)
+    if isinstance(root, ast.Name) and root.id in {"np", "numpy", "math"}:
+        return False
+    if isinstance(node.func.value, ast.Name) and node.func.value.id == "torch":
+        return node.func.attr not in NOT_VALUES
+    return node.func.attr in TENSOR_METHODS
+
+
+def _tests_tensor_truth(test: ast.expr) -> bool:
+    """Whether ``if test`` calls a tensor's ``__bool__``: the test, a ``not``/``and``/``or`` operand, or an operand of
+    a value comparison in it, is a tensor-valued call."""
+    if isinstance(test, ast.BoolOp):
+        return any(_tests_tensor_truth(value) for value in test.values)
+    if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+        return _tests_tensor_truth(test.operand)
+    if isinstance(test, ast.Compare):
+        if all(isinstance(op, (ast.Is, ast.IsNot, ast.In, ast.NotIn)) for op in test.ops):
+            return False
+        return any(_is_tensor_call(sub) for operand in (test.left, *test.comparators) for sub in ast.walk(operand))
+    return _is_tensor_call(test)
 
 
 def _reads_values(node: ast.AST) -> bool:
@@ -64,7 +100,7 @@ def _is_guard(test: ast.expr) -> bool:
 
 def _is_value_check(node: ast.AST) -> bool:
     if isinstance(node, ast.If):
-        return _reads_values(node.test) and any(
+        return (_reads_values(node.test) or _tests_tensor_truth(node.test)) and any(
             isinstance(sub, ast.Raise) for item in node.body for sub in ast.walk(item)
         )
     return (
@@ -144,6 +180,22 @@ def test_the_switch_is_read_once_by_its_module() -> None:
 def test_the_test_tiers_run_with_the_switch_on() -> None:
     """``tests/conftest.py`` turns the switch on before better_robot imports, unless the environment sets it."""
     assert _internal_checks.ENABLED == (os.environ["BETTER_ROBOT_INTERNAL_CHECKS"] == "1")
+
+
+@pytest.mark.parametrize(
+    ("test", "reads"),
+    [
+        ("state.q.abs().max() > 1e6", True),
+        ("x.max()", True),
+        ("not torch.equal(a, b)", True),
+        ("x.shape[0] != 3 or x.dtype is not torch.float32", False),
+        ("not math.isfinite(c) or c <= 0.0", False),
+        ("np.abs(points).max() > 1.0", False),
+    ],
+)
+def test_a_value_check_is_found_however_it_reads_the_values(test: str, reads: bool) -> None:
+    """An implicit ``__bool__`` of a tensor and ``torch.equal`` read values; shape, Python and numpy tests do not."""
+    assert _is_value_check(ast.parse(f"if {test}:\n    raise ValueError\n").body[0]) == reads
 
 
 def test_value_checks_sit_behind_the_switch_or_an_opt_in_argument() -> None:

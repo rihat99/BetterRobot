@@ -73,14 +73,14 @@ def validate_closed_manifold(faces: torch.Tensor) -> None:
     unique_edges, counts = torch.unique(edges, dim=0, return_counts=True)
     boundary = counts == 1
     non_manifold = counts > 2
-    if not bool(boundary.any()) and not bool(non_manifold.any()):
+    if not bool(boundary.any()) and not bool(non_manifold.any()):  # bench-ok: validation reads the edge counts
         return
 
     problems: list[str] = []
-    if bool(boundary.any()):
+    if bool(boundary.any()):  # bench-ok: validation reads the edge counts
         sample = unique_edges[boundary][:_MAX_REPORTED_EDGES].tolist()
         problems.append(f"{int(boundary.sum())} boundary edge(s) with one incident face (open surface), e.g. {sample}")
-    if bool(non_manifold.any()):
+    if bool(non_manifold.any()):  # bench-ok: validation reads the edge counts
         sample_edges = unique_edges[non_manifold][:_MAX_REPORTED_EDGES].tolist()
         sample_counts = counts[non_manifold][:_MAX_REPORTED_EDGES].tolist()
         sample = list(zip(sample_edges, sample_counts))

@@ -50,6 +50,21 @@ def test_no_forbidden_hot_path_patterns(file: Path) -> None:
             "    for _ in range(2):\n        x = x + torch.eye(3)\n    return x\n",
             "torch.eye(...) inside loop",
         ),
+        (
+            "implicit_truth_of_a_reduction",
+            "def hot(state):\n    if state.q.abs().max() > 1e6:\n        raise ValueError\n",
+            "implicit bool(tensor) in `if` test",
+        ),
+        (
+            "implicit_truth_of_a_tensor_name",
+            "import torch\ndef hot(mask: torch.Tensor):\n    while mask:\n        mask = mask[1:]\n",
+            "implicit bool(tensor) in `while` test",
+        ),
+        (
+            "torch_equal",
+            "import torch\ndef hot(a, b):\n    if not torch.equal(a, b):\n        raise ValueError\n",
+            "torch.equal(...)",
+        ),
     ),
 )
 def test_new_forbidden_patterns_are_detected(name: str, src: str, needle: str) -> None:
@@ -87,6 +102,18 @@ def test_tensor_attribute_provenance_is_detected() -> None:
     )
     violations = find_violations(Path("attribute.py"), src)
     assert any("bool(tensor)" in violation for violation in violations), violations
+
+
+def test_structure_and_python_scalar_tests_are_not_tensor_truth() -> None:
+    src = (
+        "import math\nimport numpy as np\nimport torch\n"
+        "def hot(x: torch.Tensor, lower: torch.Tensor | None, c: float, points):\n"
+        "    if x.shape[0] > 3 or x.ndim != 2 or lower is None or not math.isfinite(c):\n"
+        "        raise ValueError\n"
+        "    if np.abs(points).max() > 1.0:\n"
+        "        raise ValueError\n"
+    )
+    assert find_violations(Path("structure.py"), src) == []
 
 
 def test_bench_ok_and_hoisted_eye_are_allowed() -> None:

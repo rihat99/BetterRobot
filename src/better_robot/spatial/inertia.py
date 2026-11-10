@@ -284,11 +284,11 @@ def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> to
 
 def _check_mesh_values(vertices: torch.Tensor, faces: torch.Tensor, density: torch.Tensor) -> None:
     """Raise ``ArgumentError`` for non-finite vertices, out-of-range face ids or a density not finite positive."""
-    if not bool(torch.isfinite(vertices).all()):
+    if not bool(torch.isfinite(vertices).all()):  # bench-ok: opt-in check_mesh
         raise ArgumentError("vertices must contain only finite values")
-    if bool(torch.any(faces < 0)) or bool(torch.any(faces >= vertices.shape[-2])):
+    if bool(torch.any(faces < 0)) or bool(torch.any(faces >= vertices.shape[-2])):  # bench-ok: opt-in check_mesh
         raise ArgumentError("faces contains a vertex index outside the vertices table")
-    if not bool(torch.isfinite(density).all()) or bool(torch.any(density <= 0.0)):
+    if not bool(torch.isfinite(density).all()) or bool(torch.any(density <= 0.0)):  # bench-ok: opt-in check_mesh
         raise ArgumentError("density must contain only finite positive values")
 
 
