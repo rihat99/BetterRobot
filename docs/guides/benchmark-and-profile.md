@@ -85,9 +85,6 @@ print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=8))
 ------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
                     Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg    # of Calls  
 ------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
-               aten::bmm        33.01%     357.755us        33.13%     359.085us      23.939us            15  
-                aten::mm         8.62%      93.431us         8.69%      94.152us      94.152us             1  
-      aten::index_select         8.00%      86.740us         8.47%      91.827us      22.957us             4  
 ...
 ```
 

@@ -90,7 +90,7 @@ shape `(T,)`, non-decreasing. Step `k` then shows the latest sample at or before
 layer itself still receives a plain integer sample index in `set_step`. `viewer.set_fps(f)` changes the rate of the
 timeline itself, keeping one step per frame of the clip on screen; a clip browser calls it when it switches clips.
 
-```python { .no-run }
+```python { .no-run data-reason="names a clip, markers_10hz, that this page does not build" }
 viewer.add([PointsLayer("mocap", markers_10hz)], times=np.arange(len(markers_10hz)) / 10.0)
 ```
 
@@ -112,7 +112,7 @@ The other three calls consume the timeline:
 | `save(path)` | writes a `.viser` recording for viser's static web client | no |
 | `record(path)` | screenshots the scene in a headless Chromium to `.webm`, `.gif` or `.png` frames | no |
 
-```python { .no-run }
+```python { .no-run data-reason="blocks until Ctrl-C" }
 viewer.play()  # blocks until Ctrl-C
 ```
 
@@ -210,35 +210,14 @@ picked = vertices_in_sphere(vertices, center=np.array([0.5, 0.5, 0.5]), radius=0
 print(picked.shape)
 ```
 ```output
-(37,)
+(24,)
 ```
 
-## Recording the scene
+## Recording replays the timeline headless
 
-`viewer.record(path)` opens the scene in a headless Chromium (`better_robot.viewer.capture`), shows each
-step and screenshots it. The output format follows the suffix: `.webm` (needs `ffmpeg`), `.gif`, `name.png`
-for numbered frames, or a directory of frames. Options are `steps`, `size` (width, height), `fps`, `gpu`
-and `camera`.
-
-```python { .no-run }
-import tempfile
-from pathlib import Path
-
-out = Path(tempfile.mkdtemp()) / "panda.webm"
-viewer.record(out, size=(960, 540), steps=range(0, 60, 2))
-print(out.exists())
-```
-
-Without a `camera`, `record` fits a 3/4 view to the visible layers' `Layer.world_points` over the recorded
-steps, upright along the theme's `up` axis. Pass `camera=(position, look_at)` for a fixed view. The browser
-binary comes from `$BETTER_ROBOT_CHROME` or the `PATH`; the module docstring of `capture` explains the
-one-time setup.
-
-`viewer.aim(steps=...)` points the live browsers with the same 3/4 view: the connected ones and every new one
-(viser's initial camera, which "Reset View" returns to). It fits the bounding box of what is visible at each step,
-so a clip of robot meshes frames in milliseconds. It frames the current step by default; pass `steps`, such as
-`range(0, viewer.timeline.nsteps, 10)`, to frame a whole clip, and `azimuth=`/`elevation=` to look from another
-side.
+`record(path)` steps the same timeline in a headless Chromium and screenshots each step, so a recording shows
+exactly what a browser would; `aim` points the live browsers at the view `record` would choose.
+[Record a video of a scene](../guides/record-a-video.md) gives the steps and the options.
 
 ## Themes and the up axis
 
@@ -282,5 +261,6 @@ Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames
 ## Where next
 
 - [Visualize a robot](../getting-started/visualize.md) walks through a first scene and a recording.
+- [Record a video of a scene](../guides/record-a-video.md): `record`'s formats, options and camera.
 - `examples/viewer/` has runnable scripts: a robot pose, an IK gizmo, recording a clip.
 - [API reference: viewer](../reference/api/viewer.md).

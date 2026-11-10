@@ -98,12 +98,12 @@ hard = optim.solve_constrained(
     problem, optim.LevenbergMarquardt(), equalities=("reach",), inequalities=("under",), tolerance=1e-8
 )
 pose = forward_kinematics(model, hard.x["q"]).frame_poses
-print("worst reach error:", float((pose[:, hand, :3] - goal).norm(dim=-1).max()))
-print("elbow over ceiling:", float((pose[:, elbow, 2:3] - ceiling).max()))
+print(f"worst reach error: {float((pose[:, hand, :3] - goal).norm(dim=-1).max()):.1e}")
+print(f"elbow over ceiling: {float((pose[:, elbow, 2:3] - ceiling).max()):.1e}")
 ```
 ```output
-worst reach error: 7.27354373075532e-08
-elbow over ceiling: 9.844031578776224e-08
+worst reach error: 2.2e-08
+elbow over ceiling: 3.2e-08
 ```
 
 The `state` value is computed once per evaluation by `problem.cached` and shared by every term that names it, so the

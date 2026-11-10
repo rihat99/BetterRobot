@@ -1,6 +1,6 @@
 # 0040 A value-side memo on `Model`, keyed by grad mode
 
-**Status:** Accepted (owner). **Date:** 2026-11-06
+**Status:** Accepted (owner); amended by 0042. **Date:** 2026-11-06
 
 ## Context
 Record [0011](0011-caches-and-plans.md) removed the `_version`-keyed caches and converts the `(njoints, 7)` joint
@@ -18,15 +18,11 @@ We will add `Model._memo: dict` (`init=False`, `repr=False`, `compare=False`; dr
 `to` and `with_values` like `_plans`) holding values derived from the tensor fields: the placement matrices
 `(I..., njoints, 4, 4)` and `(I..., nframes, 4, 4)` read by `src/better_robot/kinematics/_fk_lean.py::placement_matrices`, and the
 packed spatial inertias `(I..., nbodies, 6, 6)` read by `src/better_robot/dynamics/_world.py::world_kinematics`. One method,
-`Model._value(kind, derive)`, serves all three: the key is `(kind, torch.is_grad_enabled(), flags)` with `flags`
-the `requires_grad` flag of every tensor field; an entry is written only when its value carries no autograd graph
-(`not value.requires_grad`) and is read only under the grad mode and flags it was made with. A value with a graph is
-recomputed per call, so each differentiable call still owns its graph. Under `torch.inference_mode` the memo is
-neither read nor written: the value is derived per call; so under `torch.compile`, where the derivation is traced
-into the graph (Dynamo cannot trace the inference-mode check). No `_version`, no functorch probe: a model whose tensors are
-edited in place after construction is outside C-STATE-1 (treat a model as read-only); the memo then serves the old
-value, as any plan would. `requires_grad_()` on a model tensor is such an edit; the flags in the key make it
-harmless anyway.
+`Model._value(kind, derive)`, serves all three: the key is `(kind, torch.is_grad_enabled())`; an entry is written
+only when its value carries no autograd graph (`not value.requires_grad`) and is read only under the grad mode it
+was made in. A value with a graph is recomputed per call, so each differentiable call still owns its graph. No
+`_version`, no functorch probe: a model whose tensors are edited in place after construction is outside C-STATE-1
+(treat a model as read-only); the memo then serves the old value, as any plan would.
 
 ## Example
 ```python { .no-run }
@@ -36,8 +32,8 @@ def placement_matrices(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
     return joints, frames
 
 with torch.no_grad():
-    forward_kinematics(model, q)        # memoises the matrices under ("joint_matrices", False, flags)
-forward_kinematics(model_with_grad, q)  # placements with a graph: converted per call, never memoised
+    forward_kinematics_state(model, q)        # memoises the matrices under ("joint_matrices", False)
+forward_kinematics_state(model_with_grad, q)  # placements with a graph: converted per call, never memoised
 ```
 
 ## Consequences
@@ -45,9 +41,8 @@ Batch-1 FK on CPU returns to R0's cost (measurement below). The memo changes cos
 `tests/contract/test_caches.py` keeps forbidding `object.__setattr__`, `_version` and `torch._C`, and gains the two
 memo checks (empty after `replace`/`to`/`with_values`; a grad-carrying value is never memoised and a graph-free one is
 served under its own grad mode). Contract 03 C-STATE-4 lists `_memo` next to `_plans`; the pytree registration keeps
-`_memo` out of the leaves, as `_plans`. Under `torch.inference_mode` nothing is memoised: a value made there is an
-inference tensor, and `torch.enable_grad` inside inference mode (what `optim.Problem.gradient` does) would file it
-under the grad-mode key, where a later autograd call cannot save it for backward (found by the R1+R2 review).
+`_memo` out of the leaves, as `_plans`. A value memoised under `torch.inference_mode` is an inference tensor; it is
+read only under disabled grad mode, where no autograd recording can touch it.
 
 Measurement after the memo (same script, core and interleaving as R1's; CPU, one thread, float32):
 
@@ -72,9 +67,8 @@ value; such a model was already outside C-STATE-1.
 
 ## Enforcement
 `tests/contract/test_caches.py` (cache fields are not constructor arguments; empty after `replace`; grad-carrying
-values are never memoised; `requires_grad_()` after a query still yields a gradient; a leaf stepped in place is not
-seen; nothing is memoised under inference mode); `tests/kinematics/test_fk_compile.py` (the public FK, RNEA and CRBA
-still trace as one graph).
+values are never memoised); `tests/kinematics/test_fk_compile.py` (the public FK, RNEA and CRBA still trace as one
+graph).
 
 ## Open questions
 None.

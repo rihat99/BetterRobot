@@ -24,7 +24,7 @@ A `Model` is immutable. Its topology (joint tree, names, index tables) is static
 (placements, inertias, limits) are tensors on one device and dtype. See
 [Model and state](../concepts/model-and-state.md) for the field table.
 
-![Model and state: the static fields hold the topology, the tensor fields the differentiable data, and each fk query returns a frozen KinematicState.](../figures/model_values_state.svg){ width="860" }
+![Model and state: the static fields hold the topology, the tensor fields the differentiable data, and each fk query returns a frozen KinematicState.](../figures/model_and_state.svg){ width="860" }
 
 *What `br.load` builds (left, middle) and what every query returns (right).*
 

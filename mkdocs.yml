@@ -116,6 +116,8 @@ nav:
       - concepts/io.md
   - Guides:
       - guides/load-a-robot.md
+      - guides/avoid-collisions.md
+      - guides/record-a-video.md
       - guides/write-a-term.md
       - guides/own-the-loop.md
       - guides/hard-constraints.md
@@ -138,11 +140,14 @@ nav:
           - viewer: reference/api/viewer.md
           - testing: reference/api/testing.md
           - exceptions: reference/api/exceptions.md
+      - reference/effects.md
       - reference/glossary.md
       - reference/changelog.md
       - reference/roadmap.md
   - Contracts:
       - Index: contracts/00-index.md
+      - Scope: contracts/scope.md
+      - Public surface: contracts/public-surface.md
       - Naming: contracts/01-naming.md
       - Tensors: contracts/02-tensors.md
       - State and mutability: contracts/03-state-mutability.md
@@ -196,6 +201,13 @@ nav:
           - 0039 Test robot fixtures: contracts/decisions/0039-test-robot-fixtures.md
           - 0040 Model value memo: contracts/decisions/0040-model-value-memo.md
           - 0041 World geometry on the state: contracts/decisions/0041-world-geometry-on-the-state.md
+          - 0042 Memo keys and shared plans: contracts/decisions/0042-memo-keys-and-shared-plans.md
+          - 0043 Constant motion subspace: contracts/decisions/0043-constant-motion-subspace.md
+          - 0044 Inertia layout: contracts/decisions/0044-inertia-layout-and-rotational-inertia.md
+          - 0045 Attached shapes: contracts/decisions/0045-attached-shapes.md
+          - 0046 Test tier selection: contracts/decisions/0046-test-tier-selection.md
+          - 0047 Problem registration: contracts/decisions/0047-problem-registration-and-sealed-views.md
+          - 0048 Viewer pointer and layers: contracts/decisions/0048-viewer-pointer-and-layer-ownership.md
   - Contributing:
       - contributing/testing.md
       - contributing/extending.md

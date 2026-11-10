@@ -35,8 +35,11 @@ def solve_ik(model, targets, *, q0, solver=None, iterations=100): ...
 def solve_ik(model, targets, q0, solver=None, iterations=100): ...
 ```
 
-Enforcement: `tests/contract/test_keyword_only.py` (inspects every `__all__` callable; an explicit allowlist
-of current violations, to be emptied by the polish phase, lives in the test).
+Enforcement: `tests/contract/test_keyword_only.py` (inspects every `__all__` callable). Its permanent list holds
+`kinematics.integrate(model, q, v)` and `kinematics.difference(model, q0, q1)`, whose third argument is the
+operand of `q (+) v` and `q1 (-) q0` (record [0013](decisions/0013-joint-kinds.md)); the shrink-only ratchet
+`tests/contract/ratchets/keyword_only.json` holds `lie.so3.slerp` and `lie.se3.sclerp`, whose `t` is positional
+today.
 
 ## C-API-3 No boolean positional arguments (MUST)
 
@@ -47,20 +50,21 @@ Enforcement: `[ruff:FBT001,FBT002]`.
 
 ## C-API-4 Frames, joints and bodies are named by `int | str` everywhere (MUST)
 
-Any parameter that identifies a frame, joint or body accepts the index *or* the name `[planned: L-2]`.
-Today `Model.frame_id(name)` takes a `str` only and
-`KinematicState.frame_pose_of(frame_id)` (`src/better_robot/kinematics/forward.py::KinematicState.frame_pose_of`) an `int` only; the ledger entry widens
-`frame_id` to `int | str` and routes every public id parameter through it. `terms.frame_poses`
-(`terms/robot.py:62`) already accepts `int | str`.
+Any public function parameter that identifies a frame, joint or body (`frame`, `joint`, `body` and their plurals)
+accepts the id *or* the name; `Model.frame_id`, `Model.joint_id` and `Model.body_id` resolve either to the id, and an
+unknown name raises `UnknownNameError` listing the valid names. `ModelBuilder` names bodies before any id exists,
+so it takes names only; records that hold resolved data (`model.AttachedShape.body`, `viewer.MeshSpec.body`, the
+`frame_ids` of `collision.RobotSpheres`) hold ids (record [0029](decisions/0029-frames-and-identifiers.md)).
 
 ```python { .no-run }
-# good  (terms/robot.py:62)
+# good  (src/better_robot/terms/robot.py::frame_pose)
 frame_pose(model, frame="panda_hand", target="goal"); frame_pose(model, frame=8, target="goal")
-# bad  (src/better_robot/kinematics/forward.py::KinematicState.frame_pose_of, until L-2 lands)
+state.frame_pose_of("panda_hand"); state.frame_pose_of(8)
+# bad
 def frame_pose_of(self, frame_id: int): ...   # forces users to look up ids themselves
 ```
 
-Enforcement: `tests/contract/test_public_surface.py`; `[review]`.
+Enforcement: `tests/contract/test_identifiers.py` (every such parameter in `tests/contract/public_api.json`).
 
 ## C-API-5 Small top-level surface; specialised APIs stay package-qualified (SHOULD)
 

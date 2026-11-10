@@ -1,8 +1,7 @@
 # Every robot source becomes the same Model
 
-After this page you can load a URDF or MJCF file, build a robot in code with `ModelBuilder`, turn a
-fixed-base description into a floating-base robot, and choose the dtype and device of the result.
-All paths go through one intermediate representation and one builder function.
+After this page you know why every robot source, a URDF file, an MJCF file or a `ModelBuilder`, goes through one
+intermediate representation and one builder function, and what the MJCF loader reads, ignores and refuses.
 
 ## Two steps: parse to IR, build the model
 
@@ -59,91 +58,14 @@ geom `friction`, `condim`, `solref`, `solimp`, `margin`), joint springs (`stiffn
 `frictionloss`, keyframes, cameras, lights, materials and textures (a geom keeps its `rgba`), the world body's
 geoms (scenery; its sites become frames on `"universe"`) and every simulation option but gravity.
 
-## Load a robot description
+## Loading is a guide
 
-`load` takes a path to a `.urdf` or MJCF `.xml` file. The `robot_descriptions` package provides paths for
-many published robots; it is an optional dependency.
-
-```python { .no-run }
-import torch
-import better_robot as br
-from robot_descriptions import panda_description
-
-model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
-```
-
-Keyword arguments of `load`:
-
-| Argument | Default | Effect |
-|----------|---------|--------|
-| `format` | `None` | `"urdf"` or `"mjcf"` forces a parser instead of reading the suffix |
-| `root_joint` | `None` | root the tree on any joint model; `JointFreeFlyer()` adds 7 to `nq` and 6 to `nv` |
-| `device`, `dtype` | `None`, `torch.float32` | where and in what precision the values live |
-
-Mesh URIs stay the strings the file wrote; `viewer.robot_meshes(geometry, root=)` reads them under a root you name.
-
-## Build a robot in code with `ModelBuilder`
-
-`ModelBuilder` writes the same `IRModel` without a file. Add bodies, connect them with joints, attach
-frames, then call `finalize()`.
-
-```python
-import torch
-import better_robot as br
-from better_robot import ModelBuilder
-from better_robot.io import build_model
-
-builder = ModelBuilder("arm", gravity=[0.0, 0.0, -9.81])
-builder.add_body("base", mass=2.0)
-builder.add_body("link", mass=1.0, com=torch.tensor([0.0, 0.0, 0.2]))
-builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="link", lower=-1.5, upper=1.5)
-builder.add_frame("tip", parent="link",
-                  placement=torch.tensor([0.0, 0.0, 0.4, 0.0, 0.0, 0.0, 1.0]))
-model = build_model(builder.finalize())
-print(model.nq, model.nv, model.upper_position_limit)
-```
-```output
-1 1 tensor([1.5000])
-```
-
-Joint methods: `add_revolute` (about `axis=`, a unit vector of the joint frame), `add_prismatic` (along
-`axis=`), `add_helical`, `add_spherical`, `add_planar`, `add_fixed`, `add_free_flyer_root`, and `add_joint(kind=)`
-for any `JointModel` instance. Each takes the
-parent and child body names and an optional `origin` pose `[tx, ty, tz, qx, qy, qz, qw]` of the joint in
-the parent body. `add_shape(body, shape, collision=True)` attaches a `model.Sphere`, `Box`, `Cylinder`,
-`Capsule` or `Mesh` (each with its placement in the body frame and an optional colour) to a body.
-
-`gravity=` is the world linear acceleration `(3,)`; the default is `(0, 0, -9.81)`. It becomes
-`model.gravity (6,)`, which the [dynamics](dynamics.md) functions read.
-
-## Make any robot floating-base
-
-A legged robot or a humanoid is usually described with a fixed root. Pass `root_joint=JointFreeFlyer()` to
-put a six-DoF free-flyer between the world and the root body; `build_model` takes the same argument for
-an IR:
-
-```python
-floating = br.io.build_model(builder.finalize(), root_joint=br.JointFreeFlyer())
-print(floating.nq, floating.nv)              # 8 7
-```
-```output
-8 7
-```
-
-The base configuration is `q[:7] = [tx, ty, tz, qx, qy, qz, qw]` and the base velocity is `v[:6]`.
-Because `nq != nv`, step configurations with `kinematics.integrate(model, q, v)`; see
-[Joints, bodies and frames](joints-bodies-frames.md).
-
-## Choose dtype and device at load time
-
-`load(..., dtype=torch.float64, device="cuda")` creates every value tensor in that precision and place.
-`model.to(...)` converts an existing model. Functions never cast your inputs: pass `q` in the model's dtype
-and device ([validation contract](architecture.md#inputs-are-validated-once-at-the-boundary)).
-
-API details: [io reference](../reference/api/io.md).
+Loading a file, building a robot in code, adding a floating base and choosing dtype and device are the steps of
+[Load a robot](../guides/load-a-robot.md); the `io` API is in the [io reference](../reference/api/io.md).
 
 ## Where next
 
+- [Load a robot](../guides/load-a-robot.md): every way to get a `Model`, step by step.
 - [Model and state](model-and-state.md): what the built `Model` contains.
 - [Joints, bodies and frames](joints-bodies-frames.md): the parts a parser fills in.
 - [Architecture](architecture.md): where `io` sits in the package layers.

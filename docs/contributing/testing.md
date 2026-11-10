@@ -11,8 +11,8 @@ tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is 
 
 | Tier | Command | Time | Run by |
 |------|---------|------|--------|
-| fast | `uv run pytest tests/contract -q -m "not slow and not cuda"` | about 2 s | the pre-commit hook, after every edit |
-| full | `uv run pytest tests -q -m "not bench and not cuda"` | about 3 min (184 s) | the pre-push hook |
+| fast | `uv run pytest tests/contract -q -m "not slow and not cuda"` | about 15 s | the pre-commit hook, after every edit |
+| full | `uv run pytest tests -q -m "not bench and not cuda"` | about 4 min (219 s) | the pre-push hook |
 | CUDA | `CUDA_VISIBLE_DEVICES=<gpu> uv run pytest tests -q -m cuda` | seconds | by hand on a machine with a GPU |
 | release | `uv run coverage run --branch --source=src/better_robot/lie,src/better_robot/spatial -m pytest tests/lie tests/spatial -q -m "not cuda" && uv run coverage report --fail-under=100` | about 5 s | the pre-push hook, the release checklist |
 
@@ -44,7 +44,9 @@ robot into `~/.cache` on first use and needs that cache from then on. One full-t
 Chromium: put `chromium`, `google-chrome` or `chrome-headless-shell` on `PATH`, or point `BETTER_ROBOT_CHROME` at
 one. On a machine without `libasound.so.2` Chromium exits at start; point `BETTER_ROBOT_CHROME` at a wrapper script
 that adds a copy of the library to `LD_LIBRARY_PATH` (for example extracted from the `libasound2` package) and
-then runs the browser.
+then runs the browser. Both stay in the full tier on purpose (record
+[0046](../contracts/decisions/0046-test-tier-selection.md)): the pages, the examples and the screenshot are what a
+reader runs and sees.
 
 ## Pinocchio parity is a gate
 
@@ -81,7 +83,19 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |
 | `test_fixtures.py` | every test robot has its licence and provenance |
 | `test_citations.py` | every repository path and `path::symbol` cited in tracked text resolves; no line number is cited |
-| `test_protocols.py` | extension protocols keep their shape (see [Extending](extending.md)) |
+| `test_extension_points.py` | every extension point is a base class or a plain function: no `register_*` function, no module-level mutable registry (see [Extending](extending.md)) |
+| `test_abstract_or_final.py` | every class in `src` is abstract or `@final` |
+| `test_api_snapshot.py` | the public API equals its snapshot, `tests/contract/public_api.json` |
+| `test_contract_matrix.py` | the enforcement matrix of the contracts index matches what every contract page says |
+| `test_decision_records.py` | every decision record follows the template, has an allowed status and an index row, and an accepted record keeps its accepted text |
+| `test_dtype_device.py`, `test_no_inplace.py`, `test_state_attachment.py` | public ops keep the input dtype and device, refuse another dtype, never write their inputs, and refuse a state of another model; their results are the [effects table](../reference/effects.md) |
+| `test_error_tree.py` | every error the library raises is in one tree under `BetterRobotError` |
+| `test_frozen.py`, `test_model_fields.py`, `test_hashing.py`, `test_caches.py` | public records are frozen, `Model` is one flat record, equality and `structure_key` follow record 0010, caches and plans follow records 0011 and 0040 |
+| `test_identifiers.py`, `test_keyword_only.py`, `test_name_words.py`, `test_se3_vocabulary.py` | a frame, joint or body parameter takes `int \| str`; at most two positional arguments; layouts, units and SE(3) words in public names |
+| `test_internal_checks.py`, `test_no_probing.py` | one switch guards every check that reads tensor values; no `getattr` with a literal and no `hasattr` in `src` |
+| `test_performance_rules.py` | a batch of two and a batch of seven dispatch the same torch operators (slow); `src` compiles nothing and builds no kernel |
+| `test_repr.py` | every public type has a one-line repr under 200 characters that names the type |
+| `test_versioning.py` | the version is `0.MINOR.PATCH` before 1.0, and this major keeps no deprecated alias |
 | `test_roadmap_stub_inventory.py` | every `NotImplementedError` stub is listed in the [roadmap](../reference/roadmap.md) |
 
 A rule that still has known violations keeps them in a ratchet, `tests/contract/ratchets/<name>.json`: each key
@@ -93,15 +107,21 @@ kinematics and dynamics function (see [Differentiate](../guides/differentiate.md
 
 ## Docs snippets run
 
-`tests/docs/test_snippets.py` runs every `python` block of each page (and `README.md`) in order, in one
-namespace, on CPU, with a fake viewer server, 120 s per page. It also checks that every image, poster and
-clip a page references exists. The rules for a page:
+`tests/docs/test_snippets.py` runs every `python` fence of each page (and `README.md`) once, in order, in one
+namespace, on CPU, seeded (`torch`, `random` and `numpy` at 0), with a fake viewer server, 120 s per page, through
+`better_robot.testing.snippets.check_page`. Every `output` fence is compared in full with what the fence above it
+prints, and a page fails when the number of compared outputs differs from its number of `output` fences. It also
+checks that every image, poster and clip a page references exists; `tests/docs/test_readme_first_screen.py` checks
+that the README's first Python fence and the output fence under it close by line 40, and
+`tests/docs/test_effects_table.py` reruns the contract tests behind the [effects table](../reference/effects.md) and
+compares the page with a fresh render, and `tests/docs/test_codemap.py` checks that the layer section of
+[Architecture](../concepts/architecture.md) lists the `ALLOWED` edge table. The rules for a page:
 
 | Fence | Meaning |
 |---|---|
 | ```` ```python ```` | runs in the full tier, in page order |
-| ```` ```python { .no-run } ```` | shown but not run (licensed data, a live server) |
-| ```` ```output ```` | directly after a block that prints: its real output |
+| ```` ```python { .no-run data-reason="..." } ```` | shown but not run; the reason is required (a GPU, a live server, licensed data). The fences of `docs/contracts/` illustrate rules and records and opt out together |
+| ```` ```output ```` | docked under a fence that runs: its real output. A line `...` stands for any number of lines; a number with a fraction or an exponent matches within one unit of its last printed digit; all other text matches exactly |
 
 ```bash
 uv run pytest tests/docs -q -k load-a-robot                                     # one page
@@ -110,7 +130,7 @@ uv run mkdocs build --strict                                                    
 BETTER_ROBOT_CHROME=<chromium> node tools/docs_screenshots.mjs /tmp/shots       # every page as light/dark PNGs
 ```
 
-The capture run writes `<page>.outputs.json` with each block's stdout; paste it into the `output` fence. Look at
+The capture run writes `<page>.outputs.json` with each fence's output; copy it into the `output` fence. Look at
 the screenshots of the pages you changed before you open a pull request.
 
 ## Never weaken a test
@@ -122,5 +142,5 @@ pull request.
 
 ## Where next
 
-- [Extending BetterRobot](extending.md): the four extension points and their tests.
+- [Extending BetterRobot](extending.md): the five kinds of brick and their tests.
 - [Design contracts](../contracts/00-index.md): the rules the contract tests enforce.

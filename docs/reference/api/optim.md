@@ -1,6 +1,6 @@
 # `better_robot.optim`
 
-Optimisation over named tensors with plain-function terms: `Problem`, the Gauss-Newton family, L-BFGS, `torch.optim` adapters, phases and differentiable solves. It imports only torch.
+Optimisation over named tensors with plain-function terms: `Problem`, the Gauss-Newton family, L-BFGS, `torch.optim` adapters, phases and differentiable solves. It imports torch and `better_robot.exceptions` only.
 
 ::: better_robot.optim
     options:

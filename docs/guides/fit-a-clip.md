@@ -124,10 +124,10 @@ fitted = forward_kinematics(model, result.x["q"]).frame_poses[:, :, marker_ids, 
 print(f"mean marker error {float((fitted - true_positions).norm(dim=-1).mean()) * 1e3:.1f} mm")
 ```
 ```output
-root  : loss 0.1537 -> 0.1088 in 5 steps
-lbfgs : loss 0.8268 -> 0.1644 in 10 steps
-lm    : loss 0.1069 -> 0.0856 in 5 steps
-mean marker error 17.2 mm
+root  : loss 0.0906 -> 0.0588 in 5 steps
+lbfgs : loss 0.5949 -> 0.1000 in 10 steps
+lm    : loss 0.0741 -> 0.0618 in 5 steps
+mean marker error 13.4 mm
 ```
 
 Each line is one phase: its loss after the first and the last step. Losses are comparable only within a phase,

@@ -18,7 +18,7 @@
 <text x="272" y="126" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">model</text>
 <polyline points="346,64 370,64" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
 <rect x="370" y="24" width="148" height="80" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
-<text x="444.0" y="53.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">State</text>
+<text x="444.0" y="53.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">KinematicState</text>
 <text x="444.0" y="70.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">forward_kinematics</text>
 <text x="444.0" y="86.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">Jacobians · dynamics</text>
 <text x="444" y="126" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">kinematics · dynamics</text>
@@ -38,6 +38,6 @@
 <rect x="886" y="24" width="148" height="80" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
 <text x="960.0" y="53.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">Viewer</text>
 <text x="960.0" y="70.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">viser layers</text>
-<text x="960.0" y="86.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">record → webm / png</text>
+<text x="960.0" y="86.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">record → video, PNGs</text>
 <text x="960" y="126" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">viewer</text>
 </svg>

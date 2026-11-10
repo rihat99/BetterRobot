@@ -1,42 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 456" width="640" height="456" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 528" width="640" height="528" font-family="Helvetica, Arial, sans-serif">
 <defs>
 <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/></marker>
 <marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f3a68"/></marker>
 </defs>
 <!-- background: white card so the figure reads on light and dark site themes -->
-<rect x="1" y="1" width="638" height="454" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
+<rect x="1" y="1" width="638" height="526" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1"/>
 <rect x="48" y="24" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
-<text x="228.0" y="45.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">viewer</text>
-<text x="228.0" y="62.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 7 · nothing imports it</text>
+<text x="138" y="53" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">viewer</text>
+<text x="318" y="53" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">terms</text>
+<line x1="228" y1="34" x2="228" y2="62" stroke="#424a53" stroke-width="1"/>
 <polyline points="228,72 228,96" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
 <rect x="48" y="96" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
-<text x="228.0" y="117.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">terms</text>
-<text x="228.0" y="134.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 6 · robot residuals, solve_ik</text>
+<text x="138" y="125" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">dynamics</text>
+<text x="318" y="125" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">collision</text>
+<line x1="228" y1="106" x2="228" y2="134" stroke="#424a53" stroke-width="1"/>
 <polyline points="228,144 228,168" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
 <rect x="48" y="168" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
-<text x="93" y="197" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">io</text>
-<text x="183" y="197" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">kinematics</text>
-<line x1="138" y1="178" x2="138" y2="206" stroke="#424a53" stroke-width="1"/>
-<text x="273" y="197" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">dynamics</text>
-<line x1="228" y1="178" x2="228" y2="206" stroke="#424a53" stroke-width="1"/>
-<text x="363" y="197" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">collision</text>
-<line x1="318" y1="178" x2="318" y2="206" stroke="#424a53" stroke-width="1"/>
+<text x="108" y="197" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">io</text>
+<text x="228" y="197" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">kinematics</text>
+<line x1="168" y1="178" x2="168" y2="206" stroke="#424a53" stroke-width="1"/>
+<text x="348" y="197" font-size="13" fill="#1f2328" text-anchor="middle" font-weight="bold">testing</text>
+<line x1="288" y1="178" x2="288" y2="206" stroke="#424a53" stroke-width="1"/>
 <polyline points="228,216 228,240" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
 <rect x="48" y="240" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
-<text x="228.0" y="261.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">model</text>
-<text x="228.0" y="278.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 4 · Model, joint kinds, manifolds</text>
+<text x="228" y="261" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">model</text>
+<text x="228" y="278" font-size="12" fill="#424a53" text-anchor="middle">Model, joint kinds, manifolds</text>
 <polyline points="228,288 228,312" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
 <rect x="48" y="312" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
-<text x="228.0" y="333.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">spatial</text>
-<text x="228.0" y="350.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 3 · twists, wrenches, inertias</text>
+<text x="228" y="333" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">spatial</text>
+<text x="228" y="350" font-size="12" fill="#424a53" text-anchor="middle">twists, wrenches, inertias</text>
 <polyline points="228,360 228,384" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
 <rect x="48" y="384" width="360" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
-<text x="228.0" y="405.0" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">lie</text>
-<text x="228.0" y="422.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 2 · se3, so3 functions</text>
-<rect x="448" y="312" width="176" height="48" rx="6" fill="#f3f5f8" stroke="#1f3a68" stroke-width="2"/>
-<text x="536.0" y="333.0" font-size="15" fill="#1f3a68" text-anchor="middle" font-weight="bold">optim</text>
-<text x="536.0" y="350.0" font-size="12" fill="#424a53" text-anchor="middle" font-weight="normal">rank 3 · imports only torch</text>
-<polyline points="408,120 536,120 536,312" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
-<text x="526" y="220" font-size="12" fill="#1f3a68" text-anchor="end" font-weight="normal">Problem, TermFn,</text>
-<text x="526" y="236" font-size="12" fill="#1f3a68" text-anchor="end" font-weight="normal">solvers</text>
+<text x="228" y="405" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">lie</text>
+<text x="228" y="422" font-size="12" fill="#424a53" text-anchor="middle">se3, so3 functions</text>
+<polyline points="228,432 228,456" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
+<rect x="448" y="384" width="176" height="48" rx="6" fill="#f3f5f8" stroke="#1f3a68" stroke-width="2"/>
+<text x="536" y="405" font-size="15" fill="#1f3a68" text-anchor="middle" font-weight="bold">optim</text>
+<text x="536" y="422" font-size="12" fill="#424a53" text-anchor="middle">torch only, no robots</text>
+<polyline points="536,432 536,456" fill="none" stroke="#1f2328" stroke-width="1.5" marker-end="url(#ag)"/>
+<rect x="48" y="456" width="576" height="48" rx="6" fill="#f3f5f8" stroke="#1f2328" stroke-width="1.5"/>
+<text x="336" y="477" font-size="15" fill="#1f2328" text-anchor="middle" font-weight="bold">exceptions</text>
+<text x="336" y="494" font-size="12" fill="#424a53" text-anchor="middle">one error tree; every package imports it</text>
+<polyline points="408,48 536,48 536,384" fill="none" stroke="#1f3a68" stroke-width="2" marker-end="url(#an)"/>
+<text x="526" y="220" font-size="12" fill="#1f3a68" text-anchor="end">Problem, TermFn,</text>
+<text x="526" y="236" font-size="12" fill="#1f3a68" text-anchor="end">solvers</text>
 </svg>

@@ -60,7 +60,7 @@ Use `float64` for tests, parity checks and tight IK tolerances; `float32` for th
 
 Only the device changes:
 
-```python { .no-run }
+```python { .no-run data-reason="needs a CUDA device; the docs run on the CPU" }
 device = torch.device("cuda")
 model = br.load(panda_description.URDF_PATH, device=device, dtype=torch.float32)
 q_batch = model.q_neutral.expand(4096, model.nq).clone()

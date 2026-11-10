@@ -91,7 +91,7 @@ class Model:
     q_neutral: torch.Tensor
     # Plans (constant tensors derived from the static fields) keyed by (kind, dtype, device); never copied.
     _plans: dict = field(default_factory=dict, init=False, repr=False, compare=False)
-    # Values derived from the tensor fields keyed by (kind, grad mode), written only without a graph; never copied.
+    # Tensor-field values keyed by (kind, grad mode, requires_grad flags), stored only without a graph; never copied.
     _memo: dict = field(default_factory=dict, init=False, repr=False, compare=False)
     # A copy keeps every static field and plans derive from those alone, so `with_values` and `to` point their copy
     # at the first model of the line, and `_plan` takes that model's plans instead of building them again. Not in

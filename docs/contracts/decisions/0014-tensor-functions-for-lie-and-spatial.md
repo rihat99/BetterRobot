@@ -1,6 +1,6 @@
 # 0014 Lie and spatial algebra are tensor functions only
 
-**Status:** Accepted (owner). **Date:** 2026-11-01
+**Status:** Accepted (owner); amended by 0044. **Date:** 2026-11-01
 
 ## Context
 `lie/types.py::SE3`, `SO3`, the alias `Pose = SE3`, and `spatial.Motion`, `Force`, `Inertia`, `Symmetric3` sit beside
@@ -12,7 +12,7 @@ BetterVideoReconstruction `Force` (1 site).
 
 ## Decision
 We will provide Lie and spatial algebra as functions on tensors only (`spatial.cross_motion`, `cross_force`,
-`transform_motion`, `transform_force`, `transform_inertia`, `inertia_matrix`, `rotational_inertia`, `inertia_of_sphere`, `inertia_of_box`,
+`transform_motion`, `transform_force`, `transform_inertia`, `inertia_matrix`, `inertia_of_sphere`, `inertia_of_box`,
 `inertia_of_capsule`, `inertia_of_ellipsoid`, `inertia_of_mesh`) and remove the value classes and `Pose`.
 
 ## Example

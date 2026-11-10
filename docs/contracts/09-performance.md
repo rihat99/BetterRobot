@@ -9,7 +9,7 @@ There is no `C-PERF-1`: the first performance rule lives in `02` as `C-TENS-4`, 
 
 The performance reason for `C-TENS-4` (`02`): `.item()`, `.cpu()`, `bool(tensor)` and data-dependent Python
 control flow stall the GPU queue. Hot paths are the per-call code under `lie`, `kinematics`, `dynamics` and the
-solver step in `optim/solvers.py`; once-per-model setup (plan building) is not a hot path and is exempted with
+solver step in `src/better_robot/optim/solvers.py`; once-per-model setup (plan building) is not a hot path and is exempted with
 `# bench-ok`. So is the `LBFGS` line search, which reads one flag per trial: a trial is a full loss evaluation,
 dearer than the sync that skips the ones left once every problem has its step. This section has no rule ID of its
 own; `C-TENS-4` and its enforcer cover it.
@@ -27,18 +27,21 @@ for joint in model.joints:                 # structural, len = model.njoints
 for b in range(q.shape[0]): ...
 ```
 
-Enforcement: `[review]`; `tests/bench/` guards the entry points below.
+Enforcement: `tests/contract/test_performance_rules.py::test_a_batch_dispatches_the_same_operators_at_every_size`
+(every entry point of the contract tests' public-ops registry dispatches as many torch operators for a batch of
+two as for a batch of seven).
 
-## C-PERF-3 Hot paths have a benchmark and are not slowed silently (SHOULD)
+## C-PERF-4 The library compiles nothing and ships no custom kernel (MUST)
 
-`forward_kinematics`, `frame_jacobian`, `rnea`/`crba`, and `optim.solve` have a benchmark under
-`tests/bench/` (`-m bench`). A change that slows one by more than 20 % needs a reason in the PR.
+Compilation is the caller's choice: no module calls or decorates with `torch.compile`; the public kinematics and
+dynamics trace as one graph when the caller compiles them (`tests/kinematics/test_fk_compile.py`). Torch is the only
+implementation (record [0001](decisions/0001-torch-only.md)): no C++ extension, Triton, Numba or CuPy kernel.
 
-Enforcement: `[review]`; the benchmarks under `tests/bench/` (`uv run pytest -m bench`) are advisory, not a CI gate.
+Enforcement: `tests/contract/test_performance_rules.py::test_src_compiles_nothing_and_builds_no_kernel`.
 
-## C-PERF-4 Measure before optimising (SHOULD)
+## Benchmarks
 
-An optimisation PR shows the benchmark before and after. No speculative caching, no `torch.compile` in the
-library, no custom kernels without an ADR.
-
-Enforcement: `[review]`.
+The benchmarks under `tests/bench/` (`-m bench`) time forward kinematics, the Jacobians, `integrate` and
+`difference`, the Lie functions and the IK solve; [Benchmark and profile](../guides/benchmark-and-profile.md) runs
+them. They are measurements, not a gate: an optimisation shows its benchmark before and after in its review, and
+a cache or fused kernel lands only with that measurement. No rule has the id `C-PERF-3`: a benchmark is not a gate.

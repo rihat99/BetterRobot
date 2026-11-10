@@ -63,7 +63,7 @@ viewer.show(29)
 `viewer.play()` runs the timeline at the viewer's `fps` and blocks until you stop it, so call it last in a
 script:
 
-```python { .no-run }
+```python { .no-run data-reason="blocks until Ctrl-C" }
 viewer.play()
 ```
 
@@ -86,7 +86,7 @@ viewer.show()
 `viewer.record` screenshots the live scene in a headless Chromium and writes `.webm`, `.gif` or
 `.png` frames. Without a `camera` it frames the robot automatically:
 
-```python { .no-run }
+```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_capture.py runs record" }
 viewer.remove_group("live")
 out = Path(tempfile.mkdtemp()) / "panda_swing.gif"
 viewer.record(out, size=(320, 240), steps=range(0, 30, 3))

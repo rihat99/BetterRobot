@@ -1,6 +1,6 @@
 # 0026 One coupling-standard page in BetterRobot, tested by every consumer
 
-**Status:** Accepted (owner). **Date:** 2026-11-01
+**Status:** Accepted (owner); amended by 0044. **Date:** 2026-11-01
 
 ## Context
 No page lists what BetterHuman, BetterVideoReconstruction and BetterRetarget rely on in BetterRobot. A first draft
@@ -19,7 +19,7 @@ q          (B..., nq)   revolute, prismatic, helical 1 | continuous [cos, sin] 2
                         planar [x, y, cos, sin] 4 | translation 3 | free flyer [tx,ty,tz,qx,qy,qz,qw] 7 | fixed 0
 v          (B..., nv)   tangent, never added to q
 pose (..., 7) [tx,ty,tz,qx,qy,qz,qw]   transform (..., 3, 4) [R | p]   twist, wrench (..., 6) linear first
-inertia    (..., 10)    [m, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]: MuJoCo fullinertia order, about the centre of mass
+inertia    (..., 10)    [m, cx, cy, cz, Ixx, Iyy, Izz, Ixy, Ixz, Iyz] about the centre of mass
 jacobian   (B..., 6, nv) default local_world_aligned     euler Rz Ry Rx
 joints     source order (0012); joint 0 is a fixed "universe" with the identity transform; joint 1 is the root
 mimic joints appear only in the full layout (*_full)     identifiers (0029)     files (0030)     batch axes (0028)

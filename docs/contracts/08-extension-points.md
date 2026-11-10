@@ -6,14 +6,14 @@ The library grows by adding *to* fixed seams, not by editing their consumers. Th
 
 ## C-EXT-1 Terms are plain functions (MUST)
 
-A *term* is a plain function (`optim.TermFn`, `optim/problem.py:28`) whose argument names are the
+A *term* is a plain function (`src/better_robot/optim/problem.py::TermFn`) whose argument names are the
 `Problem` entries it reads and which returns residuals `(..., r)`. Robot-specific terms are *factories* in
 `terms`: a function that takes the model and options and returns a `TermFn` closing over them. Terms carry
-no state and are never subclasses; `optim.Term` (`optim/problem.py:46`) is the record `Problem` keeps per
+no state and are never subclasses; `src/better_robot/optim/problem.py::Term` is the record `Problem` keeps per
 registered term, not a base class for users. See ADR [0003](decisions/0003-terms-plain-functions.md).
 
 ```python { .no-run }
-# good  (terms/robot.py:62)
+# good  (src/better_robot/terms/robot.py::frame_pose)
 def frame_pose(model, *, frame, target, state="state", q="q") -> TermFn:   # factory
     def term(state, target): ...                                           # reads "state", "target"
     return term
@@ -63,20 +63,21 @@ without notice. Private helpers across packages are imported from their package,
 Enforcement: `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py`;
 `tests/contract/test_ruff_ratchets.py` (ruff's `SLF001`: no `obj._private` access across modules).
 
-## C-EXT-4 Deprecate for one minor release before removing (SHOULD)
+## C-EXT-4 This major keeps no deprecated alias (MUST)
 
-A public symbol that changes keeps the old name for one minor release, emitting
-`DeprecationWarning` with the replacement, and is listed in `docs/reference/changelog.md`. Internal names are
+A public name that changes is renamed or removed outright, and the changelog's entry names the replacement; there is
+no alias that warns. The first deprecation of a later release brings a table of deprecated names with their removal
+version and a test that fails when that version is reached (principle 8.9); it changes this rule. Internal names are
 renamed outright.
 
-Enforcement: `[review]`; changelog entry checked in review.
+Enforcement: `tests/contract/test_versioning.py::test_src_emits_no_deprecation_warning`.
 
 ## C-EXT-5 New solvers, viewer layers and packages follow one recipe each (MUST)
 
-- Solver: a class satisfying `optim.Solver` (`optim/solvers.py:30`): `init(problem, x) -> State` and
-  `step(problem, state) -> State`, both pure (a new `State` per step, no writes to the problem), registered in
+- Solver: a subclass of `src/better_robot/optim/solvers.py::Solver`: `init(problem, x) -> State` and
+  `step(problem, state) -> State`, both pure (a new `State` per step, no writes to the problem), listed in
   `__all__`.
-- Viewer layer: subclass `viewer.Layer` (`viewer/layer.py:25`); implement `build(scene, root)` and `set_step(step)`;
+- Viewer layer: subclass `src/better_robot/viewer/layer.py::Layer`; implement `build(scene, root)` and `set_step(step)`;
   override `build_gui`, `apply_theme`, `geometry` and `dispose` only when needed; set `listed = False` to keep it out
   of the sidebar.
 - Package: add its row to `ALLOWED` in `tests/contract/test_layer_dependencies.py` and the package to the diagram
@@ -86,16 +87,17 @@ Enforcement: `tests/contract/test_layer_dependencies.py`; `[review]`.
 
 ## C-EXT-6 Pre-1.0 versioning: minor releases may break (MUST)
 
-Until 1.0 the version is `0.MINOR.PATCH`. A patch release changes no public signature or result. A minor release
-may change or remove public API after the deprecation period of `C-EXT-4`, and every such change is listed under
-a "Breaking" heading in `docs/reference/changelog.md` with the migration.
+Until 1.0 the version is `0.MINOR.PATCH`. A minor release may change or remove public API, and every such change is
+in the changelog with its migration; a patch release changes no public signature. A public signature changes only
+together with the tracked snapshot `tests/contract/public_api.json`, so no change reaches a release unnoticed. The
+public surface and the horizon of each kind of artifact are on [Public surface](public-surface.md).
 
-Enforcement: `[review]`; changelog entry checked in review.
+Enforcement: `tests/contract/test_versioning.py::test_version_is_pre_1_0`; `tests/contract/test_api_snapshot.py`.
 
 ## Optimization: normal equations are assembled through a sink (SHOULD)
 
 `Problem.linearize` never builds a matrix itself: it hands Jacobian products to a sink and asks it for the
-normal equations. The three sinks in `optim/linear.py` (`DenseSink`, `BandSink`, `ArrowSink`) share two
+normal equations. The three sinks in `src/better_robot/optim/linear.py` (`DenseSink`, `BandSink`, `ArrowSink`) share two
 methods, `add(columns_a, columns_b, values)` to accumulate a block of `JᵀJ` and `finish(g)` to return a
 `Normal`, `BandedNormal` or `ArrowNormal` with the common `solve` / `restrict` / `predicted_decrease`
 interface. A future block-sparse structure (for example a contact graph) is a new sink plus a new normal class
@@ -107,7 +109,7 @@ behind this seam; solvers and terms do not change.
 type is a function `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)` (signed
 distance, positive outside, differentiable in `centers`), usually a closure over a `collision.sphere_*`
 primitive. The term and the solvers never change for a new shape. Robot geometry beyond spheres and closest
-points follow [ADR 0008](decisions/0008-geometry-brick.md).
+points follow record [0016](decisions/0016-geometry-out-of-model.md).
 
 ```python { .no-run }
 # good: a new shape is a new function
