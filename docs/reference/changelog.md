@@ -144,6 +144,9 @@ that 0.3.0 renames or removes, one table row each.
   host sync of its counter rows (forward kinematics, Jacobian, RNEA, CRBA, ABA, `solve_ik`) exceeds
   `benchmarks/thresholds/torch-<version>.json` (`tests/contract/test_compile_counters.py`); wall time is recorded
   with the load average and page faults, never gated.
+- The hooks in `.pre-commit-config.yaml` run through `uv run --locked`: ruff check, ruff format --check and the fast
+  tier before a commit, the full tier before a push. The release tier is one command,
+  `bash tools/release_tier.sh --gpu <index>` ([running the tests](../guides/run-the-tests.md)).
 
 ### Removed
 - `ModelStructure`, `ModelValues`, `Model.structure`, `Model.values`: use the fields of `Model`.

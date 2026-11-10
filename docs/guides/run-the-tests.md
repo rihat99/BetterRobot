@@ -11,15 +11,21 @@ tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is 
 
 | Tier | Command | Time | Run by |
 |------|---------|------|--------|
-| fast | `uv run pytest tests/contract -q -m "not slow and not cuda"` | about 15 s | the pre-commit hook, after every edit |
-| full | `uv run pytest tests -q -m "not cuda"` | about 4 min (219 s) | the pre-push hook, the release checklist |
-| release | `CUDA_VISIBLE_DEVICES=<gpu> uv run pytest tests -q -m cuda` | seconds | by hand on a machine with a free GPU |
+| fast | `uv run pytest tests/contract -q -m "not slow and not cuda"` | about 16 s | the pre-commit hook, after every edit |
+| full | `uv run pytest tests -q -m "not cuda"` | about 4.5 min | the pre-push hook, the release tier |
+| release | `bash tools/release_tier.sh --gpu <index>` | about 10 min | by hand before a tag, with a free GPU |
+
+Measured at commit `f4390df` on a shared AMD EPYC 9654 host (384 threads), load average 11 to 90: fast 15.7 to
+16.2 s and full 264 to 275 s as pytest reports them (`uv run` adds about 3 s), release 626 s.
 
 The tiers are those of records [0033](../contracts/decisions/0033-test-tiers.md) and
-[0046](../contracts/decisions/0046-test-tier-selection.md); the counters that 0033 adds to the release tier are not
-in the repository yet. Beside the tiers, the pre-push hook runs the coverage gate of `lie` and `spatial`, both
-torch-only mathematics with no robot in sight, so every line and branch is reachable from a unit test and the gate
-holds them at 100 % (about 5 s):
+[0046](../contracts/decisions/0046-test-tier-selection.md). The release tier stops at its first failure. It checks
+the lockfile (`uv lock --check`) and that torch can use GPU `<index>`, the `nvidia-smi` index of a GPU nobody else
+is using (the run stops there when torch cannot). Then it runs ruff check and ruff format --check, the public-API
+snapshot check (`tools/api_snapshot.py --check`), the strict docs build, the `cuda` tests and the CUDA counters
+(`benchmarks/run.py --device cuda --counters-only`, see [Benchmark and profile](benchmark-and-profile.md)) on that
+GPU, the full tier twice, and the coverage gate of `lie` and `spatial`. Both are torch-only mathematics with no
+robot in sight, so every line and branch is reachable from a unit test and the gate holds them at 100 % (about 5 s):
 
 ```bash
 uv run coverage run --branch --source=src/better_robot/lie,src/better_robot/spatial -m pytest tests/lie tests/spatial -q -m "not cuda" && uv run coverage report --fail-under=100
@@ -27,11 +33,14 @@ uv run coverage run --branch --source=src/better_robot/lie,src/better_robot/spat
 
 Every tier runs the internal invariants (decision record 0021): `tests/conftest.py` sets
 `BETTER_ROBOT_INTERNAL_CHECKS=1` unless the environment sets it, so a library bug that breaks an invariant fails
-a test. The benchmarks set it to `0`: an invariant reads tensor values, a host sync per call.
+a test. The release tier's second full run sets it to `0`, the configuration users get. The benchmarks set it to
+`0` too: an invariant reads tensor values, a host sync per call.
 
 While you edit one package, run the fast tier plus that package's folder, for example
-`uv run pytest tests/kinematics -q`. The hooks live in `.pre-commit-config.yaml`;
-`uv run pre-commit install` installs them.
+`uv run pytest tests/kinematics -q`. The hooks live in `.pre-commit-config.yaml` and run through `uv run --locked`,
+so a lockfile that no longer matches `pyproject.toml` fails them: ruff check, ruff format --check and the fast tier
+before each commit, the full tier before each push. `uv run pre-commit install` installs both stages;
+`uv run pre-commit run --all-files --hook-stage pre-push` runs one stage without installing it.
 
 ## What the full tier needs
 

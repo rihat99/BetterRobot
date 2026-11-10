@@ -7,7 +7,7 @@ What each group of tests guards. How to run them: [Run the tests](../guides/run-
 | Marker | Meaning |
 |--------|---------|
 | `slow` | takes seconds; deselected in the fast tier, run in the full tier |
-| `cuda` | needs a CUDA device; deselected in the fast and full tiers |
+| `cuda` | needs a CUDA device; deselected in the fast and full tiers, run in the release tier |
 
 ## Pinocchio parity
 
@@ -57,6 +57,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_identifiers.py`, `test_keyword_only.py`, `test_name_words.py`, `test_se3_vocabulary.py` | a frame, joint or body parameter takes `int \| str`; at most two positional arguments; layouts, units and SE(3) words in public names |
 | `test_internal_checks.py`, `test_no_probing.py` | one switch guards every check that reads tensor values; no `getattr` with a literal and no `hasattr` in `src` |
 | `test_performance_rules.py` | a batch of two and a batch of seven dispatch the same torch operators (slow); `src` compiles nothing and builds no kernel |
+| `test_compile_counters.py` | the graph breaks, recompiles, operators and host syncs of every counter row of `benchmarks/run.py` stay at or below `benchmarks/thresholds/` on CPU (slow); each hot path contract 09 names has counter rows |
 | `test_repr.py` | every public type has a one-line repr under 200 characters that names the type |
 | `test_versioning.py` | the version is `0.MINOR.PATCH` before 1.0, and this major keeps no deprecated alias |
 | `test_roadmap_stub_inventory.py` | every `NotImplementedError` stub is listed in the [roadmap](roadmap.md) |
