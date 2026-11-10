@@ -13,6 +13,8 @@ import torch
 
 from better_robot.exceptions import DtypeMismatchError, ShapeError
 from better_robot.lie import se3, so3, tangents
+# Private on purpose: no public lie name takes a dtype, and lie's 100 % coverage gate (tests/lie, tests/spatial) needs
+# the rule that io.build_model and Model.to apply (their own tests go through them) exercised here.
 from better_robot.lie._checks import check_dtype
 
 #: ``module.function`` -> trailing shape of each tensor parameter, in order (``()`` takes any shape).

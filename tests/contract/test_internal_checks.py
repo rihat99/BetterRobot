@@ -25,6 +25,8 @@ from pathlib import Path
 import pytest
 import torch
 
+# Private on purpose: record 0021's switch is an environment variable and this module, with no public name; this is
+# its contract test.
 from better_robot import _internal_checks
 from better_robot._internal_checks import check_unit_quaternions
 
