@@ -7,6 +7,8 @@ that 0.3.0 renames or removes, one table row each.
 
 ## Unreleased
 
+## v0.3.0 (2026-11-10)
+
 ### Added
 - `better_robot` exports its twelve packages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`,
   `collision`, `io`, `optim`, `terms`, `viewer`, `testing`) and `JointFreeFlyer`, `solve_ik` and `Viewer` beside the
@@ -68,6 +70,7 @@ that 0.3.0 renames or removes, one table row each.
 - `testing.glossary`: `read()` returns the terms and everyday words of BetterRobot's glossary page, which ships in
   the package, and `read(page)` those of another page; `words`, `entry` and `spelling` check a name against them.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
+- [Release a version](../guides/release.md): the release checklist, from the public-API diff to the downstream pins.
 
 ### Changed
 - `Model` is one flat frozen record: the fields of `ModelStructure` and `ModelValues` live on it, it compares by
