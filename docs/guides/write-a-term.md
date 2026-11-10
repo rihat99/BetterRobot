@@ -99,8 +99,8 @@ Use float64 when you check: in float32 the reference itself has errors around `1
 When several terms need the same intermediate, such as a kinematic state, register it once with
 `problem.cached(fn, name=...)` and read it by name. It is computed once per evaluation. If a term reads a
 cached value, its `jacobian` still returns blocks for the *variables*, with the chain rule through the cached
-value already applied. The robot terms in `better_robot.terms` (`terms/robot.py`, `terms/collision.py`) are
-built this way: factories that return `TermFn`s reading the cached `state`.
+value already applied. The robot terms in `better_robot.terms` (`src/better_robot/terms/robot.py`,
+`src/better_robot/terms/collision.py`) are built this way: factories that return `TermFn`s reading the cached `state`.
 
 ## Checklist
 

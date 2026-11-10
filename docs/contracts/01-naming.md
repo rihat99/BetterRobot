@@ -55,14 +55,15 @@ def twist_to_angular_first(V: Tensor) -> Tensor: ...
 quat = pose[..., 3:7]          # order hidden; a reader must open the docs
 ```
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_name_words.py::test_layout_words_name_converters_only` (every public name and
+parameter in `tests/contract/public_api.json`).
 
-## C-NAME-4 Units and frames in parameter names when ambiguous (SHOULD)
+## C-NAME-4 SI units, and *frame* means a robot frame (MUST)
 
-Angles are radians, lengths metres, time seconds; a parameter in another unit carries the unit (`timeout_ms`).
-A frame argument is `frame`, a joint `joint`, a body `body`; the viewer's time axis is the integer `step`
-(`nsteps`, `set_step`), and a layer's optional `times` are its sample times in seconds. The word *frame* always
-means a robot frame, never an animation frame.
+Angles are radians, lengths metres, time seconds, and no public name or parameter carries another unit. A frame
+argument is `frame`, a joint `joint`, a body `body`; the viewer's time axis is the integer `step` (`nsteps`,
+`set_step`), and a layer's optional `times` are its sample times in seconds. The word *frame* always means a robot
+frame, never an animation frame: in `better_robot.viewer` it appears only in `FramesLayer`, which draws frames.
 
 ```python { .no-run }
 # good
@@ -71,7 +72,8 @@ viewer.set_step(10)
 viewer.set_frame(10)      # collides with the robot-frame meaning
 ```
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_name_words.py::test_public_quantities_are_in_si_units`,
+`tests/contract/test_name_words.py::test_frame_means_a_robot_frame_in_the_viewer`.
 
 ## C-NAME-5 SE(3) vocabulary: placement, pose, transform (MUST)
 

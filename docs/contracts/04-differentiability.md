@@ -9,7 +9,8 @@ documented exception, never a default. See ADR [0001](decisions/0001-torch-only.
 Gradients flow from every output to every float input (`q`, `v`, model parameters) unless the docstring has a
 `Differentiability` section saying what is cut and why. No `.detach()`, `torch.no_grad()` or
 `requires_grad_(False)` inside library math. Documented exceptions: `optim.Problem` detaches while solving
-(`optim/problem.py:278-303`; `solve` is not differentiable, `solve_layer` is, and both docstrings say so).
+(`src/better_robot/optim/phases.py::solve` is not differentiable,
+`src/better_robot/optim/phases.py::solve_layer` is, and both docstrings say so).
 
 ```python { .no-run }
 # good  (illustrative)
@@ -26,10 +27,10 @@ in float64 on every `lie`/`spatial`/`kinematics` entry point); `[review]` for ne
 
 `vmap` traces a function once per call; `if t.any():`, `while err > tol:` with a tensor `err`, and data-
 dependent shapes make the trace invalid. Use `torch.where`, boolean masks, and fixed iteration counts with
-masked updates. Loop bounds come from Python ints (`model.nv`, `max_iters`), never from tensor contents.
+masked updates. Loop bounds come from Python ints (`model.nv`, `iterations`), never from tensor contents.
 
 ```python { .no-run }
-# good  (lie/so3.py)
+# good  (src/better_robot/lie/so3.py)
 small = theta < eps
 coef = torch.where(small, taylor(theta), exact(theta))
 # bad

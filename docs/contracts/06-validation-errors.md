@@ -36,7 +36,8 @@ exception: a value of the wrong Python type (not a `torch.Tensor`, not a `Kinema
 `TypeError` (the tree has no node for it; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
 site). An exception class exists only if something raises it; never-raised types are removed.
 An unknown name (a model's joint, frame or body, a problem's term or variable, a viewer's group) raises
-`UnknownNameError` (also a `KeyError`) with one message shape, `unknown <kind> '<name>' (valid names: [...])`; every
+`UnknownNameError` (also a `KeyError`) with one message shape, `unknown <kind> '<name>' (valid names: [...])`, or
+`(<n> valid names)` when there are more than 20; every
 public id argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.
 
 Enforcement: `tests/contract/test_error_tree.py` (every class in `exceptions.__all__` is raised somewhere in
@@ -79,7 +80,8 @@ Enforcement: `[ruff:BLE001,E722]`; `[review]`.
 ## C-ERR-5 String-wired reads fail when the problem is built (MUST)
 
 Terms and cached values name what they read by string (`reads=("state",)`). An unknown name raises
-`UnknownNameError` (a `KeyError`) from `Problem.add`/`Problem.cached` (`optim/problem.py:401`), never from inside a
+`UnknownNameError` (a `KeyError`) from the registration calls `Problem.residual`, `Problem.scalar` and
+`Problem.cached` (`src/better_robot/optim/problem.py::Problem._resolve_reads`), never from inside a
 solve: wiring mistakes are found before the first step, with the message naming the known values.
 
 Enforcement: `tests/optim/test_problem.py::test_unknown_read_fails_at_registration`.

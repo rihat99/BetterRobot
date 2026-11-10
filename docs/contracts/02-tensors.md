@@ -73,15 +73,15 @@ if step_norm.item() < tol: break
 ```
 
 Enforcement: `tests/contract/test_hot_path_lint.py` (ast scan of `kinematics`, `dynamics`, `lie`, `spatial`,
-`terms` and `optim/solvers.py`; a line marked `# bench-ok` is exempt, e.g. once-per-model plan building in
+`terms` and `src/better_robot/optim/solvers.py`; a line marked `# bench-ok` is exempt, e.g. once-per-model plan building in
 `src/better_robot/kinematics/_fk.py` or once-per-mesh topology in `src/better_robot/spatial/mesh.py`). In
-`optim/solvers.py` the one exempt read is the `LBFGS` line search: one flag per trial, to stop once every
+`src/better_robot/optim/solvers.py` the one exempt read is the `LBFGS` line search: one flag per trial, to stop once every
 problem has its step instead of evaluating the loss at the remaining step sizes.
 
 ## C-TENS-5 Optimisation variables carry exactly one batch axis (MUST)
 
 An `optim` variable is a tensor `(B, *event)` and every variable of a `Problem` shares the same `B`
-(`optim/problem.py:143`); the `B` problems are independent, so a term sees `(B, ...)` inputs and returns
+(`src/better_robot/optim/problem.py::Problem` raises `ShapeError` otherwise); the `B` problems are independent, so a term sees `(B, ...)` inputs and returns
 `(B, m)` residuals and `Problem.loss` returns `(B,)`. Unlike the rest of the library, there are no arbitrary
 leading batch axes here: flatten extra axes into `B` before building the problem. A rejected batch element keeps
 its old value through `torch.where`, so one bad element never stalls the others.

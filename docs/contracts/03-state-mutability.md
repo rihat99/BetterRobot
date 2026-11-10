@@ -78,23 +78,28 @@ serves a differentiable call. Its allowed names, each derived only from the stat
 
 A new name is added to this table in the same change that writes it. The model-side cache is `Model._plans`:
 constant tensors derived from the static fields, keyed by kind, dtype and device, and shared by every
-`with_values` and `to` copy of a model (`Model._plan_owner`; a copy keeps every static field). `Model._memo` holds
+`with_values` and `to` copy of a model (`Model._plan_owner`; a copy keeps every static field, and keeps the first
+model of its line alive, with that model's tensors and value memo). `Model._memo` holds
 values derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind,
 grad mode and the tensor fields' `requires_grad` flags, written only when the value carries no autograd graph and
 bypassed under `torch.inference_mode`, so nothing on the model is keyed by a tensor's `_version` (decision
-records 0011 and 0040).
+records 0011, 0040 and 0042).
 
 Enforcement: `tests/contract/test_caches.py`; `[review]`.
 
-## C-STATE-5 A `Problem` is built once; `with_` returns a new problem (MUST)
+## C-STATE-5 A `Problem` only gains names; `with_` returns a new, sealed problem (MUST)
 
-`optim.Problem` is assembled by its `add`/`cached` calls and then treated as fixed: solvers never write to it,
-and `Phase.on_start` returns `(x, data)` instead of writing into the problem's data. Per-call changes go through
-`Problem.with_(data=..., weights=..., free=...)` (`src/better_robot/optim/problem.py::Problem.with_`), which
-returns a new problem sharing the terms and leaves the original untouched; the new problem carries the overrides,
-so two solves with different weights can run from one problem.
+`optim.Problem` is built by its constructor and its registration calls (`residual`, `scalar`, `cached`), which only
+add new names; every field of a registered term is fixed, and solvers never write to the problem. `Phase.on_start`
+returns `(x, data)` instead of writing into the problem's data. Per-call changes go through
+`Problem.with_(data=..., weights=..., free=...)` (`src/better_robot/optim/problem.py::Problem.with_`), which returns a
+new problem sharing the terms and leaves the original untouched, so two solves with different weights can run from
+one problem. That new problem is sealed, as are the views `run`, `solve_constrained` and `solve_layer` hand to
+callbacks: registering on a sealed problem raises `ArgumentError` (record
+[0047](decisions/0047-problem-registration-and-sealed-views.md)).
 
-Enforcement: `tests/optim/test_problem.py`; `[review]`.
+Enforcement: `tests/optim/test_problem.py::test_problem_is_immutable`,
+`tests/optim/test_problem.py::test_callbacks_cannot_register_on_the_views_run_hands_them`.
 
 ## C-STATE-6 `Model.to` and the dynamics caches (MUST)
 
