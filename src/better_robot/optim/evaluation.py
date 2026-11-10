@@ -42,6 +42,7 @@ class Evaluation:
     def __init__(self, problem: Problem, x: Values) -> None:
         self._cached = problem.cached_values
         self._values: dict[str, Any] = {**problem.data, **x}
+        self.batch: int = next(iter(problem.variables.values())).shape[0]
 
     def __getitem__(self, name: str) -> Any:
         if name not in self._values:
@@ -93,6 +94,13 @@ def term_output(term: Term, evaluation: Evaluation, info: dict[str, dict[str, An
         value, extra = value
         if info is not None:
             info[term.name] = {key: v.detach() if isinstance(v, torch.Tensor) else v for key, v in extra.items()}
+    # a shape check only (no value read), so every evaluation keeps it
+    if (value.ndim != 1 if term.kind == "scalar" else value.ndim < 2) or value.shape[0] != evaluation.batch:
+        expected = "(B,)" if term.kind == "scalar" else "(B, ...) with at least one axis after B"
+        raise ShapeError(
+            f"{term.kind} term {term.name!r} returned shape {tuple(value.shape)}; it must be {expected}, "
+            f"B={evaluation.batch}"
+        )
     return value
 
 

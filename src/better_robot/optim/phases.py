@@ -42,6 +42,11 @@ class Phase:
     on_step: Callable[[Problem, State], None] | None = None
     stop_every: int = 1
 
+    def __post_init__(self) -> None:
+        """Refuse a negative step budget (``ArgumentError``)."""
+        if self.iterations < 0:
+            raise ArgumentError(f"iterations must be at least 0, got {self.iterations}")
+
 
 @final
 @dataclass(frozen=True)
@@ -158,6 +163,8 @@ def solve_layer(
     redundant arm), where the sensitivity is zero. Problems with scalar terms are rejected:
     their curvature is not in ``H``, so the derivative would be wrong.
     """
+    if damping < 0:
+        raise ArgumentError(f"damping must be at least 0, got {damping}")
     scalars = [term.name for term in active_terms(problem) if term.kind == "scalar"]
     if scalars:
         raise ArgumentError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")

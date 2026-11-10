@@ -118,6 +118,8 @@ class LevenbergMarquardt(Solver):
         loss_tolerance: float | None = None,
         step_tolerance: float | None = None,
     ) -> None:
+        if damping < 0:
+            raise ArgumentError(f"damping must be at least 0, got {damping}")
         self.damping, self.gradient_tolerance = damping, gradient_tolerance
         self.loss_tolerance, self.step_tolerance = loss_tolerance, step_tolerance
 
@@ -175,6 +177,8 @@ class GaussNewton(Solver):
     def __init__(
         self, *, damping: float = 0.0, gradient_tolerance: float | None = None, step_tolerance: float | None = None
     ) -> None:
+        if damping < 0:
+            raise ArgumentError(f"damping must be at least 0, got {damping}")
         self.damping, self.gradient_tolerance, self.step_tolerance = damping, gradient_tolerance, step_tolerance
 
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:

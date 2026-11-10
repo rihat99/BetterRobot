@@ -1,6 +1,7 @@
 """``optim``: linearization against autograd and finite differences, cache, bounds, masks, solvers."""
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -609,3 +610,43 @@ def test_on_start_must_return_x_and_data(on_start):
     problem.residual("fit", lambda x, target: x - target)
     with pytest.raises(exceptions.ArgumentError, match=r"on_start\(problem, x\) must return \(x, data\)"):
         optim.run(problem, [optim.Phase(optim.LevenbergMarquardt(), 2, on_start=on_start)])
+
+
+def test_problem_checks_its_variables_and_solvers_their_settings():
+    """A variable's dtype and device are checked at construction; iterations and damping are never negative."""
+    x = torch.zeros(2, 3)
+    bad_variables = [
+        ({"x": x.long()}, exceptions.DtypeMismatchError, "'x' has dtype torch.int64, not float32 or float64"),
+        ({"x": x.half()}, exceptions.DtypeMismatchError, "'x' has dtype torch.float16"),
+        ({"x": x, "y": x.double()}, exceptions.DtypeMismatchError, "variables must share one dtype"),
+        ({"x": x, "y": torch.zeros(2, 3, device="meta")}, exceptions.DeviceMismatchError, "share one device"),
+    ]
+    for variables, error, match in bad_variables:
+        with pytest.raises(error, match=match):
+            optim.Problem(variables)
+    problem = optim.Problem({"x": x})
+    problem.residual("fit", lambda x: x - 1.0)
+    with pytest.raises(exceptions.ArgumentError, match="iterations must be at least 0, got -1"):
+        optim.solve(problem, optim.LevenbergMarquardt(), iterations=-1)
+    for solver in (optim.LevenbergMarquardt, optim.GaussNewton):
+        with pytest.raises(exceptions.ArgumentError, match="damping must be at least 0, got -1"):
+            solver(damping=-1)
+    with pytest.raises(exceptions.ArgumentError, match="damping must be at least 0, got -1"):
+        optim.solve_layer(problem, optim.LevenbergMarquardt(), damping=-1)
+
+
+@pytest.mark.parametrize(
+    ("kind", "fn", "shape"),
+    [
+        ("residual", lambda x: x.sum(-1), "(2,)"),
+        ("residual", lambda x: x[:1], "(1, 3)"),
+        ("scalar", lambda x: x, "(2, 3)"),
+        ("scalar", lambda x: x.sum(), "()"),
+    ],
+)
+def test_a_term_of_the_wrong_shape_fails_at_its_first_evaluation(kind, fn, shape):
+    """A residual is (B, ...) with an axis after B, a scalar (B,); a 1-D variable's residual must add that axis."""
+    problem = optim.Problem({"x": torch.zeros(2, 3)})
+    getattr(problem, kind)("bad", fn)
+    with pytest.raises(exceptions.ShapeError, match=rf"{kind} term 'bad' returned shape {re.escape(shape)}"):
+        optim.solve(problem, optim.LevenbergMarquardt(), iterations=1)

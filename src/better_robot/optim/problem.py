@@ -18,7 +18,7 @@ from typing import Any, final, override
 
 import torch
 
-from ..exceptions import ArgumentError, ShapeError, UnknownNameError
+from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError, UnknownNameError
 from .evaluation import Values, evaluate, residuals
 from .kernels import RobustKernel
 from .linear import ArrowNormal, BandedNormal, Normal
@@ -129,9 +129,19 @@ class Problem:
         for name, value in variables.items():
             if value.ndim == 0:
                 raise ShapeError(f"variable {name!r} is 0-d; a variable is (B, *event) with a leading batch axis")
+            if value.dtype not in (torch.float32, torch.float64):
+                raise DtypeMismatchError(
+                    f"variable {name!r} has dtype {value.dtype}, not float32 or float64; pass it as .float() or .double()"
+                )
         batch_sizes = {name: value.shape[0] for name, value in variables.items()}
         if len(set(batch_sizes.values())) != 1:
             raise ShapeError(f"variables must share the leading batch size, got {batch_sizes}")
+        dtypes = {name: value.dtype for name, value in variables.items()}
+        if len(set(dtypes.values())) != 1:
+            raise DtypeMismatchError(f"variables must share one dtype, got {dtypes}; pass them all in one dtype")
+        devices = {name: value.device for name, value in variables.items()}
+        if len(set(devices.values())) != 1:
+            raise DeviceMismatchError(f"variables must share one device, got {devices}; move them to one device")
         self._variables: dict[str, torch.Tensor] = dict(variables)
         self._data: dict[str, Any] = dict(data or {})
         clash = set(self._variables) & set(self._data)
