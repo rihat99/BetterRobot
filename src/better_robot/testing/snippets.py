@@ -7,8 +7,8 @@ stands for any number of lines, a number printed with fraction digits matches wi
 digit (so ``0.1235`` accepts ``0.12346``, never ``0.1236``), a float printed without fraction digits (``0.``,
 ``1e-06``) must equal exactly, and other text matches exactly. A fence that prints needs an output fence. A fence
 opts out of running with ``{ .no-run data-reason="..." }``; a page under a folder the caller names opts out with that
-folder's reason. Only ```` ```python ```` fences run, so a ```` ```py ````, ```` ```pycon ```` or ``~~~`` Python fence is
-a problem. ``BR_DOCS_CAPTURE=1`` also writes each page's per-fence output to
+folder's reason. Only ```` ```python ```` fences run, so a ```` ```py ````, ```` ```pycon ````, ```` ```Python ````, four-backtick,
+``~~~`` or ```` ``` { .python } ```` Python fence is a problem. ``BR_DOCS_CAPTURE=1`` also writes each page's per-fence output to
 ``$BR_DOCS_CAPTURE_DIR/<page>.outputs.json`` (default ``/tmp/br_docs_outputs``), from which a changed output fence
 is copied.
 """
@@ -32,8 +32,12 @@ _FENCE = re.compile(
 )
 _OUTPUT = re.compile(r"(?P<indent>[ \t]*)```[ \t]*output[^\n]*\n(?P<body>.*?)^[ \t]*```[ \t]*$", re.M | re.S)
 _REASON = re.compile(r'data-reason="(?P<reason>[^"]*[^"\s][^"]*)"')
+_PYTHON_TAG = r"(?i:python|py|py3|python3|pycon|ipython)"
+# Every Python fence but the one the runner reads, ```python: another tag or case (```Python), four backticks or
+# tildes, or a tag inside braces (``` { .python }).
 _UNREAD_PYTHON = re.compile(
-    r"^[ \t]*(?:```[ \t]*(?:py|py3|python3|pycon|ipython)|~~~[ \t]*(?:python|py|py3|python3|pycon|ipython))(?=[ \t{]|$)",
+    rf"^[ \t]*(?:```[ \t]*(?!python(?:[ \t{{]|$)){_PYTHON_TAG}|`{{4,}}[ \t]*{_PYTHON_TAG}|~~~[ \t]*{_PYTHON_TAG})"
+    rf"(?=[ \t{{]|$)|^[ \t]*(?:`{{3,}}|~~~)[ \t]*\{{[^}}\n]*\.{_PYTHON_TAG}\b",
     re.M,
 )
 _NUMBER = re.compile(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?")
