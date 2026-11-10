@@ -1,7 +1,7 @@
-"""Performance rules a check can read: no Python loop over a batch (C-PERF-2), no compiler or kernel (C-PERF-4).
+"""Performance rules a check can read: no Python loop over a batch (C-PERF-2), no compiler or kernel (C-PERF-5).
 
 C-PERF-2 is checked by behaviour: every entry point of ``tests/contract/_public_ops.py`` dispatches the same number
-of torch operators for a batch of two as for a batch of seven, so no Python loop runs per batch element. C-PERF-4 reads
+of torch operators for a batch of two as for a batch of seven, so no Python loop runs per batch element. C-PERF-5 reads
 the source: ``src/better_robot`` neither calls nor decorates with ``torch.compile`` and imports no kernel builder.
 """
 
@@ -66,7 +66,7 @@ def test_a_batch_dispatches_the_same_operators_at_every_size(name: str) -> None:
 
 
 def test_src_compiles_nothing_and_builds_no_kernel() -> None:
-    """C-PERF-4: compilation is the caller's choice, and the only implementation is torch (record 0001)."""
+    """C-PERF-5: compilation is the caller's choice, and the only implementation is torch (record 0001)."""
     found = []
     for path in sorted(SRC.rglob("*.py")):
         for node in ast.walk(ast.parse(path.read_text())):
