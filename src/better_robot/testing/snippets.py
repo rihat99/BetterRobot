@@ -3,10 +3,12 @@
 A page's ```` ```python ```` fences run in order in one fresh interpreter, on CPU, seeded (``torch``, ``random`` and
 ``numpy`` at 0), with viser's server replaced by `FakeServer`. Each fence's standard output is compared in full
 with the ```` ```output ```` fence docked under it: lines match after trailing spaces are dropped, a line ``...``
-stands for any number of lines, and a number printed with a fraction or an exponent matches within one unit of its
-last printed digit (so ``0.1235`` accepts ``0.12346``, never ``0.1237``); other text matches exactly. A fence opts
-out of running with ``{ .no-run data-reason="..." }``; a page under a folder the caller names opts out with that
-folder's reason. ``BR_DOCS_CAPTURE=1`` also writes each page's per-fence output to
+stands for any number of lines, a number printed with fraction digits matches within half a unit of its last printed
+digit (so ``0.1235`` accepts ``0.12346``, never ``0.1236``), a float printed without fraction digits (``0.``,
+``1e-06``) must equal exactly, and other text matches exactly. A fence that prints needs an output fence. A fence
+opts out of running with ``{ .no-run data-reason="..." }``; a page under a folder the caller names opts out with that
+folder's reason. Only ```` ```python ```` fences run, so a ```` ```py ````, ```` ```pycon ```` or ``~~~`` Python fence is
+a problem. ``BR_DOCS_CAPTURE=1`` also writes each page's per-fence output to
 ``$BR_DOCS_CAPTURE_DIR/<page>.outputs.json`` (default ``/tmp/br_docs_outputs``), from which a changed output fence
 is copied.
 """
@@ -29,7 +31,11 @@ _FENCE = re.compile(
     r"^(?P<indent>[ \t]*)```[ \t]*python(?P<info>[^\n]*)\n(?P<body>.*?)^(?P=indent)```[ \t]*$", re.M | re.S
 )
 _OUTPUT = re.compile(r"(?P<indent>[ \t]*)```[ \t]*output[^\n]*\n(?P<body>.*?)^[ \t]*```[ \t]*$", re.M | re.S)
-_REASON = re.compile(r'data-reason="(?P<reason>[^"]+)"')
+_REASON = re.compile(r'data-reason="(?P<reason>[^"]*[^"\s][^"]*)"')
+_UNREAD_PYTHON = re.compile(
+    r"^[ \t]*(?:```[ \t]*(?:py|py3|python3|pycon|ipython)|~~~[ \t]*(?:python|py|py3|python3|pycon|ipython))(?=[ \t{]|$)",
+    re.M,
+)
 _NUMBER = re.compile(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?")
 
 _RUNNER = """
@@ -102,8 +108,11 @@ def _numbers_match(expected: str, actual: str) -> bool:
         return expected == actual
     mantissa, _, exponent = expected.lower().partition("e")
     decimals = len(mantissa.partition(".")[2])
-    unit = 10.0 ** (int(exponent or 0) - decimals)
-    return abs(float(expected) - float(actual)) <= unit * (1 + 1e-9)
+    if decimals == 0:
+        # torch prints integer-valued floats as ``1.``: a tolerance of one unit would let ``0.`` accept ``1.``.
+        return float(expected) == float(actual)
+    half_unit = 0.5 * 10.0 ** (int(exponent or 0) - decimals)
+    return abs(float(expected) - float(actual)) <= half_unit * (1 + 1e-9)
 
 
 def _line_matches(expected: str, actual: str) -> bool:
@@ -135,14 +144,20 @@ def check_page(
 ) -> int:
     """Run ``page``'s fences once and raise ``AssertionError`` on any problem; return the number of compared outputs.
 
-    A problem is a fence that raises, an output that differs, an ``output`` fence under a fence that does not run,
-    or an opt-out with no reason (its own ``data-reason``, or the reason of the folder of ``folder_reasons``, keyed by
-    path relative to ``root``, that holds the page). ``root`` is the working directory of the run.
+    A problem is a fence that raises or ends the interpreter, an output that differs, a fence that prints with no
+    ``output`` fence, an ``output`` fence under a fence that does not run, a Python fence the runner does not read,
+    or an opt-out with no reason (its own non-blank ``data-reason``, or the reason of the folder of
+    ``folder_reasons``, keyed by path relative to ``root``, that holds the page). ``root`` is the working directory
+    of the run.
     """
     name = page.relative_to(root).as_posix()
     folder_reason = next((r for folder, r in (folder_reasons or {}).items() if name.startswith(folder)), None)
-    fences = _page_fences(page.read_text())
-    problems = []
+    text = page.read_text()
+    fences = _page_fences(text)
+    problems = [
+        f"{name}:{line} a Python fence the runner does not read: write ```python"
+        for line in (text.count("\n", 0, m.start()) + 1 for m in _UNREAD_PYTHON.finditer(text))
+    ]
     if folder_reason is None:
         problems += [f"{name}:{f.line} opts out without data-reason" for f in fences if not f.runs and not f.reason]
     problems += [f"{name}:{f.line} output under a fence that does not run" for f in fences if f.output and not f.runs]
@@ -160,6 +175,7 @@ def check_page(
             check=False,
         )
         assert completed.returncode == 0, f"{name} failed:\n{completed.stderr[-4000:]}"
+        assert "__SNIPPET_OUTPUTS__" in completed.stderr, f"{name}: a fence ended the interpreter before the last fence"
         outputs = json.loads(completed.stderr.rsplit("__SNIPPET_OUTPUTS__", 1)[1])
         if os.environ.get("BR_DOCS_CAPTURE") == "1":
             target = Path(os.environ.get("BR_DOCS_CAPTURE_DIR", "/tmp/br_docs_outputs")) / f"{name}.outputs.json"
@@ -167,6 +183,8 @@ def check_page(
             target.write_text(json.dumps(outputs, indent=1))
         for fence, actual in zip(running, outputs, strict=True):
             if fence.output is None:
+                if actual.strip():
+                    problems.append(f"{name}:{fence.line} prints but has no output fence:\n{actual}")
                 continue
             compared += 1
             if not outputs_match(fence.output, actual):

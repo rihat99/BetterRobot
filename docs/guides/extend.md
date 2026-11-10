@@ -1,9 +1,9 @@
-# Extending BetterRobot
+# Extend BetterRobot
 
 Five kinds of brick plug into BetterRobot: a joint kind, a term, a parser function, a viewer layer and a solver.
 None of them is registered anywhere (record 0025): you build the object and pass it where it is used. Each section
-below gives the contract and a program that runs; the docs tests run every fence of this page, in order, in one
-namespace. The normative rules are in [contracts/08-extension-points](../contracts/08-extension-points.md).
+below gives the contract and a program that runs on its own: the docs tests run every fence of this page once in
+page order, and each fence again alone in a fresh interpreter. The normative rules are in [contracts/08-extension-points](../contracts/08-extension-points.md).
 
 ## A joint kind
 
@@ -77,16 +77,18 @@ print(br.forward_kinematics(model, torch.tensor([0.2])).frame_pose_of("tip"))
 tensor([ 0.0000,  0.0000, -0.2000,  0.0000,  0.0000,  0.0000,  1.0000])
 ```
 
-Add a Pinocchio parity test when Pinocchio has the same joint (see [Testing](testing.md)).
+Add a Pinocchio parity test when Pinocchio has the same joint (see [Test suite](../reference/tests.md#pinocchio-parity)).
 
 ## A term
 
 A term is a plain function: it reads named variables and data by its argument names and returns a residual with the
-problem's leading batch axes and a flat event axis. [Write a term](../guides/write-a-term.md) is the full guide,
+problem's leading batch axes and a flat event axis. [Write a term](write-a-term.md) is the full guide,
 with an analytic Jacobian. Robot-aware terms go in `better_robot.terms`; `better_robot.optim` imports torch and
 `better_robot.exceptions` only, and must not learn about robots.
 
 ```python
+import torch
+
 from better_robot.optim import LevenbergMarquardt, Problem, solve
 
 
@@ -113,7 +115,10 @@ your function. [Loading and parsing](../concepts/io.md) describes the intermedia
 import tempfile
 from pathlib import Path
 
-from better_robot.io import IRBody, IRJoint, IRModel
+import torch
+
+from better_robot.io import IRBody, IRJoint, IRModel, build_model
+from better_robot.lie import se3
 from better_robot.model import JointRevolute
 
 
@@ -148,12 +153,15 @@ print(model.nq, model.joint_names)
 
 A layer subclasses `better_robot.viewer.Layer`. It holds its own `(T, ...)` arrays, creates scene nodes in
 `build(scene, root)` (register each handle with `_track` so visibility and disposal work), and writes one step in
-`set_step(step)`. Override `build_gui`, `apply_theme`, `world_points` and `dispose` only when needed. See
+`set_step(step)`. Override `build_gui`, `apply_theme`, `world_points` and `dispose` only when needed. `_track`,
+`_store_opacity` (check and keep an opacity) and `_fade` (a mesh layer's `set_opacity`) are the subclass hooks of
+`Layer`: the one place where a name with `_` is public ([Public surface](../contracts/public-surface.md)). See
 [Viewer](../concepts/viewer.md) for the built-in layers.
 
 ```python
 import numpy as np
 
+import better_robot as br
 from better_robot.viewer import Layer
 
 
@@ -188,7 +196,9 @@ A solver subclasses `better_robot.optim.Solver` with `init(problem, x) -> State`
 `solve` and `run` call `init` once and `step` up to the iteration budget; `State.done` stops a batch element early.
 
 ```python
-from better_robot.optim import Solver, State
+import torch
+
+from better_robot.optim import Problem, Solver, State, solve
 
 
 class GradientDescent(Solver):
@@ -210,6 +220,13 @@ class GradientDescent(Solver):
         return State(x=moved, loss=loss, done=state.done, solver=type(self), iteration=state.iteration + 1)
 
 
+def to_target(x, target):  # x: (B, 3), target: (3,) -> (B, 3)
+    return x - target
+
+
+x0 = torch.zeros(4, 3, dtype=torch.float64)
+problem = Problem({"x": x0}, data={"target": torch.tensor([1.0, 2.0, 3.0], dtype=torch.float64)})
+problem.residual("to_target", to_target)
 print(solve(problem, GradientDescent(rate=0.25), iterations=40).x["x"][0])
 ```
 ```output
@@ -228,5 +245,6 @@ tensor([1.0000, 2.0000, 3.0000], dtype=torch.float64)
 
 ## Where next
 
-- [Testing](testing.md): the parity, contract and docs tests every extension must pass.
-- [Write a term](../guides/write-a-term.md): a term with an analytic Jacobian, step by step.
+- [Run the tests](run-the-tests.md) and the [test suite](../reference/tests.md): the parity, contract and docs tests
+  every extension must pass.
+- [Write a term](write-a-term.md): a term with an analytic Jacobian, step by step.

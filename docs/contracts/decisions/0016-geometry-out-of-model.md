@@ -1,6 +1,6 @@
 # 0016 Geometry is a value, not a field of `Model`
 
-**Status:** Accepted (owner); amended by 0045. **Date:** 2026-11-01
+**Status:** Accepted (owner); amendment proposed in 0045. **Date:** 2026-11-01
 
 ## Context
 `io/build_model.py::build_model` stores the whole parsed IR and the asset resolver in `Model.meta`, so the IR stays

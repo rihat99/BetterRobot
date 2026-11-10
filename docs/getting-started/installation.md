@@ -36,7 +36,7 @@ code runs on CPU and GPU, chosen by the device of your tensors (see [GPU and bat
 
 ## Check the install
 
-Run the fast test tier (seconds; the other tiers are in [Testing](../contributing/testing.md)):
+Run the fast test tier (seconds; the other tiers are in [Run the tests](../guides/run-the-tests.md)):
 
 ```bash
 uv run pytest tests/contract -q -m "not slow and not cuda"

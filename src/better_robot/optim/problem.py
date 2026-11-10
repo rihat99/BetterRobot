@@ -199,7 +199,8 @@ class Problem:
 
     @property
     def weights(self) -> Mapping[str, float | torch.Tensor]:
-        """Weight overrides by term name, set by ``with_(weights=)``."""
+        """Weight overrides by term name, set by ``with_(weights=)``: a float, or a tensor ``()``, ``(m,)`` or
+        ``(B, m)`` for a residual of width ``m``, ``()`` or ``(B,)`` for a scalar term."""
         return MappingProxyType(self._weights)
 
     @property
@@ -351,7 +352,7 @@ class Problem:
         return evaluate(self, x)[0]
 
     def residuals(self, x: Values | None = None) -> dict[str, torch.Tensor]:
-        """Unweighted output of every active residual term."""
+        """Unweighted output of every active residual term by name, each ``(B, m)``."""
         return residuals(self, x)
 
     def linearize(self, x: Values | None = None) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
@@ -376,13 +377,13 @@ class Problem:
     # ── stepping ────────────────────────────────────────────────────────
 
     def retract(self, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Step every variable along ``delta: (B, N)`` and clamp to bounds."""
+        """Step every variable along ``delta: (B, N)`` and clamp to bounds; each variable keeps ``(B, *event)``."""
         return self._clamp(
             {name: self._manifolds[name].retract(value, delta[:, self._slices[name]]) for name, value in x.items()}
         )
 
     def project(self, x: Values) -> dict[str, torch.Tensor]:
-        """Map ambient tensors back onto their manifolds and bounds."""
+        """Map ambient tensors back onto their manifolds and bounds; each variable keeps ``(B, *event)``."""
         return self._clamp({name: self._manifolds[name].project(value) for name, value in x.items()})
 
     def step_bounds(self, x: Values) -> tuple[torch.Tensor, torch.Tensor] | None:

@@ -101,7 +101,7 @@ Two coordinates, but four joints: `universe` and a fixed `root_joint` that attac
    `[tx, ty, tz, qx, qy, qz, qw]`.
 
 Every later query takes that state instead of `q`: `frame_jacobian(model, state, frame=...)`,
-`inverse_dynamics(model, state, v=..., a=...)`, the terms in `better_robot.terms`. So the check in step 2 runs
+`inverse_dynamics(model, state, v=..., a=...)`, the terms in `better_robot.terms`. So the check in step 1 runs
 once per configuration, not once per query.
 
 ## Inputs are validated once, at the boundary

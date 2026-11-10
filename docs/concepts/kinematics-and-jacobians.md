@@ -52,7 +52,7 @@ $$
 $$
 
 `frame_jacobian(model, state, *, frame, reference=...)` accepts a frame id or a frame name.
-`joint_jacobian(model, state, *, joint, reference=...)` does the same for a joint's own frame, by joint index only.
+`joint_jacobian(model, state, *, joint, reference=...)` does the same for a joint's own frame, with a joint id or a joint name.
 
 ```python
 J = frame_jacobian(model, state, frame="tool")

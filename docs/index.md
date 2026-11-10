@@ -90,7 +90,8 @@ appears in the code; it rides along in `q0` and `targets`.
 
     ---
 
-    Every public function and class, the glossary, the changelog and the roadmap.
+    Every public function and class, the glossary, the changelog and the roadmap. Coming from 0.2?
+    The [migration page](reference/migration-0.3.0.md) maps every renamed or removed name.
 
     [Open the API](reference/api/better_robot.md)
 

@@ -20,7 +20,7 @@ from .problem import Problem
 
 
 @final
-@dataclass
+@dataclass(frozen=True)
 class State:
     """Optimizer state of a batch of problems.
 

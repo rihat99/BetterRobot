@@ -19,8 +19,9 @@ out = torch.empty((*q.shape[:-1], 7))          # default dtype, cpu
 q = q.float()                                   # silent downcast of float64 inputs
 ```
 
-Enforcement: `tests/contract/test_dtype_device.py` (calls every public kinematics/dynamics/lie entry point on
-float32 and float64 inputs and asserts the output dtype).
+Enforcement: `tests/contract/test_dtype_device.py` (calls every public kinematics, dynamics, lie and spatial
+function, read from their `__all__` less a reasoned list without tensor inputs, on float32 and float64 inputs and
+asserts the output dtype and device).
 
 ## C-TENS-2 Leading batch axes broadcast; no fixed batch rank (MUST)
 
@@ -35,8 +36,8 @@ for b in range(q.shape[0]):
     out[b] = step(q[b])
 ```
 
-Enforcement: `tests/contract/test_dtype_device.py` (runs each entry point with shapes `(n,)`, `(2, n)`,
-`(3, 1, n)` and compares); `[review]` for new code.
+Enforcement: `tests/contract/test_dtype_device.py` (runs each of those functions with inputs `(n,)`, `(2, n)` and
+`(3, 1, n)` and compares every batch element with its call alone); `[review]` for new code.
 
 ## C-TENS-3 Shapes in docstrings (MUST)
 
@@ -56,8 +57,9 @@ Tensor, shape (..., nframes, 7)
 """Return frame poses."""
 ```
 
-Enforcement: `tests/contract/test_docstrings.py` (every object of the `__all__` tree has a docstring, and the
-shape of each tensor parameter is in it).
+Enforcement: `tests/contract/test_docstrings.py` (every object of the `__all__` tree has a docstring; the shape of
+each tensor parameter is in it, and a function or property that returns a tensor names the result's shape; a shape
+is a parenthesised axis list such as `(B..., nq)` or `(7,)`, never prose); `[review]` for dataclass fields.
 
 ## C-TENS-4 No host synchronisation in library paths (MUST)
 

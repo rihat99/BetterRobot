@@ -20,7 +20,7 @@ OUTPUT_FENCE = re.compile(
 )
 IMAGE = re.compile(r"!\[[^\]]*\]\((?P<path>[^)\s]+)")
 VIDEO_SRC = re.compile(r"""(?:src|poster)=["'](?P<path>[^"']+)["']""")
-FIGURE = re.compile(r"(?P<path>(?:\.\./)*(?:figures|images)/[\w./-]+\.(?:svg|png|jpg|gif|webm|mp4|webp))")
+FIGURE = re.compile(r"(?<![\w/])(?P<path>(?:\.\./)*(?:figures|images)/[\w./-]+\.(?:svg|png|jpg|gif|webm|mp4|webp))")
 FOLDER_REASONS = {
     "docs/contracts/": (
         "a contract's or a record's example illustrates a rule or a decided call site: its 'bad' half is wrong on "
@@ -60,14 +60,28 @@ def test_output_fences_follow_python(page: Path) -> None:
         )
 
 
+EXTEND = DOCS / "guides" / "extend.md"
+PROGRAM = re.compile(r"^```python\n.*?^```\n(?:```output\n.*?^```\n)?", re.MULTILINE | re.DOTALL)
+
+
+@pytest.mark.parametrize(
+    "program", [pytest.param(p, id=f"program{i}") for i, p in enumerate(PROGRAM.findall(EXTEND.read_text()))]
+)
+def test_each_extension_program_runs_alone(program: str, tmp_path: Path) -> None:
+    """A reader copies one brick: each program of the extension guide runs, in a fresh interpreter, to its output."""
+    page = tmp_path / "program.md"
+    page.write_text(program)
+    assert check_page(page, root=tmp_path) == program.count("```output")
+
+
 def test_index_has_runnable_snippet() -> None:
     """The landing page example is part of the snippet run."""
     assert re.search(r"^```python\n", (DOCS / "index.md").read_text(), re.MULTILINE)
 
 
-@pytest.mark.parametrize("page", _pages(), ids=lambda p: p.relative_to(DOCS).as_posix())
+@pytest.mark.parametrize("page", [*_pages(), REPO / "README.md"], ids=lambda p: p.relative_to(REPO).as_posix())
 def test_referenced_images_exist(page: Path) -> None:
-    """Every ``![...](path)`` and ``figures/*.svg`` / ``images/*`` reference resolves to a file."""
+    """Every ``![...](path)`` and ``figures/*.svg`` / ``images/*`` reference of the docs and README resolves."""
     text = page.read_text()
     paths = {m["path"] for m in IMAGE.finditer(text)} | {m["path"] for m in FIGURE.finditer(text)}
     # mkdocs rewrites Markdown links but leaves raw HTML alone, and with directory URLs a page lives one level

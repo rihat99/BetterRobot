@@ -11,6 +11,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 |------|--------|
 | [Scope](scope.md) | what the library does, its non-goals, the bar for inclusion, commonly rejected ideas |
 | [Public surface](public-surface.md) | what is public, what users may do, horizons, compatible changes |
+| [Coupling standard](coupling-standard.md) | the shapes, layouts, identifiers and file formats other repositories read; changes only by addition |
 | [01 Naming](01-naming.md) | monogram notation in math code, descriptive names elsewhere, layout words, SI units |
 | [02 Tensors](02-tensors.md) | batch axes, broadcasting, dtype/device, shapes in docstrings, `optim` batching |
 | [03 State and mutability](03-state-mutability.md) | frozen model and state, no input mutation, `Problem.with_` views, `Model.to` and caches |
@@ -28,13 +29,13 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | Rule | Enforcer |
 |------|----------|
 | C-NAME-1 | `tests/contract/test_ruff_ratchets.py`, `[review]` |
-| C-NAME-2 | `tests/contract/test_ruff_ratchets.py`, `tests/contract/test_naming.py`, `tests/contract/test_vocabulary.py` |
+| C-NAME-2 | `tests/contract/test_ruff_ratchets.py`, `tests/contract/test_naming.py`, `tests/contract/test_vocabulary.py`, `tests/contract/test_vocabulary.py::test_glossary_words` |
 | C-NAME-3 | `tests/contract/test_name_words.py::test_layout_words_name_converters_only` |
 | C-NAME-4 | `tests/contract/test_name_words.py::test_public_quantities_are_in_si_units`, `tests/contract/test_name_words.py::test_frame_means_a_robot_frame_in_the_viewer` |
 | C-NAME-5 | `tests/contract/test_se3_vocabulary.py` |
 | C-TENS-1 | `tests/contract/test_dtype_device.py` |
 | C-TENS-2 | `tests/contract/test_dtype_device.py`, `[review]` |
-| C-TENS-3 | `tests/contract/test_docstrings.py` |
+| C-TENS-3 | `tests/contract/test_docstrings.py`, `[review]` |
 | C-TENS-4 | `tests/contract/test_hot_path_lint.py` |
 | C-TENS-5 | `tests/optim/test_problem.py`, `[review]` |
 | C-STATE-1 | `tests/contract/test_frozen.py` |
@@ -66,8 +67,10 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-EXT-4 | `tests/contract/test_versioning.py::test_src_emits_no_deprecation_warning` |
 | C-EXT-5 | `tests/contract/test_layer_dependencies.py`, `[review]` |
 | C-EXT-6 | `tests/contract/test_versioning.py::test_version_is_pre_1_0`, `tests/contract/test_api_snapshot.py` |
+| C-EXT-7 | `tests/contract/test_extension_points.py::test_normal_equations_come_from_a_sink` |
+| C-EXT-8 | `tests/collision/test_collision.py::test_a_new_obstacle_shape_is_only_a_function`, `[review]` |
 | C-PERF-2 | `tests/contract/test_performance_rules.py::test_a_batch_dispatches_the_same_operators_at_every_size` |
-| C-PERF-4 | `tests/contract/test_performance_rules.py::test_src_compiles_nothing_and_builds_no_kernel` |
+| C-PERF-5 | `tests/contract/test_performance_rules.py::test_src_compiles_nothing_and_builds_no_kernel` |
 | C-DOC-1 | `tests/contract/test_docstrings.py`, `tests/contract/test_ruff_ratchets.py` |
 | C-DOC-2 | `tests/docs/test_snippets.py` |
 | C-DOC-3 | `tests/contract/test_contract_matrix.py` |
@@ -90,4 +93,5 @@ Write an architecture decision record (ADR) under `decisions/` when a change doe
 - rejects a contract rule for a whole package.
 
 A bug fix, a new term, a new loader for an existing registry, or a rename inside one package does not need one.
-An accepted ADR changes only in its Status line; a new ADR supersedes it or amends part of it.
+Only the owner accepts an ADR: one the integrator writes is `Proposed (integrator, awaiting owner)` until then. An
+accepted ADR changes only in its Status line; a new ADR supersedes it or amends part of it.

@@ -1,7 +1,7 @@
-"""Performance rules a check can read: no Python loop over a batch (C-PERF-2), no compiler or kernel (C-PERF-4).
+"""Performance rules a check can read: no Python loop over a batch (C-PERF-2), no compiler or kernel (C-PERF-5).
 
 C-PERF-2 is checked by behaviour: every entry point of ``tests/contract/_public_ops.py`` dispatches the same number
-of torch operators for a batch of two as for a batch of seven, so no Python loop runs per batch element. C-PERF-4 reads
+of torch operators for a batch of two as for a batch of seven, so no Python loop runs per batch element. C-PERF-5 reads
 the source: ``src/better_robot`` neither calls nor decorates with ``torch.compile`` and imports no kernel builder.
 """
 
@@ -35,8 +35,9 @@ class _OperatorCount(TorchDispatchMode):
 
 
 def _batched(value: Any, model: Any, batch: int) -> Any:
-    """``value`` with a leading batch axis of ``batch``; a state is recomputed from its batched configuration."""
-    if isinstance(value, torch.Tensor):
+    """``value`` with a leading batch axis of ``batch``; a state is recomputed from its batched configuration, and an
+    integer table (a mesh's faces) is shared by the batch."""
+    if isinstance(value, torch.Tensor) and value.is_floating_point():
         return value.expand(batch, *value.shape)
     if isinstance(value, KinematicState):
         return forward_kinematics(model, value.q.expand(batch, *value.q.shape))
@@ -49,7 +50,7 @@ def _operators(fn: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
     return counter.count
 
 
-@pytest.mark.slow  # 1.2 s for 28 entry points: the full tier, so the fast tier keeps its budget
+@pytest.mark.slow  # 1.5 s for 66 entry points: the full tier, so the fast tier keeps its budget
 @pytest.mark.parametrize("name", CASE_NAMES)
 def test_a_batch_dispatches_the_same_operators_at_every_size(name: str) -> None:
     """C-PERF-2: the operator count does not grow with the batch, so nothing loops over batch elements."""
@@ -65,12 +66,18 @@ def test_a_batch_dispatches_the_same_operators_at_every_size(name: str) -> None:
 
 
 def test_src_compiles_nothing_and_builds_no_kernel() -> None:
-    """C-PERF-4: compilation is the caller's choice, and the only implementation is torch (record 0001)."""
+    """C-PERF-5: compilation is the caller's choice, and the only implementation is torch (record 0001)."""
     found = []
     for path in sorted(SRC.rglob("*.py")):
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.Attribute) and node.attr == "compile" and ast.unparse(node.value) == "torch":
                 found.append(f"{path.relative_to(SRC)}: torch.compile")
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module == "torch"
+                and "compile" in {a.name for a in node.names}
+            ):
+                found.append(f"{path.relative_to(SRC)}: from torch import compile")
             modules = []
             if isinstance(node, ast.Import):
                 modules = [alias.name for alias in node.names]

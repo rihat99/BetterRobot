@@ -32,7 +32,6 @@ MUTABLE_DATACLASSES: dict[str, str] = {
     "better_robot.io.IRFrame": "parser IR, filled incrementally while parsing",
     "better_robot.io.IRJoint": "parser IR, filled incrementally while parsing",
     "better_robot.io.IRModel": "parser IR, filled incrementally while parsing",
-    "better_robot.optim.State": "solver loop state, mutated by optimizers",
 }
 
 

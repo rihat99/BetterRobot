@@ -1,6 +1,6 @@
 # 0042 The model memo is keyed by the grad flags, copies share their plans, and the world geometry is cheaper
 
-**Status:** Accepted (integrator, 2026-11-10). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
 
 ## Context
 Record [0040](0040-model-value-memo.md) keys `Model._memo` by `(kind, grad mode)` and says it is dropped "like
@@ -26,7 +26,7 @@ def _value(self, kind, derive):
     key = (kind, torch.is_grad_enabled(), flags)
     ...
 
-light = model.with_values(body_masses=0.5 * model.body_masses)   # light._plan_owner is model: no plan is rebuilt
+light = model.with_values(body_inertias=0.5 * model.body_inertias)   # light._plan_owner is model: no plan is rebuilt
 ```
 
 ## Consequences

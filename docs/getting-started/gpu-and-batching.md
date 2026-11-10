@@ -70,18 +70,16 @@ torch.cuda.synchronize()
 
 ## What batching buys on a GPU
 
-From `benchmarks/results/p2_world_dynamics_{cpu,cuda}.json`: median ms per forward call, Panda, `float32`.
-CPU is an AMD EPYC 9654 on 1 thread; GPU is an NVIDIA RTX PRO 6000 Blackwell. The two files come from
-different commits (`bbbb669`, `9f85980`), so treat them as orders of magnitude.
+At batch 1 the cost of a call is operator dispatch, which the CPU does faster. On the GPU the cost of a call
+hardly grows from one query to thousands, so a large batch runs many times faster than on one CPU thread. Measure
+both on your machine (Panda, batches 1 and 4096):
 
-| Algorithm | CPU, batch 1 | CUDA, batch 1 | CPU, batch 4096 | CUDA, batch 4096 |
-|---|---|---|---|---|
-| inverse dynamics (RNEA) | 1.07 | 2.56 | 52.0 | 2.85 |
-| mass matrix (CRBA) | 0.90 | 2.02 | 56.8 | 2.17 |
-| forward dynamics (ABA) | 1.30 | 3.19 | 81.0 | 3.50 |
+```bash
+CUDA_VISIBLE_DEVICES="" uv run python benchmarks/run.py --device cpu --batches 1,4096 --models panda --algos rnea,crba,aba
+uv run python benchmarks/run.py --device cuda --batches 1,4096 --models panda --algos rnea,crba,aba
+```
 
-A single query is faster on the CPU. On the GPU the cost hardly grows from 1 to 4096 queries, so large
-batches run 18–26x faster than on one CPU thread.
+[Benchmark and profile](../guides/benchmark-and-profile.md) explains the columns it prints.
 
 !!! tip
     Batch first, then move to CUDA. A batch of one gains nothing from the GPU; a batch of thousands

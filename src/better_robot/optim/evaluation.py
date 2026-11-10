@@ -140,7 +140,7 @@ def evaluate(
 
 
 def residuals(problem: Problem, x: Values | None = None) -> dict[str, torch.Tensor]:
-    """Unweighted output of every active residual term."""
+    """Unweighted output of every active residual term by name, each ``(B, m)``."""
     evaluation = Evaluation(problem, checked_values(problem, x))
     return {t.name: term_output(t, evaluation) for t in active_terms(problem) if t.kind == "residual"}
 

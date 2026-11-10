@@ -1,6 +1,6 @@
 # 0043 A joint's motion subspace is constant in its child frame; no `velocity` method
 
-**Status:** Accepted (integrator, 2026-11-10). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
 
 ## Context
 Record [0013](0013-joint-kinds.md) defines the joint kinds under an abstract `JointModel` and drops the hooks nothing
@@ -10,13 +10,13 @@ assumption, so a new joint kind with a configuration-dependent subspace would ha
 
 ## Decision
 We will state that `JointModel.motion_subspace(q)` is constant in the child frame, have
-`better_robot.testing.joints.check_joint_model` assert `motion_subspace(q) == motion_subspace(neutral())` for every
+`better_robot.testing.check_joint_model` assert `motion_subspace(q) == motion_subspace(neutral())` for every
 drawn `q`, and leave `velocity(q, v)` out of `JointModel`, since the child's twist is `motion_subspace(q) @ v` by
 definition.
 
 ## Example
 ```python { .no-run }
-from better_robot.testing.joints import check_joint_model
+from better_robot.testing import check_joint_model
 
 check_joint_model(JointRevolute(axis=(0.0, 1.0, 0.0)), dtype=torch.float64, generator=generator)
 twist = joint.motion_subspace(q) @ v   # the child's twist; no joint.velocity(q, v)

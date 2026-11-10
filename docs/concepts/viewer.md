@@ -157,7 +157,7 @@ viewer.show()
 radii; `RigidMeshLayer` an `opacity` (`set_opacity` changes it live). The skeleton draws each revolute joint as a
 cylinder along its axis (radius 25 mm, length 60 mm) and each prismatic joint as a thin box along it, with the axes
 from each joint's `axis`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
-as in a textbook kinematic diagram: `spread_offsets(model)` slides each marker that would overlap another along its
+as in a textbook kinematic diagram: the skeleton slides each marker that would overlap another along its
 own axis (so it stays on the true axis line), once at `model.q_neutral` and for markers of the plain thickness, and
 the bones (8 mm) connect the drawn markers in chain order. A bone bends at right angles instead of running
 diagonally: it is up to three legs along the axes of its parent joint's frame, first along the parent's axis, last

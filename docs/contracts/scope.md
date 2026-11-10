@@ -46,7 +46,7 @@ Reopening one of these needs evidence the record did not weigh, not preference.
 
 | Idea | Reason | Settled by |
 |---|---|---|
-| A second backend (Warp, JAX, custom CUDA kernels) | doubles every test and every contract | [0001](decisions/0001-torch-only.md), C-PERF-4 |
+| A second backend (Warp, JAX, custom CUDA kernels) | doubles every test and every contract | [0001](decisions/0001-torch-only.md), C-PERF-5 |
 | A mutable `Data` filled by the algorithms | stale reads, autograd hazards, call-order coupling | [0002](decisions/0002-immutable-fk-state.md) |
 | Residual classes or cost objects | data held in instances, heavier to compose | [0003](decisions/0003-terms-plain-functions.md) |
 | Another viewer (meshcat, rerun, native OpenGL) | weaker recording, duplicate state, a display on the GPU host | [0004](decisions/0004-viser-viewer.md) |

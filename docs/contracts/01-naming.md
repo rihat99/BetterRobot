@@ -28,8 +28,8 @@ per-file ignores in `pyproject.toml`); `[review]` checks that the frames in the 
 ## C-NAME-2 Descriptive names in the public API (MUST)
 
 Public functions, parameters and fields are full words in `snake_case`; classes `CapWords`; constants
-`UPPER_CASE`. No abbreviations beyond the glossary set (`q`, `v`, `nq`, `nv`, `fk`, `ik`, `lm`). A user never has to
-know monogram notation to call the library.
+`UPPER_CASE`. Every word of a public name is in the [glossary](../reference/glossary.md); its abbreviation table is
+the full set of abbreviations. A user never has to know monogram notation to call the library.
 
 ```python { .no-run }
 # good
@@ -39,18 +39,20 @@ def fk_st(m, q): ...
 ```
 
 Enforcement: `tests/contract/test_ruff_ratchets.py` (ruff's `N` rules outside the math packages); `tests/contract/test_naming.py`; `tests/contract/test_vocabulary.py` (no alias, no
-class name a library below already uses, acronyms in capitals, no `utils`/`common`/`misc`/`helpers` module).
+class name a library below already uses, acronyms in capitals, no `utils`/`common`/`misc`/`helpers` module);
+`tests/contract/test_vocabulary.py::test_glossary_words` (every word of every public name, method, field and
+parameter is in the glossary).
 
 ## C-NAME-3 Order words follow the data order (MUST)
 
 A name that mentions a layout must match the layout in `02-tensors`: quaternions are `xyzw`, twists are
 `linear_angular`. Never name something `wxyz` or `angular_linear` unless it converts to that layout, and then the
-name says `to_` / `from_`.
+name starts with `to_` / `from_`.
 
 ```python { .no-run }
 # good
 quat_xyzw = pose[..., 3:7]
-def twist_to_angular_first(V: Tensor) -> Tensor: ...
+def to_angular_first(twist: Tensor) -> Tensor: ...
 # bad
 quat = pose[..., 3:7]          # order hidden; a reader must open the docs
 ```
@@ -81,7 +83,7 @@ Three words name a rigid-body quantity, and each has one meaning:
 
 | Word | Meaning | Layout |
 |------|---------|--------|
-| placement | a pose expressed in the parent frame: the model constants (`joint_placements`, `frame_placements`) and a joint's own q-dependent motion (`JointModel.joint_placement`), as in Pinocchio | `(..., 7)` |
+| placement | a pose expressed in the parent frame: the model constants (`joint_placements`, `frame_placements`) and a joint's own q-dependent motion (`JointModel.placement(q)`), as in Pinocchio | `(..., 7)` |
 | pose | computed world quantity (`frame_poses`, `joint_poses`) | `(..., 7)` |
 | transform | the same world quantity as a 3x4 rotation-translation matrix (`frame_transforms`, `joint_transforms`) | `(..., 3, 4)` |
 

@@ -1,6 +1,6 @@
 # 0040 A value-side memo on `Model`, keyed by grad mode
 
-**Status:** Accepted (owner); amended by 0042. **Date:** 2026-11-06
+**Status:** Accepted (owner); amendment proposed in 0042. **Date:** 2026-11-06
 
 ## Context
 Record [0011](0011-caches-and-plans.md) removed the `_version`-keyed caches and converts the `(njoints, 7)` joint

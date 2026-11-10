@@ -1,6 +1,6 @@
 # 0045 A shape is attached to a body by an `AttachedShape` record
 
-**Status:** Accepted (integrator, 2026-11-10). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
 
 ## Context
 Record [0016](0016-geometry-out-of-model.md) puts the body frame and a `collision: bool` on each shape record

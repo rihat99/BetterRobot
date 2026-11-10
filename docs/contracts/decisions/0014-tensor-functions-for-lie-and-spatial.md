@@ -1,6 +1,6 @@
 # 0014 Lie and spatial algebra are tensor functions only
 
-**Status:** Accepted (owner); amended by 0044. **Date:** 2026-11-01
+**Status:** Accepted (owner); amendment proposed in 0044. **Date:** 2026-11-01
 
 ## Context
 `lie/types.py::SE3`, `SO3`, the alias `Pose = SE3`, and `spatial.Motion`, `Force`, `Inertia`, `Symmetric3` sit beside

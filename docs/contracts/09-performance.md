@@ -31,7 +31,7 @@ Enforcement: `tests/contract/test_performance_rules.py::test_a_batch_dispatches_
 (every entry point of the contract tests' public-ops registry dispatches as many torch operators for a batch of
 two as for a batch of seven).
 
-## C-PERF-4 The library compiles nothing and ships no custom kernel (MUST)
+## C-PERF-5 The library compiles nothing and ships no custom kernel (MUST)
 
 Compilation is the caller's choice: no module calls or decorates with `torch.compile`; the public kinematics and
 dynamics trace as one graph when the caller compiles them (`tests/kinematics/test_fk_compile.py`). Torch is the only
@@ -45,3 +45,5 @@ The benchmarks under `tests/bench/` (`-m bench`) time forward kinematics, the Ja
 `difference`, the Lie functions and the IK solve; [Benchmark and profile](../guides/benchmark-and-profile.md) runs
 them. They are measurements, not a gate: an optimisation shows its benchmark before and after in its review, and
 a cache or fused kernel lands only with that measurement. No rule has the id `C-PERF-3`: a benchmark is not a gate.
+`C-PERF-4` ("Measure before optimising") is retired: what it asked is the review practice above, which no test
+can check, and its ID is not reused.

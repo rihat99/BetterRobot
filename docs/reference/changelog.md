@@ -116,6 +116,13 @@ that 0.3.0 renames or removes, one table row each.
 - Errors are the `exceptions` classes throughout, `optim` included.
 - Python 3.12 or newer; the `io-mjcf` extra is `mjcf`; the `viewer` extra needs `viser>=1.0.30` and `pillow`;
   the `dev` extra is a dependency group, beside `test-oracles` for the parity oracles.
+- `optim.State` is a frozen dataclass: assigning to a field raises `FrozenInstanceError` (build a new state with
+  `dataclasses.replace`).
+- `testing.snippets` is stricter: a printed float with no fraction digits must match exactly and any other within
+  half a unit of its last digit; `py`, `pycon` and `~~~python` fences, a blank `data-reason`, a printing fence
+  without an output fence and a fence that exits early are reported.
+- The contributing pages are gone: [extending](../guides/extend.md) and [running the tests](../guides/run-the-tests.md)
+  are guides, and [the test suite](tests.md) is reference.
 
 ### Removed
 - `ModelStructure`, `ModelValues`, `Model.structure`, `Model.values`: use the fields of `Model`.
@@ -250,6 +257,7 @@ that 0.3.0 renames or removes, one table row each.
 - `robot_skeleton` draws the markers of axis-aligned revolute and prismatic joints along their axes.
 - `LBFGS` with bounds reaches the optimum of bound-heavy problems (a nonnegative force fit stopped 0.4-4 % above
   it, now within 0.01 %), and a problem whose plain gradient step finds no decrease is done.
+- `robot_skeleton` draws a joint kind defined outside the library as a sphere instead of raising `KeyError`.
 
 ## v0.2.0 (2026-04-11)
 

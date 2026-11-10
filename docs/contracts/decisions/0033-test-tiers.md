@@ -1,6 +1,6 @@
 # 0033 Three test tiers, each one local command; a missing oracle fails
 
-**Status:** Accepted (owner); amended by 0046. **Date:** 2026-11-01
+**Status:** Accepted (owner); amendment proposed in 0046. **Date:** 2026-11-01
 
 ## Context
 The Pinocchio parity suite uses `importorskip` while `pin` sits in the `dev` extra; 34 `importorskip("robot_descriptions")`

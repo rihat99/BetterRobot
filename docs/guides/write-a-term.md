@@ -113,4 +113,4 @@ value already applied. The robot terms in `better_robot.terms` (`src/better_robo
 
 - [Fit a clip](fit-a-clip.md): terms with `window` inside a phased trajectory fit.
 - [Enforce hard constraints](hard-constraints.md): the same term as an exact constraint.
-- [Extending BetterRobot](../contributing/extending.md): ship a term inside the library.
+- [Extend BetterRobot](extend.md): ship a term inside the library.

@@ -1,6 +1,6 @@
 # 0013 Joint kinds are final classes under an abstract `JointModel`
 
-**Status:** Accepted (owner); amended by 0043. **Date:** 2026-11-01
+**Status:** Accepted (owner); amendment proposed in 0043. **Date:** 2026-11-01
 
 ## Context
 `JointModel` is a `runtime_checkable` Protocol with a mixin (`joint_models/revolute.py::_Revolute`) and an overridable

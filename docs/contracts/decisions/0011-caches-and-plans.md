@@ -1,6 +1,6 @@
 # 0011 Plans live on the model; nothing is keyed on a tensor version
 
-**Status:** Accepted (owner); amended by 0040, 0041, 0042. **Date:** 2026-11-01
+**Status:** Accepted (owner); amended by 0040; amendment proposed in 0041, 0042. **Date:** 2026-11-01
 
 ## Context
 Five caches are written with `object.__setattr__` onto frozen objects owned by other packages, keyed on torch's
