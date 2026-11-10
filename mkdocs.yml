@@ -125,6 +125,8 @@ nav:
       - guides/differentiate.md
       - guides/benchmark-and-profile.md
       - guides/use-with-betterhuman.md
+      - guides/extend.md
+      - guides/run-the-tests.md
   - Reference:
       - API:
           - better_robot: reference/api/better_robot.md
@@ -141,6 +143,7 @@ nav:
           - testing: reference/api/testing.md
           - exceptions: reference/api/exceptions.md
       - reference/effects.md
+      - reference/tests.md
       - reference/glossary.md
       - reference/changelog.md
       - reference/migration-0.3.0.md
@@ -210,6 +213,3 @@ nav:
           - 0046 Test tier selection: contracts/decisions/0046-test-tier-selection.md
           - 0047 Problem registration: contracts/decisions/0047-problem-registration-and-sealed-views.md
           - 0048 Viewer pointer and layers: contracts/decisions/0048-viewer-pointer-and-layer-ownership.md
-  - Contributing:
-      - contributing/testing.md
-      - contributing/extending.md

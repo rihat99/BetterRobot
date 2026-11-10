@@ -19,7 +19,7 @@ docs and examples runs in the full tier, and ship the no-skip rule as the pytest
 ## Example
 ```bash
 uv run pytest tests/contract -q -m "not slow and not cuda"              # fast
-uv run pytest tests -q -m "not bench and not cuda and not licensed"     # full
+uv run pytest tests -q -m "not bench and not cuda"     # full (BetterHuman, which has licensed tests, adds "and not licensed")
 ```
 ```python { .no-run }
 # tests/conftest.py
@@ -39,7 +39,7 @@ recording and every page's snippets would run only by hand. Keep the hook as cop
 Test selection only. A user of `better_robot.testing` installs the `testing` extra to load the plugin.
 
 ## Enforcement
-`tests/contract/test_pytest_config.py`; `tests/contract/test_no_skips.py`; `docs/contributing/testing.md` (the tier
+`tests/contract/test_pytest_config.py`; `tests/contract/test_no_skips.py`; `docs/guides/run-the-tests.md` (the tier
 commands).
 
 ## Open questions

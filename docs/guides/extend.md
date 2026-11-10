@@ -1,4 +1,4 @@
-# Extending BetterRobot
+# Extend BetterRobot
 
 Five kinds of brick plug into BetterRobot: a joint kind, a term, a parser function, a viewer layer and a solver.
 None of them is registered anywhere (record 0025): you build the object and pass it where it is used. Each section
@@ -77,12 +77,12 @@ print(br.forward_kinematics(model, torch.tensor([0.2])).frame_pose_of("tip"))
 tensor([ 0.0000,  0.0000, -0.2000,  0.0000,  0.0000,  0.0000,  1.0000])
 ```
 
-Add a Pinocchio parity test when Pinocchio has the same joint (see [Testing](testing.md)).
+Add a Pinocchio parity test when Pinocchio has the same joint (see [Test suite](../reference/tests.md#pinocchio-parity)).
 
 ## A term
 
 A term is a plain function: it reads named variables and data by its argument names and returns a residual with the
-problem's leading batch axes and a flat event axis. [Write a term](../guides/write-a-term.md) is the full guide,
+problem's leading batch axes and a flat event axis. [Write a term](write-a-term.md) is the full guide,
 with an analytic Jacobian. Robot-aware terms go in `better_robot.terms`; `better_robot.optim` imports torch and
 `better_robot.exceptions` only, and must not learn about robots.
 
@@ -228,5 +228,6 @@ tensor([1.0000, 2.0000, 3.0000], dtype=torch.float64)
 
 ## Where next
 
-- [Testing](testing.md): the parity, contract and docs tests every extension must pass.
-- [Write a term](../guides/write-a-term.md): a term with an analytic Jacobian, step by step.
+- [Run the tests](run-the-tests.md) and the [test suite](../reference/tests.md): the parity, contract and docs tests
+  every extension must pass.
+- [Write a term](write-a-term.md): a term with an analytic Jacobian, step by step.

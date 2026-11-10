@@ -103,5 +103,5 @@ uv run pytest tests/bench -m bench -q
 
 ## Where next
 
-- [Testing](../contributing/testing.md): the `bench` and `cuda` markers.
+- [Test suite](../reference/tests.md): the `bench` and `cuda` markers.
 - [Performance contract](../contracts/09-performance.md): the rules the benchmark guards.
