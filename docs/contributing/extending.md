@@ -34,7 +34,7 @@ from typing import ClassVar, final
 import torch
 
 import better_robot as br
-from better_robot.io import ModelBuilder, build_model
+from better_robot.io import build_model
 from better_robot.lie import se3
 from better_robot.model import JointManifold, JointModel
 from better_robot.testing import check_joint_model
@@ -66,7 +66,7 @@ class JointDrop(JointModel):
 
 
 check_joint_model(JointDrop(), dtype=torch.float64, generator=torch.Generator().manual_seed(0))
-builder = ModelBuilder("drop")
+builder = br.ModelBuilder("drop")
 builder.add_body("base")
 builder.add_body("tip")
 builder.add_joint("drop", kind=JointDrop(), parent="base", child="tip", lower=0.0, upper=0.5)
