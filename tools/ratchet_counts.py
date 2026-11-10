@@ -15,7 +15,9 @@ oldest first; a ``git mv`` in a commit of its own keeps the history), then the w
 - the commit that created a ratchet also removed another one (a rename git could not follow because the content
   changed too: a rename goes in a commit of its own).
 
-Prints one line per ratchet (creating commit, count at creation, latest count) and every violation.
+Prints one line per ratchet and every violation. The line gives sites, never keys: the first commit that stores the
+ratchet's counts (its creating commit when none does, every plain entry then being one site), the sites there and
+the sites now. A step without counts lists keys, which can hold several sites each, so its total is no site count.
 ``tests/contract/test_ratchet_history.py`` runs it in the full tier.
 
     uv run tools/ratchet_counts.py [--repo PATH]     # stdlib only: uv runs it without the project environment
@@ -67,9 +69,10 @@ def steps(repo: Path, path: str) -> list[tuple[str, dict[str, int], bool]]:
 
 
 def check(repo: Path, path: str) -> tuple[str, int, int, list[str]]:
-    """Creating commit, count at creation, latest count and the violations of one ratchet."""
+    """First commit with known sites, its site count, the latest site count and the violations of one ratchet."""
     history = steps(repo, path)
-    created, first, _ = history[0]
+    created = history[0][0]
+    since, first, _ = next((step for step in history if step[2]), history[0])
     *_, (_, latest, latest_counted) = history
     problems = []
     if created != WORKING_TREE:
@@ -99,7 +102,7 @@ def check(repo: Path, path: str) -> tuple[str, int, int, list[str]]:
             above = sorted(key for key in latest.keys() & earlier.keys() if latest[key] > earlier[key])
             if above:
                 problems.append(f"latest counts above those at {commit[:7]}: {above}")
-    return created[:12], sum(first.values()), sum(latest.values()), problems
+    return since[:12], sum(first.values()), sum(latest.values()), problems
 
 
 def main() -> int:
@@ -109,12 +112,12 @@ def main() -> int:
     repo = parser.parse_args().repo.resolve()
     tracked = set(git(repo, "ls-tree", "-r", "--name-only", "HEAD", f"{RATCHETS}/").split())
     on_disk = {path.relative_to(repo).as_posix() for path in (repo / RATCHETS).glob("**/*.json")}
-    lines = [f"{'ratchet':50} {'created':>12} {'at create':>9} {'latest':>7}"]
+    lines = [f"{'ratchet':50} {'since':>12} {'sites then':>10} {'sites now':>9}"]
     failed = False
     for path in sorted(path for path in tracked | on_disk if path.endswith(".json")):
-        created, at_create, latest, problems = check(repo, path)
+        since, sites_then, sites_now, problems = check(repo, path)
         failed |= bool(problems)
-        lines.append(f"{path.removeprefix(RATCHETS + '/'):50} {created:>12} {at_create:>9} {latest:>7}")
+        lines.append(f"{path.removeprefix(RATCHETS + '/'):50} {since:>12} {sites_then:>10} {sites_now:>9}")
         lines.extend(f"  FAIL {problem}" for problem in problems)
     sys.stdout.write("".join(f"{line}\n" for line in lines))
     return 1 if failed else 0
