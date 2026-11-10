@@ -71,7 +71,7 @@ def umeyama(
     """Fit a proper 3D similarity transform by weighted Umeyama alignment.
 
     Finds ``target ~= scale * (rotation @ source) + translation`` for point
-    sets shaped ``(..., N, 3)``.  Leading batch dimensions of ``source`` and
+    sets ``source, target: (..., N, 3)``.  Leading batch dimensions of ``source`` and
     ``target`` broadcast; ``weights`` may be ``(N,)`` or ``(..., N)`` and
     broadcasts over the same batch.  Weights must be non-negative with a
     positive sum.  Set ``estimate_scale=False`` for a rigid (6-DoF) fit.
