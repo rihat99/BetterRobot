@@ -7,6 +7,8 @@ that 0.3.0 renames or removes, one table row each.
 
 ## Unreleased
 
+## v0.3.0 (2026-11-10)
+
 ### Added
 - `better_robot` exports its twelve packages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`,
   `collision`, `io`, `optim`, `terms`, `viewer`, `testing`) and `JointFreeFlyer`, `solve_ik` and `Viewer` beside the
