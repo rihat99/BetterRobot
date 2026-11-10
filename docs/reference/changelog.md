@@ -293,6 +293,8 @@ that 0.3.0 renames or removes, one table row each.
   (through `torch.broadcast_shapes`): 0.2 s with a warm disk cache, over a second cold.
 - `RobustKernel.weight` documents the factor the solvers assume, twice the derivative of `rho` (it said the
   derivative: a kernel written to it stopped at the wrong minimum beside a plain term).
+- `Model.random_configuration` and every joint kind's `random` draw on the limits' device with a generator that lives
+  there, so a CUDA or meta model samples instead of raising torch's device-mismatch error.
 
 ## v0.2.0 (2026-04-11)
 

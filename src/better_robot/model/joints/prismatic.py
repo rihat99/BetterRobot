@@ -40,4 +40,4 @@ class JointPrismatic(JointModel):
 
     @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype)
+        return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype, device=lower.device)

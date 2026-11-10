@@ -48,8 +48,9 @@ class JointModel(ABC):
 
     @abstractmethod
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        """A configuration ``(nq,)`` in the limits' dtype, drawn inside ``lower, upper: (nq,)`` where the kind has
-        limits; rotations and angles without finite limits are drawn uniformly over their full range."""
+        """A configuration ``(nq,)`` in the limits' dtype, drawn on their device with ``generator`` (which lives
+        there) inside ``lower, upper: (nq,)`` where the kind has limits; rotations and angles without finite limits
+        are drawn uniformly over their full range."""
 
 
 def check_axis(axis: object) -> None:

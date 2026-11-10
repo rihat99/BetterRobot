@@ -19,7 +19,7 @@ implementations, one file per kind.
 | `placement(q)` | `(B..., nq) -> (B..., 7)` pose of the child in the joint frame |
 | `motion_subspace(q)` | `(B..., nq) -> (B..., 6, nv)`; the child's twist in its own frame is `S(q) @ v` |
 | `neutral()` | `(nq,)` configuration with the identity placement |
-| `random(generator, *, lower, upper)` | `(nq,)` configuration inside the limits |
+| `random(generator, *, lower, upper)` | `(nq,)` configuration inside the limits, in their dtype and on their device |
 
 A manifold is a `JointManifold(name=, nq=, nv=, integrate=, difference=)` whose maps are the group exponential and
 logarithm, so that `difference(q0, integrate(q0, v)) == v` and the derivative of `placement(integrate(q, t v))` at
@@ -62,7 +62,7 @@ class JointDrop(JointModel):
         return torch.zeros(1)
 
     def random(self, generator, *, lower, upper):
-        return lower + (upper - lower) * torch.rand(1, generator=generator)
+        return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype, device=lower.device)
 
 
 check_joint_model(JointDrop(), dtype=torch.float64, generator=torch.Generator().manual_seed(0))

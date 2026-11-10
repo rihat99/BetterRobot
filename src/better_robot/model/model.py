@@ -229,7 +229,10 @@ class Model:
     def random_configuration(self, *, generator: torch.Generator) -> torch.Tensor:
         """A configuration ``(nq,)`` drawn inside the position limits (revolute joints without limits: ``[-pi, pi]``).
 
-        The generator is required (principle 05: a draw is reproducible by construction), never the global RNG.
+        The generator is required (principle 05: a draw is reproducible by construction), never the global RNG. The
+        draw happens on the model's device, as in ``terms.random_start``, so ``generator`` lives there
+        (``torch.Generator(device=model.device)``); a meta model, which holds no values, takes a CPU generator and is
+        not checked for finite limits.
         """
         if not isinstance(generator, torch.Generator):
             raise ArgumentError(
@@ -245,7 +248,8 @@ class Model:
         if not parts:
             return torch.zeros(self.nq, dtype=self.dtype, device=self.device)
         sample = torch.cat(parts, dim=-1).to(dtype=self.dtype, device=self.device)
-        if not bool(torch.isfinite(sample).all()):  # one host sync per call, off the hot path
+        # One host sync per call, off the hot path; a meta tensor has no values to read.
+        if sample.device.type != "meta" and not bool(torch.isfinite(sample).all()):
             unlimited = [
                 self.joint_names[j]
                 for j, start in enumerate(self.idx_qs)
