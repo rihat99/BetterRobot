@@ -143,6 +143,8 @@ nav:
       - reference/roadmap.md
   - Contracts:
       - Index: contracts/00-index.md
+      - Scope: contracts/scope.md
+      - Public surface: contracts/public-surface.md
       - Naming: contracts/01-naming.md
       - Tensors: contracts/02-tensors.md
       - State and mutability: contracts/03-state-mutability.md

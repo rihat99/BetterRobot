@@ -9,6 +9,8 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 
 | Page | Covers |
 |------|--------|
+| [Scope](scope.md) | what the library does, its non-goals, the bar for inclusion, commonly rejected ideas |
+| [Public surface](public-surface.md) | what is public, what users may do, horizons, compatible changes |
 | [01 Naming](01-naming.md) | monogram notation in math code, descriptive names elsewhere, units |
 | [02 Tensors](02-tensors.md) | batch axes, broadcasting, dtype/device, shapes in docstrings, `optim` batching |
 | [03 State and mutability](03-state-mutability.md) | frozen model and state, no input mutation, `Problem.with_` views, `Model.to` and caches |
