@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Any, ClassVar, final
+from typing import Any, ClassVar, final, override
 
 import torch
 
@@ -59,6 +59,12 @@ class Solver(ABC):
     """
 
     warm_keys: ClassVar[tuple[str, ...]] = ()
+
+    @override
+    def __repr__(self) -> str:
+        # a setting left at None takes the dtype's default, so only the set ones are printed
+        settings = ", ".join(f"{name}={value!r}" for name, value in vars(self).items() if value is not None)
+        return f"{type(self).__name__}({settings})"
 
     @abstractmethod
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:

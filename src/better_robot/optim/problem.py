@@ -14,7 +14,7 @@ import inspect
 from collections.abc import Callable, Mapping
 from dataclasses import KW_ONLY, dataclass
 from types import MappingProxyType
-from typing import Any, final
+from typing import Any, final, override
 
 import torch
 
@@ -154,6 +154,13 @@ class Problem:
             self._slices[name] = slice(offset, offset + size)
             offset += size
         self._tangent_dim = offset
+
+    @override
+    def __repr__(self) -> str:
+        first = next(iter(self._variables.values()))
+        dtype = str(first.dtype).removeprefix("torch.")
+        variables = list(self._variables)
+        return f"Problem(B={first.shape[0]}, N={self._tangent_dim}, {variables=}, {len(self._terms)} terms, {dtype}, {first.device})"
 
     # ── read-only fields ────────────────────────────────────────────────
 

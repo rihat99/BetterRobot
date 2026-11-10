@@ -10,7 +10,7 @@ kind written outside the package enters without a registry. A description that c
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -63,6 +63,11 @@ class ModelBuilder:
         self._joint_names: set[str] = set()
         self._frames: list[IRFrame] = []
         self._shapes: list[IRShape] = []
+
+    @override
+    def __repr__(self) -> str:
+        sizes = f"{len(self._bodies)} bodies, {len(self._joints)} joints, {len(self._frames)} frames"
+        return f"ModelBuilder({self._name!r}, {sizes}, {len(self._shapes)} shapes)"
 
     def add_body(
         self,

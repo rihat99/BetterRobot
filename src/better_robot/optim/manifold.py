@@ -8,7 +8,7 @@ ambient tensor and calls ``Manifold.project`` afterwards.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -39,6 +39,10 @@ class Manifold(ABC):
 @final
 class Euclidean(Manifold):
     """Plain tensor: the tangent is the flattened event."""
+
+    @override
+    def __repr__(self) -> str:
+        return "Euclidean()"
 
     def tangent_dim(self, x: torch.Tensor) -> int:
         return x.shape[1:].numel()

@@ -1,4 +1,5 @@
-"""Every public type has a short repr (principle 4.9, decision record 0009): one line, under 200 characters, its name.
+"""Every public type has a short repr (principle 4.9, decision record 0009): one line, under 200 characters, its name,
+and its own (the default ``<module.Class object at 0x...>`` tells a reader nothing).
 
 ``BUILDERS`` builds each public class of the ``__all__`` tree (``better_robot.testing.public_objects``, each class
 once, under the first path that lists it) from the test fixtures, with arrays large enough that a repr printing
@@ -199,6 +200,7 @@ def test_repr_is_one_short_line_naming_the_type(path: str) -> None:
     assert type(value).__name__ == name
     text = repr(value)
     assert "\n" not in text and len(text) < 200 and name in text, f"{path}: {len(text)} characters: {text[:120]!r}"
+    assert "object at 0x" not in text, f"{path} prints the default object repr; give it a one-line __repr__: {text!r}"
 
 
 def test_panda_repr_names_its_sizes_dtype_and_device() -> None:
