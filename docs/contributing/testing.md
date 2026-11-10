@@ -71,7 +71,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_docstrings.py` | every public object has a docstring that gives each tensor parameter's shape |
 | `test_boundary_validation_count.py` | public functions validate inputs once; raw passes below do not re-validate |
 | `test_hot_path_lint.py` | no `torch.compile`-breaking patterns (host syncs, `.item()`, Python branching on tensors) in kinematics and dynamics |
-| `test_naming.py` | old Pinocchio-style storage names do not come back |
+| `test_naming.py` | a `Model` or `KinematicState` field is plural exactly when its shape has an axis over joints, bodies or frames; integer indices end in `_ids` |
 | `test_optional_imports.py` | each package imports only the outside packages `pyproject.toml` declares for it; `lie`, `spatial` and `optim` import torch only |
 | `test_no_skips.py` | the `no_skips` plugin fails every skip and xfail, whatever spells it |
 | `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
