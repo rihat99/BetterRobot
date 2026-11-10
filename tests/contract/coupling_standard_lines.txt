@@ -20,6 +20,8 @@ about the centre of mass, in the body's axes (MuJoCo's fullinertia order)
 euler (..., 3) [roll, pitch, yaw], the rotation Rz(yaw) Ry(pitch) Rx(roll)
 jacobian (B..., 6, nv) rows [linear, angular], one column per coordinate of v
 reference default local_world_aligned: the velocity of the frame's origin and the angular velocity, in world axes
+external force (B..., njoints, 6) [force(3), torque(3)] on the body of each joint, in that joint's frame
+gravity (6,) [linear(3), angular(3)]: the world's acceleration of gravity, about the world origin
 joint 0 "universe": fixed, identity placement, parent -1, no coordinates; body 0 and frame 0 carry its name
 joint 1 the root: the joint that holds the root body under the universe; a free flyer there floats the base
 order parents first; among joints whose parent is placed, the one the description lists first

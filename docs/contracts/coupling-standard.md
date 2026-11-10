@@ -54,6 +54,13 @@ jacobian   (B..., 6, nv)   rows [linear, angular], one column per coordinate of 
 reference  default local_world_aligned: the velocity of the frame's origin and the angular velocity, in world axes
 ```
 
+## Forces and gravity
+
+```text
+external force  (B..., njoints, 6)  [force(3), torque(3)] on the body of each joint, in that joint's frame
+gravity         (6,)                [linear(3), angular(3)]: the world's acceleration of gravity, about the world origin
+```
+
 ## Joints and identifiers
 
 ```text

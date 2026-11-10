@@ -252,6 +252,43 @@ def test_wrench_is_force_first() -> None:
     torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still, external_forces=applied), still)
 
 
+def test_external_forces_act_on_each_joint_in_its_own_frame() -> None:
+    """``external_forces (B..., njoints, 6)`` is ``[force, torque]`` on the body of each joint, in that joint's frame:
+    holding a floating body turned by ``R`` takes ``[R^T f, c x R^T f]`` (``f = -m g`` in the world, ``c`` its centre
+    of mass), and that wrench given as the body joint's external force holds it."""
+    mass, com = 2.0, _tensor(0.3, -0.1, 0.2)
+    builder = ModelBuilder("floating", gravity=(0.0, 0.0, -9.81))
+    builder.add_body("body", mass=mass, com=com)
+    builder.add_joint("base", kind=JointFreeFlyer(), parent="world", child="body")
+    model = build_model(builder.finalize(), dtype=F64)
+    q = torch.cat((_tensor(0.4, -0.2, 0.7), _tensor(*QUATERNION))).expand(2, 7)  # B = (2,)
+    state = br.forward_kinematics(model, q)
+    still = torch.zeros(2, 6, dtype=F64)
+    force = _quaternion_matrix(QUATERNION).mT @ _tensor(0.0, 0.0, mass * 9.81)
+    wrench = torch.cat((force, torch.linalg.cross(com, force)))
+    torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still), wrench.expand(2, 6))
+    applied = torch.zeros(2, model.njoints, 6, dtype=F64)
+    applied[:, 1] = wrench
+    torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still, external_forces=applied), still)
+
+
+def test_gravity_is_six_numbers_linear_first() -> None:
+    """``Model.gravity (6,)`` is ``[linear, angular]``: the builder's ``(3,)`` gravity fills the linear part, and a
+    body at rest is held by ``-m g`` against the linear part and ``-I alpha`` against the angular part."""
+    mass, rotational = 2.0, torch.diag(_tensor(0.1, 0.2, 0.3))
+    builder = ModelBuilder("floating", gravity=(0.0, -9.81, 0.0))
+    builder.add_body("body", mass=mass, inertia=rotational)
+    builder.add_joint("base", kind=JointFreeFlyer(), parent="world", child="body")
+    model = build_model(builder.finalize(), dtype=F64)
+    torch.testing.assert_close(model.gravity, _tensor(0.0, -9.81, 0.0, 0.0, 0.0, 0.0))
+    state = br.forward_kinematics(model, model.q_neutral)
+    still = torch.zeros(6, dtype=F64)
+    torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still), _tensor(0, mass * 9.81, 0, 0, 0, 0))
+    spinning = model.with_values(gravity=_tensor(0.0, 0.0, 0.0, 0.0, 0.0, 2.0))
+    state = br.forward_kinematics(spinning, spinning.q_neutral)
+    torch.testing.assert_close(br.inverse_dynamics(spinning, state, v=still, a=still), _tensor(0, 0, 0, 0, 0, -0.6))
+
+
 def test_inertia_layout() -> None:
     """A body's row is ``[m, c, Ixx, Iyy, Izz, Ixy, Ixz, Iyz]`` with the rotational inertia about the centre of mass."""
     mass, com = 2.0, _tensor(0.1, 0.2, 0.3)
