@@ -45,6 +45,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_fixtures.py` | every test robot has its licence and provenance |
 | `test_repository_layout.py` | the tracked top-level entries are the standard set; each `src` package has its `tests/` folder and every other `tests/` folder is a named suite; no tracked symlink and no tracked file over 1 MiB (record [0039](../contracts/decisions/0039-test-robot-fixtures.md)); no directory under `src/`, `tests/` or `tools/` without a tracked file |
 | `test_citations.py` | every repository path and `path::symbol` cited in tracked text resolves; no line number is cited |
+| `test_agent_files.py` | the root `CLAUDE.md` is at most 200 lines and a nested one 60; no capitals for emphasis in an agent file or skill; `AGENTS.md` is one line naming `CLAUDE.md`; the shared `.claude/` files are tracked and the rest ignored |
 | `test_extension_points.py` | every extension point is a base class or a plain function: no `register_*` function, no module-level mutable registry (see [Extend BetterRobot](../guides/extend.md)) |
 | `test_abstract_or_final.py` | every class in `src` is abstract or `@final` |
 | `test_api_snapshot.py` | the public API equals its snapshot, `tests/contract/public_api.json` |
