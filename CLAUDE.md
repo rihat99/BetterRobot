@@ -48,7 +48,7 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - Counters: graph breaks, recompiles, operators and host syncs of the counter rows never exceed
   `benchmarks/thresholds/torch-2.13.0.json` (rule C-PERF-3, `tests/contract/test_compile_counters.py`).
 - Ratchets in `tests/contract/ratchets/` only shrink, and an entry leaves in the commit that fixes it
-  (`tools/ratchet_counts.py`, `tests/contract/test_ratchet_history.py`). Open today: ruff 11 sites, pyright 59 errors
+  (`tools/ratchet_counts.py`, `tests/contract/test_ratchet_history.py`). Open today: ruff 11 sites, pyright 53 errors
   (the `CAP` of `tests/contract/test_pyright_ratchet.py`), keyword_only 6, value_checks 3, vocabulary 3; the other
   five are empty.
 - The public API equals `tests/contract/public_api.json` (`tests/contract/test_api_snapshot.py`); an intended change

@@ -103,14 +103,6 @@
     "count": 1,
     "reason": "false positive: the same `delta`, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
   },
-  "src/better_robot/optim/linearization.py::_windowed_pieces reportArgumentType": {
-    "count": 5,
-    "reason": "false positive: it runs only for a term whose `window` is not None, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
-  },
-  "src/better_robot/optim/linearization.py::_windowed_pieces reportOperatorIssue": {
-    "count": 1,
-    "reason": "false positive: it runs only for a term whose `window` is not None, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
-  },
   "src/better_robot/optim/solvers.py::LBFGS.step reportArgumentType": {
     "count": 1,
     "reason": "State.extra is a dict[str, Any] whose 'terms' entry is a dict of tensors; typing extra per key (a TypedDict) is a change of the public State, for the optim owner"

@@ -112,7 +112,7 @@ def _normal_equations(
                 with torch.no_grad():
                     pieces = _analytic_pieces(problem, term, evaluation, value)
             elif term.window is not None:
-                pieces = _windowed_pieces(problem, term, reweighted, delta)
+                pieces = _windowed_pieces(problem, term, reweighted, delta, term.window)
             else:
                 dense_rows.append(reweighted.flatten(1))
                 continue
@@ -268,15 +268,18 @@ def _analytic_pieces(
     return pieces
 
 
-def _windowed_pieces(problem: Problem, term: Term, reweighted: torch.Tensor, delta: torch.Tensor) -> list[_Piece]:
+def _windowed_pieces(
+    problem: Problem, term: Term, reweighted: torch.Tensor, delta: torch.Tensor, window: int
+) -> list[_Piece]:
     """Autodiff pieces of a time-local term: rows whose windows do not overlap share a backward pass.
+
+    ``window`` is ``term.window``, passed by the caller that checked it is set.
 
     Columns of variables without a time axis are read by every row, so they come from one
     forward-mode product per column, computed as the derivative of a backward pass.
     """
     rows_by_knot = reweighted.flatten(2)  # (B, T_out, m)
     batch, rows, width = rows_by_knot.shape
-    window = term.window
     color = torch.arange(rows, device=delta.device) % window
     # seeds[c, j, :, t, k] = 1 where row t has colour c and k == j: one backward pass per (colour, output) pair.
     of_colour = (color == torch.arange(window, device=delta.device)[:, None]).to(rows_by_knot.dtype)  # (window, T_out)
