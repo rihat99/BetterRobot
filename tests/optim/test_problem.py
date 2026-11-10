@@ -375,7 +375,7 @@ def test_problem_is_immutable():
     ],
 )
 def test_callbacks_cannot_register_on_the_views_run_hands_them(solver):
-    """A phase callback receives a sealed view, so it cannot change the solve it runs in (it used to crash LM)."""
+    """A phase callback receives a sealed view, so it cannot change the solve it runs in."""
     problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"target": torch.ones(2, 3)})
     problem.residual("fit", lambda x, target: x - target)
 
@@ -548,7 +548,7 @@ def test_solvers_accept_an_empty_batch(solver):
 
 
 def test_scalar_term_that_reads_only_data_linearizes():
-    # A constant scalar term adds to the loss but not to the gradient; linearize used to raise.
+    # A constant scalar term adds to the loss but not to the gradient; linearize must not raise on it.
     problem = optim.Problem({"x": torch.zeros(2, 3)}, data={"a": torch.ones(2, 3)})
     problem.residual("fit", lambda x: x - 1.0)
     problem.scalar("const", lambda a: (a**2).sum(-1))

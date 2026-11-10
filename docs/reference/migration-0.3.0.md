@@ -7,7 +7,8 @@ says why and what to call instead.
 
 Names are written relative to `better_robot`: `lie.SE3` is `better_robot.lie.SE3`. A name without a module
 (`SE3`, `Model.fk`) is gone from every module that exported it. `tests/contract/test_changelog.py` checks that every
-public name of the 0.2 line that 0.3.0 lacks is on this page, and that every name in the middle column exists. The
+public name of the 0.2 line that 0.3.0 lacks, or whose signature changed in a way that can break a caller, is on
+this page, and that every name in the middle column exists. The
 [changelog](changelog.md) lists what 0.3.0 adds, and the names removed between the 0.2.0 release and the last state
 of the 0.2 line.
 
@@ -135,6 +136,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 |---|---|---|
 | `exceptions.BackendNotAvailableError` | `exceptions.OptionalDependencyError` | also an `ImportError`; its message carries the install line |
 | `exceptions.ModelInconsistencyError`, `io.IRError` | `exceptions.ModelError` | also a `ValueError` |
+| `UnknownNameError(message)` | `exceptions.UnknownNameError(kind, name, *, valid)` | it writes the message from the kind, the name and the valid names; catching it is unchanged |
 
 ## `io` and `ModelBuilder`
 
@@ -145,7 +147,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 |---|---|---|
 | `load(source, *, format="auto", root_joint, free_flyer=False, preserve_joint_order=False, device, dtype)` | `load(path, *, format=None, root_joint=None, device=None, dtype=torch.float32)` | a path only; a builder's IR goes through `io.build_model` |
 | `free_flyer=True` | `root_joint=JointFreeFlyer()` | one root parameter |
-| `preserve_joint_order=` | — | one joint order: parents first, the file's order kept wherever it already is |
+| `preserve_joint_order=` of `load` and `io.build_model` | — | one joint order: parents first, the file's order kept wherever it already is |
 | `format="builder"` | `io.build_model` | `build_model(builder.finalize())` |
 | `parse(source, *, format="auto")` | `parse(path, *, format=None)` | |
 | `io.register_parser` | `io.build_model` | a new format is a function returning `IRModel`: `build_model(my_parser(path))` |
@@ -155,6 +157,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `IRJoint.kind`, `IRJoint.axis`, `IRJoint.pitch`, `IRJoint.joint_model` | `IRJoint.joint` | the joint object, such as `JointRevolute(axis=...)` |
 | `IRJoint.friction` | — | `Model` has no friction to fill |
 | `IRFrame.frame_type` | — | every frame has one type |
+| `IRModel(name, bodies, joints, ...)`, `IRBody(name, ...)`, `IRJoint(name, parent_body, child_body, ...)`, `IRFrame(name, parent_body, placement)` | `name=`, `bodies=`, `joints=`, `parent_body=`, `child_body=`, `joint=`, `placement=` | keyword-only fields; the fields that left are in the rows above |
 | `ModelBuilder.add_revolute_x`, `ModelBuilder.add_revolute_y`, `ModelBuilder.add_revolute_z` | `ModelBuilder.add_revolute` | `add_revolute(name, *, parent, child, axis=(1.0, 0.0, 0.0))` |
 | `ModelBuilder.add_prismatic_x`, `ModelBuilder.add_prismatic_y`, `ModelBuilder.add_prismatic_z` | `ModelBuilder.add_prismatic` | `axis=` as above |
 | `ModelBuilder.add_frame(name, *, parent_body, placement, frame_type)` | `ModelBuilder.add_frame(name, *, parent, placement)` | |
@@ -167,7 +170,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 
 | 0.2 | 0.3.0 | note |
 |---|---|---|
-| `optim.CacheRef` | `Problem.cached` | `problem.cached(...)` returns the name string a term reads |
+| `optim.CacheRef`, `Problem.cached(...)` returning one | `Problem.cached` | `problem.cached(...)` returns the name string a term reads |
 | `TermFn(fn, reads, jac, window)`, `TermFn.jac` | `TermFn(fn, reads, *, jacobian, window)`, `TermFn.jacobian` | |
 | `Problem.residual(..., jac=)` | `Problem.residual(..., jacobian=)` | |
 | `Problem.with_(*, weights, free)` | `Problem.with_(*, data, weights, free)` | a problem's data is read-only; `with_(data=...)` replaces entries |
@@ -178,6 +181,8 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `LevenbergMarquardt(gtol, ftol, xtol)`, `GaussNewton(gtol, xtol)`, `LBFGS(gtol)` | `gradient_tolerance=`, `loss_tolerance=`, `step_tolerance=` | each solver keeps the subset it had |
 | `TorchOptim(optimizer_cls, *, scheduler, **kwargs)` | `TorchOptim(factory, *, scheduler=None)` | `factory(params)` returns a `torch.optim.Optimizer` |
 | `State.it` | `State.iteration` | |
+| `State(x, loss, done, it=0, extra)` | `State(x, loss, *, done, solver, iteration=0, extra)` | `done` is keyword-only; `solver` is the class of the solver that made the state, and a warm start needs a solver of that class |
+| `Result(x, loss, done, iters, ...)` | `Result(x, loss, *, done, iterations, ...)` | `done` and the fields after it are keyword-only |
 | `Solver`, `Manifold` as `Protocol`s | `optim.Solver`, `optim.Manifold` | abstract bases: subclass them |
 | `Normal(H, g, lower, upper)`, `BandedNormal(diagonal, upper, g, layout, ...)`, `ArrowNormal(band, border, corner, g, ...)` | `g=`, `layout=`, `corner=` | keyword-only after the matrix blocks |
 
@@ -187,7 +192,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 |---|---|---|
 | `solve_ik(..., iters=100)` | `solve_ik(..., iterations=100)` | also exported from the root |
 | `random_start(model, q0, *, generator=None)` | `random_start(model, q0, *, generator)` | the generator is required |
-| `frame_pose(..., state=CacheRef(...))`, `frame_position(..., state=CacheRef(...))` | `state=` | the name string of the cached state |
+| `frame_pose(..., state=CacheRef(...))`, `frame_position(..., state=CacheRef(...))`, `self_clearance(..., state=CacheRef(...))`, `sphere_clearance(..., state=CacheRef(...))` | `state=` | the name string of the cached state |
 
 ## `viewer`
 

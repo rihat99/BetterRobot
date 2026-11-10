@@ -49,7 +49,7 @@ def test_each_hot_path_of_contract_09_has_counter_rows() -> None:
     """A hot path without a counter row is ungated: add its row to ``benchmarks/run.py`` and to the thresholds."""
     page = (REPO / "docs" / "contracts" / "09-performance.md").read_text()
     sentence = re.search(r"Hot paths are (.+?);", page, re.DOTALL)
-    assert sentence is not None, "contract 09 no longer defines its hot paths in one 'Hot paths are ...;' sentence"
+    assert sentence is not None, "contract 09 must define its hot paths in one 'Hot paths are ...;' sentence"
     named = set(re.findall(r"`([^`]+)`", sentence.group(1)))
     assert named == set(HOT_PATH_ROWS), f"contract 09 names {sorted(named)}: map each in HOT_PATH_ROWS to its rows"
     thresholds = sorted((REPO / "benchmarks" / "thresholds").glob("torch-*.json"))

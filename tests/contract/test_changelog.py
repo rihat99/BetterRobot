@@ -1,4 +1,4 @@
-"""The changelog groups changes by type and every removal reaches the migration page (principle 7.10).
+"""The changelog groups changes by type and every removal or breaking change reaches the migration page (7.10).
 
 ``docs/reference/changelog.md`` opens with ``## Unreleased``; under it and under each ``## vX.Y.Z (YYYY-MM-DD)``
 release, every ``###`` heading is one of the six change types, and every Removed or Deprecated entry names its
@@ -11,8 +11,10 @@ of ``better_robot.testing.public_api``, with each subpackage walked as today's r
 modules that had no ``__all__`` listed by the names they define. A path of it that the current tree does not resolve
 (as a path, a dataclass field or an inherited member) is removed. A backticked old name covers a removed path when
 the name's dotted parts end it (``SE3`` covers ``better_robot.lie.SE3``); the members of a removed class or module
-are covered with it. Every backticked name in the second column exists in the current tree, and a row without one
-(``—``) says why in its note; a keyword (``iterations=``) or an expression is not a name.
+are covered with it. A path of both trees whose line in ``public_api.json`` differs is changed, and is covered the
+same way unless ``NOT_BREAKING`` gives the reason no caller breaks (a widened or re-spelled annotation, a new base
+class). Every backticked name in the second column exists in the current tree, and a row without one (``—``) says
+why in its note; a keyword (``iterations=``) or an expression is not a name.
 """
 
 from __future__ import annotations
@@ -29,12 +31,42 @@ REPO = Path(__file__).resolve().parents[2]
 CHANGELOG = REPO / "docs" / "reference" / "changelog.md"
 MIGRATION_PAGE = REPO / "docs" / "reference" / "migration-0.3.0.md"
 BEFORE = Path(__file__).resolve().parent / "public_api_before_0.3.0.json"
+AFTER = Path(__file__).resolve().parent / "public_api.json"
 
 CHANGE_TYPES = ("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security")
 RELEASE = re.compile(r"Unreleased|v\d+\.\d+\.\d+ \(\d{4}-\d{2}-\d{2}\)")
 MIGRATES = re.compile(r"(?:^|[:;.] )(?:[Uu]se [^`]*`[^`]+`|[Nn]o replacement; \S)")
 NAME = re.compile(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*")
 CURRENT = public_objects("better_robot")
+_AXIS = "`axis=` also takes a sequence of floats; a tensor works as before"
+_REFERENCE = "`reference=` is annotated by an alias of the same three-string Literal"
+_KERNEL = "gains the base `optim.RobustKernel`; the constructor is the same"
+_MANIFOLD = "gains the base `optim.Manifold`; the constructor is the same"
+_THEME = "`theme` was annotated `Any`; both versions read the `Theme` fields"
+NOT_BREAKING: dict[str, str] = {
+    "better_robot.ModelBuilder.add_helical": _AXIS,
+    "better_robot.ModelBuilder.add_prismatic": _AXIS,
+    "better_robot.ModelBuilder.add_revolute": _AXIS,
+    "better_robot.io.ModelBuilder.add_helical": _AXIS,
+    "better_robot.io.ModelBuilder.add_prismatic": _AXIS,
+    "better_robot.io.ModelBuilder.add_revolute": _AXIS,
+    "better_robot.frame_jacobian": _REFERENCE,
+    "better_robot.joint_jacobian": _REFERENCE,
+    "better_robot.kinematics.frame_jacobian": _REFERENCE,
+    "better_robot.kinematics.joint_jacobian": _REFERENCE,
+    "better_robot.optim.Cauchy": _KERNEL,
+    "better_robot.optim.GemanMcClure": _KERNEL,
+    "better_robot.optim.Huber": _KERNEL,
+    "better_robot.optim.Tukey": _KERNEL,
+    "better_robot.optim.Euclidean": _MANIFOLD,
+    "better_robot.terms.RobotManifold": _MANIFOLD,
+    "better_robot.optim.Problem.scalar": "`fn` also takes a `TermFn`; a callable works as before",
+    "better_robot.viewer.Layer.apply_theme": _THEME,
+    "better_robot.viewer.GroundLayer.apply_theme": _THEME,
+    "better_robot.viewer.Viewer.add_plot": "`series` was annotated `Any`; both versions convert it with `as_frames`",
+    "better_robot.viewer.Viewer.record": "`camera=` also takes arrays; sequences work as before",
+    "better_robot.viewer.robot_skeleton": "the default `Theme()` prints shorter; its values are those of 0.2",
+}
 
 
 def _sections(text: str) -> list[tuple[str, str, list[str]]]:
@@ -114,19 +146,39 @@ def test_every_removal_names_its_replacement_or_why_none() -> None:
     assert [entry for entry in entries if not MIGRATES.search(entry)] == []
 
 
+def _old_names() -> set[tuple[str, ...]]:
+    return {name for row in _rows(MIGRATION_PAGE.read_text()) for name in _names(row[0])}
+
+
+def _covered(path: str, old_names: set[tuple[str, ...]], removed: set[str]) -> bool:
+    """An old name ends ``path``, or ``path`` is a member of a removed path that is covered."""
+    parts = tuple(path.split("."))
+    parent = path.rsplit(".", 1)[0]
+    return any(parts[-len(name) :] == name for name in old_names) or (
+        parent in removed and _covered(parent, old_names, removed)
+    )
+
+
 def test_every_removed_public_name_is_on_the_migration_page() -> None:
     """Each path of the 0.2 tree that 0.3.0 lacks is covered by an old name of a migration table."""
-    old_names = {name for row in _rows(MIGRATION_PAGE.read_text()) for name in _names(row[0])}
     removed = {path for path in json.loads(BEFORE.read_text()) if not _resolves(path)}
     assert removed
-
-    def covered(path: str) -> bool:
-        parts = tuple(path.split("."))
-        parent = path.rsplit(".", 1)[0]
-        return any(parts[-len(name) :] == name for name in old_names) or (parent in removed and covered(parent))
-
-    missing = sorted(path for path in removed if not covered(path))
+    old_names = _old_names()
+    missing = sorted(path for path in removed if not _covered(path, old_names, removed))
     assert missing == [], f"add these to {MIGRATION_PAGE.name}:\n  " + "\n  ".join(missing)
+
+
+def test_every_breaking_signature_change_is_on_the_migration_page() -> None:
+    """Each path whose signature changed since 0.2 is covered by an old name of a migration table, unless
+    ``NOT_BREAKING`` says why no caller breaks; every entry of that list names a changed path."""
+    before, after = json.loads(BEFORE.read_text()), json.loads(AFTER.read_text())
+    changed = {path for path, line in before.items() if path in after and after[path] != line}
+    old_names = _old_names()
+    missing = sorted(path for path in changed - NOT_BREAKING.keys() if not _covered(path, old_names, set()))
+    assert missing == [], f"add these to {MIGRATION_PAGE.name}, or to NOT_BREAKING with the reason:\n  " + "\n  ".join(
+        missing
+    )
+    assert sorted(NOT_BREAKING.keys() - changed) == []
 
 
 def test_every_new_name_on_the_migration_page_exists() -> None:

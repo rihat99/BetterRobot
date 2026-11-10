@@ -1,4 +1,4 @@
-"""``parse_urdf`` raises ``ModelError`` naming the file and the element at fault (record 0047)."""
+"""``parse_urdf`` raises ``ModelError`` naming the file and the element at fault (record 0037)."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def test_unsupported_shape_names_file_and_tag(tmp_path: Path) -> None:
 
 
 def test_unreadable_mesh_names_body_and_uri(tmp_path: Path) -> None:
-    """Mesh files are read where meshes are drawn, not at parse time (record 0048)."""
+    """Mesh files are read where meshes are drawn, not at parse time (record 0038)."""
     visual = '<visual><geometry><mesh filename="missing.stl"/></geometry></visual>'
     path = _write(tmp_path, f'<robot name="r"><link name="base">{visual}</link></robot>')
     model = load(path)

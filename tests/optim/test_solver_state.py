@@ -57,7 +57,7 @@ def test_warm_start_rejects_wrong_batch_and_non_state() -> None:
 
 
 def test_warm_start_from_another_solver_kind_names_both_kinds() -> None:
-    """A state keeps the class of the solver that made it; another kind used to keep nothing, silently."""
+    """A state keeps the class of the solver that made it; a warm start by another kind raises, naming both."""
     first = optim.solve(_rosenbrock(), optim.GaussNewton(), iterations=3)
     assert first.state.solver is optim.GaussNewton
     with pytest.raises(exceptions.ArgumentError, match="comes from GaussNewton, but phase 'phase' runs LBFGS"):

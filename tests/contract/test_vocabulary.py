@@ -94,7 +94,7 @@ def test_no_module_binds_a_public_object_under_a_second_name() -> None:
 
 
 def test_an_unlisted_alias_in_a_subpackage_is_a_second_name(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The review's plant: only the root refused a name outside its ``__all__``."""
+    """A subpackage, like the root, refuses a public name outside its ``__all__``."""
     monkeypatch.setattr(kinematics, "State", kinematics.KinematicState, raising=False)
     assert _second_names() == ["better_robot.kinematics.State = KinematicState"]
 

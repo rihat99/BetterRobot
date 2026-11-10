@@ -9,8 +9,8 @@ change is a new ADR that supersedes the old one, or amends part of it (`Accepted
 When to write one: see [00-index](../00-index.md).
 
 Template: `# NNNN Title` / Status (Proposed | Accepted | Accepted; amended by NNNN | Accepted; amendment proposed
-in NNNN | Superseded by NNNN; the word may carry `(owner)`, `(integrator, awaiting owner)` or
-`(integrator ruling R-n, date)`) + Date /
+in NNNN | Superseded by NNNN, whose record is Accepted; Proposed may carry `(integrator, awaiting owner)` and
+any other word `(owner)`, because only the owner accepts or supersedes) + Date /
 Context (3–6 lines) / Decision ("We will …") / Example / Consequences / Alternatives / Compatibility / Enforcement
 (rule IDs, ruff codes, `tests/contract/*`) / Open questions (empty once Accepted). File name `NNNN-kebab-title.md`.
 Records 0009 and later follow this template; 0001 to 0008 predate its Example, Compatibility and Open questions
@@ -66,3 +66,5 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0046](0046-test-tier-selection.md) | The fast tier leaves out `cuda`; the full tier keeps the browser test and the docs runs | Proposed (integrator, awaiting owner) |
 | [0047](0047-problem-registration-and-sealed-views.md) | `Problem` registration only adds names; derived problems are sealed | Proposed (integrator, awaiting owner) |
 | [0048](0048-viewer-pointer-and-layer-ownership.md) | One pointer callback at a time; a layer object draws in one place; `add` takes an iterable only | Proposed (integrator, awaiting owner) |
+| [0049](0049-collision-imports-lie.md) | `collision` imports `lie` for the one input validator | Proposed (integrator, awaiting owner) |
+| [0050](0050-testing-imports-optim.md) | `testing` imports `optim` for the robust-kernel checker | Proposed (integrator, awaiting owner) |

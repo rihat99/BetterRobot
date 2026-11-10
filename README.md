@@ -58,7 +58,7 @@ state. Poses are `[tx, ty, tz, qx, qy, qz, qw]` (scalar last).
 ```bash
 uv run pytest tests/contract -q -m "not slow and not cuda"   # fast tier, about 16 s
 uv run pytest tests -q -m "not cuda"                         # full tier, about 4.5 min
-uv run ruff check src tests
+uv run ruff check . && uv run ruff format --check .
 uv run mkdocs build --strict
 ```
 

@@ -109,7 +109,7 @@ def _ruff_code_problem(code: str) -> str | None:
 
 
 def test_a_ruff_code_cited_as_an_enforcer_names_a_selected_rule() -> None:
-    """The review's plant: ``[ruff:PLC9999]`` passed, matched by the selected prefix ``PLC``."""
+    """A code ruff does not know under a selected prefix, ``[ruff:PLC9999]`` under ``PLC``, is not an enforcer."""
     assert _ruff_code_problem("PLC9999") == "ruff code PLC9999 is no ruff rule"
     assert _ruff_code_problem("E501") == "ruff code E501 not selected"  # selected through E, then ignored
     assert _ruff_code_problem("PLC0415") is None

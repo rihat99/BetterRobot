@@ -2,31 +2,20 @@
 
 The packages under `src/better_robot/` import each other along one edge table, the `ALLOWED` table in
 `tests/contract/test_layer_dependencies.py`: one row per package, naming the packages it may import. The table has no
-cycle, and a new package gets its row through an ADR (`00-index`, "When to write an ADR"). The root
+cycle, and a new package or a new edge goes through an ADR (`00-index`, "When to write an ADR"). The root
 `src/better_robot/__init__.py` re-exports the packages and has no row.
 
-| Package | May import |
-|---|---|
-| `exceptions`, `_internal_checks` | nothing from the package |
-| `lie` | `exceptions` |
-| `spatial` | `exceptions`, `lie` |
-| `model` | `exceptions`, `lie`, `spatial` |
-| `kinematics` | `exceptions`, `lie`, `model` |
-| `dynamics` | `exceptions`, `lie`, `spatial`, `model`, `kinematics` |
-| `collision` | `exceptions`, `lie`, `model`, `kinematics` |
-| `io` | `exceptions`, `_internal_checks`, `lie`, `model` |
-| `optim` | `exceptions` |
-| `terms` | `exceptions`, `lie`, `model`, `kinematics`, `collision`, `optim` |
-| `viewer` | `exceptions`, `lie`, `model`, `kinematics`, `collision` |
-| `testing` | `exceptions`, `model` |
+The table is printed once, where `tests/docs/test_codemap.py` checks it against `ALLOWED`: on the architecture page,
+[each package imports only the packages of its row](../concepts/architecture.md#each-package-imports-only-the-packages-of-its-row).
 
 ## C-DEP-1 Imports follow the edge table, which has no cycle (MUST)
 
 A package imports only the packages its row names. No row names `viewer`, `terms` or `testing`: no other package
 depends on them. `dynamics` and `collision` import `kinematics`: `dynamics` reads the state's world column table
 and geometry (`KinematicState.jacobian_columns`, `KinematicState.world_geometry`, record 0041) and the Jacobian
-plan of `src/better_robot/kinematics/_plans.py`. Outside the package, `lie`, `spatial` and `optim` import torch and
-nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
+plan of `src/better_robot/kinematics/_plans.py`. `collision` imports `lie` for the one input validator,
+`src/better_robot/lie/_checks.py` (record 0049, proposed). Outside the package, `lie`, `spatial` and `optim` import
+torch and nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
 
 ```python { .no-run }
 # good  (illustrative; see src/better_robot/terms/robot.py)

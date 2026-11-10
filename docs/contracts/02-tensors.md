@@ -42,7 +42,8 @@ Enforcement: `tests/contract/test_dtype_device.py` (runs each of those functions
 ## C-TENS-3 Shapes in docstrings (MUST)
 
 Every public function or field that takes or returns a tensor documents the shape with trailing-axes
-notation. The numpy-style `Parameters`/`Returns` lines carry `(..., n)` so the shape is greppable.
+notation, next to the parameter it belongs to (`q: (B..., nq)`) or on a numpy `Returns` line, so the shape is
+greppable.
 
 ```python { .no-run }
 # good

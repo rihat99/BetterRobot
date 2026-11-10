@@ -43,8 +43,8 @@ what each group of tests guards.
 Never skip, xfail, loosen a tolerance or delete an assertion to get green; report the number instead. Gate data (a
 tolerance, a counter threshold, the edge table) changes only in a commit of its own that says why.
 
-- Pinocchio parity, `tests/parity/pinocchio/`: 188 tests, 999 compared values, each under its own tolerance
-  (`docs/reference/tests.md`); MuJoCo parity, `tests/parity/mujoco/`: 21 tests.
+- Pinocchio parity, `tests/parity/pinocchio/`: 188 tests, each comparison under its own tolerance (the typical
+  ones are in `docs/reference/tests.md`); MuJoCo parity, `tests/parity/mujoco/`: 21 tests.
 - Counters: graph breaks, recompiles, operators and host syncs of the counter rows never exceed
   `benchmarks/thresholds/torch-2.13.0.json` (rule C-PERF-3, `tests/contract/test_compile_counters.py`).
 - Ratchets in `tests/contract/ratchets/` only shrink, and an entry leaves in the commit that fixes it
@@ -78,7 +78,8 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - No deprecated alias or shim in this major (`tests/contract/test_versioning.py`).
 - No module named `utils`, `common`, `misc` or `helpers`, and no word of a public name outside
   `docs/reference/glossary.md` (`tests/contract/test_vocabulary.py`).
-- No dead path citation and no line-number citation in tracked text (`tests/contract/test_citations.py`).
+- No dead path citation and no line-number citation in tracked text, and no history on a docs page outside the
+  changelog, the migration pages and the records (`tests/contract/test_citations.py`).
 - No tracked symlink, file over 1 MiB, or directory without a tracked file (`tests/contract/test_repository_layout.py`).
 - No agent file over its length and no capitals for emphasis (`tests/contract/test_agent_files.py`).
 

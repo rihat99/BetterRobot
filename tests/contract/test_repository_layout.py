@@ -47,7 +47,6 @@ SUITES = {
     "support": "fixtures and helpers that only these tests import, never collected",
     "fixtures": "the tracked test robots with their licences (record 0039)",
 }
-GHOST_ROOTS = ("src", "tests", "tools")
 
 
 def _tracked() -> list[tuple[str, str]]:
@@ -97,15 +96,31 @@ def test_no_symlinks_and_size() -> None:
     )
 
 
+def _ignored_directories() -> set[str]:
+    """Directories that an ignore rule names itself (``.venv/``, ``site/``), not those that only hold ignored files."""
+    listing = subprocess.run(
+        ["git", "ls-files", "--others", "--ignored", "--exclude-standard", "--directory"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    folders = "\n".join(path for path in listing.splitlines() if path.endswith("/"))
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--stdin"], cwd=REPO, input=folders, capture_output=True, text=True, check=False
+    ).stdout
+    return {path.rstrip("/") for path in ignored.splitlines()}
+
+
 def test_no_ghost_directories() -> None:
-    """Every directory under ``src/``, ``tests/`` and ``tools/`` on disk, ``__pycache__`` aside, holds a tracked file."""
+    """Every directory of the working tree on disk, ignored ones and ``.git`` aside, holds a tracked file."""
     holding = {str(Path(path).parent) for path in _tracked_paths()}
     holding |= {str(parent) for folder in list(holding) for parent in Path(folder).parents}
+    skipped = _ignored_directories() | {".git"}
     ghosts = []
-    for root in GHOST_ROOTS:
-        for folder, subfolders, _ in os.walk(REPO / root):
-            subfolders[:] = [name for name in subfolders if name != "__pycache__"]
-            relative = Path(folder).relative_to(REPO).as_posix()
-            if relative not in holding:
-                ghosts.append(relative)
+    for folder, subfolders, _ in os.walk(REPO):
+        relative = Path(folder).relative_to(REPO).as_posix()
+        subfolders[:] = [name for name in subfolders if Path(relative, name).as_posix() not in skipped]
+        if relative not in holding:
+            ghosts.append(relative)
     assert not ghosts, f"move these directories, which hold no tracked file, to the trash (principle 9.6): {ghosts}"

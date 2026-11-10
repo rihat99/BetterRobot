@@ -153,8 +153,7 @@ MALLOC_MMAP_THRESHOLD_=134217728 MALLOC_TRIM_THRESHOLD_=268435456 uv run python 
 Measured in the run above, forward mode at batch 4096: FK on G1 takes 57.7 ms with 10 301 page faults per call by
 default and 33.5 ms with fewer than one once the thresholds are fixed; CRBA on Panda takes 42.7 ms with 5757 faults
 against 29.2 ms; FK on the 200-joint random tree 418 ms against 179 ms. The default number depends on the process,
-the fixed one does not: an earlier run gave FK on G1 at batch 4096 34.4 ms with no faults by default and 34.6 ms
-fixed (57.7 ms and 33.5 ms above). The counter row `fk_joints/g1/B1024` took 12.2 ms with 3120 faults per call by
+the fixed one does not. The counter row `fk_joints/g1/B1024` took 12.2 ms with 3120 faults per call by
 default in one process and 6.0 ms in another; with fixed thresholds it takes 6.0 ms in both.
 
 The runner measures every row at batch 1024 and above both ways: it re-runs those rows in a child process with the

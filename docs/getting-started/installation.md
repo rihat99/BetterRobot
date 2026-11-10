@@ -9,8 +9,7 @@ BetterRobot is a plain Python package that needs Python 3.12 and PyTorch. The pr
 [uv](https://docs.astral.sh/uv/) for environments. From a clone of the repository:
 
 ```bash
-git clone <your BetterRobot clone URL> BetterRobot
-cd BetterRobot
+git clone https://github.com/rihat99/BetterRobot && cd BetterRobot
 uv sync --all-extras --all-groups   # the package, every extra, and the dev and test-oracles groups
 ```
 
@@ -18,7 +17,7 @@ uv sync --all-extras --all-groups   # the package, every extra, and the dev and 
 
 | Extra | Installs | You need it for |
 |---|---|---|
-| `viewer` | `viser` | the browser viewer in [Visualize a robot](visualize.md) |
+| `viewer` | `viser`, `pillow` | the browser viewer in [Visualize a robot](visualize.md), and the GIF and PNG frames `Viewer.record` writes |
 | `mjcf` | `mujoco` | loading MJCF (`.xml`) models through MuJoCo's compiler |
 | `meshes` | `trimesh` | loading visual and collision meshes |
 | `demos` | `robot_descriptions` | the Panda and G1 models used in these tutorials |

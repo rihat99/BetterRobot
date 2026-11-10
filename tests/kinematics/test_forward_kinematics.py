@@ -33,6 +33,17 @@ def test_state_fields_agree_with_poses_and_frame_jacobian_with_autograd():
     torch.testing.assert_close(jacobian[:, :3, :], position_jacobian.permute(1, 0, 2), atol=1e-12, rtol=0.0)
 
 
+def test_joint_pose_of_reads_the_named_joint():
+    """``joint_pose_of`` by id and by name equals that joint's row of ``joint_poses``, for every joint."""
+    model = br.load(panda_urdf(), dtype=torch.float64)
+    generator = torch.Generator().manual_seed(1)
+    q = torch.stack([model.random_configuration(generator=generator) for _ in range(3)])
+    state = kinematics.forward_kinematics(model, q)
+    for joint_id, name in enumerate(model.joint_names):
+        torch.testing.assert_close(state.joint_pose_of(joint_id), state.joint_poses[:, joint_id], atol=0.0, rtol=0.0)
+        torch.testing.assert_close(state.joint_pose_of(name), state.joint_poses[:, joint_id], atol=0.0, rtol=0.0)
+
+
 def test_state_is_differentiable_in_model_values_and_under_torch_func():
     model = br.load(panda_urdf(), dtype=torch.float64)
     q = model.q_neutral.expand(2, -1)

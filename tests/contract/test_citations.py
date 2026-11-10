@@ -6,12 +6,15 @@ be tracked (from the repository root; a Markdown link from its page, a ``mkdocs.
 citation is always dead. The dead citations that exist today sit in ``tests/contract/ratchets/dead_citations.json``
 (``"<file>: <citation>"`` to the reason); the ratchet only shrinks, and the fix that resolves a citation removes its
 entry. Permanent exceptions: the resolver's and the edge walker's test cases, this module's own exception list, and
-citations in accepted ADRs, whose text never changes after acceptance (principle 8.2).
+citations in accepted ADRs, whose text never changes after acceptance (principle 8.2). A docs page outside the
+changelog, the migration pages and the records tells no history: no plan code, no "no longer", no "was moved".
 """
 
 from __future__ import annotations
 
 import json
+import re
+from fnmatch import fnmatch
 from pathlib import Path
 
 from better_robot.testing import dead_citations
@@ -100,3 +103,18 @@ def test_citation_ratchet_has_no_stale_entries() -> None:
     """A citation that resolves now leaves the citation ratchet in the commit that fixes it."""
     stale = sorted(CITATION_RATCHET.keys() - _dead())
     assert not stale, "remove these entries from tests/contract/ratchets/dead_citations.json:\n  " + "\n  ".join(stale)
+
+
+HISTORY = re.compile(r"\bP\d+-[A-Z]|\bruling R-\d|(?i:\bno\s+longer\b|\bwas\s+moved\b)")
+HISTORY_PAGES = ("docs/reference/changelog.md", "docs/reference/migration-*.md", "docs/contracts/decisions/[0-9]*.md")
+
+
+def test_docs_pages_tell_no_history() -> None:
+    """A docs page says what holds for a reader with no history (principle 7.9); what changed, and the plan code
+    that changed it, belong in the changelog, the migration pages and the records."""
+    found = []
+    for page in sorted((REPO / "docs").rglob("*.md")):
+        relative = page.relative_to(REPO).as_posix()
+        if not any(fnmatch(relative, pattern) for pattern in HISTORY_PAGES):
+            found += [f"{relative}: {' '.join(match[0].split())}" for match in HISTORY.finditer(page.read_text())]
+    assert not found, "state what holds now instead:\n  " + "\n  ".join(found)

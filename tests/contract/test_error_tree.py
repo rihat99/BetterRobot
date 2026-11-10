@@ -135,7 +135,7 @@ def test_src_raises_the_error_tree_only() -> None:
     ],
 )
 def test_every_form_of_a_builtin_raise_is_found(statement: str, builtin: str) -> None:
-    """The review's plants: a bare ``raise`` of a builtin class, and ``KeyError`` / ``IndexError``."""
+    """A bare ``raise`` of a builtin class and a raise of ``KeyError`` or ``IndexError`` are found."""
     assert _builtin_raises(ast.parse(f"def lookup(name, index):\n    {statement}\n")) == {f"lookup {builtin}": 1}
 
 
