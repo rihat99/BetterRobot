@@ -1,5 +1,4 @@
 {
-  "better_robot.exceptions.UnknownNameError": "valid becomes keyword-only after wp/R7fix and wp/R8fix merge: optim and viewer raise it positionally (and BetterHuman, 8 sites)",
   "better_robot.lie.se3.sclerp": "t keyword-only together with the parked lie keyword renames (P-2)",
   "better_robot.lie.so3.slerp": "t keyword-only together with the parked lie keyword renames (P-2)"
 }

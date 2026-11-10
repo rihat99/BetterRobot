@@ -153,8 +153,11 @@ def test_unknown_name_lists_the_valid_names(arm_model) -> None:
         exc.UnknownNameError, match=r"^unknown joint 'nope' \(valid names: \['universe', 'root_joint', 'j1'\]\)$"
     ):
         arm_model.joint_id("nope")
-    assert str(exc.UnknownNameError("body", "x", ["a"])) == "unknown body 'x' (valid names: ['a'])"
-    assert str(exc.UnknownNameError("frame", "x", [str(i) for i in range(21)])) == "unknown frame 'x' (21 valid names)"
+    assert str(exc.UnknownNameError("body", "x", valid=["a"])) == "unknown body 'x' (valid names: ['a'])"
+    assert (
+        str(exc.UnknownNameError("frame", "x", valid=[str(i) for i in range(21)]))
+        == "unknown frame 'x' (21 valid names)"
+    )
 
 
 @pytest.mark.cuda

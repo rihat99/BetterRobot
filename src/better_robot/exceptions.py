@@ -46,7 +46,7 @@ class UnknownNameError(BetterRobotError, KeyError):
     gives their count instead, ``unknown <kind> '<name>' (<n> valid names)``.
     """
 
-    def __init__(self, kind: str, name: str, valid: Sequence[str]) -> None:
+    def __init__(self, kind: str, name: str, *, valid: Sequence[str]) -> None:
         names = f"valid names: {list(valid)}" if len(valid) <= 20 else f"{len(valid)} valid names"
         super().__init__(f"unknown {kind} {name!r} ({names})")
 

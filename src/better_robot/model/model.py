@@ -176,7 +176,7 @@ class Model:
     def _id(self, kind: str, names: tuple[str, ...], value: int | str) -> int:
         if isinstance(value, str):
             if value not in names:
-                raise UnknownNameError(kind, value, names)
+                raise UnknownNameError(kind, value, valid=names)
             return names.index(value)
         if not 0 <= value < len(names):
             raise ArgumentError(f"{kind} id {value} out of range [0, {len(names)})")

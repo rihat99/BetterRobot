@@ -93,14 +93,14 @@ class ModelBuilder:
     def add_frame(self, name: str, *, parent: str, placement: torch.Tensor) -> str:
         """Add a frame placed by ``placement (7,)`` on the body ``parent`` and return its name."""
         if parent not in self._body_names:
-            raise UnknownNameError("body", parent, sorted(self._body_names))
+            raise UnknownNameError("body", parent, valid=sorted(self._body_names))
         self._frames.append(IRFrame(name=name, parent_body=parent, placement=placement))
         return name
 
     def add_shape(self, body: str, shape: Shape, *, collision: bool = True) -> None:
         """Attach ``shape`` to ``body`` as collision geometry or, with ``collision=False``, for display only."""
         if body not in self._body_names:
-            raise UnknownNameError("body", body, sorted(self._body_names))
+            raise UnknownNameError("body", body, valid=sorted(self._body_names))
         self._shapes.append(IRShape(body=body, shape=shape, collision=collision))
 
     def add_joint(
@@ -130,7 +130,7 @@ class ModelBuilder:
             raise ModelError(f"joint {name!r} already exists")
         for body in (child,) if parent == "world" else (parent, child):
             if body not in self._body_names:
-                raise UnknownNameError("body", body, sorted(self._body_names))
+                raise UnknownNameError("body", body, valid=sorted(self._body_names))
         self._joint_names.add(name)
         self._joints.append(
             IRJoint(

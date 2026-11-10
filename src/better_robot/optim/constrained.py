@@ -92,7 +92,7 @@ def solve_constrained(
     residuals = [name for name, term in problem.terms.items() if term.kind == "residual"]
     for name in names:
         if name not in residuals:
-            raise UnknownNameError("residual term", name, residuals)
+            raise UnknownNameError("residual term", name, valid=residuals)
     if outer < 1:
         raise ArgumentError(f"outer must be at least 1, got {outer}")
     plain = problem.with_(weights=dict.fromkeys(names, 1.0))

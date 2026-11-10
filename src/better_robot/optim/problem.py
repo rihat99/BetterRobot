@@ -308,7 +308,7 @@ class Problem:
         if weights is not None:
             for name in weights:
                 if name not in self._terms:
-                    raise UnknownNameError("term", name, list(self._terms))
+                    raise UnknownNameError("term", name, valid=list(self._terms))
             problem._weights = {**self._weights, **weights}
         if free is not None:
             problem._free = {}
@@ -438,7 +438,7 @@ class Problem:
         known = [*self._variables, *self._data, *self._cached]
         for read in reads:
             if read not in known:
-                error = UnknownNameError("variable, data or cached value", read, known)
+                error = UnknownNameError("variable, data or cached value", read, valid=known)
                 error.add_note(f"{name!r} reads it; register cached values before the terms that read them")
                 raise error
         return tuple(reads)
@@ -447,7 +447,7 @@ class Problem:
         mapping = mapping or {}
         for name in mapping:
             if name not in self._variables:
-                raise UnknownNameError("variable", name, list(self._variables))
+                raise UnknownNameError("variable", name, valid=list(self._variables))
         return mapping
 
     def _clamp(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:

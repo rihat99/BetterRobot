@@ -103,7 +103,7 @@
   "better_robot.exceptions.OptionalDependencyError": "class(BetterRobotError, ImportError)(package: 'str', *, install: 'str') -> 'None'",
   "better_robot.exceptions.QuaternionNormError": "class(BetterRobotError, ValueError)",
   "better_robot.exceptions.ShapeError": "class(BetterRobotError, ValueError)",
-  "better_robot.exceptions.UnknownNameError": "class(BetterRobotError, KeyError)(kind: 'str', name: 'str', valid: 'Sequence[str]') -> 'None'",
+  "better_robot.exceptions.UnknownNameError": "class(BetterRobotError, KeyError)(kind: 'str', name: 'str', *, valid: 'Sequence[str]') -> 'None'",
   "better_robot.forward_dynamics": "function(model: 'Model', state: 'KinematicState', *, v: 'torch.Tensor', tau: 'torch.Tensor', external_forces: 'torch.Tensor | None' = None) -> 'torch.Tensor'",
   "better_robot.forward_kinematics": "function(model: 'Model', q: 'torch.Tensor', *, check_quaternion_norm: 'bool' = False) -> 'KinematicState'",
   "better_robot.frame_jacobian": "function(model: 'Model', state: 'KinematicState', *, frame: 'int | str', reference: '_Reference' = 'local_world_aligned') -> 'torch.Tensor'",
