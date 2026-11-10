@@ -1,10 +1,10 @@
-"""URDF parser: a typed adapter over the locked ``yourdfpy`` (record 0047).
+"""URDF parser: a typed adapter over the locked ``yourdfpy`` (record 0037).
 
 ``yourdfpy`` reads the XML into plain records (``Robot``, ``Link``, ``Joint``, ``Visual``, ``Collision``) and this
 module reads those records by direct attribute access, so a yourdfpy upgrade that renames an attribute fails here
 with an ``AttributeError`` and never silently with a default. Every failure a file can cause is a ``ModelError``
 naming the file and the element. Mesh files are never opened: a mesh geometry keeps the ``filename`` the file
-wrote (record 0048) and the viewer resolves it. A joint axis is normalised here (a file may carry one of any
+wrote (record 0038) and the viewer resolves it. A joint axis is normalised here (a file may carry one of any
 length); the joint kinds accept unit axes only. The free-flyer root is not added here:
 ``build_model(root_joint=JointFreeFlyer())`` adds it. ``yourdfpy`` is imported here only.
 """
