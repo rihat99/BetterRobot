@@ -1,20 +1,19 @@
 # BetterRobot
 
 PyTorch-native robotics. Load a URDF or MJCF robot, run batched forward kinematics, Jacobians and rigid-body
-dynamics with autograd through every step, and solve inverse kinematics, trajectories and motion fits with one
-least-squares optimiser over named tensors. Fixed- and floating-base robots share one API, and a browser viewer
+dynamics with autograd through every step, and solve inverse kinematics, trajectories and motion fits as
+least-squares problems over named tensors. Fixed- and floating-base robots share one API, and a browser viewer
 plays whole clips.
 
 ![64 Panda IK problems solved in one batch](docs/images/readme_ik.gif)
 
-Documentation: [rihat99.github.io/BetterRobot](https://rihat99.github.io/BetterRobot/) (locally: `uv run mkdocs serve`).
+Documentation: [docs/](docs/index.md), served as a site by `uv run mkdocs serve`.
 
 ## Install with [uv](https://docs.astral.sh/uv/)
 
 ```bash
 git clone https://github.com/rihat99/BetterRobot && cd BetterRobot
-uv sync --extra demos              # torch, numpy, URDF loading, the example robots
-uv sync --all-extras --all-groups  # plus viewer, meshes, MJCF, tests, oracles, benchmarks, docs, lint
+uv sync --all-extras --all-groups  # the package, every extra, and the dev and test-oracles groups
 ```
 
 ## Solve 64 IK problems at once
@@ -39,27 +38,32 @@ print(float((reached[:, :3] - targets[:, :3]).norm(dim=-1).median()))
 3.1075885246701783e-12
 ```
 
-`br.forward_kinematics(model, q)` returns a frozen `KinematicState`; Jacobians and dynamics are functions of that state. Poses are
-`[tx, ty, tz, qx, qy, qz, qw]` (scalar last). The median position error over the 64 solves is at machine
-precision.
+The printed number is the median distance, in metres, between the hand and its target over the 64 solves.
+`br.forward_kinematics(model, q)` returns a frozen `KinematicState`; Jacobians and dynamics are functions of that
+state. Poses are `[tx, ty, tz, qx, qy, qz, qw]` (scalar last).
 
 ## Where next
 
-- [Getting started](https://rihat99.github.io/BetterRobot/getting-started/) — from loading a robot to batched IK,
-  trajectories and the viewer, one step at a time.
-- [Architecture](https://rihat99.github.io/BetterRobot/concepts/architecture/) — the layers and how one call
-  flows through them.
-- [Examples](examples/) — `uv run python examples/01_ik.py` opens a viewer where the Panda follows a gizmo.
+- [Getting started](docs/getting-started/first-model.md): from loading a robot to batched IK, trajectories and the
+  viewer, one step at a time.
+- [Architecture](docs/concepts/architecture.md): the layers and how one call flows through them.
+- [Scope](docs/contracts/scope.md): what BetterRobot computes, what it leaves out, and the bar for a new feature.
+- [Examples](examples/): short programs from batched IK (`uv run python examples/01_ik.py`) to dynamics
+  (`examples/08_dynamics.py`); the scripts in `examples/viewer/` show, play and record scenes with the viewer.
+- Upgrading from 0.2: [Migrating to 0.3.0](docs/reference/migration-0.3.0.md) maps every public name that 0.3.0
+  renames or removes, and the [changelog](docs/reference/changelog.md) says what changed.
 
 ## Development
 
 ```bash
-uv run pytest tests -q -m "not bench and not cuda"
+uv run pytest tests/contract -q -m "not slow and not cuda"   # fast tier, about 16 s
+uv run pytest tests -q -m "not cuda"                         # full tier, about 4.5 min
 uv run ruff check src tests
 uv run mkdocs build --strict
 ```
 
-Pinocchio parity tests (`tests/parity/pinocchio/`) are the numerical oracle.
+[Run the tests](docs/guides/run-the-tests.md) gives every tier and what it needs. Pinocchio parity tests
+(`tests/parity/pinocchio/`) are the numerical oracle.
 
 ## License
 
