@@ -30,7 +30,6 @@ testing = ["pytest>=8.0"]
 dev = [
     "ruff",
     "pytest>=8.0",
-    "pytest-benchmark>=4",
     "coverage>=7",
     "pyright",
     "pre-commit>=3.7",
@@ -57,7 +56,6 @@ packages = ["src/better_robot"]
 [tool.pytest.ini_options]
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 testpaths = ["tests"]
-python_files = ["test_*.py", "bench_*.py"]  # bench_* files carry the bench marker; -m bench selects them
 xfail_strict = true
 empty_parameter_set_mark = "fail_at_collect"
 filterwarnings = [
@@ -75,7 +73,6 @@ filterwarnings = [
 markers = [
     "cuda: needs a CUDA device; deselected in the fast and full tiers, run in the release tier",
     "slow: takes seconds; deselected in the fast tier, run in the full tier",
-    "bench: benchmark micro-tests; deselected in every tier until benchmarks/ is their one home",
 ]
 
 [tool.ruff]
