@@ -22,8 +22,8 @@ maintainers keep in return, and which changes count as compatible.
   URDF and MJCF as their own specifications define them, within the loaders' documented scope.
 - Numerical results: within the documented tolerance of the named oracle (Pinocchio or MuJoCo in
   `tests/parity/`); bitwise only where a test pins it.
-- Coupling standard (shapes, pose layout, axes, frame identifiers that other repositories rely on): additions only
-  (record [0026](decisions/0026-coupling-standard-page.md)).
+- [Coupling standard](coupling-standard.md) (shapes, pose layout, axes, frame identifiers that other repositories
+  rely on): additions only (record [0026](decisions/0026-coupling-standard-page.md)).
 
 ## Compatible changes
 

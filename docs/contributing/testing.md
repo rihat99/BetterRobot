@@ -87,6 +87,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_abstract_or_final.py` | every class in `src` is abstract or `@final` |
 | `test_api_snapshot.py` | the public API equals its snapshot, `tests/contract/public_api.json` |
 | `test_contract_matrix.py` | the enforcement matrix of the contracts index matches what every contract page says |
+| `test_coupling_standard.py` | every line of the [coupling standard](../contracts/coupling-standard.md) against the library; the page's lines only grow (frozen copy `coupling_standard_lines.txt`) |
 | `test_decision_records.py` | every decision record follows the template, has an allowed status and an index row, and an accepted record keeps its accepted text |
 | `test_dtype_device.py`, `test_no_inplace.py`, `test_state_attachment.py` | public ops keep the input dtype and device, refuse another dtype, never write their inputs, and refuse a state of another model; their results are the [effects table](../reference/effects.md) |
 | `test_error_tree.py` | every error the library raises is in one tree under `BetterRobotError` |
