@@ -26,7 +26,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | Rule | Enforcer |
 |------|----------|
 | C-NAME-1 | `[ruff:N803,N806]` [planned: L-7], `[review]` |
-| C-NAME-2 | `tests/contract/test_naming.py`, `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] |
+| C-NAME-2 | `tests/contract/test_naming.py`, `tests/contract/test_vocabulary.py`, `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] |
 | C-NAME-3 | `[review]` |
 | C-NAME-4 | `[review]` |
 | C-NAME-5 | `tests/contract/test_se3_vocabulary.py` |

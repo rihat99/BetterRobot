@@ -38,7 +38,8 @@ def forward_kinematics(model: Model, q: Tensor) -> KinematicState: ...
 def fk_st(m, q): ...
 ```
 
-Enforcement: `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] outside the math packages; `tests/contract/test_naming.py`.
+Enforcement: `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] outside the math packages; `tests/contract/test_naming.py`; `tests/contract/test_vocabulary.py` (no alias, no
+class name a library below already uses, acronyms in capitals, no `utils`/`common`/`misc`/`helpers` module).
 
 ## C-NAME-3 Order words follow the data order (MUST)
 
