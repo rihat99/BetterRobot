@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from better_robot.model.model import Model
-from better_robot.exceptions import ArgumentError, ModelError
+from better_robot.exceptions import ArgumentError, DtypeMismatchError, ModelError
 from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import difference, integrate, subtree, support
@@ -66,6 +66,12 @@ def test_model_to_device():
     model2 = model.to(dtype=torch.float64)
     assert model2.joint_placements.dtype == torch.float64
     assert model2.q_neutral.dtype == torch.float64
+
+
+@pytest.mark.parametrize("dtype", [torch.int64, torch.float16, torch.complex64, "float64"], ids=str)
+def test_model_to_refuses_a_dtype_other_than_float32_or_float64(dtype):
+    with pytest.raises(DtypeMismatchError, match="is not float32 or float64; pass torch.float32 or torch.float64"):
+        _make_simple_model().to(dtype=dtype)
 
 
 def test_model_subtree():

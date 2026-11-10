@@ -47,9 +47,8 @@ def arm():
 
 @pytest.mark.parametrize("dtype", (torch.float16, torch.bfloat16))
 def test_fk_rejects_unsupported_low_precision(arm, dtype):
-    low_precision_model = arm.to(dtype=dtype)
     with pytest.raises(DtypeMismatchError, match="is not float32 or float64"):
-        forward_kinematics(low_precision_model, low_precision_model.q_neutral)
+        forward_kinematics(arm, arm.q_neutral.to(dtype))
 
 
 def test_fk_rejects_model_query_dtype_mismatch(arm):

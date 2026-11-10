@@ -12,7 +12,7 @@ from torch.utils import _pytree
 
 from ..exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from ..lie import se3
-from ..lie._checks import check_tensor
+from ..lie._checks import check_dtype, check_tensor
 from .joints.base import JointModel
 
 _TENSOR_FIELDS = (
@@ -281,7 +281,10 @@ class Model:
     def to(self, device: torch.device | str | None = None, dtype: torch.dtype | None = None) -> Model:
         """Copy with every tensor field on ``device`` in ``dtype``; it shares the plans of the first model of its line
         (a plan for a new dtype or device is built there on demand) and keeps that model, tensors included, alive
-        while it lives: ``load(...).to("cuda")`` holds the CPU model too."""
+        while it lives: ``load(...).to("cuda")`` holds the CPU model too. A ``dtype`` other than float32 or float64
+        raises ``DtypeMismatchError``."""
+        if dtype is not None:
+            check_dtype(dtype)
         moved = {name: getattr(self, name).to(device=device, dtype=dtype) for name in _TENSOR_FIELDS}
         return dataclasses.replace(self, **moved, _plan_owner=self if self._plan_owner is None else self._plan_owner)
 
