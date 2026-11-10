@@ -2,16 +2,17 @@
 
 A record is a file ``NNNN-kebab-title.md`` in the decisions folder; the numbers run from 0001 without a gap. Its
 Status line is, in full, ``**Status:** WORD[ (WHO)][; amended by NNNN, ...][; amendment proposed in NNNN, ...]``
-then ``.`` or `` ·`` and the ``**Date:**``: WORD is ``Proposed``, ``Accepted`` or ``Superseded by NNNN``, WHO is
-``owner``, ``integrator, awaiting owner`` or ``integrator ruling R-n, YYYY-MM-DD``, and every number it points at is a
-later record: one that amends is not Proposed, one that proposes an amendment is. Accepted
-is the owner's word (principle 8.2): a record whose status was owner-accepted or superseded in any commit (no
-``integrator`` in it) never returns to Proposed and keeps the text of that first commit, Status line aside. A record
-accepted now keeps the text it had when its current acceptance began (the first commit after its last Proposed
-one), Status line aside: a change is a new record. A record the integrator accepted may go back to Proposed for the
-owner's review, so it was never frozen by the owner. Records 0001 to 0008 predate the template and the frozen-text
-rule, so they sit in the permanent exception list below; the resolver test (``tests/contract/test_citations.py``)
-checks the paths every record cites.
+then ``.`` or `` ·`` and the ``**Date:**``: WORD is ``Proposed``, ``Accepted`` or ``Superseded by NNNN``; WHO is
+``integrator, awaiting owner`` on a Proposed record and ``owner`` on any other, because only the owner accepts or
+supersedes (principle 8.2). Every number the line points at is a later record: one that amends is not Proposed, one
+that proposes an amendment is, and one that supersedes is Accepted. A record whose status was owner-accepted or
+superseded in any commit never returns to Proposed and keeps the text of that first commit, Status line aside. A
+record accepted now keeps the text it had when its current acceptance began (the first commit after its last
+Proposed one), Status line aside: a change is a new record. Before this grammar the integrator accepted 0041 to 0048
+and returned them to Proposed; a past Status line with ``integrator`` in it is not the owner's word. A record's
+history is that of its number, under any file name, so a rename keeps it. Records 0001 to 0008 predate the template
+and the frozen-text rule, so they sit in the permanent exception list below; the resolver test
+(``tests/contract/test_citations.py``) checks the paths every record cites.
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ PRE_TEMPLATE: dict[str, str] = {
 }
 STATUS = re.compile(
     r"^\*\*Status:\*\* (?P<word>Proposed|Accepted|Superseded by (?P<by>\d{4}))"
-    r"(?: \((?:owner|integrator, awaiting owner|integrator ruling R-\d+, \d{4}-\d{2}-\d{2})\))?"
+    r"(?: \((?P<who>owner|integrator, awaiting owner)\))?"
     r"(?:; amended by (?P<amended>\d{4}(?:, \d{4})*))?"
     r"(?:; amendment proposed in (?P<proposed>\d{4}(?:, \d{4})*))?"
     r"(?:\.| ·) \*\*Date:\*\* \d{4}-\d{2}-\d{2}(?: \(recorded; decision taken earlier\))?$"
@@ -64,16 +65,21 @@ def test_record_files_are_numbered_without_a_gap_and_titled_by_their_number() ->
 
 
 def test_every_status_is_allowed_and_points_at_later_records() -> None:
-    """The status is Proposed, Accepted (optionally amended by later records) or Superseded by a later record; an
-    amendment still Proposed is named as proposed, not as made."""
+    """The status is Proposed, Accepted (optionally amended by later records) or Superseded by a later Accepted
+    record, and only the owner accepts or supersedes; an amendment still Proposed is named as proposed, not as made."""
     records = _records()
     for number, path in records.items():
         match = STATUS.match(_status_line(path.read_text()))
         assert match, f"{path.name}: status must be Proposed, Accepted[; amended by NNNN] or Superseded by NNNN"
+        expected_who = "integrator, awaiting owner" if match["word"] == "Proposed" else "owner"
+        assert match["who"] in (None, expected_who), f"{path.name}: only the owner accepts or supersedes a record"
         made = match["amended"].split(", ") if match["amended"] else []
         proposed = match["proposed"].split(", ") if match["proposed"] else []
         for target in ([match["by"]] if match["by"] else []) + made + proposed:
             assert target in records and target > number, f"{path.name}: {target} is not a later record"
+        if match["by"]:
+            successor = STATUS.match(_status_line(records[match["by"]].read_text()))
+            assert successor and successor["word"] == "Accepted", f"{path.name}: {match['by']} is not Accepted"
         for target in made + proposed:
             is_proposed = _proposed(records[target].read_text())
             assert is_proposed == (target in proposed), (
@@ -113,15 +119,23 @@ def _owner_decided(text: str) -> bool:
 
 
 def _history(path: Path) -> list[str]:
-    """The record's committed texts, oldest first, then its text now."""
-    relative = path.relative_to(REPO).as_posix()
+    """The committed texts of the record's number under any file name, oldest first, then its text now."""
+    pattern = f"{DECISIONS.relative_to(REPO).as_posix()}/{path.name[:4]}-*.md"
     log = subprocess.run(
-        ["git", "log", "--reverse", "--format=%H", "--", relative], cwd=REPO, capture_output=True, text=True, check=True
+        ["git", "log", "--reverse", "--format=%H", "--name-only", "--", pattern],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     texts = []
-    for commit in log.stdout.split():
+    commit = ""
+    for line in log.stdout.split():
+        if re.fullmatch(r"[0-9a-f]{40}", line):
+            commit = line
+            continue
         shown = subprocess.run(
-            ["git", "show", f"{commit}:{relative}"], cwd=REPO, capture_output=True, text=True, check=False
+            ["git", "show", f"{commit}:{line}"], cwd=REPO, capture_output=True, text=True, check=False
         )
         if shown.returncode == 0:
             texts.append(shown.stdout)

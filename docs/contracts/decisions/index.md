@@ -9,8 +9,8 @@ change is a new ADR that supersedes the old one, or amends part of it (`Accepted
 When to write one: see [00-index](../00-index.md).
 
 Template: `# NNNN Title` / Status (Proposed | Accepted | Accepted; amended by NNNN | Accepted; amendment proposed
-in NNNN | Superseded by NNNN; the word may carry `(owner)`, `(integrator, awaiting owner)` or
-`(integrator ruling R-n, date)`) + Date /
+in NNNN | Superseded by NNNN, whose record is Accepted; Proposed may carry `(integrator, awaiting owner)` and
+any other word `(owner)`, because only the owner accepts or supersedes) + Date /
 Context (3–6 lines) / Decision ("We will …") / Example / Consequences / Alternatives / Compatibility / Enforcement
 (rule IDs, ruff codes, `tests/contract/*`) / Open questions (empty once Accepted). File name `NNNN-kebab-title.md`.
 Records 0009 and later follow this template; 0001 to 0008 predate its Example, Compatibility and Open questions
