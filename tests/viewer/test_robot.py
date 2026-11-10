@@ -61,7 +61,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     model = br.load(panda_urdf())
     geometry = br.io.load_geometry(panda_urdf(), model)
     q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(5)])
-    tau = torch.randn(5, model.nv)
+    tau = torch.randn(5, model.nv, generator=torch.Generator().manual_seed(5))
     state = br.forward_kinematics(model, q)
     joint_poses = state.joint_poses.numpy().astype(np.float32)
     meshes = robot_meshes(geometry, root=panda_urdf().parent, collision=True)
