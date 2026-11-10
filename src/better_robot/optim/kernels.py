@@ -18,6 +18,7 @@ class RobustKernel(ABC):
     ``Problem.residual(..., kernel=)`` applies it to the squared norm of each group (the last axis of the
     weighted residual); without a kernel the loss is the plain half squared norm. The library's kernels are
     frozen values, so a kernel held by a registered term cannot change under it.
+    ``better_robot.testing.check_robust_kernel`` checks a new kernel against this contract.
     """
 
     @abstractmethod
@@ -26,7 +27,10 @@ class RobustKernel(ABC):
 
     @abstractmethod
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
-        """IRLS row weights ``(...)`` of squared residual norms ``squared_norm: (...)``: ``rho'``."""
+        """IRLS row weights ``(...)`` of squared residual norms ``squared_norm: (...)``: ``2 d rho / ds``.
+
+        Twice the derivative, because the solvers scale against the plain loss ``s / 2``, whose weight is 1.
+        """
 
 
 @final

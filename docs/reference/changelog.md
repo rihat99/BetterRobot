@@ -61,9 +61,9 @@ that 0.3.0 renames or removes, one table row each.
   apart along their axes.
 - `ArrowsLayer(shaft_radius=, head_radius=, min_length=)` draws solid arrows and skips vectors shorter than
   `min_length`; `GroundLayer(origin=, normal=, fill=, fill_color=)` draws a tilted, filled floor.
-- `better_robot.testing`: `FakeServer` (viser without sockets), `check_joint_model`, `public_api`,
-  `public_objects`, `imported_packages`, `dead_citations`, the docs snippet runner `snippets` and the `no_skips`
-  pytest plugin; the `testing` extra installs pytest for it.
+- `better_robot.testing`: `FakeServer` (viser without sockets), `check_joint_model`, `check_robust_kernel`,
+  `public_api`, `public_objects`, `imported_packages`, `dead_citations`, the docs snippet runner `snippets` and the
+  `no_skips` pytest plugin; the `testing` extra installs pytest for it.
 - `FakeServer.gui` declares the GUI calls of an app built on the viewer, with viser's keywords: `add_dropdown`,
   `add_text`, `add_number`, `add_markdown`, `add_tab_group` (tabs by `add_tab`) and `add_slider(..., disabled=)`;
   each control reads back the value it was given.
@@ -291,6 +291,8 @@ that 0.3.0 renames or removes, one table row each.
   with a unit quaternion; it built such a model silently, or failed an internal check as a library bug.
 - The first `forward_kinematics`, `integrate` or `spatial` call of a process no longer imports sympy
   (through `torch.broadcast_shapes`): 0.2 s with a warm disk cache, over a second cold.
+- `RobustKernel.weight` documents the factor the solvers assume, twice the derivative of `rho` (it said the
+  derivative: a kernel written to it stopped at the wrong minimum beside a plain term).
 
 ## v0.2.0 (2026-04-11)
 
