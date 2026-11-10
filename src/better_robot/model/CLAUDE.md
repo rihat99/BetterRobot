@@ -54,12 +54,6 @@ model tensors in place.
 
 ## Extending joints
 
-Subclass `JointModel` in `joints/` as a `@final` frozen dataclass declaring
-`nq`, `nv`, `manifold` and `axis`, run `better_robot.testing.check_joint_model`
-on it and export it from `src/better_robot/model/__init__.py`; `src/better_robot/io/model_from_ir.py` needs no
-entry, it reads the limits' shape from the kind's `manifold`. `src/better_robot/kinematics/_plans.py` reads a kind's class only for
-the affine fast path; every other kind goes through `placement`. Joints carry
-no kind string. Preserve scalar-last quaternions and linear-first tangents
-throughout.
+A new joint kind: `.claude/skills/add-joint-kind/SKILL.md`.
 
 Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.
