@@ -447,7 +447,7 @@ def context(args: argparse.Namespace, device: torch.device) -> dict[str, Any]:
         "commit": git("rev-parse", "--short", "HEAD"),
         "dirty": bool(git("status", "--porcelain")),
         "command": shlex.join(sys.argv),
-        "package_file": br.__file__,
+        "package_file": os.path.relpath(br.__file__, REPO_ROOT),  # relative: no home directory in a tracked file
         "torch": torch.__version__,
         "python": platform.python_version(),
         "device": args.device,
