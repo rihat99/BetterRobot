@@ -29,7 +29,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | Rule | Enforcer |
 |------|----------|
 | C-NAME-1 | `tests/contract/test_ruff_ratchets.py`, `[review]` |
-| C-NAME-2 | `tests/contract/test_ruff_ratchets.py`, `tests/contract/test_naming.py`, `tests/contract/test_vocabulary.py` |
+| C-NAME-2 | `tests/contract/test_ruff_ratchets.py`, `tests/contract/test_naming.py`, `tests/contract/test_vocabulary.py`, `tests/contract/test_vocabulary.py::test_glossary_words` |
 | C-NAME-3 | `tests/contract/test_name_words.py::test_layout_words_name_converters_only` |
 | C-NAME-4 | `tests/contract/test_name_words.py::test_public_quantities_are_in_si_units`, `tests/contract/test_name_words.py::test_frame_means_a_robot_frame_in_the_viewer` |
 | C-NAME-5 | `tests/contract/test_se3_vocabulary.py` |
