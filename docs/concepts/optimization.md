@@ -2,7 +2,7 @@
 
 `better_robot.optim` minimizes a sum of terms over named tensors. After this page you can build a
 `Problem`, write terms as plain functions, pick a solver, and check an analytic Jacobian.
-The package imports only torch; robot terms live in `better_robot.terms`.
+The package imports torch and `better_robot.exceptions` only; robot terms live in `better_robot.terms`.
 
 ## A problem is variables, data and terms
 

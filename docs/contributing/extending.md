@@ -33,8 +33,8 @@ parity test when Pinocchio has the same joint (see [Testing](testing.md)).
 
 A term is a plain function: it reads named variables and cached values and returns a residual with
 the problem's leading batch axes and a flat event axis. [Write a term](../guides/write-a-term.md) is
-the full guide. Robot-aware terms go in `better_robot.terms`; `better_robot.optim` imports only torch
-and must not learn about robots.
+the full guide. Robot-aware terms go in `better_robot.terms`; `better_robot.optim` imports torch and
+`better_robot.exceptions` only, and must not learn about robots.
 
 ## Add a viewer layer
 
