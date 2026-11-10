@@ -86,11 +86,8 @@ target-version = "py312"
 select = ["E", "F", "PLC", "PLE", "PLR", "PLW", "B006", "B008", "T201", "E722", "TID251",
           "FBT001", "FBT002", "BLE001", "ERA001", "ANN201"]
 ignore = ["E501", "PLR0913", "PLR2004"]
-# Contract rules deferred until the polish phase clears their violations (counts on 2026-10-07, `src/` only):
-#   "N"      113  C-NAME-2 (needs per-file ignores for N803/N806 in lie, spatial, kinematics, dynamics)
-#   "D"      305  C-DOC-1  (numpy convention; D1xx on public names only)
-#   "ANN001" 132  C-TEST-2
-#   "SLF001"  31  C-EXT-3
+# Contract rules with open sites in `src/` run as shrink-only ratchets in tests/contract/test_ruff_ratchets.py, not
+# here: "N" (C-NAME-2), "D1" (C-DOC-1), "ANN001" (C-TEST-2), "SLF001" (C-EXT-3).
 # Enabled above with open violations in `src/` (counts on 2026-11-06; `ruff check src --statistics` lists them):
 #   FBT001 7, FBT002 3, BLE001 1.
 
@@ -98,6 +95,10 @@ ignore = ["E501", "PLR0913", "PLR2004"]
 "tests/**" = ["ANN201", "FBT001", "FBT002", "ERA001"]
 "examples/**" = ["ANN201", "T201"]
 "benchmarks/**" = ["T201"]  # scripts that report on stdout, as the examples do
+"src/better_robot/{lie,spatial,kinematics,dynamics}/**" = ["N803", "N806"]  # monogram names in math code, C-NAME-1
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"  # C-DOC-1; it documents __init__ in the class docstring, so D107 is off
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "torch.set_default_dtype".msg = "C-DEP-3: no process-wide torch settings inside the library"
