@@ -4,6 +4,5 @@
   "MIGRATION.md: scripts/motion/optimize_motion.py:211": "cites a line number; cite path::symbol",
   "MIGRATION.md: tools/geometry/icp.py": "cites a path that is not tracked",
   "MIGRATION.md: tools/geometry/icp.py:58": "cites a line number; cite path::symbol",
-  "docs/contracts/decisions/0011-caches-and-plans.md: tests/contract/test_compile_counters.py": "the record's enforcement test, written by the work package that implements the record",
   "pyproject.toml: pinocchio/__init__.py": "a file of the installed pinocchio package; name the package, not a path"
 }

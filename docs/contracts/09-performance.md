@@ -39,11 +39,12 @@ implementation (record [0001](decisions/0001-torch-only.md)): no C++ extension, 
 
 Enforcement: `tests/contract/test_performance_rules.py::test_src_compiles_nothing_and_builds_no_kernel`.
 
-## Benchmarks
+## C-PERF-3 The counters of the hot entry points do not grow (MUST)
 
-The benchmarks under `tests/bench/` (`-m bench`) time forward kinematics, the Jacobians, `integrate` and
-`difference`, the Lie functions and the IK solve; [Benchmark and profile](../guides/benchmark-and-profile.md) runs
-them. They are measurements, not a gate: an optimisation shows its benchmark before and after in its review, and
-a cache or fused kernel lands only with that measurement. No rule has the id `C-PERF-3`: a benchmark is not a gate.
-`C-PERF-4` ("Measure before optimising") is retired: what it asked is the review practice above, which no test
-can check, and its ID is not reused.
+`benchmarks/run.py --counters-only` measures, on CPU, the graph breaks, recompiles, top-level operators and
+host-syncing operators of every hot entry point and compares them with `benchmarks/thresholds/torch-<version>.json`;
+a counter above its threshold fails. Wall time is a measurement, not a gate: an optimisation shows
+`benchmarks/run.py` before and after in its review ([Benchmark and profile](../guides/benchmark-and-profile.md)).
+`C-PERF-4` ("Measure before optimising") is retired and its ID is not reused.
+
+Enforcement: `tests/contract/test_compile_counters.py`.

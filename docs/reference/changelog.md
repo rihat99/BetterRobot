@@ -138,6 +138,10 @@ that 0.3.0 renames or removes, one table row each.
   without an output fence and a fence that exits early are reported.
 - The contributing pages are gone: [extending](../guides/extend.md) and [running the tests](../guides/run-the-tests.md)
   are guides, and [the test suite](tests.md) is reference.
+- `benchmarks/run.py` is the one benchmark runner: the full tier fails when a graph break, recompile, operator or
+  host sync of its counter rows (forward kinematics, Jacobian, RNEA, CRBA, ABA, `solve_ik`) exceeds
+  `benchmarks/thresholds/torch-<version>.json` (`tests/contract/test_compile_counters.py`); wall time is recorded
+  with the load average and page faults, never gated.
 
 ### Removed
 - `ModelStructure`, `ModelValues`, `Model.structure`, `Model.values`: use the fields of `Model`.
@@ -259,9 +263,11 @@ that 0.3.0 renames or removes, one table row each.
   implementation.
 - `Visualizer`, `SkeletonMode`, `URDFMeshMode`, `TrajectoryPlayer`: use `Viewer` with `robot_skeleton`,
   `RigidMeshLayer` and its `Timeline`.
-- The development dependencies `hypothesis`, `pyperf`, `mypy`, `jaxtyping`, `pytest-benchmark`, `pytest-cov`,
-  `pytest-xdist`, `matplotlib` and the GitHub Actions workflow: no replacement; nothing used them, and the test
-  tiers run by local command and hooks.
+- The development dependencies `hypothesis`, `pyperf`, `mypy`, `jaxtyping`, `pytest-cov`, `pytest-xdist`,
+  `matplotlib` and the GitHub Actions workflow: no replacement; nothing used them, and the test tiers run by local
+  command and hooks.
+- The `bench` pytest marker, the `tests/bench/` micro-benchmarks and `pytest-benchmark`, which ran them: use
+  `benchmarks/run.py`, whose counter rows the full tier gates.
 
 ### Fixed
 - The MJCF parser places capsule and cylinder `fromto` geometry as MuJoCo's compiler does.

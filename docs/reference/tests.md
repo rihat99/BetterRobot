@@ -8,7 +8,6 @@ What each group of tests guards. How to run them: [Run the tests](../guides/run-
 |--------|---------|
 | `slow` | takes seconds; deselected in the fast tier, run in the full tier |
 | `cuda` | needs a CUDA device; deselected in the fast and full tiers |
-| `bench` | micro-benchmarks in `tests/bench/`; deselected in every tier |
 
 ## Pinocchio parity
 
