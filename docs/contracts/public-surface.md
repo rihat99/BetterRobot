@@ -11,7 +11,7 @@ maintainers keep in return, and which changes count as compatible.
 | Public | a dotted path whose every segment is in its parent's `__all__` (C-EXT-3); the tracked snapshot `tests/contract/public_api.json` lists them all with their signatures |
 | Canonical | the root for the fourteen first-level names (record [0019](decisions/0019-root-namespace.md)), else the package whose `__all__` lists the name |
 | Users may | call public names; add a joint kind by subclassing `model.JointModel`, a solver by subclassing `optim.Solver`, a viewer layer by subclassing `viewer.Layer`; write a term as a plain function and a parser as a function returning `io.IRModel` (record [0025](decisions/0025-extension-model.md)) |
-| Users may not | subclass a concrete class (every one is `@final`); rely on dataclass field order (fields after the first two are keyword-only); import a `_` name, or `tests/`, `examples/` or `tools/` |
+| Users may not | subclass a concrete class (every one is `@final`); rely on dataclass field order (fields after the first two are keyword-only); import a `_` name, or `tests/`, `examples/` or `tools/`; the one exception is `viewer.Layer`'s subclass hooks `_track`, `_store_opacity` and `_fade`, which a layer subclass calls ([Extend BetterRobot](../guides/extend.md#a-viewer-layer)) |
 | Experimental | nothing in this release |
 
 ## Horizons

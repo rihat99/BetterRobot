@@ -60,6 +60,20 @@ def test_output_fences_follow_python(page: Path) -> None:
         )
 
 
+EXTEND = DOCS / "guides" / "extend.md"
+PROGRAM = re.compile(r"^```python\n.*?^```\n(?:```output\n.*?^```\n)?", re.MULTILINE | re.DOTALL)
+
+
+@pytest.mark.parametrize(
+    "program", [pytest.param(p, id=f"program{i}") for i, p in enumerate(PROGRAM.findall(EXTEND.read_text()))]
+)
+def test_each_extension_program_runs_alone(program: str, tmp_path: Path) -> None:
+    """A reader copies one brick: each program of the extension guide runs, in a fresh interpreter, to its output."""
+    page = tmp_path / "program.md"
+    page.write_text(program)
+    assert check_page(page, root=tmp_path) == program.count("```output")
+
+
 def test_index_has_runnable_snippet() -> None:
     """The landing page example is part of the snippet run."""
     assert re.search(r"^```python\n", (DOCS / "index.md").read_text(), re.MULTILINE)

@@ -39,16 +39,19 @@ parser registry (`tests/contract/test_extension_points.py`).
 
 ```python { .no-run }
 # good: a kind subclasses the base and is passed where it is used
+LINE = JointManifold(name="line", nq=1, nv=1, integrate=lambda q, v: q + v, difference=lambda q0, q1: q1 - q0)
+
+
 @final
 @dataclass(frozen=True)
-class JointRevolute(JointModel):
-    axis: tuple[float, float, float]
+class JointDrop(JointModel):
     nq: ClassVar[int] = 1
     nv: ClassVar[int] = 1
-    manifold: ClassVar[Manifold] = EUCLIDEAN
-builder.add_joint("elbow", kind=JointRevolute(axis=(0.0, 1.0, 0.0)), parent="upper_arm", child="forearm")
+    manifold: ClassVar[JointManifold] = LINE
+    axis: ClassVar[None] = None
+builder.add_joint("drop", kind=JointDrop(), parent="base", child="tip")
 # bad: a kind string looked up in a registry
-register_joint("revolute", JointRevolute)
+register_joint("drop", JointDrop)
 ```
 
 Enforcement: `tests/contract/test_abstract_or_final.py` (every class in `model.joints` and `model.manifolds` is
