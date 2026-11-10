@@ -1,6 +1,7 @@
-"""The one input validator of the library (contract 06, C-ERR-1): `lie`, `spatial` and the `model` boundaries call it.
+"""The one input validator of the library (contract 06, C-ERR-1).
 
-It reads types, trailing shapes, dtypes and devices, never tensor values.
+The boundaries of `lie`, `spatial`, `model`, `kinematics`, `dynamics`, `collision`, `io` and `terms` call it. It reads
+types, trailing shapes, dtypes and devices, never tensor values.
 """
 
 from __future__ import annotations
