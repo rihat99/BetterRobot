@@ -15,7 +15,7 @@ from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.io.ir import IRBody, IRFrame, IRJoint, IRModel
 from better_robot.kinematics import subtree
-from better_robot.exceptions import ModelError, UnknownNameError
+from better_robot.exceptions import DtypeMismatchError, ModelError, UnknownNameError
 from better_robot.model.joints import (
     JointFixed,
     JointFreeFlyer,
@@ -53,6 +53,12 @@ def _simple_arm_ir():
         effort_limit=100.0,
     )
     return b.finalize()
+
+
+@pytest.mark.parametrize("dtype", [torch.int64, torch.float16, torch.complex64, "float32"], ids=str)
+def test_a_dtype_other_than_float32_or_float64_is_refused(dtype):
+    with pytest.raises(DtypeMismatchError, match="is not float32 or float64; pass torch.float32 or torch.float64"):
+        build_model(_simple_arm_ir(), dtype=dtype)
 
 
 def test_frozen():

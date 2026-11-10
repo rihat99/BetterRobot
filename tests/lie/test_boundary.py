@@ -11,6 +11,7 @@ import torch
 
 from better_robot.exceptions import DtypeMismatchError, ShapeError
 from better_robot.lie import se3, so3, tangents
+from better_robot.lie._checks import check_dtype
 
 #: ``module.function`` -> trailing shape of each tensor parameter, in order (``()`` takes any shape).
 PARAMETERS: dict[str, tuple[tuple[int, ...], ...]] = {
@@ -87,3 +88,10 @@ def test_public_function_rejects_bad_inputs(qualified: str) -> None:
         if index:
             with pytest.raises(DtypeMismatchError, match=r"\.dtype=torch\.float64 != "):
                 call(valid[index].double())
+
+
+def test_the_dtype_rule_keeps_float32_and_float64() -> None:
+    """``check_dtype`` is the rule ``io.build_model`` applies to its ``dtype`` argument."""
+    assert check_dtype(torch.float64) is torch.float64
+    with pytest.raises(DtypeMismatchError, match="dtype=torch.int64 is not float32 or float64"):
+        check_dtype(torch.int64)

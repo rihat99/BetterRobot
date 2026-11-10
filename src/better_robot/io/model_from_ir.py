@@ -18,6 +18,7 @@ import torch
 from .. import _internal_checks
 from ..exceptions import ModelError
 from ..lie import se3
+from ..lie._checks import check_dtype
 from ..model.joints import JointFixed, JointHelical, JointModel, JointPrismatic, JointRevolute
 from ..model.manifolds import CIRCLE, PLANE, RIGID, ROTATION, JointManifold
 from ..model.model import Model
@@ -506,8 +507,10 @@ def build_model(
     (or ``ir.root_body``); ``root_joint`` replaces the joint that holds it under the universe (a ``JointFixed``
     when the description wrote none). Joints follow the description's order wherever it is topological; a body is
     named by the joint that moves it and gets a frame of its own name. The neutral configuration is clamped into
-    the limits. A description that cannot be a robot raises ``ModelError``.
+    the limits. A description that cannot be a robot raises ``ModelError``; a ``dtype`` other than float32 or float64
+    raises ``DtypeMismatchError``.
     """
+    check_dtype(dtype)
     root = _root(ir, root_joint)
     topology = _topology(ir, root, _joint_order(ir, root.body, root.regular), dtype)
     full = _layout(tuple(joint.nq for joint in topology.joints), tuple(joint.nv for joint in topology.joints))
