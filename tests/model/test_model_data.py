@@ -159,6 +159,12 @@ def test_random_configuration_draws_on_the_model_device():
     assert bool(torch.isfinite(q).all())
 
 
+def test_random_configuration_requires_a_generator():
+    """A draw never falls back to the global random stream (principle 5.1)."""
+    with pytest.raises(ArgumentError, match="generator"):
+        _make_simple_model().random_configuration(generator=None)
+
+
 def test_random_configuration_rejects_unlimited_prismatic():
     builder = ModelBuilder("slider")
     base = builder.add_body("base")
