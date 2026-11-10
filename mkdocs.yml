@@ -2,6 +2,8 @@ site_name: BetterRobot
 site_description: PyTorch-native, batched, differentiable kinematics, dynamics, optimisation and visualisation.
 docs_dir: docs
 strict: true
+validation:
+  anchors: warn  # with strict, a link to a missing heading fails the build
 
 theme:
   name: material
