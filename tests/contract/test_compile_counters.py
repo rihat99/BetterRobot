@@ -28,7 +28,7 @@ def test_cpu_counters_stay_within_their_thresholds(tmp_path: Path) -> None:
     completed = subprocess.run(command, cwd=REPO, env=env, capture_output=True, text=True, timeout=900, check=False)
     assert completed.returncode == 0, (
         "a CPU counter is above its threshold (record 0011): remove what added it; a change that needs it, or that "
-        "lowers a counter, rewrites benchmarks/thresholds/ from a clean commit in a commit of its own with a Why: line\n"
+        "lowers one, rewrites benchmarks/thresholds/ on a clean commit in a commit of its own with a Why: line\n"
         + completed.stdout[-4000:]
         + completed.stderr[-2000:]
     )

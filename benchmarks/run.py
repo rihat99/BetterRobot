@@ -23,17 +23,17 @@ Sweep rows (principle 5.7) time ``{fk,jacobian,rnea,crba,aba}`` over ``--models`
 ``host_syncs`` of one call, plus Pinocchio float64 reference rows at batch 1 when ``pinocchio`` imports.
 
 Wall time is the median of up to ``--repeats`` calls (at least 3; fewer once a row passes ``ROW_BUDGET_S``) after one
-warm-up call, with the minor page faults per call; the counters are taken after it. It is recorded, never gated: the load average
-sits beside every row. For rows at batch >= ``LARGE_BATCH`` the runner re-executes itself with glibc's allocator
-thresholds fixed (``FIXED_MALLOC``; they must be set before the process starts) and records that time and its page
-faults beside the default ones: the default allocator's dynamic mmap threshold depends on what the process freed
-before, so a large-batch default time can double from page faults alone. A "no slower" verdict at those rows reads
-the fixed-threshold number.
+warm-up call, with the minor page faults per call; the counters are taken after it. It is recorded, never gated: the
+load average sits beside every row. For rows at batch >= ``LARGE_BATCH`` the runner re-executes itself with glibc's
+allocator thresholds fixed (``FIXED_MALLOC``; they must be set before the process starts) and records that time and
+its page faults beside the default ones: the default allocator's dynamic mmap threshold depends on what the process
+freed before, so a large-batch default time can double from page faults alone. A "no slower" verdict at those rows
+reads the fixed-threshold number.
 
 Every number is float32, ``--threads`` Torch threads (default 1), ``BETTER_ROBOT_INTERNAL_CHECKS`` off. Output:
-``{"meta": {...}, "rows": [{"row": id, ...}, ...]}`` in ``--out`` (default ``benchmarks/results/<commit>_<device>.json``,
-never tracked); ``meta`` records commit, dirty flag, command, torch, Python, device, CPU, threads, affinity, the
-allocator variables and the load average at start and end.
+``{"meta": {...}, "rows": [{"row": id, ...}, ...]}`` in ``--out`` (default
+``benchmarks/results/<commit>_<device>.json``, never tracked); ``meta`` records commit, dirty flag, command, torch,
+Python, device, CPU, threads, affinity, the allocator variables and the load average at start and end.
 """
 
 from __future__ import annotations
@@ -239,7 +239,7 @@ def sweep_cases(args: argparse.Namespace, device: torch.device) -> list[Case]:
 def sweep_call(
     fn: Callable[..., torch.Tensor], q: torch.Tensor, v: torch.Tensor, u: torch.Tensor, *, backward: bool
 ) -> None:
-    """One sweep call: forward under ``no_grad``, or forward and the backward of ``sum(output)`` with respect to ``q``."""
+    """One sweep call: forward under ``no_grad``, or forward and the backward of ``sum(output)`` w.r.t. ``q``."""
     if backward:
         fn(q.detach().requires_grad_(True), v, u).sum().backward()
         return
@@ -300,14 +300,15 @@ def time_ms(call: Callable[[], object], sync: Callable[[], None], repeats: int, 
         sync()
         samples.append((time.perf_counter() - start) * 1e3 / inner)
         # at least 3 samples, except when one call alone exceeds the row budget (slow large-batch rows)
-        if (len(samples) >= 3 or samples[0] > ROW_BUDGET_S * 1e3) and time.perf_counter() - budget_start > ROW_BUDGET_S:
+        enough = len(samples) >= 3 or samples[0] > ROW_BUDGET_S * 1e3
+        if enough and time.perf_counter() - budget_start > ROW_BUDGET_S:
             break
     faults = (resource.getrusage(resource.RUSAGE_SELF).ru_minflt - faults) / (len(samples) * inner)
     return {"median_ms": statistics.median(samples), "min_ms": min(samples), "page_faults": faults}
 
 
 def measure(case: Case, args: argparse.Namespace, sync: Callable[[], None]) -> dict[str, Any]:
-    """The output row of one case: a warm-up call, wall time unless ``--counters-only``, counters unless ``--timing-only``."""
+    """One case's row: a warm-up call, wall time unless ``--counters-only``, counters unless ``--timing-only``."""
     row: dict[str, Any] = {"row": case.row, "batch": case.batch, **case.fields, "loadavg": loadavg()}
     result = case.call()
     if case.report is not None:
