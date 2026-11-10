@@ -80,7 +80,8 @@ checks that every image, poster and clip a page references exists; `tests/docs/t
 that the README's first Python fence and the output fence under it close by line 40, and
 `tests/docs/test_effects_table.py` reruns the contract tests behind the [effects table](effects.md) and
 compares the page with a fresh render, and `tests/docs/test_codemap.py` checks that the layer section of
-[Architecture](../concepts/architecture.md) lists the `ALLOWED` edge table. The rules for a page:
+[Architecture](../concepts/architecture.md) lists the `ALLOWED` edge table, and `tests/docs/test_contracts_map.py`
+checks that the contracts map figure shows each rule family's kinds of check as the contracts index gives them. The rules for a page:
 
 | Fence | Meaning |
 |---|---|
