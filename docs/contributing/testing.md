@@ -105,7 +105,7 @@ clip a page references exists. The rules for a page:
 uv run pytest tests/docs -q -k load-a-robot                                     # one page
 BR_DOCS_CAPTURE=1 BR_DOCS_CAPTURE_DIR=/tmp/out uv run pytest tests/docs -q -k load-a-robot   # write real outputs
 uv run mkdocs build --strict                                                    # broken links fail the build
-BETTER_ROBOT_CHROME=<chromium> node scripts/docs_screenshots.mjs /tmp/shots     # every page as light/dark PNGs
+BETTER_ROBOT_CHROME=<chromium> node tools/docs_screenshots.mjs /tmp/shots       # every page as light/dark PNGs
 ```
 
 The capture run writes `<page>.outputs.json` with each block's stdout; paste it into the `output` fence. Look at
