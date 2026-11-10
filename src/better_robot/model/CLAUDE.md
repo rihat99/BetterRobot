@@ -1,65 +1,31 @@
-# `model/` — Robot Identity
+# model/ traps
 
-`Model` (`model.py`) is one flat frozen dataclass: static fields (names, joints,
-parent joint ids, the `q`/`v` layout, the resolved mimic chain) and eleven tensor
-fields (placements, inertias, limits, armature, damping, gravity, `q_neutral`).
-The class docstring holds the field table. Query results live in a frozen
-`KinematicState` (`src/better_robot/kinematics/forward.py`), never on the model; do not mutate
-model tensors in place.
+The field table is the `Model` class docstring (`model.py`); the plan sharing between copies is explained beside
+`_plan_owner`.
 
-- No `__post_init__` validation: `src/better_robot/io/model_from_ir.py` constructs the record;
-  `Model.with_values(**fields)` is the validated public rebind (every tensor
-  field; placements normalised; the three `I...`-batched fields must broadcast)
-  and `Model.to(device, dtype)` moves every tensor field. Both return a new
-  record that shares its source's plans (through `_plan_owner`) and starts
-  with an empty value memo. The link is strong on purpose: a copy keeps the
-  first model of its line (tensors, value memo, plans) alive and pickles it
-  along; a weak link would break pickling and drop the sharing.
-- `nq`, `nv`, `njoints`, `dtype`, `device`, ... are derived properties. Never
-  add forwarding properties or `__getattr__`.
-- `structure_key` hashes the static fields: equal keys mean the same topology
-  and index tables.
-- Plans (constant tensors derived from the static fields: FK, Jacobian,
-  dynamics, mimic, manifold) are built on first use by
-  `Model._plan(kind, build, *, dtype, device)` and kept in `_plans`
-  (`init=False`, never copied; a copy with the same `structure_key` takes its
-  `_plan_owner`'s plan instead of building one). The model is a registered
-  pytree: leaves are the tensor fields, context the static fields (not the
-  plan link).
-- Every public boundary checks each tensor input once with the one validator,
-  `src/better_robot/lie/_checks.py::check_tensor` (a dtype or device other than the model's
-  raises), then aligns its batch with `_checks.py` (`batch_shape`,
-  `expand_batch`); raw passes trust the result.
-- `manifolds.py` holds the six `JointManifold`s (fixed, Euclidean, circle, rotation,
-  plane, rigid): `integrate`/`difference` written once each as the group exponential
-  and logarithm; `src/better_robot/kinematics/configuration.py` groups the public coordinates by
-  manifold and runs one batched call per group behind `kinematics.integrate`
-  and `kinematics.difference`.
-- `joints/` holds the abstract `JointModel` and the nine final kinds, one file
-  per kind; `topology.py` the pure tree helpers on `parent_joint_ids`.
-
-## Coordinate rules
-
-- Joint 0 is the zero-DOF universe; a floating base is joint 1 as
-  `JointFreeFlyer`. Index order is a topological order (`parent_joint_ids[i] < i`).
-- `nq != nv` for manifold joints. Use `kinematics.integrate` and
-  `kinematics.difference`; use `idx_qs`/`idx_vs` for slices.
-- `Model.q_permutation` supplies scalar gather tables for external joint
-  orders and supports arbitrary leading batches.
-- Mimic targets have zero-width public slices. `mimic_source_ids`,
-  `mimic_multipliers` and `mimic_offsets` hold each target's resolved chain
-  (public root joint, total scale, total offset); `src/better_robot/kinematics/configuration.py`
-  builds the expansion maps from them, and `src/better_robot/io/model_from_ir.py` reduces the
-  limits with the same chain.
-
-## Extending joints
-
-Subclass `JointModel` in `joints/` as a `@final` frozen dataclass declaring
-`nq`, `nv`, `manifold` and `axis`, run `better_robot.testing.check_joint_model`
-on it and export it from `src/better_robot/model/__init__.py`; `src/better_robot/io/model_from_ir.py` needs no
-entry, it reads the limits' shape from the kind's `manifold`. `src/better_robot/kinematics/_plans.py` reads a kind's class only for
-the affine fast path; every other kind goes through `placement`. Joints carry
-no kind string. Preserve scalar-last quaternions and linear-first tangents
-throughout.
-
-Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.
+- A model is a value: never edit its tensors in place. Queries memoise placement matrices and inertias on the model
+  (record 0040), so an edited model keeps serving the old values.
+  ```python
+  # Right: a validated copy that shares the plans and starts with an empty value memo.
+  model = model.with_values(joint_placements=placements)
+  # Wrong: forward kinematics keeps the matrices it memoised before the edit.
+  model.joint_placements[3, 2] += 0.1
+  ```
+  `Model.to(device, dtype)` moves every tensor field the same way. `Model(...)` itself validates nothing (no
+  `__post_init__`): `src/better_robot/io/model_from_ir.py` builds the record, and `with_values` is the public rebind.
+- A new field goes into the class docstring table as `static` or `tensor`; no property forwards to a part, and
+  there is no `__getattr__` (`tests/contract/test_model_fields.py`). `nq`, `nv`, `njoints`, `dtype` and `device`
+  are derived.
+- Constant tensors derived from the static fields are plans, built once per dtype and device by
+  `Model._plan(kind, build, *, dtype=, device=)`; no other cache exists (`tests/contract/test_caches.py`).
+- Every public boundary checks each tensor input once with `src/better_robot/lie/_checks.py::check_tensor` (a dtype
+  or device other than the model's raises) and aligns its batch with `batch_shape` and `expand_batch`; raw passes
+  trust the result (`tests/contract/test_boundary_validation_count.py`).
+- Joint 0 is the zero-DOF universe; a floating base is joint 1, a `JointFreeFlyer`. Index order is topological
+  (`parent_joint_ids[i] < i`).
+- `nq != nv` for manifold joints: step and subtract with `kinematics.integrate` and `kinematics.difference`, and
+  slice a joint's coordinates with `idx_qs`/`idx_vs`, never with its joint id.
+- Mimic targets have zero-width public slices. `mimic_source_ids`, `mimic_multipliers` and `mimic_offsets` hold each
+  target's resolved chain; `kinematics.full_configuration` expands `q` to every joint's coordinates.
+- `Model.q_permutation` gives the gather tables for another tool's joint order; do not reorder `q` by hand.
+- A new joint kind: `.claude/skills/add-joint-kind/SKILL.md`.

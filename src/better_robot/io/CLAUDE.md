@@ -1,27 +1,11 @@
-# `io/` — Parsing and Model Construction
+# io/ traps
 
-```text
-URDF | MJCF | ModelBuilder -> IRModel -> build_model -> Model
-```
+The stages of `build_model` are described in `model_from_ir.py`, each parser in its own module docstring.
 
-Parsers own source-format interpretation and emit flat IR records, whose
-order `build_model` keeps wherever it is topological. `build_model` owns tree validation, joint order, reduced mimic
-coordinates, packed tensors, frames and limits, as named stages into one
-`Model(...)`. Do not move format-specific cases into kinematics or dynamics.
-
-`load(path, *, format=None, root_joint=None, device=None, dtype=...)` takes a
-path only and picks the parser by suffix or `format`; `root_joint=` replaces
-the joint under the universe (`JointFreeFlyer()` floats the base). Joints keep
-the source's order wherever it is topological (a Kahn sort, parents first); a
-body's frame carries the body's name; `q_neutral` is each IR joint's `neutral`
-(MJCF `qpos0`) or the kind's, clamped into the limits.
-
-`ModelBuilder` and file parsers meet at the IR boundary: every `IRJoint`
-carries its `JointModel` (`ModelBuilder.add_joint(kind=)` takes any instance).
-Mimic tags stay on supported concrete scalar joints and are resolved centrally
-by `build_model`.
-
-For a new format, write a function returning `IRModel` and pass its result to
-`build_model`; there is no registry, and model construction does not change.
-
-Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.
+- Format cases stay in the parsers: kinematics, dynamics and model never learn a file format, and none of them
+  may import `io` (`tests/contract/test_layer_dependencies.py`).
+- A check of a robot description goes into `build_model`, the one boundary every description passes
+  (`ModelBuilder`, URDF, MJCF, an `IRModel` written by hand), not into one parser.
+- MJCF goes through MuJoCo's compiler (record 0036): never read MJCF XML yourself.
+- A new format is a function that returns an `IRModel`, passed to `build_model`; there is no parser registry
+  (`tests/contract/test_extension_points.py`, record 0025).

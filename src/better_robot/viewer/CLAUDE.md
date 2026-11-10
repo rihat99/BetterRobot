@@ -1,12 +1,7 @@
-# viewer — agent guide
+# viewer/ traps
 
-One viewer on viser. Read `docs/concepts/viewer.md` first.
+The design is `docs/concepts/viewer.md`; read it first.
 
-- `viewer.py` (`Viewer`), `timeline.py`, `layer.py` (`Layer`, `as_frames`), `theme.py` (colours) are the core;
-  `_lie.py` runs every quaternion operation through `better_robot.lie` on numpy arrays (no numpy copy of `lie`);
-  `_primitives.py` holds the unit meshes; `layers/`
-  are the built-in layers; `robot.py` is the only file that knows `Model`; `tools/` are gizmo and
-  picking; `capture.py` drives a headless Chromium for `Viewer.record`.
 - Public callables take at most two positional parameters (a layer: its name and main array); the rest are
   keyword-only.
 - Layers take numpy `(T, ...)` arrays (`as_frames` promotes static input to `T = 1`) and keep them by
@@ -20,10 +15,10 @@ One viewer on viser. Read `docs/concepts/viewer.md` first.
   a `(T, N)` one in `set_step`. Tools register scene-pointer callbacks only through `Viewer.on_pointer` /
   `clear_pointer` (one callback at a time, a second registration raises; on viser's `scene.on_click` /
   `on_rect_select`).
-- viser is imported in `viewer.py` only; trimesh in `robot.py` only; no pyrender/imageio
-  (`tests/contract/test_layer_dependencies.py`). The core never imports BetterHuman.
+- `_lie.py` runs every quaternion operation through `better_robot.lie` on numpy arrays: no numpy copy of `lie`.
+- The viewer's outside imports are torch, numpy, viser, pillow and trimesh, nothing else (no BetterHuman, no
+  pyrender or imageio: `tests/contract/test_optional_imports.py`); viser is imported in `viewer.py` and trimesh in
+  `robot.py`, each inside the function that needs it.
 - Default host is `127.0.0.1`; tests use the stand-in `better_robot.testing.FakeServer`, plus one loopback smoke test.
 - A layer that should frame the camera of `Viewer.record` and `Viewer.aim` implements `world_points(step)` (world
   positions `(N, 3)`); the default `None` keeps it out of the fit.
-
-Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.
