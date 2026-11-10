@@ -95,6 +95,7 @@ def test_the_controls_an_app_adds_read_back_their_initial_values() -> None:
     gui = FakeServer().gui
     assert gui.add_dropdown("Family", ("smpl", "mhr")).value == "smpl"
     assert gui.add_dropdown("Gender", ("neutral", "male"), initial_value="male", disabled=True).value == "male"
+    assert gui.add_slider("LOD", min=0, max=2, step=1, initial_value=1, disabled=True).value == 1
     assert gui.add_text("Pose name", initial_value="pose").value == "pose"
     assert gui.add_number("Density", initial_value=985.0).value == 985.0
     assert gui.add_markdown("**smpl**").content == "**smpl**"
@@ -161,7 +162,9 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
     viewer.play(block=True)
     tabs = server.gui.add_tab_group()  # the GUI calls of an app built on the viewer (BetterHuman's studio)
     with tabs.add_tab("Model"):
-        server.gui.add_dropdown("Family", ("smpl", "mhr")).value = "mhr"
+        server.gui.add_dropdown("Family", options=("smpl", "mhr"), initial_value="smpl").value = "mhr"
+        server.gui.add_dropdown("Gender", options=("neutral",), initial_value="neutral", disabled=True).disabled = False
+        server.gui.add_slider("LOD", min=0, max=2, step=1, initial_value=0, disabled=False).disabled = True
         server.gui.add_text("Pose name", initial_value="pose").value = "pose 2"
         server.gui.add_number("Density", initial_value=985.0).value = 1000.0
         server.gui.add_markdown("").content = "**smpl**"
@@ -183,3 +186,4 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
             assert callable(getattr(real, method, None)), f"the viewer calls {method}() on a {handle.kind}"
     assert {"MeshSkinnedBoneHandle.wxyz", "GuiFolderHandle.__enter__()", "TransformControlsHandle.on_update()"} <= used
     assert {"GuiTabGroupHandle.add_tab()", "GuiTabHandle.__enter__()", "GuiMarkdownHandle.content"} <= used
+    assert {"GuiDropdownHandle.disabled", "GuiSliderHandle.disabled"} <= used

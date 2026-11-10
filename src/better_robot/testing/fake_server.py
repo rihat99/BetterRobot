@@ -83,10 +83,10 @@ class FakeHandle:
         for callback in self.callbacks:
             callback(event)
 
-    def add_tab(self, label: str, icon: Any = None) -> FakeHandle:
+    def add_tab(self, label: str) -> FakeHandle:
         """viser's tab of a tab group: a ``GuiTabHandle``, a context manager for the controls in the tab."""
         self.calls.append("add_tab")
-        tab = FakeHandle(None, "GuiTabHandle", label, {"icon": icon})
+        tab = FakeHandle(None, "GuiTabHandle", label, {})
         self.__dict__.setdefault("tabs", []).append(tab)
         return tab
 
@@ -376,6 +376,7 @@ class FakeGui:
         step: float,
         initial_value: float,
         *,
+        disabled: bool = False,
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
