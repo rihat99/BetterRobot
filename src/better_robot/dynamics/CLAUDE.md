@@ -1,12 +1,6 @@
-# dynamics/ — inverse and forward dynamics, mass matrix, centroidal quantities
+# dynamics/ traps
 
-Entry points, all on `(model, state, ...)` with `state = forward_kinematics(model, q)`:
-`inverse_dynamics(*, v, a, external_forces=None)` (`inverse.py`), `mass_matrix`,
-`forward_dynamics(*, v, tau, external_forces=None)` (`forward.py`), `center_of_mass`, `centroidal_map`,
-`centroidal_momentum(*, v)` (`centroidal.py`). Design notes and numbers live in the `_world.py` docstring;
-contracts in `docs/contracts/00-index.md`.
-
-## Traps
+The design notes and their numbers live in the `_world.py` docstring.
 
 - `_world.py` is the only implementation: no per-joint loops, no second RNEA. Sums over ancestors or subtrees
   are products with the constant support matrices of `DynamicsPlan`.
@@ -22,5 +16,5 @@ contracts in `docs/contracts/00-index.md`.
 - `model.armature (nv,)` is added in the public wrappers (`+ armature * a`, `+ diag`), never in `_world`;
   centroidal quantities exclude it, as in Pinocchio.
 - The kernel calls `spatial`'s unchecked `*_raw` twins; only the public wrappers check inputs, once.
-- Frame changes use the joint rotation matrices; the quaternion `spatial.transform_*` cost 2-3x here.
+- Frame changes use the joint rotation matrices, not the quaternion `spatial.transform_*` (why: `_world.py`).
 - Pinocchio parity (`tests/parity/pinocchio/`) is the oracle; never weaken it.

@@ -1,17 +1,17 @@
-# kinematics/ — forward kinematics, Jacobians, configuration steps
+# kinematics/ traps
 
-Entry points: `forward_kinematics(model, q, *, check_quaternion_norm=False) -> KinematicState`;
-`frame_jacobian`, `joint_jacobian`, `point_jacobian`, `frame_jacobian_time_variation` and
-`joint_jacobian_time_variation` on `(model, state, *, ...)`; `integrate`, `difference`, `full_configuration`,
-`euclidean_columns` (`configuration.py`); `subtree`, `support` (`tree.py`). Design notes and numbers live in the
-module docstrings of `_fk.py`, `_jacobian.py` and `_plans.py`; contracts in `docs/contracts/00-index.md`.
+The design notes and their numbers live in the module docstrings of `_fk.py`, `_jacobian.py` and `_plans.py`.
 
-## Traps
-
-- Jacobians are `local_world_aligned` by default: linear rows are the velocity of the frame origin in world
-  axes, angular rows the world angular velocity. For the body-frame twist pass `reference="local"`. Never
-  apply a full adjoint to an LWA Jacobian (`se3.adjoint_inverse(T) @ J` adds a spurious cross term); by hand,
-  rotate the two row blocks by `R.mT`.
+- Jacobians default to `reference="local_world_aligned"`: linear rows are the velocity of the frame origin in world
+  axes, angular rows the world angular velocity. Ask for the body-frame twist with `reference="local"`; by hand,
+  rotate both row blocks, never apply the full adjoint:
+  ```python
+  # Right: the same as frame_jacobian(model, state, frame=frame, reference="local").
+  R = state.frame_rotations[..., frame, :, :]
+  J_local = torch.cat([R.mT @ J[..., :3, :], R.mT @ J[..., 3:, :]], dim=-2)
+  # Wrong: the full adjoint adds a spurious cross term.
+  J_local = se3.adjoint_inverse(state.frame_poses[..., frame, :]) @ J
+  ```
 - `J̇` pairs with a different acceleration per reference: `world` and `local` close `a = J v̇ + J̇ v` with the
   spatial acceleration, `local_world_aligned` with the classical (point) acceleration of the frame origin.
   Mixing them is an order-one error, not roundoff.
