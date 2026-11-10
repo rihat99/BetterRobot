@@ -200,7 +200,7 @@ class Problem:
     @property
     def weights(self) -> Mapping[str, float | torch.Tensor]:
         """Weight overrides by term name, set by ``with_(weights=)``: a float, or a tensor ``()``, ``(m,)`` or
-        ``(B, m)`` (a residual's width ``m``)."""
+        ``(B, m)`` for a residual of width ``m``, ``()`` or ``(B,)`` for a scalar term."""
         return MappingProxyType(self._weights)
 
     @property
