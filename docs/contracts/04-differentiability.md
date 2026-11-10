@@ -20,8 +20,10 @@ through the solution (implicit function theorem)."""
 return poses.detach()          # inside forward_kinematics
 ```
 
-Enforcement: `tests/autograd/` and `tests/lie/test_torch_backend_gradcheck.py` (`torch.autograd.gradcheck`
-in float64 on every `lie`/`spatial`/`kinematics` entry point); `[review]` for new entry points.
+Enforcement: `tests/contract/test_public_differentiability.py` (gradients reach `q` and the model tensors
+through every public kinematics and dynamics function) and `tests/lie/test_torch_backend_gradcheck.py`
+(`torch.autograd.gradcheck` in float64 on every `lie`/`spatial`/`kinematics` entry point); `[review]` for new
+entry points.
 
 ## C-DIFF-2 `torch.func`-safe: no Python branching on tensor values (MUST)
 
