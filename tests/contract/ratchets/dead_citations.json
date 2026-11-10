@@ -1,3 +1,1 @@
-{
-  "pyproject.toml: pinocchio/__init__.py": "a file of the installed pinocchio package; name the package, not a path"
-}
+{}

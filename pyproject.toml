@@ -72,7 +72,7 @@ filterwarnings = [
     "ignore:`torch.jit.script` is deprecated:DeprecationWarning",
     "ignore:`torch.jit.script_method` is deprecated:DeprecationWarning",
     "ignore:`torch._prims_common.check` is deprecated:FutureWarning",
-    # pin 3.9's `pinocchio/__init__.py` imports `hppfcl`, the deprecated alias of its own dependency coal.
+    # pin 3.9's `pinocchio` package imports `hppfcl` when it loads, the deprecated alias of its own dependency coal.
     "ignore:Please update your 'hppfcl' imports to 'coal':DeprecationWarning",
 ]
 markers = [
