@@ -8,7 +8,8 @@ before you add a module or move a function.
 
 ![Architecture of better_robot: packages stacked by their imports, imports pointing down](../figures/architecture.svg){ width=760 }
 
-*Imports point down the stack; nothing imports the viewer.*
+*Each band imports only from bands below it; the edge table below is exact. No package imports `viewer`, `terms`
+or `testing`, and the private `_internal_checks`, which only `io` imports, is left out.*
 
 The edge table is the `ALLOWED` dictionary of `tests/contract/test_layer_dependencies.py`, which parses every source
 file (imports inside functions and under `TYPE_CHECKING` included) and fails on an import its row does not list.

@@ -4,7 +4,7 @@ After this page you can build a `Model`, swap its differentiable values with `wi
 every field of the `KinematicState` that forward kinematics returns. You will also know which objects
 you may change (none) and how to get a changed copy instead.
 
-![A Model holds static fields and tensor fields; each query produces an immutable KinematicState.](../figures/model_values_state.svg)
+![A Model holds static fields and tensor fields; each query produces an immutable KinematicState.](../figures/model_and_state.svg)
 
 ## A model is one flat record
 
