@@ -1,4 +1,7 @@
-"""Smoke test of ``benchmarks/run.py``: a large-batch row gets wall time, page faults and the fixed-allocator rerun."""
+"""Smoke test of ``benchmarks/run.py``: a large-batch row gets wall time, page faults and the fixed-allocator rerun.
+
+The counters and their thresholds are checked by ``tests/contract/test_compile_counters.py``.
+"""
 
 from __future__ import annotations
 
