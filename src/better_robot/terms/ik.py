@@ -47,7 +47,7 @@ def ik_problem(
 
 
 def random_start(model: Model, q0: torch.Tensor, *, generator: torch.Generator) -> torch.Tensor:
-    """Copy of ``q0: (B, nq)`` with every ``EUCLIDEAN`` coordinate that has finite limits sampled uniformly.
+    """Copy ``(B, nq)`` of ``q0: (B, nq)`` with every ``EUCLIDEAN`` coordinate that has finite limits sampled uniformly.
 
     The draw happens on ``q0``'s device, so ``generator`` must live there.
     """

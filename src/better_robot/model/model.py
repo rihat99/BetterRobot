@@ -254,7 +254,7 @@ class Model:
         return sample
 
     def with_values(self, **fields: torch.Tensor) -> Model:
-        """Copy with the given tensor fields replaced (``joint_placements=``, ``body_inertias=``, ...).
+        """Copy with the given tensor ``fields`` replaced, each ``(I..., *event)`` (``joint_placements=``, ...).
 
         Placements are normalised. ``joint_placements``, ``body_inertias`` and ``frame_placements`` may carry a
         batch ``I...`` that broadcasts across the three; the other fields have exactly their event shape. The copy

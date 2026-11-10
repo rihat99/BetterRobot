@@ -35,7 +35,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-NAME-5 | `tests/contract/test_se3_vocabulary.py` |
 | C-TENS-1 | `tests/contract/test_dtype_device.py` |
 | C-TENS-2 | `tests/contract/test_dtype_device.py`, `[review]` |
-| C-TENS-3 | `tests/contract/test_docstrings.py` |
+| C-TENS-3 | `tests/contract/test_docstrings.py`, `[review]` |
 | C-TENS-4 | `tests/contract/test_hot_path_lint.py` |
 | C-TENS-5 | `tests/optim/test_problem.py`, `[review]` |
 | C-STATE-1 | `tests/contract/test_frozen.py` |

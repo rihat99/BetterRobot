@@ -26,7 +26,7 @@ class Manifold(ABC):
 
     @abstractmethod
     def project(self, x: torch.Tensor) -> torch.Tensor:
-        """Map an ambient tensor ``x: (B, *event)`` back onto the manifold."""
+        """Map an ambient tensor ``x: (B, *event)`` back onto the manifold, ``(B, *event)``."""
 
     @abstractmethod
     def tangent_bounds(

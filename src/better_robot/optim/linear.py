@@ -146,7 +146,7 @@ class BandedNormal:
     ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g`` by block-tridiagonal Cholesky in float64.
 
-        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``g: (B, N)`` replaces the stored gradient; the result ``delta`` is ``(B, N)``, differentiable w.r.t. ``g``.
         """
         g = self.g if g is None else g
         scale, factorization, failed = self._factor(damping, floor)
