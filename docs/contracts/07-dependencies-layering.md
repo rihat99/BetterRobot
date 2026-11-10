@@ -2,23 +2,11 @@
 
 The packages under `src/better_robot/` import each other along one edge table, the `ALLOWED` table in
 `tests/contract/test_layer_dependencies.py`: one row per package, naming the packages it may import. The table has no
-cycle, and a new package gets its row through an ADR (`00-index`, "When to write an ADR"). The root
+cycle, and a new package or a new edge goes through an ADR (`00-index`, "When to write an ADR"). The root
 `src/better_robot/__init__.py` re-exports the packages and has no row.
 
-| Package | May import |
-|---|---|
-| `exceptions`, `_internal_checks` | nothing from the package |
-| `lie` | `exceptions` |
-| `spatial` | `exceptions`, `lie` |
-| `model` | `exceptions`, `lie`, `spatial` |
-| `kinematics` | `exceptions`, `lie`, `model` |
-| `dynamics` | `exceptions`, `lie`, `spatial`, `model`, `kinematics` |
-| `collision` | `exceptions`, `lie`, `model`, `kinematics` |
-| `io` | `exceptions`, `_internal_checks`, `lie`, `model` |
-| `optim` | `exceptions` |
-| `terms` | `exceptions`, `lie`, `model`, `kinematics`, `collision`, `optim` |
-| `viewer` | `exceptions`, `lie`, `model`, `kinematics`, `collision` |
-| `testing` | `exceptions`, `model` |
+The table is printed once, where `tests/docs/test_codemap.py` checks it against `ALLOWED`: on the architecture page,
+[each package imports only the packages of its row](../concepts/architecture.md#each-package-imports-only-the-packages-of-its-row).
 
 ## C-DEP-1 Imports follow the edge table, which has no cycle (MUST)
 
