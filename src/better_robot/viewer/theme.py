@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -60,10 +60,12 @@ class Theme:
     grid_section: RGB = (0.70, 0.72, 0.76)
     up: str = "+z"
 
+    @override
     def __repr__(self) -> str:
         return f"Theme(dark={self.dark}, up={self.up!r})"
 
     def __post_init__(self) -> None:
+        """Raise ``ArgumentError`` unless ``up`` names a signed axis, such as ``"+z"``."""
         if self.up not in _UP_AXES:
             raise ArgumentError(f"up must be one of {list(_UP_AXES)}, got {self.up!r}")
 

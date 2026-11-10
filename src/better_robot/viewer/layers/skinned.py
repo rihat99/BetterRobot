@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -56,6 +56,7 @@ class SkinnedMeshLayer(Layer):
         self._store_opacity(opacity)
         self._mesh: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         # viser takes the four largest weights per vertex and so needs four bones: fewer get unweighted bones at the
         # origin, which never move.
@@ -74,6 +75,7 @@ class SkinnedMeshLayer(Layer):
             )
         )
 
+    @override
     def set_step(self, step: int) -> None:
         poses = self.bone_poses[step]
         wxyz = to_wxyz(poses[:, 3:])

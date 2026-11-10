@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, final, override
 
 import torch
 
@@ -54,6 +54,7 @@ class RobotSpheres:
         if self.radii.ndim != 1:
             raise ShapeError(f"radii must have shape ({count},), one radius per sphere, got {tuple(self.radii.shape)}")
 
+    @override
     def __repr__(self) -> str:
         dtype = str(self.radii.dtype).removeprefix("torch.")
         return f"RobotSpheres({self.frame_ids.shape[0]} spheres, {dtype}, {self.radii.device})"

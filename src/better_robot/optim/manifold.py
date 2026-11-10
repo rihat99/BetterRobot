@@ -44,15 +44,19 @@ class Euclidean(Manifold):
     def __repr__(self) -> str:
         return "Euclidean()"
 
+    @override
     def tangent_dim(self, x: torch.Tensor) -> int:
         return x.shape[1:].numel()
 
+    @override
     def retract(self, x: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         return x + delta.reshape(x.shape)
 
+    @override
     def project(self, x: torch.Tensor) -> torch.Tensor:
         return x
 
+    @override
     def tangent_bounds(
         self, x: torch.Tensor, *, lower: torch.Tensor, upper: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:

@@ -10,7 +10,7 @@ kind written outside the package enters without a registry. A description that c
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import final, override
+from typing import cast, final, override
 
 import torch
 
@@ -31,9 +31,10 @@ from ..model.joints import (
 from .ir import IRBody, IRFrame, IRJoint, IRModel, IRShape
 
 
-def _axis(axis: Sequence[float] | torch.Tensor) -> tuple[float, ...]:
+def _axis(axis: Sequence[float] | torch.Tensor) -> tuple[float, float, float]:
     """``axis`` as the tuple of floats a joint kind stores; the kind checks that it is a unit 3-vector."""
-    return tuple(float(value) for value in axis)
+    # A cast, not an unpack: the kind's ArgumentError names a wrong length, an unpack would raise a raw ValueError.
+    return cast("tuple[float, float, float]", tuple(float(value) for value in axis))
 
 
 @final

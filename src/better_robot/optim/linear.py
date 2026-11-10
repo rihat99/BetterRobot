@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -19,6 +19,7 @@ class Normal:
     lower: torch.Tensor | None = None  #: ``(B, N)`` most negative allowed step, or ``None``.
     upper: torch.Tensor | None = None  #: ``(B, N)`` most positive allowed step, or ``None``.
 
+    @override
     def __repr__(self) -> str:
         dtype = str(self.g.dtype).removeprefix("torch.")
         return f"Normal(B={self.g.shape[0]}, N={self.g.shape[1]}, {dtype}, {self.g.device})"
@@ -110,6 +111,7 @@ class BandedNormal:
     lower: torch.Tensor | None = None
     upper_bound: torch.Tensor | None = None
 
+    @override
     def __repr__(self) -> str:
         batch, blocks, size = self.diagonal.shape[:3]
         dtype = str(self.g.dtype).removeprefix("torch.")
@@ -182,7 +184,7 @@ class BandedNormal:
         return scale, (factors, links), failed
 
     @staticmethod
-    def _substitute(factorization, rhs: torch.Tensor) -> torch.Tensor:
+    def _substitute(factorization: tuple[list[torch.Tensor], list[torch.Tensor]], rhs: torch.Tensor) -> torch.Tensor:
         """Solve the factored system for ``rhs: (B, K, S, R)``. Returns ``(B, K, S, R)``."""
         factors, links = factorization
         blocks = len(factors)
@@ -190,11 +192,11 @@ class BandedNormal:
         for index in range(blocks):
             right = rhs[:, index] if index == 0 else rhs[:, index] - links[index - 1].mT @ forward[-1]
             forward.append(torch.linalg.solve_triangular(factors[index], right, upper=False))
-        solution = [None] * blocks
+        backward: list[torch.Tensor] = []  # last block first
         for index in reversed(range(blocks)):
-            right = forward[index] if index + 1 == blocks else forward[index] - links[index] @ solution[index + 1]
-            solution[index] = torch.linalg.solve_triangular(factors[index].mT, right, upper=True)
-        return torch.stack(solution, dim=1)
+            right = forward[index] if index + 1 == blocks else forward[index] - links[index] @ backward[-1]
+            backward.append(torch.linalg.solve_triangular(factors[index].mT, right, upper=True))
+        return torch.stack(backward[::-1], dim=1)
 
     def predicted_decrease(self, delta: torch.Tensor) -> torch.Tensor:
         """Loss decrease the quadratic model predicts for ``delta: (B, N)``. Returns ``(B,)``."""
@@ -236,6 +238,7 @@ class ArrowNormal:
     lower: torch.Tensor | None = None
     upper: torch.Tensor | None = None
 
+    @override
     def __repr__(self) -> str:
         batch, blocks, size, shared = self.border.shape
         dtype = str(self.g.dtype).removeprefix("torch.")
@@ -337,6 +340,7 @@ class DenseSink:
         self.H.view(values.shape[0], -1).scatter_add_(1, index.expand(values.shape[0], -1), values.flatten(1))
 
     def finish(self, g: torch.Tensor) -> Normal:
+        """The normal equations of the accumulated ``H`` and the gradient ``g: (B, N)``."""
         return Normal(H=self.H, g=g)
 
 
@@ -366,6 +370,8 @@ class BandSink:
         self.upper.scatter_add_(1, above.expand(batch, -1), flat)
 
     def finish(self, g: torch.Tensor) -> BandedNormal:
+        """The block-tridiagonal normal equations of the accumulated blocks and the gradient ``g: (B, N)``; a column
+        no block touches gets a unit diagonal, so the factorization never sees a zero pivot."""
         layout, size, batch = self.layout, self.layout.block_size, g.shape[0]
         diagonal = self.diagonal[:, :-1].reshape(batch, layout.blocks, size, size)
         used = g.new_zeros(layout.blocks * size)
@@ -409,6 +415,7 @@ class ArrowSink:
             self.border.scatter_add_(1, index.expand(batch, -1), values.flatten(1))
 
     def finish(self, g: torch.Tensor) -> ArrowNormal:
+        """The arrow normal equations (time band, border, corner) of the accumulated blocks and ``g: (B, N)``."""
         layout, batch = self.layout, g.shape[0]
         band = self.band.finish(g[:, layout.time_columns])
         border = self.border.view(batch, layout.blocks, layout.block_size, self.count)

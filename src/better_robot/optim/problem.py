@@ -422,7 +422,17 @@ class Problem:
 
     # ── internals ───────────────────────────────────────────────────────
 
-    def _add(self, name, fn, kind, weight, kernel, jacobian, reads, window) -> None:
+    def _add(
+        self,
+        name: str,
+        fn: Callable[..., torch.Tensor],
+        kind: str,
+        weight: float | torch.Tensor,
+        kernel: RobustKernel | None,
+        jacobian: Callable[..., dict[str, torch.Tensor]] | None,
+        reads: tuple[str, ...] | None,
+        window: int | None,
+    ) -> None:
         self._require_unsealed(name)
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")

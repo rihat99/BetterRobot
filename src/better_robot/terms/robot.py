@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -39,12 +39,15 @@ class RobotManifold(Manifold):
 
     model: Model
 
+    @override
     def tangent_dim(self, x: torch.Tensor) -> int:
         return x.shape[1:].numel() // self.model.nq * self.model.nv
 
+    @override
     def retract(self, x: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         return integrate(self.model, x, delta.reshape(*x.shape[:-1], self.model.nv))
 
+    @override
     def project(self, x: torch.Tensor) -> torch.Tensor:
         return integrate(self.model, x, x.new_zeros(*x.shape[:-1], self.model.nv))
 
@@ -159,17 +162,19 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
             out = (out[:, 1:] - out[:, :-1]) / dt
         return out
 
-    jacobian = None
+    jacobian: Callable[[torch.Tensor], dict[str, torch.Tensor]] | None = None
     if _all_euclidean(model):
         # Built in float64 and rounded once to the working dtype by ``.to(value)``; a float32 stencil was off by
         # ~1e-7 (relative) in a float64 problem.
         coefficients = [(-1.0) ** (order - i) * math.comb(order, i) for i in range(order + 1)]
         stencil = torch.tensor(coefficients, dtype=torch.float64) / dt**order
 
-        def jacobian(value: torch.Tensor) -> dict[str, torch.Tensor]:
+        def stencil_jacobian(value: torch.Tensor) -> dict[str, torch.Tensor]:
             eye = torch.eye(model.nv, dtype=value.dtype, device=value.device)
             block = stencil.to(value)[:, None, None] * eye  # (window, nv, nv)
             return {q: block.permute(1, 0, 2).expand(value.shape[0], value.shape[1] - order, -1, -1, -1)}
+
+        jacobian = stencil_jacobian
 
     return TermFn(fn=derivative, reads=(q,), jacobian=jacobian, window=order + 1)
 

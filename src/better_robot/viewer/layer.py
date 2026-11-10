@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import Any, TYPE_CHECKING, override
 
 import numpy as np
 
@@ -70,6 +70,7 @@ class Layer(ABC):
         self._handles: list[Any] = []
         self._visible = True
 
+    @override
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.name!r}, nsteps={self.nsteps}, visible={self.visible})"
 

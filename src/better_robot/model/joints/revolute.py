@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, final
+from typing import ClassVar, final, override
 
 import torch
 
@@ -30,17 +30,22 @@ class JointRevolute(JointModel):
     manifold: ClassVar[JointManifold] = EUCLIDEAN
 
     def __post_init__(self) -> None:
+        """Raise ``ArgumentError`` unless ``axis`` is a tuple of three floats with unit norm."""
         check_axis(self.axis)
 
+    @override
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return se3.from_axis_angle_raw(q.new_tensor(self.axis), q[..., 0])
 
+    @override
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         return _axis_column(q.new_tensor(self.axis), q.shape[:-1], row=3)
 
+    @override
     def neutral(self) -> torch.Tensor:
         return torch.zeros(1)
 
+    @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         return _random_angle(generator, lower, upper)
 
@@ -56,17 +61,22 @@ class JointRevoluteUnbounded(JointModel):
     manifold: ClassVar[JointManifold] = CIRCLE
 
     def __post_init__(self) -> None:
+        """Raise ``ArgumentError`` unless ``axis`` is a tuple of three floats with unit norm."""
         check_axis(self.axis)
 
+    @override
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return se3.from_axis_angle_raw(q.new_tensor(self.axis), torch.atan2(q[..., 1], q[..., 0]))
 
+    @override
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         return _axis_column(q.new_tensor(self.axis), q.shape[:-1], row=3)
 
+    @override
     def neutral(self) -> torch.Tensor:
         return torch.tensor([1.0, 0.0])
 
+    @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         # Drawn in the limits' dtype: a float32 (cos, sin) pair cast to float64 is not unit.
         angle = (torch.rand(1, generator=generator, dtype=lower.dtype) * 2.0 - 1.0) * torch.pi

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, final
+from typing import Any, final, override
 
 import torch
 from torch.utils import _pytree
@@ -169,6 +169,7 @@ class Model:
             self.mimic_offsets,
         )
 
+    @override
     def __repr__(self) -> str:
         dtype = str(self.dtype).removeprefix("torch.")
         return f"Model({self.name!r}, nq={self.nq}, nv={self.nv}, njoints={self.njoints}, {dtype}, {self.device})"
@@ -344,7 +345,7 @@ def _flatten(model: Model) -> tuple[list[torch.Tensor], tuple]:
     return [getattr(model, name) for name in _TENSOR_FIELDS], tuple(getattr(model, name) for name in _STATIC_FIELDS)
 
 
-def _unflatten(leaves: list, context: tuple) -> Model:
+def _unflatten(leaves: Iterable[torch.Tensor], context: tuple) -> Model:
     return Model(**dict(zip(_STATIC_FIELDS, context, strict=True)), **dict(zip(_TENSOR_FIELDS, leaves, strict=True)))
 
 

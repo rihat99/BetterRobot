@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -40,13 +40,16 @@ class PlotPanel(Layer):
         self.time = np.arange(self.series.shape[0], dtype=np.float64) / fps
         self._plot: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         pass
 
+    @override
     def build_gui(self, gui: Any) -> None:
         data = (self.time, *(self.series[:, k].astype(np.float64) for k in range(self.series.shape[1])))
         self._plot = self._track(gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False}))
 
+    @override
     def set_step(self, step: int) -> None:
         self._plot.series = self._series_config(step)
 

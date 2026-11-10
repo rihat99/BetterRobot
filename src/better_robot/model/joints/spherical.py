@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, final
+from typing import ClassVar, final, override
 
 import torch
 
@@ -22,16 +22,20 @@ class JointSpherical(JointModel):
     manifold: ClassVar[JointManifold] = ROTATION
     axis: ClassVar[None] = None
 
+    @override
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return torch.cat((q.new_zeros(*q.shape[:-1], 3), so3.normalize_raw(q)), dim=-1)
 
+    @override
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         angular = torch.eye(3, dtype=q.dtype, device=q.device)
         return torch.cat((torch.zeros_like(angular), angular)).expand(*q.shape[:-1], 6, 3)
 
+    @override
     def neutral(self) -> torch.Tensor:
         return torch.tensor([0.0, 0.0, 0.0, 1.0])
 
+    @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         quaternion = torch.randn(4, generator=generator, dtype=lower.dtype)
         return quaternion / quaternion.norm().clamp(min=1e-8)

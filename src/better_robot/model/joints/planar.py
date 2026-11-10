@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, final
+from typing import ClassVar, final, override
 
 import torch
 
@@ -22,6 +22,7 @@ class JointPlanar(JointModel):
     manifold: ClassVar[JointManifold] = PLANE
     axis: ClassVar[None] = None
 
+    @override
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         x, y, cos_t, sin_t = q.unbind(-1)
         # The half angle through atan2: the half-angle identities have an infinite derivative at θ = 0.
@@ -29,11 +30,13 @@ class JointPlanar(JointModel):
         zero = torch.zeros_like(x)
         return torch.stack((x, y, zero, zero, zero, torch.sin(half), torch.cos(half)), dim=-1)
 
+    @override
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         columns = torch.zeros(6, 3, dtype=q.dtype, device=q.device)
         columns[0, 0] = columns[1, 1] = columns[5, 2] = 1.0
         return columns.expand(*q.shape[:-1], 6, 3)
 
+    @override
     def neutral(self) -> torch.Tensor:
         return torch.tensor([0.0, 0.0, 1.0, 0.0])
 

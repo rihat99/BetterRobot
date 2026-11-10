@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -157,6 +157,7 @@ class SkeletonLayer(Layer):
         self._bones: Any = None
         self._corners: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         colors = self.colors if self.colors.ndim == 2 else self.colors[0]
         centres = self._centres(0)
@@ -218,6 +219,7 @@ class SkeletonLayer(Layer):
                     )
                 )
 
+    @override
     def set_step(self, step: int) -> None:
         centres = self._centres(step)
         per_step_scale = self.radius.ndim == 2 or (self.thickness is not None and self.thickness.ndim == 2)

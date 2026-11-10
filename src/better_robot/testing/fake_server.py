@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Callable, Iterator
-from typing import Any, Literal, final
+from typing import Any, Literal, final, override
 
 _IDENTITY = (1.0, 0.0, 0.0, 0.0)
 _ORIGIN = (0.0, 0.0, 0.0)
@@ -43,6 +43,7 @@ class FakeHandle:
         )
         self.__dict__.update(state)
 
+    @override
     def __setattr__(self, key: str, value: Any) -> None:
         if self.removed:
             raise AttributeError(f"cannot assign {key!r}: this {self.kind} was removed")
@@ -80,10 +81,12 @@ class FakeHandle:
             callback(event)
 
     def __enter__(self) -> FakeHandle:
+        """Enter a folder: the controls added inside it belong to it on viser."""
         self.calls.append("__enter__")
         return self
 
     def __exit__(self, *exc: object) -> None:
+        """Leave the folder."""
         pass
 
 
@@ -111,6 +114,7 @@ class FakeScene:
     def add_frame(
         self, name: str, *, show_axes: bool = True, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True
     ) -> FakeHandle:
+        """viser's coordinate frame: a ``FrameHandle``."""
         return self._node("FrameHandle", locals())
 
     def add_batched_axes(
@@ -125,6 +129,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's batch of axes, one per pose: a ``BatchedAxesHandle``."""
         return self._node("BatchedAxesHandle", locals())
 
     def add_batched_meshes_simple(
@@ -144,6 +149,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's instanced mesh, one copy per pose: a ``BatchedMeshHandle``."""
         return self._node("BatchedMeshHandle", locals())
 
     def add_camera_frustum(
@@ -159,6 +165,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's camera frustum, with an optional image: a ``CameraFrustumHandle``."""
         return self._node("CameraFrustumHandle", locals())
 
     def add_grid(
@@ -178,6 +185,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's ground grid: a ``GridHandle``."""
         return self._node("GridHandle", locals())
 
     def add_line_segments(
@@ -191,6 +199,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's line segments ``points: (N, 2, 3)``: a ``LineSegmentsHandle``."""
         return self._node("LineSegmentsHandle", locals())
 
     def add_mesh_simple(
@@ -206,6 +215,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's mesh of vertices and faces: a ``MeshHandle``."""
         return self._node("MeshHandle", locals())
 
     def add_mesh_skinned(
@@ -223,6 +233,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's skinned mesh: a ``MeshSkinnedHandle`` whose ``bones`` hold one handle per bone."""
         handle = self._node("MeshSkinnedHandle", locals())
         bones = tuple(
             FakeHandle(self, "MeshSkinnedBoneHandle", f"{name}/bone{index}", {}, wxyz=bone_wxyz, position=bone_position)
@@ -234,6 +245,7 @@ class FakeScene:
     def add_mesh_trimesh(
         self, name: str, mesh: Any, *, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True
     ) -> FakeHandle:
+        """viser's mesh from a ``trimesh.Trimesh``: a ``MeshHandle``."""
         return self._node("MeshHandle", locals())
 
     def add_point_cloud(
@@ -249,6 +261,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's point cloud ``points: (N, 3)``: a ``PointCloudHandle``."""
         return self._node("PointCloudHandle", locals())
 
     def add_transform_controls(
@@ -263,12 +276,14 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's transform gizmo: a ``TransformControlsHandle``."""
         return self._node("TransformControlsHandle", locals())
 
     def configure_default_lights(self, enabled: bool = True, cast_shadow: bool = True) -> None:  # noqa: FBT001, FBT002 - viser's signature
         """Accepted; the stand-in draws nothing."""
 
     def set_up_direction(self, direction: Any) -> None:
+        """Keep ``direction`` in ``up_direction``."""
         self.up_direction = direction
 
     def on_click(self, modifier: Any = None) -> Callable[[Callable[[Any], None]], Callable[[Any], None]]:
@@ -324,9 +339,11 @@ class FakeGui:
         return handle
 
     def add_folder(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's folder, a context manager for the controls inside it: a ``GuiFolderHandle``."""
         return self._control("GuiFolderHandle", label, locals())
 
     def add_button(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's button: a ``GuiButtonHandle``."""
         return self._control("GuiButtonHandle", label, locals())
 
     def add_checkbox(
@@ -337,6 +354,7 @@ class FakeGui:
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's checkbox: a ``GuiCheckboxHandle`` whose value starts at ``initial_value``."""
         return self._control("GuiCheckboxHandle", label, locals())
 
     def add_slider(
@@ -350,6 +368,7 @@ class FakeGui:
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's slider: a ``GuiSliderHandle`` whose value starts at ``initial_value``."""
         return self._control("GuiSliderHandle", label, locals())
 
     def add_image(
@@ -361,6 +380,7 @@ class FakeGui:
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's image panel: a ``GuiImageHandle``."""
         return self._control("GuiImageHandle", label or "image", locals())
 
     def add_uplot(
@@ -373,6 +393,7 @@ class FakeGui:
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's uPlot chart: a ``GuiUplotHandle``."""
         return self._control("GuiUplotHandle", "uplot", locals())
 
     def configure_theme(
@@ -385,6 +406,7 @@ class FakeGui:
         show_share_button: bool = True,
         brand_color: Any = None,
     ) -> None:
+        """Keep the theme's settings in ``theme``."""
         self.theme = {key: value for key, value in locals().items() if key != "self"}
 
 

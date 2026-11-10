@@ -14,7 +14,7 @@ _DTYPES = (torch.float32, torch.float64)
 
 def check_dtype(dtype: object) -> torch.dtype:
     """``dtype`` once it is float32 or float64, the dtypes the library computes in; else ``DtypeMismatchError``."""
-    if dtype not in _DTYPES:
+    if not isinstance(dtype, torch.dtype) or dtype not in _DTYPES:
         raise DtypeMismatchError(f"dtype={dtype!r} is not float32 or float64; pass torch.float32 or torch.float64")
     return dtype
 

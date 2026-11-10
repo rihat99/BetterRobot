@@ -45,6 +45,7 @@ class Evaluation:
         self.batch: int = next(iter(problem.variables.values())).shape[0]
 
     def __getitem__(self, name: str) -> Any:
+        """The variable, data or cached value ``name``; a cached value is computed on first read and kept."""
         if name not in self._values:
             cached = self._cached[name]
             self._values[name] = cached.fn(*(self[read] for read in cached.reads))

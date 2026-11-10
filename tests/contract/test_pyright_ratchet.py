@@ -23,7 +23,7 @@ from ._ratchet_sites import REPO, compare, counts, site
 pytestmark = pytest.mark.slow
 
 RATCHET = Path(__file__).parent / "ratchets" / "pyright.json"
-CAP = 69
+CAP = 59
 
 
 @cache  # one pyright run serves both tests
