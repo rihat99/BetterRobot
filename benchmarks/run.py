@@ -40,10 +40,10 @@ JACOBIAN_FN = "frame_jacobian(model, forward_kinematics(model, q), frame=nframes
 def urdf_path(name: str) -> str:
     """Return the robot_descriptions URDF path for ``panda`` or ``g1``."""
     if name == "panda":
-        from robot_descriptions import panda_description
+        from robot_descriptions import panda_description  # noqa: PLC0415 - importing a description fetches it
 
         return panda_description.URDF_PATH
-    from robot_descriptions import g1_description
+    from robot_descriptions import g1_description  # noqa: PLC0415 - importing a description fetches it
 
     return g1_description.URDF_PATH
 
@@ -90,26 +90,22 @@ def make_inputs(model: br.Model, batch: int, device: str) -> dict[str, torch.Ten
 def algo_fn(algo: str, model: br.Model, inputs: dict[str, torch.Tensor]) -> Callable[[torch.Tensor], torch.Tensor]:
     """Return ``f(q) -> tensor`` for one library algorithm; v / a / tau are held fixed."""
     v, a, tau = inputs["v"], inputs["a"], inputs["tau"]
-    if algo == "fk":
-        return lambda q: forward_kinematics(model, q).joint_poses
-    if algo == "jacobian":
-        frame_id = model.nframes - 1
-        return lambda q: frame_jacobian(model, forward_kinematics(model, q), frame=frame_id)
-    if algo == "fk_state":
-        return lambda q: forward_kinematics(model, q).joint_transforms
-    if algo == "jacobian_state":
-        frame_id = model.nframes - 1
-        return lambda q: frame_jacobian(model, forward_kinematics(model, q), frame=frame_id)
-    if algo == "rnea":
-        return lambda q: br.inverse_dynamics(model, forward_kinematics(model, q), v=v, a=a)
-    if algo == "crba":
-        return lambda q: br.mass_matrix(model, forward_kinematics(model, q))
-    if algo == "aba":
-        return lambda q: br.forward_dynamics(model, forward_kinematics(model, q), v=v, tau=tau)
-    raise ValueError(f"unknown algo {algo!r}")
+    frame_id = model.nframes - 1
+    algos: dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
+        "fk": lambda q: forward_kinematics(model, q).joint_poses,
+        "jacobian": lambda q: frame_jacobian(model, forward_kinematics(model, q), frame=frame_id),
+        "fk_state": lambda q: forward_kinematics(model, q).joint_transforms,
+        "jacobian_state": lambda q: frame_jacobian(model, forward_kinematics(model, q), frame=frame_id),
+        "rnea": lambda q: br.inverse_dynamics(model, forward_kinematics(model, q), v=v, a=a),
+        "crba": lambda q: br.mass_matrix(model, forward_kinematics(model, q)),
+        "aba": lambda q: br.forward_dynamics(model, forward_kinematics(model, q), v=v, tau=tau),
+    }
+    if algo not in algos:
+        raise ValueError(f"unknown algo {algo!r}")
+    return algos[algo]
 
 
-def run_once(fn: Callable[[torch.Tensor], torch.Tensor], q: torch.Tensor, backward: bool) -> None:
+def run_once(fn: Callable[[torch.Tensor], torch.Tensor], q: torch.Tensor, *, backward: bool) -> None:
     """One call: forward under no_grad, or forward + backward of ``sum(output)`` w.r.t. ``q``."""
     if backward:
         qq = q.detach().requires_grad_(True)
@@ -119,7 +115,7 @@ def run_once(fn: Callable[[torch.Tensor], torch.Tensor], q: torch.Tensor, backwa
             fn(q)
 
 
-def count_ops(fn: Callable[[torch.Tensor], torch.Tensor], q: torch.Tensor, backward: bool) -> int:
+def count_ops(fn: Callable[[torch.Tensor], torch.Tensor], q: torch.Tensor, *, backward: bool) -> int:
     """Count top-level ``aten::`` operator calls in one call (forward, plus backward when requested).
 
     Counted: every profiler CPU event named ``aten::*`` that has no ``aten::*`` ancestor, i.e. each operator
@@ -137,7 +133,7 @@ def count_ops(fn: Callable[[torch.Tensor], torch.Tensor], q: torch.Tensor, backw
         return True
 
     with profile(activities=[ProfilerActivity.CPU]) as prof:
-        run_once(fn, q, backward)
+        run_once(fn, q, backward=backward)
     return sum(1 for e in prof.events() if e.name.startswith("aten::") and is_top_level(e))
 
 
@@ -167,16 +163,16 @@ def bench_torch_row(algo: str, model: br.Model, batch: int, mode: str, args: arg
     backward = mode == "forward_backward"
     sync = torch.cuda.synchronize if args.device == "cuda" else (lambda: None)
     for _ in range(WARMUP):
-        run_once(fn, inputs["q"], backward)
-    ops = count_ops(fn, inputs["q"], backward)
-    median_ms, min_ms = time_calls(lambda: run_once(fn, inputs["q"], backward), args.repeats, sync)
+        run_once(fn, inputs["q"], backward=backward)
+    ops = count_ops(fn, inputs["q"], backward=backward)
+    median_ms, min_ms = time_calls(lambda: run_once(fn, inputs["q"], backward=backward), args.repeats, sync)
     return {"median_ms": median_ms, "min_ms": min_ms, "ops": ops}
 
 
 def pinocchio_rows(model_names: list[str], args: argparse.Namespace) -> list[dict]:
     """Pinocchio float64 CPU reference rows: batch 1, forward only, same URDFs."""
-    import numpy as np
-    import pinocchio as pin
+    import numpy as np  # noqa: PLC0415 - with the optional Pinocchio oracle below
+    import pinocchio as pin  # noqa: PLC0415 - optional oracle, imported only when its rows are asked for
 
     rows = []
     for name in (m for m in model_names if m in ("panda", "g1")):
@@ -220,8 +216,13 @@ def pinocchio_rows(model_names: list[str], args: argparse.Namespace) -> list[dic
 
 def git_info() -> tuple[str, bool]:
     """Return (short sha, dirty flag) of the repo."""
-    sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True)
-    status = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True, text=True)
+    # check=False: outside a git checkout the sha reads "nogit".
+    sha = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True, check=False
+    )
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True, text=True, check=False
+    )
     return sha.stdout.strip() or "nogit", bool(status.stdout.strip())
 
 
@@ -244,8 +245,8 @@ def print_row(row: dict) -> None:
     print(f"{row['algo']:9} {row['model']:8} {row['batch']:>5} {row['mode']:16} {row['impl']:10} {timing}", flush=True)
 
 
-def main() -> None:
-    """Parse arguments, run the grid, write JSON."""
+def parse_args() -> argparse.Namespace:
+    """The command line, with the comma lists split."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     parser.add_argument("--batches", default="1,64,256,4096")
@@ -264,7 +265,13 @@ def main() -> None:
     args.batches = [int(b) for b in args.batches.split(",")]
     args.models = args.models.split(",")
     args.algos = args.algos.split(",")
-    torch.set_num_threads(args.threads)
+    return args
+
+
+def main() -> None:
+    """Parse arguments, run the grid, write JSON."""
+    args = parse_args()
+    torch.set_num_threads(args.threads)  # noqa: TID251 - a benchmark pins its threads so rows compare; C-DEP-3 binds the library
 
     sha, dirty = git_info()
     out = Path(args.out) if args.out else REPO_ROOT / "benchmarks" / "results" / f"{sha}_{args.device}.json"

@@ -62,8 +62,7 @@ def _matrix_rows() -> dict[str, set[str]]:
             continue
         rule_cell, enforcer_cell = (c.strip() for c in line.strip("|").split("|", 1))
         ids: list[str] = []
-        for cell in rule_cell.split(","):
-            cell = cell.strip()
+        for cell in (part.strip() for part in rule_cell.split(",")):
             m = RANGE_RE.fullmatch(cell)
             if m:
                 ids += [f"{m[1]}-{k}" for k in range(int(m[2]), int(m[3]) + 1)]
