@@ -1,6 +1,6 @@
 # 0026 One coupling-standard page in BetterRobot, tested by every consumer
 
-**Status:** Accepted (owner); amended by 0044. **Date:** 2026-11-01
+**Status:** Accepted (owner); amendment proposed in 0044. **Date:** 2026-11-01
 
 ## Context
 No page lists what BetterHuman, BetterVideoReconstruction and BetterRetarget rely on in BetterRobot. A first draft

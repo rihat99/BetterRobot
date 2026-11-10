@@ -1,6 +1,6 @@
 # 0022 The viewer stays in-tree, with the public API the studio needs
 
-**Status:** Accepted (owner); amended by 0048. **Date:** 2026-11-01
+**Status:** Accepted (owner); amendment proposed in 0048. **Date:** 2026-11-01
 
 ## Context
 viser stays lazy inside `viewer` (ADR 0004). `viewer/robot.py` imports `kinematics.state` inside functions, which the

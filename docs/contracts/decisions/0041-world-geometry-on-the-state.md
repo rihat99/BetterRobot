@@ -1,6 +1,6 @@
 # 0041 The world geometry is a memoised value of `KinematicState`, owned by kinematics
 
-**Status:** Accepted (integrator ruling R-2, 2026-11-10); amended by 0042. **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner); amendment proposed in 0042. **Date:** 2026-11-10
 
 ## Context
 Record [0011](0011-caches-and-plans.md) derived the dynamics' world geometry per call; its dated note of 2026-11-06

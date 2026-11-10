@@ -1,9 +1,10 @@
 """Every decision record follows the template, carries an allowed status and an index row, and keeps its text (8.2).
 
 A record is a file ``NNNN-kebab-title.md`` in the decisions folder; the numbers run from 0001 without a gap. Its
-Status line is, in full, ``**Status:** WORD[ (WHO)][; amended by NNNN, ...]`` then ``.`` or `` ·`` and the
-``**Date:**``: WORD is ``Proposed``, ``Accepted`` or ``Superseded by NNNN``, WHO is ``owner``, ``integrator,
-awaiting owner`` or ``integrator ruling R-n, YYYY-MM-DD``, and every number it points at is a later record. Accepted
+Status line is, in full, ``**Status:** WORD[ (WHO)][; amended by NNNN, ...][; amendment proposed in NNNN, ...]``
+then ``.`` or `` ·`` and the ``**Date:**``: WORD is ``Proposed``, ``Accepted`` or ``Superseded by NNNN``, WHO is
+``owner``, ``integrator, awaiting owner`` or ``integrator ruling R-n, YYYY-MM-DD``, and every number it points at is a
+later record: one that amends is not Proposed, one that proposes an amendment is. Accepted
 is the owner's word (principle 8.2): a record whose status was owner-accepted or superseded in any commit (no
 ``integrator`` in it) never returns to Proposed and keeps the text of that first commit, Status line aside. A record
 accepted now keeps the text it had when its current acceptance began (the first commit after its last Proposed
@@ -40,6 +41,7 @@ STATUS = re.compile(
     r"^\*\*Status:\*\* (?P<word>Proposed|Accepted|Superseded by (?P<by>\d{4}))"
     r"(?: \((?:owner|integrator, awaiting owner|integrator ruling R-\d+, \d{4}-\d{2}-\d{2})\))?"
     r"(?:; amended by (?P<amended>\d{4}(?:, \d{4})*))?"
+    r"(?:; amendment proposed in (?P<proposed>\d{4}(?:, \d{4})*))?"
     r"(?:\.| ·) \*\*Date:\*\* \d{4}-\d{2}-\d{2}(?: \(recorded; decision taken earlier\))?$"
 )
 
@@ -62,15 +64,21 @@ def test_record_files_are_numbered_without_a_gap_and_titled_by_their_number() ->
 
 
 def test_every_status_is_allowed_and_points_at_later_records() -> None:
-    """The status is Proposed, Accepted (optionally amended by later records) or Superseded by a later record."""
+    """The status is Proposed, Accepted (optionally amended by later records) or Superseded by a later record; an
+    amendment still Proposed is named as proposed, not as made."""
     records = _records()
     for number, path in records.items():
         match = STATUS.match(_status_line(path.read_text()))
         assert match, f"{path.name}: status must be Proposed, Accepted[; amended by NNNN] or Superseded by NNNN"
-        targets = [match["by"]] if match["by"] else []
-        targets += match["amended"].split(", ") if match["amended"] else []
-        for target in targets:
+        made = match["amended"].split(", ") if match["amended"] else []
+        proposed = match["proposed"].split(", ") if match["proposed"] else []
+        for target in ([match["by"]] if match["by"] else []) + made + proposed:
             assert target in records and target > number, f"{path.name}: {target} is not a later record"
+        for target in made + proposed:
+            is_proposed = _proposed(records[target].read_text())
+            assert is_proposed == (target in proposed), (
+                f"{path.name}: {target} is {'' if is_proposed else 'not '}Proposed"
+            )
 
 
 def test_records_from_0009_have_exactly_the_template_sections() -> None:

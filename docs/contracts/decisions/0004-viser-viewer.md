@@ -1,6 +1,6 @@
 # 0004 One viewer, built on viser
 
-**Status:** Accepted; amended by 0048 · **Date:** 2026-10-07 (recorded; decision taken earlier)
+**Status:** Accepted; amendment proposed in 0048 · **Date:** 2026-10-07 (recorded; decision taken earlier)
 
 ## Context
 A viewer needs a browser scene, GUI widgets and a recording format, and must work on remote GPU servers
