@@ -2,7 +2,7 @@
 
 Phase 4 pass criterion: analytic and finite-difference Jacobians agree.
 
-See ``docs/concepts/kinematics_and_jacobians.md``.
+See ``docs/concepts/kinematics-and-jacobians.md``.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import torch
 
 from better_robot.exceptions import DtypeMismatchError
 from better_robot.io.builder import ModelBuilder
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.model import JointFreeFlyer
 from better_robot.kinematics import forward_kinematics
 from better_robot.terms import frame_pose

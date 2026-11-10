@@ -24,7 +24,7 @@ def checked_values(problem: Problem, x: Values | None) -> Values:
         return variables
     for name in x:
         if name not in variables:
-            raise UnknownNameError("variable", name, list(variables))
+            raise UnknownNameError("variable", name, valid=list(variables))
     missing = [name for name in variables if name not in x]
     if missing:
         raise ArgumentError(f"x has no value for the variables {missing}; give every variable")

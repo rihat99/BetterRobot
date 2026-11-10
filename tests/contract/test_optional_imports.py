@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -34,6 +36,7 @@ IMPORTERS: dict[str, set[str]] = {
     "mujoco": {"io"},  # extra mjcf
     "trimesh": {"viewer"},  # extra meshes
     "robot_descriptions": set(),  # extra demos: the examples and docs load robots with it
+    "pytest": {"testing"},  # extra testing: the no-skip plugin, better_robot.testing.no_skips
 }
 MODULES = {"pillow": "PIL"}  # the import name of a distribution whose name differs from it
 BOUNDARY: dict[str, set[str]] = {
@@ -74,3 +77,21 @@ def test_outside_import_ratchet_has_no_stale_entries() -> None:
     """An import that no longer exists leaves the outside-import ratchet in the commit that removes it."""
     stale = sorted(OUTSIDE_RATCHET.keys() - _forbidden_imports())
     assert not stale, "remove these entries from tests/contract/ratchets/outside_imports.json:\n  " + "\n  ".join(stale)
+
+
+def test_the_root_imports_without_the_optional_packages() -> None:
+    """``import better_robot`` and ``better_robot.Viewer`` work with every optional package and yourdfpy blocked.
+
+    A fresh interpreter blocks each one (a ``None`` entry in ``sys.modules`` makes its import raise), so an eager
+    import anywhere under the root fails here, and none of them is loaded afterwards (principle 1.7, record 0019).
+    """
+    blocked = ["viser", "mujoco", "trimesh", "PIL", "yourdfpy"]
+    script = (
+        "import sys\n"
+        f"sys.modules.update(dict.fromkeys({blocked!r}))\n"
+        "import better_robot\n"
+        "assert better_robot.Viewer.__name__ == 'Viewer'\n"
+        f"print([name for name in {blocked!r} if sys.modules[name] is not None])\n"
+    )
+    result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=False)
+    assert (result.returncode, result.stdout.strip()) == (0, "[]"), result.stderr

@@ -4,12 +4,15 @@ For each `## C-<AREA>-<n>` heading on a page, the paragraph starting with
 `Enforcement:` names its enforcers: test paths (`tests/...py`, optionally
 `::test_name`), ruff codes (`[ruff:CODE,...]`) or `[review]`. The matrix row for
 that rule must carry exactly the same set. Every cited test path must exist
-and every ruff code must be selected in `pyproject.toml`, unless the citation
-is followed by a `[planned: L-<n>]` tag (a ledger entry).
+and every ruff code must be selected in `pyproject.toml`; no enforcer is
+`[planned]`. A rule that only `[review]` checks waits in
+`tests/contract/ratchets/review_only.json` (rule id to reason) for a test or
+its deletion; the ratchet only shrinks.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -20,16 +23,17 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS = ROOT / "docs" / "contracts"
 RULE_RE = re.compile(r"^## (C-[A-Z]+-\d+)\b", re.MULTILINE)
 RANGE_RE = re.compile(r"(C-[A-Z]+)-(\d+)\.\.(\d+)")
-TEST_RE = re.compile(r"`(tests/[\w/]+\.py)(?:::(\w+))?`(\s*\[planned: L-\d+\])?")
-RUFF_RE = re.compile(r"`\[ruff:([A-Z0-9,]+)\]`(\s*\[planned: L-\d+\])?")
+TEST_RE = re.compile(r"`(tests/[\w/]+\.py)(?:::(\w+))?`")
+RUFF_RE = re.compile(r"`\[ruff:([A-Z0-9,]+)\]`")
 REVIEW_RE = re.compile(r"`\[review\]`")
+REVIEW_ONLY = ROOT / "tests" / "contract" / "ratchets" / "review_only.json"
 
 
 def _enforcers(text: str) -> set[str]:
     out: set[str] = set()
-    for path, test, planned in TEST_RE.findall(text):
+    for path, test in TEST_RE.findall(text):
         out.add(f"{path}::{test}" if test else path)
-    for codes, planned in RUFF_RE.findall(text):
+    for codes in RUFF_RE.findall(text):
         out.update(f"ruff:{c}" for c in codes.split(","))
     if REVIEW_RE.search(text):
         out.add("review")
@@ -62,8 +66,7 @@ def _matrix_rows() -> dict[str, set[str]]:
             continue
         rule_cell, enforcer_cell = (c.strip() for c in line.strip("|").split("|", 1))
         ids: list[str] = []
-        for cell in rule_cell.split(","):
-            cell = cell.strip()
+        for cell in (part.strip() for part in rule_cell.split(",")):
             m = RANGE_RE.fullmatch(cell)
             if m:
                 ids += [f"{m[1]}-{k}" for k in range(int(m[2]), int(m[3]) + 1)]
@@ -90,17 +93,13 @@ def test_cited_tests_exist_and_ruff_codes_selected() -> None:
     selected = cfg["tool"]["ruff"]["lint"]["select"]
     missing: list[str] = []
     for rule, (page, _, para) in _page_rules().items():
-        for path, test, planned in TEST_RE.findall(para):
-            if planned:
-                continue
+        for path, test in TEST_RE.findall(para):
             target = ROOT / path
             if not target.exists():
                 missing.append(f"{page} {rule}: {path} does not exist")
             elif test and f"def {test}(" not in target.read_text():
                 missing.append(f"{page} {rule}: {path}::{test} not found")
-        for codes, planned in RUFF_RE.findall(para):
-            if planned:
-                continue
+        for codes in RUFF_RE.findall(para):
             for code in codes.split(","):
                 if not any(code.startswith(prefix) for prefix in selected):
                     missing.append(f"{page} {rule}: ruff code {code} not selected")
@@ -110,8 +109,34 @@ def test_cited_tests_exist_and_ruff_codes_selected() -> None:
 def test_matrix_rows_cite_real_paths() -> None:
     """Row-level check: paths in the matrix exist, ignoring directory-only cites."""
     text = (CONTRACTS / "00-index.md").read_text().split("## Enforcement matrix", 1)[1]
-    bad = [p for p, _, planned in TEST_RE.findall(text) if not planned and not (ROOT / p).exists()]
+    bad = [p for p, _ in TEST_RE.findall(text) if not (ROOT / p).exists()]
     assert not bad, bad
+
+
+def test_no_enforcer_is_planned() -> None:
+    """An enforcer exists today or is not cited: a plan is not a check."""
+    planned = [rule for rule, (_, _, para) in _page_rules().items() if "[planned" in para]
+    matrix = (CONTRACTS / "00-index.md").read_text().split("## Enforcement matrix", 1)[1]
+    planned += [
+        line.split("|")[1].strip() for line in matrix.splitlines() if line.startswith("| C-") and "[planned" in line
+    ]
+    assert not planned, f"cite an existing test or ruff code: {sorted(set(planned))}"
+
+
+def _review_only() -> set[str]:
+    return {rule for rule, (_, enforcers, _) in _page_rules().items() if enforcers == {"review"}}
+
+
+def test_no_new_review_only_rule() -> None:
+    """A rule is a test, a ratchet or deleted: a new rule that only review checks fails."""
+    new = sorted(_review_only() - json.loads(REVIEW_ONLY.read_text()).keys())
+    assert not new, f"give these rules a test or ruff code: {new}"
+
+
+def test_review_only_ratchet_has_no_stale_entries() -> None:
+    """A rule that gained a test, or was deleted, leaves the ratchet in that commit."""
+    stale = sorted(json.loads(REVIEW_ONLY.read_text()).keys() - _review_only())
+    assert not stale, f"drop these entries from tests/contract/ratchets/review_only.json: {stale}"
 
 
 if __name__ == "__main__":

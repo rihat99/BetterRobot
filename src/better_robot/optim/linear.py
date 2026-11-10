@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import final
 
 import torch
@@ -15,11 +15,16 @@ class Normal:
 
     H: torch.Tensor  #: ``(B, N, N)`` symmetric positive semi-definite.
     g: torch.Tensor  #: ``(B, N)`` gradient of the loss in tangent coordinates.
+    _: KW_ONLY
     lower: torch.Tensor | None = None  #: ``(B, N)`` most negative allowed step, or ``None``.
     upper: torch.Tensor | None = None  #: ``(B, N)`` most positive allowed step, or ``None``.
 
+    def __repr__(self) -> str:
+        dtype = str(self.g.dtype).removeprefix("torch.")
+        return f"Normal(B={self.g.shape[0]}, N={self.g.shape[1]}, {dtype}, {self.g.device})"
+
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> Normal:
-        """Box-constrain the step to ``[lower, upper]`` (projected Newton, one active-set pass).
+        """Box-constrain the step to ``lower, upper: (B, N)`` (projected Newton, one active-set pass).
 
         A coordinate that sits on a bound and whose gradient pushes it outward is frozen: its
         gradient entry becomes 0 and its row and column of ``H`` become the identity. The step
@@ -43,7 +48,7 @@ class Normal:
         Columns are scaled to unit diagonal and the factorization runs in float64, because a
         float32 Cholesky fails on the rank-deficient ``H`` of redundant robots. A batch element
         whose factorization still fails gets ``delta = 0`` (a rejected step for LM).
-        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
         """
         H, g = self.H.double(), (self.g if g is None else g).double()
         diagonal = H.diagonal(dim1=-2, dim2=-1)
@@ -99,10 +104,16 @@ class BandedNormal:
 
     diagonal: torch.Tensor  #: ``(B, K, S, S)`` diagonal super-blocks.
     upper: torch.Tensor  #: ``(B, K - 1, S, S)`` blocks coupling super-block ``i`` to ``i + 1``.
+    _: KW_ONLY
     g: torch.Tensor  #: ``(B, N)``
     layout: BandLayout
     lower: torch.Tensor | None = None
     upper_bound: torch.Tensor | None = None
+
+    def __repr__(self) -> str:
+        batch, blocks, size = self.diagonal.shape[:3]
+        dtype = str(self.g.dtype).removeprefix("torch.")
+        return f"BandedNormal(B={batch}, N={self.g.shape[1]}, K={blocks}, S={size}, {dtype}, {self.g.device})"
 
     def _to_band(self, vector: torch.Tensor, fill: float = 0.0) -> torch.Tensor:
         """``(B, N, ...)`` in problem order to ``(B, K, S, ...)`` in banded order."""
@@ -120,20 +131,22 @@ class BandedNormal:
         k = self._to_band(keep, fill=1.0)
         diagonal = self.diagonal * k.unsqueeze(-1) * k.unsqueeze(-2) + torch.diag_embed(1.0 - k)
         upper = self.upper * k[:, :-1].unsqueeze(-1) * k[:, 1:].unsqueeze(-2)
-        return BandedNormal(diagonal, upper, self.g * keep, self.layout, self.lower, self.upper_bound)
+        return BandedNormal(
+            diagonal, upper, g=self.g * keep, layout=self.layout, lower=self.lower, upper_bound=self.upper_bound
+        )
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> BandedNormal:
-        """Box-constrain the step; see ``Normal.restrict``."""
+        """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
-        return BandedNormal(out.diagonal, out.upper, out.g, self.layout, lower, upper)
+        return BandedNormal(out.diagonal, out.upper, g=out.g, layout=self.layout, lower=lower, upper_bound=upper)
 
     def solve(
         self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9, g: torch.Tensor | None = None
     ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g`` by block-tridiagonal Cholesky in float64.
 
-        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
         """
         g = self.g if g is None else g
         scale, factorization, failed = self._factor(damping, floor)
@@ -217,10 +230,17 @@ class ArrowNormal:
 
     band: BandedNormal  #: time columns; its vectors are ``(B, Nt)`` in ``layout.time_columns`` order.
     border: torch.Tensor  #: ``(B, K, S, Ns)`` coupling of banded rows to shared columns.
+    _: KW_ONLY
     corner: torch.Tensor  #: ``(B, Ns, Ns)``
     g: torch.Tensor  #: ``(B, N)``
     lower: torch.Tensor | None = None
     upper: torch.Tensor | None = None
+
+    def __repr__(self) -> str:
+        batch, blocks, size, shared = self.border.shape
+        dtype = str(self.g.dtype).removeprefix("torch.")
+        sizes = f"B={batch}, N={self.g.shape[1]}, K={blocks}, S={size}, Ns={shared}"
+        return f"ArrowNormal({sizes}, {dtype}, {self.g.device})"
 
     def masked(self, keep: torch.Tensor) -> ArrowNormal:
         """Freeze columns where ``keep: (B or 1, N)`` is 0: zero gradient, identity row and column."""
@@ -231,20 +251,22 @@ class ArrowNormal:
         corner = self.corner * keep_shared.unsqueeze(-1) * keep_shared.unsqueeze(-2) + torch.diag_embed(
             1.0 - keep_shared
         )
-        return ArrowNormal(self.band.masked(keep_time), border, corner, self.g * keep, self.lower, self.upper)
+        return ArrowNormal(
+            self.band.masked(keep_time), border, corner=corner, g=self.g * keep, lower=self.lower, upper=self.upper
+        )
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> ArrowNormal:
-        """Box-constrain the step; see ``Normal.restrict``."""
+        """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
-        return ArrowNormal(out.band, out.border, out.corner, out.g, lower, upper)
+        return ArrowNormal(out.band, out.border, corner=out.corner, g=out.g, lower=lower, upper=upper)
 
     def solve(
         self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9, g: torch.Tensor | None = None
     ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g`` in float64. Returns ``delta: (B, N)``.
 
-        ``g`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
         """
         g = (self.g if g is None else g).double()
         layout = self.band.layout

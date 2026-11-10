@@ -21,4 +21,4 @@ def test_solve_ik_peak_memory(panda, panda_state) -> None:
     before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     _ = solve_ik(panda, {panda.frame_names[-1]: target[None]}, q0=panda.q_neutral[None])
     after = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    print(f"\nsolve_ik peak RSS delta: {(after - before) / 1024:.1f} MiB")
+    print(f"\nsolve_ik peak RSS delta: {(after - before) / 1024:.1f} MiB")  # noqa: T201 - the benchmark's report

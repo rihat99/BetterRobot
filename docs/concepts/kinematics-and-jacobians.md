@@ -12,7 +12,8 @@ leaves and returns a frozen [`KinematicState`](model-and-state.md#forward-kinema
 
 ```python
 import torch
-from better_robot.io import ModelBuilder, build_model
+from better_robot import ModelBuilder
+from better_robot.io import build_model
 from better_robot.kinematics import (
     forward_kinematics, frame_jacobian, joint_jacobian, frame_jacobian_time_variation,
 )

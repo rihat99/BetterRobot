@@ -1,4 +1,4 @@
-"""Tests for lie/tangents.py — hat/vee operators and Jacobians.
+"""Tests for ``src/better_robot/lie/tangents.py`` — hat/vee operators and Jacobians.
 
 Key property checked: Jr(xi) satisfies the finite-difference definition
     log(exp(-xi) * exp(xi + eps*ej)) / eps ≈ Jr(xi)[:, j]

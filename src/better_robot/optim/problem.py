@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 import inspect
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from types import MappingProxyType
 from typing import Any, final
 
@@ -40,6 +40,7 @@ class TermFn:
 
     fn: Callable[..., torch.Tensor]
     reads: tuple[str, ...]
+    _: KW_ONLY
     jacobian: Callable[..., dict[str, torch.Tensor]] | None = None
     window: int | None = None
 
@@ -51,6 +52,7 @@ class Term:
 
     name: str
     fn: Callable[..., torch.Tensor]
+    _: KW_ONLY
     kind: str  #: ``"residual"`` or ``"scalar"``.
     reads: tuple[str, ...]
     weight: float | torch.Tensor
@@ -306,7 +308,7 @@ class Problem:
         if weights is not None:
             for name in weights:
                 if name not in self._terms:
-                    raise UnknownNameError("term", name, list(self._terms))
+                    raise UnknownNameError("term", name, valid=list(self._terms))
             problem._weights = {**self._weights, **weights}
         if free is not None:
             problem._free = {}
@@ -407,7 +409,9 @@ class Problem:
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
-        self._terms[name] = Term(name, fn, kind, reads, weight, kernel, jacobian, window)
+        self._terms[name] = Term(
+            name, fn, kind=kind, reads=reads, weight=weight, kernel=kernel, jacobian=jacobian, window=window
+        )
 
     def _copy(self) -> Problem:
         """A sealed problem sharing this one's tensors, with registries of its own."""
@@ -434,7 +438,7 @@ class Problem:
         known = [*self._variables, *self._data, *self._cached]
         for read in reads:
             if read not in known:
-                error = UnknownNameError("variable, data or cached value", read, known)
+                error = UnknownNameError("variable, data or cached value", read, valid=known)
                 error.add_note(f"{name!r} reads it; register cached values before the terms that read them")
                 raise error
         return tuple(reads)
@@ -443,7 +447,7 @@ class Problem:
         mapping = mapping or {}
         for name in mapping:
             if name not in self._variables:
-                raise UnknownNameError("variable", name, list(self._variables))
+                raise UnknownNameError("variable", name, valid=list(self._variables))
         return mapping
 
     def _clamp(self, x: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:

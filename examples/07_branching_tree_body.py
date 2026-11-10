@@ -47,12 +47,9 @@ def main() -> None:
     print(f"Root position: {state.joint_poses[0, :3]}")
 
     if not args.no_viewer:
-        from better_robot.testing import FakeServer  # noqa: PLC0415
-        from better_robot.viewer import GroundLayer, Viewer, robot_skeleton  # noqa: PLC0415 - optional viewer extra
-
-        viewer = Viewer(port=8081, server=FakeServer() if args.check else None)
+        viewer = br.Viewer(port=8081, server=br.testing.FakeServer() if args.check else None)
         viewer.add(
-            [GroundLayer(), robot_skeleton(model, state.joint_poses.numpy())]
+            [br.viewer.GroundLayer(), br.viewer.robot_skeleton(model, state.joint_poses.numpy())]
         )  # no meshes for a programmatic body
         viewer.show()
         if args.check:

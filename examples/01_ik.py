@@ -12,8 +12,7 @@ import torch
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics, optim, terms
 
 FRAME = "panda_hand"
 

@@ -1,0 +1,5 @@
+{
+  "Cauchy": "parked: torch.distributions.Cauchy is the distribution, this the robust kernel; a rename is an API change beyond the decided names",
+  "LBFGS": "parked: torch.optim.LBFGS is the same algorithm behind another interface; a rename is an API change beyond the decided names",
+  "Normal": "parked: torch.distributions.Normal is the distribution, this the normal equations; a rename is an API change beyond the decided names"
+}

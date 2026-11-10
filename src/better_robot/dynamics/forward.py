@@ -40,8 +40,9 @@ def forward_dynamics(
 ) -> torch.Tensor:
     """Joint accelerations ``ddq = M(q)⁻¹ (τ - C(q, v) v - g(q) + Σ_i J_iᵀ f_i)``, ``(B..., nv)``.
 
-    ``v, tau: (B..., nv)``; ``external_forces`` as in `inverse_dynamics`. The bias forces come from
-    `inverse_dynamics` with zero acceleration, then a Cholesky solve with `mass_matrix`. Raises as `inverse_dynamics`.
+    ``v, tau: (B..., nv)``; ``external_forces: (B..., njoints, 6)`` as in `inverse_dynamics`. The bias forces come
+    from `inverse_dynamics` with zero acceleration, then a Cholesky solve with `mass_matrix`. Raises as
+    `inverse_dynamics`.
     """
     check_state(model, state)
     kin = world_kinematics(model, state)

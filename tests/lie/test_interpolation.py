@@ -1,4 +1,4 @@
-"""Tests for SLERP (SO3) and ScLERP (SE3) in lie/so3.py and lie/se3.py.
+"""Tests for SLERP (SO3) and ScLERP (SE3) in ``src/better_robot/lie/so3.py`` and ``src/better_robot/lie/se3.py``.
 
 Random cases draw from a ``torch.Generator`` seeded by the ``seed`` in the test id.
 """

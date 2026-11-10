@@ -1,6 +1,6 @@
 """Tests for forward kinematics — correctness and shape checks.
 
-See ``docs/concepts/kinematics_and_jacobians.md``.
+See ``docs/concepts/kinematics-and-jacobians.md``.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import pytest
 import torch
 
 from better_robot.exceptions import DtypeMismatchError
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import panda_urdf
@@ -47,9 +47,8 @@ def arm():
 
 @pytest.mark.parametrize("dtype", (torch.float16, torch.bfloat16))
 def test_fk_rejects_unsupported_low_precision(arm, dtype):
-    low_precision_model = arm.to(dtype=dtype)
     with pytest.raises(DtypeMismatchError, match="is not float32 or float64"):
-        forward_kinematics(low_precision_model, low_precision_model.q_neutral)
+        forward_kinematics(arm, arm.q_neutral.to(dtype))
 
 
 def test_fk_rejects_model_query_dtype_mismatch(arm):

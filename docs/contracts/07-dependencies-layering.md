@@ -3,19 +3,18 @@
 The packages under `src/better_robot/` import each other along one edge table, the `ALLOWED` table in
 `tests/contract/test_layer_dependencies.py`: one row per package, naming the packages it may import. The table has no
 cycle, and a new package gets its row through an ADR (`00-index`, "When to write an ADR"). The root
-`src/better_robot/__init__.py` re-exports the packages and has no row. The edges that exist today outside the table are
-listed with a `path::symbol` witness in `tests/contract/ratchets/edges.json`, which only shrinks.
+`src/better_robot/__init__.py` re-exports the packages and has no row.
 
 | Package | May import |
 |---|---|
-| `exceptions`, `_version` | nothing from the package |
+| `exceptions`, `_internal_checks` | nothing from the package |
 | `lie` | `exceptions` |
 | `spatial` | `exceptions`, `lie` |
 | `model` | `exceptions`, `lie`, `spatial` |
 | `kinematics` | `exceptions`, `lie`, `model` |
 | `dynamics` | `exceptions`, `lie`, `spatial`, `model`, `kinematics` |
 | `collision` | `exceptions`, `lie`, `model`, `kinematics` |
-| `io` | `exceptions`, `lie`, `model` |
+| `io` | `exceptions`, `_internal_checks`, `lie`, `model` |
 | `optim` | `exceptions` |
 | `terms` | `exceptions`, `lie`, `model`, `kinematics`, `collision`, `optim` |
 | `viewer` | `exceptions`, `lie`, `model`, `kinematics`, `collision` |
@@ -79,4 +78,5 @@ Enforcement: `[ruff:TID251]` (banned-api table in `pyproject.toml`).
 A new runtime dependency goes through an ADR and into `pyproject.toml` (`dependencies` for required,
 `[project.optional-dependencies]` for an extra). No `pip install` in scripts, no vendored copies.
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_optional_imports.py` (every outside import is declared in `pyproject.toml`);
+`[review]` (the ADR).

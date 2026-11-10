@@ -14,6 +14,7 @@ import torch
 from scipy.spatial.transform import Rotation as Rot
 
 import better_robot as br
+from better_robot.io import ModelBuilder, build_model, parse_urdf
 from tests.support.robots import g1_urdf, panda_urdf
 
 
@@ -50,8 +51,6 @@ def panda_both():
         br_model, pin_model, pin_data, frame_map
         where frame_map[br_frame_name] = pin_frame_id
     """
-    from better_robot.io import build_model, parse_urdf
-
     # Pinocchio's default URDF loader leaves mimic coordinates independent.
     # Make the BR side explicitly unconstrained too, preserving this suite as
     # a full-space recursion oracle. Dedicated mimic tests assert G-projected
@@ -120,9 +119,6 @@ def g1_both():
 
 def _build_spherical_chain():
     """2-body chain: spherical joint + revolute RZ. Same in BR and Pinocchio."""
-    from better_robot.io.build_model import build_model
-    from better_robot.io.builder import ModelBuilder
-
     mass1, com1, I1 = 1.5, torch.tensor([0.0, 0.0, -0.2]), torch.diag(torch.tensor([0.04, 0.05, 0.01]))
     mass2, com2, I2 = 0.8, torch.tensor([0.0, 0.0, -0.15]), torch.diag(torch.tensor([0.02, 0.02, 0.005]))
     rz_offset = torch.tensor([0.0, 0.0, -0.4])

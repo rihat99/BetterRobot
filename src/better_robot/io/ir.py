@@ -18,7 +18,7 @@ from ..model.joints import JointModel
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRJoint:
     """A joint of the description: ``joint`` is its kind, ``origin (7,)`` its placement in the parent body's frame.
 
@@ -45,9 +45,12 @@ class IRJoint:
     armature: float = 0.0
     neutral: torch.Tensor | None = None
 
+    def __repr__(self) -> str:
+        return f"IRJoint({self.name!r}, {self.parent_body!r} -> {self.child_body!r}, {self.joint!r})"
+
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class IRShape:
     """A shape of the description fixed to the body named ``body``: collision geometry, or display only."""
 
@@ -57,18 +60,18 @@ class IRShape:
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRBody:
     """A rigid body: ``mass`` in kg, ``com (3,)`` and ``inertia (3, 3)`` about the centre of mass, in the body frame."""
 
     name: str
     mass: float = 0.0
-    com: torch.Tensor = field(default_factory=lambda: torch.zeros(3))
-    inertia: torch.Tensor = field(default_factory=lambda: torch.zeros(3, 3))
+    com: torch.Tensor = field(default_factory=lambda: torch.zeros(3), repr=False)
+    inertia: torch.Tensor = field(default_factory=lambda: torch.zeros(3, 3), repr=False)
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRFrame:
     """A named frame placed by ``placement (7,)`` on the body ``parent_body``."""
 
@@ -78,7 +81,7 @@ class IRFrame:
 
 
 @final
-@dataclass
+@dataclass(kw_only=True)
 class IRModel:
     """Flat, unordered intermediate representation of a robot; ``gravity (6,)`` is the world's spatial acceleration."""
 
@@ -91,3 +94,7 @@ class IRModel:
     gravity: torch.Tensor = field(
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0], dtype=torch.float64)
     )
+
+    def __repr__(self) -> str:
+        sizes = f"bodies={len(self.bodies)}, joints={len(self.joints)}, frames={len(self.frames)}, shapes={len(self.shapes)}"
+        return f"IRModel({self.name!r}, {sizes})"

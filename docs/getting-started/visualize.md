@@ -18,7 +18,8 @@ from pathlib import Path
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.viewer import FramesLayer, RigidMeshLayer, Viewer, robot_meshes, robot_skeleton
+from better_robot import Viewer
+from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 q_rest = model.q_neutral

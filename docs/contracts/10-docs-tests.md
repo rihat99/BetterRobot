@@ -26,8 +26,8 @@ def integrate(model: Model, q: Tensor, v: Tensor) -> Tensor:
     """
 ```
 
-Enforcement: `[ruff:D]` [planned: L-7] (numpy convention, `D1xx` on public names only via per-file ignores for `_`
-modules and tests); `tests/contract/test_docstrings.py`.
+Enforcement: `tests/contract/test_ruff_ratchets.py` (ruff's `D1` rules on `src/` under the numpy convention, which ruff applies to public names
+only); `tests/contract/test_docstrings.py`.
 
 ## C-DOC-2 Every documentation snippet executes (MUST)
 
@@ -50,18 +50,17 @@ A test is justified when it fixes a bug, guards an invariant (`tests/contract/`)
 (`tests/parity/`), or is the cheapest verification of a change. Never weaken, skip or `xfail` a contract or
 parity test to land a change; fix the code or open an ADR.
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_no_skips.py` (no skip or xfail, whatever spells it); `[review]`.
 
 ## C-TEST-2 Type hints on every public signature (MUST)
 
 Public functions annotate every parameter and the return type; `Tensor` from `torch`, ids as `int | str`.
 
-Enforcement: `[ruff:ANN201]` on `src/`; `[ruff:ANN001]` [planned: L-7].
+Enforcement: `[ruff:ANN201]` on `src/`; `tests/contract/test_ruff_ratchets.py` (ruff's `ANN001`); `tests/contract/test_pyright_ratchet.py`.
 
 ## C-DOC-4 No Sphinx roles in docstrings (MUST)
 
 The docs are built with MkDocs, where `` :class:`Model` `` renders as literal text. Write plain backticks
-(`` `Model` ``) or an mkdocstrings cross-reference (`` [Model][better_robot.Model] ``). The 50 existing roles are
-ledger item L-9.
+(`` `Model` ``) or an mkdocstrings cross-reference (`` [Model][better_robot.Model] ``).
 
-Enforcement: `tests/contract/test_docstrings.py` [planned: L-9]; `[review]`.
+Enforcement: `tests/contract/test_docstrings.py` (no role in any file under `src/`).

@@ -14,7 +14,7 @@ Run from the repository root (``tests.support`` must import):
 
     PYTHONPATH=. uv run python tests/kinematics/_generate_fk_reference.py
 
-See ``docs/conventions/testing.md §5.4``.
+See ``docs/contributing/testing.md``.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ import numpy as np
 import torch
 
 import better_robot as br
+from better_robot.io import build_model, parse_urdf
 from tests.support.robots import g1_urdf, panda_urdf
 
 ORACLE_VERSION = "5"
@@ -35,8 +36,6 @@ N_CONFIGS = 32  # keep small — < 200 KB total
 
 
 def _panda():
-    from better_robot.io import build_model, parse_urdf
-
     # Keep the historical oracle in full coordinates. Public Panda loading now
     # reduces the gripper mimic target, while test_fk_regression deliberately
     # strips that metadata to preserve this algorithm-regression fixture.
@@ -103,7 +102,7 @@ def main() -> None:
 
     np.savez_compressed(out_path, **payload)
     size_kb = out_path.stat().st_size / 1024
-    print(f"wrote {out_path.name} ({size_kb:.1f} KB)")
+    print(f"wrote {out_path.name} ({size_kb:.1f} KB)")  # noqa: T201 - the generator script's report
 
 
 if __name__ == "__main__":

@@ -36,6 +36,9 @@ FROZEN_RECORD_CITATIONS: dict[str, str] = {
     "docs/contracts/decisions/0040-model-value-memo.md: src/better_robot/kinematics/_fk_lean.py::placement_matrices": (
         "now src/better_robot/kinematics/_fk.py::placement_matrices"
     ),
+    "docs/contracts/decisions/0035-shared-testing-module.md: scripts/docs_screenshots.mjs": (
+        "now tools/docs_screenshots.mjs, the one copy both repositories use"
+    ),
 }
 
 

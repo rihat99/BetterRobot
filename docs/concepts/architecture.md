@@ -105,11 +105,12 @@ ShapeError
 
 ## Public API is what `__all__` lists
 
-The root namespace is deliberately small. `better_robot.__all__` holds the core of most scripts: `Model`, `load`, `ModelBuilder`,
-`forward_kinematics`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, their time variations,
-`center_of_mass`, `inverse_dynamics`, `mass_matrix`, `forward_dynamics`, `centroidal_map`,
-and `centroidal_momentum`. The subpackages `br.io`, `br.spatial` and `br.exceptions` are attributes
-of the root; `tests/contract/test_public_api.py` checks this core.
+The root namespace is deliberately small (decision record 0019). `better_robot.__all__` lists the twelve
+subpackages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`, `collision`, `io`, `optim`, `terms`,
+`viewer`, `testing`) and the fourteen names a first script needs: `load`, `Model`, `ModelBuilder`, `JointFreeFlyer`,
+`forward_kinematics`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, `inverse_dynamics`, `mass_matrix`,
+`forward_dynamics`, `center_of_mass`, `solve_ik` and `Viewer`. Importing the root imports no optional package;
+`Viewer` loads viser when it starts a server. `tests/contract/test_public_surface.py` checks this list.
 
 Everything else is public only under its package name and only if that package's `__all__` lists it, for
 example `better_robot.lie.so3` or `better_robot.optim.solve`. Names with a leading underscore, or missing

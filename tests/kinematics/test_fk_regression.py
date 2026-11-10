@@ -16,7 +16,7 @@ fp64 rotation-matrix ground truth.
 
 The oracle file is tracked; a missing ``fk_reference.npz`` fails the test.
 
-See ``docs/conventions/testing.md §4.5``.
+See ``docs/contributing/testing.md``.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ import pytest
 import torch
 
 import better_robot as br
+from better_robot.io import build_model, parse_urdf
 from tests.support.robots import g1_urdf, panda_urdf
 
 REF_PATH = Path(__file__).parent / "fk_reference.npz"
@@ -51,8 +52,6 @@ def _sign_align_poses(actual: np.ndarray, reference: np.ndarray) -> np.ndarray:
 
 
 def _load_panda():
-    from better_robot.io import build_model, parse_urdf
-
     # The frozen oracle predates reduced mimic coordinates and contains two
     # independent finger entries. Keep it as an explicit full-space algorithm
     # regression; constrained behavior has dedicated reduced-map tests.

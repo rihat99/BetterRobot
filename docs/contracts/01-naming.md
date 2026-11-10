@@ -22,8 +22,8 @@ V_WB = adjoint(X_WB) @ V_B
 pose = parent_pose @ joint_pose     # which frames? cannot be checked by eye
 ```
 
-Enforcement: `[ruff:N806,N803]` [planned: L-7] are *ignored* for these four packages (per-file ignores in `pyproject.toml`);
-`[review]` checks that the frames in the name match the frames in the formula.
+Enforcement: `tests/contract/test_ruff_ratchets.py` runs ruff's `N` rules on every other package (N806 and N803 are *ignored* for these four,
+per-file ignores in `pyproject.toml`); `[review]` checks that the frames in the name match the frames in the formula.
 
 ## C-NAME-2 Descriptive names in the public API (MUST)
 
@@ -38,7 +38,8 @@ def forward_kinematics(model: Model, q: Tensor) -> KinematicState: ...
 def fk_st(m, q): ...
 ```
 
-Enforcement: `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] outside the math packages; `tests/contract/test_naming.py`.
+Enforcement: `tests/contract/test_ruff_ratchets.py` (ruff's `N` rules outside the math packages); `tests/contract/test_naming.py`; `tests/contract/test_vocabulary.py` (no alias, no
+class name a library below already uses, acronyms in capitals, no `utils`/`common`/`misc`/`helpers` module).
 
 ## C-NAME-3 Order words follow the data order (MUST)
 

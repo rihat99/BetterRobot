@@ -421,16 +421,20 @@ class FakeServer:
         return f"FakeServer(port={self.port}, nodes={len(self.scene.nodes)}, controls={len(self.gui.controls)})"
 
     def get_port(self) -> int:
+        """The port given at construction; nothing listens on it."""
         return self.port
 
     def get_clients(self) -> dict[int, Any]:
+        """A copy of ``clients``, the connected browsers by id."""
         return dict(self.clients)
 
     def get_scene_serializer(self) -> _FakeSerializer:
+        """A new serializer that records each ``insert_sleep`` and serializes to placeholder bytes."""
         return _FakeSerializer()
 
     @contextlib.contextmanager
     def atomic(self) -> Iterator[None]:
+        """Count the block in ``atomic_blocks``; the updates inside it apply at once, as without it."""
         self.atomic_blocks += 1
         yield
 
@@ -438,4 +442,5 @@ class FakeServer:
         """Return at once: there is nothing to serve."""
 
     def stop(self) -> None:
+        """Set ``stopped``."""
         self.stopped = True

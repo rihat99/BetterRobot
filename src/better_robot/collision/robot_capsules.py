@@ -20,7 +20,7 @@ from .robot_spheres import _check_attached, _check_pairs
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RobotCapsules:
     """``C`` capsules, each rigidly attached to a model frame.
 
@@ -38,6 +38,10 @@ class RobotCapsules:
     starts: torch.Tensor
     ends: torch.Tensor
     radii: torch.Tensor
+
+    def __repr__(self) -> str:
+        dtype = str(self.radii.dtype).removeprefix("torch.")
+        return f"RobotCapsules({self.frame_ids.shape[0]} capsules, {dtype}, {self.radii.device})"
 
     @classmethod
     def from_frames(

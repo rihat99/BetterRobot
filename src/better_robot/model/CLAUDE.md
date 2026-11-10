@@ -7,7 +7,7 @@ The class docstring holds the field table. Query results live in a frozen
 `KinematicState` (`src/better_robot/kinematics/forward.py`), never on the model; do not mutate
 model tensors in place.
 
-- No `__post_init__` validation: `io/build_model.py` constructs the record;
+- No `__post_init__` validation: `src/better_robot/io/model_from_ir.py` constructs the record;
   `Model.with_values(**fields)` is the validated public rebind (every tensor
   field; placements normalised; the three `I...`-batched fields must broadcast)
   and `Model.to(device, dtype)` moves every tensor field. Both return a new
@@ -32,7 +32,7 @@ model tensors in place.
   `expand_batch`); raw passes trust the result.
 - `manifolds.py` holds the six `JointManifold`s (fixed, Euclidean, circle, rotation,
   plane, rigid): `integrate`/`difference` written once each as the group exponential
-  and logarithm; `kinematics/configuration.py` groups the public coordinates by
+  and logarithm; `src/better_robot/kinematics/configuration.py` groups the public coordinates by
   manifold and runs one batched call per group behind `kinematics.integrate`
   and `kinematics.difference`.
 - `joints/` holds the abstract `JointModel` and the nine final kinds, one file
@@ -48,15 +48,15 @@ model tensors in place.
   orders and supports arbitrary leading batches.
 - Mimic targets have zero-width public slices. `mimic_source_ids`,
   `mimic_multipliers` and `mimic_offsets` hold each target's resolved chain
-  (public root joint, total scale, total offset); `kinematics/configuration.py`
-  builds the expansion maps from them, and `io/build_model.py` reduces the
+  (public root joint, total scale, total offset); `src/better_robot/kinematics/configuration.py`
+  builds the expansion maps from them, and `src/better_robot/io/model_from_ir.py` reduces the
   limits with the same chain.
 
 ## Extending joints
 
 Subclass `JointModel` in `joints/` as a `@final` frozen dataclass declaring
 `nq`, `nv`, `manifold` and `axis`, run `better_robot.testing.check_joint_model`
-on it and export it from `src/better_robot/model/__init__.py`; `io/build_model.py` needs no
+on it and export it from `src/better_robot/model/__init__.py`; `src/better_robot/io/model_from_ir.py` needs no
 entry, it reads the limits' shape from the kind's `manifold`. `src/better_robot/kinematics/_plans.py` reads a kind's class only for
 the affine fast path; every other kind goes through `placement`. Joints carry
 no kind string. Preserve scalar-last quaternions and linear-first tangents

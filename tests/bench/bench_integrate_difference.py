@@ -56,11 +56,11 @@ def _loop_difference(model, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor:
 @pytest.fixture(scope="module")
 def single_thread_cpu():
     previous = torch.get_num_threads()
-    torch.set_num_threads(1)
+    torch.set_num_threads(1)  # noqa: TID251 - a benchmark pins its threads so rows compare; C-DEP-3 binds the library
     try:
         yield
     finally:
-        torch.set_num_threads(previous)
+        torch.set_num_threads(previous)  # noqa: TID251 - a benchmark pins its threads so rows compare; C-DEP-3 binds the library
 
 
 @pytest.fixture(scope="module")

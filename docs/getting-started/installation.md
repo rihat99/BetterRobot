@@ -22,6 +22,7 @@ uv sync --all-extras --all-groups   # the package, every extra, and the dev and 
 | `mjcf` | `mujoco` | loading MJCF (`.xml`) models through MuJoCo's compiler |
 | `meshes` | `trimesh` | loading visual and collision meshes |
 | `demos` | `robot_descriptions` | the Panda and G1 models used in these tutorials |
+| `testing` | `pytest` | the pytest plugin `better_robot.testing.no_skips` in a downstream test suite |
 
 The core alone (`torch`, `numpy` and the URDF parser) has no viewer, no MuJoCo and no robot assets. The `dev` group
 holds the test, lint and docs tools; `test-oracles` holds Pinocchio and SciPy, the references of the parity tests.

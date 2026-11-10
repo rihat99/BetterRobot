@@ -41,7 +41,8 @@ def sphere_sphere_raw(
 def sphere_capsule(
     center: torch.Tensor, radius: torch.Tensor, *, start: torch.Tensor, end: torch.Tensor, capsule_radius: torch.Tensor
 ) -> torch.Tensor:
-    """Sphere ``center: (..., 3)``, ``radius: (...)`` to the capsule around segment ``start, end: (..., 3)``.
+    """Sphere ``center: (..., 3)``, ``radius: (...)`` to the capsule around segment ``start, end: (..., 3)`` with
+    ``capsule_radius: (...)``.
 
     A zero-length segment is a sphere at ``start``. Returns ``(...)``.
     """
@@ -121,8 +122,10 @@ def capsule_capsule_raw(
 def sphere_halfspace(
     center: torch.Tensor, radius: torch.Tensor, *, normal: torch.Tensor, offset: torch.Tensor | float
 ) -> torch.Tensor:
-    """Sphere to the solid ``{x : normal . x <= offset}``; ``normal: (..., 3)`` has unit length, ``offset`` a number
-    or ``(...)``. Returns ``(...)``."""
+    """Sphere ``center: (..., 3)``, ``radius: (...)`` to the solid ``{x : normal . x <= offset}``.
+
+    ``normal: (..., 3)`` has unit length, ``offset`` a number or ``(...)``. Returns ``(...)``.
+    """
     check_tensors(center=(center, (3,)), radius=(radius, ()), normal=(normal, (3,)))
     if isinstance(offset, torch.Tensor):
         check_tensor("offset", offset, shape=(), dtype=center.dtype, device=center.device, owner="center")
@@ -137,7 +140,8 @@ def sphere_box(
     box_rotation: torch.Tensor,
     half_extents: torch.Tensor,
 ) -> torch.Tensor:
-    """Sphere to an oriented box ``box_center: (..., 3)``, ``box_rotation: (..., 3, 3)``, ``half_extents: (..., 3)``.
+    """Sphere ``center: (..., 3)``, ``radius: (...)`` to an oriented box ``box_center: (..., 3)``,
+    ``box_rotation: (..., 3, 3)``, ``half_extents: (..., 3)``.
 
     Exact Euclidean distance outside the box; inside, minus the distance to the nearest face. Returns ``(...)``.
     """
@@ -156,7 +160,7 @@ def sphere_box(
 def sphere_sdf(
     center: torch.Tensor, radius: torch.Tensor, *, grid: torch.Tensor, origin: torch.Tensor, voxel_size: float
 ) -> torch.Tensor:
-    """Sphere to a sampled signed distance field, by trilinear interpolation.
+    """Sphere ``center: (..., 3)``, ``radius: (...)`` to a sampled signed distance field, by trilinear interpolation.
 
     ``grid: (X, Y, Z)`` (each at least 2) holds the field at ``origin + voxel_size * (i, j, k)``,
     ``origin: (3,)``. Points outside the grid are clamped to its boundary. Returns ``(...)``.

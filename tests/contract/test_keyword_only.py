@@ -1,104 +1,77 @@
-"""C-API-2: public callables take at most two positional parameters.
+"""C-API-2 (principle 2.3): a public callable takes at most two positional arguments.
 
-Every callable listed in a public ``__all__`` (top-level package and each
-subpackage) is inspected; parameters after the second must be keyword-only.
-``KEYWORD_ONLY_ALLOWLIST`` names the current violations so the ledger in
-``agent_notes`` can shrink one entry at a time; adding a name is a contract
-decision, not a convenience.
+Every function, class constructor and public method that the ``__all__`` tree lists (``better_robot.testing.
+public_objects``, each object once) is inspected; parameters after the second must be keyword-only, and an
+identifier argument after ``(model, state)`` of a kinematics or dynamics function is never positional.
+``PERMANENT`` holds the reasoned exceptions. ``tests/contract/ratchets/keyword_only.json`` holds the violations whose
+fix belongs to another work package (``path`` to reason); it only shrinks.
 """
 
 from __future__ import annotations
 
-import importlib
 import inspect
+import json
+from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
-import better_robot
-
-PACKAGES = [
-    "better_robot",
-    "better_robot.lie",
-    "better_robot.spatial",
-    "better_robot.model",
-    "better_robot.kinematics",
-    "better_robot.dynamics",
-    "better_robot.collision",
-    "better_robot.io",
-    "better_robot.optim",
-    "better_robot.terms",
-    "better_robot.viewer",
-]
+from better_robot.testing import public_objects
 
 MAX_POSITIONAL = 2
-
-# Current violations (package.name -> positional count). Shrink, never grow.
-# ``integrate(model, q, v)`` and ``difference(model, q0, q1)`` keep the mathematical signature (record 0013).
-KEYWORD_ONLY_ALLOWLIST: dict[str, int] = {
-    "better_robot.kinematics.integrate": 3,
-    "better_robot.kinematics.difference": 3,
+PERMANENT: dict[str, str] = {
+    "better_robot.kinematics.integrate": "record 0013 decides the call integrate(model, q, v): the step q (+) v",
+    "better_robot.kinematics.difference": "record 0013 decides the call difference(model, q0, q1): q1 (-) q0",
 }
-
-
-def _public_callables() -> list[tuple[str, object]]:
-    found: list[tuple[str, object]] = []
-    for package in PACKAGES:
-        module = importlib.import_module(package)
-        for name in getattr(module, "__all__", ()):
-            obj = getattr(module, name)
-            if inspect.isfunction(obj):
-                found.append((f"{package}.{name}", obj))
-            elif inspect.isclass(obj):
-                for attr, member in vars(obj).items():
-                    if inspect.isfunction(member) and not attr.startswith("_"):
-                        found.append((f"{package}.{name}.{attr}", member))
-    return found
-
-
-def _positional_count(fn: object) -> int:
-    params = list(inspect.signature(fn).parameters.values())
-    if params and params[0].name in {"self", "cls"}:
-        params = params[1:]
-    return sum(p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD) for p in params)
-
-
-CALLABLES = _public_callables()
-
-
-@pytest.mark.parametrize("qualname,fn", CALLABLES, ids=[q for q, _ in CALLABLES])
-def test_public_callable_is_keyword_only_after_second_argument(qualname: str, fn: object) -> None:
-    count = _positional_count(fn)
-    allowed = KEYWORD_ONLY_ALLOWLIST.get(qualname, MAX_POSITIONAL)
-    assert count <= allowed, (
-        f"{qualname} takes {count} positional parameters (limit {allowed}); "
-        "make the extra ones keyword-only or add it to KEYWORD_ONLY_ALLOWLIST."
-    )
-
-
-def test_allowlist_has_no_stale_entries() -> None:
-    present = {q: fn for q, fn in CALLABLES}
-    stale = [
-        q
-        for q, limit in KEYWORD_ONLY_ALLOWLIST.items()
-        if q not in present or _positional_count(present[q]) <= MAX_POSITIONAL
-    ]
-    assert not stale, f"remove fixed entries from KEYWORD_ONLY_ALLOWLIST: {stale}"
-
-
-def test_top_level_package_exports_exist() -> None:
-    assert better_robot.__all__
-
-
+RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / "keyword_only.json").read_text())
 ID_PARAMETERS = {"frame", "joint", "body", "frame_id", "joint_id", "body_id", "frames", "joints"}
 
 
-def test_kinematics_dynamics_ids_are_keyword_only() -> None:
-    """Identifier arguments after ``(model, state)`` are never positional, so call sites name them."""
+def _callables() -> dict[str, Callable[..., object]]:
+    """Each public function, class (its constructor) and method once, under the first path that lists it."""
+    found: dict[int, tuple[str, Callable[..., object]]] = {}
+    for path, listed in public_objects("better_robot").items():
+        value = listed.__func__ if isinstance(listed, staticmethod | classmethod) else listed
+        if inspect.isfunction(value) or (inspect.isclass(value) and inspect.isfunction(value.__init__)):
+            found.setdefault(id(value), (path, value))
+    return dict(found.values())
+
+
+def _positional_count(function: Callable[..., object]) -> int:
+    parameters = list(inspect.signature(function).parameters.values())
+    if parameters and parameters[0].name in {"self", "cls"}:
+        parameters = parameters[1:]
+    return sum(
+        parameter.kind in (parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD) for parameter in parameters
+    )
+
+
+CALLABLES = _callables()
+OVER = sorted(path for path, function in CALLABLES.items() if _positional_count(function) > MAX_POSITIONAL)
+
+
+@pytest.mark.parametrize("path", sorted(CALLABLES))
+def test_public_callable_is_keyword_only_after_its_second_argument(path: str) -> None:
+    count = _positional_count(CALLABLES[path])
+    assert count <= MAX_POSITIONAL or path in PERMANENT or path in RATCHET, (
+        f"{path} takes {count} positional parameters; make the ones after the second keyword-only (`*`, or "
+        "`kw_only=True` on a dataclass)"
+    )
+
+
+def test_exceptions_and_ratchet_name_only_violations() -> None:
+    """A fixed entry leaves the ratchet with its fix; a permanent exception exists while its callable does."""
+    assert sorted(PERMANENT.keys() - set(OVER)) == []
+    assert sorted(RATCHET.keys() - set(OVER)) == []
+
+
+def test_kinematics_and_dynamics_identifiers_are_keyword_only() -> None:
+    """Identifier arguments of a package-level function are never positional, so call sites name them."""
     offenders = [
-        f"{qualname}({param.name})"
-        for qualname, fn in CALLABLES
-        if qualname.startswith(("better_robot.kinematics.", "better_robot.dynamics.")) and qualname.count(".") == 2
-        for param in inspect.signature(fn).parameters.values()
-        if param.name in ID_PARAMETERS and param.kind != param.KEYWORD_ONLY
+        f"{path}({parameter.name})"
+        for path, function in CALLABLES.items()
+        if path.startswith(("better_robot.kinematics.", "better_robot.dynamics.")) and path.count(".") == 2
+        for parameter in inspect.signature(function).parameters.values()
+        if parameter.name in ID_PARAMETERS and parameter.kind != parameter.KEYWORD_ONLY
     ]
-    assert not offenders, offenders
+    assert offenders == []

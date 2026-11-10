@@ -20,7 +20,7 @@ class Kinematics:                         # a class with no resource, only to gr
     def jacobian(self, frame): ...
 ```
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_frozen.py` (every public dataclass is frozen); `[review]`.
 
 ## C-API-2 Arguments after the second are keyword-only (MUST)
 
@@ -60,11 +60,11 @@ frame_pose(model, frame="panda_hand", target="goal"); frame_pose(model, frame=8,
 def frame_pose_of(self, frame_id: int): ...   # forces users to look up ids themselves
 ```
 
-Enforcement: `tests/contract/test_public_api.py`; `[review]`.
+Enforcement: `tests/contract/test_public_surface.py`; `[review]`.
 
 ## C-API-5 Small top-level surface; specialised APIs stay package-qualified (SHOULD)
 
 `better_robot.__all__` exports the model, FK, Jacobians, IK and the viewer entry point. Everything else is
 reached as `better_robot.<package>.<name>`. A symbol enters `__all__` only when two examples use it.
 
-Enforcement: `tests/contract/test_public_api.py`, `tests/contract/test_submodule_public_imports.py`.
+Enforcement: `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py`.

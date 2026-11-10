@@ -21,11 +21,10 @@ block-tridiagonal normal matrix instead of a dense one. The example's Unitree G1
 import torch
 import better_robot as br
 from robot_descriptions import g1_description
-from better_robot import optim, terms
-from better_robot.kinematics import forward_kinematics
+from better_robot import forward_kinematics, optim, terms
 
 KNOTS, FPS = 20, 30.0
-model = br.load(g1_description.URDF_PATH, root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
+model = br.load(g1_description.URDF_PATH, root_joint=br.JointFreeFlyer(), dtype=torch.float64)
 markers = [n for n in model.frame_names if any(k in n for k in ("pelvis", "ankle_roll", "wrist_yaw", "head"))][:6]
 marker_ids = [model.frame_id(n) for n in markers]
 

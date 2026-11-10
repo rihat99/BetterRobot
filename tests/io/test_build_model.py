@@ -11,11 +11,11 @@ from typing import ClassVar, final
 import pytest
 import torch
 
-from better_robot.io.build_model import build_model
+from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.io.ir import IRBody, IRFrame, IRJoint, IRModel
 from better_robot.kinematics import subtree
-from better_robot.exceptions import ModelError, UnknownNameError
+from better_robot.exceptions import DtypeMismatchError, ModelError, UnknownNameError
 from better_robot.model.joints import (
     JointFixed,
     JointFreeFlyer,
@@ -53,6 +53,12 @@ def _simple_arm_ir():
         effort_limit=100.0,
     )
     return b.finalize()
+
+
+@pytest.mark.parametrize("dtype", [torch.int64, torch.float16, torch.complex64, "float32"], ids=str)
+def test_a_dtype_other_than_float32_or_float64_is_refused(dtype):
+    with pytest.raises(DtypeMismatchError, match="is not float32 or float64; pass torch.float32 or torch.float64"):
+        build_model(_simple_arm_ir(), dtype=dtype)
 
 
 def test_frozen():
@@ -414,8 +420,11 @@ def _named_ir(joints: list[tuple[str, str, str]], bodies: list[str], frames: tup
     return IRModel(
         name="names",
         bodies=[IRBody(name=body) for body in bodies],
-        joints=[IRJoint(name, parent, child, JointRevolute(axis=axis)) for name, parent, child in joints],
-        frames=[IRFrame(name, parent_body=bodies[0], placement=_id7()) for name in frames],
+        joints=[
+            IRJoint(name=name, parent_body=parent, child_body=child, joint=JointRevolute(axis=axis))
+            for name, parent, child in joints
+        ],
+        frames=[IRFrame(name=name, parent_body=bodies[0], placement=_id7()) for name in frames],
     )
 
 

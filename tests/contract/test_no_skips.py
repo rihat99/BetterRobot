@@ -1,20 +1,19 @@
-"""No test skips or xfails, whatever spells it: ``tests/conftest.py`` fails each one (principle 6.5, record 0033).
+"""No test skips or xfails, whatever spells it: the plugin ``better_robot.testing.no_skips`` fails each one
+(principle 6.5, record 0033).
 
 A test that needs what the fast and full tiers lack (a GPU) carries the ``cuda`` marker, which deselects it there; a
 missing oracle, fixture or browser is an error. The hooks read the test reports, so an aliased ``pytest``, a
 ``unittest`` skip or a non-strict ``xfail`` fails like a plain ``pytest.skip``. These cases plant each spelling in a
-scratch suite that runs under a copy of this repository's ``tests/conftest.py``.
+scratch suite that loads only the plugin, as this repository's ``tests/conftest.py`` and BetterHuman's do.
 """
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import pytest
 
 pytest_plugins = ["pytester"]
 
-CONFTEST = Path(__file__).resolve().parents[1] / "conftest.py"
+CONFTEST = 'pytest_plugins = ["better_robot.testing.no_skips"]\n'
 PLANTED = """
 import unittest
 
@@ -81,7 +80,7 @@ def test_xfail_call():
 
 def test_every_skip_or_xfail_spelling_fails(pytester: pytest.Pytester) -> None:
     """All eleven planted tests fail; the three that skip in setup (two marks, a fixture) report as errors."""
-    pytester.makeconftest(CONFTEST.read_text())
+    pytester.makeconftest(CONFTEST)
     pytester.makepyfile(test_planted=PLANTED)
     result = pytester.runpytest("-p", "no:cacheprovider")
     assert result.parseoutcomes() == {"failed": 8, "errors": 3}, result.outlines
@@ -89,7 +88,7 @@ def test_every_skip_or_xfail_spelling_fails(pytester: pytest.Pytester) -> None:
 
 def test_a_module_skipped_at_collection_fails(pytester: pytest.Pytester) -> None:
     """A module-level ``importorskip`` is a collection error, not a skipped module."""
-    pytester.makeconftest(CONFTEST.read_text())
+    pytester.makeconftest(CONFTEST)
     pytester.makepyfile(test_planted='import pytest\n\npytest.importorskip("a_module_that_does_not_exist")\n')
     result = pytester.runpytest("-p", "no:cacheprovider")
     assert result.parseoutcomes() == {"errors": 1}, result.outlines

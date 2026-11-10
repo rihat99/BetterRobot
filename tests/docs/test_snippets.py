@@ -154,7 +154,7 @@ def test_referenced_images_exist(page: Path) -> None:
     text = page.read_text()
     paths = {m["path"] for m in IMAGE.finditer(text)} | {m["path"] for m in FIGURE.finditer(text)}
     # mkdocs rewrites Markdown links but leaves raw HTML alone, and with directory URLs a page lives one level
-    # deeper in the built site than its source (``concepts/viewer.md`` -> ``concepts/viewer/index.html``).
+    # deeper in the built site than its source: a page becomes the index page of a folder named after it.
     built_dir = page.parent if page.name == "index.md" else page.parent / page.stem
     video_paths = {
         m["path"] for video in re.findall(r"<video.*?</video>", text, re.DOTALL) for m in VIDEO_SRC.finditer(video)

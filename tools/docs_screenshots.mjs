@@ -1,5 +1,5 @@
 // Build the docs and render every page to full-page PNGs, light and dark, for self-review.
-// Usage: node scripts/docs_screenshots.mjs <out_dir> [--no-build]   ->  <out_dir>/{light,dark}/<page>.png at 1280 px.
+// Usage: node tools/docs_screenshots.mjs <out_dir> [--no-build]   ->  <out_dir>/{light,dark}/<page>.png at 1280 px.
 // Needs BETTER_ROBOT_CHROME=<chromium / headless-shell binary or wrapper> (same variable as viewer/capture.py).
 // Node 22 built-in WebSocket + CDP, no npm deps. The headless shell dlopens libasound.so.2, which this machine
 // lacks: wrap the binary in a script that sets LD_LIBRARY_PATH to a directory holding an extracted libasound2 .deb

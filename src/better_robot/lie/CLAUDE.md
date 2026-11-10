@@ -30,7 +30,7 @@ and `io` call the `_raw` twins on inputs their own boundary checked. A new publi
 
 - `se3.py` — `compose`, `inverse`, `log`, `exp`, `act`, `adjoint`, `adjoint_inverse`, `from_matrix`, `to_matrix`, `from_axis_angle`, `from_translation`, `normalize`, `sclerp`
 - `so3.py` — same pattern + fixed-convention `from_euler` / `to_euler`, `from_matrix`, `to_matrix`, `slerp`
-- `umeyama.py` — weighted, batched `umeyama` similarity-transform fitting with a proper-rotation reflection fix
+- `alignment.py` — weighted, batched `umeyama` similarity-transform fitting with a proper-rotation reflection fix
 - `tangents.py` — right/left Jacobians of the SO3/SE3 exp and their inverses (`*_jacobian_inverse_*`), `hat`/`vee` maps
 
 Design contracts (rule IDs `C-*`, enforcement matrix, ADRs): `docs/contracts/00-index.md`.

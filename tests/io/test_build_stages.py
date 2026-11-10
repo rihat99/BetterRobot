@@ -7,7 +7,7 @@ import torch
 
 import better_robot as br
 from better_robot.io import build_model
-from better_robot.io.build_model import _frames, _joint_order, _layout, _limits, _mimic, _neutral, _root, _topology
+from better_robot.io.model_from_ir import _frames, _joint_order, _layout, _limits, _mimic, _neutral, _root, _topology
 from better_robot.model.joints import JointFreeFlyer
 
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body, make_branching_tree_model

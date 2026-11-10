@@ -26,7 +26,8 @@ def ik_problem(
 
     ``targets`` maps frame names to poses ``(B, 7)``; ``q0: (B, nq)`` is the start. Position
     limits are hard bounds. ``limit_weight`` and ``rest_weight`` add soft terms; both are off by
-    default so a reachable target is reached exactly. Terms are named ``pose/<frame>``,
+    default so a reachable target is reached exactly. The rest term pulls toward ``q_rest: (nq,)`` or
+    ``(B, nq)``, ``model.q_neutral`` when omitted. Terms are named ``pose/<frame>``,
     ``limits`` and ``rest``; the returned problem accepts more terms.
     """
     problem = Problem(
@@ -73,7 +74,7 @@ def solve_ik(
     restarts: int = 0,
     generator: torch.Generator | None = None,
 ) -> Result:
-    """Solve ``ik_problem`` with LM (or ``solver``). The configuration is ``result.x["q"]``.
+    """Solve ``ik_problem`` from ``q0: (B, nq)`` with LM (or ``solver``). The configuration is ``result.x["q"]``.
 
     ``restarts`` (0 or more) extra attempts start from random configurations drawn with ``generator`` (required when
     ``restarts > 0``); each batch element keeps its best attempt. This is what gets past the local minima of a

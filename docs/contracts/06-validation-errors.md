@@ -35,10 +35,11 @@ Every raised error is a subclass of `better_robot.exceptions.BetterRobotError` (
 exception: a value of the wrong Python type (not a `torch.Tensor`, not a `KinematicState`) raises Python's
 `TypeError` (the tree has no node for it; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
 site). An exception class exists only if something raises it; never-raised types are removed.
-An unknown joint, frame or body name raises `UnknownNameError` (also a `KeyError`); every public id
-argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.
+An unknown name (a model's joint, frame or body, a problem's term or variable, a viewer's group) raises
+`UnknownNameError` (also a `KeyError`) with one message shape, `unknown <kind> '<name>' (valid names: [...])`; every
+public id argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.
 
-Enforcement: `tests/contract/test_public_api.py` (every class in `exceptions.__all__` is raised somewhere in
+Enforcement: `tests/contract/test_error_tree.py` (every class in `exceptions.__all__` is raised somewhere in
 `src/`); `[review]`.
 
 ## C-ERR-3 Messages say expected vs received (MUST)
@@ -54,7 +55,7 @@ raise ShapeError(f"q: expected trailing axis {model.nq}, got {q.shape[-1]}")
 raise ShapeError("bad q")
 ```
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_error_tree.py::test_unknown_name_lists_the_valid_names`; `[review]`.
 
 ## C-ERR-4 No silent fallbacks, no broad excepts (MUST)
 

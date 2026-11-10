@@ -56,8 +56,8 @@ Tensor, shape (..., nframes, 7)
 """Return frame poses."""
 ```
 
-Enforcement: `tests/contract/test_docstrings.py` (every `__all__` symbol has a docstring; if its return
-annotation is `Tensor`, the docstring contains `shape (`).
+Enforcement: `tests/contract/test_docstrings.py` (every object of the `__all__` tree has a docstring, and the
+shape of each tensor parameter is in it).
 
 ## C-TENS-4 No host synchronisation in library paths (MUST)
 
@@ -72,9 +72,9 @@ converged = (step_norm < tol)               # tensor mask, stays on device
 if step_norm.item() < tol: break
 ```
 
-Enforcement: `tests/contract/test_hot_path_lint.py` (ast scan of `kinematics`, `dynamics`, `lie` and
-`optim/solvers.py`; a line marked `# bench-ok` is exempt, e.g. once-per-model plan building in
-`src/better_robot/kinematics/_fk.py`). Widening the scan to `spatial` and `terms` is `[planned: L-4]`. In
+Enforcement: `tests/contract/test_hot_path_lint.py` (ast scan of `kinematics`, `dynamics`, `lie`, `spatial`,
+`terms` and `optim/solvers.py`; a line marked `# bench-ok` is exempt, e.g. once-per-model plan building in
+`src/better_robot/kinematics/_fk.py` or once-per-mesh topology in `src/better_robot/spatial/mesh.py`). In
 `optim/solvers.py` the one exempt read is the `LBFGS` line search: one flag per trial, to stop once every
 problem has its step instead of evaluating the loss at the remaining step sizes.
 

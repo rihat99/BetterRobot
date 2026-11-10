@@ -19,6 +19,10 @@ tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is 
 The release row is the coverage gate of `lie` and `spatial`: both are torch-only mathematics with no robot in
 sight, so every line and branch is reachable from a unit test, and the gate holds them at 100 %.
 
+Every tier runs the internal invariants (decision record 0021): `tests/conftest.py` sets
+`BETTER_ROBOT_INTERNAL_CHECKS=1` unless the environment sets it, so a library bug that breaks an invariant fails
+a test. The benchmarks set it to `0`: an invariant reads tensor values, a host sync per call.
+
 While you edit one package, run the fast tier plus that package's folder, for example
 `uv run pytest tests/kinematics -q`. The hooks live in `.pre-commit-config.yaml`;
 `uv run pre-commit install` installs them.
@@ -29,8 +33,9 @@ While you edit one package, run the fast tier plus that package's folder, for ex
 | `cuda` | needs a CUDA device; deselected in the fast and full tiers |
 | `bench` | micro-benchmarks in `tests/bench/`; deselected in every tier |
 
-Nothing skips: hooks in `tests/conftest.py` turn every skip or xfail into a failure, whatever spells it, so a missing
-oracle, fixture or browser fails the test (`tests/contract/test_no_skips.py` plants each spelling). The test
+Nothing skips: the pytest plugin `better_robot.testing.no_skips`, which `tests/conftest.py` loads (BetterHuman's too),
+turns every skip or xfail into a failure, whatever spells it, so a missing oracle, fixture or browser fails the test
+(`tests/contract/test_no_skips.py` plants each spelling). The plugin needs pytest, the `testing` extra. The test
 robots are tracked under `tests/fixtures/robots/`, so the unit, contract and parity tests run offline. The full tier
 does not: the docs pages (`tests/docs/test_snippets.py`), the examples (`tests/examples/test_examples_run.py`) and the
 benchmark smoke test (`tests/bench/test_run_smoke.py`) load robots through `robot_descriptions`, which downloads each
@@ -61,14 +66,17 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | Test | Guards |
 |------|--------|
 | `test_layer_dependencies.py` | every import between packages is in the `ALLOWED` edge table (`optim` imports only `exceptions`) |
-| `test_public_api.py` | the top-level `better_robot` API surface |
-| `test_submodule_public_imports.py` | symbols documented under `better_robot.<submodule>` import from there |
-| `test_docstrings.py` | every public symbol has a docstring |
+| `test_public_surface.py` | the root `__all__` is the decided list; every name of the `__all__` tree resolves |
+| `test_submodule_public_imports.py` | only the decided packages exist; no raw `*_raw` kernel is public |
+| `test_docstrings.py` | every public object has a docstring that gives each tensor parameter's shape |
 | `test_boundary_validation_count.py` | public functions validate inputs once; raw passes below do not re-validate |
-| `test_hot_path_lint.py` | no `torch.compile`-breaking patterns (host syncs, `.item()`, Python branching on tensors) in kinematics and dynamics |
-| `test_naming.py` | old Pinocchio-style storage names do not come back |
+| `test_hot_path_lint.py` | `tools/hot_path_lint.py` finds no `torch.compile`-breaking pattern (host syncs, `.item()`, Python branching on tensors) in kinematics, dynamics, lie, spatial, terms and the solver updates |
+| `test_naming.py` | a `Model` or `KinematicState` field is plural exactly when its shape has an axis over joints, bodies or frames; integer indices end in `_ids` |
+| `test_vocabulary.py` | one name per thing (no alias, no class name a library below uses), acronyms in capitals, no `utils`-style module |
+| `test_ruff_ratchets.py` | no new ruff naming (`N`), docstring (`D1`), annotation (`ANN001`) or other-object private access (`SLF001`) site in `src/` |
+| `test_pyright_ratchet.py` | no new pyright error in `src/` (full tier: pyright takes seconds) |
 | `test_optional_imports.py` | each package imports only the outside packages `pyproject.toml` declares for it; `lie`, `spatial` and `optim` import torch only |
-| `test_no_skips.py` | the conftest hooks fail every skip and xfail, whatever spells it |
+| `test_no_skips.py` | the `no_skips` plugin fails every skip and xfail, whatever spells it |
 | `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
 | `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |
 | `test_fixtures.py` | every test robot has its licence and provenance |
@@ -99,7 +107,7 @@ clip a page references exists. The rules for a page:
 uv run pytest tests/docs -q -k load-a-robot                                     # one page
 BR_DOCS_CAPTURE=1 BR_DOCS_CAPTURE_DIR=/tmp/out uv run pytest tests/docs -q -k load-a-robot   # write real outputs
 uv run mkdocs build --strict                                                    # broken links fail the build
-BETTER_ROBOT_CHROME=<chromium> node scripts/docs_screenshots.mjs /tmp/shots     # every page as light/dark PNGs
+BETTER_ROBOT_CHROME=<chromium> node tools/docs_screenshots.mjs /tmp/shots       # every page as light/dark PNGs
 ```
 
 The capture run writes `<page>.outputs.json` with each block's stdout; paste it into the `output` fence. Look at

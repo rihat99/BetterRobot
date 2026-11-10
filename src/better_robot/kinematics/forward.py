@@ -31,7 +31,7 @@ def _poses(transforms: torch.Tensor) -> torch.Tensor:
 
 
 @final
-@dataclass(frozen=True, eq=False)
+@dataclass(frozen=True, eq=False, kw_only=True)
 class KinematicState:
     """World placements of every joint and frame at one configuration batch, as ``[R | p]`` matrices.
 
@@ -42,9 +42,9 @@ class KinematicState:
     """
 
     model: Model  #: The model the state was computed from.
-    q: torch.Tensor  #: ``(B..., nq)`` configuration the state was computed at.
-    joint_transforms: torch.Tensor  #: ``(B..., njoints, 3, 4)`` world ``[R | p]`` of every joint.
-    frame_transforms: torch.Tensor  #: ``(B..., nframes, 3, 4)`` world ``[R | p]`` of every frame.
+    q: torch.Tensor = field(repr=False)  #: ``(B..., nq)`` configuration the state was computed at.
+    joint_transforms: torch.Tensor = field(repr=False)  #: ``(B..., njoints, 3, 4)`` world ``[R | p]`` of every joint.
+    frame_transforms: torch.Tensor = field(repr=False)  #: ``(B..., nframes, 3, 4)`` world ``[R | p]`` of every frame.
     _memo: dict[tuple[str, bool], Any] = field(default_factory=dict, init=False, repr=False, compare=False)
 
     @property

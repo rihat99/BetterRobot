@@ -1,59 +1,62 @@
-"""``better_robot`` — PyTorch-native robotics library.
+"""``better_robot``: batched robot kinematics, dynamics and nonlinear least squares in PyTorch.
 
-The root public surface is intentionally small.
-``tests/contract/test_public_api.py`` guards the required core without freezing
-an exact symbol count. Other documented public symbols live under qualified
-submodules; unlisted implementation details may be reshaped without a
-deprecation. See ``docs/concepts/architecture.md``, section "Public API is what ``__all__`` lists".
-
-Each package imports only the packages of its row in the edge table (``ALLOWED`` in
-``tests/contract/test_layer_dependencies.py``, ``docs/contracts/07-dependencies-layering.md``); ``optim`` imports
-only torch and knows nothing about robots.
+The root lists its twelve subpackages and the fourteen names a first script needs (decision record 0019); every
+other public name is reached as ``better_robot.<package>.<name>``. Importing the root imports no optional package:
+``Viewer`` loads viser when it starts a server. ``__version__`` is the installed distribution's version.
 """
 
-from __future__ import annotations
+from importlib import metadata as _metadata
 
-from . import exceptions as exceptions, io as io, spatial as spatial, testing as testing
-from ._version import __version__ as __version__
-from .model import Model
+from . import (
+    collision,
+    dynamics,
+    exceptions,
+    io,
+    kinematics,
+    lie,
+    model,
+    optim,
+    spatial,
+    terms,
+    testing,
+    viewer,
+)
+from .dynamics import center_of_mass, forward_dynamics, inverse_dynamics, mass_matrix
 from .io import ModelBuilder, load
-from .dynamics import (
-    center_of_mass,
-    centroidal_map,
-    centroidal_momentum,
-    forward_dynamics,
-    inverse_dynamics,
-    mass_matrix,
-)
-from .kinematics import (
-    KinematicState,
-    forward_kinematics,
-    frame_jacobian,
-    frame_jacobian_time_variation,
-    joint_jacobian,
-    joint_jacobian_time_variation,
-)
+from .kinematics import KinematicState, forward_kinematics, frame_jacobian, joint_jacobian
+from .model import JointFreeFlyer, Model
+from .terms import solve_ik
+from .viewer import Viewer
+
+__version__ = _metadata.version("better-robot")
 
 __all__ = [
-    # model
-    "Model",
-    # io
+    # subpackages
+    "exceptions",
+    "lie",
+    "spatial",
+    "model",
+    "kinematics",
+    "dynamics",
+    "collision",
+    "io",
+    "optim",
+    "terms",
+    "viewer",
+    "testing",
+    # first-level names
     "load",
+    "Model",
     "ModelBuilder",
-    # kinematics
+    "JointFreeFlyer",
     "forward_kinematics",
     "KinematicState",
     "frame_jacobian",
-    "frame_jacobian_time_variation",
     "joint_jacobian",
-    "joint_jacobian_time_variation",
-    # dynamics
-    "center_of_mass",
     "inverse_dynamics",
     "mass_matrix",
     "forward_dynamics",
-    "centroidal_map",
-    "centroidal_momentum",
-    # repository checks shared with BetterHuman
-    "testing",
+    "center_of_mass",
+    "solve_ik",
+    "Viewer",
 ]

@@ -51,7 +51,7 @@ must not be labelled cold.
 
 ## Committed evidence
 
-- `baselines/torch_filtered_smpl_b1_rtx6000_ada.json` is a filtered B=1
+- `tests/bench/baselines/torch_filtered_smpl_b1_rtx6000_ada.json` is a filtered B=1
   cross-device run of the new Torch baseline harness. It records 10 successful
   SMPL FK/RNEA/public-IK rows and two honest `UNSUPPORTED` compiled-public-IK
   rows; every evaluated eager/compiled parity and input-identity check passes.

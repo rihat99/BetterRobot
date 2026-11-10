@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RobotSpheres:
     """``S`` spheres, each rigidly attached to a model frame.
 
@@ -41,6 +41,10 @@ class RobotSpheres:
     frame_ids: torch.Tensor
     offsets: torch.Tensor
     radii: torch.Tensor
+
+    def __repr__(self) -> str:
+        dtype = str(self.radii.dtype).removeprefix("torch.")
+        return f"RobotSpheres({self.frame_ids.shape[0]} spheres, {dtype}, {self.radii.device})"
 
     @classmethod
     def from_frames(

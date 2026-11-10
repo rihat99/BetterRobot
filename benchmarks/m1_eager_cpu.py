@@ -72,8 +72,8 @@ def run(label: str, batches: tuple[int, ...], warmup: int, samples: int) -> dict
     except ImportError as exc:  # pragma: no cover - command-line guard
         raise SystemExit("install the 'demos' extra to run the Panda M1 benchmark") from exc
 
-    torch.set_num_threads(1)
-    torch.set_num_interop_threads(1)
+    torch.set_num_threads(1)  # noqa: TID251 - a benchmark pins its threads so rows compare; C-DEP-3 binds the library
+    torch.set_num_interop_threads(1)  # noqa: TID251 - a benchmark pins its threads so rows compare; C-DEP-3 binds the library
     dtype = torch.float32
     model = br.load(panda_description.URDF_PATH, dtype=dtype)
     measurements: list[dict[str, object]] = []

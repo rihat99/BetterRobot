@@ -208,7 +208,7 @@ def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
     _check_face_table(faces)
     validate_closed_manifold(faces)
 
-    face_list: list[list[int]] = faces.to(torch.long).cpu().tolist()
+    face_list: list[list[int]] = faces.to(torch.long).cpu().tolist()  # bench-ok: face topology, read once per mesh
     adjacency = _build_face_adjacency(face_list)
     sign, _ = _orient_components(adjacency, len(face_list), allow_non_orientable=False)
 
@@ -262,7 +262,7 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
     if vertices.ndim != 2:
         raise ShapeError(f"vertices must have shape (V, 3), got {tuple(vertices.shape)}")
 
-    face_list: list[list[int]] = faces.to(torch.long).cpu().tolist()
+    face_list: list[list[int]] = faces.to(torch.long).cpu().tolist()  # bench-ok: face topology, read once per mesh
     face_count = len(face_list)
     adjacency = _build_face_adjacency(face_list)
     sign, component = _orient_components(adjacency, face_count, allow_non_orientable=True)

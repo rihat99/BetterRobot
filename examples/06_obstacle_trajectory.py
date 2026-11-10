@@ -16,8 +16,7 @@ import torch
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot import collision, optim, terms
-from better_robot.kinematics import forward_kinematics
+from better_robot import collision, forward_kinematics, optim, terms
 
 KNOTS, DT, MARGIN = 30, 0.05, 0.02
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]

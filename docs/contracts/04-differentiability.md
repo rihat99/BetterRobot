@@ -36,8 +36,8 @@ coef = torch.where(small, taylor(theta), exact(theta))
 if theta < eps: return taylor(theta)
 ```
 
-Enforcement: `tests/autograd/test_vmap.py` [planned: L-8] (wraps each entry point in `torch.func.vmap` over a leading
-batch axis and compares to the broadcast result); `[review]`.
+Enforcement: `tests/contract/test_hot_path_lint.py` (no Python branch on a tensor value, `.item()` or host sync in
+`kinematics`, `dynamics`, `lie`, `spatial`, `terms` and the solver updates); `[review]`.
 
 ## C-DIFF-3 Singularities have a documented safe gradient (MUST)
 
