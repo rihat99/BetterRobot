@@ -1,6 +1,6 @@
 # 0033 Three test tiers, each one local command; a missing oracle fails
 
-**Status:** Accepted (owner). **Date:** 2026-11-01
+**Status:** Accepted (owner); amended by 0046. **Date:** 2026-11-01
 
 ## Context
 The Pinocchio parity suite uses `importorskip` while `pin` sits in the `dev` extra; 34 `importorskip("robot_descriptions")`
@@ -26,7 +26,7 @@ markers = ["cuda", "licensed", "slow"]
 ```
 ```text
 tier     selects                              run by                          fails when
-fast     tests/contract, not slow, not cuda   pre-commit hook                 any test fails
+fast     tests/contract, not slow             pre-commit hook                 any test fails
 full     all but cuda and licensed            pre-push hook, release list     any test fails; a missing oracle fails
 release  everything, plus the counters        by hand, free-GPU script        the models directory or an asset is missing
 ```

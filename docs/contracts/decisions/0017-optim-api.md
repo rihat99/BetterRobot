@@ -1,6 +1,6 @@
 # 0017 `optim` takes strings for reads and an immutable `Problem`
 
-**Status:** Accepted (owner). **Date:** 2026-11-01
+**Status:** Accepted (owner); amended by 0047. **Date:** 2026-11-01
 
 ## Context
 Terms are plain functions wired by parameter names, but `Problem.residual` probes `getattr(fn, "jac")` and `"window"`,

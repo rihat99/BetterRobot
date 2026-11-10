@@ -1,6 +1,6 @@
 # 0013 Joint kinds are final classes under an abstract `JointModel`
 
-**Status:** Accepted (owner). **Date:** 2026-11-01
+**Status:** Accepted (owner); amended by 0043. **Date:** 2026-11-01
 
 ## Context
 `JointModel` is a `runtime_checkable` Protocol with a mixin (`joint_models/revolute.py::_Revolute`) and an overridable
@@ -27,17 +27,15 @@ class JointRevolute(JointModel):
     nv: ClassVar[int] = 1
     manifold: ClassVar[Manifold] = EUCLIDEAN
 
-builder.add_revolute("elbow", parent="upper_arm", child="forearm", axis=torch.tensor([0.0, 1.0, 0.0]), lower=-2.0, upper=2.0)
+builder.add_revolute("elbow", parent="upper_arm", child="forearm", axis=(0, 1, 0), lower=-2.0, upper=2.0)
 model.joints[3].axis        # the studio reads the axis as data, not a kind string
 q_next = br.kinematics.integrate(model, q, v)   # was model.integrate(q, v)
 ```
 
 ## Consequences
 Manifold math exists once; the kind and axis are data. Joint hooks nothing calls (`joint_bias_acceleration`,
-`joint_motion_subspace_derivative`) go, and so does the planned `velocity(q, v)` method: the child's twist is
-`motion_subspace(q) @ v` by definition, and the subspace is constant in the child frame (the plans read it once at
-`neutral()`; `check_joint_model` asserts it for every drawn `q`). The oracle-tested kinds that no consumer uses stay
-because their parity tests cost nothing; the composite goes.
+`joint_motion_subspace_derivative`) go. The oracle-tested kinds that no consumer uses stay because their parity tests
+cost nothing; the composite goes.
 
 ## Alternatives
 Keep the axis subclasses: no gain, the kind/axis split stays. Ball joints as three revolute joints: gimbal lock, and
