@@ -1,7 +1,7 @@
 # Collision is signed distance between spheres and shapes
 
-After this page you can attach spheres or capsules to a robot's frames, compute signed distances to obstacles
-and between the robot's own links, and add clearance terms to an optimization problem. The code lives in
+After this page you know how a robot becomes spheres and capsules on its frames, what the sign of a distance
+means, which link pairs self-collision skips, and how distances become clearance terms. The code lives in
 `better_robot.collision` (geometry) and `better_robot.terms` (residual terms built on it).
 
 ## The robot is a set of spheres fixed to frames
@@ -117,62 +117,12 @@ print(collision.self_capsule_distances(capsules, state, pairs=capsule_pairs))   
 tensor([0.1651], dtype=torch.float64)
 ```
 
-## Clearance terms go into a problem
+## Clearance terms turn distances into residuals
 
-`terms.sphere_clearance(spheres, distance_fn, margin=...)` builds a residual `margin - distance` for
-every sphere and obstacle; `terms.self_clearance(spheres, pairs=pairs, margin=...)` does the same for sphere
-pairs. Both are hinged at zero by default, so a clear configuration costs nothing. With `hinge=False`
-the residual is the inequality `margin - distance <= 0` for `optim.solve_constrained`. Both read the
-cached kinematic state named `"state"`.
-
-The example below swings `j1` from -0.9 to 0.9 rad. The straight path drives the tool through an
-obstacle; a trajectory problem bends it around. [Optimization](optimization.md) explains `Problem`,
-`cached`, `window` and the solvers; `examples/06_obstacle_trajectory.py` is the full Panda version with
-both soft and hard constraints.
-
-```python
-knots, dt, margin = 12, 0.1, 0.02
-q_mid = torch.tensor([0.0, 0.5], dtype=torch.float64)
-obstacle = forward_kinematics(model, q_mid).frame_translations[model.frame_id("tool")].clone()
-obstacle_radius = torch.tensor(0.05, dtype=torch.float64)
-
-def to_obstacle(centers, radii):
-    return collision.sphere_sphere(centers, radii, center_b=obstacle, radius_b=obstacle_radius)
-
-def clearance(q):
-    return float(to_obstacle(spheres.centers(forward_kinematics(model, q)), spheres.radii).min())
-
-alpha = torch.linspace(0, 1, knots, dtype=torch.float64)[:, None]
-straight = (1 - alpha) * torch.tensor([-0.9, 0.5]) + alpha * torch.tensor([0.9, 0.5])
-end_weight = torch.zeros(knots, 1, dtype=torch.float64)
-end_weight[0] = end_weight[-1] = 1e3
-
-problem = optim.Problem(
-    {"q": straight[None].clone()},
-    manifolds={"q": terms.RobotManifold(model)},
-    data={"ends": straight.clone()[None]},
-    time=("q",),
-)
-problem.cached(terms.kinematic_state(model), name="state")
-problem.residual("ends", lambda q, ends: q - ends, weight=end_weight, window=1)
-problem.residual("velocity", terms.finite_difference(model, order=1, dt=dt), weight=1e-2)
-problem.residual("clearance", terms.sphere_clearance(spheres, to_obstacle, margin=margin),
-                 weight=1e2, window=1)
-
-result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
-print(f"straight {clearance(straight):+.3f} m, optimized {clearance(result.x['q'][0]):+.3f} m")
-# straight -0.070 m, optimized +0.019 m
-assert clearance(result.x["q"][0]) > clearance(straight)
-```
-```output
-straight -0.070 m, optimized +0.019 m
-```
-
-The clearance before optimization is negative: the tool sphere passes through the obstacle. After the
-solve it sits just under the 0.02 m margin, because the soft weight trades clearance against smoothness. Raise the weight or switch to the
-hard inequality to enforce it exactly.
-
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/obstacle_trajectory.png" width="960"><source src="../../clips/obstacle_trajectory.webm" type="video/webm"></video><figcaption>The Panda, modelled as spheres, follows a trajectory that a clearance term bends around a spherical obstacle (<code>examples/06_obstacle_trajectory.py</code>).</figcaption></figure>
+`terms.sphere_clearance` and `terms.self_clearance` turn these distances into residuals `margin - distance`,
+hinged at zero so a clear configuration costs nothing, or left unhinged as an inequality for
+`optim.solve_constrained`. [Keep a trajectory clear of obstacles](../guides/avoid-collisions.md) bends a path around
+an obstacle with them.
 
 ## Extending collision
 
@@ -180,10 +130,11 @@ A new obstacle type is a new `distance_fn(centers: (B..., S, 3), radii: (S,)) ->
 for `sphere_clearance`; the term and the solvers do not change (contract
 [08, collision section](../contracts/08-extension-points.md)). Robot geometry built from the IR (capsules read
 from a model file, shapes fitted to meshes), closest points and contact follow
-[ADR 0008: geometry is a separate brick](../contracts/decisions/0008-geometry-brick.md).
+record [0016: geometry is a value, not a field of `Model`](../contracts/decisions/0016-geometry-out-of-model.md).
 
 ## Where next
 
 - [Optimization](optimization.md): how the clearance residual joins a `Problem` and which solver runs it.
+- [Keep a trajectory clear of obstacles](../guides/avoid-collisions.md): a clearance term in a trajectory problem.
 - [Hard constraints](../guides/hard-constraints.md): enforce the margin exactly with `solve_constrained`.
 - [Viewer](viewer.md): show spheres, obstacles and the optimized trajectory.

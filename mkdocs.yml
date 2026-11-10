@@ -116,6 +116,8 @@ nav:
       - concepts/io.md
   - Guides:
       - guides/load-a-robot.md
+      - guides/avoid-collisions.md
+      - guides/record-a-video.md
       - guides/write-a-term.md
       - guides/own-the-loop.md
       - guides/hard-constraints.md

@@ -22,7 +22,16 @@ print(model.nq, model.nv, model.njoints)
 8 8 14
 ```
 
-`dtype` defaults to `torch.float32`; `device=` places every model tensor on one device.
+Keyword arguments of `load`:
+
+| Argument | Default | Effect |
+|----------|---------|--------|
+| `format` | `None` | `"urdf"` or `"mjcf"` forces a parser instead of reading the suffix |
+| `root_joint` | `None` | root the tree on any joint model; `JointFreeFlyer()` adds 7 to `nq` and 6 to `nv` |
+| `device`, `dtype` | `None`, `torch.float32` | where and in what precision every model tensor lives |
+
+`model.to(device=, dtype=)` converts a loaded model. Functions never cast your inputs: pass `q` in the model's
+dtype and on its device.
 [`robot_descriptions`](https://github.com/robot-descriptions/robot_descriptions.py) is an optional
 dependency (`pip install "better-robot[demos]"`) that downloads common robot descriptions on first use.
 Any URDF path on disk works the same way.
@@ -85,7 +94,14 @@ print(pendulum.joint_names)
 ('universe', 'root_joint', 'shoulder')
 ```
 
-`origin` is a pose `[tx, ty, tz, qx, qy, qz, qw]` with the quaternion scalar last.
+`origin` is a pose `[tx, ty, tz, qx, qy, qz, qw]` of the joint in the parent body, with the quaternion scalar
+last. The joint methods are `add_revolute` (about `axis=`, a unit vector of the joint frame), `add_prismatic`
+(along `axis=`), `add_helical`, `add_spherical`, `add_planar`, `add_fixed`, `add_free_flyer_root`, and
+`add_joint(kind=)` for any `JointModel` instance; each takes the parent and child body names.
+`add_frame(name, parent=, placement=)` attaches a frame to a body, and `add_shape(body, shape, collision=True)`
+attaches a `model.Sphere`, `Box`, `Cylinder`, `Capsule` or `Mesh` (each with its placement in the body frame and an
+optional colour). `ModelBuilder(name, gravity=)` takes the world linear acceleration `(3,)`, default
+`(0, 0, -9.81)`; it becomes `model.gravity (6,)`, which the dynamics functions read.
 
 ## Look up joints and frames by name
 
@@ -110,7 +126,8 @@ accept either the id or the name.
 
 ## Meshes
 
-Visual and collision meshes are loaded lazily by the viewer and the collision layer. Mesh files other
+Visual and collision meshes are loaded lazily by the viewer and the collision layer. Mesh URIs stay the strings the file wrote;
+`viewer.robot_meshes(geometry, root=)` reads them under a root you name. Mesh files other
 than primitives need the `meshes` extra (`pip install "better-robot[meshes]"`, which installs
 `trimesh`). Kinematics and dynamics never read meshes.
 
