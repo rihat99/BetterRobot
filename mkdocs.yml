@@ -136,6 +136,8 @@ nav:
           - optim: reference/api/optim.md
           - terms: reference/api/terms.md
           - viewer: reference/api/viewer.md
+          - testing: reference/api/testing.md
+          - exceptions: reference/api/exceptions.md
       - reference/glossary.md
       - reference/changelog.md
       - reference/roadmap.md
