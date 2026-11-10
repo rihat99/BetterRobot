@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from ..exceptions import ShapeError
+from ..lie._checks import broadcast_batch
 
 if TYPE_CHECKING:
     from .model import Model
@@ -23,8 +24,8 @@ def batch_shape(model: Model, name: str, value: torch.Tensor, event: tuple[int, 
         values = getattr(model, field)
         value_batch = tuple(values.shape[:-2])
         try:
-            batch = tuple(torch.broadcast_shapes(batch, value_batch))
-        except RuntimeError as error:
+            batch = broadcast_batch(batch, value_batch)
+        except ShapeError as error:
             raise ShapeError(f"cannot broadcast {name} batch {batch} with {field} batch {value_batch}") from error
     return batch
 

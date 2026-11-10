@@ -53,6 +53,11 @@ torch = { index = "pytorch-cu129" }
 [tool.hatch.build.targets.wheel]
 packages = ["src/better_robot"]
 
+# The glossary page ships beside better_robot.testing.glossary, which reads it (from docs/ in a source checkout).
+# The target is a path in the wheel, so it starts at the wheel root, "./".
+[tool.hatch.build.targets.wheel.force-include]
+"docs/reference/glossary.md" = "./better_robot/testing/glossary.md"
+
 [tool.pytest.ini_options]
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config", "--import-mode=importlib"]
 testpaths = ["tests"]

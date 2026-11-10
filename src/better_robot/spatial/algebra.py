@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 
 from ..lie import so3
-from ..lie._checks import check_tensors
+from ..lie._checks import broadcast_batch, check_tensors
 from .inertia import inertia_from_mass_com_raw, rotational_inertia_raw
 
 
@@ -78,7 +78,7 @@ def transform_motion(pose: torch.Tensor, twist: torch.Tensor) -> torch.Tensor:
     ``DeviceMismatchError`` for mismatched devices.
     """
     check_tensors(pose=(pose, (7,)), twist=(twist, (6,)))
-    batch = torch.broadcast_shapes(pose.shape[:-1], twist.shape[:-1])
+    batch = broadcast_batch(pose.shape[:-1], twist.shape[:-1])
     pose, twist = pose.expand(*batch, 7), twist.expand(*batch, 6)
     rotation = pose[..., 3:7]
     angular = so3.act_raw(rotation, twist[..., 3:])
@@ -94,7 +94,7 @@ def transform_force(pose: torch.Tensor, wrench: torch.Tensor) -> torch.Tensor:
     Raises as `transform_motion`.
     """
     check_tensors(pose=(pose, (7,)), wrench=(wrench, (6,)))
-    batch = torch.broadcast_shapes(pose.shape[:-1], wrench.shape[:-1])
+    batch = broadcast_batch(pose.shape[:-1], wrench.shape[:-1])
     pose, wrench = pose.expand(*batch, 7), wrench.expand(*batch, 6)
     rotation = pose[..., 3:7]
     linear = so3.act_raw(rotation, wrench[..., :3])
@@ -112,7 +112,7 @@ def transform_inertia(pose: torch.Tensor, inertia: torch.Tensor) -> torch.Tensor
     dtype and ``DeviceMismatchError`` for mismatched devices.
     """
     check_tensors(pose=(pose, (7,)), inertia=(inertia, (10,)))
-    batch = torch.broadcast_shapes(pose.shape[:-1], inertia.shape[:-1])
+    batch = broadcast_batch(pose.shape[:-1], inertia.shape[:-1])
     pose, inertia = pose.expand(*batch, 7), inertia.expand(*batch, 10)
     rotation = so3.to_matrix_raw(pose[..., 3:7])
     com = (rotation @ inertia[..., 1:4, None]).squeeze(-1) + pose[..., :3]

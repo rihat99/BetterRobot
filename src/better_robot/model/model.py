@@ -12,7 +12,7 @@ from torch.utils import _pytree
 
 from ..exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from ..lie import se3
-from ..lie._checks import check_dtype, check_tensor
+from ..lie._checks import broadcast_batch, check_dtype, check_tensor
 from .joints.base import JointModel
 
 _TENSOR_FIELDS = (
@@ -274,8 +274,8 @@ class Model:
             checked[name] = se3.normalize_raw(tensor) if name.endswith("placements") else tensor
         batches = {name: tuple(checked.get(name, getattr(self, name)).shape[:-2]) for name in _BATCHED_FIELDS}
         try:
-            torch.broadcast_shapes(*batches.values())
-        except RuntimeError as error:
+            broadcast_batch(*batches.values())
+        except ShapeError as error:
             raise ShapeError(f"value batches do not broadcast: {batches}") from error
         return dataclasses.replace(self, **checked, _plan_owner=self if self._plan_owner is None else self._plan_owner)
 

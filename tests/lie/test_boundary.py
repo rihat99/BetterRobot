@@ -7,6 +7,7 @@ The table lists the trailing shape of each tensor parameter; it must cover ``__a
 from __future__ import annotations
 
 import inspect
+import re
 
 import pytest
 import torch
@@ -14,9 +15,10 @@ import torch
 from better_robot.exceptions import DtypeMismatchError, ShapeError
 from better_robot.lie import se3, so3, tangents
 
-# Private on purpose: no public lie name takes a dtype, and lie's 100 % coverage gate (tests/lie, tests/spatial) needs
-# the rule that io.build_model and Model.to apply (their own tests go through them) exercised here.
-from better_robot.lie._checks import check_dtype
+# Private on purpose: no public lie name takes a dtype or broadcasts bare shapes, and lie's 100 % coverage gate
+# (tests/lie, tests/spatial) needs the dtype rule io.build_model and Model.to apply, and the batch broadcast every
+# public entry computes, exercised here (the entries' own tests go through them).
+from better_robot.lie._checks import broadcast_batch, check_dtype
 
 #: ``module.function`` -> trailing shape of each tensor parameter, in order (``()`` takes any shape).
 PARAMETERS: dict[str, tuple[tuple[int, ...], ...]] = {
@@ -111,3 +113,17 @@ def test_the_dtype_rule_keeps_float32_and_float64() -> None:
     assert check_dtype(torch.float64) is torch.float64
     with pytest.raises(DtypeMismatchError, match="dtype=torch.int64 is not float32 or float64"):
         check_dtype(torch.int64)
+
+
+@pytest.mark.parametrize(
+    "batches", [((2, 1), (3,)), ((), (4, 2)), ((0,), (1,)), ((1,), (0,)), ((2, 3), (3,), (1, 1, 3))]
+)
+def test_batch_shapes_broadcast_as_torch_broadcasts_them(batches: tuple[tuple[int, ...], ...]) -> None:
+    """``broadcast_batch`` is ``torch.broadcast_shapes`` without the sympy import of its first call."""
+    assert broadcast_batch(*batches) == tuple(torch.broadcast_shapes(*batches))
+
+
+@pytest.mark.parametrize("batches", [((2,), (3,)), ((0,), (3,)), ((3, 2), (2, 1), (4, 1))])
+def test_batch_shapes_that_do_not_broadcast_raise(batches: tuple[tuple[int, ...], ...]) -> None:
+    with pytest.raises(ShapeError, match=re.escape(f"batch shapes {', '.join(map(str, batches))} do not broadcast")):
+        broadcast_batch(*batches)

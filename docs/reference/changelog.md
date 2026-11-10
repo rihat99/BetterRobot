@@ -65,6 +65,8 @@ that 0.3.0 renames or removes, one table row each.
 - `FakeServer.gui` declares the GUI calls of an app built on the viewer, with viser's keywords: `add_dropdown`,
   `add_text`, `add_number`, `add_markdown`, `add_tab_group` (tabs by `add_tab`) and `add_slider(..., disabled=)`;
   each control reads back the value it was given.
+- `testing.glossary`: `read()` returns the terms and everyday words of BetterRobot's glossary page, which ships in
+  the package, and `read(page)` those of another page; `words`, `entry` and `spelling` check a name against them.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
 
 ### Changed
@@ -279,6 +281,10 @@ that 0.3.0 renames or removes, one table row each.
 - `LBFGS` with bounds reaches the optimum of bound-heavy problems (a nonnegative force fit stopped 0.4-4 % above
   it, now within 0.01 %), and a problem whose plain gradient step finds no decrease is done.
 - `robot_skeleton` draws a joint kind defined outside the library as a sphere instead of raising `KeyError`.
+- `build_model` raises `ModelError` naming the joint or frame whose `origin` or `placement` is not a `(7,)` pose
+  with a unit quaternion; it built such a model silently, or failed an internal check as a library bug.
+- The first `forward_kinematics`, `integrate` or `spatial` call of a process no longer imports sympy
+  (through `torch.broadcast_shapes`): 0.2 s with a warm disk cache, over a second cold.
 
 ## v0.2.0 (2026-04-11)
 

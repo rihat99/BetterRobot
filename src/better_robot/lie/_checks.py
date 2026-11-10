@@ -64,6 +64,26 @@ def check_tensors(**tensors: tuple[object, tuple[int, ...]]) -> None:
     check_broadcast(**batches)
 
 
+def broadcast_batch(*batches: tuple[int, ...]) -> tuple[int, ...]:
+    """The shape the batch shapes ``batches`` broadcast to, as ``torch.broadcast_shapes`` gives it; ``ShapeError``
+    when two of them do not broadcast (a public entry catches it and names its arguments).
+
+    Python shape arithmetic on purpose: the first ``torch.broadcast_shapes`` call of a process imports sympy, about
+    0.2 s warm and over a second cold, which every first forward kinematics, ``integrate`` or ``spatial`` call paid.
+    """
+    ndim = 0
+    for batch in batches:  # a loop, not max(..., default=0): torch.compile traces this function
+        ndim = max(ndim, len(batch))
+    result = [1] * ndim
+    for batch in batches:
+        for axis, size in enumerate(batch, start=ndim - len(batch)):
+            if size != 1:
+                if result[axis] not in (1, size):
+                    raise ShapeError(f"batch shapes {', '.join(str(tuple(b)) for b in batches)} do not broadcast")
+                result[axis] = size
+    return tuple(result)
+
+
 def check_broadcast(**batches: tuple[int, ...]) -> None:
     """``ShapeError`` naming two arguments whose batch axes ``name=shape`` do not broadcast together."""
     named = list(batches.items())

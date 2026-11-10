@@ -20,7 +20,7 @@ import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..lie.tangents import hat_so3_raw
-from ..lie._checks import check_tensor, check_tensors
+from ..lie._checks import broadcast_batch, check_tensor, check_tensors
 
 
 def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
@@ -103,7 +103,7 @@ def inertia_from_mass_com_raw(
 
     ``mass (...)``, ``com (..., 3)``, ``rotational_inertia (..., 3, 3)`` → ``(..., 10)``.
     """
-    batch = torch.broadcast_shapes(mass.shape, com.shape[:-1], rotational_inertia.shape[:-2])
+    batch = broadcast_batch(mass.shape, com.shape[:-1], rotational_inertia.shape[:-2])
     symmetric = (rotational_inertia + rotational_inertia.mT) * 0.5
     entries = torch.stack(
         (

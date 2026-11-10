@@ -498,6 +498,53 @@ def test_an_ir_neutral_is_the_start_clamped_into_the_limits_and_must_fit_the_joi
         build_model(ir)
 
 
+@pytest.mark.parametrize("enabled", [True, False], ids=["internal_checks_on", "internal_checks_off"])
+@pytest.mark.parametrize(
+    ("where", "pose", "message"),
+    [
+        ("joint", [0, 0, 0.1, 0, 0, 0, 1.1], "joint 'j': origin has a quaternion of norm 1.1; pass a unit quaternion"),
+        (
+            "root",
+            [0, 0, 0.1, 0, 0, 0, 0.9],
+            "joint 'root': origin has a quaternion of norm 0.9; pass a unit quaternion",
+        ),
+        ("frame", [0, 0, 0, 0.6, 0, 0, 0.6], "frame 'tool': placement has a quaternion of norm 0.848528; pass a unit"),
+        ("joint", [0, 0, 0, 0, 0, 1], "joint 'j': origin has shape (6,), expected (7,) [tx, ty, tz, qx, qy, qz, qw]"),
+    ],
+)
+def test_a_pose_off_unit_norm_is_the_callers_error(monkeypatch, enabled, where, pose, message):
+    """A joint ``origin`` or frame ``placement`` that is not a ``(7,)`` pose with a unit quaternion raises
+    ``ModelError`` naming it, whatever the internal-checks switch says (it once raised a "library bug" with the
+    switch on and built a non-unit placement with it off)."""
+    # Private on purpose: record 0021's switch has no public name, and this error must not depend on it.
+    monkeypatch.setattr("better_robot._internal_checks.ENABLED", enabled)
+    given = torch.tensor(pose, dtype=torch.float32)
+    builder = ModelBuilder("arm")
+    builder.add_body("base")
+    builder.add_body("link")
+    if where == "root":
+        builder.add_free_flyer_root("root", child="base", origin=given)
+    builder.add_revolute(
+        "j", parent="base", child="link", axis=(0.0, 0.0, 1.0), origin=given if where == "joint" else None
+    )
+    if where == "frame":
+        builder.add_frame("tool", parent="link", placement=given)
+    with pytest.raises(ModelError, match=re.escape(message)):
+        build_model(builder.finalize(), dtype=torch.float64)
+
+
+def test_a_quaternion_normalised_in_float32_builds_in_float64():
+    """The unit tolerance is float32's: a quaternion rounded to float32 is a unit quaternion in a float64 model."""
+    builder = ModelBuilder("arm")
+    builder.add_body("base")
+    builder.add_body("link")
+    half = math.sqrt(0.5)
+    origin = torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, half, half], dtype=torch.float32)
+    builder.add_revolute("j", parent="base", child="link", axis=(0.0, 0.0, 1.0), origin=origin)
+    model = build_model(builder.finalize(), dtype=torch.float64)
+    assert model.joint_placements[2].tolist() == origin.double().tolist()
+
+
 def test_device_dtype_kwarg():
     ir = _simple_arm_ir()
     model = build_model(ir, dtype=torch.float64)
