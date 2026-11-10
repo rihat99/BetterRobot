@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from ..exceptions import ModelError, ShapeError
+from ..kinematics import forward_kinematics
 from ..model.joints import (
     JointFixed,
     JointFreeFlyer,
@@ -164,8 +165,6 @@ def spread_offsets(
     axes, unless a marker must clear its own mirror image or the second rule meets an axis whose largest component
     is normal to that plane.
     """
-    from ..kinematics import forward_kinematics  # noqa: PLC0415 - keep the core import-light
-
     kinds, axes = skeleton_spec(model)
     with torch.no_grad():
         poses = forward_kinematics(model, model.q_neutral).joint_poses[1:].cpu().numpy().astype(np.float64)
