@@ -25,8 +25,9 @@ docstring); `tests/contract/test_docstrings.py` (the docstring and its shapes, o
 ## C-DOC-2 Every documentation snippet executes (MUST)
 
 Python blocks in `docs/` and `README.md` run under `tests/docs/` (markdown code-block runner) unless the fence
-carries the `{ .no-run }` attribute (```` ```python { .no-run } ````). A snippet that prints is followed by an
-```` ```output ```` fence holding the real output.
+says why it cannot run (```` ```python { .no-run data-reason="..." } ````). Under `docs/contracts/` a bare
+`{ .no-run }` is enough: a contract's or a record's example illustrates a rule, and its "bad" half is wrong on
+purpose. A snippet that prints is followed by an ```` ```output ```` fence holding the real output.
 
 Enforcement: `tests/docs/test_snippets.py` (runs every snippet in page order and checks the output fences).
 
