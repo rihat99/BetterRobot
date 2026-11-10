@@ -1,5 +1,0 @@
-{
-  "better_robot.testing.FakeServer.atomic": "wp/R8fix",
-  "better_robot.testing.FakeServer.get_clients": "wp/R8fix",
-  "better_robot.testing.FakeServer.get_port": "wp/R8fix"
-}

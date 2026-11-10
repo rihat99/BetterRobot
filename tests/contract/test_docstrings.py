@@ -5,21 +5,17 @@ methods and properties, each once, under the first path that lists it. A tensor 
 has ``torch.Tensor`` as a member; its shape is present when the parameter's name (or ``name_*`` for a family) is
 followed within a few words by a parenthesised shape, ``q: (B..., nq)`` or ``origin (7,)``, or when a shape
 signature ``(..., 7), (..., 7) -> (..., 7)`` lists it by position. A method may document a parameter its class
-docstring documents for every method. ``tests/contract/ratchets/docstrings.json`` holds the violations whose fix
-belongs to another work package (``path`` or ``path::parameter`` to reason); it only shrinks.
+docstring documents for every method.
 """
 
 from __future__ import annotations
 
 import inspect
-import json
 import re
 from collections.abc import Callable
-from pathlib import Path
 
 from better_robot.testing import public_objects
 
-RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / "docstrings.json").read_text())
 SHAPE = re.compile(r"\([^()\n]*\)")
 SIGNATURE = re.compile(r"``([^`]*?)(?:→|->)[^`]*``")
 NEAR = 80  # characters after a parameter's name in which its shape must start
@@ -85,11 +81,5 @@ def _violations() -> dict[str, str]:
 
 def test_every_public_object_has_a_docstring_with_its_tensor_shapes() -> None:
     """A new public object without a docstring, or a tensor parameter whose shape the docstring omits, fails."""
-    new = sorted(f"{site}: {problem}" for site, problem in _violations().items() if site not in RATCHET)
-    assert not new, "document these (principle 4.6):\n  " + "\n  ".join(new)
-
-
-def test_docstring_ratchet_has_no_stale_entries() -> None:
-    """An entry whose docstring is now complete leaves the ratchet with the fix."""
-    stale = sorted(RATCHET.keys() - _violations().keys())
-    assert not stale, "remove these entries from tests/contract/ratchets/docstrings.json:\n  " + "\n  ".join(stale)
+    found = sorted(f"{site}: {problem}" for site, problem in _violations().items())
+    assert not found, "document these (principle 4.6):\n  " + "\n  ".join(found)

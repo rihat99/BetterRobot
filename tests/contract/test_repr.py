@@ -1,17 +1,15 @@
 """Every public type has a short repr (principle 4.9, decision record 0009): one line, under 200 characters, its name.
 
 ``BUILDERS`` builds each public class of the ``__all__`` tree (``better_robot.testing.public_objects``, each class
-once, under the first path that lists it) from the test fixtures. ``NO_INSTANCE`` holds the permanent, reasoned
-exceptions; ``tests/contract/ratchets/repr.json`` holds the types whose fix belongs to another work package (``path``
-to reason); it only shrinks. ``repr(model)`` also names its sizes, dtype and device (record 0009).
+once, under the first path that lists it) from the test fixtures, with arrays large enough that a repr printing
+them fails. ``NO_INSTANCE`` holds the permanent, reasoned exceptions. ``repr(model)`` also names its sizes, dtype
+and device (record 0009).
 """
 
 from __future__ import annotations
 
 import inspect
-import json
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -23,7 +21,6 @@ from better_robot import model as robot_model
 from better_robot.testing import FakeServer, public_objects
 from tests.support.robots import panda_urdf
 
-RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / "repr.json").read_text())
 EXCEPTION = "an exception's repr is its message, which contract 06 shapes"
 ABSTRACT = "an abstract base: every concrete subclass is built"
 NO_INSTANCE: dict[str, str] = {
@@ -54,7 +51,7 @@ NO_INSTANCE: dict[str, str] = {
 }
 POSE = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 AXIS = (0.0, 0.0, 1.0)
-POINTS = np.zeros((4, 3))
+POINTS = np.zeros((300, 3))
 POSES = np.tile(np.array(POSE), (2, 1))
 FACES = np.array([[0, 1, 2]])
 
@@ -87,7 +84,7 @@ def _result() -> optim.Result:
 
 
 def _mesh_spec() -> viewer.MeshSpec:
-    return viewer.MeshSpec(vertices=np.zeros((3, 3)), faces=FACES, body=1, origin=np.array(POSE))
+    return viewer.MeshSpec(vertices=np.zeros((3, 3)), faces=FACES, body=0, origin=np.array(POSE))
 
 
 BUILDERS: dict[str, Callable[[], object]] = {
@@ -170,7 +167,7 @@ BUILDERS: dict[str, Callable[[], object]] = {
         bind_poses=POSES[:1],
         bone_poses=POSES[None, :1],
     ),
-    "better_robot.viewer.SpheresLayer": lambda: viewer.SpheresLayer(name="spheres", centers=POINTS, radii=np.ones(4)),
+    "better_robot.viewer.SpheresLayer": lambda: viewer.SpheresLayer(name="spheres", centers=POINTS, radii=np.ones(300)),
     "better_robot.viewer.Theme": viewer.Theme,
     "better_robot.viewer.Timeline": lambda: viewer.Timeline(10),
     "better_robot.viewer.Viewer": lambda: viewer.Viewer(server=FakeServer()),
@@ -187,10 +184,6 @@ def _public_classes() -> dict[str, type]:
     return dict(found.values())
 
 
-def _short(text: str, name: str) -> bool:
-    return "\n" not in text and len(text) < 200 and name in text
-
-
 def test_every_public_class_is_built_or_has_a_reason() -> None:
     """A new public class needs a builder here (or a reason in ``NO_INSTANCE``)."""
     classes = _public_classes()
@@ -205,10 +198,7 @@ def test_repr_is_one_short_line_naming_the_type(path: str) -> None:
     name = path.rsplit(".", 1)[-1]
     assert type(value).__name__ == name
     text = repr(value)
-    if path in RATCHET:
-        assert not _short(text, name), f"{path} now has a short repr: remove it from tests/contract/ratchets/repr.json"
-    else:
-        assert _short(text, name), f"{path}: {len(text)} characters, {text.count(chr(10)) + 1} lines: {text[:120]!r}"
+    assert "\n" not in text and len(text) < 200 and name in text, f"{path}: {len(text)} characters: {text[:120]!r}"
 
 
 def test_panda_repr_names_its_sizes_dtype_and_device() -> None:

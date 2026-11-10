@@ -117,7 +117,7 @@ class SkeletonLayer(Layer):
             raise ShapeError(
                 f"parent_ids must be (J,) = ({n_joints},), one entry per joint, got {self.parent_ids.shape}"
             )
-        if ((self.parent_ids < -1) | (self.parent_ids >= n_joints)).any():
+        if np.any((self.parent_ids < -1) | (self.parent_ids >= n_joints)):
             raise ArgumentError(
                 f"parent_ids must be joint indices in [0, {n_joints}) or -1 for a root, got {self.parent_ids.tolist()}"
             )
