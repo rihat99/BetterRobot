@@ -4,7 +4,8 @@ For each `## C-<AREA>-<n>` heading on a page, the paragraph starting with
 `Enforcement:` names its enforcers: test paths (`tests/...py`, optionally
 `::test_name`), ruff codes (`[ruff:CODE,...]`) or `[review]`. The matrix row for
 that rule must carry exactly the same set. Every cited test path must exist
-and every ruff code must be selected in `pyproject.toml`; no enforcer is
+and every ruff code must be a rule ruff knows, selected and not ignored in
+`pyproject.toml`; no enforcer is
 `[planned]`. A rule that only `[review]` checks waits in
 `tests/contract/ratchets/review_only.json` (rule id to reason) for a test or
 its deletion; the ratchet only shrinks.
@@ -17,6 +18,7 @@ import re
 import subprocess
 import sys
 import tomllib
+from functools import cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -88,9 +90,32 @@ def test_every_rule_in_matrix_with_same_enforcers() -> None:
     assert not mismatch, mismatch
 
 
+@cache
+def _known_ruff_codes() -> frozenset[str]:
+    command = [sys.executable, "-m", "ruff", "rule", "--all", "--output-format", "json"]
+    rules = json.loads(subprocess.run(command, capture_output=True, text=True, check=True).stdout)
+    return frozenset(rule["code"] for rule in rules)
+
+
+def _ruff_code_problem(code: str) -> str | None:
+    """Why ``code`` cannot enforce a rule (no such ruff rule, not selected, or ignored in ``pyproject.toml``), or
+    ``None``: a prefix of a selected code (``PLC9999`` under ``PLC``) is no rule."""
+    lint = tomllib.loads((ROOT / "pyproject.toml").read_text())["tool"]["ruff"]["lint"]
+    if code not in _known_ruff_codes():
+        return f"ruff code {code} is no ruff rule"
+    if not any(code.startswith(prefix) for prefix in lint["select"]) or code in lint["ignore"]:
+        return f"ruff code {code} not selected"
+    return None
+
+
+def test_a_ruff_code_cited_as_an_enforcer_names_a_selected_rule() -> None:
+    """The review's plant: ``[ruff:PLC9999]`` passed, matched by the selected prefix ``PLC``."""
+    assert _ruff_code_problem("PLC9999") == "ruff code PLC9999 is no ruff rule"
+    assert _ruff_code_problem("E501") == "ruff code E501 not selected"  # selected through E, then ignored
+    assert _ruff_code_problem("PLC0415") is None
+
+
 def test_cited_tests_exist_and_ruff_codes_selected() -> None:
-    cfg = tomllib.loads((ROOT / "pyproject.toml").read_text())
-    selected = cfg["tool"]["ruff"]["lint"]["select"]
     missing: list[str] = []
     for rule, (page, _, para) in _page_rules().items():
         for path, test in TEST_RE.findall(para):
@@ -101,8 +126,8 @@ def test_cited_tests_exist_and_ruff_codes_selected() -> None:
                 missing.append(f"{page} {rule}: {path}::{test} not found")
         for codes in RUFF_RE.findall(para):
             for code in codes.split(","):
-                if not any(code.startswith(prefix) for prefix in selected):
-                    missing.append(f"{page} {rule}: ruff code {code} not selected")
+                if problem := _ruff_code_problem(code):
+                    missing.append(f"{page} {rule}: {problem}")
     assert not missing, "\n".join(missing)
 
 

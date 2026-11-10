@@ -31,7 +31,7 @@ spatial function checks each floating tensor input exactly once, under its param
 ## C-ERR-2 Specific exception types from the `BetterRobotError` tree (MUST)
 
 Every raised error is a subclass of `better_robot.exceptions.BetterRobotError` (`ShapeError`,
-`DeviceMismatchError`, `ModelError`, `UnknownNameError`, ...). Plain `ValueError`/`RuntimeError` are not raised by the library. The one
+`DeviceMismatchError`, `ModelError`, `UnknownNameError`, ...). Plain `ValueError`, `RuntimeError`, `KeyError` and `IndexError` are not raised by the library, called or bare. The one
 exception: a value of the wrong Python type (not a `torch.Tensor`, not a `KinematicState`) raises Python's
 `TypeError` (the tree has no node for it; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
 site). An exception class exists only if something raises it; never-raised types are removed.

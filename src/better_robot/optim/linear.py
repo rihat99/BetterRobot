@@ -49,7 +49,8 @@ class Normal:
         Columns are scaled to unit diagonal and the factorization runs in float64, because a
         float32 Cholesky fails on the rank-deficient ``H`` of redundant robots. A batch element
         whose factorization still fails gets ``delta = 0`` (a rejected step for LM).
-        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``damping`` is a number or ``(B,)``, one per problem. ``g: (B, N)`` replaces the stored gradient; the result
+        is differentiable w.r.t. it.
         """
         H, g = self.H.double(), (self.g if g is None else g).double()
         diagonal = H.diagonal(dim1=-2, dim2=-1)
@@ -148,7 +149,8 @@ class BandedNormal:
     ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g`` by block-tridiagonal Cholesky in float64.
 
-        ``g: (B, N)`` replaces the stored gradient; the result ``delta`` is ``(B, N)``, differentiable w.r.t. ``g``.
+        ``damping`` is a number or ``(B,)``, one per problem. ``g: (B, N)`` replaces the stored gradient; the result
+        ``delta`` is ``(B, N)``, differentiable w.r.t. ``g``.
         """
         g = self.g if g is None else g
         scale, factorization, failed = self._factor(damping, floor)
@@ -269,7 +271,8 @@ class ArrowNormal:
     ) -> torch.Tensor:
         """Solve ``(H + damping · diag(H)) delta = -g`` in float64. Returns ``delta: (B, N)``.
 
-        ``g: (B, N)`` replaces the stored gradient; the result is differentiable w.r.t. it.
+        ``damping`` is a number or ``(B,)``, one per problem. ``g: (B, N)`` replaces the stored gradient; the result
+        is differentiable w.r.t. it.
         """
         g = (self.g if g is None else g).double()
         layout = self.band.layout

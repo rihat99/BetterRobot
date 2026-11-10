@@ -2,8 +2,9 @@
 
 Every class in ``exceptions.__all__`` derives from ``BetterRobotError`` and from the builtin the record names, is
 raised somewhere in ``src`` (a class nobody raises is deleted), the boundary guards raise the typed class, and
-``src`` raises a builtin ``ValueError``, ``TypeError`` or ``RuntimeError`` only where ``PLAIN_RAISES`` (permanent,
-reasoned) or the ratchet ``tests/contract/ratchets/plain_raises.json`` (shrinks as the io, optim and viewer rewrites land) allows.
+``src`` raises a builtin ``ValueError``, ``TypeError``, ``RuntimeError``, ``KeyError`` or ``IndexError`` (called or
+bare, ``raise ValueError``) only where ``PLAIN_RAISES`` (permanent, reasoned) or the ratchet
+``tests/contract/ratchets/plain_raises.json`` (shrinks as the io, optim and viewer rewrites land) allows.
 Both are keyed ``path::function Builtin`` and hold the count of such raises there, so another raise in a listed
 function fails.
 """
@@ -29,7 +30,7 @@ from ._ratchet_sites import counts
 REPO = Path(__file__).resolve().parents[2]
 SRC = REPO / "src" / "better_robot"
 PLAIN_RAISES_RATCHET = REPO / "tests" / "contract" / "ratchets" / "plain_raises.json"
-BUILTIN_RAISES = {"ValueError", "TypeError", "RuntimeError"}
+BUILTIN_RAISES = {"ValueError", "TypeError", "RuntimeError", "KeyError", "IndexError"}
 _NOT_A_TENSOR = "a value that is not a torch.Tensor is a Python TypeError; the tree has no node for it"
 _NOT_A_STATE = "a state that is not a KinematicState is a Python TypeError"
 PLAIN_RAISES: dict[str, tuple[int, str]] = {
@@ -68,24 +69,32 @@ def _raised_names() -> set[str]:
     return names
 
 
-def _builtin_raise_sites() -> Counter[str]:
-    """``path::function Builtin`` of every ``raise ValueError/TypeError/RuntimeError(...)`` under ``src``, to the
-    number of such raises there."""
+def _builtin_raises(tree: ast.AST) -> Counter[str]:
+    """``function Builtin`` of every ``raise Builtin(...)`` or bare ``raise Builtin`` of ``BUILTIN_RAISES`` in
+    ``tree``, to the number of such raises there."""
     sites: Counter[str] = Counter()
 
-    def visit(node: ast.AST, file: Path, owner: str) -> None:
+    def visit(node: ast.AST, owner: str) -> None:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             owner = node.name
-        if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
-            callee = node.exc.func
+        if isinstance(node, ast.Raise) and node.exc is not None:
+            callee = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
             name = callee.id if isinstance(callee, ast.Name) else getattr(callee, "attr", None)
             if name in BUILTIN_RAISES:
-                sites[f"{file.relative_to(REPO).as_posix()}::{owner} {name}"] += 1
+                sites[f"{owner} {name}"] += 1
         for child in ast.iter_child_nodes(node):
-            visit(child, file, owner)
+            visit(child, owner)
 
+    visit(tree, "<module>")
+    return sites
+
+
+def _builtin_raise_sites() -> Counter[str]:
+    """``path::function Builtin`` of every builtin raise ``_builtin_raises`` finds under ``src``, to its count."""
+    sites: Counter[str] = Counter()
     for file in SRC.rglob("*.py"):
-        visit(ast.parse(file.read_text()), file, "<module>")
+        for key, count in _builtin_raises(ast.parse(file.read_text())).items():
+            sites[f"{file.relative_to(REPO).as_posix()}::{key}"] += count
     return sites
 
 
@@ -114,6 +123,20 @@ def test_src_raises_the_error_tree_only() -> None:
     assert unexpected == [], f"raise the error tree (exceptions.py) instead of a builtin: {unexpected}"
     stale = sorted(f"{key}: {sites[key]} (allowed {count})" for key, count in allowed.items() if sites[key] < count)
     assert stale == [], f"lower or drop these entries with the fix that removed the raise: {stale}"
+
+
+@pytest.mark.parametrize(
+    ("statement", "builtin"),
+    [
+        ("raise ValueError", "ValueError"),
+        ("raise KeyError(name)", "KeyError"),
+        ("raise IndexError(index)", "IndexError"),
+        ("raise builtins.RuntimeError", "RuntimeError"),
+    ],
+)
+def test_every_form_of_a_builtin_raise_is_found(statement: str, builtin: str) -> None:
+    """The review's plants: a bare ``raise`` of a builtin class, and ``KeyError`` / ``IndexError``."""
+    assert _builtin_raises(ast.parse(f"def lookup(name, index):\n    {statement}\n")) == {f"lookup {builtin}": 1}
 
 
 @pytest.fixture(scope="module")

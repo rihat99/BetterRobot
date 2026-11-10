@@ -5,9 +5,10 @@ The sweep walks the ``__all__`` tree (``better_robot.testing.public_objects``): 
 methods and properties, each once, under the first path that lists it. A shape is a parenthesised list of axes with
 a comma or ``...`` in it, ``(B..., nq)``, ``(7,)``, ``(B or 1, N)``, or the scalar shape ``()``; prose in parentheses
 is not one. A tensor parameter is one whose annotation has ``torch.Tensor`` as a member; its shape is present when the
-parameter's name (or ``name_*`` for a family) is followed within a few words by a shape, ``q: (B..., nq)`` or
-``origin (7,)``, or when a shape signature ``(..., 7), (..., 7) -> (..., 7)`` lists it by position. A method may
-document a parameter its class docstring documents for every method. A function or property whose return annotation
+parameter's name (or ``name_*`` for a family) is followed within a few words of the same sentence by a shape,
+``q: (B..., nq)`` or ``origin (7,)`` (a call's parentheses, ``broadcast(B..., I...)``, do not count), or when a shape
+signature ``(..., 7), (..., 7) -> (..., 7)`` lists it by position. A method may document a parameter its class
+docstring documents for every method. A function or property whose return annotation
 holds ``torch.Tensor`` (alone, in a tuple or in a mapping) names a shape that no tensor parameter's name directly
 precedes: the result's.
 """
@@ -19,10 +20,15 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
+import torch
+
+from better_robot.kinematics import forward_kinematics
 from better_robot.testing import public_objects
 
 AXIS = r"[A-Za-z0-9_*.]+(?:\s*(?:[-+*/]|or)\s*[A-Za-z0-9_.]+)*"
 SHAPE = re.compile(rf"\((?=[^()\n]*(?:,|\.\.\.)|\s*\))\s*(?:{AXIS}(?:\s*,\s*{AXIS})*\s*,?)?\s*\)")
+NAMED_SHAPE = re.compile(rf"(?<![\w\])]){SHAPE.pattern}")  # a shape after a name: not a call's argument list
+SENTENCE_END = re.compile(r"[.;]\s")
 SIGNATURE = re.compile(r"``([^`]*?)(?:→|->)[^`]*``")
 NEAR = 80  # characters after a parameter's name in which its shape must start
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
@@ -52,7 +58,9 @@ def _names_shape(text: str, name: str) -> bool:
     patterns = [name, f"{name.rsplit('_', 1)[0]}_*"] if "_" in name else [name]
     for pattern in patterns:
         for match in re.finditer(rf"(?<![A-Za-z0-9_]){re.escape(pattern)}(?![A-Za-z0-9_])", text):
-            if SHAPE.search(text[match.end() : match.end() + NEAR]):
+            after = text[match.end() : match.end() + NEAR]
+            shape = NAMED_SHAPE.search(after)
+            if shape and not SENTENCE_END.search(after[: shape.start()]):
                 return True
     return False
 
@@ -117,3 +125,15 @@ def test_no_docstring_uses_a_sphinx_role() -> None:
         path.relative_to(SRC).as_posix() for path in SRC.rglob("*.py") if SPHINX_ROLE.search(path.read_text())
     )
     assert files == [], f"Sphinx roles in: {files}"
+
+
+def test_a_shape_near_a_parameter_documents_it_only_in_its_own_sentence_and_not_as_a_call() -> None:
+    """The review's plant: with ``q: (B..., nq)`` deleted from ``forward_kinematics``, the call
+    ``broadcast(B..., I...)`` within the same few words documented ``q``."""
+
+    def planted(model: object, q: torch.Tensor) -> None: ...
+
+    planted.__doc__ = inspect.getdoc(forward_kinematics).replace("``q: (B..., nq)`` ", "")
+    assert planted.__doc__ != inspect.getdoc(forward_kinematics)
+    assert _missing_shapes("forward_kinematics", forward_kinematics, None) == []
+    assert _missing_shapes("planted", planted, None) == ["planted::q"]

@@ -1,6 +1,7 @@
 """Four vocabulary rules of chapter 3 over the ``__all__`` tree (C-NAME-2; principles 3.4, 3.5, 3.8, 3.9).
 
-- 3.4: one name per thing. No public class or function is listed under two names, and no public class reuses a class
+- 3.4: one name per thing. No public class or function is listed under two names, or bound by a listed module under
+  a name other than its own (``kinematics.State = KinematicState``, listed or not), and no public class reuses a class
   name of a library ``src`` imports (``LIBRARIES``). ``SAME_ELEMENT`` holds the permanent, reasoned exceptions;
   ``tests/contract/ratchets/vocabulary.json`` the parked ones (``name`` to reason); it only shrinks.
 - 3.5: an acronym is written in capitals inside CapWords (``IRModel``, ``LBFGS``), never ``IrModel``.
@@ -20,6 +21,9 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+import pytest
+
+from better_robot import kinematics
 from better_robot.testing import public_objects
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
@@ -74,6 +78,31 @@ def test_no_public_object_is_listed_under_two_names() -> None:
     for path, value in _public_classes_and_functions().items():
         names[id(value)].add(path.rsplit(".", 1)[-1])
     assert sorted(sorted(found) for found in names.values() if len(found) > 1) == []
+
+
+def _second_names() -> list[str]:
+    """``module.name = Object`` for each library class or function a listed module binds under a public name that is
+    not the object's own."""
+    return sorted(
+        f"{path}.{name} = {value.__name__}"
+        for path, module in public_objects("better_robot").items()
+        if inspect.ismodule(module)
+        for name, value in vars(module).items()
+        if not name.startswith("_")
+        and (inspect.isclass(value) or inspect.isfunction(value))
+        and value.__module__.startswith("better_robot")
+        and value.__name__ != name
+    )
+
+
+def test_no_module_binds_a_public_object_under_a_second_name() -> None:
+    assert _second_names() == []
+
+
+def test_an_unlisted_alias_in_a_subpackage_is_a_second_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The review's plant: only the root refused a name outside its ``__all__``."""
+    monkeypatch.setattr(kinematics, "State", kinematics.KinematicState, raising=False)
+    assert _second_names() == ["better_robot.kinematics.State = KinematicState"]
 
 
 def test_no_public_class_reuses_a_library_class_name() -> None:

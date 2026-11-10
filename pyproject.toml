@@ -84,12 +84,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "PLC", "PLE", "PLR", "PLW", "B006", "B008", "T201", "E722", "TID251",
-          "FBT001", "FBT002", "BLE001", "ERA001", "ANN201"]
+          "FBT001", "FBT002", "BLE001", "ERA001", "ANN201", "S102", "S307"]
 ignore = ["E501", "PLR0913", "PLR2004"]
 # Contract rules with open sites in `src/` run as shrink-only ratchets in tests/contract/test_ruff_ratchets.py, not
-# here: "N" (C-NAME-2), "D1" (C-DOC-1), "ANN001" (C-TEST-2), "SLF001" (C-EXT-3).
-# Enabled above with open violations in `src/` (counts on 2026-11-06; `ruff check src --statistics` lists them):
-#   FBT001 7, FBT002 3, BLE001 1.
+# here: "N" (C-NAME-2), "D1" (C-DOC-1), "ANN001" (C-TEST-2), "SLF001" (C-EXT-3). S102 and S307: no exec or eval
+# (principle 4.2).
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ANN201", "FBT001", "FBT002", "ERA001"]
