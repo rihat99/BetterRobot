@@ -14,6 +14,9 @@ build/
 # Sphinx build output
 docs/_build/
 
+# benchmarks/run.py writes here by default; results are cited by command and commit, never tracked
+benchmarks/results/
+
 references
 # Local agent instructions (owner machine only)
 DESIGN_RULES.md
