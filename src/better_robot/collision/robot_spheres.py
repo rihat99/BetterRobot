@@ -15,6 +15,7 @@ import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..kinematics import KinematicState
+from ..lie._checks import check_tensor
 from ..model.model import Model
 from .distance import sphere_sphere_raw
 
@@ -41,6 +42,17 @@ class RobotSpheres:
     frame_ids: torch.Tensor
     offsets: torch.Tensor
     radii: torch.Tensor
+
+    def __post_init__(self) -> None:
+        """Check the three tables' types, dtypes, devices and shapes (one id, offset and radius per sphere)."""
+        _check_frame_ids(self.frame_ids)
+        count = self.frame_ids.shape[0]
+        check_tensor("offsets", self.offsets, shape=(count, 3), device=self.frame_ids.device, owner="frame_ids")
+        check_tensor(
+            "radii", self.radii, shape=(count,), dtype=self.offsets.dtype, device=self.offsets.device, owner="offsets"
+        )
+        if self.radii.ndim != 1:
+            raise ShapeError(f"radii must have shape ({count},), one radius per sphere, got {tuple(self.radii.shape)}")
 
     def __repr__(self) -> str:
         dtype = str(self.radii.dtype).removeprefix("torch.")
@@ -84,8 +96,15 @@ class RobotSpheres:
         """
         _check_attached("spheres", self.offsets, state)
         # A product-sum: a batched 3x3 matmul was 2.5x slower forward + backward. Advanced indexing, not index_select,
-        # whose CUDA backward adds with atomics and so is not bitwise reproducible.
-        rotation = state.frame_rotations[..., self.frame_ids, :, :]
+        # whose CUDA backward adds with atomics and so is not bitwise reproducible. Reading the ids to check their
+        # range would sync every call, so torch's own range error (CPU) is translated instead.
+        try:
+            rotation = state.frame_rotations[..., self.frame_ids, :, :]
+        except IndexError as error:
+            raise ArgumentError(
+                f"spheres.frame_ids holds a frame id outside [0, {state.model.nframes}) of the state's model; build "
+                "the spheres with RobotSpheres.from_frames(model, ...) for that model"
+            ) from error
         translation = state.frame_translations[..., self.frame_ids, :]
         return translation + (rotation * self.offsets[..., None, :]).sum(-1)
 
@@ -136,9 +155,14 @@ def self_distances(spheres: RobotSpheres, state: KinematicState, *, pairs: torch
     _check_pairs(pairs, spheres.frame_ids.device)
     centers = spheres.centers(state)
     first, second = pairs[:, 0], pairs[:, 1]
-    return sphere_sphere_raw(
-        centers[..., first, :], spheres.radii[first], center_b=centers[..., second, :], radius_b=spheres.radii[second]
-    )
+    try:  # as in centers: torch's range error (CPU) translated, no per-call read of the indices
+        radius_a, radius_b = spheres.radii[first], spheres.radii[second]
+    except IndexError as error:
+        count = spheres.radii.shape[0]
+        raise ArgumentError(
+            f"pairs holds a sphere index outside [0, {count}); build it with self_collision_pairs(model, spheres)"
+        ) from error
+    return sphere_sphere_raw(centers[..., first, :], radius_a, center_b=centers[..., second, :], radius_b=radius_b)
 
 
 def _check_attached(name: str, values: torch.Tensor, state: KinematicState) -> None:
@@ -152,6 +176,16 @@ def _check_attached(name: str, values: torch.Tensor, state: KinematicState) -> N
         raise DeviceMismatchError(
             f"{name}.device={values.device} != state.device={device}; pass {name}.to(device={device})"
         )
+
+
+def _check_frame_ids(frame_ids: object) -> None:
+    """Raise unless ``frame_ids`` is a ``(S,)`` long tensor."""
+    if not isinstance(frame_ids, torch.Tensor):
+        raise TypeError(f"frame_ids must be a torch.Tensor, got {type(frame_ids).__name__}")
+    if frame_ids.dtype != torch.long:
+        raise DtypeMismatchError(f"frame_ids.dtype={frame_ids.dtype} is not torch.int64; pass frame_ids.long()")
+    if frame_ids.ndim != 1:
+        raise ShapeError(f"frame_ids must have shape (S,), one frame id per sphere, got {tuple(frame_ids.shape)}")
 
 
 def _check_pairs(pairs: object, device: torch.device) -> None:

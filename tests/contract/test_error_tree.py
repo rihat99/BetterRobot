@@ -34,6 +34,7 @@ _NOT_A_TENSOR = "a value that is not a torch.Tensor is a Python TypeError; the t
 _NOT_A_STATE = "a state that is not a KinematicState is a Python TypeError"
 PLAIN_RAISES: dict[str, tuple[int, str]] = {
     "src/better_robot/collision/robot_spheres.py::_check_attached TypeError": (1, _NOT_A_STATE),
+    "src/better_robot/collision/robot_spheres.py::_check_frame_ids TypeError": (1, _NOT_A_TENSOR),
     "src/better_robot/collision/robot_spheres.py::_check_pairs TypeError": (1, _NOT_A_TENSOR),
     "src/better_robot/kinematics/forward.py::check_state TypeError": (1, _NOT_A_STATE),
     "src/better_robot/lie/_checks.py::check_tensor TypeError": (1, _NOT_A_TENSOR),

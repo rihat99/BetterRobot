@@ -115,10 +115,43 @@ def test_pairs_must_be_a_long_p_by_2_tensor(panda: br.model.Model) -> None:
 
 def test_pairs_reject_spheres_of_another_model(panda: br.model.Model) -> None:
     spheres = collision.RobotSpheres(
-        frame_ids=torch.tensor([0, panda.nframes]), offsets=torch.zeros(2, 3, dtype=torch.float64), radii=torch.ones(2)
+        frame_ids=torch.tensor([0, panda.nframes]),
+        offsets=torch.zeros(2, 3, dtype=torch.float64),
+        radii=torch.ones(2, dtype=torch.float64),
     )
     with pytest.raises(ArgumentError, match=rf"frame_ids must lie in \[0, {panda.nframes}\)"):
         collision.self_collision_pairs(panda, spheres)
+
+
+def test_robot_spheres_check_their_tables_at_construction() -> None:
+    """The review's calls: (2, 2) offsets and float ids failed later with raw errors, 3 radii for 2 ids passed."""
+    ids, offsets, radii = torch.tensor([1, 2]), torch.zeros(2, 3), torch.ones(2)
+    bad_tables = [
+        ({"frame_ids": ids.float()}, DtypeMismatchError, r"frame_ids\.dtype=torch\.float32 is not torch\.int64"),
+        ({"frame_ids": ids[None]}, ShapeError, r"frame_ids must have shape \(S,\)"),
+        ({"frame_ids": [1, 2]}, TypeError, "frame_ids must be a torch.Tensor, got list"),
+        ({"offsets": torch.zeros(2, 2)}, ShapeError, r"offsets must have shape \(\.\.\., 2, 3\)"),
+        ({"radii": torch.ones(3)}, ShapeError, r"radii must have shape \(\.\.\., 2\)"),
+        ({"radii": torch.ones(4, 2)}, ShapeError, r"radii must have shape \(2,\)"),
+        ({"radii": radii.double()}, DtypeMismatchError, r"radii\.dtype=torch\.float64 != offsets\.dtype"),
+        ({"offsets": torch.zeros(2, 3, device="meta")}, DeviceMismatchError, r"offsets\.device=meta != frame_ids"),
+    ]
+    for change, error, match in bad_tables:
+        with pytest.raises(error, match=match):
+            collision.RobotSpheres(**{"frame_ids": ids, "offsets": offsets, "radii": radii, **change})
+
+
+def test_self_distances_name_indices_outside_their_tables(panda: br.model.Model) -> None:
+    """Out-of-range pairs or frame ids raise ``ArgumentError`` with the fix, not torch's ``IndexError``."""
+    spheres, _ = _robots(panda)
+    state = kinematics.forward_kinematics(panda, panda.q_neutral)
+    with pytest.raises(ArgumentError, match=r"pairs holds a sphere index outside \[0, 2\)"):
+        collision.self_distances(spheres, state, pairs=torch.tensor([[0, 7]]))
+    foreign = collision.RobotSpheres(
+        frame_ids=torch.tensor([0, panda.nframes + 40]), offsets=spheres.offsets, radii=spheres.radii
+    )
+    with pytest.raises(ArgumentError, match=rf"frame id outside \[0, {panda.nframes}\) of the state's model"):
+        collision.self_distances(foreign, state, pairs=torch.tensor([[0, 1]]))
 
 
 def test_full_configuration_validates_q() -> None:
