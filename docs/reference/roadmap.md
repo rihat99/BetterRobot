@@ -24,8 +24,9 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
   terms; joint ids accept `int | str`; an unknown name raises
   `UnknownNameError` ([C-ERR-2](../contracts/06-validation-errors.md)).
 - `io.parse` returns the IR, where composition lives; URDF/MJCF joint
-  damping and armature reach the model; MJCF import is marked
-  experimental with its known gaps ([model loading](../concepts/io.md)).
+  damping and armature reach the model; MJCF loads through MuJoCo's compiler
+  within the scope [model loading](../concepts/io.md) lists
+  ([ADR 0036](../contracts/decisions/0036-mjcf-compile-through-mujoco.md)).
   `OptionalDependencyError` names a missing optional package and its install command
   ([dependencies and layering](../contracts/07-dependencies-layering.md)).
 - The SE(3) vocabulary placement / pose / transform
@@ -33,7 +34,7 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
 - Optimizer diagnostics in `State.extra`, `Result.diagnostics` and
   `Result.state`, warm start through `solve(..., state=)` / `run(..., state=)`,
   a warning when a `time=` problem falls back to dense, the normal-equation
-  sink seam, and reserved `equality`/`inequality` term kinds
+  sink seam, and equality and inequality terms named in `solve_constrained`
   ([extension points](../contracts/08-extension-points.md),
   [optimization](../concepts/optimization.md)).
 - Compile-safe placement caches with `fullgraph=True` tests for FK, RNEA and
@@ -41,8 +42,8 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
   ([ADR 0007](../contracts/decisions/0007-derivatives-contract.md)); the
   documented `_memo` keys ([C-STATE-4](../contracts/03-state-mutability.md));
   the `to_euler` gimbal-lock fix; a benchmark smoke test.
-- The robot-geometry brick decision
-  ([ADR 0008](../contracts/decisions/0008-geometry-brick.md));
+- Geometry is a value beside the model: `model.Geometry`, read by
+  `io.load_geometry` ([ADR 0016](../contracts/decisions/0016-geometry-out-of-model.md));
   `self_collision_pairs(..., ignore=)`, `RobotSpheres.to()`, batched sphere
   offsets and the SDF outside-grid rule ([collision](../concepts/collision.md)).
 - Viewer: optional per-layer sample `times` on one integer-step timeline
@@ -110,15 +111,14 @@ The [API reference](api/better_robot.md) is the exact signature source.
 
 | Brick | Why | Prerequisite | When |
 |---|---|---|---|
-| Constraint term kinds (`equality`, `inequality`) on `Problem` | QP-IK, SQP, limits as hard constraints | vocabulary reserved now | next |
+| Constraint term kinds (`equality`, `inequality`) declared on `Problem` | QP-IK, SQP, limits as hard constraints | `solve_constrained` (now) | next |
 | Batch compaction: step only unfinished elements | multi-start IK | diagnostics in `State.extra` (now) | next |
 | `BlockSparseSink` with block Cholesky / PCG in pure torch | multi-body fitting, long problems | sink seam (now) | next |
 | One flattened batch axis inside solvers | simpler solver code, compile | batch-axis rule documented (now) | later |
 | Schur complement beyond the arrow border; matrix-free normal route | trajectories too long for banded Cholesky | block-sparse sink | later |
 | QP subproblem and SQP | constrained IK and trajectories | constraint term kinds | later |
-| Shooting, DDP/iLQR and MPC | trajectory optimization, control | warm start (now), dynamics derivatives | later |
-| Fixed-shape, `torch.compile`-friendly step | real-time MPC | compile-clean kinematics (now) | maybe |
-| CHOLMOD or another external sparse backend | very large problems | block-sparse sink; a measured need | maybe |
+| Shooting and DDP/iLQR | trajectory optimization | warm start (now), dynamics derivatives | later |
+| Fixed-shape, `torch.compile`-friendly step | real-time solves in a caller's control loop | compile-clean kinematics (now) | maybe |
 | Forward-mode Jacobians when the tangent is narrower than the residual | point-heavy terms | a benchmark that beats reverse mode, which stays the default | maybe |
 
 ### Kinematics and dynamics
@@ -132,7 +132,6 @@ The [API reference](api/better_robot.md) is the exact signature source.
 | Analytic RNEA/ABA derivatives (Carpentier–Mansard) behind the same signatures | speed | autograd derivatives and parity tests | later |
 | O(n) ABA; loop closures | long chains, musculoskeletal models | none | later |
 | Force-plate / ground-reaction input feeding `external_forces` | gait biomechanics | contact Jacobians | later |
-| Warp kernel backend behind `OptionalDependencyError` | throughput | a measured bottleneck | maybe |
 | Constrained dynamics (KKT forward dynamics, impulses) and its derivatives | contact-implicit trajectory optimization | contact Jacobians | far future |
 
 The target is batch-first; compile-clean code is the route to fast batch-1 calls.
@@ -143,13 +142,12 @@ BetterHuman as extensions; BetterRobot stays generic.
 
 | Brick | Why | Prerequisite | When |
 |---|---|---|---|
-| `collision.RobotGeometry` built from the IR, meshes through lazy `trimesh` | geometry for every new robot | ADR 0008 (now) | next |
-| Capsule robots read from the IR (`RobotCapsules` takes a table today) | humanoids, thin links | `RobotGeometry` | next |
-| `fit_spheres(geometry)`; sampled collision matrix and SRDF import | new robots without hand-made spheres | `RobotGeometry` | next |
+| Capsule robots read from the geometry (`RobotCapsules` takes a table today) | humanoids, thin links | `model.Geometry` (now) | next |
+| `fit_spheres(geometry)`; sampled collision matrix and SRDF import | new robots without hand-made spheres | `model.Geometry` (now) | next |
 | Closest point and normal as separate functions; generic contact for dynamics | contact terms and contact Jacobians | none | next |
 | `terms.swept_clearance` and `collision.Scene` | trajectories, planning | closest-point functions | next |
 | Attached objects; ESDF from a mesh; active-set pairs | pick-and-place, speed | `collision.Scene` | later |
-| GJK/EPA in torch; a fused GPU kernel | exact contact, throughput | a measured need | maybe |
+| GJK/EPA in torch | exact contact | a measured need | maybe |
 
 ### Viewer
 
@@ -170,10 +168,8 @@ viser stays the only backend ([ADR 0004](../contracts/decisions/0004-viser-viewe
 |---|---|---|---|
 | IR editing: attach, lock joints, add frame | grippers, tools, collision | `io.parse` returns the IR (now) | next |
 | SRDF import | collision matrices, groups | IR editing | next |
-| MJCF import beyond experimental (gaps listed in [model loading](../concepts/io.md)) | MuJoCo models | parity tests per element | later |
 | Manifold-safe, bounds-aware B-splines and retiming | smooth trajectories | a designed B-spline contract | later |
 | URDF/MJCF writers | round-trips | IR editing | later |
-| Control and simulation helpers | RL, closed loop | dynamics derivatives | later |
 | External benchmarks against cuRobo-class libraries; CI on push and a GPU runner | trust, regressions | benchmark smoke test (now) | later |
 | Calibration | real robots | IR editing | maybe |
 
