@@ -9,7 +9,7 @@ from typing import Any, TypeVar, final
 
 import torch
 
-from ..exceptions import DeviceMismatchError, DtypeMismatchError, ModelError, QuaternionNormError
+from ..exceptions import DeviceMismatchError, DtypeMismatchError, ModelError, QuaternionNormError, ShapeError
 from ..lie import so3
 from ..lie._checks import check_tensor
 from ..model._checks import batch_shape, expand_batch
@@ -46,6 +46,23 @@ class KinematicState:
     joint_transforms: torch.Tensor = field(repr=False)  #: ``(B..., njoints, 3, 4)`` world ``[R | p]`` of every joint.
     frame_transforms: torch.Tensor = field(repr=False)  #: ``(B..., nframes, 3, 4)`` world ``[R | p]`` of every frame.
     _memo: dict[tuple[str, bool], Any] = field(default_factory=dict, init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Check that ``q`` and the transform tables have the model's sizes and one batch (``ShapeError``)."""
+        # Shapes only, about 1.2 us: forward_kinematics builds a state on every call, and a hand-built one is caught
+        # here instead of failing later with a raw IndexError.
+        model, batch = self.model, tuple(self.q.shape[:-1])
+        tables = (
+            ("q", self.q, (model.nq,)),
+            ("joint_transforms", self.joint_transforms, (model.njoints, 3, 4)),
+            ("frame_transforms", self.frame_transforms, (model.nframes, 3, 4)),
+        )
+        for name, value, event in tables:
+            if tuple(value.shape) != (*batch, *event):
+                raise ShapeError(
+                    f"{name} must have shape (B..., {', '.join(map(str, event))}) with the batch {batch} of q, got "
+                    f"{tuple(value.shape)}; build a state with forward_kinematics(model, q)"
+                )
 
     @property
     def joint_rotations(self) -> torch.Tensor:

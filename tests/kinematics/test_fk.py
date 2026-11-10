@@ -10,10 +10,10 @@ import math
 import pytest
 import torch
 
-from better_robot.exceptions import DtypeMismatchError
-from better_robot.io import build_model
+from better_robot.exceptions import DtypeMismatchError, ShapeError
+from better_robot.io import build_model, load
 from better_robot.io.builder import ModelBuilder
-from better_robot.kinematics import forward_kinematics
+from better_robot.kinematics import KinematicState, forward_kinematics
 from tests.support.robots import panda_urdf
 
 
@@ -117,3 +117,18 @@ def panda_model():
     from better_robot.io import load  # noqa: PLC0415
 
     return load(panda_urdf())
+
+
+def test_a_hand_built_state_with_the_wrong_shapes_fails_at_construction() -> None:
+    """The review built a state whose tables did not fit the model; frame_jacobian then raised a raw IndexError."""
+    model = load(panda_urdf())
+    state = forward_kinematics(model, model.q_neutral.expand(2, -1))
+    tables = {"q": state.q, "joint_transforms": state.joint_transforms, "frame_transforms": state.frame_transforms}
+    bad_tables = [
+        ("q", state.q[:, :3], r"q must have shape \(B\.\.\., \d+\) with the batch \(2,\) of q"),
+        ("joint_transforms", state.joint_transforms[:, :2], r"joint_transforms must have shape \(B\.\.\., \d+, 3, 4\)"),
+        ("frame_transforms", state.frame_transforms[:1], r"frame_transforms .* with the batch \(2,\) of q, got \(1,"),
+    ]
+    for name, table, match in bad_tables:
+        with pytest.raises(ShapeError, match=match):
+            KinematicState(model=model, **{**tables, name: table})
