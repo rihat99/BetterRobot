@@ -65,6 +65,8 @@ that 0.3.0 renames or removes, one table row each.
 - `FakeServer.gui` declares the GUI calls of an app built on the viewer, with viser's keywords: `add_dropdown`,
   `add_text`, `add_number`, `add_markdown`, `add_tab_group` (tabs by `add_tab`) and `add_slider(..., disabled=)`;
   each control reads back the value it was given.
+- `testing.glossary`: `read()` returns the terms and everyday words of BetterRobot's glossary page, which ships in
+  the package, and `read(page)` those of another page; `words`, `entry` and `spelling` check a name against them.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
 
 ### Changed

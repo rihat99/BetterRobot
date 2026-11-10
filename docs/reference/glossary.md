@@ -253,6 +253,8 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **fake server** | `testing.FakeServer`: a viser server without sockets, for tests of the viewer. |
 | **dead citation** | A repository path cited in tracked text that does not resolve (`testing.dead_citations`). |
 | **snippet** | A Python fence of a docs page; `testing.snippets.check_page` runs each once and compares its output. |
+| **glossary** | This page as data: `testing.glossary.read()` returns its terms and its everyday words, from the copy that ships in the package, so a library built on BetterRobot checks its names against them and against its own page (`read(page)`). |
+| **vocabulary** | The words a public name may use: a glossary's terms and everyday words together. `testing.glossary.spelling(name_words, vocabulary)` spells a name with them. |
 
 ## Abbreviations and symbols
 
@@ -294,7 +296,7 @@ These words keep their ordinary English meaning in public names.
 actual, add, aim, angle, apply, argument, arrow, aspect, at, atomic, attached, axes, axis, azimuth, band, block, bone,
 border, box, brand, build, by, cached, callback, camera, cell, center, check, clear, client, color, column, component,
 consistently, constrained, contact, control, corner, create, cylinder, dark, decrease, default, delta, dense, density,
-dependency, diagnostics, diagonal, dispose, done, element, elevation, ellipsoid, end, equality, error, estimate,
+dependency, diagnostics, diagonal, dispose, done, element, elevation, ellipsoid, end, entry, equality, error, estimate,
 evaluate, every, exception, expected, extend, extent, extra, face, factory, field, fill, finalize, flat, floor,
 folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, group, growth, half, head, height,
 history, host, human, identity, ignore, image, imported, inequality, install, inverse, iteration, keep, key, label,
@@ -304,6 +306,6 @@ outer, output, over, package, page, pair, panel, parse, path, pause, penalty, pe
 playing, plot, point, pointer, port, position, predicted, project, public, radii, radius, ramp, random, read, reason,
 rebuild, record, remove, replace, resize, restart, restrict, result, rigid, robot, run, save, scalar, scale, scene,
 scheduler, section, segment, serializer, series, server, set, shading, shaft, show, size, skeleton, skip, sleep,
-slice, solve, solver, source, sphere, squared, start, stop, target, testing, theme, thickness, time, timeout, to,
-toggle, tolerance, torque, unknown, up, upper, valid, validate, value, vector, vertices, visible, voxel, weight,
-width, with
+slice, solve, solver, source, spelling, sphere, squared, start, stop, target, testing, theme, thickness, time, timeout,
+to, toggle, tolerance, torque, unknown, up, upper, valid, validate, value, vector, vertices, visible, voxel, weight,
+width, with, word
