@@ -44,6 +44,10 @@ that 0.3.0 renames or removes, one table row each.
   `BandedNormal` and `ArrowNormal` linear systems, the `Manifold` base and `Euclidean`.
 - `Problem.evaluate(x)` returns the loss, the per-term losses and the `info` a term returns beside its value;
   `Problem.gradient(x)` adds the per-term losses; `Problem.cached_values` lists the cached values.
+- `Problem.linearize` assembles the normal equations through a dense, banded or arrowhead sink, the seam a new
+  sparsity structure plugs into ([extension points](../contracts/08-extension-points.md), C-EXT-7): a sink's
+  `add(columns_a, columns_b, values, *, shared)` is told by the variables which columns have no time axis, so no
+  sink reads an index value back to the host.
 - `State.solver`, `State.extra["terms"]` and `Result.diagnostics` (`grad_norm`, `step_norm`, `accepted`, LM
   `damping`); `Result.state` warm-starts `solve` and `run` through `state=`.
 - `terms`: `frame_pose`, `frame_position`, `joint_limits`, `rest`, `finite_difference` (any `order`,
@@ -139,8 +143,9 @@ that 0.3.0 renames or removes, one table row each.
 - `optim.State` is a frozen dataclass: assigning to a field raises `FrozenInstanceError` (build a new state with
   `dataclasses.replace`).
 - `testing.snippets` is stricter: a printed float with no fraction digits must match exactly and any other within
-  half a unit of its last digit; `py`, `pycon` and `~~~python` fences, a blank `data-reason`, a printing fence
-  without an output fence and a fence that exits early are reported.
+  half a unit of its last digit; `py`, `pycon`, `~~~python`, four-backtick, braced (`{ .python }`) and capitalised
+  (`Python`) fences, a blank `data-reason`, a printing fence without an output fence and a fence that exits early
+  are reported.
 - The contributing pages are gone: [extending](../guides/extend.md) and [running the tests](../guides/run-the-tests.md)
   are guides, and [the test suite](tests.md) is reference.
 - `benchmarks/run.py` is the one benchmark runner: the full tier fails when a graph break, recompile, operator or
