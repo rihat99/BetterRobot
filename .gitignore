@@ -11,18 +11,20 @@ build/
 *.pyc
 .DS_Store
 
-# Sphinx build output
-docs/_build/
+# mkdocs build output
+site/
 
 # benchmarks/run.py writes here by default; results are cited by command and commit, never tracked
 benchmarks/results/
 
 references
-# Local agent instructions (owner machine only)
-DESIGN_RULES.md
+
+# Agent settings: the shared settings, rules and skills are tracked, the rest is per machine
+.claude/*
+!.claude/settings.json
+!.claude/rules/
+!.claude/skills/
 
 # Agent task scratch
 trash/
-.claude/
-site/
 agent_notes/
