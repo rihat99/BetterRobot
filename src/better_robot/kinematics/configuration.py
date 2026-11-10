@@ -125,7 +125,7 @@ class ManifoldPlan:
 
 
 def build_manifold_plan(model: Model, dtype: torch.dtype, device: torch.device) -> ManifoldPlan:
-    """Group the public coordinates by manifold (``dtype`` is unused: the columns are integers)."""
+    """Group the public coordinates by manifold, as columns of the integer ``dtype``."""
     columns: dict[JointManifold, tuple[list[list[int]], list[list[int]]]] = {}
     for joint_id, joint in enumerate(model.joints):
         if model.nqs[joint_id] == 0:
@@ -141,23 +141,23 @@ def build_manifold_plan(model: Model, dtype: torch.dtype, device: torch.device) 
         groups=tuple(
             (
                 manifold,
-                torch.tensor(q_columns, dtype=torch.long, device=device).reshape(-1, manifold.nq),
-                torch.tensor(v_columns, dtype=torch.long, device=device).reshape(-1, manifold.nv),
+                torch.tensor(q_columns, dtype=dtype, device=device).reshape(-1, manifold.nq),
+                torch.tensor(v_columns, dtype=dtype, device=device).reshape(-1, manifold.nv),
             )
             for manifold, (q_columns, v_columns) in columns.items()
         ),
     )
 
 
-def manifold_plan(model: Model, *, dtype: torch.dtype, device: torch.device) -> ManifoldPlan:
-    """The model's `ManifoldPlan` on ``device`` (built once per model and device)."""
-    return model._plan("manifold", build_manifold_plan, dtype=dtype, device=device)
+def manifold_plan(model: Model, *, device: torch.device) -> ManifoldPlan:
+    """The model's `ManifoldPlan` on ``device`` (built once per model and device, whatever the model's dtype)."""
+    return model._plan("manifold", build_manifold_plan, dtype=torch.long, device=device)
 
 
 def euclidean_columns(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
     """``(q columns (n,), v columns (n,))``, long on the model's device: the public coordinates whose joints declare
     the ``EUCLIDEAN`` manifold, where ``integrate`` adds ``v`` to ``q``; the grouping ``integrate`` itself uses."""
-    q_columns, v_columns = manifold_plan(model, dtype=model.dtype, device=model.device).columns(EUCLIDEAN)
+    q_columns, v_columns = manifold_plan(model, device=model.device).columns(EUCLIDEAN)
     return q_columns.reshape(-1), v_columns.reshape(-1)
 
 
@@ -177,7 +177,7 @@ def integrate(model: Model, q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
     """``q ⊕ v``: step ``q: (B..., nq)`` along ``v: (B..., nv)`` on the configuration manifold; ``(B..., nq)``."""
     q, v, _ = _pair(model, "q", q, "v", v, model.nq, model.nv)
     result = q.clone()
-    for manifold, q_columns, v_columns in manifold_plan(model, dtype=q.dtype, device=q.device).groups:
+    for manifold, q_columns, v_columns in manifold_plan(model, device=q.device).groups:
         values = manifold.integrate(q[..., q_columns], v[..., v_columns])
         result = result.index_copy(-1, q_columns.reshape(-1), values.flatten(start_dim=-2))
     return result
@@ -187,7 +187,7 @@ def difference(model: Model, q0: torch.Tensor, q1: torch.Tensor) -> torch.Tensor
     """``q1 ⊖ q0``: the tangent ``(B..., nv)`` from ``q0`` to ``q1``, both ``(B..., nq)``."""
     q0, q1, batch = _pair(model, "q0", q0, "q1", q1, model.nq, model.nq)
     result = q0.new_zeros(*batch, model.nv)
-    for manifold, q_columns, v_columns in manifold_plan(model, dtype=q0.dtype, device=q0.device).groups:
+    for manifold, q_columns, v_columns in manifold_plan(model, device=q0.device).groups:
         values = manifold.difference(q0[..., q_columns], q1[..., q_columns])
         result = result.index_copy(-1, v_columns.reshape(-1), values.flatten(start_dim=-2))
     return result

@@ -129,7 +129,13 @@ def test_to_moves_every_tensor_field_and_keeps_a_rebound_batch() -> None:
     torch.testing.assert_close(moved.frame_placements, frames.double())
 
 
-_PLANS = (fk_plan, jacobian_plan, dynamics_plan, mimic_plan, manifold_plan)
+_PLANS = (
+    fk_plan,
+    jacobian_plan,
+    dynamics_plan,
+    mimic_plan,
+    lambda model, *, dtype, device: manifold_plan(model, device=device),
+)
 
 
 def _queries(model) -> tuple[torch.Tensor, ...]:
@@ -169,6 +175,7 @@ def test_a_copy_shares_its_source_plans_and_computes_as_a_fresh_model(name: str)
     assert fk_plan(moved, dtype=torch.float32, device=model.device) is fk_plan(
         model, dtype=torch.float32, device=model.device
     )
+    assert [key for key in model._plans if key[0] == "manifold"] == [("manifold", torch.long, model.device)]
 
 
 def test_a_replace_that_changes_the_structure_builds_its_own_plans() -> None:
