@@ -8,6 +8,15 @@ from better_robot.exceptions import ArgumentError, DtypeMismatchError, ModelErro
 from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import difference, integrate, subtree, support
+from better_robot.model import (
+    JointHelical,
+    JointPlanar,
+    JointPrismatic,
+    JointRevolute,
+    JointRevoluteUnbounded,
+    JointSpherical,
+    JointTranslation,
+)
 
 
 def _make_simple_model() -> Model:
@@ -110,6 +119,50 @@ def test_random_configuration_is_finite_for_unlimited_revolute():
     samples = torch.stack([model.random_configuration(generator=generator) for _ in range(32)])
     assert torch.isfinite(samples).all()
     assert (samples[:, -1].abs() <= torch.pi).all()
+
+
+def _every_kind_model() -> Model:
+    """A chain with one joint of every kind, limits ``[-0.5, 0.5]``, under a free-flyer root."""
+    builder = ModelBuilder("every_kind")
+    parent = builder.add_body("root")
+    builder.add_free_flyer_root("root_joint", child=parent)
+    axis = (0.0, 0.0, 1.0)
+    kinds = (
+        JointRevolute(axis=axis),
+        JointRevoluteUnbounded(axis=axis),
+        JointPrismatic(axis=axis),
+        JointHelical(axis=axis, pitch=0.1),
+        JointSpherical(),
+        JointPlanar(),
+        JointTranslation(),
+    )
+    for index, kind in enumerate(kinds):
+        child = builder.add_body(f"link{index}")
+        builder.add_joint(f"joint{index}", kind=kind, parent=parent, child=child)
+        parent = child
+    model = build_model(builder.finalize())
+    lower, upper = model.lower_position_limit.clamp(min=-0.5), model.upper_position_limit.clamp(max=0.5)
+    return model.with_values(lower_position_limit=lower, upper_position_limit=upper)
+
+
+def test_random_configuration_of_a_meta_model_reads_no_values():
+    model = _every_kind_model().to(device="meta")
+    q = model.random_configuration(generator=torch.Generator())
+    assert q.device.type == "meta" and q.shape == (model.nq,)
+
+
+@pytest.mark.cuda
+def test_random_configuration_draws_on_the_model_device():
+    model = _every_kind_model().to(device="cuda")
+    q = model.random_configuration(generator=torch.Generator(device="cuda").manual_seed(0))
+    assert q.device == model.device and q.shape == (model.nq,)
+    assert bool(torch.isfinite(q).all())
+
+
+def test_random_configuration_requires_a_generator():
+    """A draw never falls back to the global random stream (principle 5.1)."""
+    with pytest.raises(ArgumentError, match="generator"):
+        _make_simple_model().random_configuration(generator=None)
 
 
 def test_random_configuration_rejects_unlimited_prismatic():

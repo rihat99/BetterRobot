@@ -4,7 +4,7 @@ Every function, class constructor and public method that the ``__all__`` tree li
 public_objects``, each object once) is inspected; parameters after the second must be keyword-only, and an
 identifier argument after ``(model, state)`` of a kinematics or dynamics function is never positional.
 ``PERMANENT`` holds the reasoned exceptions (``path`` to its positional count and the reason).
-``tests/contract/ratchets/keyword_only.json`` holds the violations whose fix belongs to another work package (``path``
+``tests/contract/ratchets/keyword_only.json`` holds the violations whose fix waits for a decision of its own (``path``
 to its positional count and the reason); it only shrinks. A listed callable may not take one more positional
 parameter than its entry says.
 """

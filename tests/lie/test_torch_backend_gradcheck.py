@@ -1,7 +1,6 @@
 """fp64 ``gradcheck`` on the pure-PyTorch SE3/SO3 backend.
 
-Skipped automatically when CUDA isn't part of the goal — these run on
-CPU. Each tested op accepts fp64 inputs and is numerically stable across
+They run on CPU. Each tested op accepts fp64 inputs and is numerically stable across
 ``torch.autograd.gradcheck`` finite differences.
 """
 

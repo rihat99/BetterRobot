@@ -4,7 +4,8 @@
 copied by ``dataclasses.replace``, written by one function each (``Model._plan``, ``Model._value``,
 ``KinematicState._memoised``) and keyed by grad mode on the value side (the model memo also by the tensor fields'
 ``requires_grad`` flags; both bypassed under inference mode), and nothing in ``src`` writes through
-``object.__setattr__``, reads a tensor's ``_version`` or touches ``torch._C``.
+``object.__setattr__``, reads a tensor's ``_version`` or touches ``torch._C``. A ``functools`` cache lives as long as
+the process, so ``FUNCTOOLS_CACHES`` lists, with its reason, the one ``src`` keeps.
 """
 
 from __future__ import annotations
@@ -31,6 +32,14 @@ CACHE_WRITERS = {
         ("src/better_robot/model/model.py", "_value"),
         ("src/better_robot/kinematics/forward.py", "_memoised"),
     },
+}
+FUNCTOOLS_CACHE_NAMES = {"cache", "lru_cache", "cached_property"}
+FUNCTOOLS_CACHES = {
+    "src/better_robot/optim/linearization.py::_layout": (
+        "the band layout of a time problem: a pure function of hashable structure (column spans, knots, block size, "
+        "device), bounded at 64 entries; its owner Problem keeps its private names to problem.py, so a memo there "
+        "would add a Problem method for a few index tensors"
+    ),
 }
 
 
@@ -214,6 +223,50 @@ def _violations() -> list[str]:
             elif node.attr == "_C" and isinstance(owner, ast.Name) and owner.id == "torch":
                 found.append(f"{relative}:{node.lineno} torch._C")
     return found
+
+
+def _functools_caches(tree: ast.AST) -> list[str | None]:
+    """The enclosing function (``None`` at module level) of every ``functools.lru_cache``, ``cache`` or
+    ``cached_property``, spelled through the module or imported by name; a decorator counts under the function it
+    decorates."""
+    imported = {
+        alias.asname or alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module == "functools"
+        for alias in node.names
+        if alias.name in FUNCTOOLS_CACHE_NAMES
+    }
+    found: list[str | None] = []
+
+    def visit(node: ast.AST, function: str | None) -> None:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            function = node.name
+        through_module = (
+            isinstance(node, ast.Attribute)
+            and node.attr in FUNCTOOLS_CACHE_NAMES
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "functools"
+        )
+        if through_module or (isinstance(node, ast.Name) and node.id in imported):
+            found.append(function)
+        for child in ast.iter_child_nodes(node):
+            visit(child, function)
+
+    visit(tree, None)
+    return found
+
+
+def test_functools_caches_are_the_reasoned_ones() -> None:
+    """A new ``functools`` cache needs its reason in ``FUNCTOOLS_CACHES``; an entry leaves with its cache."""
+    found = {
+        f"{file.relative_to(REPO).as_posix()}::{function}"
+        for file in SRC.rglob("*.py")
+        for function in _functools_caches(ast.parse(file.read_text()))
+    }
+    assert found == FUNCTOOLS_CACHES.keys(), (
+        f"functools caches without a reason in FUNCTOOLS_CACHES: {sorted(found - FUNCTOOLS_CACHES.keys())}; "
+        f"entries whose cache is gone: {sorted(FUNCTOOLS_CACHES.keys() - found)}"
+    )
 
 
 def test_no_hidden_cache_mechanics_in_src() -> None:

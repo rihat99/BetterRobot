@@ -75,7 +75,7 @@ def frame_pose(model: Model, *, frame: int | str, target: str, state: str = "sta
     """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``."""
     frame_id = model.frame_id(frame)
 
-    # The solver calls these on every iteration with inputs ik_problem (or the caller) checked once: raw kernels (R-9).
+    # The solver calls these on every iteration with inputs ik_problem (or the caller) checked once: raw kernels (principle 2.8).
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
         return se3.log_raw(se3.compose_raw(se3.inverse_raw(goal), kinematics.frame_pose_of(frame_id)))
 

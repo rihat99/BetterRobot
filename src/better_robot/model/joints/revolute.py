@@ -16,7 +16,7 @@ def _random_angle(generator: torch.Generator, lower: torch.Tensor, upper: torch.
     """Uniform angle ``(1,)`` in ``[lower, upper]``; a missing limit is replaced by ``-pi`` or ``pi``."""
     lower = torch.where(torch.isfinite(lower), lower, torch.full_like(lower, -torch.pi))
     upper = torch.where(torch.isfinite(upper), upper, torch.full_like(upper, torch.pi))
-    return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype)
+    return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype, device=lower.device)
 
 
 @final
@@ -79,5 +79,5 @@ class JointRevoluteUnbounded(JointModel):
     @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         # Drawn in the limits' dtype: a float32 (cos, sin) pair cast to float64 is not unit.
-        angle = (torch.rand(1, generator=generator, dtype=lower.dtype) * 2.0 - 1.0) * torch.pi
+        angle = (torch.rand(1, generator=generator, dtype=lower.dtype, device=lower.device) * 2.0 - 1.0) * torch.pi
         return torch.cat((torch.cos(angle), torch.sin(angle)))

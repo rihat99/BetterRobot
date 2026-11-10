@@ -334,8 +334,14 @@ class DenseSink:
         self.H = reference.new_zeros(batch, size, size)
         self.size = size
 
-    def add(self, columns_a: torch.Tensor, columns_b: torch.Tensor, values: torch.Tensor) -> None:
-        """Add ``values: (B, G, na, nb)`` where group ``g`` touches ``columns_a[g] × columns_b[g]``."""
+    def add(
+        self, columns_a: torch.Tensor, columns_b: torch.Tensor, values: torch.Tensor, *, shared: tuple[bool, bool]
+    ) -> None:
+        """Add ``values: (B, G, na, nb)`` where group ``g`` touches ``columns_a[g] × columns_b[g]``.
+
+        ``shared`` says which side's columns belong to variables without a time axis; a dense matrix has no use
+        for it.
+        """
         if columns_a.shape[0] == 1:
             self.H[:, columns_a[0][:, None], columns_b[0][None, :]] += values[:, 0]
             return
@@ -358,8 +364,13 @@ class BandSink:
         self.diagonal = reference.new_zeros(batch, layout.blocks * size * size + 1)
         self.upper = reference.new_zeros(batch, max(layout.blocks - 1, 0) * size * size + 1)
 
-    def add(self, columns_a: torch.Tensor, columns_b: torch.Tensor, values: torch.Tensor) -> None:
-        """Add ``values: (B, G, na, nb)`` where group ``g`` touches ``columns_a[g] × columns_b[g]``."""
+    def add(
+        self, columns_a: torch.Tensor, columns_b: torch.Tensor, values: torch.Tensor, *, shared: tuple[bool, bool]
+    ) -> None:
+        """Add ``values: (B, G, na, nb)`` where group ``g`` touches ``columns_a[g] × columns_b[g]``.
+
+        ``shared`` is ``(False, False)``: a band layout has only time columns.
+        """
         layout, size = self.layout, self.layout.block_size
         block_a = layout.block_of_column[columns_a][:, :, None]
         block_b = layout.block_of_column[columns_b][:, None, :]
@@ -377,8 +388,7 @@ class BandSink:
         no block touches gets a unit diagonal, so the factorization never sees a zero pivot."""
         layout, size, batch = self.layout, self.layout.block_size, g.shape[0]
         diagonal = self.diagonal[:, :-1].reshape(batch, layout.blocks, size, size)
-        used = g.new_zeros(layout.blocks * size)
-        used[layout.position] = 1.0
+        used = g.new_zeros(layout.blocks * size).index_fill_(0, layout.position, 1.0)
         diagonal = diagonal + torch.diag_embed(1.0 - used.view(layout.blocks, size))
         upper = self.upper[:, :-1].reshape(batch, max(layout.blocks - 1, 0), size, size)
         return BandedNormal(diagonal=diagonal, upper=upper, g=g, layout=layout)
@@ -388,7 +398,7 @@ class BandSink:
 class ArrowSink:
     """Accumulates Jacobian products into a band, a border and a dense corner.
 
-    Every call must pass columns that are all time columns or all shared columns.
+    Every call passes columns that are all time columns or all shared columns, and says which in ``shared``.
     """
 
     def __init__(self, reference: torch.Tensor, batch: int, layout: BandLayout) -> None:
@@ -401,13 +411,19 @@ class ArrowSink:
         self.border = reference.new_zeros(batch, layout.blocks * layout.block_size * self.count)
         self.corner = reference.new_zeros(batch, self.count * self.count)
 
-    def add(self, columns_a: torch.Tensor, columns_b: torch.Tensor, values: torch.Tensor) -> None:
-        """Add ``values: (B, G, na, nb)`` where group ``g`` touches ``columns_a[g] × columns_b[g]``."""
+    def add(
+        self, columns_a: torch.Tensor, columns_b: torch.Tensor, values: torch.Tensor, *, shared: tuple[bool, bool]
+    ) -> None:
+        """Add ``values: (B, G, na, nb)`` where group ``g`` touches ``columns_a[g] × columns_b[g]``.
+
+        ``shared`` says which side's columns belong to variables without a time axis: the caller knows it from the
+        variables, so the sink reads no index value.
+        """
         shared_a, shared_b = self.shared_index[columns_a], self.shared_index[columns_b]
-        a_is_shared, b_is_shared = bool(shared_a[0, 0] >= 0), bool(shared_b[0, 0] >= 0)
+        a_is_shared, b_is_shared = shared
         batch = values.shape[0]
         if not a_is_shared and not b_is_shared:
-            self.band.add(columns_a, columns_b, values)
+            self.band.add(columns_a, columns_b, values, shared=shared)
         elif a_is_shared and b_is_shared:
             index = (shared_a[:, :, None] * self.count + shared_b[:, None, :]).reshape(1, -1)
             self.corner.scatter_add_(1, index.expand(batch, -1), values.flatten(1))

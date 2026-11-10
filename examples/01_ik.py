@@ -12,7 +12,7 @@ import torch
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot import forward_kinematics, optim, terms
+from better_robot import forward_kinematics, optim, solve_ik, terms
 
 FRAME = "panda_hand"
 
@@ -31,7 +31,7 @@ def main() -> None:
     target = forward_kinematics(model, q_goal).frame_poses[:, model.frame_id(FRAME)]
 
     # 1. Recipe: LM, hard joint limits, a few random restarts for the local minima.
-    result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=8, generator=generator)
+    result = solve_ik(model, {FRAME: target}, q0=q0, restarts=8, generator=generator)
     error = position_error(model, result.x["q"], target)
     print(
         f"recipe      : reached (<0.1 mm) {float((error < 1e-4).float().mean()):.3f}, median {float(error.median()):.1e} m"

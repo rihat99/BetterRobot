@@ -112,7 +112,7 @@ def identity(
 ) -> torch.Tensor:
     """SO3 identity quaternion ``(*batch_shape, 4)``."""
     out = torch.zeros((*batch_shape, 4), device=device, dtype=dtype)
-    out[..., 3] = 1.0
+    out[..., 3].fill_(1.0)  # a stored Python number would be read back with .item() on CUDA
     return out
 
 

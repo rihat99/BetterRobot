@@ -25,7 +25,7 @@ def identity(
 ) -> torch.Tensor:
     """SE3 identity pose ``(*batch_shape, 7)``."""
     out = torch.zeros((*batch_shape, 7), device=device, dtype=dtype)
-    out[..., 6] = 1.0
+    out[..., 6].fill_(1.0)  # a stored Python number would be read back with .item() on CUDA
     return out
 
 
@@ -188,7 +188,7 @@ def to_matrix_raw(t: torch.Tensor) -> torch.Tensor:
     rotation = so3.to_matrix_raw(t[..., 3:7])
     upper = torch.cat((rotation, t[..., :3].unsqueeze(-1)), dim=-1)
     bottom = t.new_zeros((*t.shape[:-1], 1, 4))
-    bottom[..., 0, 3] = 1.0
+    bottom[..., 0, 3].fill_(1.0)  # a stored Python number would be read back with .item() on CUDA
     return torch.cat((upper, bottom), dim=-2)
 
 

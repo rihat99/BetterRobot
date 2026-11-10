@@ -1,4 +1,4 @@
-"""The ``path::symbol`` key of a linter finding and the comparison of found sites with a counted ratchet (R-3).
+"""The ``path::symbol`` key of a linter finding and the comparison of found sites with a counted ratchet.
 
 A counted ratchet (``tests/contract/ratchets/*.json``) maps a key to ``{"count": n, "reason": ...}``: ``n`` open sites
 under that key, so a second site inside a listed symbol fails (principle 6.1). ``tools/ratchet_counts.py`` checks

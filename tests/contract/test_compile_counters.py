@@ -26,7 +26,11 @@ HOT_PATH_ROWS = {
     "lie": {"fk_joints"},  # forward kinematics composes every joint transform through `lie`
     "kinematics": {"fk_joints", "jacobian"},
     "dynamics": {"rnea", "crba", "aba"},
+    "spatial": {"rnea", "crba", "aba"},  # the dynamics passes run the spatial algebra and inertias
+    "terms": {"ik"},  # solve_ik evaluates the pose and limit terms
     "src/better_robot/optim/solvers.py": {"ik"},  # solve_ik runs the Levenberg-Marquardt step
+    "src/better_robot/optim/linearization.py": {"ik"},  # every step linearizes the terms
+    "src/better_robot/optim/linear.py": {"ik"},  # and solves the normal equations
 }
 
 

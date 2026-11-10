@@ -1,5 +1,5 @@
-"""No probing in ``src`` (principles 4.2; records 0036, 0037, 0022): no ``getattr(x, "literal", ...)`` and no
-``hasattr``; a typed adapter reads attributes directly and fails loudly. Another object's ``_`` attribute is ruff's
+"""No probing in ``src`` (principles 4.2; records 0036, 0037, 0022): no ``getattr(x, "literal", ...)``, no
+``hasattr`` and no ``except AttributeError``; a typed adapter reads attributes directly and fails loudly. Another object's ``_`` attribute is ruff's
 ``SLF001``, which ``tests/contract/test_ruff_ratchets.py`` checks."""
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ SRC = REPO / "src" / "better_robot"
 
 
 def _probes(file: Path) -> set[str]:
-    """``path::symbol`` of every literal-name ``getattr`` and every ``hasattr`` in ``file``."""
+    """``path::symbol`` of every literal-name ``getattr``, ``hasattr`` and ``except AttributeError`` in ``file``."""
     found: set[str] = set()
 
     def visit(node: ast.AST, owner: str) -> None:
@@ -27,6 +27,10 @@ def _probes(file: Path) -> set[str]:
             )
         ):
             found.add(f"{file.relative_to(REPO).as_posix()}::{owner}")
+        if isinstance(node, ast.ExceptHandler) and node.type is not None:
+            caught = node.type.elts if isinstance(node.type, ast.Tuple) else [node.type]
+            if any(isinstance(name, ast.Name) and name.id == "AttributeError" for name in caught):
+                found.add(f"{file.relative_to(REPO).as_posix()}::{owner}")
         for child in ast.iter_child_nodes(node):
             visit(child, owner)
 

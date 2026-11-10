@@ -12,7 +12,7 @@ you sample random configurations and take their hand poses as targets:
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot import forward_kinematics, optim, terms
+from better_robot import forward_kinematics, optim, solve_ik, terms
 
 FRAME = "panda_hand"
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
@@ -30,7 +30,7 @@ too (`torch.Generator(device=q0.device)`).
 
 ## Solve with one call
 
-`terms.solve_ik` builds a pose term per target frame, keeps the joints inside their limits, and runs
+`solve_ik` builds a pose term per target frame, keeps the joints inside their limits, and runs
 Levenberg-Marquardt (LM) on all 32 problems together. Each iteration evaluates the residual
 $r(q)$ (pose error and limit violations) and its Jacobian $J = \partial r / \partial q$, then takes the
 damped step $\Delta q = -(J^\top J + \lambda D)^{-1} J^\top r$, where $D = \mathrm{diag}(J^\top J)$ and
@@ -44,7 +44,7 @@ stay on the manifold:
 `restarts` retries from random starts to escape local minima:
 
 ```python
-result = terms.solve_ik(model, {FRAME: target}, q0=q0, restarts=4, generator=generator)
+result = solve_ik(model, {FRAME: target}, q0=q0, restarts=4, generator=generator)
 q = result.x["q"]  # (32, nq)
 
 reached = forward_kinematics(model, q).frame_poses[:, hand]

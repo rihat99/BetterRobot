@@ -28,7 +28,7 @@ ALLOWED: dict[str, set[str]] = {
     "optim": {"exceptions"},
     "terms": {"exceptions", "lie", "model", "kinematics", "collision", "optim"},
     "viewer": {"exceptions", "lie", "model", "kinematics", "collision"},
-    "testing": {"exceptions", "model"},
+    "testing": {"exceptions", "model", "optim"},
 }
 
 

@@ -119,7 +119,7 @@ def _spheres(model):
 
 def test_centers_match_manual_fk_and_pairs(panda):
     spheres = _spheres(panda)
-    q = panda.lower_position_limit + torch.rand(5, panda.nq, dtype=DT) * (
+    q = panda.lower_position_limit + torch.rand(5, panda.nq, dtype=DT, generator=torch.Generator().manual_seed(0)) * (
         panda.upper_position_limit - panda.lower_position_limit
     )
     state = forward_kinematics(panda, q)

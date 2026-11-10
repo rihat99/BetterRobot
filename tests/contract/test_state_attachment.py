@@ -1,5 +1,5 @@
-"""Every public function taking ``(model, state)`` checks that the state belongs to the model (ruling R-8,
-contract 06, C-STATE-6): another structure raises ``ModelError``, another dtype or device the mismatch error,
+"""Every public function taking ``(model, state)`` checks that the state belongs to the model (contract 06,
+C-STATE-6): another structure raises ``ModelError``, another dtype or device the mismatch error,
 never wrong numbers or a raw torch error. The functions are found from the packages' ``__all__``."""
 
 from __future__ import annotations

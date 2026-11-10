@@ -52,9 +52,12 @@ def _check(tmp_path: Path, text: str) -> None:
         f"{F}py\nraise RuntimeError('boom')\n{F}\n",
         f"{F}pycon\n>>> raise RuntimeError('boom')\n{F}\n",
         "~~~python\nraise RuntimeError('boom')\n~~~\n",
+        f"`{F}python\nraise RuntimeError('boom')\n`{F}\n",
+        f"{F} {{ .python }}\nraise RuntimeError('boom')\n{F}\n",
+        f"{F}Python\nraise RuntimeError('boom')\n{F}\n",
         f'{F}python {{ .no-run data-reason=" " }}\nprint(1)\n{F}\n',
     ],
-    ids=["py", "pycon", "tilde", "blank-reason"],
+    ids=["py", "pycon", "tilde", "four-backticks", "braces", "capital", "blank-reason"],
 )
 def test_a_fence_the_runner_would_skip_fails(tmp_path: Path, text: str) -> None:
     """A Python fence under another tag, or an opt-out with a blank reason, is a problem, not a silent skip."""

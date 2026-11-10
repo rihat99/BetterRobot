@@ -48,7 +48,7 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - Counters: graph breaks, recompiles, operators and host syncs of the counter rows never exceed
   `benchmarks/thresholds/torch-2.13.0.json` (rule C-PERF-3, `tests/contract/test_compile_counters.py`).
 - Ratchets in `tests/contract/ratchets/` only shrink, and an entry leaves in the commit that fixes it
-  (`tools/ratchet_counts.py`, `tests/contract/test_ratchet_history.py`). Open today: ruff 11 sites, pyright 59 errors
+  (`tools/ratchet_counts.py`, `tests/contract/test_ratchet_history.py`). Open today: ruff 11 sites, pyright 53 errors
   (the `CAP` of `tests/contract/test_pyright_ratchet.py`), keyword_only 6, value_checks 3, vocabulary 3; the other
   five are empty.
 - The public API equals `tests/contract/public_api.json` (`tests/contract/test_api_snapshot.py`); an intended change
@@ -66,7 +66,8 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - No host sync and no Python branch on a tensor value in the hot paths (`tests/contract/test_hot_path_lint.py`).
 - No `torch.compile` call or kernel builder in `src` (`tests/contract/test_performance_rules.py`); torch is the only
   backend (record 0001).
-- No cache beyond `Model._plans`, `Model._memo` and `KinematicState._memo`, no `object.__setattr__`, no read of a
+- No cache beyond `Model._plans`, `Model._memo`, `KinematicState._memo` and the band layout's `lru_cache` in
+  `src/better_robot/optim/linearization.py` (reasoned in `FUNCTOOLS_CACHES`), no `object.__setattr__`, no read of a
   tensor's `_version` (`tests/contract/test_caches.py`).
 - No public kinematics, dynamics, Lie or spatial function mutates its tensor inputs
   (`tests/contract/test_no_inplace.py`); no public dataclass is mutable outside the reasoned list

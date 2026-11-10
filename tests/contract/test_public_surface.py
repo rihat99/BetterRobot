@@ -9,10 +9,12 @@ documented, and ``FakeServer`` is defined once.
 
 from __future__ import annotations
 
+import ast
 import inspect
 import pkgutil
 import re
 import subprocess
+import textwrap
 from pathlib import Path
 
 import better_robot as br
@@ -50,8 +52,7 @@ FIRST_LEVEL = [
     "Viewer",
 ]
 PUBLIC = public_objects("better_robot")
-SUBPACKAGE_IMPORT = re.compile(r"from better_robot\.[\w.]+ import ([\w, ]+)")
-QUALIFIED = re.compile(r"\bbr\.[a-z_]+\.(" + "|".join(FIRST_LEVEL) + r")\b")
+PYTHON_FENCE = re.compile(r"^(?P<indent>[ \t]*)```[ \t]*python[^\n]*\n(?P<body>.*?)^(?P=indent)```", re.M | re.S)
 MODULES = {path: module for path, module in PUBLIC.items() if inspect.ismodule(module)}
 
 
@@ -91,26 +92,64 @@ def _tracked(*patterns: str) -> list[str]:
     ).stdout.split()
 
 
+def _bound_modules(tree: ast.Module) -> dict[str, str]:
+    """Each local name an import binds to a ``better_robot`` module, with that module's path."""
+    bound = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] == "better_robot":
+                    bound[alias.asname or "better_robot"] = alias.name if alias.asname else "better_robot"
+        elif isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "better_robot":
+            for alias in node.names:
+                if f"{node.module}.{alias.name}" in MODULES:
+                    bound[alias.asname or alias.name] = f"{node.module}.{alias.name}"
+    return bound
+
+
+def _module_path(node: ast.expr, bound: dict[str, str]) -> str | None:
+    """The ``better_robot`` module an expression such as ``br.kinematics`` names, or ``None``."""
+    if isinstance(node, ast.Name):
+        return bound.get(node.id)
+    if isinstance(node, ast.Attribute) and (parent := _module_path(node.value, bound)):
+        return f"{parent}.{node.attr}" if f"{parent}.{node.attr}" in MODULES else None
+    return None
+
+
+def _first_level_through_a_subpackage(source: str) -> list[str]:
+    """``from better_robot.<sub> import <first-level name>`` and ``<a binding of a subpackage>.<first-level name>``."""
+    tree = ast.parse(source)
+    bound = _bound_modules(tree)
+    found = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("better_robot."):
+            found += [f"from {node.module} import {a.name}" for a in node.names if a.name in FIRST_LEVEL]
+        elif isinstance(node, ast.Attribute) and node.attr in FIRST_LEVEL:
+            if _module_path(node.value, bound) not in (None, "better_robot"):
+                found.append(ast.unparse(node))
+    return found
+
+
 def test_docs_and_examples_take_first_level_names_from_the_root() -> None:
     """A reader meets ``br.forward_kinematics``, never also ``br.kinematics.forward_kinematics`` (record 0019).
 
-    Contract pages show library-internal imports and accepted records never change, so ``docs/contracts`` and the
-    changelog are not read.
+    Reads the syntax tree of every example and of every page's ``python`` fences, joined in order as they run:
+    ``ImportFrom`` names, multi-line ones included, and attribute chains over any binding of a subpackage
+    (``br.terms``, ``from better_robot import kinematics``, ``import better_robot.dynamics as dyn``). Contract pages
+    show library-internal imports and accepted records never change, so ``docs/contracts`` and the changelog are not
+    read.
     """
-    files = [
-        path
-        for path in _tracked("README.md", "docs/*.md", "examples/*.py")
-        if not path.startswith("docs/contracts/") and path != "docs/reference/changelog.md"
-    ]
+    sources = {path: (REPO / path).read_text() for path in _tracked("examples/*.py")}
+    for path in _tracked("README.md", "docs/*.md"):
+        if not path.startswith("docs/contracts/") and path != "docs/reference/changelog.md":
+            fences = PYTHON_FENCE.finditer((REPO / path).read_text())
+            sources[path] = "\n".join(textwrap.dedent(fence["body"]) for fence in fences)
     offenders = [
-        f"{path}: {line.strip()}"
-        for path in files
-        for line in (REPO / path).read_text().splitlines()
-        if QUALIFIED.search(line)
-        or {name.strip() for match in SUBPACKAGE_IMPORT.finditer(line) for name in match[1].split(",")}
-        & set(FIRST_LEVEL)
+        f"{path}: {spelling}"
+        for path, source in sources.items()
+        for spelling in _first_level_through_a_subpackage(source)
     ]
-    assert offenders == [], "import these names from better_robot:\n  " + "\n  ".join(offenders)
+    assert offenders == [], "take these names from better_robot:\n  " + "\n  ".join(offenders)
 
 
 def test_testing_is_listed_and_documented() -> None:

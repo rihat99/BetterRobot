@@ -93,6 +93,9 @@ row-by-row autodiff and returns `{term: error}`, measured on `H` and `g` relativ
 
 `kernel=` makes the last axis of the residual one robust group: the loss becomes
 `Σ kernel.rho(weight · ‖r‖²)`. `Huber(delta=)`, `Cauchy`, `GemanMcClure` and `Tukey` down-weight outliers.
+A new kernel subclasses `RobustKernel` with `rho(s)` and `weight(s)`, which is twice the derivative of `rho`, so
+that the plain loss `s / 2` has weight 1; `better_robot.testing.check_robust_kernel(kernel, dtype=, generator=)`
+checks both.
 
 ```python
 from better_robot.optim import Huber

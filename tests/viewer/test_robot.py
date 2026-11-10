@@ -61,7 +61,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     model = br.load(panda_urdf())
     geometry = br.io.load_geometry(panda_urdf(), model)
     q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(5)])
-    tau = torch.randn(5, model.nv)
+    tau = torch.randn(5, model.nv, generator=torch.Generator().manual_seed(5))
     state = br.forward_kinematics(model, q)
     joint_poses = state.joint_poses.numpy().astype(np.float32)
     meshes = robot_meshes(geometry, root=panda_urdf().parent, collision=True)
@@ -264,12 +264,20 @@ def test_spread_layout_draws_no_two_g1_cylinders_overlapping() -> None:
     side[np.linalg.norm(side, axis=-1) < 1e-6] = (1.0, 0.0, 0.0)
     side /= np.linalg.norm(side, axis=-1, keepdims=True)
     other = np.cross(axes, side)
-    grid = np.stack(np.meshgrid(np.linspace(0, 1, 5), np.linspace(0, 2 * np.pi, 16, endpoint=False),
-                                np.linspace(-1, 1, 9), indexing="ij"), -1).reshape(-1, 3)  # fmt: skip
+    grid = np.stack(
+        np.meshgrid(
+            np.linspace(0, 1, 5), np.linspace(0, 2 * np.pi, 16, endpoint=False), np.linspace(-1, 1, 9), indexing="ij"
+        ),
+        -1,
+    ).reshape(-1, 3)
     for i in range(len(centres)):
         across_i, along_i = grid[:, :1] * rho[i], grid[:, 2:] * half[i]
-        samples = (centres[i] + across_i * np.cos(grid[:, 1:2]) * side[i] + across_i * np.sin(grid[:, 1:2])
-                   * other[i] + along_i * axes[i])  # fmt: skip
+        samples = (
+            centres[i]
+            + across_i * np.cos(grid[:, 1:2]) * side[i]
+            + across_i * np.sin(grid[:, 1:2]) * other[i]
+            + along_i * axes[i]
+        )
         for j in range(len(centres)):
             if i == j:
                 continue
@@ -358,10 +366,21 @@ def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images()
         builder.add_body(name, mass=1.0)
     for side, sign in (("left", 1.0), ("right", -1.0)):
         origin = torch.tensor([0.0, 0.1 * sign, -0.1, 0.0, 0.0, 0.0, 1.0])
-        builder.add_revolute(f"{side}_pitch", axis=(0.0, 1.0, 0.0), parent="pelvis", child=f"{side}_upper", origin=origin,
-                               effort_limit=10.0)  # fmt: skip
-        builder.add_revolute(f"{side}_roll", parent=f"{side}_upper", child=f"{side}_lower",
-                             axis=torch.tensor([sign, 0.0, 0.0]), effort_limit=10.0)  # fmt: skip
+        builder.add_revolute(
+            f"{side}_pitch",
+            axis=(0.0, 1.0, 0.0),
+            parent="pelvis",
+            child=f"{side}_upper",
+            origin=origin,
+            effort_limit=10.0,
+        )
+        builder.add_revolute(
+            f"{side}_roll",
+            parent=f"{side}_upper",
+            child=f"{side}_lower",
+            axis=torch.tensor([sign, 0.0, 0.0]),
+            effort_limit=10.0,
+        )
     model = br.io.build_model(builder.finalize(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
     poses = br.forward_kinematics(model, model.q_neutral).joint_poses[1:].numpy()
     drawn = dict(zip(model.joint_names[1:], poses[:, :3] + _lie.act(poses[:, 3:], spread_offsets(model))))
@@ -430,8 +449,13 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     tau = np.full((2, model.nv), 20.0)  # past the limits
     radii = np.arange(1, model.njoints) * 0.002  # entry j: the bone into joint j + 1
 
-    layer = robot_skeleton(model, state.joint_poses.numpy().astype(np.float32), tau=tau, bone_radius=radii,
-                           end_points={"palm": point.tolist()})  # fmt: skip
+    layer = robot_skeleton(
+        model,
+        state.joint_poses.numpy().astype(np.float32),
+        tau=tau,
+        bone_radius=radii,
+        end_points={"palm": point.tolist()},
+    )
     wrist = model.joint_names.index("wrist") - 1
     assert layer.parent_ids[-1] == wrist and len(layer.parent_ids) == model.njoints
     expected = act(state.frame_poses[:, model.frame_id("palm")], point).numpy()  # (2, 3)

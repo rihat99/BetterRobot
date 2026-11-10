@@ -37,5 +37,5 @@ class JointSpherical(JointModel):
 
     @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        quaternion = torch.randn(4, generator=generator, dtype=lower.dtype)
+        quaternion = torch.randn(4, generator=generator, dtype=lower.dtype, device=lower.device)
         return quaternion / quaternion.norm().clamp(min=1e-8)

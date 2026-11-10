@@ -47,7 +47,7 @@ q0 = model.q_neutral.expand(64, -1)
 targets = br.forward_kinematics(model, terms.random_start(model, q0, generator=generator)).frame_poses[:, hand]
 
 # Solve all 64 inverse-kinematics problems at once, then check them with forward kinematics.
-result = terms.solve_ik(model, {"panda_hand": targets}, q0=q0, restarts=4, generator=generator)
+result = br.solve_ik(model, {"panda_hand": targets}, q0=q0, restarts=4, generator=generator)
 reached = br.forward_kinematics(model, result.x["q"]).frame_poses[:, hand]
 error = (reached[:, :3] - targets[:, :3]).norm(dim=-1)
 print(f"median hand position error: {float(error.median()):.1e} m")

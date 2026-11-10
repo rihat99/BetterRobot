@@ -78,11 +78,11 @@ def validate_closed_manifold(faces: torch.Tensor) -> None:
 
     problems: list[str] = []
     if bool(boundary.any()):  # bench-ok: validation reads the edge counts
-        sample = unique_edges[boundary][:_MAX_REPORTED_EDGES].tolist()
+        sample = unique_edges[boundary][:_MAX_REPORTED_EDGES].tolist()  # bench-ok: the error message
         problems.append(f"{int(boundary.sum())} boundary edge(s) with one incident face (open surface), e.g. {sample}")
     if bool(non_manifold.any()):  # bench-ok: validation reads the edge counts
-        sample_edges = unique_edges[non_manifold][:_MAX_REPORTED_EDGES].tolist()
-        sample_counts = counts[non_manifold][:_MAX_REPORTED_EDGES].tolist()
+        sample_edges = unique_edges[non_manifold][:_MAX_REPORTED_EDGES].tolist()  # bench-ok: the error message
+        sample_counts = counts[non_manifold][:_MAX_REPORTED_EDGES].tolist()  # bench-ok: the error message
         sample = list(zip(sample_edges, sample_counts))
         problems.append(
             f"{int(non_manifold.sum())} non-manifold edge(s) shared by more than two faces, "

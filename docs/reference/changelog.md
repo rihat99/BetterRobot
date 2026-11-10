@@ -44,6 +44,10 @@ that 0.3.0 renames or removes, one table row each.
   `BandedNormal` and `ArrowNormal` linear systems, the `Manifold` base and `Euclidean`.
 - `Problem.evaluate(x)` returns the loss, the per-term losses and the `info` a term returns beside its value;
   `Problem.gradient(x)` adds the per-term losses; `Problem.cached_values` lists the cached values.
+- `Problem.linearize` assembles the normal equations through a dense, banded or arrowhead sink, the seam a new
+  sparsity structure plugs into ([extension points](../contracts/08-extension-points.md), C-EXT-7): a sink's
+  `add(columns_a, columns_b, values, *, shared)` is told by the variables which columns have no time axis, so no
+  sink reads an index value back to the host.
 - `State.solver`, `State.extra["terms"]` and `Result.diagnostics` (`grad_norm`, `step_norm`, `accepted`, LM
   `damping`); `Result.state` warm-starts `solve` and `run` through `state=`.
 - `terms`: `frame_pose`, `frame_position`, `joint_limits`, `rest`, `finite_difference` (any `order`,
@@ -61,9 +65,9 @@ that 0.3.0 renames or removes, one table row each.
   apart along their axes.
 - `ArrowsLayer(shaft_radius=, head_radius=, min_length=)` draws solid arrows and skips vectors shorter than
   `min_length`; `GroundLayer(origin=, normal=, fill=, fill_color=)` draws a tilted, filled floor.
-- `better_robot.testing`: `FakeServer` (viser without sockets), `check_joint_model`, `public_api`,
-  `public_objects`, `imported_packages`, `dead_citations`, the docs snippet runner `snippets` and the `no_skips`
-  pytest plugin; the `testing` extra installs pytest for it.
+- `better_robot.testing`: `FakeServer` (viser without sockets), `check_joint_model`, `check_robust_kernel`,
+  `public_api`, `public_objects`, `imported_packages`, `dead_citations`, the docs snippet runner `snippets` and the
+  `no_skips` pytest plugin; the `testing` extra installs pytest for it.
 - `FakeServer.gui` declares the GUI calls of an app built on the viewer, with viser's keywords: `add_dropdown`,
   `add_text`, `add_number`, `add_markdown`, `add_tab_group` (tabs by `add_tab`) and `add_slider(..., disabled=)`;
   each control reads back the value it was given.
@@ -139,8 +143,9 @@ that 0.3.0 renames or removes, one table row each.
 - `optim.State` is a frozen dataclass: assigning to a field raises `FrozenInstanceError` (build a new state with
   `dataclasses.replace`).
 - `testing.snippets` is stricter: a printed float with no fraction digits must match exactly and any other within
-  half a unit of its last digit; `py`, `pycon` and `~~~python` fences, a blank `data-reason`, a printing fence
-  without an output fence and a fence that exits early are reported.
+  half a unit of its last digit; `py`, `pycon`, `~~~python`, four-backtick, braced (`{ .python }`) and capitalised
+  (`Python`) fences, a blank `data-reason`, a printing fence without an output fence and a fence that exits early
+  are reported.
 - The contributing pages are gone: [extending](../guides/extend.md) and [running the tests](../guides/run-the-tests.md)
   are guides, and [the test suite](tests.md) is reference.
 - `benchmarks/run.py` is the one benchmark runner: the full tier fails when a graph break, recompile, operator or
@@ -291,6 +296,10 @@ that 0.3.0 renames or removes, one table row each.
   with a unit quaternion; it built such a model silently, or failed an internal check as a library bug.
 - The first `forward_kinematics`, `integrate` or `spatial` call of a process no longer imports sympy
   (through `torch.broadcast_shapes`): 0.2 s with a warm disk cache, over a second cold.
+- `RobustKernel.weight` documents the factor the solvers assume, twice the derivative of `rho` (it said the
+  derivative: a kernel written to it stopped at the wrong minimum beside a plain term).
+- `Model.random_configuration` and every joint kind's `random` draw on the limits' device with a generator that lives
+  there, so a CUDA or meta model samples instead of raising torch's device-mismatch error.
 
 ## v0.2.0 (2026-04-11)
 

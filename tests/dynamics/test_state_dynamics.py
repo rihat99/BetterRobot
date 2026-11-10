@@ -27,7 +27,7 @@ def _inputs(model: br.Model, batch: tuple[int, ...], seed: int = 0):
 
 def test_forward_dynamics_inverts_inverse_dynamics_with_leading_batch_axes(g1: br.Model) -> None:
     q, v, external_forces = _inputs(g1, (2, 3))
-    a = torch.randn(2, 3, g1.nv, dtype=torch.float64)
+    a = torch.randn(2, 3, g1.nv, dtype=torch.float64, generator=torch.Generator().manual_seed(3))
     state = forward_kinematics(g1, q)
     tau = inverse_dynamics(g1, state, v=v, a=a, external_forces=external_forces)
     assert tau.shape == (2, 3, g1.nv)
@@ -54,7 +54,7 @@ def test_mass_matrix_is_the_acceleration_jacobian_of_inverse_dynamics(g1: br.Mod
 
 def test_inverse_dynamics_gradcheck_through_the_state(g1: br.Model) -> None:
     q, v, external_forces = _inputs(g1, (1,), seed=2)
-    a = torch.randn(1, g1.nv, dtype=torch.float64)
+    a = torch.randn(1, g1.nv, dtype=torch.float64, generator=torch.Generator().manual_seed(4))
 
     def function(q_: torch.Tensor, v_: torch.Tensor, a_: torch.Tensor) -> torch.Tensor:
         return inverse_dynamics(g1, forward_kinematics(g1, q_), v=v_, a=a_, external_forces=external_forces)

@@ -62,11 +62,13 @@ Enforcement: `tests/contract/test_docstrings.py` (every object of the `__all__` 
 each tensor parameter is in it, and a function or property that returns a tensor names the result's shape; a shape
 is a parenthesised axis list such as `(B..., nq)` or `(7,)`, never prose); `[review]` for dataclass fields.
 
-## C-TENS-4 No host synchronisation in library paths (MUST)
+## C-TENS-4 No host synchronisation in hot paths (MUST)
 
-`.item()`, `.cpu()`, `.numpy()`, `float(t)`, `bool(t)` and `if t:` on a tensor force the GPU to finish and break
-`torch.func` tracing. They are allowed only in `viewer`, `io` export paths, and tests. Convergence tests in
-`optim` use tensor masks, not Python branches (`04`).
+`.item()`, `.cpu()`, `.tolist()`, `.numpy()`, `float(t)`, `bool(t)` and `if t:` on a tensor force the GPU to finish
+and break `torch.func` tracing; so does storing a Python number into a CUDA tensor (`t[..., 3] = 1.0` reads it
+back with `.item()`; `t[..., 3].fill_(1.0)` does not). The hot paths are the files `tools/hot_path_lint.py` watches, which contract 09
+lists; there a sync needs a `# bench-ok` line with its reason. Convergence tests in `optim` use tensor masks, not
+Python branches (`04`).
 
 ```python { .no-run }
 # good
@@ -75,11 +77,14 @@ converged = (step_norm < tol)               # tensor mask, stays on device
 if step_norm.item() < tol: break
 ```
 
-Enforcement: `tests/contract/test_hot_path_lint.py` (ast scan of `kinematics`, `dynamics`, `lie`, `spatial`,
-`terms` and `src/better_robot/optim/solvers.py`; a line marked `# bench-ok` is exempt, e.g. once-per-model plan building in
-`src/better_robot/kinematics/_fk.py` or once-per-mesh topology in `src/better_robot/spatial/mesh.py`). In
-`src/better_robot/optim/solvers.py` the one exempt read is the `LBFGS` line search: one flag per trial, to stop once every
-problem has its step instead of evaluating the loss at the remaining step sizes.
+Enforcement: `tests/contract/test_hot_path_lint.py` (ast scan of every hot path; a line marked `# bench-ok` is
+exempt, e.g. once-per-model plan building in `src/better_robot/kinematics/_fk.py` or once-per-mesh topology in
+`src/better_robot/spatial/mesh.py`). In `optim` two reads are exempt: the `LBFGS` line search in
+`src/better_robot/optim/solvers.py` reads one flag per trial, to stop once every problem has its step instead of
+evaluating the loss at the remaining step sizes; and
+`src/better_robot/optim/linearization.py::_windowed_pieces` reads one flag per linearization of a time-local
+autodiff term over variables without a time axis, a value check of the `value_checks` ratchet until an opt-in check
+replaces it.
 
 ## C-TENS-5 Optimisation variables carry exactly one batch axis (MUST)
 

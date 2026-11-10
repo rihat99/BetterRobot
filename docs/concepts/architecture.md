@@ -28,7 +28,7 @@ io                -> exceptions _internal_checks lie model
 optim             -> exceptions
 terms             -> exceptions lie model kinematics collision optim
 viewer            -> exceptions lie model kinematics collision
-testing           -> exceptions model
+testing           -> exceptions model optim
 ```
 
 | Package | Job |
@@ -142,13 +142,11 @@ from `__all__`, can change without a deprecation. The [API reference](../referen
 documents each package's `__all__`.
 
 ```python
-from better_robot import kinematics
-
-print(br.forward_kinematics is kinematics.forward_kinematics)
-print("Model" in br.__all__)
+print("forward_kinematics" in br.__all__, "frame_jacobian_time_variation" in br.__all__)
+print("frame_jacobian_time_variation" in br.kinematics.__all__)
 ```
 ```output
-True
+True False
 True
 ```
 

@@ -73,3 +73,11 @@ def test_the_tool_fails_a_ratchet_that_grew(
 ) -> None:
     result = _run(_history(tmp_path, versions, commit_last=commit_last))
     assert result.returncode == int(fails), result.stdout + result.stderr
+
+
+def test_the_tool_prints_sites_from_the_first_step_that_stores_them(tmp_path: Path) -> None:
+    """A ratchet created plain (two keys) and counted later (one key, three sites) prints 3 then and 3 now, never
+    its key count beside a site count, which would read as growth."""
+    result = _run(_history(tmp_path, [{"a": "planted", "b": "planted"}, {"a": _entry(3)}]))
+    *_, sites_then, sites_now = result.stdout.splitlines()[1].split()
+    assert (sites_then, sites_now) == ("3", "3"), result.stdout

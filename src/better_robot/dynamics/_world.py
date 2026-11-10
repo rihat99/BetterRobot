@@ -82,10 +82,16 @@ class DynamicsPlan:
 def build_plan(model: Model, dtype: torch.dtype, device: torch.device) -> DynamicsPlan:
     """Derive the support masks from the topology, on top of the Jacobian plan."""
     jacobian = jacobian_plan(model, dtype=dtype, device=device)
-    support = torch.zeros((model.njoints, model.njoints), dtype=torch.bool, device=device)
-    for joint, chain in enumerate(build_supports(model.parent_joint_ids)):
-        support[joint, list(chain)] = True
-    support[0, 0] = False  # the universe transmits its children's wrenches only, never its own external force
+    # The universe transmits its children's wrenches only, never its own external force: no (0, 0) entry.
+    chains = build_supports(model.parent_joint_ids)
+    support = torch.tensor(
+        [
+            [column in chain and (joint, column) != (0, 0) for column in range(model.njoints)]
+            for joint, chain in enumerate(chains)
+        ],
+        dtype=torch.bool,
+        device=device,
+    )
     column_support = jacobian.support_mask.squeeze(-2)
     upper = column_support.index_select(0, jacobian.column_owner).mT.contiguous()
     return DynamicsPlan(jacobian, support, column_support, upper, upper.mT & ~upper)

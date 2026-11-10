@@ -1,6 +1,6 @@
 """ABA parity — BetterRobot vs Pinocchio + the inverse-of-RNEA identity.
 
-Acceptance for P11-D4:
+Checks:
 
 * ``forward_dynamics(q, v, inverse_dynamics(q, v, a)) == a`` to fp64 ulp on Panda (fixed-base) and
   G1 (free-flyer).

@@ -3,6 +3,7 @@ on every watched file, and planted sources show what it catches and what it allo
 
 from __future__ import annotations
 
+import re
 import runpy
 from pathlib import Path
 
@@ -61,6 +62,21 @@ def test_no_forbidden_hot_path_patterns(file: Path) -> None:
             "implicit bool(tensor) in `while` test",
         ),
         (
+            "tolist",
+            "import torch\ndef hot(x: torch.Tensor):\n    if x.tolist()[0] > 0:\n        return x\n",
+            ".tolist()",
+        ),
+        (
+            "numpy",
+            "import torch\ndef hot(x: torch.Tensor):\n    return x.numpy()\n",
+            ".numpy()",
+        ),
+        (
+            "python_number_stored_in_a_tensor",
+            "import torch\ndef hot(x: torch.Tensor):\n    bottom = x.new_zeros(4)\n    bottom[3] = 1.0\n    return bottom\n",
+            "tensor[...] = <Python number>",
+        ),
+        (
             "torch_equal",
             "import torch\ndef hot(a, b):\n    if not torch.equal(a, b):\n        raise ValueError\n",
             "torch.equal(...)",
@@ -74,7 +90,17 @@ def test_new_forbidden_patterns_are_detected(name: str, src: str, needle: str) -
 
 
 def test_optimizer_update_modules_are_watched() -> None:
-    assert SOLVERS in hot_path_files()
+    """The solver step and the linearization and linear algebra it runs every iteration."""
+    optim = REPO / "src" / "better_robot" / "optim"
+    assert {SOLVERS, optim / "linear.py", optim / "linearization.py"} <= set(hot_path_files())
+
+
+def test_contract_09_names_the_watched_list() -> None:
+    """C-TENS-4 and contract 09 name one scope: the hot paths are the lint's watched directories and files."""
+    page = (REPO / "docs" / "contracts" / "09-performance.md").read_text()
+    sentence = re.search(r"Hot paths are (.+?);", page, re.DOTALL)
+    assert sentence is not None, "contract 09 no longer defines its hot paths in one 'Hot paths are ...;' sentence"
+    assert set(re.findall(r"`([^`]+)`", sentence[1])) == {*LINT["WATCHED_DIRS"], *LINT["WATCHED_FILES"]}
 
 
 def test_scalar_float_conversions_are_not_tensor_syncs() -> None:
@@ -112,6 +138,9 @@ def test_structure_and_python_scalar_tests_are_not_tensor_truth() -> None:
         "        raise ValueError\n"
         "    if np.abs(points).max() > 1.0:\n"
         "        raise ValueError\n"
+        "    batch, blocks = x.shape[:2]\n"
+        "    if blocks > batch:\n"
+        "        raise ValueError\n"
     )
     assert find_violations(Path("structure.py"), src) == []
 
@@ -124,5 +153,19 @@ def test_bench_ok_and_hoisted_eye_are_allowed() -> None:
         "    for _ in range(2):\n"
         "        x = x + identity\n"
         "    return float(x.sum())  # bench-ok: public scalar result\n"
+    )
+    assert find_violations(Path("allowed.py"), src) == []
+
+
+def test_numbers_passed_as_arguments_and_stored_in_lists_are_allowed() -> None:
+    """``fill_`` and ``index_fill_`` take the number as an argument; a Python list is not a tensor."""
+    src = (
+        "import torch\n"
+        "def hot(x: torch.Tensor, index: torch.Tensor):\n"
+        "    bottom = x.new_zeros(4)\n"
+        "    bottom[3].fill_(1.0)\n"
+        "    counts = [0, 0]\n"
+        "    counts[0] = 1\n"
+        "    return bottom.index_fill_(0, index, 2.0), counts\n"
     )
     assert find_violations(Path("allowed.py"), src) == []

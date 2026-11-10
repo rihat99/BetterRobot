@@ -75,12 +75,15 @@ def test_src_defines_no_registry() -> None:
 
 
 def test_normal_equations_come_from_a_sink() -> None:
-    """C-EXT-7: every ``*Sink`` has ``add(columns_a, columns_b, values)`` and ``finish(g)`` returning a public normal
-    with ``solve``, ``restrict`` and ``predicted_decrease``; no optim module but ``linear.py`` builds a normal."""
+    """C-EXT-7: every ``*Sink`` has ``add(columns_a, columns_b, values, *, shared)`` and ``finish(g)`` returning a
+    public normal with ``solve``, ``restrict`` and ``predicted_decrease``; no optim module but ``linear.py`` builds a
+    normal."""
     sinks = [value for name, value in vars(linear).items() if name.endswith("Sink") and inspect.isclass(value)]
     assert sinks
     for sink in sinks:
-        assert list(inspect.signature(sink.add).parameters) == ["self", "columns_a", "columns_b", "values"], sink
+        parameters = inspect.signature(sink.add).parameters
+        assert list(parameters) == ["self", "columns_a", "columns_b", "values", "shared"], sink
+        assert parameters["shared"].kind is inspect.Parameter.KEYWORD_ONLY, sink
         assert list(inspect.signature(sink.finish).parameters) == ["self", "g"], sink
         normal = getattr(optim, inspect.signature(sink.finish).return_annotation)
         assert all(callable(getattr(normal, method, None)) for method in ("solve", "restrict", "predicted_decrease"))
