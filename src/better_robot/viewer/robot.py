@@ -201,9 +201,11 @@ def spread_offsets(
             other_centres = origins[others] + slides[others, None] * directions[others]
             other_half = extent[others, 1, None] * directions[others]
             distance = _segment_distance(
-                (centres - half)[:, None], (centres + half)[:, None],
-                (other_centres - other_half)[None], (other_centres + other_half)[None],
-            )  # fmt: skip
+                (centres - half)[:, None],
+                (centres + half)[:, None],
+                (other_centres - other_half)[None],
+                (other_centres + other_half)[None],
+            )
             clear = (distance - extent[joint, 0] - extent[others, 0] >= gap * radius).all(axis=1)
             slides[joint] = candidates[np.argmax(clear)] if clear.any() else 0.0
         placed.append(joint)
