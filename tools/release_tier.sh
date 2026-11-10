@@ -34,6 +34,8 @@ step uv run pytest tests -q -m "not cuda"
 # tests/conftest.py turns the internal checks on unless the environment sets the switch, so the full tier above ran
 # with them; this run is the configuration users get.
 step env BETTER_ROBOT_INTERNAL_CHECKS=0 uv run pytest tests -q -m "not cuda"
+COVERAGE_FILE=$(mktemp)  # outside the checkout, so the run leaves the working tree clean
+export COVERAGE_FILE
 step uv run coverage run --branch --source=src/better_robot/lie,src/better_robot/spatial \
     -m pytest tests/lie tests/spatial -q -m "not cuda"
 step uv run coverage report --fail-under=100
