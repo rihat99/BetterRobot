@@ -101,7 +101,9 @@ Enforcement: `tests/contract/test_versioning.py::test_version_is_pre_1_0`; `test
 
 `Problem.linearize` never builds a matrix itself: it hands Jacobian products to a sink and asks it for the
 normal equations. The three sinks in `src/better_robot/optim/linear.py` (`DenseSink`, `BandSink`, `ArrowSink`) share two
-methods, `add(columns_a, columns_b, values)` to accumulate a block of `JᵀJ` and `finish(g)` to return a
+methods, `add(columns_a, columns_b, values, *, shared)` to accumulate a block of `JᵀJ` (`shared` says which
+side's columns belong to variables without a time axis, known from the variables, so no sink reads an index value)
+and `finish(g)` to return a
 `Normal`, `BandedNormal` or `ArrowNormal` with the common `solve` / `restrict` / `predicted_decrease`
 interface. A future block-sparse structure (for example a contact graph) is a new sink plus a new normal class
 behind this seam; solvers and terms do not change.

@@ -5,9 +5,10 @@
 """Find hot-path patterns that break ``torch.compile`` or CUDA throughput (C-TENS-4, decision record 0021).
 
 Walks the AST of every file under ``src/better_robot/{kinematics,dynamics,lie,spatial,terms}`` and of
-``src/better_robot/optim/solvers.py`` and reports each forbidden idiom:
+``src/better_robot/optim/{solvers,linear,linearization}.py`` (the hot paths of C-TENS-4) and reports each forbidden
+idiom:
 
-* ``.item()`` / ``.cpu()`` — force a CUDA-host sync.
+* ``.item()`` / ``.cpu()`` / ``.tolist()`` / ``.numpy()`` — force a CUDA-host sync.
 * ``float(tensor)`` / ``bool(tensor)`` / ``int(tensor)`` — force a CUDA-host sync.
 * the implicit truth of a tensor in an ``if`` or ``while`` test (``if x.abs().max() > tol``, ``if mask.any()``) and
   ``torch.equal(...)`` — force a CUDA-host sync.
@@ -31,9 +32,14 @@ REPO = Path(__file__).resolve().parents[1]
 ROOT = REPO / "src" / "better_robot"
 WATCHED_DIRS = ("kinematics", "dynamics", "lie", "spatial", "terms")
 # Keep this list narrow: public ``Problem`` methods intentionally perform
-# host-side boundary validation, while the solver update must remain sync-free.
-# Drivers may use a reasoned ``# bench-ok`` exemption at their eager boundaries.
-WATCHED_FILES = ("src/better_robot/optim/solvers.py",)
+# host-side boundary validation, while the solver step and the linearization and
+# linear algebra it runs every iteration must remain sync-free. Drivers may use a
+# reasoned ``# bench-ok`` exemption at their eager boundaries.
+WATCHED_FILES = (
+    "src/better_robot/optim/solvers.py",
+    "src/better_robot/optim/linear.py",
+    "src/better_robot/optim/linearization.py",
+)
 ALLOC_FNS = ("zeros", "ones", "empty", "full", "rand", "randn", "eye")
 
 # Calls with these names are tensor evidence when reached through ``torch``.
@@ -191,6 +197,9 @@ def _is_tensor_expr(  # noqa: PLR0911, PLR0912 - explicit AST cases are auditabl
     if isinstance(node, ast.Name):
         return node.id in tensor_names
     if isinstance(node, ast.Attribute):
+        # ``x.shape`` and the like are never tensors, so neither is ``n`` of ``n = x.shape[0]``.
+        if node.attr in _STRUCTURE:
+            return False
         if isinstance(node.value, ast.Name) and node.value.id == "self":
             if node.attr in tensor_attributes:
                 return True
@@ -449,7 +458,7 @@ def find_violations(file: Path, src: str) -> list[str]:  # noqa: PLR0912 - expli
 
         # ``.item()`` / ``.cpu()`` / ``.new_tensor(...)`` calls.
         if isinstance(node.func, ast.Attribute):
-            if node.func.attr in {"item", "cpu"} and not _exempt(line):
+            if node.func.attr in {"item", "cpu", "tolist", "numpy"} and not _exempt(line):
                 violations.append(
                     f"{file.name}:{node.lineno}: .{node.func.attr}() — "
                     "forces device sync; mark with `# bench-ok: <reason>` to allow"

@@ -33,7 +33,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_submodule_public_imports.py` | only the decided packages exist; no raw `*_raw` kernel is public |
 | `test_docstrings.py` | every public object has a docstring that gives each tensor parameter's shape |
 | `test_boundary_validation_count.py` | public kinematics, dynamics, lie and spatial functions check each tensor input once; raw passes below do not re-check |
-| `test_hot_path_lint.py` | `tools/hot_path_lint.py` finds no `torch.compile`-breaking pattern (host syncs, `.item()`, Python branching on tensors) in kinematics, dynamics, lie, spatial, terms and the solver updates |
+| `test_hot_path_lint.py` | `tools/hot_path_lint.py` finds no `torch.compile`-breaking pattern (host syncs, `.item()`, Python branching on tensors) in the hot paths of contract 09 (kinematics, dynamics, lie, spatial, terms, and the solver step with the linearization and linear algebra it runs), which it keeps equal to the lint's watched list |
 | `test_naming.py` | a `Model` or `KinematicState` field is plural exactly when its shape has an axis over joints, bodies or frames; integer indices end in `_ids` |
 | `test_vocabulary.py` | one name per thing (no alias, no class name a library below uses), acronyms in capitals, no `utils`-style module; every word of every public name is in the glossary |
 | `test_ruff_ratchets.py` | no new ruff naming (`N`), docstring (`D1`), annotation (`ANN001`) or other-object private access (`SLF001`) site in `src/` |

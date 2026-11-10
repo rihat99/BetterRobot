@@ -128,7 +128,7 @@ def solve_constrained(
                 broken = broken.clamp_min(0.0)
             violation = torch.maximum(violation, broken.abs().flatten(1).amax(-1))
         violations.append(violation)
-        if bool((violation < tolerance).all()):
+        if bool((violation < tolerance).all()):  # bench-ok: one read per outer round, each a whole inner solve
             break
         rho = torch.where(violation > 0.25 * previous, rho * growth, rho)
         previous = violation
