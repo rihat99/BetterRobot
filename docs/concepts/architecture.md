@@ -4,28 +4,51 @@ After this page you know which package does what, how one call such as `br.forwa
 them, what counts as public API, where inputs are validated, and where the written rules live. Read it
 before you add a module or move a function.
 
-## Each package sits on one rank, and imports only point down
+## Each package imports only the packages of its row
 
-![Architecture of better_robot: packages stacked by rank, imports pointing down](../figures/architecture.svg){ width=760 }
+![Architecture of better_robot: packages stacked by their imports, imports pointing down](../figures/architecture.svg){ width=760 }
 
-*Each package imports only from its own row or the rows below; nothing imports the viewer.*
+*Imports point down the stack; nothing imports the viewer.*
 
-A module may import only the packages its row of the `ALLOWED` table in
-`tests/contract/test_layer_dependencies.py` lists, all on its own rank or below; the test parses every source file
-and fails on any other import.
+The edge table is the `ALLOWED` dictionary of `tests/contract/test_layer_dependencies.py`, which parses every source
+file (imports inside functions and under `TYPE_CHECKING` included) and fails on an import its row does not list.
+This copy is checked against it by `tests/docs/test_codemap.py`:
 
-| Rank | Package | Job |
-|------|---------|-----|
-| 7 | `viewer` | interactive 3-D display; nothing imports it |
-| 6 | `terms` | robot cost terms (poses, limits, collision) and `solve_ik` |
-| 5 | `io`, `kinematics`, `dynamics`, `collision` | model building; FK and Jacobians; RNEA, CRBA, centroidal; distances |
-| 4 | `model` | `Model` (one flat frozen record), joint models, the input checks |
-| 3 | `spatial`, `optim` | 6-D motion, force and inertia algebra; robot-agnostic least squares |
-| 2 | `lie` | SO(3) and SE(3) formulas on plain tensors |
+```text
+exceptions        -> nothing
+_internal_checks  -> nothing
+lie               -> exceptions
+spatial           -> exceptions lie
+model             -> exceptions lie spatial
+kinematics        -> exceptions lie model
+dynamics          -> exceptions lie spatial model kinematics
+collision         -> exceptions lie model kinematics
+io                -> exceptions _internal_checks lie model
+optim             -> exceptions
+terms             -> exceptions lie model kinematics collision optim
+viewer            -> exceptions lie model kinematics collision
+testing           -> exceptions model
+```
 
-`dynamics` may import `kinematics` on its own rank, so it reuses the raw forward-kinematics helpers. `optim`
-imports only `torch`: it knows nothing about robots, and `terms` adapts robots to it. Imports inside functions and
-under `TYPE_CHECKING` count too: each is a dependency a reader has to know about.
+| Package | Job |
+|---------|-----|
+| `lie`, `spatial` | SO(3) and SE(3) formulas; 6-D motion, force and inertia algebra, on plain tensors |
+| `model` | `Model` (one flat frozen record), joint kinds, `Geometry` |
+| `io` | URDF and MJCF loading, `ModelBuilder`, `build_model` |
+| `kinematics`, `dynamics`, `collision` | FK and Jacobians; RNEA, CRBA, ABA, centroidal; distances |
+| `optim` | robot-agnostic least squares and minimisation over named tensors |
+| `terms` | robot cost terms (poses, limits, collision) and `solve_ik` |
+| `viewer` | interactive 3-D display |
+| `testing` | checks shared with BetterHuman's tests: the snippet runner, the fake viser server, the sweeps |
+
+What the table rules out, each absence with its check:
+
+- No row names `viewer`, `terms` or `testing`: nothing in the library imports them
+  (`tests/contract/test_layer_dependencies.py`).
+- `optim` imports only `exceptions` inside the package and torch outside it: it knows nothing about robots, and
+  `terms` adapts robots to it (`tests/contract/test_optional_imports.py`).
+- Importing `better_robot` loads no optional package; `viser` loads when a `Viewer` starts a server
+  (`tests/contract/test_optional_imports.py`).
 
 The layering buys three things. The core (`lie` up to `dynamics`) never loads optional dependencies such as
 `viser`, so `import better_robot` stays light. A lower layer can change its internals without breaking a
@@ -141,6 +164,6 @@ this page disagree, the rule wins and this page has a bug.
 ## Where next
 
 - [Model and state](model-and-state.md): the two objects every function takes.
-- [Lie groups and spatial algebra](lie-and-spatial.md): the conventions the bottom two ranks fix.
+- [Lie groups and spatial algebra](lie-and-spatial.md): the conventions `lie` and `spatial` fix.
 - [Design contracts](../contracts/00-index.md): the full rule list with its checks.
 - [Roadmap](../reference/roadmap.md): what landed in this version and what comes next, per theme.
