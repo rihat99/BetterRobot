@@ -20,7 +20,8 @@ from ..model.joints import JointModel
 @final
 @dataclass(kw_only=True)
 class IRJoint:
-    """A joint of the description: ``joint`` is its kind, ``origin (7,)`` its placement in the parent body's frame.
+    """A joint of the description: ``joint`` is its kind, ``origin (7,)`` its placement in the parent body's frame
+    (a unit quaternion, as every placement here).
 
     The scalar limits apply to every coordinate of the joint; ``damping`` and ``armature`` to every velocity
     coordinate (URDF ``<dynamics>``, MJCF ``damping`` and ``armature``). A joint with ``mimic_source`` follows that

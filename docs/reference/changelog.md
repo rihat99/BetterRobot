@@ -279,6 +279,8 @@ that 0.3.0 renames or removes, one table row each.
 - `LBFGS` with bounds reaches the optimum of bound-heavy problems (a nonnegative force fit stopped 0.4-4 % above
   it, now within 0.01 %), and a problem whose plain gradient step finds no decrease is done.
 - `robot_skeleton` draws a joint kind defined outside the library as a sphere instead of raising `KeyError`.
+- `build_model` raises `ModelError` naming the joint or frame whose `origin` or `placement` is not a `(7,)` pose
+  with a unit quaternion; it built such a model silently, or failed an internal check as a library bug.
 
 ## v0.2.0 (2026-04-11)
 

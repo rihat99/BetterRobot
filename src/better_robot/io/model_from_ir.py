@@ -36,6 +36,9 @@ _MANIFOLD_BOUNDS: dict[JointManifold, tuple[list[float], list[float]]] = {
     PLANE: ([-_INF, -_INF, -1.0, -1.0], [_INF, _INF, 1.0, 1.0]),
     RIGID: ([-_INF] * 7, [_INF] * 7),
 }
+#: How far a placement's quaternion may be from unit norm: the square root of float32's rounding, the tolerance of
+#: the library's own placements (``_internal_checks``), so a quaternion normalised in float32 passes in either dtype.
+_UNIT_TOLERANCE = torch.finfo(torch.float32).eps ** 0.5
 
 
 @final
@@ -189,6 +192,21 @@ def _unique(kinds: str, names: list[str]) -> None:
         seen.add(name)
 
 
+def _placement(owner: str, field: str, pose: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+    """``pose`` in ``dtype`` once it is one ``(7,)`` pose whose quaternion has unit norm, else ``ModelError`` naming
+    ``owner``'s ``field``: a description's pose is the caller's input, which the library refuses rather than
+    normalises."""
+    if tuple(pose.shape) != (7,):
+        raise ModelError(f"{owner}: {field} has shape {tuple(pose.shape)}, expected (7,) [tx, ty, tz, qx, qy, qz, qw]")
+    placement = pose.to(dtype=dtype)
+    norm = float(torch.linalg.vector_norm(placement[3:]))
+    if abs(norm - 1.0) > _UNIT_TOLERANCE:
+        raise ModelError(
+            f"{owner}: {field} has a quaternion of norm {norm:.6g}; pass a unit quaternion (divide it by its norm)"
+        )
+    return placement
+
+
 def _topology(ir: IRModel, root: _Root, order: tuple[int, ...], dtype: torch.dtype) -> _Topology:
     """Joint 0 is the universe, joint 1 the root, then the IR joints in ``order``; a body is named by its joint.
     Joint names and body names are each unique, ``"universe"`` included."""
@@ -199,7 +217,10 @@ def _topology(ir: IRModel, root: _Root, order: tuple[int, ...], dtype: torch.dty
     parent_joint_ids = [-1, 0]
     joints: list[JointModel] = [JointFixed(), root.joint]
     ir_joints: list[IRJoint | None] = [None, root.ir_joint]
-    placements = [identity, root.ir_joint.origin.to(dtype=dtype) if root.ir_joint is not None else identity]
+    root_origin = (
+        identity if root.ir_joint is None else _placement(f"joint {root.name!r}", "origin", root.ir_joint.origin, dtype)
+    )
+    placements = [identity, root_origin]
     joint_of_body = {root.body: 1}
     for index in order:
         joint = ir.joints[index]
@@ -209,7 +230,7 @@ def _topology(ir: IRModel, root: _Root, order: tuple[int, ...], dtype: torch.dty
         parent_joint_ids.append(joint_of_body[joint.parent_body])
         joints.append(joint.joint)
         ir_joints.append(joint)
-        placements.append(joint.origin.to(dtype=dtype))
+        placements.append(_placement(f"joint {joint.name!r}", "origin", joint.origin, dtype))
     _unique("joints", joint_names)
     return _Topology(
         joint_names=tuple(joint_names),
@@ -326,7 +347,7 @@ def _frames(ir: IRModel, topology: _Topology, dtype: torch.dtype) -> _Frames:
         taken.add(frame.name)
         names.append(frame.name)
         parent_joint_ids.append(joint_of_body[frame.parent_body])
-        placements.append(frame.placement.to(dtype=dtype))
+        placements.append(_placement(f"frame {frame.name!r}", "placement", frame.placement, dtype))
     return _Frames(
         names=tuple(names), parent_joint_ids=tuple(parent_joint_ids), placements=torch.stack(placements, dim=0)
     )
@@ -507,8 +528,9 @@ def build_model(
     (or ``ir.root_body``); ``root_joint`` replaces the joint that holds it under the universe (a ``JointFixed``
     when the description wrote none). Joints follow the description's order wherever it is topological; a body is
     named by the joint that moves it and gets a frame of its own name. The neutral configuration is clamped into
-    the limits. A description that cannot be a robot raises ``ModelError``; a ``dtype`` other than float32 or float64
-    raises ``DtypeMismatchError``.
+    the limits. A description that cannot be a robot raises ``ModelError``, a joint ``origin`` or frame
+    ``placement`` that is not a ``(7,)`` pose with a unit quaternion among them; a ``dtype`` other than float32 or
+    float64 raises ``DtypeMismatchError``.
     """
     check_dtype(dtype)
     root = _root(ir, root_joint)

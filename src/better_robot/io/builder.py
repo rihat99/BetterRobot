@@ -42,8 +42,9 @@ class ModelBuilder:
     """Collects bodies, joints, frames and shapes by name and emits one ``IRModel`` from ``finalize``.
 
     A joint connects ``parent`` to ``child``, two bodies added before; ``parent="world"`` makes it the root joint of
-    the model. ``origin (7,)`` is the joint's placement in the parent body's frame, identity when omitted. The scalar
-    limits of a joint apply to every one of its coordinates.
+    the model. ``origin (7,)`` is the joint's placement in the parent body's frame, identity when omitted; its
+    quaternion, like a frame's, has unit norm (``build_model`` refuses another). The scalar limits of a joint apply to
+    every one of its coordinates.
 
     Example::
 
