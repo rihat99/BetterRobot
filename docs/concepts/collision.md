@@ -53,11 +53,13 @@ coincide.
 
 | Function | Distance from a sphere to |
 |----------|---------------------------|
-| `sphere_sphere(center_a, radius_a, *, center_b, radius_b)` | another sphere |
-| `sphere_capsule(center, radius, *, start, end, capsule_radius)` | a capsule around a segment |
-| `sphere_halfspace(center, radius, *, normal, offset)` | the solid `{x : normal . x <= offset}` |
-| `sphere_box(center, radius, *, box_center, box_rotation, half_extents)` | an oriented box |
-| `sphere_sdf(center, radius, *, grid, origin, voxel_size)` | a sampled signed distance field |
+| `sphere_sphere` | another sphere |
+| `sphere_capsule` | a capsule around a segment |
+| `sphere_halfspace` | the solid `{x : normal . x <= offset}` |
+| `sphere_box` | an oriented box |
+| `sphere_sdf` | a sampled signed distance field |
+
+Their signatures and shapes are in the [collision reference](../reference/api/collision.md).
 
 `sphere_sdf` interpolates the grid trilinearly. A centre outside the grid is clamped to the boundary, so the
 distance there is the boundary value and its gradient with respect to the centre is zero: a clearance term
