@@ -1,16 +1,18 @@
 """``FakeServer``: the shipped stand-in for ``viser.ViserServer`` (decision records 0022 and 0035).
 
-No sockets and no viser import. Each viser call the viewer makes is declared here by name with viser's parameter
-names and defaults (the parameters BetterRobot passes; the full test tier binds every method against viser's), and
-returns a ``FakeHandle`` that records the call's arguments and later attribute writes. So
-``Viewer(server=FakeServer())`` builds, pushes and tears down a scene in a test or an example's ``--check`` run, and
-the test reads what the browser would have received. A call the viewer does not make raises ``AttributeError``.
+No sockets and no viser import. Each viser call the viewer makes, and each GUI call of an app built on it
+(BetterHuman's studio: dropdowns, text and number fields, markdown, tabs), is declared here by name with viser's
+parameter names and defaults (the parameters those callers pass; the full test tier binds every method against
+viser's), and returns a ``FakeHandle`` that records the call's arguments and later attribute writes; a control reads
+back the value it was given. So ``Viewer(server=FakeServer())`` builds, pushes and tears down a scene in a test or an
+example's ``--check`` run, and the test reads what the browser would have received. Any other call raises
+``AttributeError``.
 """
 
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from typing import Any, Literal, final, override
 
 _IDENTITY = (1.0, 0.0, 0.0, 0.0)
@@ -24,7 +26,8 @@ class FakeHandle:
     Attribute writes are kept (``writes``, and ``(name, attribute)`` in the scene's ``log``) and so are the names of
     the methods called on it (``calls``). A write after ``remove()`` raises ``AttributeError``, as viser refuses it
     (with a ``RuntimeError``) and a frozen dataclass refuses any write.
-    ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered.
+    ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered. A tab
+    group's ``add_tab`` keeps its tabs in ``tabs``.
     """
 
     scene: FakeScene | None
@@ -80,13 +83,20 @@ class FakeHandle:
         for callback in self.callbacks:
             callback(event)
 
+    def add_tab(self, label: str, icon: Any = None) -> FakeHandle:
+        """viser's tab of a tab group: a ``GuiTabHandle``, a context manager for the controls in the tab."""
+        self.calls.append("add_tab")
+        tab = FakeHandle(None, "GuiTabHandle", label, {"icon": icon})
+        self.__dict__.setdefault("tabs", []).append(tab)
+        return tab
+
     def __enter__(self) -> FakeHandle:
-        """Enter a folder: the controls added inside it belong to it on viser."""
+        """Enter a folder or a tab: the controls added inside it belong to it on viser."""
         self.calls.append("__enter__")
         return self
 
     def __exit__(self, *exc: object) -> None:
-        """Leave the folder."""
+        """Leave the folder or tab."""
         pass
 
 
@@ -330,10 +340,11 @@ class FakeGui:
         """The first control named ``label``."""
         return next(control for control in self.controls if control.name == label)
 
-    def _control(self, kind: str, label: str, arguments: dict[str, Any]) -> FakeHandle:
-        """A control from a method's ``locals()``: value, order, label and visibility readable as on viser."""
+    def _control(self, kind: str, label: str, arguments: dict[str, Any], **state: Any) -> FakeHandle:
+        """A control from a method's ``locals()``: value, order, label and visibility readable as on viser; ``state``
+        adds or replaces what reads back (a dropdown's first option as its value, a markdown's ``content``)."""
         props = {key: value for key, value in arguments.items() if key != "self"}
-        state = {"value": props.get("initial_value"), "order": props["order"], "label": label}
+        state = {"value": props.get("initial_value"), "order": props["order"], "label": label, **state}
         handle = FakeHandle(None, kind, label, props, visible=props["visible"], **state)
         self.controls.append(handle)
         return handle
@@ -395,6 +406,41 @@ class FakeGui:
     ) -> FakeHandle:
         """viser's uPlot chart: a ``GuiUplotHandle``."""
         return self._control("GuiUplotHandle", "uplot", locals())
+
+    def add_dropdown(
+        self,
+        label: str,
+        options: Sequence[str],
+        *,
+        initial_value: str | None = None,
+        disabled: bool = False,
+        visible: bool = True,
+        order: float | None = None,
+    ) -> FakeHandle:
+        """viser's dropdown: a ``GuiDropdownHandle`` whose value starts at ``initial_value``, else the first option."""
+        return self._control(
+            "GuiDropdownHandle", label, locals(), value=options[0] if initial_value is None else initial_value
+        )
+
+    def add_text(
+        self, label: str, initial_value: str, *, visible: bool = True, order: float | None = None
+    ) -> FakeHandle:
+        """viser's text field: a ``GuiTextHandle`` whose value starts at ``initial_value``."""
+        return self._control("GuiTextHandle", label, locals())
+
+    def add_number(
+        self, label: str, initial_value: float, *, visible: bool = True, order: float | None = None
+    ) -> FakeHandle:
+        """viser's number field: a ``GuiNumberHandle`` whose value starts at ``initial_value``."""
+        return self._control("GuiNumberHandle", label, locals())
+
+    def add_markdown(self, content: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's markdown panel: a ``GuiMarkdownHandle`` whose ``content`` reads back."""
+        return self._control("GuiMarkdownHandle", "markdown", locals(), content=content)
+
+    def add_tab_group(self, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's tab group: a ``GuiTabGroupHandle``; its ``add_tab(label)`` adds a tab."""
+        return self._control("GuiTabGroupHandle", "tab_group", locals())
 
     def configure_theme(
         self,

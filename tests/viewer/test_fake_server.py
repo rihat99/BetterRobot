@@ -1,10 +1,13 @@
-"""The stand-in server against viser: every method of ``FakeServer`` binds like viser's, and every attribute and method
-the viewer uses on a stand-in handle exists on the viser class it stands for."""
+"""The stand-in server against viser: every method of ``FakeServer`` binds like viser's, every attribute and method
+the viewer (or an app on it, BetterHuman's studio) uses on a stand-in handle exists on the viser class it stands for,
+and a control reads back the value it was given."""
 
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 import pytest
@@ -65,15 +68,43 @@ def test_every_stand_in_method_binds_like_viser(fake: type, real: type) -> None:
         if name in STAND_IN_ONLY:
             continue
         assert hasattr(real, name), f"{fake.__name__}.{name} is not on viser's {real.__name__}"
-        ours = list(inspect.signature(getattr(fake, name)).parameters.values())[1:]
-        theirs = list(inspect.signature(getattr(real, name)).parameters.values())[1:]
-        by_name = {parameter.name: parameter for parameter in theirs}
-        for index, parameter in enumerate(ours):
-            twin = by_name.get(parameter.name)
-            assert twin is not None, f"{fake.__name__}.{name}({parameter.name}=) is not a parameter of viser's"
-            assert parameter.default == twin.default, f"{fake.__name__}.{name}({parameter.name}=) default differs"
-            if parameter.kind is parameter.POSITIONAL_OR_KEYWORD:  # a positional call must bind the same way
-                assert theirs[index] == twin, f"{fake.__name__}.{name}: {parameter.name} sits at another position"
+        _assert_binds_like(getattr(fake, name), getattr(real, name), f"{fake.__name__}.{name}")
+
+
+@pytest.mark.slow
+def test_a_tab_group_adds_tabs_like_viser() -> None:
+    _assert_binds_like(FakeHandle.add_tab, viser.GuiTabGroupHandle.add_tab, "FakeHandle.add_tab")
+
+
+def _assert_binds_like(fake: Callable[..., Any], real: Callable[..., Any], where: str) -> None:
+    """Every parameter of ``fake`` is one of ``real``'s with its default, at its position when it can be positional."""
+    ours = list(inspect.signature(fake).parameters.values())[1:]
+    theirs = list(inspect.signature(real).parameters.values())[1:]
+    by_name = {parameter.name: parameter for parameter in theirs}
+    for index, parameter in enumerate(ours):
+        twin = by_name.get(parameter.name)
+        assert twin is not None, f"{where}({parameter.name}=) is not a parameter of viser's"
+        assert parameter.default == twin.default, f"{where}({parameter.name}=) default differs"
+        if parameter.kind is parameter.POSITIONAL_OR_KEYWORD:  # a positional call must bind the same way
+            assert theirs[index] == twin, f"{where}: {parameter.name} sits at another position"
+
+
+def test_the_controls_an_app_adds_read_back_their_initial_values() -> None:
+    """BetterHuman's studio builds its panel on these calls; a dropdown starts at its first option unless told
+    otherwise, as on viser."""
+    gui = FakeServer().gui
+    assert gui.add_dropdown("Family", ("smpl", "mhr")).value == "smpl"
+    assert gui.add_dropdown("Gender", ("neutral", "male"), initial_value="male", disabled=True).value == "male"
+    assert gui.add_text("Pose name", initial_value="pose").value == "pose"
+    assert gui.add_number("Density", initial_value=985.0).value == 985.0
+    assert gui.add_markdown("**smpl**").content == "**smpl**"
+    tabs = gui.add_tab_group()
+    with tabs.add_tab("Body") as tab:
+        gui.add_button("Save pose")
+    assert tabs.tabs == [tab] and tab.name == "Body"
+    tab.remove()
+    with pytest.raises(AttributeError, match="this GuiTabHandle was removed"):
+        tab.label = "Shape"
 
 
 @pytest.mark.slow
@@ -128,9 +159,17 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
     viewer.set_fps(10.0)
     viewer.remove_group("v")
     viewer.play(block=True)
+    tabs = server.gui.add_tab_group()  # the GUI calls of an app built on the viewer (BetterHuman's studio)
+    with tabs.add_tab("Model"):
+        server.gui.add_dropdown("Family", ("smpl", "mhr")).value = "mhr"
+        server.gui.add_text("Pose name", initial_value="pose").value = "pose 2"
+        server.gui.add_number("Density", initial_value=985.0).value = 1000.0
+        server.gui.add_markdown("").content = "**smpl**"
+    tabs.remove()
 
     handles = [*server.scene.nodes.values(), *server.gui.controls, server.initial_camera, server.clients[0].camera]
     handles += [bone for handle in server.scene.nodes.values() for bone in handle.__dict__.get("bones", ())]
+    handles += [tab for handle in server.gui.controls for tab in handle.__dict__.get("tabs", ())]
     used = set()
     for handle in handles:
         real = getattr(viser, handle.kind)
@@ -143,3 +182,4 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
             used.add(f"{handle.kind}.{method}()")
             assert callable(getattr(real, method, None)), f"the viewer calls {method}() on a {handle.kind}"
     assert {"MeshSkinnedBoneHandle.wxyz", "GuiFolderHandle.__enter__()", "TransformControlsHandle.on_update()"} <= used
+    assert {"GuiTabGroupHandle.add_tab()", "GuiTabHandle.__enter__()", "GuiMarkdownHandle.content"} <= used

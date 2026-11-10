@@ -241,8 +241,8 @@ print(y_up_viewer.theme.up_vector)
 
 `Viewer(server=...)` reuses an existing `viser.ViserServer`, or takes `better_robot.testing.FakeServer`, the
 stand-in that records scene calls without a port or a browser (the tests and the examples' `--check` run on it). It
-declares each viser call the viewer makes with viser's parameters, and a test of the full tier binds them against
-viser, so a call viser would refuse fails on the stand-in too; `viewer.server` is the escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
+declares each viser call the viewer makes, and the GUI calls of an app on it (dropdowns, text and number fields,
+markdown, tabs), with viser's parameters, and a test of the full tier binds them against viser, so a call viser would refuse fails on the stand-in too; `viewer.server` is the escape hatch for custom GUI. The default host is `127.0.0.1`, so the server is reachable only from your machine;
 forward the port over SSH to view it remotely.
 
 ## Lazy inputs
