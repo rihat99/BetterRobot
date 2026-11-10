@@ -43,7 +43,7 @@ video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `Poi
 contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixels wide by default; with
 `shaft_radius=` (metres) its arrows are solid, a cylinder and a cone of length `head_size` and radius
 `head_radius`, so forces keep their thickness at any zoom; a head takes at most 35 % of its arrow, so a short solid
-arrow is the long one scaled down, never a lone head. An arrow no longer than `min_length` metres (default
+arrow is the long one scaled down, never a lone head. An arrow of at most `min_length` metres (default
 `1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
 forces too small to read. `SkeletonLayer(name, joints, parent_ids=)` draws joints `(T, J, 3)` (or poses
 `(T, J, 7)`) as a stick figure, a bone from each joint to its parent (`parent_ids (J,)`, `-1` for a root); it takes a

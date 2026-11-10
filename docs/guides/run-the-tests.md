@@ -38,7 +38,7 @@ a test. The release tier's second full run sets it to `0`, the configuration use
 
 While you edit one package, run the fast tier plus that package's folder, for example
 `uv run pytest tests/kinematics -q`. The hooks live in `.pre-commit-config.yaml` and run through `uv run --locked`,
-so a lockfile that no longer matches `pyproject.toml` fails them: ruff check, ruff format --check and the fast tier
+so a lockfile out of step with `pyproject.toml` fails them: ruff check, ruff format --check and the fast tier
 before each commit, the full tier before each push. `uv run pre-commit install` installs both stages;
 `uv run pre-commit run --all-files --hook-stage pre-push` runs one stage without installing it.
 
