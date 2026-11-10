@@ -337,7 +337,7 @@ def measure_sweep(cases: list[Case], args: argparse.Namespace, sync: Callable[[]
             rows.append(measure(case, args, sync))
         except Exception as exc:  # noqa: BLE001 - one row's failure (memory at a large batch) is recorded, not fatal
             rows.append({"row": case.row, "batch": case.batch, **case.fields, "error": f"{type(exc).__name__}: {exc}"})
-            print(f"{case.row:<44} ERROR {rows[-1]['error'][:80]}")
+            print(f"{case.row:<48} ERROR {rows[-1]['error'][:80]}")
             continue
         if rows[-1].get("median_ms", 0.0) > args.max_call_s * 1e3:
             slow[key] = case.batch
@@ -469,7 +469,7 @@ def print_row(row: dict[str, Any]) -> None:
         value = row.get(key)
         return f"{'-' if value is None else format(value, spec):>{width}}"
 
-    line = f"{row['row']:44} {cell('median_ms', 10, '.4f')} {cell('page_faults', 8, '.0f')} {cell('ops', 7)}"
+    line = f"{row['row']:48} {cell('median_ms', 10, '.4f')} {cell('page_faults', 8, '.0f')} {cell('ops', 7)}"
     print(f"{line} {cell('host_syncs', 6)} {cell('graph_breaks', 6)} {cell('recompiles', 10)}", flush=True)
 
 
@@ -509,7 +509,7 @@ def main() -> None:
     sync = (lambda: torch.cuda.synchronize(device)) if device.type == "cuda" else (lambda: None)
     meta = context(args, device)
     started = time.perf_counter()
-    print(f"{'row':44} {'median_ms':>10} {'faults':>8} {'ops':>7} {'syncs':>6} {'breaks':>6} {'recompiles':>10}")
+    print(f"{'row':48} {'median_ms':>10} {'faults':>8} {'ops':>7} {'syncs':>6} {'breaks':>6} {'recompiles':>10}")
 
     cases = [case for case in counter_cases(device) if args.rows is None or case.row in args.rows]
     counter_rows = [measure(case, args, sync) for case in cases]
