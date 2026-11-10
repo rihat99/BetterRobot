@@ -1,5 +1,6 @@
 """Robot terms: analytic Jacobians equal autodiff; IK reaches reachable targets inside the limits."""
 
+import re
 from dataclasses import dataclass
 from typing import ClassVar, final
 
@@ -68,6 +69,29 @@ def test_random_start_and_solve_ik_check_their_arguments(panda):
     goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
     with pytest.raises(br.exceptions.ArgumentError, match="restarts must be at least 0"):
         terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=-3)
+
+
+@pytest.mark.parametrize("entry", [terms.ik_problem, terms.solve_ik])
+def test_ik_entries_check_q0_and_targets_with_their_own_names(panda, entry):
+    """A wrong target fails at the entry, naming ``targets[frame]`` or ``q0``, not inside the solve with se3's names."""
+    q0 = panda.q_neutral.expand(4, -1)
+    goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
+    name = re.escape(f"targets[{FRAME!r}]")
+    bad_calls = [
+        ({FRAME: goal[:3]}, q0, br.exceptions.ShapeError, rf"q0 has batch axes \(4,\) and {name} \(3,\)"),
+        (
+            {FRAME: goal.float()},
+            q0,
+            br.exceptions.DtypeMismatchError,
+            rf"{name}\.dtype=torch\.float32 != model\.dtype",
+        ),
+        ({FRAME: goal[:, :6]}, q0, br.exceptions.ShapeError, rf"{name} must have shape \(\.\.\., 7\)"),
+        ({FRAME: goal}, q0.float(), br.exceptions.DtypeMismatchError, r"q0\.dtype=torch\.float32 != model\.dtype"),
+        ({FRAME: goal}, q0[0], br.exceptions.ShapeError, rf"q0 must be \(B, {panda.nq}\)"),
+    ]
+    for targets, start, error, match in bad_calls:
+        with pytest.raises(error, match=match):
+            entry(panda, targets, q0=start)
 
 
 def test_ik_problem_terms_read_the_state_by_name(panda):
