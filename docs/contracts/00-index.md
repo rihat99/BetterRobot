@@ -44,7 +44,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-STATE-4 | `tests/contract/test_caches.py`, `[review]` |
 | C-STATE-5 | `tests/optim/test_problem.py::test_problem_is_immutable`, `tests/optim/test_problem.py::test_callbacks_cannot_register_on_the_views_run_hands_them` |
 | C-STATE-6 | `tests/contract/test_caches.py`, `tests/contract/test_dtype_device.py`, `tests/contract/test_state_attachment.py`, `[review]` |
-| C-DIFF-1 | `tests/lie/test_torch_backend_gradcheck.py`, `[review]` |
+| C-DIFF-1 | `tests/contract/test_public_differentiability.py`, `tests/lie/test_torch_backend_gradcheck.py`, `[review]` |
 | C-DIFF-2 | `tests/contract/test_hot_path_lint.py`, `[review]` |
 | C-DIFF-3 | `tests/lie/test_torch_backend_gradcheck.py`, `[review]` |
 | C-API-1 | `tests/contract/test_frozen.py`, `[review]` |

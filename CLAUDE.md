@@ -18,7 +18,9 @@ floating-base robots use the same state API
 ## Commands
 
 ```bash
-UV_CACHE_DIR=/tmp/betterrobot-uv-cache uv run pytest tests/ -q -m "not bench and not cuda"
+uv run pytest tests/contract -q -m "not slow and not cuda"   # fast tier, about 16 s (pre-commit hook)
+uv run pytest tests -q -m "not cuda"                         # full tier, about 4.5 min (pre-push hook)
+bash tools/release_tier.sh --gpu <index>                     # release tier, by hand, a free GPU
 uv run ruff check src/ tests/
 uv run mkdocs build --strict
 uv run python examples/01_ik.py
@@ -69,6 +71,8 @@ forward-kinematics query. Torch is the only implementation.
   subtraction.
 - Preserve dtype/device and PyTorch broadcasting; never silently cast, move,
   squeeze, or change process-wide Torch settings.
+- The full list of shapes, layouts and formats other repositories read:
+  `docs/contracts/coupling-standard.md`.
 
 ## Optimization
 
@@ -89,6 +93,8 @@ optimizer behavior.
 - Validate structure at public boundaries; do not scan user tensor values for
   finiteness as general input validation.
 - Update documentation and the nearest agent guide when a contract changes.
+- A new word in a public name enters `docs/reference/glossary.md` in the same
+  change (`test_glossary_words`).
 - Do not weaken Pinocchio parity or architecture tests to land a refactor.
 - Preserve unrelated working-tree changes and use focused tests while editing.
 

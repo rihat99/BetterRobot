@@ -1,4 +1,4 @@
-"""Regression net for the public differentiable robotics blocks."""
+"""C-DIFF-1: gradients reach ``q`` and the model tensors through every public kinematics and dynamics function."""
 
 from __future__ import annotations
 
