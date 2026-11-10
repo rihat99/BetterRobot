@@ -1,11 +1,12 @@
 // Build the docs and render every page to full-page PNGs, light and dark, for self-review.
-// Usage: node tools/docs_screenshots.mjs <out_dir> [--no-build]   ->  <out_dir>/{light,dark}/<page>.png at 1280 px.
+// Usage: node tools/docs_screenshots.mjs <out_dir> [--no-build] [--repo <path>]   ->  <out_dir>/{light,dark}/<page>.png
+// at 1280 px. The docs built are those of --repo, default the working directory, so BetterHuman runs this one copy.
 // Needs BETTER_ROBOT_CHROME=<chromium / headless-shell binary or wrapper> (same variable as viewer/capture.py).
 // Node 22 built-in WebSocket + CDP, no npm deps. The headless shell dlopens libasound.so.2, which this machine
 // lacks: wrap the binary in a script that sets LD_LIBRARY_PATH to a directory holding an extracted libasound2 .deb
 // (docs/guides/run-the-tests.md describes it) and point BETTER_ROBOT_CHROME at the wrapper.
 import { spawn, spawnSync } from "node:child_process"; import fs from "node:fs"; import path from "node:path"; import http from "node:http";
-const args = process.argv.slice(2); const out = path.resolve(args[0]); const repo = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const args = process.argv.slice(2); const out = path.resolve(args[0]); const repoAt = args.indexOf("--repo"); const repo = path.resolve(repoAt >= 0 ? args[repoAt + 1] : process.cwd());
 const site = path.join(repo, "site");
 if (!process.env.BETTER_ROBOT_CHROME) { console.error("set BETTER_ROBOT_CHROME"); process.exit(2); }
 if (!args.includes("--no-build")) { const b = spawnSync("uv", ["run", "mkdocs", "build", "--strict"], { cwd: repo, stdio: "inherit" }); if (b.status !== 0) process.exit(b.status); }
