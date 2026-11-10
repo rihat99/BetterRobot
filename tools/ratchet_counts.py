@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Check that no ratchet under ``tests/contract/ratchets/`` ever grew or took a new key (principle 6.1).
 
 A ratchet maps a key to its reason, or to ``{"count": n, "reason": ...}`` when one key holds several open sites (a
@@ -14,7 +18,7 @@ oldest first; a ``git mv`` in a commit of its own keeps the history), then the w
 Prints one line per ratchet (creating commit, count at creation, latest count) and every violation.
 ``tests/contract/test_ratchet_history.py`` runs it in the full tier.
 
-    uv run python tools/ratchet_counts.py [--repo PATH]
+    uv run tools/ratchet_counts.py [--repo PATH]     # stdlib only: uv runs it without the project environment
 """
 
 from __future__ import annotations

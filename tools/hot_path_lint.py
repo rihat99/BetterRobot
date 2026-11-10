@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Find hot-path patterns that break ``torch.compile`` or CUDA throughput (C-TENS-4, decision record 0021).
 
 Walks the AST of every file under ``src/better_robot/{kinematics,dynamics,lie,spatial,terms}`` and of
@@ -14,7 +18,7 @@ Walks the AST of every file under ``src/better_robot/{kinematics,dynamics,lie,sp
 A line may exempt itself with ``# bench-ok: <reason>``. ``tests/contract/test_hot_path_lint.py`` runs it on every
 watched file and on planted sources.
 
-    uv run python tools/hot_path_lint.py
+    uv run tools/hot_path_lint.py     # stdlib only: uv runs it without the project environment
 """
 
 from __future__ import annotations
