@@ -69,7 +69,8 @@ an extra's packages in one unit, an undeclared package nowhere). Lazy imports in
 ## C-DEP-3 No process-wide torch settings (MUST)
 
 The library never calls `torch.set_default_dtype`, `torch.set_default_device`, `torch.set_grad_enabled`,
-`torch.use_deterministic_algorithms`, `torch.manual_seed` or changes thread counts. Those are the user's.
+`torch.use_deterministic_algorithms`, `torch.set_float32_matmul_precision`, `torch.manual_seed` or changes
+thread counts. Those are the user's.
 
 Enforcement: `[ruff:TID251]` (banned-api table in `pyproject.toml`).
 

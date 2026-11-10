@@ -26,7 +26,7 @@ SHAPE = re.compile(rf"\((?=[^()\n]*(?:,|\.\.\.)|\s*\))\s*(?:{AXIS}(?:\s*,\s*{AXI
 SIGNATURE = re.compile(r"``([^`]*?)(?:→|->)[^`]*``")
 NEAR = 80  # characters after a parameter's name in which its shape must start
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
-SPHINX_ROLE = re.compile(r":(?:py:)?(?:class|func|meth|attr|mod|obj|data|exc|const):`")
+SPHINX_ROLE = re.compile(r":(?:py:)?(?:class|func|meth|attr|mod|obj|data|exc|const|math):`")
 
 
 def _documented() -> dict[str, object]:

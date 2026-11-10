@@ -72,6 +72,12 @@ def test_src_compiles_nothing_and_builds_no_kernel() -> None:
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.Attribute) and node.attr == "compile" and ast.unparse(node.value) == "torch":
                 found.append(f"{path.relative_to(SRC)}: torch.compile")
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module == "torch"
+                and "compile" in {a.name for a in node.names}
+            ):
+                found.append(f"{path.relative_to(SRC)}: from torch import compile")
             modules = []
             if isinstance(node, ast.Import):
                 modules = [alias.name for alias in node.names]
