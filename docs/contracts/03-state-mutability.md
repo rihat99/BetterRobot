@@ -55,8 +55,8 @@ q.add_(dq)                      # caller's `q` silently changes
 out = q.clone(); out[..., 3:7] = normalize(q[..., 3:7])     # fine: `out` is ours
 ```
 
-Enforcement: `tests/contract/test_no_inplace.py` (calls every public entry point and asserts each input
-tensor's `_version` counter is unchanged).
+Enforcement: `tests/contract/test_no_inplace.py` (calls every public kinematics, dynamics, lie and spatial
+function with a tensor input and asserts each input tensor's `_version` counter is unchanged).
 
 ## C-STATE-4 Caches are explicit and keyed (SHOULD)
 

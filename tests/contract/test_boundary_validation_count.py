@@ -1,65 +1,60 @@
-"""Public passes validate each tensor input once, at their boundary, and trust the attached model (record 0021)."""
+"""Public passes validate each tensor input once, at their boundary, and trust the attached model (record 0021).
+
+Every entry point of ``_public_ops`` passes each floating tensor argument to ``check_tensor`` (alone or through
+``check_tensors``) exactly once, under its parameter name, and nothing else: a Jacobian or dynamics call reads its
+state unchecked (the state's own check is attachment, C-STATE-6), ``forward_dynamics``' bias call takes its zero
+acceleration unchecked, and an integer table (``inertia_of_mesh``'s faces) is checked by its own rule. Every
+``better_robot`` module that imports the validators counts, so a check moved into a helper still counts.
+"""
 
 from __future__ import annotations
+
+import inspect
+import sys
+from collections import Counter
 
 import pytest
 import torch
 
 from better_robot import dynamics, kinematics
-from better_robot.dynamics import forward as dynamics_forward
-from better_robot.dynamics import inverse as dynamics_inverse
-from better_robot.kinematics import forward as kinematics_forward
 from better_robot.lie import _checks
 
 from ._public_ops import CASE_NAMES, build_case
 
 _CPU = torch.device("cpu")
 
-#: ``check_tensor`` calls per public call; a name absent here makes none (Jacobians read the state, lie/spatial
-#: take plain tensors). ``forward_dynamics`` checks ``v`` and ``tau`` (its bias call takes a zero acceleration unchecked);
-#: ``integrate`` and ``difference`` check their two configuration-space inputs.
-EXPECTED_CHECKS = {
-    "forward_kinematics": 1,
-    "point_jacobian": 1,
-    "frame_jacobian_time_variation": 1,
-    "joint_jacobian_time_variation": 1,
-    "inverse_dynamics": 2,
-    "forward_dynamics": 2,
-    "centroidal_momentum": 1,
-    "integrate": 2,
-    "difference": 2,
-}
-
 
 @pytest.fixture
 def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Names passed to ``check_tensor`` by the kinematics and dynamics boundaries during the test."""
+    """Names passed to ``check_tensor`` and ``check_tensors`` by any ``better_robot`` module during the test."""
     names: list[str] = []
-    original = _checks.check_tensor
+    check_tensor, check_tensors = _checks.check_tensor, _checks.check_tensors
 
     def counted(name: str, value: object, **kwargs: object) -> torch.Tensor:
         names.append(name)
-        return original(name, value, **kwargs)
+        return check_tensor(name, value, **kwargs)
 
-    boundaries = (
-        kinematics_forward,
-        kinematics.jacobians,
-        kinematics.configuration,
-        dynamics_inverse,
-        dynamics_forward,
-        dynamics.centroidal,
-    )
-    for module in boundaries:
-        monkeypatch.setattr(module, "check_tensor", counted)
+    def counted_each(**tensors: tuple[object, tuple[int, ...]]) -> None:
+        names.extend(tensors)
+        check_tensors(**tensors)
+
+    for name, module in list(sys.modules.items()):
+        if name.startswith("better_robot.") and module is not _checks:
+            if vars(module).get("check_tensor") is check_tensor:
+                monkeypatch.setattr(module, "check_tensor", counted)
+            if vars(module).get("check_tensors") is check_tensors:
+                monkeypatch.setattr(module, "check_tensors", counted_each)
     return names
 
 
 @pytest.mark.parametrize("name", CASE_NAMES)
 def test_each_public_call_validates_its_inputs_once(name: str, checked_names: list[str]) -> None:
     fn, args, kwargs = build_case(name, torch.float64, _CPU)
+    arguments = inspect.signature(fn).bind(*args, **kwargs).arguments
+    inputs = [key for key, value in arguments.items() if isinstance(value, torch.Tensor) and value.is_floating_point()]
     checked_names.clear()  # building the case ran forward kinematics once
     fn(*args, **kwargs)
-    assert len(checked_names) == EXPECTED_CHECKS.get(name, 0), checked_names
+    assert Counter(checked_names) == Counter(inputs), f"{name} checked {checked_names}, its tensor inputs are {inputs}"
 
 
 def test_dynamics_on_a_fresh_state_validates_q_once_and_its_own_inputs(checked_names: list[str]) -> None:

@@ -29,6 +29,7 @@ CONTRACT = "tests/contract"
 COLUMNS: dict[str, str] = {
     "inputs untouched": "test_no_inplace.py::test_public_op_leaves_inputs_untouched",
     "dtype and device kept": "test_dtype_device.py::test_output_matches_input_dtype_and_device",
+    "batch axes per element": "test_dtype_device.py::test_leading_batch_axes_give_each_element_its_own_result",
     "another dtype raises": "test_dtype_device.py::test_tensor_input_in_another_dtype_raises",
     "inputs validated once": "test_boundary_validation_count.py::test_each_public_call_validates_its_inputs_once",
     "another model's state raises": "test_state_attachment.py::test_state_of_another_model_is_rejected",

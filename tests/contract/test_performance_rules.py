@@ -35,8 +35,9 @@ class _OperatorCount(TorchDispatchMode):
 
 
 def _batched(value: Any, model: Any, batch: int) -> Any:
-    """``value`` with a leading batch axis of ``batch``; a state is recomputed from its batched configuration."""
-    if isinstance(value, torch.Tensor):
+    """``value`` with a leading batch axis of ``batch``; a state is recomputed from its batched configuration, and an
+    integer table (a mesh's faces) is shared by the batch."""
+    if isinstance(value, torch.Tensor) and value.is_floating_point():
         return value.expand(batch, *value.shape)
     if isinstance(value, KinematicState):
         return forward_kinematics(model, value.q.expand(batch, *value.q.shape))
@@ -49,7 +50,7 @@ def _operators(fn: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
     return counter.count
 
 
-@pytest.mark.slow  # 1.2 s for 28 entry points: the full tier, so the fast tier keeps its budget
+@pytest.mark.slow  # 1.5 s for 66 entry points: the full tier, so the fast tier keeps its budget
 @pytest.mark.parametrize("name", CASE_NAMES)
 def test_a_batch_dispatches_the_same_operators_at_every_size(name: str) -> None:
     """C-PERF-2: the operator count does not grow with the batch, so nothing loops over batch elements."""

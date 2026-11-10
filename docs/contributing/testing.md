@@ -71,7 +71,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_public_surface.py` | the root `__all__` is the decided list; every name of the `__all__` tree resolves |
 | `test_submodule_public_imports.py` | only the decided packages exist; no raw `*_raw` kernel is public |
 | `test_docstrings.py` | every public object has a docstring that gives each tensor parameter's shape |
-| `test_boundary_validation_count.py` | public functions validate inputs once; raw passes below do not re-validate |
+| `test_boundary_validation_count.py` | public kinematics, dynamics, lie and spatial functions check each tensor input once; raw passes below do not re-check |
 | `test_hot_path_lint.py` | `tools/hot_path_lint.py` finds no `torch.compile`-breaking pattern (host syncs, `.item()`, Python branching on tensors) in kinematics, dynamics, lie, spatial, terms and the solver updates |
 | `test_naming.py` | a `Model` or `KinematicState` field is plural exactly when its shape has an axis over joints, bodies or frames; integer indices end in `_ids` |
 | `test_vocabulary.py` | one name per thing (no alias, no class name a library below uses), acronyms in capitals, no `utils`-style module |
@@ -89,7 +89,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_contract_matrix.py` | the enforcement matrix of the contracts index matches what every contract page says |
 | `test_coupling_standard.py` | every line of the [coupling standard](../contracts/coupling-standard.md) against the library; the page's lines only grow (frozen copy `coupling_standard_lines.txt`) |
 | `test_decision_records.py` | every decision record follows the template, has an allowed status and an index row, and an accepted record keeps its accepted text |
-| `test_dtype_device.py`, `test_no_inplace.py`, `test_state_attachment.py` | public ops keep the input dtype and device, refuse another dtype, never write their inputs, and refuse a state of another model; their results are the [effects table](../reference/effects.md) |
+| `test_dtype_device.py`, `test_no_inplace.py`, `test_state_attachment.py` | public ops keep the input dtype and device, give each batch element its own result, refuse another dtype, never write their inputs, and refuse a state of another model; their results are the [effects table](../reference/effects.md) |
 | `test_error_tree.py` | every error the library raises is in one tree under `BetterRobotError` |
 | `test_frozen.py`, `test_model_fields.py`, `test_hashing.py`, `test_caches.py` | public records are frozen, `Model` is one flat record, equality and `structure_key` follow record 0010, caches and plans follow records 0011 and 0040 |
 | `test_identifiers.py`, `test_keyword_only.py`, `test_name_words.py`, `test_se3_vocabulary.py` | a frame, joint or body parameter takes `int \| str`; at most two positional arguments; layouts, units and SE(3) words in public names |

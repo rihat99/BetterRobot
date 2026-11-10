@@ -25,8 +25,8 @@ def _fk_pass(model, q):
     if q.shape[-1] != model.nq: raise ...           # re-validates on every internal call
 ```
 
-Enforcement: `tests/contract/test_boundary_validation_count.py` (counts validation calls per public entry: one
-per tensor input, `EXPECTED_CHECKS`); `[review]`.
+Enforcement: `tests/contract/test_boundary_validation_count.py` (every public kinematics, dynamics, lie and
+spatial function checks each floating tensor input exactly once, under its parameter name); `[review]`.
 
 ## C-ERR-2 Specific exception types from the `BetterRobotError` tree (MUST)
 
