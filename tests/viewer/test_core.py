@@ -222,7 +222,7 @@ def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_
     with pytest.raises(ShapeError, match="thickness"):
         SkeletonLayer("bad", joints, parent_ids=[-1, 0], thickness=np.ones((3, 2)))
     with pytest.raises(ShapeError, match="offsets"):
-        SkeletonLayer("bad", joints, parent_ids=[-1, 0], offsets=np.zeros(6))  # flat: no longer reshaped
+        SkeletonLayer("bad", joints, parent_ids=[-1, 0], offsets=np.zeros(6))  # offsets are (joints, 3), never reshaped
 
 
 def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_and_invalid_vectors() -> None:

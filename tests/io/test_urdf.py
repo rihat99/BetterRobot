@@ -1,8 +1,7 @@
 """Tests for the URDF parser and ``br.load()`` with URDF files.
 
-Phase 3 pass criteria:
- - ``br.load("panda.urdf")`` returns a ``Model`` equivalent to the current
-   ``RobotModel`` (joint count, body count, limits).
+Checks:
+ - ``br.load("panda.urdf")`` returns a ``Model`` with the Panda's joint count, body count and limits.
  - ``br.load("g1.urdf", root_joint=br.model.JointFreeFlyer())`` returns a ``Model`` whose
    ``joints[1]`` is ``JointFreeFlyer`` and whose ``nq`` is 7 + 29 = 36.
 """

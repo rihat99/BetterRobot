@@ -1,6 +1,6 @@
 """CRBA parity — BetterRobot vs Pinocchio + structural acceptance.
 
-Acceptance for P11-D3:
+Checks:
 
 * ``M(q) @ a + b(q, v) == inverse_dynamics(q, v, a)`` — internal consistency.
 * ``M(q_neutral)`` is symmetric and positive-definite.

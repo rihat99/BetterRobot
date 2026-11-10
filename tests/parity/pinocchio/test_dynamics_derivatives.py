@@ -1,4 +1,4 @@
-"""Gradcheck acceptance for the dynamics layer (P11-D6).
+"""Gradcheck acceptance for the dynamics layer.
 
 The forward routines are pure differentiable PyTorch, so the standard
 ``torch.autograd.gradcheck`` on a smoothed scalar loss is the cleanest

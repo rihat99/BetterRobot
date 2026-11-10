@@ -1,4 +1,4 @@
-"""Centroidal-dynamics acceptance tests for P11-D1 / P11-D5.
+"""Centroidal-dynamics acceptance tests.
 
 The whole-body convention here includes every body in
 ``model.body_inertias`` — including bodies attached via the synthetic

@@ -29,39 +29,39 @@
   },
   "src/better_robot/model/joints/fixed.py::JointFixed reportIncompatibleVariableOverride": {
     "count": 2,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/free_flyer.py::JointFreeFlyer reportIncompatibleVariableOverride": {
     "count": 2,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/helical.py::JointHelical reportIncompatibleVariableOverride": {
     "count": 1,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/planar.py::JointPlanar reportIncompatibleVariableOverride": {
     "count": 2,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/prismatic.py::JointPrismatic reportIncompatibleVariableOverride": {
     "count": 1,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/revolute.py::JointRevolute reportIncompatibleVariableOverride": {
     "count": 1,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/revolute.py::JointRevoluteUnbounded reportIncompatibleVariableOverride": {
     "count": 1,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/spherical.py::JointSpherical reportIncompatibleVariableOverride": {
     "count": 2,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/model/joints/translation.py::JointTranslation reportIncompatibleVariableOverride": {
     "count": 2,
-    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol, the owner's call"
   },
   "src/better_robot/optim/constrained.py::_shifted reportOptionalCall": {
     "count": 1,

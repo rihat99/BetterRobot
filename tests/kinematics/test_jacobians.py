@@ -1,7 +1,5 @@
 """Tests for kinematics Jacobians — shape checks and analytic vs finite diff.
 
-Phase 4 pass criterion: analytic and finite-difference Jacobians agree.
-
 See ``docs/concepts/kinematics-and-jacobians.md``.
 """
 

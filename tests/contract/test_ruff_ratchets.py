@@ -1,4 +1,4 @@
-"""Ruff's contract rules that still have open sites in ``src`` run here as shrink-only ratchets (R-3).
+"""Ruff's contract rules that still have open sites in ``src`` run here as shrink-only ratchets.
 
 ``N`` (C-NAME-2; ``pyproject.toml`` turns N803 and N806 off in ``lie``, ``spatial``, ``kinematics`` and ``dynamics``,
 whose locals use monogram names, C-NAME-1), ``D1`` under the numpy convention (C-DOC-1), ``ANN001`` (C-TEST-2) and

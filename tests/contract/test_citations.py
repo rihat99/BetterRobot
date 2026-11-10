@@ -8,12 +8,15 @@ citation is always dead. The dead citations that exist today sit in ``tests/cont
 entry. Permanent exceptions: the resolver's and the edge walker's test cases, this module's own exception list, and
 citations in accepted ADRs, whose text never changes after acceptance (principle 8.2). A docs page outside the
 changelog, the migration pages and the records tells no history: no plan code, no "no longer", no "was moved".
+Tracked text also names no code of the plan that wrote it (a work package, lane, ruling or phase), which nothing in
+the repository defines.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import subprocess
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -26,7 +29,11 @@ EXEMPT_FILES: dict[str, str] = {
     "tests/testing/test_import_edges.py": "its cases write package files into tmp_path, named relative to the package",
     "tests/contract/test_citations.py": "its exception list below repeats the dead citations it exempts",
 }
-# Accepted records are never edited (ruling R-3), so their historical citations stay as written, each with the reason.
+PLAN_CODE = re.compile(
+    r"\bwp/[A-Z]|\blane [A-D]\b|\bR-\d+\b|\(P-\d+\)|\bP\d+-D\d+\b|\bPhase \d+ pass|\bowning WP\b|\bwork package\b"
+)
+TEXT_SUFFIXES = (".md", ".py", ".toml", ".yml", ".yaml", ".json")
+# Accepted records are never edited (principle 8.2), so their historical citations stay as written, each with the reason.
 _PACKAGE_RELATIVE = "written relative to src/better_robot/, as records of that date did"
 _BETTERHUMAN = "a BetterHuman path, written relative to BetterHuman/"
 FROZEN_RECORD_CITATIONS: dict[str, str] = {
@@ -118,3 +125,16 @@ def test_docs_pages_tell_no_history() -> None:
         if not any(fnmatch(relative, pattern) for pattern in HISTORY_PAGES):
             found += [f"{relative}: {' '.join(match[0].split())}" for match in HISTORY.finditer(page.read_text())]
     assert not found, "state what holds now instead:\n  " + "\n  ".join(found)
+
+
+def test_no_plan_code_in_tracked_text() -> None:
+    """Tracked text states a reason, never a plan code such as ``wp/R9b.md``, ``lane D`` or ``ruling R-3``; this module
+    is not read, since its pattern spells the codes."""
+    listing = subprocess.run(["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=True).stdout
+    found = [
+        f"{path}: {match[0]}"
+        for path in listing.split("\0")
+        if path.endswith(TEXT_SUFFIXES) and path != "tests/contract/test_citations.py"
+        for match in PLAN_CODE.finditer((REPO / path).read_text())
+    ]
+    assert not found, "write the reason instead of the plan code:\n  " + "\n  ".join(found)

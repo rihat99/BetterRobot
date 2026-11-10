@@ -1,4 +1,4 @@
-"""Every public ``lie`` function checks its tensor inputs at its boundary (ruling R-9, principle 2.8, C-ERR-1).
+"""Every public ``lie`` function checks its tensor inputs at its boundary (principle 2.8, C-ERR-1).
 
 The table lists the trailing shape of each tensor parameter; it must cover ``__all__`` of ``so3``, ``se3`` and
 ``tangents`` exactly, so a new public function cannot skip the check unseen.
