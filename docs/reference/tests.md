@@ -43,7 +43,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
 | `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |
 | `test_fixtures.py` | every test robot has its licence and provenance |
-| `test_repository_layout.py` | no tracked symlink and no tracked file over 1 MiB (principle 9.3, record [0039](../contracts/decisions/0039-test-robot-fixtures.md)) |
+| `test_repository_layout.py` | the tracked top-level entries are the standard set; each `src` package has its `tests/` folder and every other `tests/` folder is a named suite; no tracked symlink and no tracked file over 1 MiB (record [0039](../contracts/decisions/0039-test-robot-fixtures.md)); no directory under `src/`, `tests/` or `tools/` without a tracked file |
 | `test_citations.py` | every repository path and `path::symbol` cited in tracked text resolves; no line number is cited |
 | `test_extension_points.py` | every extension point is a base class or a plain function: no `register_*` function, no module-level mutable registry (see [Extend BetterRobot](../guides/extend.md)) |
 | `test_abstract_or_final.py` | every class in `src` is abstract or `@final` |
