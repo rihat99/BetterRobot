@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 import pytest
 import torch
 
@@ -17,6 +19,7 @@ from better_robot.model import (
     JointRevoluteUnbounded,
     JointSpherical,
     JointTranslation,
+    joints,
 )
 from better_robot.model.manifolds import CIRCLE, PLANE
 from better_robot.testing.joints import check_joint_model
@@ -33,6 +36,12 @@ KINDS = [
     pytest.param(JointTranslation(), id="translation"),
     pytest.param(JointFreeFlyer(), id="free_flyer"),
 ]
+
+
+def test_kinds_cover_every_exported_joint_class() -> None:
+    """A new concrete kind in ``model.joints.__all__`` joins ``KINDS``, the contract check's list, or fails here."""
+    exported = {cls for name in joints.__all__ if not inspect.isabstract(cls := getattr(joints, name))}
+    assert {type(param.values[0]) for param in KINDS} == exported
 
 
 @pytest.mark.parametrize("joint", KINDS)
