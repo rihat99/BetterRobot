@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 import inspect
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from types import MappingProxyType
 from typing import Any, final
 
@@ -40,6 +40,7 @@ class TermFn:
 
     fn: Callable[..., torch.Tensor]
     reads: tuple[str, ...]
+    _: KW_ONLY
     jacobian: Callable[..., dict[str, torch.Tensor]] | None = None
     window: int | None = None
 
@@ -51,6 +52,7 @@ class Term:
 
     name: str
     fn: Callable[..., torch.Tensor]
+    _: KW_ONLY
     kind: str  #: ``"residual"`` or ``"scalar"``.
     reads: tuple[str, ...]
     weight: float | torch.Tensor
@@ -407,7 +409,9 @@ class Problem:
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
-        self._terms[name] = Term(name, fn, kind, reads, weight, kernel, jacobian, window)
+        self._terms[name] = Term(
+            name, fn, kind=kind, reads=reads, weight=weight, kernel=kernel, jacobian=jacobian, window=window
+        )
 
     def _copy(self) -> Problem:
         """A sealed problem sharing this one's tensors, with registries of its own."""

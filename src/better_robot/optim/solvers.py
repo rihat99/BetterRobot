@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import KW_ONLY, dataclass, field
 from typing import Any, ClassVar, final
 
 import torch
@@ -39,6 +39,7 @@ class State:
 
     x: dict[str, torch.Tensor] = field(repr=False)  #: variables, each ``(B, *event)``.
     loss: torch.Tensor = field(repr=False)  #: ``(B,)`` loss at ``x``.
+    _: KW_ONLY
     done: torch.Tensor = field(repr=False)  #: ``(B,)`` bool, per-problem convergence.
     solver: type[Solver]  #: the solver kind that made this state.
     iteration: int = 0  #: steps taken so far.

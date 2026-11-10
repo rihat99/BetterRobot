@@ -50,6 +50,7 @@ class Result:
 
     x: dict[str, torch.Tensor] = field(repr=False)
     loss: torch.Tensor = field(repr=False)  #: ``(B,)`` final loss under the last phase's weights.
+    _: KW_ONLY
     done: torch.Tensor = field(repr=False)  #: ``(B,)`` convergence flag of the last phase.
     iterations: int  #: total steps taken.
     history: dict[str, torch.Tensor] = field(default_factory=dict, repr=False)  #: ``{phase: (steps, B)}`` losses.

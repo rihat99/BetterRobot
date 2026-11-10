@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import final
 
 import torch
@@ -15,6 +15,7 @@ class Normal:
 
     H: torch.Tensor  #: ``(B, N, N)`` symmetric positive semi-definite.
     g: torch.Tensor  #: ``(B, N)`` gradient of the loss in tangent coordinates.
+    _: KW_ONLY
     lower: torch.Tensor | None = None  #: ``(B, N)`` most negative allowed step, or ``None``.
     upper: torch.Tensor | None = None  #: ``(B, N)`` most positive allowed step, or ``None``.
 
@@ -103,6 +104,7 @@ class BandedNormal:
 
     diagonal: torch.Tensor  #: ``(B, K, S, S)`` diagonal super-blocks.
     upper: torch.Tensor  #: ``(B, K - 1, S, S)`` blocks coupling super-block ``i`` to ``i + 1``.
+    _: KW_ONLY
     g: torch.Tensor  #: ``(B, N)``
     layout: BandLayout
     lower: torch.Tensor | None = None
@@ -129,13 +131,15 @@ class BandedNormal:
         k = self._to_band(keep, fill=1.0)
         diagonal = self.diagonal * k.unsqueeze(-1) * k.unsqueeze(-2) + torch.diag_embed(1.0 - k)
         upper = self.upper * k[:, :-1].unsqueeze(-1) * k[:, 1:].unsqueeze(-2)
-        return BandedNormal(diagonal, upper, self.g * keep, self.layout, self.lower, self.upper_bound)
+        return BandedNormal(
+            diagonal, upper, g=self.g * keep, layout=self.layout, lower=self.lower, upper_bound=self.upper_bound
+        )
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> BandedNormal:
         """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
-        return BandedNormal(out.diagonal, out.upper, out.g, self.layout, lower, upper)
+        return BandedNormal(out.diagonal, out.upper, g=out.g, layout=self.layout, lower=lower, upper_bound=upper)
 
     def solve(
         self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9, g: torch.Tensor | None = None
@@ -226,6 +230,7 @@ class ArrowNormal:
 
     band: BandedNormal  #: time columns; its vectors are ``(B, Nt)`` in ``layout.time_columns`` order.
     border: torch.Tensor  #: ``(B, K, S, Ns)`` coupling of banded rows to shared columns.
+    _: KW_ONLY
     corner: torch.Tensor  #: ``(B, Ns, Ns)``
     g: torch.Tensor  #: ``(B, N)``
     lower: torch.Tensor | None = None
@@ -246,13 +251,15 @@ class ArrowNormal:
         corner = self.corner * keep_shared.unsqueeze(-1) * keep_shared.unsqueeze(-2) + torch.diag_embed(
             1.0 - keep_shared
         )
-        return ArrowNormal(self.band.masked(keep_time), border, corner, self.g * keep, self.lower, self.upper)
+        return ArrowNormal(
+            self.band.masked(keep_time), border, corner=corner, g=self.g * keep, lower=self.lower, upper=self.upper
+        )
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> ArrowNormal:
         """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
         blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
         out = self.masked(~blocked)
-        return ArrowNormal(out.band, out.border, out.corner, out.g, lower, upper)
+        return ArrowNormal(out.band, out.border, corner=out.corner, g=out.g, lower=lower, upper=upper)
 
     def solve(
         self, damping: torch.Tensor | float = 0.0, *, floor: float = 1e-9, g: torch.Tensor | None = None
