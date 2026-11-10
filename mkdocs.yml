@@ -214,3 +214,4 @@ nav:
           - 0046 Test tier selection: contracts/decisions/0046-test-tier-selection.md
           - 0047 Problem registration: contracts/decisions/0047-problem-registration-and-sealed-views.md
           - 0048 Viewer pointer and layers: contracts/decisions/0048-viewer-pointer-and-layer-ownership.md
+          - 0049 Collision imports lie: contracts/decisions/0049-collision-imports-lie.md

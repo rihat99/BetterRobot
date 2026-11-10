@@ -87,7 +87,7 @@ two differ: every enforcer exists today (no planned one), and a rule that only `
 
 Write an architecture decision record (ADR) under `decisions/` when a change does any of the following:
 
-- adds, removes or re-orders a package in the import DAG (`07`);
+- adds, removes or re-orders a package in the import DAG (`07`), or adds an edge to its edge table;
 - changes a public data layout (pose order, twist order, batch convention, `nq`/`nv` semantics);
 - adds a new extension mechanism (registry, protocol, plugin hook) or a new optional dependency;
 - replaces a dependency the public API exposes (for example the viewer backend);

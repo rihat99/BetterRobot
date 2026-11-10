@@ -66,3 +66,4 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0046](0046-test-tier-selection.md) | The fast tier leaves out `cuda`; the full tier keeps the browser test and the docs runs | Proposed (integrator, awaiting owner) |
 | [0047](0047-problem-registration-and-sealed-views.md) | `Problem` registration only adds names; derived problems are sealed | Proposed (integrator, awaiting owner) |
 | [0048](0048-viewer-pointer-and-layer-ownership.md) | One pointer callback at a time; a layer object draws in one place; `add` takes an iterable only | Proposed (integrator, awaiting owner) |
+| [0049](0049-collision-imports-lie.md) | `collision` imports `lie` for the one input validator | Proposed (integrator, awaiting owner) |
