@@ -21,7 +21,7 @@ from typing import Literal
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
-from ..lie._checks import check_tensor
+from ..lie._checks import broadcast_batch, check_tensor
 from ..model.model import Model
 from ._plans import jacobian_plan
 from .configuration import reduced_columns
@@ -126,8 +126,8 @@ def _check_tangent(model: Model, state: KinematicState, v: torch.Tensor) -> None
 def _check_broadcast(name: str, batch: tuple[int, ...], state: KinematicState) -> None:
     """Raise `ShapeError` unless an input's ``batch`` broadcasts with the state's (C-TENS-2)."""
     try:
-        torch.broadcast_shapes(batch, state.q.shape[:-1])
-    except RuntimeError as error:
+        broadcast_batch(batch, state.q.shape[:-1])
+    except ShapeError as error:
         raise ShapeError(
             f"cannot broadcast {name} batch {batch} with the state batch {tuple(state.q.shape[:-1])}"
         ) from error

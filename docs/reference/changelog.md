@@ -283,6 +283,8 @@ that 0.3.0 renames or removes, one table row each.
 - `robot_skeleton` draws a joint kind defined outside the library as a sphere instead of raising `KeyError`.
 - `build_model` raises `ModelError` naming the joint or frame whose `origin` or `placement` is not a `(7,)` pose
   with a unit quaternion; it built such a model silently, or failed an internal check as a library bug.
+- The first `forward_kinematics`, `integrate` or `spatial` call of a process no longer imports sympy
+  (through `torch.broadcast_shapes`): 0.2 s with a warm disk cache, over a second cold.
 
 ## v0.2.0 (2026-04-11)
 

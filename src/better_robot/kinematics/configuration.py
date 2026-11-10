@@ -18,7 +18,7 @@ from typing import final
 import torch
 
 from ..exceptions import ShapeError
-from ..lie._checks import check_tensor
+from ..lie._checks import broadcast_batch, check_tensor
 from ..model.manifolds import EUCLIDEAN, JointManifold
 from ..model.model import Model
 
@@ -165,8 +165,8 @@ def _pair(model: Model, name_a: str, a: torch.Tensor, name_b: str, b: torch.Tens
     check_tensor(name_a, a, shape=(width_a,), dtype=model.dtype, device=model.device)
     check_tensor(name_b, b, shape=(width_b,), dtype=model.dtype, device=model.device)
     try:
-        batch = torch.broadcast_shapes(a.shape[:-1], b.shape[:-1])
-    except RuntimeError as error:
+        batch = broadcast_batch(a.shape[:-1], b.shape[:-1])
+    except ShapeError as error:
         raise ShapeError(
             f"{name_a} batch {tuple(a.shape[:-1])} and {name_b} batch {tuple(b.shape[:-1])} do not broadcast"
         ) from error
