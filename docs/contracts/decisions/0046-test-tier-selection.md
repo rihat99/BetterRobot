@@ -19,7 +19,7 @@ docs and examples runs in the full tier, and ship the no-skip rule as the pytest
 ## Example
 ```bash
 uv run pytest tests/contract -q -m "not slow and not cuda"              # fast
-uv run pytest tests -q -m "not bench and not cuda"     # full (BetterHuman, which has licensed tests, adds "and not licensed")
+uv run pytest tests -q -m "not cuda"                   # full (BetterHuman, which has licensed tests, adds "and not licensed")
 ```
 ```python { .no-run }
 # tests/conftest.py
