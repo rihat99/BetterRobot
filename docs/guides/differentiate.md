@@ -10,8 +10,6 @@ and how to use `torch.func.jacrev` for full Jacobians. `tests/contract/test_publ
 ```python
 import torch
 import better_robot as br
-from better_robot import kinematics
-from better_robot import dynamics as dyn
 from robot_descriptions import panda_description
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
@@ -19,7 +17,7 @@ hand = model.frame_id("panda_hand")
 q = model.q_neutral.expand(4, -1).clone()
 q.requires_grad_()
 
-state = kinematics.forward_kinematics(model, q)
+state = br.forward_kinematics(model, q)
 height = state.frame_translations[:, hand, 2]        # (4,)
 height.sum().backward()
 print(q.grad.shape)                                   # (4, nq)
@@ -37,8 +35,8 @@ manipulability gradient) need no extra code:
 
 ```python
 q.grad = None
-state = kinematics.forward_kinematics(model, q)
-jacobian = kinematics.frame_jacobian(model, state, frame=hand)    # (4, 6, nv), LOCAL_WORLD_ALIGNED
+state = br.forward_kinematics(model, q)
+jacobian = br.frame_jacobian(model, state, frame=hand)    # (4, 6, nv), LOCAL_WORLD_ALIGNED
 manipulability = torch.linalg.det(jacobian @ jacobian.mT)    # (4,)
 manipulability.sum().backward()
 print(q.grad.abs().max() > 0)
@@ -56,8 +54,8 @@ external wrenches `external_forces`.
 ```python
 v = torch.zeros(4, model.nv, dtype=torch.float64, requires_grad=True)
 a = torch.zeros(4, model.nv, dtype=torch.float64)
-state = kinematics.forward_kinematics(model, q)
-tau = dyn.inverse_dynamics(model, state, v=v, a=a)               # (4, nv)
+state = br.forward_kinematics(model, q)
+tau = br.inverse_dynamics(model, state, v=v, a=a)               # (4, nv)
 (tau ** 2).sum().backward()
 print(v.grad.shape)                                          # (4, nv)
 ```
@@ -75,7 +73,7 @@ tensors you pass, checked for shape, dtype and device. The original model is unc
 placements = model.joint_placements.clone().requires_grad_()
 tuned = model.with_values(joint_placements=placements)
 q_fixed = q.detach()
-reach = kinematics.forward_kinematics(tuned, q_fixed).frame_translations[:, hand].norm(dim=-1)
+reach = br.forward_kinematics(tuned, q_fixed).frame_translations[:, hand].norm(dim=-1)
 reach.sum().backward()
 print(placements.grad.shape)                                 # same shape as joint_placements
 ```
@@ -95,7 +93,7 @@ optimizer = torch.optim.SGD([placements], lr=1e-3)
 for step in range(3):
     optimizer.zero_grad()
     tuned = model.with_values(joint_placements=placements)       # rebuilt from the stepped leaf
-    reach = kinematics.forward_kinematics(tuned, q_fixed).frame_translations[:, hand].norm(dim=-1)
+    reach = br.forward_kinematics(tuned, q_fixed).frame_translations[:, hand].norm(dim=-1)
     reach.sum().backward()
     optimizer.step()
 print(step + 1, "steps")
@@ -113,10 +111,10 @@ The state API composes with `torch.func.jacrev`. The test suite checks `jacrev` 
 
 ```python
 def hand_position(x: torch.Tensor) -> torch.Tensor:
-    return kinematics.forward_kinematics(model, x).frame_translations[:, hand].sum(0)
+    return br.forward_kinematics(model, x).frame_translations[:, hand].sum(0)
 
 by_func = torch.func.jacrev(hand_position)(q_fixed)          # (3, 4, nq)
-analytic = kinematics.frame_jacobian(model, kinematics.forward_kinematics(model, q_fixed), frame=hand)
+analytic = br.frame_jacobian(model, br.forward_kinematics(model, q_fixed), frame=hand)
 print(torch.allclose(by_func.permute(1, 0, 2), analytic[:, :3, :], atol=1e-10))
 ```
 ```output
@@ -124,7 +122,7 @@ True
 ```
 
 `jacrev` of `inverse_dynamics` with respect to `a` gives the mass matrix, one diagonal block per
-batch element; `dyn.mass_matrix(model, state)` computes it directly and is cheaper.
+batch element; `br.mass_matrix(model, state)` computes it directly and is cheaper.
 
 !!! note "What is not differentiable"
     The static fields (parent joint ids, index tables, names) have no gradient by design.
