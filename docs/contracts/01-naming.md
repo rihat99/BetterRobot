@@ -47,12 +47,12 @@ parameter is in the glossary).
 
 A name that mentions a layout must match the layout in `02-tensors`: quaternions are `xyzw`, twists are
 `linear_angular`. Never name something `wxyz` or `angular_linear` unless it converts to that layout, and then the
-name says `to_` / `from_`.
+name starts with `to_` / `from_`.
 
 ```python { .no-run }
 # good
 quat_xyzw = pose[..., 3:7]
-def twist_to_angular_first(V: Tensor) -> Tensor: ...
+def to_angular_first(twist: Tensor) -> Tensor: ...
 # bad
 quat = pose[..., 3:7]          # order hidden; a reader must open the docs
 ```

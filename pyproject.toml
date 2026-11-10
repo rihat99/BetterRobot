@@ -103,7 +103,7 @@ convention = "numpy"  # C-DOC-1; it documents __init__ in the class docstring, s
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "torch.set_default_dtype".msg = "C-DEP-3: no process-wide torch settings inside the library"
 "torch.set_default_device".msg = "C-DEP-3: no process-wide torch settings inside the library"
-"torch.set_grad_enabled".msg = "C-DEP-3 / C-DIFF-4: no global autograd switches inside the library"
+"torch.set_grad_enabled".msg = "C-DEP-3: no global autograd switches inside the library"
 "torch.use_deterministic_algorithms".msg = "C-DEP-3: no process-wide torch settings inside the library"
 "torch.manual_seed".msg = "C-DEP-3: no process-wide RNG seeding inside the library; take a generator"
 "torch.set_num_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
