@@ -1,8 +1,3 @@
 {
-  "MIGRATION.md: scripts/motion/optimize_motion.py": "names no tracked file",
-  "MIGRATION.md: scripts/motion/optimize_motion.py:210": "cites a line number; cite path::symbol",
-  "MIGRATION.md: scripts/motion/optimize_motion.py:211": "cites a line number; cite path::symbol",
-  "MIGRATION.md: tools/geometry/icp.py": "cites a path that is not tracked",
-  "MIGRATION.md: tools/geometry/icp.py:58": "cites a line number; cite path::symbol",
   "pyproject.toml: pinocchio/__init__.py": "a file of the installed pinocchio package; name the package, not a path"
 }
