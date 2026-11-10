@@ -143,6 +143,7 @@ nav:
       - reference/effects.md
       - reference/glossary.md
       - reference/changelog.md
+      - reference/migration-0.3.0.md
       - reference/roadmap.md
   - Contracts:
       - Index: contracts/00-index.md
