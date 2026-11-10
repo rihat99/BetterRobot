@@ -1,6 +1,6 @@
 # 0048 One pointer callback at a time; a layer object draws in one place; `add` takes an iterable only
 
-**Status:** Accepted (integrator, 2026-11-10). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
 
 ## Context
 Record [0004](0004-viser-viewer.md) has the viewer own "viser's single scene-pointer slot"; viser now accepts several

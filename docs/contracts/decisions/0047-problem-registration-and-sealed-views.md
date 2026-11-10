@@ -1,6 +1,6 @@
 # 0047 `Problem` registration only adds names; derived problems are sealed
 
-**Status:** Accepted (integrator ruling, 2026-11-10). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
 
 ## Context
 Record [0017](0017-optim-api.md) makes a `Problem` "immutable after construction and changed by `problem.with_`", yet

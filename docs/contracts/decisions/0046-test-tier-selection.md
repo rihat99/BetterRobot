@@ -1,6 +1,6 @@
 # 0046 The fast tier leaves out `cuda`; the full tier keeps the browser test and the docs runs
 
-**Status:** Accepted (integrator ruling R-6, 2026-11-10). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
 
 ## Context
 Record [0033](0033-test-tiers.md) selects the fast tier as the contract tests without `slow`. Contract tests marked

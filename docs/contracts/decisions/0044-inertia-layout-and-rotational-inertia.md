@@ -1,6 +1,6 @@
 # 0044 The inertia vector follows MuJoCo's `fullinertia` order; `spatial.rotational_inertia` is public
 
-**Status:** Accepted (integrator, 2026-11-10). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
 
 ## Context
 Record [0014](0014-tensor-functions-for-lie-and-spatial.md) lists the spatial functions that replace the value

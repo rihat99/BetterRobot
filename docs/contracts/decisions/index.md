@@ -1,11 +1,14 @@
 # Architecture decision records
 
 An ADR records one decision that shapes the library: the context, the choice, its consequences, the
-alternatives, and which contract rules enforce it. An accepted ADR differs from its text at acceptance only in its
-Status line: a change is a new ADR that supersedes the old one, or amends part of it (`Accepted; amended by NNNN`).
+alternatives, and which contract rules enforce it. Accepted is the owner's word (principle 8.2): a record the
+integrator writes stays `Proposed (integrator, awaiting owner)` until the owner accepts it, and a record the owner
+accepted never returns to Proposed. An accepted ADR differs from its text at acceptance only in its Status line: a
+change is a new ADR that supersedes the old one, or amends part of it (`Accepted; amended by NNNN`).
 When to write one: see [00-index](../00-index.md).
 
-Template: `# NNNN Title` / Status (Proposed | Accepted | Accepted; amended by NNNN | Superseded by NNNN) + Date /
+Template: `# NNNN Title` / Status (Proposed | Accepted | Accepted; amended by NNNN | Superseded by NNNN; the word may
+carry `(owner)`, `(integrator, awaiting owner)` or `(integrator ruling R-n, date)`) + Date /
 Context (3–6 lines) / Decision ("We will …") / Example / Consequences / Alternatives / Compatibility / Enforcement
 (rule IDs, ruff codes, `tests/contract/*`) / Open questions (empty once Accepted). File name `NNNN-kebab-title.md`.
 Records 0009 and later follow this template; 0001 to 0008 predate its Example, Compatibility and Open questions
@@ -54,10 +57,10 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0039](0039-test-robot-fixtures.md) | The test robots are tracked fixtures | Accepted |
 | [0040](0040-model-value-memo.md) | A value-side memo on `Model`, keyed by grad mode | Accepted; amended by [0042](0042-memo-keys-and-shared-plans.md) |
 | [0041](0041-world-geometry-on-the-state.md) | The world geometry is a memoised value of `KinematicState`, owned by kinematics | Accepted; amended by [0042](0042-memo-keys-and-shared-plans.md) |
-| [0042](0042-memo-keys-and-shared-plans.md) | The model memo is keyed by the grad flags, copies share their plans, and the world geometry is cheaper | Accepted |
-| [0043](0043-constant-motion-subspace.md) | A joint's motion subspace is constant in its child frame; no `velocity` method | Accepted |
-| [0044](0044-inertia-layout-and-rotational-inertia.md) | The inertia vector follows MuJoCo's `fullinertia` order; `spatial.rotational_inertia` is public | Accepted |
-| [0045](0045-attached-shapes.md) | A shape is attached to a body by an `AttachedShape` record | Accepted |
-| [0046](0046-test-tier-selection.md) | The fast tier leaves out `cuda`; the full tier keeps the browser test and the docs runs | Accepted |
-| [0047](0047-problem-registration-and-sealed-views.md) | `Problem` registration only adds names; derived problems are sealed | Accepted |
-| [0048](0048-viewer-pointer-and-layer-ownership.md) | One pointer callback at a time; a layer object draws in one place; `add` takes an iterable only | Accepted |
+| [0042](0042-memo-keys-and-shared-plans.md) | The model memo is keyed by the grad flags, copies share their plans, and the world geometry is cheaper | Proposed (integrator, awaiting owner) |
+| [0043](0043-constant-motion-subspace.md) | A joint's motion subspace is constant in its child frame; no `velocity` method | Proposed (integrator, awaiting owner) |
+| [0044](0044-inertia-layout-and-rotational-inertia.md) | The inertia vector follows MuJoCo's `fullinertia` order; `spatial.rotational_inertia` is public | Proposed (integrator, awaiting owner) |
+| [0045](0045-attached-shapes.md) | A shape is attached to a body by an `AttachedShape` record | Proposed (integrator, awaiting owner) |
+| [0046](0046-test-tier-selection.md) | The fast tier leaves out `cuda`; the full tier keeps the browser test and the docs runs | Proposed (integrator, awaiting owner) |
+| [0047](0047-problem-registration-and-sealed-views.md) | `Problem` registration only adds names; derived problems are sealed | Proposed (integrator, awaiting owner) |
+| [0048](0048-viewer-pointer-and-layer-ownership.md) | One pointer callback at a time; a layer object draws in one place; `add` takes an iterable only | Proposed (integrator, awaiting owner) |
