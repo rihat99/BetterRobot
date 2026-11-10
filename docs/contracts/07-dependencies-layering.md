@@ -14,8 +14,9 @@ A package imports only the packages its row names. No row names `viewer`, `terms
 depends on them. `dynamics` and `collision` import `kinematics`: `dynamics` reads the state's world column table
 and geometry (`KinematicState.jacobian_columns`, `KinematicState.world_geometry`, record 0041) and the Jacobian
 plan of `src/better_robot/kinematics/_plans.py`. `collision` imports `lie` for the one input validator,
-`src/better_robot/lie/_checks.py` (record 0049, proposed). Outside the package, `lie`, `spatial` and `optim` import
-torch and nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
+`src/better_robot/lie/_checks.py` (record 0049, proposed). `testing` imports `optim` for its robust-kernel checker,
+`better_robot.testing.check_robust_kernel` (record 0050, proposed). Outside the package, `lie`, `spatial` and
+`optim` import torch and nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
 
 ```python { .no-run }
 # good  (illustrative; see src/better_robot/terms/robot.py)
