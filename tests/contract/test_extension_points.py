@@ -1,11 +1,16 @@
 """C-EXT (record 0025): every extension point is a base class or a plain function, so ``src/better_robot`` defines
 no ``register_*`` function and no module-level mutable registry, a module-level dict, list or set that a function
-of the module writes into (record 0038 removed the last one, ``io.register_parser``)."""
+of the module writes into (record 0038 removed the last one, ``io.register_parser``). C-EXT-7: the normal equations
+come from a sink, whose ``add``/``finish`` seam every sink shares."""
 
 from __future__ import annotations
 
 import ast
+import inspect
 from pathlib import Path
+
+from better_robot import optim
+from better_robot.optim import linear
 
 REPO = Path(__file__).resolve().parents[2]
 SRC = REPO / "src" / "better_robot"
@@ -67,3 +72,24 @@ def _registries(file: Path) -> list[str]:
 def test_src_defines_no_registry() -> None:
     found = sorted({site for file in SRC.rglob("*.py") for site in _registries(file)})
     assert found == [], f"a registry or register_* function; extend through a base class or a plain function: {found}"
+
+
+def test_normal_equations_come_from_a_sink() -> None:
+    """C-EXT-7: every ``*Sink`` has ``add(columns_a, columns_b, values)`` and ``finish(g)`` returning a public normal
+    with ``solve``, ``restrict`` and ``predicted_decrease``; no optim module but ``linear.py`` builds a normal."""
+    sinks = [value for name, value in vars(linear).items() if name.endswith("Sink") and inspect.isclass(value)]
+    assert sinks
+    for sink in sinks:
+        assert list(inspect.signature(sink.add).parameters) == ["self", "columns_a", "columns_b", "values"], sink
+        assert list(inspect.signature(sink.finish).parameters) == ["self", "g"], sink
+        normal = getattr(optim, inspect.signature(sink.finish).return_annotation)
+        assert all(callable(getattr(normal, method, None)) for method in ("solve", "restrict", "predicted_decrease"))
+    normals = {"Normal", "BandedNormal", "ArrowNormal"}
+    built = [
+        f"{path.name}: {node.func.id}"
+        for path in sorted((SRC / "optim").glob("*.py"))
+        if path.name != "linear.py"
+        for node in ast.walk(ast.parse(path.read_text()))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in normals
+    ]
+    assert not built, f"normal equations built outside a sink: {built}"

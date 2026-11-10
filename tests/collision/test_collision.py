@@ -182,6 +182,27 @@ def test_terms_pass_check_jacobian(panda):
     assert errors["world"] < 1e-9 and errors["self"] < 1e-9
 
 
+def test_a_new_obstacle_shape_is_only_a_function(panda):
+    """C-EXT-8: shapes the library does not ship, a floor and two walls, plug in as distance functions returning
+    ``(B..., S)`` or ``(B..., S, K)``; ``sphere_clearance`` and the solver take them unchanged."""
+    spheres = _spheres(panda)
+
+    def above_floor(centers, radii):  # (B..., S, 3), (S,) -> (B..., S)
+        return centers[..., 2] - radii
+
+    def between_walls(centers, radii):  # walls x = -1 and x = 1: (B..., S, 3), (S,) -> (B..., S, 2)
+        return torch.stack((centers[..., 0] + 1.0, 1.0 - centers[..., 0]), -1) - radii[..., None]
+
+    problem = optim.Problem({"q": 0.3 * _randn(2, panda.nq, seed=11)}, manifolds={"q": terms.RobotManifold(panda)})
+    problem.cached(terms.kinematic_state(panda), name="state")
+    problem.residual("floor", terms.sphere_clearance(spheres, above_floor, margin=2.0))
+    problem.residual("walls", terms.sphere_clearance(spheres, between_walls, margin=2.0))
+    residuals, count = problem.residuals(), spheres.radii.shape[0]
+    assert residuals["floor"].shape == (2, count) and residuals["walls"].shape == (2, 2 * count)
+    normal, _ = problem.linearize()
+    assert torch.isfinite(normal.solve(damping=1e-3)).all()
+
+
 def test_pairs_ignore_frame_pairs(panda):
     spheres = _spheres(panda)  # 0 link3, 1 link5, 2 hand, 3 link4
     ignore = [("panda_hand", "panda_link3"), (panda.frame_id("panda_link5"), "panda_hand")]

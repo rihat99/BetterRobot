@@ -97,7 +97,7 @@ public surface and the horizon of each kind of artifact are on [Public surface](
 
 Enforcement: `tests/contract/test_versioning.py::test_version_is_pre_1_0`; `tests/contract/test_api_snapshot.py`.
 
-## Optimization: normal equations are assembled through a sink (SHOULD)
+## C-EXT-7 Normal equations are assembled through a sink (SHOULD)
 
 `Problem.linearize` never builds a matrix itself: it hands Jacobian products to a sink and asks it for the
 normal equations. The three sinks in `src/better_robot/optim/linear.py` (`DenseSink`, `BandSink`, `ArrowSink`) share two
@@ -106,7 +106,9 @@ methods, `add(columns_a, columns_b, values)` to accumulate a block of `JᵀJ` an
 interface. A future block-sparse structure (for example a contact graph) is a new sink plus a new normal class
 behind this seam; solvers and terms do not change.
 
-## Collision: obstacles plug in through `distance_fn` (MUST)
+Enforcement: `tests/contract/test_extension_points.py::test_normal_equations_come_from_a_sink`.
+
+## C-EXT-8 Obstacles plug in through `distance_fn` (MUST)
 
 `terms.sphere_clearance(spheres, distance_fn, *, margin)` is the seam for any environment shape: a new obstacle
 type is a function `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)` (signed
@@ -122,4 +124,4 @@ terms.sphere_clearance(spheres, to_table, margin=0.02)
 # bad: a new term class or a solver branch per obstacle type
 ```
 
-Enforcement: `[review]`; `tests/collision/test_collision.py` runs a closure through `check_jacobian`.
+Enforcement: `tests/collision/test_collision.py::test_a_new_obstacle_shape_is_only_a_function`; `[review]`.

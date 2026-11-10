@@ -67,6 +67,8 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-EXT-4 | `tests/contract/test_versioning.py::test_src_emits_no_deprecation_warning` |
 | C-EXT-5 | `tests/contract/test_layer_dependencies.py`, `[review]` |
 | C-EXT-6 | `tests/contract/test_versioning.py::test_version_is_pre_1_0`, `tests/contract/test_api_snapshot.py` |
+| C-EXT-7 | `tests/contract/test_extension_points.py::test_normal_equations_come_from_a_sink` |
+| C-EXT-8 | `tests/collision/test_collision.py::test_a_new_obstacle_shape_is_only_a_function`, `[review]` |
 | C-PERF-2 | `tests/contract/test_performance_rules.py::test_a_batch_dispatches_the_same_operators_at_every_size` |
 | C-PERF-4 | `tests/contract/test_performance_rules.py::test_src_compiles_nothing_and_builds_no_kernel` |
 | C-DOC-1 | `tests/contract/test_docstrings.py`, `tests/contract/test_ruff_ratchets.py` |
