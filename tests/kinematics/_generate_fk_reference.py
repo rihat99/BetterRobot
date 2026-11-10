@@ -32,6 +32,7 @@ from tests.support.robots import g1_urdf, panda_urdf
 
 ORACLE_VERSION = "5"
 GENERATION_SEED = 0
+GENERATED_WITH = "better_robot.forward_kinematics"
 N_CONFIGS = 32  # keep small — < 200 KB total
 
 
@@ -94,7 +95,7 @@ def main() -> None:
         [
             f"oracle_version={ORACLE_VERSION}",
             f"generation_seed={GENERATION_SEED}",
-            "generated_with=better_robot.forward_kinematics(compute_frames=True)",
+            f"generated_with={GENERATED_WITH}",
             "fk_dtype=float64",
             f"generated_at={_dt.datetime.utcnow().strftime('%Y-%m-%d')}",
         ]

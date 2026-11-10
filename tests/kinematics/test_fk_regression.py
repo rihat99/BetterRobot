@@ -20,6 +20,7 @@ See ``docs/reference/tests.md``.
 from __future__ import annotations
 
 import dataclasses
+import functools
 from pathlib import Path
 
 import numpy as np
@@ -28,6 +29,7 @@ import torch
 
 import better_robot as br
 from better_robot.io import build_model, parse_urdf
+from tests.kinematics import _generate_fk_reference as generator
 from tests.support.robots import g1_urdf, panda_urdf
 
 REF_PATH = Path(__file__).parent / "fk_reference.npz"
@@ -73,6 +75,19 @@ def _load_g1():
 @pytest.fixture(scope="module")
 def reference():
     return np.load(REF_PATH)
+
+
+def test_oracle_provenance_matches_its_generator(reference) -> None:
+    """The stored provenance keys are the generator's, and ``generated_with`` names a real public function."""
+    meta = dict(entry.split("=", 1) for entry in reference["meta"])
+    assert sorted(meta) == ["fk_dtype", "generated_at", "generated_with", "generation_seed", "oracle_version"]
+    assert meta["oracle_version"] == generator.ORACLE_VERSION
+    assert meta["generation_seed"] == str(generator.GENERATION_SEED)
+    assert meta["generated_with"] == generator.GENERATED_WITH
+    assert meta["fk_dtype"] == "float64"
+    root, *path = meta["generated_with"].split(".")
+    assert root == "better_robot"
+    assert functools.reduce(getattr, path, br) is br.forward_kinematics
 
 
 @pytest.mark.parametrize("name,loader", [("panda", _load_panda), ("g1", _load_g1)])
