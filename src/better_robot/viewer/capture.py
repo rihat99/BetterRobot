@@ -116,6 +116,7 @@ class HeadlessClient:
         self._process: subprocess.Popen | None = None
 
     def __enter__(self) -> HeadlessClient:
+        """Launch the browser and wait until it connects; ``OptionalDependencyError`` if it never does."""
         width, height = self.size
         flags = (
             ["--use-angle=gl-egl", "--enable-gpu", "--ignore-gpu-blocklist"]
@@ -152,6 +153,7 @@ class HeadlessClient:
         return self
 
     def __exit__(self, *exc: object) -> None:
+        """Kill the browser if it still runs."""
         if self._process is not None and self._process.poll() is None:
             self._process.kill()
             self._process.wait()

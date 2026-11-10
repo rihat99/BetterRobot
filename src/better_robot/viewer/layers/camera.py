@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -46,6 +46,7 @@ class CameraLayer(Layer):
             return self._image(step)
         return self._image if self._image.ndim == 3 else self._image[step]
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         self._frustum = self._track(
             scene.add_camera_frustum(
@@ -60,6 +61,7 @@ class CameraLayer(Layer):
             )
         )
 
+    @override
     def set_step(self, step: int) -> None:
         self._frustum.position = self.poses[step, :3]
         self._frustum.wxyz = to_wxyz(self.poses[step, 3:])

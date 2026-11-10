@@ -8,7 +8,7 @@ The records are plain, editable and unordered: parse or build several, merge or 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -45,6 +45,7 @@ class IRJoint:
     armature: float = 0.0
     neutral: torch.Tensor | None = None
 
+    @override
     def __repr__(self) -> str:
         return f"IRJoint({self.name!r}, {self.parent_body!r} -> {self.child_body!r}, {self.joint!r})"
 
@@ -95,6 +96,7 @@ class IRModel:
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0], dtype=torch.float64)
     )
 
+    @override
     def __repr__(self) -> str:
         sizes = f"bodies={len(self.bodies)}, joints={len(self.joints)}, frames={len(self.frames)}, shapes={len(self.shapes)}"
         return f"IRModel({self.name!r}, {sizes})"

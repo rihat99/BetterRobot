@@ -8,6 +8,7 @@ optional package. This module imports nothing, so every package, ``optim`` inclu
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import override
 
 
 class BetterRobotError(Exception):
@@ -50,6 +51,7 @@ class UnknownNameError(BetterRobotError, KeyError):
         names = f"valid names: {list(valid)}" if len(valid) <= 20 else f"{len(valid)} valid names"
         super().__init__(f"unknown {kind} {name!r} ({names})")
 
+    @override
     def __str__(self) -> str:
         # KeyError.__str__ would wrap the message in quotes.
         return self.args[0]

@@ -21,6 +21,8 @@ def _fail(report: pytest.TestReport | pytest.CollectReport) -> None:
     """Turn a skipped, xfailed or xpassed report into a failure that names it."""
     what = report.longrepr[2] if isinstance(report.longrepr, tuple) else "xfail"
     report.outcome = "failed"
+    # pytest's session counts a failed report only when it carries no ``wasxfail``, so the exit code stays 0 with it.
+    vars(report).pop("wasxfail", None)
     report.longrepr = (
         f"{report.nodeid}: {what}. No test skips or xfails (BetterRobot decision record 0033): mark a test that "
         "needs a GPU or licensed weights with the marker its tier deselects; a missing oracle, fixture or browser "

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -67,6 +67,7 @@ class ArrowsLayer(Layer):
         self._shafts: Any = None
         self._heads: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         colors = self._colors if self._colors.ndim == 2 else self._colors[0]
         if self.shaft_radius is None:
@@ -110,6 +111,7 @@ class ArrowsLayer(Layer):
             )
         )
 
+    @override
     def set_step(self, step: int) -> None:
         if self.shaft_radius is None:
             self._shafts.points = self._segments(step)

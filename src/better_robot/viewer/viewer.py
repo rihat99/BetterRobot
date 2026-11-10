@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass, field
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, final
+from typing import Any, Literal, TYPE_CHECKING, final, override
 
 import numpy as np
 
@@ -88,6 +88,7 @@ class Viewer:
         self._timeline_folder: Any = None  # built when the first multi-step layer arrives
         self._layers_folder: Any = None
 
+    @override
     def __repr__(self) -> str:
         return (
             f"Viewer({self.url}, groups={list(self._groups)}, layers={len(self.layers)}, nsteps={self.timeline.nsteps})"

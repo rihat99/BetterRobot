@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -46,11 +46,14 @@ class ImagePanel(Layer):
         """Image ``(H, W, 3)`` shown at ``step``."""
         return self._images(step) if callable(self._images) else self._images[step]
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         pass
 
+    @override
     def build_gui(self, gui: Any) -> None:
         self._image = self._track(gui.add_image(self.image_at(0), label=self.name, format=self.format))
 
+    @override
     def set_step(self, step: int) -> None:
         self._image.image = self.image_at(step)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, final
+from typing import ClassVar, final, override
 
 import torch
 
@@ -26,12 +26,15 @@ class JointFreeFlyer(JointModel):
     manifold: ClassVar[JointManifold] = RIGID
     axis: ClassVar[None] = None
 
+    @override
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return se3.normalize_raw(q)
 
+    @override
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         return torch.eye(6, dtype=q.dtype, device=q.device).expand(*q.shape[:-1], 6, 6)
 
+    @override
     def neutral(self) -> torch.Tensor:
         return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 

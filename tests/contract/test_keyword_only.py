@@ -3,14 +3,15 @@
 Every function, class constructor and public method that the ``__all__`` tree lists (``better_robot.testing.
 public_objects``, each object once) is inspected; parameters after the second must be keyword-only, and an
 identifier argument after ``(model, state)`` of a kinematics or dynamics function is never positional.
-``PERMANENT`` holds the reasoned exceptions. ``tests/contract/ratchets/keyword_only.json`` holds the violations whose
-fix belongs to another work package (``path`` to reason); it only shrinks.
+``PERMANENT`` holds the reasoned exceptions (``path`` to its positional count and the reason).
+``tests/contract/ratchets/keyword_only.json`` holds the violations whose fix belongs to another work package (``path``
+to its positional count and the reason); it only shrinks. A listed callable may not take one more positional
+parameter than its entry says.
 """
 
 from __future__ import annotations
 
 import inspect
-import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -18,12 +19,17 @@ import pytest
 
 from better_robot.testing import public_objects
 
+from ._ratchet_sites import counts
+
 MAX_POSITIONAL = 2
-PERMANENT: dict[str, str] = {
-    "better_robot.kinematics.integrate": "record 0013 decides the call integrate(model, q, v): the step q (+) v",
-    "better_robot.kinematics.difference": "record 0013 decides the call difference(model, q0, q1): q1 (-) q0",
+PERMANENT: dict[str, tuple[int, str]] = {
+    "better_robot.kinematics.integrate": (3, "record 0013 decides the call integrate(model, q, v): the step q (+) v"),
+    "better_robot.kinematics.difference": (3, "record 0013 decides the call difference(model, q0, q1): q1 (-) q0"),
 }
-RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / "keyword_only.json").read_text())
+ALLOWED: dict[str, int] = {
+    **{path: count for path, (count, _) in PERMANENT.items()},
+    **counts(Path(__file__).parent / "ratchets" / "keyword_only.json"),
+}
 ID_PARAMETERS = {"frame", "joint", "body", "frame_id", "joint_id", "body_id", "frames", "joints"}
 
 
@@ -47,22 +53,26 @@ def _positional_count(function: Callable[..., object]) -> int:
 
 
 CALLABLES = _callables()
-OVER = sorted(path for path, function in CALLABLES.items() if _positional_count(function) > MAX_POSITIONAL)
 
 
 @pytest.mark.parametrize("path", sorted(CALLABLES))
 def test_public_callable_is_keyword_only_after_its_second_argument(path: str) -> None:
     count = _positional_count(CALLABLES[path])
-    assert count <= MAX_POSITIONAL or path in PERMANENT or path in RATCHET, (
+    assert count <= ALLOWED.get(path, MAX_POSITIONAL), (
         f"{path} takes {count} positional parameters; make the ones after the second keyword-only (`*`, or "
         "`kw_only=True` on a dataclass)"
     )
 
 
 def test_exceptions_and_ratchet_name_only_violations() -> None:
-    """A fixed entry leaves the ratchet with its fix; a permanent exception exists while its callable does."""
-    assert sorted(PERMANENT.keys() - set(OVER)) == []
-    assert sorted(RATCHET.keys() - set(OVER)) == []
+    """A fixed entry leaves the ratchet with its fix; a permanent exception exists while its callable does, with
+    the positional count its entry states."""
+    stale = sorted(
+        f"{path}: entry {allowed}, found {_positional_count(CALLABLES[path]) if path in CALLABLES else 'no callable'}"
+        for path, allowed in ALLOWED.items()
+        if path not in CALLABLES or _positional_count(CALLABLES[path]) != allowed
+    )
+    assert stale == []
 
 
 def test_kinematics_and_dynamics_identifiers_are_keyword_only() -> None:

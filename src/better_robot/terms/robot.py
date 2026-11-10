@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -39,12 +39,15 @@ class RobotManifold(Manifold):
 
     model: Model
 
+    @override
     def tangent_dim(self, x: torch.Tensor) -> int:
         return x.shape[1:].numel() // self.model.nq * self.model.nv
 
+    @override
     def retract(self, x: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
         return integrate(self.model, x, delta.reshape(*x.shape[:-1], self.model.nv))
 
+    @override
     def project(self, x: torch.Tensor) -> torch.Tensor:
         return integrate(self.model, x, x.new_zeros(*x.shape[:-1], self.model.nv))
 
@@ -72,12 +75,13 @@ def frame_pose(model: Model, *, frame: int | str, target: str, state: str = "sta
     """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``."""
     frame_id = model.frame_id(frame)
 
+    # The solver calls these on every iteration with inputs ik_problem (or the caller) checked once: raw kernels (R-9).
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
-        return se3.log(se3.compose(se3.inverse(goal), kinematics.frame_pose_of(frame_id)))
+        return se3.log_raw(se3.compose_raw(se3.inverse_raw(goal), kinematics.frame_pose_of(frame_id)))
 
     def jacobian(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
         local = frame_jacobian(model, kinematics, frame=frame_id, reference="local")
-        return {q: tangents.right_jacobian_inverse_se3(error(kinematics, goal)) @ local}
+        return {q: tangents.right_jacobian_inverse_se3_raw(error(kinematics, goal)) @ local}
 
     return TermFn(fn=error, reads=(state, target), jacobian=jacobian)
 
@@ -158,17 +162,19 @@ def finite_difference(model: Model, *, order: int, dt: float, q: str = "q", worl
             out = (out[:, 1:] - out[:, :-1]) / dt
         return out
 
-    jacobian = None
+    jacobian: Callable[[torch.Tensor], dict[str, torch.Tensor]] | None = None
     if _all_euclidean(model):
         # Built in float64 and rounded once to the working dtype by ``.to(value)``; a float32 stencil was off by
         # ~1e-7 (relative) in a float64 problem.
         coefficients = [(-1.0) ** (order - i) * math.comb(order, i) for i in range(order + 1)]
         stencil = torch.tensor(coefficients, dtype=torch.float64) / dt**order
 
-        def jacobian(value: torch.Tensor) -> dict[str, torch.Tensor]:
+        def stencil_jacobian(value: torch.Tensor) -> dict[str, torch.Tensor]:
             eye = torch.eye(model.nv, dtype=value.dtype, device=value.device)
             block = stencil.to(value)[:, None, None] * eye  # (window, nv, nv)
             return {q: block.permute(1, 0, 2).expand(value.shape[0], value.shape[1] - order, -1, -1, -1)}
+
+        jacobian = stencil_jacobian
 
     return TermFn(fn=derivative, reads=(q,), jacobian=jacobian, window=order + 1)
 

@@ -243,9 +243,10 @@ def sclerp(
     extrapolates along the screw axis.
 
     """
-    check_tensors(T1=(T1, (7,)), T2=(T2, (7,)))
+    tensors: dict[str, tuple[object, tuple[int, ...]]] = {"T1": (T1, (7,)), "T2": (T2, (7,))}
     if isinstance(t, torch.Tensor):
-        check_tensor("t", t, shape=(), dtype=T1.dtype, device=T1.device, owner="T1")
+        tensors["t"] = (t, ())
+    check_tensors(**tensors)
     t = torch.as_tensor(t, dtype=T1.dtype, device=T1.device)
     while t.dim() < T1.dim():
         t = t.unsqueeze(-1)

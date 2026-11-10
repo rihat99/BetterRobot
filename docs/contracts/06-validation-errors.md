@@ -12,8 +12,16 @@ Private helpers (`_name`) and the raw tensor passes in `kinematics`/`dynamics` d
 check each tensor input once with the one validator, `better_robot.lie._checks.check_tensor` (`check_tensors` for
 several tensors on one dtype and device; `lie`, `spatial` and the model boundaries all call it), align batches
 with `better_robot.model._checks`, and nothing else re-checks. The validator accepts float32 and float64 tensors.
+`check_tensors` also requires the batch axes before each trailing shape to broadcast
+(`src/better_robot/lie/_checks.py::check_broadcast`): a mismatch raises `ShapeError` naming both arguments, not
+torch's `RuntimeError` from inside the computation.
 Validation must not read tensor values (no `isfinite`, no `.item()`), because that is a host sync (`02`) and
 breaks `vmap` (`04`).
+
+`optim.Problem` checks its variables when it is built: float32 or float64, one dtype and one device
+(`DtypeMismatchError`, `DeviceMismatchError`). Each evaluation checks every term's output by shape only, a residual
+`(B, ...)` with an axis after `B` and a scalar `(B,)`, and a wrong shape raises `ShapeError` naming the term
+(`src/better_robot/optim/evaluation.py::term_output`).
 
 ```python { .no-run }
 # good  (illustrative; real entry point: src/better_robot/kinematics/forward.py::forward_kinematics)
@@ -31,7 +39,7 @@ spatial function checks each floating tensor input exactly once, under its param
 ## C-ERR-2 Specific exception types from the `BetterRobotError` tree (MUST)
 
 Every raised error is a subclass of `better_robot.exceptions.BetterRobotError` (`ShapeError`,
-`DeviceMismatchError`, `ModelError`, `UnknownNameError`, ...). Plain `ValueError`/`RuntimeError` are not raised by the library. The one
+`DeviceMismatchError`, `ModelError`, `UnknownNameError`, ...). Plain `ValueError`, `RuntimeError`, `KeyError` and `IndexError` are not raised by the library, called or bare. The one
 exception: a value of the wrong Python type (not a `torch.Tensor`, not a `KinematicState`) raises Python's
 `TypeError` (the tree has no node for it; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
 site). An exception class exists only if something raises it; never-raised types are removed.

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -40,6 +40,7 @@ class JointManifold:
     integrate: Map
     difference: Map
 
+    @override
     def __repr__(self) -> str:
         return f"JointManifold({self.name!r}, nq={self.nq}, nv={self.nv})"
 

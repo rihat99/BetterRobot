@@ -1,43 +1,130 @@
 {
-  "src/better_robot/io/builder.py::ModelBuilder.add_helical reportArgumentType": "open when the ratchet started (R9b): Argument of type \"tuple[float, ...]\" cannot be assigned to parameter \"axis\" of type \"tuple[float, float, float]\" in function \"__init__\"",
-  "src/better_robot/io/builder.py::ModelBuilder.add_prismatic reportArgumentType": "open when the ratchet started (R9b): Argument of type \"tuple[float, ...]\" cannot be assigned to parameter \"axis\" of type \"tuple[float, float, float]\" in function \"__init__\"",
-  "src/better_robot/io/builder.py::ModelBuilder.add_revolute reportArgumentType": "open when the ratchet started (R9b): Argument of type \"tuple[float, ...]\" cannot be assigned to parameter \"axis\" of type \"tuple[float, float, float]\" in function \"__init__\"",
-  "src/better_robot/io/model_from_ir.py::_neutral reportOptionalMemberAccess": "open when the ratchet started (R9b): \"name\" is not a known attribute of \"None\"",
-  "src/better_robot/io/parser_mjcf.py::parse_mjcf reportAttributeAccessIssue": "open when the ratchet started (R9b): \"MjSpec\" is not a known attribute of module \"mujoco\"",
-  "src/better_robot/io/parser_mjcf.py::parse_mjcf reportOptionalOperand": "open when the ratchet started (R9b): Operator \"-\" not supported for \"None\"",
-  "src/better_robot/io/parser_urdf.py::_color reportArgumentType": "open when the ratchet started (R9b): Argument of type \"str | None\" cannot be assigned to parameter \"key\" of type \"str\" in function \"get\"",
-  "src/better_robot/io/parser_urdf.py::_shape reportOptionalMemberAccess": "open when the ratchet started (R9b): \"filename\" is not a known attribute of \"None\"",
-  "src/better_robot/io/parser_urdf.py::_shapes reportArgumentType": "open when the ratchet started (R9b): Argument of type \"Geometry | None\" cannot be assigned to parameter \"geometry\" of type \"Geometry\" in function \"_shape\"",
-  "src/better_robot/io/parser_urdf.py::parse_urdf reportArgumentType": "open when the ratchet started (R9b): Argument of type \"dict[str | None, Material]\" cannot be assigned to parameter \"materials\" of type \"dict[str, Material]\" in function \"_shapes\"",
-  "src/better_robot/lie/_checks.py::check_dtype reportReturnType": "open when the ratchet started (R9b): Type \"object\" is not assignable to return type \"dtype\"",
-  "src/better_robot/model/joints/fixed.py::JointFixed reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/free_flyer.py::JointFreeFlyer reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/helical.py::JointHelical reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/planar.py::JointPlanar reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/prismatic.py::JointPrismatic reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/revolute.py::JointRevolute reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/revolute.py::JointRevoluteUnbounded reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/spherical.py::JointSpherical reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/joints/translation.py::JointTranslation reportIncompatibleVariableOverride": "open when the ratchet started (R9b): \"axis\" overrides symbol of same name in class \"JointModel\"",
-  "src/better_robot/model/model.py::<module> reportArgumentType": "open when the ratchet started (R9b): Argument of type \"(leaves: list[Unknown], context: tuple[Unknown, ...]) -> Model\" cannot be assigned to parameter \"unflatten_fn\" of type \"UnflattenFn\" in function \"register_pytree_node\"",
-  "src/better_robot/optim/constrained.py::_shifted reportOptionalCall": "open when the ratchet started (R9b): Object of type \"None\" cannot be called",
-  "src/better_robot/optim/linear.py::ArrowNormal.dense reportOptionalSubscript": "open when the ratchet started (R9b): Object of type \"None\" is not subscriptable",
-  "src/better_robot/optim/linear.py::ArrowNormal.solve reportArgumentType": "open when the ratchet started (R9b): Argument of type \"Tensor | None\" cannot be assigned to parameter \"index\" of type \"Tensor\" in function \"index_copy\"",
-  "src/better_robot/optim/linear.py::ArrowSink.__init__ reportOptionalMemberAccess": "open when the ratchet started (R9b): \"numel\" is not a known attribute of \"None\"",
-  "src/better_robot/optim/linear.py::BandedNormal._substitute reportArgumentType": "open when the ratchet started (R9b): Argument of type \"list[None]\" cannot be assigned to parameter \"tensors\" of type \"tuple[Tensor, ...] | list[Tensor]\" in function \"stack\"",
-  "src/better_robot/optim/linear.py::BandedNormal.solve reportArgumentType": "open when the ratchet started (R9b): Argument of type \"Tensor | None\" cannot be assigned to parameter \"other\" of type \"Tensor\" in function \"minimum\"",
-  "src/better_robot/optim/linear.py::Normal.solve reportArgumentType": "open when the ratchet started (R9b): Argument of type \"Tensor | None\" cannot be assigned to parameter \"other\" of type \"Tensor\" in function \"minimum\"",
-  "src/better_robot/optim/linearization.py::_analytic_pieces reportOptionalCall": "open when the ratchet started (R9b): Object of type \"None\" cannot be called",
-  "src/better_robot/optim/linearization.py::_normal_equations reportArgumentType": "open when the ratchet started (R9b): Argument of type \"Tensor | None\" cannot be assigned to parameter \"delta\" of type \"Tensor\" in function \"_windowed_pieces\"",
-  "src/better_robot/optim/linearization.py::_normal_equations reportCallIssue": "open when the ratchet started (R9b): No overloads for \"grad\" match the provided arguments",
-  "src/better_robot/optim/linearization.py::_normal_equations reportOptionalSubscript": "open when the ratchet started (R9b): Object of type \"None\" is not subscriptable",
-  "src/better_robot/optim/linearization.py::_windowed_pieces reportArgumentType": "open when the ratchet started (R9b): Argument of type \"int | None\" cannot be assigned to parameter \"size\" of type \"int | SymInt\" in function \"new_zeros\"",
-  "src/better_robot/optim/linearization.py::_windowed_pieces reportOperatorIssue": "open when the ratchet started (R9b): Operator \"%\" not supported for types \"Tensor\" and \"int | None\"",
-  "src/better_robot/optim/solvers.py::LBFGS.step reportArgumentType": "open when the ratchet started (R9b): Argument of type \"dict[str, Tensor] | Any\" cannot be assigned to parameter \"terms\" of type \"Tensor\" in function \"update\"",
-  "src/better_robot/optim/solvers.py::LBFGS.step reportPossiblyUnboundVariable": "open when the ratchet started (R9b): \"lower\" is possibly unbound",
-  "src/better_robot/optim/solvers.py::_tolerances reportReturnType": "open when the ratchet started (R9b): Type \"tuple[float, ...]\" is not assignable to return type \"tuple[float, float, float]\"",
-  "src/better_robot/terms/ik.py::solve_ik reportArgumentType": "open when the ratchet started (R9b): Argument of type \"Generator | None\" cannot be assigned to parameter \"generator\" of type \"Generator\" in function \"random_start\"",
-  "src/better_robot/terms/robot.py::finite_difference reportAssignmentType": "open when the ratchet started (R9b): Type \"None\" is not assignable to declared type \"(value: Tensor) -> dict[str, Tensor]\"",
-  "src/better_robot/terms/robot.py::kinematic_state reportArgumentType": "open when the ratchet started (R9b): Argument of type \"(value: Unknown) -> KinematicState\" cannot be assigned to parameter \"fn\" of type \"(...) -> Tensor\" in function \"__init__\"",
-  "src/better_robot/testing/import_edges.py::_imports reportOptionalMemberAccess": "open when the ratchet started (R9b): \"split\" is not a known attribute of \"None\""
+  "src/better_robot/io/model_from_ir.py::_neutral reportOptionalMemberAccess": {
+    "count": 1,
+    "reason": "false positive: `given` is set only when `behind` is not None, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/io/parser_mjcf.py::parse_mjcf reportAttributeAccessIssue": {
+    "count": 1,
+    "reason": "mujoco's bundled type stubs lack MjSpec, which the installed mujoco has; fixed by mujoco's stubs, not here"
+  },
+  "src/better_robot/io/parser_mjcf.py::parse_mjcf reportOptionalOperand": {
+    "count": 1,
+    "reason": "false positive: every joint this parser builds gets `neutral` (qpos0) a few lines above, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/io/parser_urdf.py::_color reportArgumentType": {
+    "count": 1,
+    "reason": "yourdfpy types every field of its parsed elements Optional; a named material's name is a str, which the type does not say; a guard that only restates the parse for the checker waits for a change to the URDF parser (io)"
+  },
+  "src/better_robot/io/parser_urdf.py::_shape reportOptionalMemberAccess": {
+    "count": 3,
+    "reason": "yourdfpy types every field of its parsed elements Optional; `mesh` is the one shape left after box, cylinder and sphere; whether yourdfpy accepts an empty <geometry> (a raw AttributeError here) is not checked; a guard that only restates the parse for the checker waits for a change to the URDF parser (io)"
+  },
+  "src/better_robot/io/parser_urdf.py::_shapes reportArgumentType": {
+    "count": 1,
+    "reason": "yourdfpy types every field of its parsed elements Optional; a <visual> or <collision> always has a <geometry> after parsing; a guard that only restates the parse for the checker waits for a change to the URDF parser (io)"
+  },
+  "src/better_robot/io/parser_urdf.py::parse_urdf reportArgumentType": {
+    "count": 1,
+    "reason": "yourdfpy types every field of its parsed elements Optional; a robot-level <material> always has a name; a guard that only restates the parse for the checker waits for a change to the URDF parser (io)"
+  },
+  "src/better_robot/model/joints/fixed.py::JointFixed reportIncompatibleVariableOverride": {
+    "count": 2,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/free_flyer.py::JointFreeFlyer reportIncompatibleVariableOverride": {
+    "count": 2,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/helical.py::JointHelical reportIncompatibleVariableOverride": {
+    "count": 1,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/planar.py::JointPlanar reportIncompatibleVariableOverride": {
+    "count": 2,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/prismatic.py::JointPrismatic reportIncompatibleVariableOverride": {
+    "count": 1,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/revolute.py::JointRevolute reportIncompatibleVariableOverride": {
+    "count": 1,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/revolute.py::JointRevoluteUnbounded reportIncompatibleVariableOverride": {
+    "count": 1,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/spherical.py::JointSpherical reportIncompatibleVariableOverride": {
+    "count": 2,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/model/joints/translation.py::JointTranslation reportIncompatibleVariableOverride": {
+    "count": 2,
+    "reason": "JointModel annotates `axis: tuple[float, float, float] | None` and this kind narrows it (a ClassVar None or a 3-tuple field); pyright holds a mutable attribute invariant although every kind is a frozen dataclass. The fix (a read-only property on the base) changes the joint kinds' protocol: lane D owns model/"
+  },
+  "src/better_robot/optim/constrained.py::_shifted reportOptionalCall": {
+    "count": 1,
+    "reason": "false positive: the lambda is built only under `term.jacobian is not None`, which pyright drops inside a lambda, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/optim/linear.py::ArrowNormal.dense reportOptionalSubscript": {
+    "count": 8,
+    "reason": "BandLayout.time_columns / shared_columns is Optional on the type and set whenever this code runs (an ArrowNormal always has a layout with shared columns); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
+  },
+  "src/better_robot/optim/linear.py::ArrowNormal.solve reportArgumentType": {
+    "count": 3,
+    "reason": "BandLayout.time_columns / shared_columns, and `upper` is Optional on the type and set whenever this code runs (set together with `lower`, checked just above); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
+  },
+  "src/better_robot/optim/linear.py::ArrowSink.__init__ reportOptionalMemberAccess": {
+    "count": 2,
+    "reason": "BandLayout.shared_columns is Optional on the type and set whenever this code runs (an ArrowSink is built only for a layout with shared columns); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
+  },
+  "src/better_robot/optim/linear.py::BandedNormal.solve reportArgumentType": {
+    "count": 1,
+    "reason": "`upper` is Optional on the type and set whenever this code runs (set together with `lower`, checked just above); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
+  },
+  "src/better_robot/optim/linear.py::Normal.solve reportArgumentType": {
+    "count": 1,
+    "reason": "`upper` is Optional on the type and set whenever this code runs (set together with `lower`, checked just above); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
+  },
+  "src/better_robot/optim/linearization.py::_analytic_pieces reportOptionalCall": {
+    "count": 1,
+    "reason": "false positive: the caller runs it only for a term whose `jacobian` is not None, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/optim/linearization.py::_normal_equations reportArgumentType": {
+    "count": 3,
+    "reason": "false positive: `delta` is built whenever a term needs autodiff, the only case that reads it, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/optim/linearization.py::_normal_equations reportCallIssue": {
+    "count": 2,
+    "reason": "false positive: the same `delta` (torch.autograd.grad's overloads then reject the Optional), a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/optim/linearization.py::_normal_equations reportOptionalSubscript": {
+    "count": 1,
+    "reason": "false positive: the same `delta`, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/optim/linearization.py::_windowed_pieces reportArgumentType": {
+    "count": 5,
+    "reason": "false positive: it runs only for a term whose `window` is not None, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/optim/linearization.py::_windowed_pieces reportOperatorIssue": {
+    "count": 1,
+    "reason": "false positive: it runs only for a term whose `window` is not None, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/optim/solvers.py::LBFGS.step reportArgumentType": {
+    "count": 1,
+    "reason": "State.extra is a dict[str, Any] whose 'terms' entry is a dict of tensors; typing extra per key (a TypedDict) is a change of the public State, for the optim owner"
+  },
+  "src/better_robot/optim/solvers.py::LBFGS.step reportPossiblyUnboundVariable": {
+    "count": 4,
+    "reason": "false positive: `lower`/`upper` are bound whenever `bounds` is not None and `trial`/`g_first` once the line search ran (line_search >= 1), a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
+  },
+  "src/better_robot/terms/ik.py::solve_ik reportArgumentType": {
+    "count": 1,
+    "reason": "solve_ik raises before the restarts when generator is None, which pyright cannot see; the fix types random_start's generator `torch.Generator | None` (it already raises on None), a public annotation change for the terms owner"
+  },
+  "src/better_robot/terms/robot.py::kinematic_state reportArgumentType": {
+    "count": 1,
+    "reason": "TermFn.fn is typed to return a Tensor, but a cached value returns any object (here a KinematicState); widening TermFn.fn is a change of optim's public annotation, for the optim owner"
+  }
 }

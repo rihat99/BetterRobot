@@ -67,12 +67,9 @@ def _imports(node: ast.AST, own_package: tuple[str, ...]) -> list[tuple[tuple[st
         return [(tuple(alias.name.split(".")), None) for alias in node.names]
     if not isinstance(node, ast.ImportFrom):
         return []
-    if node.level == 0:
-        base = tuple(node.module.split("."))
-    else:
-        base = own_package[: len(own_package) - node.level + 1]
-        if node.module:
-            base = (*base, *node.module.split("."))
+    base = own_package[: len(own_package) - node.level + 1] if node.level else ()
+    if node.module:
+        base = (*base, *node.module.split("."))
     return [(base, alias.name) for alias in node.names]
 
 

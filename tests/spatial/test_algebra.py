@@ -12,6 +12,7 @@ import pinocchio as pin
 import pytest
 import torch
 
+from better_robot.exceptions import ShapeError
 from better_robot.lie import se3, so3
 from better_robot.spatial import (
     cross_force,
@@ -219,3 +220,7 @@ def test_public_functions_check_type_dtype_trailing_size_and_device(name: str) -
         # A meta tensor has a device of its own, so the device check runs without an accelerator.
         with pytest.raises(ValueError, match=rf"{second}.device=meta != {first}.device=cpu; pass {second}.to\(cpu\)"):
             function(torch.zeros(size_first), torch.zeros(size_second, device="meta"))
+        with pytest.raises(
+            ShapeError, match=rf"{first} has batch axes \(3,\) and {second} \(4,\), which do not broadcast"
+        ):
+            function(torch.zeros(3, size_first), torch.zeros(4, size_second))

@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
-from typing import Any, final
+from typing import Any, final, override
 
 from ..exceptions import ArgumentError
 
@@ -34,6 +34,7 @@ class Timeline:
         self._gui_slider: Any = None
         self._gui_play: Any = None
 
+    @override
     def __repr__(self) -> str:
         return f"Timeline(nsteps={self.nsteps}, step={self._step}, fps={self.fps}, playing={self.playing})"
 

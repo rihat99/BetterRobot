@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, final
+from typing import ClassVar, final, override
 
 import torch
 
@@ -22,15 +22,19 @@ class JointTranslation(JointModel):
     manifold: ClassVar[JointManifold] = EUCLIDEAN
     axis: ClassVar[None] = None
 
+    @override
     def placement(self, q: torch.Tensor) -> torch.Tensor:
         return se3.from_translation_raw(q)
 
+    @override
     def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
         linear = torch.eye(3, dtype=q.dtype, device=q.device)
         return torch.cat((linear, torch.zeros_like(linear))).expand(*q.shape[:-1], 6, 3)
 
+    @override
     def neutral(self) -> torch.Tensor:
         return torch.zeros(3)
 
+    @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
         return lower + (upper - lower) * torch.rand(3, generator=generator, dtype=lower.dtype)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, final
+from typing import Any, TYPE_CHECKING, final, override
 
 import numpy as np
 
@@ -62,10 +62,12 @@ class GroundLayer(Layer):
         self.section_color = section_color
         self.fill_color = fill_color
 
+    @override
     def apply_theme(self, theme: Theme) -> None:
         if self.plane is None:
             self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         if self.normal is None:
             plane = self.plane or "xy"
@@ -94,5 +96,6 @@ class GroundLayer(Layer):
             )
         )
 
+    @override
     def set_step(self, step: int) -> None:
         pass

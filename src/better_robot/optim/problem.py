@@ -14,11 +14,11 @@ import inspect
 from collections.abc import Callable, Mapping
 from dataclasses import KW_ONLY, dataclass
 from types import MappingProxyType
-from typing import Any, final
+from typing import Any, final, override
 
 import torch
 
-from ..exceptions import ArgumentError, ShapeError, UnknownNameError
+from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError, UnknownNameError
 from .evaluation import Values, evaluate, residuals
 from .kernels import RobustKernel
 from .linear import ArrowNormal, BandedNormal, Normal
@@ -129,9 +129,19 @@ class Problem:
         for name, value in variables.items():
             if value.ndim == 0:
                 raise ShapeError(f"variable {name!r} is 0-d; a variable is (B, *event) with a leading batch axis")
+            if value.dtype not in (torch.float32, torch.float64):
+                raise DtypeMismatchError(
+                    f"variable {name!r} has dtype {value.dtype}, not float32 or float64; pass it as .float() or .double()"
+                )
         batch_sizes = {name: value.shape[0] for name, value in variables.items()}
         if len(set(batch_sizes.values())) != 1:
             raise ShapeError(f"variables must share the leading batch size, got {batch_sizes}")
+        dtypes = {name: value.dtype for name, value in variables.items()}
+        if len(set(dtypes.values())) != 1:
+            raise DtypeMismatchError(f"variables must share one dtype, got {dtypes}; pass them all in one dtype")
+        devices = {name: value.device for name, value in variables.items()}
+        if len(set(devices.values())) != 1:
+            raise DeviceMismatchError(f"variables must share one device, got {devices}; move them to one device")
         self._variables: dict[str, torch.Tensor] = dict(variables)
         self._data: dict[str, Any] = dict(data or {})
         clash = set(self._variables) & set(self._data)
@@ -154,6 +164,13 @@ class Problem:
             self._slices[name] = slice(offset, offset + size)
             offset += size
         self._tangent_dim = offset
+
+    @override
+    def __repr__(self) -> str:
+        first = next(iter(self._variables.values()))
+        dtype = str(first.dtype).removeprefix("torch.")
+        variables = list(self._variables)
+        return f"Problem(B={first.shape[0]}, N={self._tangent_dim}, {variables=}, {len(self._terms)} terms, {dtype}, {first.device})"
 
     # ── read-only fields ────────────────────────────────────────────────
 
@@ -405,7 +422,17 @@ class Problem:
 
     # ── internals ───────────────────────────────────────────────────────
 
-    def _add(self, name, fn, kind, weight, kernel, jacobian, reads, window) -> None:
+    def _add(
+        self,
+        name: str,
+        fn: Callable[..., torch.Tensor],
+        kind: str,
+        weight: float | torch.Tensor,
+        kernel: RobustKernel | None,
+        jacobian: Callable[..., dict[str, torch.Tensor]] | None,
+        reads: tuple[str, ...] | None,
+        window: int | None,
+    ) -> None:
         self._require_unsealed(name)
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")

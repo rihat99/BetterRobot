@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -39,6 +39,7 @@ class RobotCapsules:
     ends: torch.Tensor
     radii: torch.Tensor
 
+    @override
     def __repr__(self) -> str:
         dtype = str(self.radii.dtype).removeprefix("torch.")
         return f"RobotCapsules({self.frame_ids.shape[0]} capsules, {dtype}, {self.radii.device})"

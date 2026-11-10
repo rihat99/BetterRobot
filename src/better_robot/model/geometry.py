@@ -9,7 +9,7 @@ record is a hashable value and a consumer packs the tensors it needs.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import final
+from typing import final, override
 
 #: ``[tx, ty, tz, qx, qy, qz, qw]`` of a shape in its body's joint frame.
 Pose = tuple[float, float, float, float, float, float, float]
@@ -91,6 +91,7 @@ class Geometry:
 
     shapes: tuple[AttachedShape, ...]
 
+    @override
     def __repr__(self) -> str:
         collision = sum(shape.collision for shape in self.shapes)
         return f"Geometry({len(self.shapes)} shapes, {collision} for collision)"

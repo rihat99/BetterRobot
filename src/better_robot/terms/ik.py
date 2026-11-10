@@ -8,6 +8,7 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from ..kinematics import euclidean_columns
+from ..lie._checks import check_broadcast, check_tensor
 from ..model import Model
 from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
 from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest
@@ -29,7 +30,17 @@ def ik_problem(
     default so a reachable target is reached exactly. The rest term pulls toward ``q_rest: (nq,)`` or
     ``(B, nq)``, ``model.q_neutral`` when omitted. Terms are named ``pose/<frame>``,
     ``limits`` and ``rest``; the returned problem accepts more terms.
+
+    ``q0`` and each target are checked here, once, in the model's dtype on its device (a target batch broadcasts
+    with ``B``); the solver's iterations trust them.
     """
+    check_tensor("q0", q0, shape=(model.nq,), dtype=model.dtype, device=model.device)
+    if q0.ndim != 2:
+        raise ShapeError(f"q0 must be (B, {model.nq}), got {tuple(q0.shape)}")
+    for frame, pose in targets.items():
+        name = f"targets[{frame!r}]"
+        check_tensor(name, pose, shape=(7,), dtype=model.dtype, device=model.device)
+        check_broadcast(q0=tuple(q0.shape[:-1]), **{name: tuple(pose.shape[:-1])})
     problem = Problem(
         {"q": q0},
         manifolds={"q": RobotManifold(model)},

@@ -1,17 +1,19 @@
 """``FakeServer``: the shipped stand-in for ``viser.ViserServer`` (decision records 0022 and 0035).
 
-No sockets and no viser import. Each viser call the viewer makes is declared here by name with viser's parameter
-names and defaults (the parameters BetterRobot passes; the full test tier binds every method against viser's), and
-returns a ``FakeHandle`` that records the call's arguments and later attribute writes. So
-``Viewer(server=FakeServer())`` builds, pushes and tears down a scene in a test or an example's ``--check`` run, and
-the test reads what the browser would have received. A call the viewer does not make raises ``AttributeError``.
+No sockets and no viser import. Each viser call the viewer makes, and each GUI call of an app built on it
+(BetterHuman's studio: dropdowns, text and number fields, markdown, tabs), is declared here by name with viser's
+parameter names and defaults (the parameters those callers pass; the full test tier binds every method against
+viser's), and returns a ``FakeHandle`` that records the call's arguments and later attribute writes; a control reads
+back the value it was given. So ``Viewer(server=FakeServer())`` builds, pushes and tears down a scene in a test or an
+example's ``--check`` run, and the test reads what the browser would have received. Any other call raises
+``AttributeError``.
 """
 
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Callable, Iterator
-from typing import Any, Literal, final
+from collections.abc import Callable, Iterator, Sequence
+from typing import Any, Literal, final, override
 
 _IDENTITY = (1.0, 0.0, 0.0, 0.0)
 _ORIGIN = (0.0, 0.0, 0.0)
@@ -24,7 +26,8 @@ class FakeHandle:
     Attribute writes are kept (``writes``, and ``(name, attribute)`` in the scene's ``log``) and so are the names of
     the methods called on it (``calls``). A write after ``remove()`` raises ``AttributeError``, as viser refuses it
     (with a ``RuntimeError``) and a frozen dataclass refuses any write.
-    ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered.
+    ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered. A tab
+    group's ``add_tab`` keeps its tabs in ``tabs``.
     """
 
     scene: FakeScene | None
@@ -43,6 +46,7 @@ class FakeHandle:
         )
         self.__dict__.update(state)
 
+    @override
     def __setattr__(self, key: str, value: Any) -> None:
         if self.removed:
             raise AttributeError(f"cannot assign {key!r}: this {self.kind} was removed")
@@ -79,11 +83,20 @@ class FakeHandle:
         for callback in self.callbacks:
             callback(event)
 
+    def add_tab(self, label: str) -> FakeHandle:
+        """viser's tab of a tab group: a ``GuiTabHandle``, a context manager for the controls in the tab."""
+        self.calls.append("add_tab")
+        tab = FakeHandle(None, "GuiTabHandle", label, {})
+        self.__dict__.setdefault("tabs", []).append(tab)
+        return tab
+
     def __enter__(self) -> FakeHandle:
+        """Enter a folder or a tab: the controls added inside it belong to it on viser."""
         self.calls.append("__enter__")
         return self
 
     def __exit__(self, *exc: object) -> None:
+        """Leave the folder or tab."""
         pass
 
 
@@ -111,6 +124,7 @@ class FakeScene:
     def add_frame(
         self, name: str, *, show_axes: bool = True, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True
     ) -> FakeHandle:
+        """viser's coordinate frame: a ``FrameHandle``."""
         return self._node("FrameHandle", locals())
 
     def add_batched_axes(
@@ -125,6 +139,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's batch of axes, one per pose: a ``BatchedAxesHandle``."""
         return self._node("BatchedAxesHandle", locals())
 
     def add_batched_meshes_simple(
@@ -144,6 +159,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's instanced mesh, one copy per pose: a ``BatchedMeshHandle``."""
         return self._node("BatchedMeshHandle", locals())
 
     def add_camera_frustum(
@@ -159,6 +175,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's camera frustum, with an optional image: a ``CameraFrustumHandle``."""
         return self._node("CameraFrustumHandle", locals())
 
     def add_grid(
@@ -178,6 +195,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's ground grid: a ``GridHandle``."""
         return self._node("GridHandle", locals())
 
     def add_line_segments(
@@ -191,6 +209,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's line segments ``points: (N, 2, 3)``: a ``LineSegmentsHandle``."""
         return self._node("LineSegmentsHandle", locals())
 
     def add_mesh_simple(
@@ -206,6 +225,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's mesh of vertices and faces: a ``MeshHandle``."""
         return self._node("MeshHandle", locals())
 
     def add_mesh_skinned(
@@ -223,6 +243,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's skinned mesh: a ``MeshSkinnedHandle`` whose ``bones`` hold one handle per bone."""
         handle = self._node("MeshSkinnedHandle", locals())
         bones = tuple(
             FakeHandle(self, "MeshSkinnedBoneHandle", f"{name}/bone{index}", {}, wxyz=bone_wxyz, position=bone_position)
@@ -234,6 +255,7 @@ class FakeScene:
     def add_mesh_trimesh(
         self, name: str, mesh: Any, *, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True
     ) -> FakeHandle:
+        """viser's mesh from a ``trimesh.Trimesh``: a ``MeshHandle``."""
         return self._node("MeshHandle", locals())
 
     def add_point_cloud(
@@ -249,6 +271,7 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's point cloud ``points: (N, 3)``: a ``PointCloudHandle``."""
         return self._node("PointCloudHandle", locals())
 
     def add_transform_controls(
@@ -263,12 +286,14 @@ class FakeScene:
         position: Any = _ORIGIN,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's transform gizmo: a ``TransformControlsHandle``."""
         return self._node("TransformControlsHandle", locals())
 
     def configure_default_lights(self, enabled: bool = True, cast_shadow: bool = True) -> None:  # noqa: FBT001, FBT002 - viser's signature
         """Accepted; the stand-in draws nothing."""
 
     def set_up_direction(self, direction: Any) -> None:
+        """Keep ``direction`` in ``up_direction``."""
         self.up_direction = direction
 
     def on_click(self, modifier: Any = None) -> Callable[[Callable[[Any], None]], Callable[[Any], None]]:
@@ -315,18 +340,21 @@ class FakeGui:
         """The first control named ``label``."""
         return next(control for control in self.controls if control.name == label)
 
-    def _control(self, kind: str, label: str, arguments: dict[str, Any]) -> FakeHandle:
-        """A control from a method's ``locals()``: value, order, label and visibility readable as on viser."""
+    def _control(self, kind: str, label: str, arguments: dict[str, Any], **state: Any) -> FakeHandle:
+        """A control from a method's ``locals()``: value, order, label and visibility readable as on viser; ``state``
+        adds or replaces what reads back (a dropdown's first option as its value, a markdown's ``content``)."""
         props = {key: value for key, value in arguments.items() if key != "self"}
-        state = {"value": props.get("initial_value"), "order": props["order"], "label": label}
+        state = {"value": props.get("initial_value"), "order": props["order"], "label": label, **state}
         handle = FakeHandle(None, kind, label, props, visible=props["visible"], **state)
         self.controls.append(handle)
         return handle
 
     def add_folder(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's folder, a context manager for the controls inside it: a ``GuiFolderHandle``."""
         return self._control("GuiFolderHandle", label, locals())
 
     def add_button(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's button: a ``GuiButtonHandle``."""
         return self._control("GuiButtonHandle", label, locals())
 
     def add_checkbox(
@@ -337,6 +365,7 @@ class FakeGui:
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's checkbox: a ``GuiCheckboxHandle`` whose value starts at ``initial_value``."""
         return self._control("GuiCheckboxHandle", label, locals())
 
     def add_slider(
@@ -347,9 +376,11 @@ class FakeGui:
         step: float,
         initial_value: float,
         *,
+        disabled: bool = False,
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's slider: a ``GuiSliderHandle`` whose value starts at ``initial_value``."""
         return self._control("GuiSliderHandle", label, locals())
 
     def add_image(
@@ -361,6 +392,7 @@ class FakeGui:
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's image panel: a ``GuiImageHandle``."""
         return self._control("GuiImageHandle", label or "image", locals())
 
     def add_uplot(
@@ -373,7 +405,43 @@ class FakeGui:
         order: float | None = None,
         visible: bool = True,
     ) -> FakeHandle:
+        """viser's uPlot chart: a ``GuiUplotHandle``."""
         return self._control("GuiUplotHandle", "uplot", locals())
+
+    def add_dropdown(
+        self,
+        label: str,
+        options: Sequence[str],
+        *,
+        initial_value: str | None = None,
+        disabled: bool = False,
+        visible: bool = True,
+        order: float | None = None,
+    ) -> FakeHandle:
+        """viser's dropdown: a ``GuiDropdownHandle`` whose value starts at ``initial_value``, else the first option."""
+        return self._control(
+            "GuiDropdownHandle", label, locals(), value=options[0] if initial_value is None else initial_value
+        )
+
+    def add_text(
+        self, label: str, initial_value: str, *, visible: bool = True, order: float | None = None
+    ) -> FakeHandle:
+        """viser's text field: a ``GuiTextHandle`` whose value starts at ``initial_value``."""
+        return self._control("GuiTextHandle", label, locals())
+
+    def add_number(
+        self, label: str, initial_value: float, *, visible: bool = True, order: float | None = None
+    ) -> FakeHandle:
+        """viser's number field: a ``GuiNumberHandle`` whose value starts at ``initial_value``."""
+        return self._control("GuiNumberHandle", label, locals())
+
+    def add_markdown(self, content: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's markdown panel: a ``GuiMarkdownHandle`` whose ``content`` reads back."""
+        return self._control("GuiMarkdownHandle", "markdown", locals(), content=content)
+
+    def add_tab_group(self, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+        """viser's tab group: a ``GuiTabGroupHandle``; its ``add_tab(label)`` adds a tab."""
+        return self._control("GuiTabGroupHandle", "tab_group", locals())
 
     def configure_theme(
         self,
@@ -385,6 +453,7 @@ class FakeGui:
         show_share_button: bool = True,
         brand_color: Any = None,
     ) -> None:
+        """Keep the theme's settings in ``theme``."""
         self.theme = {key: value for key, value in locals().items() if key != "self"}
 
 

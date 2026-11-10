@@ -20,7 +20,7 @@ import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..lie.tangents import hat_so3_raw
-from ..lie._checks import check_tensors
+from ..lie._checks import check_tensor, check_tensors
 
 
 def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
@@ -270,7 +270,7 @@ def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
 def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> torch.Tensor:
     """``density`` as a tensor of shape ``()`` or ``vertices.shape[:-2]`` on the dtype and device of ``vertices``."""
     if isinstance(density, torch.Tensor):
-        check_tensors(vertices=(vertices, ()), density=(density, ()))
+        check_tensor("density", density, shape=(), dtype=vertices.dtype, device=vertices.device, owner="vertices")
         rho = density
     elif isinstance(density, Real) and not isinstance(density, bool):
         rho = vertices.new_tensor(float(density))  # bench-ok: a Python density becomes one scalar tensor
@@ -284,11 +284,11 @@ def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> to
 
 def _check_mesh_values(vertices: torch.Tensor, faces: torch.Tensor, density: torch.Tensor) -> None:
     """Raise ``ArgumentError`` for non-finite vertices, out-of-range face ids or a density not finite positive."""
-    if not bool(torch.isfinite(vertices).all()):
+    if not bool(torch.isfinite(vertices).all()):  # bench-ok: opt-in check_mesh
         raise ArgumentError("vertices must contain only finite values")
-    if bool(torch.any(faces < 0)) or bool(torch.any(faces >= vertices.shape[-2])):
+    if bool(torch.any(faces < 0)) or bool(torch.any(faces >= vertices.shape[-2])):  # bench-ok: opt-in check_mesh
         raise ArgumentError("faces contains a vertex index outside the vertices table")
-    if not bool(torch.isfinite(density).all()) or bool(torch.any(density <= 0.0)):
+    if not bool(torch.isfinite(density).all()) or bool(torch.any(density <= 0.0)):  # bench-ok: opt-in check_mesh
         raise ArgumentError("density must contain only finite positive values")
 
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Any, ClassVar, final
+from typing import Any, ClassVar, final, override
 
 import torch
 
@@ -60,6 +60,12 @@ class Solver(ABC):
 
     warm_keys: ClassVar[tuple[str, ...]] = ()
 
+    @override
+    def __repr__(self) -> str:
+        # a setting left at None takes the dtype's default, so only the set ones are printed
+        settings = ", ".join(f"{name}={value!r}" for name, value in vars(self).items() if value is not None)
+        return f"{type(self).__name__}({settings})"
+
     @abstractmethod
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         """Start state at variables ``x``: loss evaluated, nothing done, solver-owned ``extra`` set up."""
@@ -87,8 +93,12 @@ def _tolerances(
     dtype: torch.dtype, gradient: float | None, loss: float | None, step: float | None
 ) -> tuple[float, float, float]:
     """Fill unset tolerances with values the dtype can resolve (gradient, relative loss, step)."""
-    defaults = (1e-8, 1e-12, 1e-10) if dtype == torch.float64 else (1e-7, 0.0, 0.0)
-    return tuple(default if value is None else value for value, default in zip((gradient, loss, step), defaults))
+    default_gradient, default_loss, default_step = (1e-8, 1e-12, 1e-10) if dtype == torch.float64 else (1e-7, 0.0, 0.0)
+    return (
+        default_gradient if gradient is None else gradient,
+        default_loss if loss is None else loss,
+        default_step if step is None else step,
+    )
 
 
 @final
@@ -112,9 +122,12 @@ class LevenbergMarquardt(Solver):
         loss_tolerance: float | None = None,
         step_tolerance: float | None = None,
     ) -> None:
+        if damping < 0:
+            raise ArgumentError(f"damping must be at least 0, got {damping}")
         self.damping, self.gradient_tolerance = damping, gradient_tolerance
         self.loss_tolerance, self.step_tolerance = loss_tolerance, step_tolerance
 
+    @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         with torch.no_grad():
             loss, terms, _ = problem.evaluate(x)
@@ -123,6 +136,7 @@ class LevenbergMarquardt(Solver):
             x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
         )
 
+    @override
     def step(self, problem: Problem, state: State) -> State:
         damping, growth = state.extra["damping"], state.extra["growth"]
         normal, _ = problem.linearize(state.x)
@@ -169,8 +183,11 @@ class GaussNewton(Solver):
     def __init__(
         self, *, damping: float = 0.0, gradient_tolerance: float | None = None, step_tolerance: float | None = None
     ) -> None:
+        if damping < 0:
+            raise ArgumentError(f"damping must be at least 0, got {damping}")
         self.damping, self.gradient_tolerance, self.step_tolerance = damping, gradient_tolerance, step_tolerance
 
+    @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         with torch.no_grad():
             loss, terms, _ = problem.evaluate(x)
@@ -182,6 +199,7 @@ class GaussNewton(Solver):
             extra={"terms": terms},
         )
 
+    @override
     def step(self, problem: Problem, state: State) -> State:
         normal, _ = problem.linearize(state.x)
         bounds = problem.step_bounds(state.x)
@@ -255,6 +273,7 @@ class LBFGS(Solver):
 
     warm_keys = ("s", "y", "rho")
 
+    @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         loss, g, terms = problem.gradient(x)
         memory = g.new_zeros(g.shape[0], self.history, g.shape[1])
@@ -279,6 +298,7 @@ class LBFGS(Solver):
             r = r + (alpha - beta).unsqueeze(-1) * s[:, i]
         return -r
 
+    @override
     def step(self, problem: Problem, state: State) -> State:
         g, s, y, rho = (state.extra[key] for key in ("g", "s", "y", "rho"))
         bounds = problem.step_bounds(state.x)
@@ -359,6 +379,7 @@ class TorchOptim(Solver):
     ) -> None:
         self.factory, self.scheduler = factory, scheduler
 
+    @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         params = {name: value.detach().clone().requires_grad_(True) for name, value in x.items()}
         optimizer = self.factory(list(params.values()))
@@ -368,6 +389,7 @@ class TorchOptim(Solver):
             extra["scheduler"] = self.scheduler(optimizer)
         return State(x=params, loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra)
 
+    @override
     def step(self, problem: Problem, state: State) -> State:
         params, optimizer = state.extra["params"], state.extra["optimizer"]
         last = {}

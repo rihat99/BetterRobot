@@ -14,7 +14,7 @@ _DTYPES = (torch.float32, torch.float64)
 
 def check_dtype(dtype: object) -> torch.dtype:
     """``dtype`` once it is float32 or float64, the dtypes the library computes in; else ``DtypeMismatchError``."""
-    if dtype not in _DTYPES:
+    if not isinstance(dtype, torch.dtype) or dtype not in _DTYPES:
         raise DtypeMismatchError(f"dtype={dtype!r} is not float32 or float64; pass torch.float32 or torch.float64")
     return dtype
 
@@ -51,8 +51,26 @@ def check_tensor(
 
 
 def check_tensors(**tensors: tuple[object, tuple[int, ...]]) -> None:
-    """`check_tensor` on each ``name=(value, shape)``, every value in the first value's dtype on its device."""
+    """`check_tensor` on each ``name=(value, shape)``, every value in the first value's dtype on its device, and the
+    leading (batch) axes before each ``shape`` broadcast together; else ``ShapeError`` naming both arguments."""
     (first_name, (first, first_shape)), *others = tensors.items()
     reference = check_tensor(first_name, first, shape=first_shape)
+    batches = {first_name: tuple(reference.shape[: reference.ndim - len(first_shape)])}
     for name, (value, shape) in others:
-        check_tensor(name, value, shape=shape, dtype=reference.dtype, device=reference.device, owner=first_name)
+        checked = check_tensor(
+            name, value, shape=shape, dtype=reference.dtype, device=reference.device, owner=first_name
+        )
+        batches[name] = tuple(checked.shape[: checked.ndim - len(shape)])
+    check_broadcast(**batches)
+
+
+def check_broadcast(**batches: tuple[int, ...]) -> None:
+    """``ShapeError`` naming two arguments whose batch axes ``name=shape`` do not broadcast together."""
+    named = list(batches.items())
+    for index, (name, batch) in enumerate(named):
+        for earlier, earlier_batch in named[:index]:
+            if any(a != b and 1 not in (a, b) for a, b in zip(reversed(batch), reversed(earlier_batch))):
+                raise ShapeError(
+                    f"{earlier} has batch axes {tuple(earlier_batch)} and {name} {tuple(batch)}, which do not "
+                    "broadcast; give both the same leading axes (size 1 repeats)"
+                )

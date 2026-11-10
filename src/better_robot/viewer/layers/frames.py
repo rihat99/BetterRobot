@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -25,6 +25,7 @@ class FramesLayer(Layer):
         self.axes_radius = axes_radius
         self._axes: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         # viser's batched-axes node crashes the client when it holds zero instances; an empty layer draws nothing.
         if self.poses.shape[1] == 0:
@@ -44,6 +45,7 @@ class FramesLayer(Layer):
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
         return self.poses[step, :, :3]
 
+    @override
     def set_step(self, step: int) -> None:
         if self._axes is None:
             return

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -35,6 +35,7 @@ class PointsLayer(Layer):
         self.point_shape = point_shape
         self._cloud: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         colors = self._colors if self._colors.ndim == 2 else self._colors[0]
         self._cloud = self._track(
@@ -52,6 +53,7 @@ class PointsLayer(Layer):
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
         return self.points[step]
 
+    @override
     def set_step(self, step: int) -> None:
         self._cloud.points = self.points[step]
         if self._colors.ndim == 3:

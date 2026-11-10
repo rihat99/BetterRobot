@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass
-from typing import Any, final
+from typing import Any, final, override
 
 import numpy as np
 
@@ -39,6 +39,7 @@ class MeshLayer(Layer):
         self.flat_shading = flat_shading
         self._mesh: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         self._mesh = self._track(
             scene.add_mesh_simple(
@@ -55,6 +56,7 @@ class MeshLayer(Layer):
         """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
         return self.vertices[step]
 
+    @override
     def set_step(self, step: int) -> None:
         self._mesh.vertices = self.vertices[step]
 
@@ -80,6 +82,7 @@ class MeshSpec:
     color: RGB = (0.80, 0.80, 0.80)
     trimesh: Any = None  # a trimesh.Trimesh; trimesh is imported in robot.py only
 
+    @override
     def __repr__(self) -> str:
         return f"MeshSpec(V={len(self.vertices)}, F={len(self.faces)}, body={self.body})"
 
@@ -111,6 +114,7 @@ class RigidMeshLayer(Layer):
         self._nodes: list[Any] = []
         self._plain: list[Any] = []  # the nodes of meshes without their own colours, which take an opacity
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         self._nodes, self._plain = [], []
         for index, spec in enumerate(self.meshes):
@@ -136,6 +140,7 @@ class RigidMeshLayer(Layer):
         world = compose(self.body_poses[step, self._bodies], self._origins)
         return np.concatenate([act(world[i, 3:], spec.vertices) + world[i, :3] for i, spec in enumerate(self.meshes)])
 
+    @override
     def set_step(self, step: int) -> None:
         world = compose(self.body_poses[step, self._bodies], self._origins)
         wxyz = to_wxyz(world[:, 3:])
@@ -178,6 +183,7 @@ class SpheresLayer(Layer):
         self._elements = self.centers.shape[1]
         self._spheres: Any = None
 
+    @override
     def build(self, scene: Any, root: str) -> None:
         vertices, faces = unit_sphere()
         n = self.centers.shape[1]
@@ -202,6 +208,7 @@ class SpheresLayer(Layer):
             centers, radii = centers[self.valid[step]], radii[self.valid[step]]
         return np.concatenate([centers - radii, centers + radii])
 
+    @override
     def set_step(self, step: int) -> None:
         self._spheres.batched_positions = self.centers[step]
         if self._colors.ndim == 3:

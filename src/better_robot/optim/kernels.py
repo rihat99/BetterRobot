@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import final
+from typing import final, override
 
 import torch
 
@@ -36,6 +36,7 @@ class Huber(RobustKernel):
 
     delta: float = 1.0
 
+    @override
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         d2 = self.delta * self.delta
         safe_squared_norm = torch.where(
@@ -46,6 +47,7 @@ class Huber(RobustKernel):
         outside = self.delta * torch.sqrt(safe_squared_norm) - 0.5 * d2
         return torch.where(squared_norm <= d2, 0.5 * squared_norm, outside)
 
+    @override
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
         d2 = self.delta * self.delta
         squared_norm = squared_norm.clamp(min=0.0)
@@ -68,10 +70,12 @@ class Cauchy(RobustKernel):
 
     c: float = 1.0
 
+    @override
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
         return 0.5 * c2 * torch.log1p(squared_norm / c2)
 
+    @override
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
         return 1.0 / (1.0 + squared_norm / c2)
@@ -84,11 +88,13 @@ class Tukey(RobustKernel):
 
     c: float = 4.685
 
+    @override
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
         inside = (c2 / 6.0) * (1.0 - (1.0 - squared_norm / c2) ** 3)
         return torch.where(squared_norm <= c2, inside, torch.full_like(squared_norm, c2 / 6.0))
 
+    @override
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
         return (1.0 - squared_norm / (self.c * self.c)).clamp(min=0.0).square()
 
@@ -101,13 +107,16 @@ class GemanMcClure(RobustKernel):
     c: float = 1.0
 
     def __post_init__(self) -> None:
+        """Raise ``ArgumentError`` unless the scale ``c`` is finite and positive."""
         if not math.isfinite(self.c) or self.c <= 0.0:
             raise ArgumentError(f"c must be finite and positive, got {self.c!r}")
 
+    @override
     def rho(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
         return 0.5 * c2 * squared_norm / (c2 + squared_norm)
 
+    @override
     def weight(self, squared_norm: torch.Tensor) -> torch.Tensor:
         c2 = self.c * self.c
         return (c2 / (c2 + squared_norm)).square()
