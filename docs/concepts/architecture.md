@@ -28,7 +28,7 @@ io                -> exceptions _internal_checks lie model
 optim             -> exceptions
 terms             -> exceptions lie model kinematics collision optim
 viewer            -> exceptions lie model kinematics collision
-testing           -> exceptions model
+testing           -> exceptions model optim
 ```
 
 | Package | Job |
