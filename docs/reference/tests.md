@@ -63,8 +63,12 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_roadmap_stub_inventory.py` | every `NotImplementedError` stub is listed in the [roadmap](roadmap.md) |
 
 A rule that still has known violations keeps them in a ratchet, `tests/contract/ratchets/<name>.json`: each key
-is one violation with its reason or witness. A ratchet only shrinks; the fix that removes a violation removes its
-entry, and a stale-entry test fails until it does.
+is one violation with its reason or witness, or `{"count": n, "reason": ...}` when one key holds several sites (a
+symbol with three pyright errors). A ratchet only shrinks: a key with more sites than its count fails, and the fix
+that removes a violation lowers or removes its entry, which a stale-entry test enforces. `tools/ratchet_counts.py`
+walks each ratchet's mainline history and the working tree and fails when a ratchet's or a key's count rose or a key
+appeared that an earlier step did not have; `test_ratchet_history.py` runs it in the full tier, beside planted
+histories that it must fail.
 
 `tests/autograd/` checks that gradients reach `q` and the model tensors through every public
 kinematics and dynamics function (see [Differentiate](../guides/differentiate.md)).
