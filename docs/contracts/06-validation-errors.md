@@ -55,7 +55,7 @@ raise ShapeError(f"q: expected trailing axis {model.nq}, got {q.shape[-1]}")
 raise ShapeError("bad q")
 ```
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_error_tree.py::test_unknown_name_lists_the_valid_names`; `[review]`.
 
 ## C-ERR-4 No silent fallbacks, no broad excepts (MUST)
 

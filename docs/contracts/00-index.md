@@ -25,8 +25,8 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 
 | Rule | Enforcer |
 |------|----------|
-| C-NAME-1 | `[ruff:N803,N806]` [planned: L-7], `[review]` |
-| C-NAME-2 | `tests/contract/test_naming.py`, `tests/contract/test_vocabulary.py`, `[ruff:N801,N802,N803,N806,N815,N816]` [planned: L-7] |
+| C-NAME-1 | `tests/contract/test_ruff_ratchets.py`, `[review]` |
+| C-NAME-2 | `tests/contract/test_ruff_ratchets.py`, `tests/contract/test_naming.py`, `tests/contract/test_vocabulary.py` |
 | C-NAME-3 | `[review]` |
 | C-NAME-4 | `[review]` |
 | C-NAME-5 | `tests/contract/test_se3_vocabulary.py` |
@@ -42,41 +42,41 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-STATE-5 | `tests/optim/test_problem.py`, `[review]` |
 | C-STATE-6 | `tests/contract/test_caches.py`, `tests/contract/test_dtype_device.py`, `tests/contract/test_state_attachment.py`, `[review]` |
 | C-DIFF-1 | `tests/lie/test_torch_backend_gradcheck.py`, `[review]` |
-| C-DIFF-2 | `tests/autograd/test_vmap.py` [planned: L-8], `[review]` |
+| C-DIFF-2 | `tests/contract/test_hot_path_lint.py`, `[review]` |
 | C-DIFF-3 | `tests/lie/test_torch_backend_gradcheck.py`, `[review]` |
-| C-API-1 | `[review]` |
+| C-API-1 | `tests/contract/test_frozen.py`, `[review]` |
 | C-API-2 | `tests/contract/test_keyword_only.py` |
 | C-API-3 | `[ruff:FBT001,FBT002]` |
 | C-API-4 | `tests/contract/test_public_surface.py`, `[review]` |
 | C-API-5 | `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py` |
 | C-ERR-1 | `tests/contract/test_boundary_validation_count.py`, `[review]` |
 | C-ERR-2 | `tests/contract/test_error_tree.py`, `[review]` |
-| C-ERR-3 | `[review]` |
+| C-ERR-3 | `tests/contract/test_error_tree.py::test_unknown_name_lists_the_valid_names`, `[review]` |
 | C-ERR-4 | `[ruff:BLE001,E722]`, `[review]` |
 | C-ERR-5 | `tests/optim/test_problem.py::test_unknown_read_fails_at_registration` |
 | C-DEP-1 | `tests/contract/test_layer_dependencies.py`, `tests/contract/test_optional_imports.py` |
 | C-DEP-2 | `tests/contract/test_optional_imports.py`, `[ruff:PLC0415]` |
 | C-DEP-3 | `[ruff:TID251]` |
-| C-DEP-4 | `[review]` |
-| C-EXT-1 | `[review]` |
+| C-DEP-4 | `tests/contract/test_optional_imports.py`, `[review]` |
+| C-EXT-1 | `tests/contract/test_extension_points.py`, `[review]` |
 | C-EXT-2 | `tests/contract/test_abstract_or_final.py`, `tests/model/test_joints.py`, `[review]` |
-| C-EXT-3 | `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py`, `[ruff:SLF001]` [planned: L-7] |
+| C-EXT-3 | `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py`, `tests/contract/test_ruff_ratchets.py` |
 | C-EXT-4 | `[review]` |
 | C-EXT-5 | `tests/contract/test_layer_dependencies.py`, `[review]` |
 | C-EXT-6 | `[review]` |
 | C-PERF-2 | `[review]` |
 | C-PERF-3 | `[review]` (benchmarks under `tests/bench/` are advisory) |
 | C-PERF-4 | `[review]` |
-| C-DOC-1 | `tests/contract/test_docstrings.py`, `[ruff:D]` [planned: L-7] |
+| C-DOC-1 | `tests/contract/test_docstrings.py`, `tests/contract/test_ruff_ratchets.py` |
 | C-DOC-2 | `tests/docs/test_snippets.py` |
 | C-DOC-3 | `tests/contract/test_contract_matrix.py` |
-| C-DOC-4 | `tests/contract/test_docstrings.py` [planned: L-9], `[review]` |
-| C-TEST-1 | `[review]` |
-| C-TEST-2 | `[ruff:ANN001,ANN201]` [planned: L-7 for ANN001] |
+| C-DOC-4 | `tests/contract/test_docstrings.py` |
+| C-TEST-1 | `tests/contract/test_no_skips.py`, `[review]` |
+| C-TEST-2 | `[ruff:ANN201]`, `tests/contract/test_ruff_ratchets.py`, `tests/contract/test_pyright_ratchet.py` |
 
 This table is generated from the pages' `Enforcement:` paragraphs and checked by
-`tests/contract/test_contract_matrix.py`. An enforcer tagged `[planned: L-<n>]` on its page is a ledger entry in
-the task notes, not a soft rule; a rule without an enforcer is a bug in this document.
+`tests/contract/test_contract_matrix.py`: every enforcer exists today (no planned one), and a rule that only
+`[review]` checks waits in `tests/contract/ratchets/review_only.json` for a test or its deletion.
 
 ## When to write an ADR
 

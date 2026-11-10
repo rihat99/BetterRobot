@@ -20,7 +20,7 @@ class Kinematics:                         # a class with no resource, only to gr
     def jacobian(self, frame): ...
 ```
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_frozen.py` (every public dataclass is frozen); `[review]`.
 
 ## C-API-2 Arguments after the second are keyword-only (MUST)
 

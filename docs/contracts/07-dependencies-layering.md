@@ -78,4 +78,5 @@ Enforcement: `[ruff:TID251]` (banned-api table in `pyproject.toml`).
 A new runtime dependency goes through an ADR and into `pyproject.toml` (`dependencies` for required,
 `[project.optional-dependencies]` for an extra). No `pip install` in scripts, no vendored copies.
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_optional_imports.py` (every outside import is declared in `pyproject.toml`);
+`[review]` (the ADR).

@@ -1,6 +1,6 @@
 """Find hot-path patterns that break ``torch.compile`` or CUDA throughput (C-TENS-4, decision record 0021).
 
-Walks the AST of every file under ``src/better_robot/{kinematics,dynamics,lie}`` and of
+Walks the AST of every file under ``src/better_robot/{kinematics,dynamics,lie,spatial,terms}`` and of
 ``src/better_robot/optim/solvers.py`` and reports each forbidden idiom:
 
 * ``.item()`` / ``.cpu()`` — force a CUDA-host sync.
@@ -23,7 +23,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 ROOT = REPO / "src" / "better_robot"
-WATCHED_DIRS = ("kinematics", "dynamics", "lie")
+WATCHED_DIRS = ("kinematics", "dynamics", "lie", "spatial", "terms")
 # Keep this list narrow: public ``Problem`` methods intentionally perform
 # host-side boundary validation, while the solver update must remain sync-free.
 # Drivers may use a reasoned ``# bench-ok`` exemption at their eager boundaries.

@@ -22,9 +22,9 @@ class PoseGizmo:
     Callbacks run on one worker thread owned by the gizmo, never on viser's callback pool: a drag
     overwrites a single pending pose and the worker handles only the newest one (latest wins), so a
     slow callback such as an IK solve never piles up behind the mouse. Releasing the handle (viser's end phase of
-    ``on_update``) queues a final call with the resting pose. :meth:`wait` blocks until the worker is idle. A
+    ``on_update``) queues a final call with the resting pose. ``wait()`` blocks until the worker is idle. A
     callback that raises stops the worker: its traceback goes to ``threading.excepthook`` (printed by default) and
-    every later :meth:`wait` raises it. The worker is a daemon thread: it ends with :meth:`remove` and never keeps the interpreter alive.
+    every later ``wait()`` raises it. The worker is a daemon thread: it ends with ``remove()`` and never keeps the interpreter alive.
     Tools are not layers: they hold the viewer and callbacks and sit outside the step loop.
     ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). ``disable_sliders=True`` and
     ``disable_axes=True`` make a rotation-only handle; ``depth_test=False`` draws it in front of every mesh.

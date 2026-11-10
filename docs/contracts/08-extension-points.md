@@ -22,7 +22,8 @@ class PoseTerm:
     def residual(self, variables): ...
 ```
 
-Enforcement: `[review]`.
+Enforcement: `tests/contract/test_extension_points.py` (every extension point is a base class or a plain function,
+no registry); `[review]`.
 
 ## C-EXT-2 Joint kinds subclass the abstract `JointModel`; loaders are functions (MUST)
 
@@ -60,7 +61,7 @@ A name is public when it is in its package `__all__` and has no `_` prefix; ever
 without notice. Private helpers across packages are imported from their package, not re-exported.
 
 Enforcement: `tests/contract/test_public_surface.py`, `tests/contract/test_submodule_public_imports.py`;
-`[ruff:SLF001]` [planned: L-7] (no `obj._private` access across modules).
+`tests/contract/test_ruff_ratchets.py` (ruff's `SLF001`: no `obj._private` access across modules).
 
 ## C-EXT-4 Deprecate for one minor release before removing (SHOULD)
 

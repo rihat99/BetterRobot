@@ -1,4 +1,5 @@
-"""Every public object has a docstring, and every tensor parameter's shape is in it (principle 4.6).
+"""Every public object has a docstring, and every tensor parameter's shape is in it (principle 4.6); no docstring in
+``src`` uses a Sphinx role (C-DOC-4).
 
 The sweep walks the ``__all__`` tree (``better_robot.testing.public_objects``): modules, classes, functions,
 methods and properties, each once, under the first path that lists it. A tensor parameter is one whose annotation
@@ -13,12 +14,15 @@ from __future__ import annotations
 import inspect
 import re
 from collections.abc import Callable
+from pathlib import Path
 
 from better_robot.testing import public_objects
 
 SHAPE = re.compile(r"\([^()\n]*\)")
 SIGNATURE = re.compile(r"``([^`]*?)(?:→|->)[^`]*``")
 NEAR = 80  # characters after a parameter's name in which its shape must start
+SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
+SPHINX_ROLE = re.compile(r":(?:py:)?(?:class|func|meth|attr|mod|obj|data|exc|const):`")
 
 
 def _documented() -> dict[str, object]:
@@ -83,3 +87,11 @@ def test_every_public_object_has_a_docstring_with_its_tensor_shapes() -> None:
     """A new public object without a docstring, or a tensor parameter whose shape the docstring omits, fails."""
     found = sorted(f"{site}: {problem}" for site, problem in _violations().items())
     assert not found, "document these (principle 4.6):\n  " + "\n  ".join(found)
+
+
+def test_no_docstring_uses_a_sphinx_role() -> None:
+    """MkDocs prints ``:class:`Model``` as literal text: write ``Model`` or an mkdocstrings cross-reference."""
+    files = sorted(
+        path.relative_to(SRC).as_posix() for path in SRC.rglob("*.py") if SPHINX_ROLE.search(path.read_text())
+    )
+    assert files == [], f"Sphinx roles in: {files}"

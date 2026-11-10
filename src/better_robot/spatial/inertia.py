@@ -273,7 +273,7 @@ def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> to
         check_tensors(vertices=(vertices, ()), density=(density, ()))
         rho = density
     elif isinstance(density, Real) and not isinstance(density, bool):
-        rho = vertices.new_tensor(float(density))
+        rho = vertices.new_tensor(float(density))  # bench-ok: a Python density becomes one scalar tensor
     else:
         raise TypeError("density must be a real number or a floating torch.Tensor")
     batch_shape = tuple(vertices.shape[:-2])

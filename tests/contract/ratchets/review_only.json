@@ -1,0 +1,9 @@
+{
+  "C-EXT-4": "no check reads a deprecation schedule (this major keeps no deprecated alias, R-7); owner: a test with the first deprecation, or delete the rule (R10)",
+  "C-EXT-6": "a version-shape and changelog check is not written; owner: a test or delete the rule (R10)",
+  "C-NAME-3": "a check for wxyz / angular_linear names outside to_/from_ converters is not written; owner: a test or delete the rule (R10)",
+  "C-NAME-4": "units and frame words in parameter names need judgement; owner: a test or delete the rule (R10)",
+  "C-PERF-2": "no check finds a Python loop over a batch axis; owner: a test or delete the rule (R10)",
+  "C-PERF-3": "the benchmarks under tests/bench/ are advisory, not a gate; owner: a gate or delete the rule (R10)",
+  "C-PERF-4": "measure-before-optimising is a review rule; a no-torch.compile-in-src check is not written; owner: a test or delete the rule (R10)"
+}
