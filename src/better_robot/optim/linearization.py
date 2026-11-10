@@ -278,10 +278,11 @@ def _windowed_pieces(problem: Problem, term: Term, reweighted: torch.Tensor, del
     batch, rows, width = rows_by_knot.shape
     window = term.window
     color = torch.arange(rows, device=delta.device) % window
-    seeds = rows_by_knot.new_zeros(window, width, batch, rows, width)
-    for c in range(window):
-        for j in range(width):
-            seeds[c, j, :, color == c, j] = 1.0
+    # seeds[c, j, :, t, k] = 1 where row t has colour c and k == j: one backward pass per (colour, output) pair.
+    of_colour = (color == torch.arange(window, device=delta.device)[:, None]).to(rows_by_knot.dtype)  # (window, T_out)
+    eye = torch.eye(width, dtype=rows_by_knot.dtype, device=delta.device)
+    seeds = of_colour[:, None, None, :, None] * eye[None, :, None, None, :]
+    seeds = seeds.expand(window, width, batch, rows, width).contiguous()
     (gradients,) = torch.autograd.grad(
         rows_by_knot, delta, seeds.flatten(0, 1), is_grads_batched=True, retain_graph=True
     )

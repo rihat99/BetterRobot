@@ -203,9 +203,10 @@ def build_jacobian_plan(model: Model, dtype: torch.dtype, device: torch.device) 
             column = model.idx_vs_full[joint_id] + local_col
             owner[column] = joint_id
             gather[column] = joint_id * max_nv + local_col
-    is_support = torch.zeros((njoints, njoints), dtype=torch.bool, device=device)
-    for joint_id, chain in enumerate(build_supports(model.parent_joint_ids)):
-        is_support[joint_id, list(chain)] = True
+    chains = build_supports(model.parent_joint_ids)
+    is_support = torch.tensor(
+        [[joint_id in chain for joint_id in range(njoints)] for chain in chains], dtype=torch.bool, device=device
+    )
     subspaces = torch.zeros((njoints, 6, max_nv), dtype=dtype, device=device)
     for joint_id, joint in enumerate(model.joints):
         if joint.nv:

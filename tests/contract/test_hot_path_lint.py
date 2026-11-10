@@ -72,6 +72,11 @@ def test_no_forbidden_hot_path_patterns(file: Path) -> None:
             ".numpy()",
         ),
         (
+            "python_number_stored_in_a_tensor",
+            "import torch\ndef hot(x: torch.Tensor):\n    bottom = x.new_zeros(4)\n    bottom[3] = 1.0\n    return bottom\n",
+            "tensor[...] = <Python number>",
+        ),
+        (
             "torch_equal",
             "import torch\ndef hot(a, b):\n    if not torch.equal(a, b):\n        raise ValueError\n",
             "torch.equal(...)",
@@ -148,5 +153,19 @@ def test_bench_ok_and_hoisted_eye_are_allowed() -> None:
         "    for _ in range(2):\n"
         "        x = x + identity\n"
         "    return float(x.sum())  # bench-ok: public scalar result\n"
+    )
+    assert find_violations(Path("allowed.py"), src) == []
+
+
+def test_numbers_passed_as_arguments_and_stored_in_lists_are_allowed() -> None:
+    """``fill_`` and ``index_fill_`` take the number as an argument; a Python list is not a tensor."""
+    src = (
+        "import torch\n"
+        "def hot(x: torch.Tensor, index: torch.Tensor):\n"
+        "    bottom = x.new_zeros(4)\n"
+        "    bottom[3].fill_(1.0)\n"
+        "    counts = [0, 0]\n"
+        "    counts[0] = 1\n"
+        "    return bottom.index_fill_(0, index, 2.0), counts\n"
     )
     assert find_violations(Path("allowed.py"), src) == []

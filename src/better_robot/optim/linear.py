@@ -388,8 +388,7 @@ class BandSink:
         no block touches gets a unit diagonal, so the factorization never sees a zero pivot."""
         layout, size, batch = self.layout, self.layout.block_size, g.shape[0]
         diagonal = self.diagonal[:, :-1].reshape(batch, layout.blocks, size, size)
-        used = g.new_zeros(layout.blocks * size)
-        used[layout.position] = 1.0
+        used = g.new_zeros(layout.blocks * size).index_fill_(0, layout.position, 1.0)
         diagonal = diagonal + torch.diag_embed(1.0 - used.view(layout.blocks, size))
         upper = self.upper[:, :-1].reshape(batch, max(layout.blocks - 1, 0), size, size)
         return BandedNormal(diagonal=diagonal, upper=upper, g=g, layout=layout)

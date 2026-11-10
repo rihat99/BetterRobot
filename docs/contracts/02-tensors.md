@@ -65,7 +65,8 @@ is a parenthesised axis list such as `(B..., nq)` or `(7,)`, never prose); `[rev
 ## C-TENS-4 No host synchronisation in hot paths (MUST)
 
 `.item()`, `.cpu()`, `.tolist()`, `.numpy()`, `float(t)`, `bool(t)` and `if t:` on a tensor force the GPU to finish
-and break `torch.func` tracing. The hot paths are the files `tools/hot_path_lint.py` watches, which contract 09
+and break `torch.func` tracing; so does storing a Python number into a CUDA tensor (`t[..., 3] = 1.0` reads it
+back with `.item()`; `t[..., 3].fill_(1.0)` does not). The hot paths are the files `tools/hot_path_lint.py` watches, which contract 09
 lists; there a sync needs a `# bench-ok` line with its reason. Convergence tests in `optim` use tensor masks, not
 Python branches (`04`).
 
