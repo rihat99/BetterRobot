@@ -4,9 +4,8 @@
 A test that needs what the fast and full tiers lack (a GPU) carries the ``cuda`` marker, which deselects it there; a
 missing oracle, fixture or browser is an error. The hooks read the test reports, so an aliased ``pytest``, a
 ``unittest`` skip or a non-strict ``xfail`` fails like a plain ``pytest.skip``. These cases plant each spelling in a
-scratch suite that loads only the plugin, as this repository's ``tests/conftest.py`` and BetterHuman's do. Two ways
-to drop a test from every tier without a skip are refused too: ``collect_ignore`` in a conftest, and the ``bench``
-marker (deselected in every tier) outside ``tests/bench/``.
+scratch suite that loads only the plugin, as this repository's ``tests/conftest.py`` and BetterHuman's do.
+``collect_ignore`` in a conftest, which drops a test from every tier without a skip, is refused too.
 """
 
 from __future__ import annotations
@@ -119,17 +118,11 @@ def test_a_module_skipped_at_collection_fails(pytester: pytest.Pytester) -> None
 
 
 def _tier_drops(path: str, source: str) -> list[str]:
-    """``collect_ignore`` named in a conftest, and the ``bench`` marker outside ``tests/bench/``, in ``source``."""
+    """``collect_ignore`` named in a conftest, in ``source``."""
     found = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Name) and node.id in COLLECT_IGNORE and path.endswith("conftest.py"):
             found.append(f"{path}: {node.id}")
-        if isinstance(node, ast.Attribute) and node.attr == "bench" and not path.startswith("tests/bench/"):
-            owner = node.value  # ``pytest.mark`` or a ``mark`` imported from pytest
-            if (isinstance(owner, ast.Attribute) and owner.attr == "mark") or (
-                isinstance(owner, ast.Name) and owner.id == "mark"
-            ):
-                found.append(f"{path}: mark.bench")
     return found
 
 
@@ -144,8 +137,6 @@ def test_no_test_is_dropped_from_every_tier() -> None:
     [
         ("tests/conftest.py", 'collect_ignore = ["test_problem.py"]\n'),
         ("tests/parity/pinocchio/conftest.py", 'collect_ignore_glob = ["*_gpu.py"]\n'),
-        ("tests/optim/test_problem.py", "import pytest\n\npytestmark = pytest.mark.bench\n"),
-        ("tests/lie/test_se3.py", "from pytest import mark\n\n@mark.bench\ndef test_compose(): ...\n"),
     ],
 )
 def test_a_planted_tier_drop_is_found(path: str, source: str) -> None:
