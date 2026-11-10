@@ -10,13 +10,13 @@ of an ``_internal_checks`` function sits under ``if _internal_checks.ENABLED:``.
 Permanent exceptions to the value-check rule (calls of ``_internal_checks`` are guarded everywhere):
 ``_internal_checks.py`` itself (its functions are the guarded invariants), ``io`` (it checks a robot description's
 values once, at load, where it parses them), and numpy reads (no device sync). The unguarded
-checks that exist today sit in ``tests/contract/ratchets/value_checks.json`` (``path::function``); it only shrinks.
+checks that exist today sit in ``tests/contract/ratchets/value_checks.json`` (``path::function`` to the count of checks
+and the reason); it only shrinks.
 """
 
 from __future__ import annotations
 
 import ast
-import json
 import os
 import subprocess
 import sys
@@ -28,8 +28,10 @@ import torch
 from better_robot import _internal_checks
 from better_robot._internal_checks import check_unit_quaternions
 
+from ._ratchet_sites import compare
+
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
-RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets" / "value_checks.json").read_text())
+RATCHET = Path(__file__).parent / "ratchets" / "value_checks.json"
 EXEMPT = {
     "_internal_checks.py": "its functions are the invariants the switch guards",
     "io": "checks a robot description's values once, at load, where it parses them",
@@ -93,8 +95,8 @@ def _walk(node: ast.AST, scope: list[str], guarded: bool, found: dict[str, list[
         _walk(child, scope, guarded or (isinstance(child, ast.If) and _is_guard(child.test)), found)
 
 
-def _unguarded() -> dict[str, str]:
-    """``path::function`` of each unguarded value check or internal-check call, to the first offending line."""
+def _unguarded() -> dict[str, list[int]]:
+    """``path::function`` of each unguarded value check or internal-check call, to its offending lines."""
     sites: dict[str, dict[str, list[tuple[str, int, bool, str]]]] = {}
     for path in sorted(SRC.rglob("*.py")):
         relative = path.relative_to(SRC).as_posix()
@@ -109,7 +111,7 @@ def _unguarded() -> dict[str, str]:
         for function, items in functions.items()
         if function.rsplit(".", 1)[-1].startswith("_check_") and any(kind == "check" for kind, *_ in items)
     }
-    offenders: dict[str, str] = {}
+    offenders: dict[str, list[int]] = {}
     for path, functions in sites.items():
         for function, items in functions.items():
             for kind, line, guarded, callee in items:
@@ -118,7 +120,7 @@ def _unguarded() -> dict[str, str]:
                     kind == "call" and not guarded and (name in helpers or owner == "_internal_checks")
                 )
                 if bad:
-                    offenders.setdefault(f"{path}::{function}", f"line {line}")
+                    offenders.setdefault(f"{path}::{function}", []).append(line)
     return offenders
 
 
@@ -146,14 +148,18 @@ def test_the_test_tiers_run_with_the_switch_on() -> None:
 
 def test_value_checks_sit_behind_the_switch_or_an_opt_in_argument() -> None:
     """A new unguarded value check fails: guard it, make it an opt-in ``check_*`` argument, or move it to io."""
-    new = sorted(f"{site} ({line})" for site, line in _unguarded().items() if site not in RATCHET)
+    unguarded = _unguarded()
+    over, _ = compare(RATCHET, {site: len(lines) for site, lines in unguarded.items()})
+    new = [f"{entry}, lines {unguarded[entry.rsplit(': ', 1)[0]]}" for entry in over]
     assert not new, "value-reading checks outside their guard:\n  " + "\n  ".join(new)
 
 
 def test_value_check_ratchet_has_no_stale_entries() -> None:
     """An entry whose check is now guarded or gone leaves the ratchet with the fix."""
-    stale = sorted(RATCHET.keys() - _unguarded().keys())
-    assert not stale, "remove these entries from tests/contract/ratchets/value_checks.json:\n  " + "\n  ".join(stale)
+    _, under = compare(RATCHET, {site: len(lines) for site, lines in _unguarded().items()})
+    assert not under, "lower these counts in tests/contract/ratchets/value_checks.json (drop an entry at 0):\n  " + (
+        "\n  ".join(under)
+    )
 
 
 def test_a_quaternion_off_unit_norm_fails_and_a_non_finite_one_passes() -> None:

@@ -1,5 +1,14 @@
 {
-  "src/better_robot/lie/alignment.py::_require_tensor_condition": "umeyama scans its points and weights for finite values on every call (record 0021 makes such a scan opt-in); an opt-in check argument changes umeyama's public signature: parked for the owner (wp/R9b.md)",
-  "src/better_robot/model/model.py::Model.random_configuration": "reads the sample to find joints without finite limits; record 0021 makes that a static fact of the model (lane D owns model/)",
-  "src/better_robot/optim/linearization.py::_windowed_pieces": "compares the batched autodiff Jacobian with one backward pass on every linearization; belongs behind the switch or an opt-in check (optim owner, wp/R7fix)"
+  "src/better_robot/lie/alignment.py::_require_tensor_condition": {
+    "count": 1,
+    "reason": "umeyama scans its points and weights for finite values on every call (record 0021 makes such a scan opt-in); an opt-in check argument changes umeyama's public signature: parked for the owner (wp/R9b.md)"
+  },
+  "src/better_robot/model/model.py::Model.random_configuration": {
+    "count": 1,
+    "reason": "reads the sample to find joints without finite limits; record 0021 makes that a static fact of the model (lane D owns model/)"
+  },
+  "src/better_robot/optim/linearization.py::_windowed_pieces": {
+    "count": 1,
+    "reason": "compares the batched autodiff Jacobian with one backward pass on every linearization; belongs behind the switch or an opt-in check (optim owner, wp/R7fix)"
+  }
 }

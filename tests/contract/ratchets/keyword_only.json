@@ -1,4 +1,10 @@
 {
-  "better_robot.lie.se3.sclerp": "t keyword-only together with the parked lie keyword renames (P-2)",
-  "better_robot.lie.so3.slerp": "t keyword-only together with the parked lie keyword renames (P-2)"
+  "better_robot.lie.se3.sclerp": {
+    "count": 3,
+    "reason": "t keyword-only together with the parked lie keyword renames (P-2)"
+  },
+  "better_robot.lie.so3.slerp": {
+    "count": 3,
+    "reason": "t keyword-only together with the parked lie keyword renames (P-2)"
+  }
 }

@@ -4,14 +4,16 @@ Every class in ``exceptions.__all__`` derives from ``BetterRobotError`` and from
 raised somewhere in ``src`` (a class nobody raises is deleted), the boundary guards raise the typed class, and
 ``src`` raises a builtin ``ValueError``, ``TypeError`` or ``RuntimeError`` only where ``PLAIN_RAISES`` (permanent,
 reasoned) or the ratchet ``tests/contract/ratchets/plain_raises.json`` (shrinks as the io, optim and viewer rewrites land) allows.
+Both are keyed ``path::function Builtin`` and hold the count of such raises there, so another raise in a listed
+function fails.
 """
 
 from __future__ import annotations
 
 import ast
-import json
 import math
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -22,19 +24,22 @@ from better_robot.io import ModelBuilder, build_model, load
 from better_robot.io.model_from_ir import _check_topology_invariants
 from better_robot.kinematics import forward_kinematics
 
+from ._ratchet_sites import counts
+
 REPO = Path(__file__).resolve().parents[2]
 SRC = REPO / "src" / "better_robot"
 PLAIN_RAISES_RATCHET = REPO / "tests" / "contract" / "ratchets" / "plain_raises.json"
 BUILTIN_RAISES = {"ValueError", "TypeError", "RuntimeError"}
 _NOT_A_TENSOR = "a value that is not a torch.Tensor is a Python TypeError; the tree has no node for it"
-PLAIN_RAISES: dict[str, str] = {
-    "src/better_robot/collision/robot_spheres.py::_check_attached": "a state that is not a KinematicState is a Python TypeError",
-    "src/better_robot/collision/robot_spheres.py::_check_pairs": _NOT_A_TENSOR,
-    "src/better_robot/kinematics/forward.py::check_state": "a state that is not a KinematicState is a Python TypeError",
-    "src/better_robot/lie/_checks.py::check_tensor": _NOT_A_TENSOR,
-    "src/better_robot/spatial/inertia.py::_check_mesh_structure": _NOT_A_TENSOR,
-    "src/better_robot/spatial/inertia.py::_density_tensor": _NOT_A_TENSOR,
-    "src/better_robot/spatial/mesh.py::_check_face_table": _NOT_A_TENSOR,
+_NOT_A_STATE = "a state that is not a KinematicState is a Python TypeError"
+PLAIN_RAISES: dict[str, tuple[int, str]] = {
+    "src/better_robot/collision/robot_spheres.py::_check_attached TypeError": (1, _NOT_A_STATE),
+    "src/better_robot/collision/robot_spheres.py::_check_pairs TypeError": (1, _NOT_A_TENSOR),
+    "src/better_robot/kinematics/forward.py::check_state TypeError": (1, _NOT_A_STATE),
+    "src/better_robot/lie/_checks.py::check_tensor TypeError": (1, _NOT_A_TENSOR),
+    "src/better_robot/spatial/inertia.py::_check_mesh_structure TypeError": (1, _NOT_A_TENSOR),
+    "src/better_robot/spatial/inertia.py::_density_tensor TypeError": (1, _NOT_A_TENSOR),
+    "src/better_robot/spatial/mesh.py::_check_face_table TypeError": (1, _NOT_A_TENSOR),
 }
 BASES: dict[type, type] = {
     exc.ShapeError: ValueError,
@@ -62,9 +67,10 @@ def _raised_names() -> set[str]:
     return names
 
 
-def _builtin_raise_sites() -> set[str]:
-    """``path::function`` of every ``raise ValueError/TypeError/RuntimeError(...)`` under ``src``."""
-    sites: set[str] = set()
+def _builtin_raise_sites() -> Counter[str]:
+    """``path::function Builtin`` of every ``raise ValueError/TypeError/RuntimeError(...)`` under ``src``, to the
+    number of such raises there."""
+    sites: Counter[str] = Counter()
 
     def visit(node: ast.AST, file: Path, owner: str) -> None:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -73,7 +79,7 @@ def _builtin_raise_sites() -> set[str]:
             callee = node.exc.func
             name = callee.id if isinstance(callee, ast.Name) else getattr(callee, "attr", None)
             if name in BUILTIN_RAISES:
-                sites.add(f"{file.relative_to(REPO).as_posix()}::{owner}")
+                sites[f"{file.relative_to(REPO).as_posix()}::{owner} {name}"] += 1
         for child in ast.iter_child_nodes(node):
             visit(child, file, owner)
 
@@ -98,12 +104,15 @@ def test_every_class_is_raised_in_src() -> None:
 def test_src_raises_the_error_tree_only() -> None:
     """A builtin raise is allowed only by the permanent list or the ratchet, and every entry still has its raise."""
     sites = _builtin_raise_sites()
-    ratchet = json.loads(PLAIN_RAISES_RATCHET.read_text())
+    ratchet = counts(PLAIN_RAISES_RATCHET)
     assert not set(PLAIN_RAISES) & set(ratchet), "an entry is either permanent or ratcheted"
-    unexpected = sorted(sites - set(PLAIN_RAISES) - set(ratchet))
+    allowed = {**{key: count for key, (count, _) in PLAIN_RAISES.items()}, **ratchet}
+    unexpected = sorted(
+        f"{key}: {count} (allowed {allowed.get(key, 0)})" for key, count in sites.items() if count > allowed.get(key, 0)
+    )
     assert unexpected == [], f"raise the error tree (exceptions.py) instead of a builtin: {unexpected}"
-    stale = sorted((set(PLAIN_RAISES) | set(ratchet)) - sites)
-    assert stale == [], f"drop these entries with the fix that removed the raise: {stale}"
+    stale = sorted(f"{key}: {sites[key]} (allowed {count})" for key, count in allowed.items() if sites[key] < count)
+    assert stale == [], f"lower or drop these entries with the fix that removed the raise: {stale}"
 
 
 @pytest.fixture(scope="module")
