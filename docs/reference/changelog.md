@@ -1,276 +1,264 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
-Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Each release groups its entries by change type;
+every removal names its replacement. The [migration page](migration-0.3.0.md) maps every public name of the 0.2 line
+that 0.3.0 renames or removes, one table row each.
 
 ## Unreleased
 
-- Io: `load(path, *, format=None, root_joint=None, device=None, dtype=torch.float32)` and `parse(path, *, format=None)`
-  take a path only (record 0015): `free_flyer=True` is `root_joint=JointFreeFlyer()`, a builder's IR goes through
-  `build_model(builder.finalize(), ...)` (no callable source), `format="auto"` is `None`. `io.__all__` is `load`,
-  `parse`, `parse_urdf`, `parse_mjcf`, `build_model`, `build_geometry`, `load_geometry`, `ModelBuilder` and the five IR
-  records; `io.parsers` is gone (`io.parse_urdf`, `io.parse_mjcf`, `io.builder.ModelBuilder`).
-- Io: one joint order and body-named frames (records 0012, 0018): `build_model` orders joints parents first and keeps
-  the description's order wherever it is already topological (a Kahn sort; the depth-first default and
-  `preserve_joint_order=` are gone); every body's frame carries the body's name (`"panda_hand"`, not
-  `"body_panda_hand"`; an IR frame named like a body, or like another frame, or on an unknown body, is a `ModelError`);
-  `q_neutral` is clamped into the limits (no `clamp(...)` before use); `Model.parents` is `Model.parent_joint_ids`
-  (`model.topology` helpers take `parent_joint_ids`). `build_model` runs named stages into one `Model(...)`.
-- Io: one `ModelBuilder` (record 0015): `add_revolute(name, *, parent, child, axis, ...)` and `add_prismatic(..., axis=)`
-  take the axis as a unit 3-vector and build the joint kind at the call (a bad axis fails there); `add_frame(name, *,
-  parent, placement)`; `add_joint(name, *, kind=<JointModel>, ...)` takes a kind instance only (`ArgumentError` for a
-  string). Gone: `add_revolute_x/y/z`, `add_prismatic_x/y/z`, `parent_body=`, `frame_type`, the legacy kind table,
-  `io.builders` (`build_kinematic_tree_body/model`: write the loop with `ModelBuilder`, as `examples/07_branching_tree_body.py`
-  does). `IRJoint` carries its kind as `joint: JointModel` (was a `kind` string with `axis`, `pitch` and a `joint_model`
-  payload); `friction` is dropped (`Model` has no reader); the parsers build the joint objects. The builder raises
-  `ModelError` (duplicate name, root count) and `UnknownNameError` (frame or shape on an unknown body).
-- Tests: `tests/contract/test_no_probing.py` (records 0022, 0036, 0037): no literal-name `getattr` and no `hasattr` in
-  `src`; ruff's `SLF001` (`tests/contract/test_ruff_ratchets.py`) keeps every module off another object's `_`
-  attributes.
-- Io: `Model.name` is the robot name of the file (`<robot name=...>` in URDF, `<mujoco model=...>` in MJCF); it was empty.
-- Io: `register_parser` and the parser registry are gone (records 0025, 0038): `load` and `parse` know URDF and MJCF by
-  suffix and raise `ModelError` for any other; a new format is a function returning `IRModel` passed to `build_model`
-  (`tests/contract/test_extension_points.py`: no registry and no `register_*` function in `src`).
-- Io: the asset resolvers (`AssetResolver`, `FilesystemResolver`, `PackageResolver`, `CompositeResolver`,
-  `CachedDownloadResolver`) are gone (record 0038): mesh URIs stay strings on `Mesh` shapes and `viewer.robot_meshes`
-  reads them under `root`.
-- Viewer: `robot_meshes(geometry, *, root=None, collision=False, default_color)` reads the meshes of a `Geometry`
-  under `root` (`package://<package>/<rel>` and relative URIs under it, absolute paths as written) and raises
-  `ModelError` naming body and URI on an unreadable file; `RobotView` and `robot_layers` are gone (record 0016):
-  layers are built from `RigidMeshLayer`, `robot_skeleton`, `FramesLayer` and `SpheresLayer`; `skeleton_spec` and
-  `spread_offsets` leave `viewer.__all__`. `Model.meta` and `IRModel.meta` are gone with them.
-- Model: `Geometry`, the shapes of a robot as a value beside `Model` (record 0016): final records `Sphere`,
-  `Box`, `Cylinder`, `Capsule` and `Mesh` (placement and colour), each attached to a body by `AttachedShape(body,
-  shape, collision)`; `io.build_geometry(ir, model)` and `io.load_geometry(path, model)` build one; the IR carries
-  `IRShape(body, shape, collision)` in `IRModel.shapes` (was `IRGeom` lists on `IRBody`); `ModelBuilder.add_shape(body,
-  shape, *, collision=True)` replaces `add_collision_geom`.
-- Dynamics: `model.armature (nv,)` (motor inertia; MJCF `armature`, zero from URDF) enters `inverse_dynamics`
-  (`+ armature * a`) and `mass_matrix` (`+ diag(armature)`), so `forward_dynamics` too, as in Pinocchio; it was
-  read but unused. `Model.with_values(armature=)` sets it (unbatched).
-- Dynamics: `inverse_dynamics` and `forward_dynamics` gradients are bitwise reproducible on CUDA (they differed by
-  ~1e-13 run to run; `mass_matrix` and `centroidal_map` were already): the core gathers per-column joint quantities by
-  advanced indexing, not `index_select`, whose CUDA backward adds a free flyer's six repeated columns with atomics.
-  `tests/collision/test_collision.py::test_cuda_backward_is_bitwise_reproducible` pins this, with
-  `RobotSpheres.centers` and `RobotCapsules.segments` (many points per frame), by running backward twice on CUDA.
-- Collision: `RobotCapsules` (frame-attached segments with a radius, `segments(state)`), `capsule_capsule`
-  (segment closest points, exact gradient with the segment parameters detached) and `self_capsule_distances`;
-  `self_collision_pairs` takes capsules with the same pair rules.
-- Fixed: the MJCF parser dropped capsule and cylinder `fromto` (length 0 at the body origin); it now places them
-  as MuJoCo's compiler does.
-- Viewer: skeleton bones with a cylinder or box marker at either end run, textbook style, as up to three legs along
-  the axes of the parent joint's frame (parent's axis first, child's axis last, legs under 1 cm folded), joined by
-  spheres (`bone_corners` node); bones between axis-less joints, and bones over 15 cm from a joint with one child
-  (a thigh), stay straight. `robot_skeleton` draws a revolute joint as a cylinder of radius 25 mm (`radius=0.025`)
-  and length 60 mm (was 16 x 50 mm), bones 8 mm (`bone_radius=0.008`, was `SkeletonLayer`'s 0.6 `radius`), the
-  load thickness 0.8-1.5x (was 1.8x), and `spread_offsets` spaces markers for the plain thickness (was the
-  thickest), so a heavily loaded marker may touch its neighbour.
-- Viewer: fixed the robot skeleton drawing the markers of `JointRX`/`JointRY` (and `JointPX`/`JointPY`) along the
-  joint's z axis, 90° off their true axis (22 of the G1's 29 joints); `skeleton_spec` reads
-  `model.structure.joint_axes` instead of `joint.axis`, which is `None` for the axis-aligned kinds.
-  `ArrowsLayer(..., min_length=1e-6)`: an arrow no longer than `min_length` metres draws nothing in line or solid
-  mode (tiny vectors drew a round-cap dot or a full solid head).
-- Viewer: the skeleton draws co-located joints apart, textbook style: `spread_offsets(model)` slides each joint
-  marker that would overlap another along its own axis (computed once at `q_neutral`, for the thickest marker the
-  joint load draws), and bones join the drawn markers (`SkeletonLayer(offsets=)`; a zero-length bone draws nothing).
-  `robot_skeleton(..., tau=)` shows each joint's `|tau| / effort_limit` on its marker in colour (`Theme.torque_ramp`,
-  `Theme.over_limit` past the limit) and thickness (`SkeletonLayer(thickness=)`, the cross-section only).
-  `robot_skeleton(..., end_points={frame: point})` adds a bone from the frame's parent joint to a point in the frame,
-  such as a hand out to its contacts. `colormap` takes any number of colour stops. Solid `ArrowsLayer` heads take at
-  most 35 % of the arrow, so short arrows shrink as a whole instead of drawing a lone head. `Theme.force` is a
-  saturated red, `Theme.contact` green.
-- Optim: `LBFGS` evaluates the first trial of its line search together with its gradient and keeps that gradient
-  when every problem takes the trial, so such a step costs one evaluation instead of two, and `init` one instead
-  of two; the iterates are unchanged. On BetterRetarget's trajectory problems (97-100 % of steps take the first
-  trial) a step is 15 % (78 frames) to 30 % (1014 frames) faster. A step where some problem rejects the first
-  trial costs one backward pass more than before: the nonnegative force fit of BetterRetarget (about half its steps)
-  runs -1 to +15 % per step, a batched B=16 IK with bounds +11-18 % on the CPU. `Problem.gradient(x)` returns
-  `(loss, g, terms)`, adding the per-term losses of the same evaluation.
-- Collision: `RobotSpheres.centers` poses with an elementwise product-sum instead of a batched 3x3 matmul: forward +
-  backward 2.5x faster on the GPU (G1, 1014 frames x 10475 points: 37 -> 15 ms), the same values, still bitwise
-  reproducible (advanced indexing; an `index_select` would be faster still, but its CUDA backward adds with atomics).
-- Optim: `LBFGS` stops its line search once every problem has a step (one host read per trial; the same iterates
-  on unbounded problems with 2-4x fewer evaluations). With bounds it holds the coordinates an active bound pins
-  and tests the Armijo condition on the clipped step, never taking one that raises the loss; the old search
-  stalled on bound-heavy problems (a nonnegative force fit stopped 0.4-4 % above its optimum, now within
-  0.01 %). A problem whose plain gradient step finds no decrease is done: every later step would repeat that
-  search. The search tries up to 20 step sizes (was 8): a stiff term with little gradient made the plain gradient
-  step need up to 11 trials on robot trajectories, and 8 left such problems done at their start point.
-- Terms: `finite_difference` takes any `order` (binomial stencil) and `world_translation=True`, which steps a
-  free flyer's position in its parent frame instead of the SE3 log's body-frame translation.
-  `velocity_limit(model, *, dt, fraction=1.0)` is the excess of the step velocity over the model's limits; a stored
-  limit of 0 (MJCF, URDF without `velocity`) is no limit.
-- Kinematics: `point_jacobian(model, state, *, frames, points)`, the `(B..., K, 3, nv)` world-velocity Jacobian of
-  points fixed to frames; `points` must match the state's dtype and device.
-- Viewer: `Viewer.set_offset(group, offset)` moves a group after it was added; `Viewer.aim(steps=, azimuth=,
-  elevation=)` points the live browsers (and viser's initial camera) at the visible layers, framed as `record`
-  frames them, skipping steps with nothing visible. `robot_skeleton(..., bone_radius=)` hides single bones;
-  `robot_skeleton` is exported from `better_robot.viewer`.
-- Optim: a term may return `(value, info)`; `Problem.evaluate(x)` gives the loss, per-term losses and the
-  `info` dicts from one evaluation. Every solver writes `State.extra["terms"]` (`TorchOptim` also
-  `extra["info"]`), so `Phase.on_step` logs per-term losses without a second forward.
-- Viewer: `Viewer.add(..., valid=)` hides a layer on invalid samples (`(T,)`) or single spheres/arrows (`(T, N)`).
-  `remove_group` shrinks the timeline to the remaining layers (`Timeline.resize`). `ImagePanel`: a sidebar image
-  per step from `(T, H, W, 3)` or a lazy `step -> image`. `SpheresLayer` and `ArrowsLayer` take per-step
-  colours `(T, N, 3)`. `GroundLayer(origin=, normal=, fill=, fill_color=)` draws a tilted, filled floor.
-  `Viewer.set_fps` changes the timeline rate during playback and re-maps layers added with `times`.
-- Viewer: `ArrowsLayer(..., shaft_radius=, head_radius=)` draws solid arrows (cylinder shaft, cone head of
-  fixed length `head_size`, sizes in metres) instead of pixel-wide line shafts.
-- Viewer: `SkeletonLayer(radius=)` takes `(T, J)` per-step joint radii (marker scales are then written per step)
-  and `bone_radius=` a `(J,)` radius per bone (entry `j` for the bone into joint `j`); 0 hides a marker or bone.
-- Breaking: `terms.frame_pose`, `terms.frame_position` and `terms.self_clearance` take `frame`, `target` and
-  `pairs` keyword-only, like the kinematics functions. Joint ids accept `int | str` everywhere a frame id does;
-  unknown names raise `UnknownNameError` (a `KeyError`). `HumanState.vertices`/`frame_poses` are properties
-  in BetterHuman; `Rig.corrective_features` gains a keyword-only `identity`.
-- Breaking: `JointModel.joint_transform` is `joint_placement` (and `data_model.joint_dispatch.joint_transform`
-  is `joint_placement`); it returns the joint's local `(B..., 7)` pose, and "transform" means a world 3x4 matrix.
-- `io.parse(source, format=...)` returns the IR; `load` is `build_model(parse(...))`. URDF `<dynamics>` and MJCF
-  `damping`/`frictionloss`/`armature` now reach `ModelValues` (they were silently zero). MJCF is marked
-  experimental (known gaps listed in the io page).
-- Solvers write `grad_norm`, `step_norm`, `accepted` (LM: `damping`) per step into `Result.diagnostics`;
-  `Result.state` warm-starts `solve`/`run` via `state=`. A `time=` problem that falls back to the dense sink warns.
-- FK, RNEA and CRBA run under `torch.compile(fullgraph=True)`; `so3.to_euler` is exact at pitch ±π/2.
-- `self_collision_pairs(..., ignore=)`, `RobotSpheres.to()`; ADR 0007 (derivatives contract) and ADR 0008
-  (geometry brick).
-- Viewer: `Viewer.add(..., times=)` for per-layer sample times, `Viewer.on_pointer`/`clear_pointer`,
-  `tools.nearest_on_ray`, `layers/camera.py`; `Trajectory` dataclass; SE(3) vocabulary (placement / pose /
-  transform) in the naming contract and glossary.
-- Fixed: zero-size batches through FK, dynamics and every solver; URDF inertia ignored `<inertial><origin rpy>`;
-  `Viewer.url` reported the requested port instead of the bound one; benchmark scripts broken by keyword-only args.
+### Added
+- `better_robot` exports its twelve packages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`,
+  `collision`, `io`, `optim`, `terms`, `viewer`, `testing`) and `JointFreeFlyer`, `solve_ik` and `Viewer` beside the
+  core functions.
+- `model.Geometry`: the shapes of a robot as a value beside `Model`, made of final records `Sphere`, `Box`,
+  `Cylinder`, `Capsule` and `Mesh` attached to bodies by `AttachedShape(body, shape, collision)`; built by
+  `io.build_geometry(ir, model)` or `io.load_geometry(path, model)`, extended by `ModelBuilder.add_shape`.
+- `model.JointRevolute(axis)` and `model.JointPrismatic(axis)` for any unit axis; each joint class declares its
+  `model.JointManifold`, and `kinematics.integrate(model, q, v)` and `kinematics.difference(model, q0, q1)` step
+  and compare whole configurations through it.
+- `Model.structure_key` (a hashable value of the static fields), `Model.device` and `Model.dtype`.
+- `kinematics.subtree(model, joint)`, `kinematics.support(model, joint)`, `kinematics.full_configuration(model, q)`
+  (mimic joints filled in) and `kinematics.euclidean_columns(model)`.
+- `kinematics.point_jacobian(model, state, *, frames, points)`: the `(B..., K, 3, nv)` world-velocity Jacobian of
+  points fixed to frames.
+- `kinematics.frame_jacobian_time_variation` and `kinematics.joint_jacobian_time_variation`: the `J̇` of
+  `a = J v̇ + J̇ v` in the world, local and local-world-aligned references.
+- `KinematicState.joint_pose_of(joint)`, the world pose of one joint; `KinematicState.jacobian_columns`, the world
+  Jacobian column table every joint and frame Jacobian shares; `KinematicState.world_geometry` for `dynamics`.
+- `spatial` functions on tensors: `cross_motion`, `cross_force`, `transform_motion`, `transform_force`,
+  `transform_inertia`, `inertia_matrix`, `rotational_inertia`, `inertia_from_mass_com` and `inertia_of_sphere`,
+  `inertia_of_box`, `inertia_of_capsule`, `inertia_of_ellipsoid`, `inertia_of_mesh`.
+- `io.parse_urdf` and `io.parse_mjcf` (through MuJoCo's compiler, the `mjcf` extra); `io.IRShape` and
+  `IRModel.shapes`; `IRJoint.damping`, `IRJoint.armature` and `IRJoint.neutral`.
+- `exceptions.ArgumentError` (also a `ValueError`) for an argument outside its documented values.
+- `collision`: `RobotSpheres` and `RobotCapsules` (frame-attached spheres and segments), `self_collision_pairs`
+  (with `ignore=`), `self_distances`, `self_capsule_distances` and the pair distances `sphere_sphere`,
+  `sphere_capsule`, `capsule_capsule`, `sphere_halfspace`, `sphere_box`, `sphere_sdf`.
+- `optim`: named-tensor problems of plain-function terms. `Problem` with `residual`, `scalar` and `cached` terms
+  (`TermFn`, `Term`, `RobustKernel` and the kernels `Huber`, `Cauchy`, `Tukey`, `GemanMcClure`), the solvers
+  `LevenbergMarquardt`, `GaussNewton`, `LBFGS` and `TorchOptim` (an abstract `Solver` with `warm_keys`), `solve`,
+  `run` with `Phase`s, `solve_layer` (differentiable), `solve_constrained`, `check_jacobian`, the `Normal`,
+  `BandedNormal` and `ArrowNormal` linear systems, the `Manifold` base and `Euclidean`.
+- `Problem.evaluate(x)` returns the loss, the per-term losses and the `info` a term returns beside its value;
+  `Problem.gradient(x)` adds the per-term losses; `Problem.cached_values` lists the cached values.
+- `State.solver`, `State.extra["terms"]` and `Result.diagnostics` (`grad_norm`, `step_norm`, `accepted`, LM
+  `damping`); `Result.state` warm-starts `solve` and `run` through `state=`.
+- `terms`: `frame_pose`, `frame_position`, `joint_limits`, `rest`, `finite_difference` (any `order`,
+  `world_translation=`), `velocity_limit(model, *, dt, fraction=1.0)`, `sphere_clearance`, `self_clearance`,
+  `kinematic_state`, `RobotManifold`, `ik_problem`, `random_start` and `solve_ik`.
+- `viewer`: `Viewer` (viser) with `add`, `replace`, `remove_group`, `set_offset`, `set_visible`, `set_fps`,
+  `aim`, `play`, `record`, `save`, `on_pointer` and `clear_pointer`; a `Timeline`; the layers `FramesLayer`,
+  `PointsLayer`, `SpheresLayer`, `ArrowsLayer`, `MeshLayer`, `RigidMeshLayer`, `SkinnedMeshLayer`,
+  `SkeletonLayer`, `GroundLayer`, `CameraLayer`, the panels `ImagePanel` and `PlotPanel`; `Theme`, `LIGHT`,
+  `DARK`; `robot_meshes` and `robot_skeleton`.
+- `Viewer.add(..., times=, valid=)`: per-layer sample times, and a per-step (or per-element) mask that hides
+  samples; `Layer.set_opacity` and `Layer.opacity`; `Layer.elements`.
+- `robot_skeleton(..., tau=)` shows each joint's `|tau| / effort_limit` in colour (`Theme.torque_ramp`,
+  `Theme.over_limit`) and thickness; `end_points=` adds bones out to points in a frame; co-located joints are drawn
+  apart along their axes.
+- `ArrowsLayer(shaft_radius=, head_radius=, min_length=)` draws solid arrows and skips vectors shorter than
+  `min_length`; `GroundLayer(origin=, normal=, fill=, fill_color=)` draws a tilted, filled floor.
+- `better_robot.testing`: `FakeServer` (viser without sockets), `check_joint_model`, `public_api`,
+  `public_objects`, `imported_packages`, `dead_citations`, the docs snippet runner `snippets` and the `no_skips`
+  pytest plugin; the `testing` extra installs pytest for it.
+- `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
 
-- Removed the Warp lanes (`use_warp`, the `warp` extra, the kernel modules);
-  torch is the only implementation.
-- Joint Jacobians now assemble in one batched shared-column pass instead of a
-  per-joint Python loop, cutting kernel launches from ~50 per joint to a
-  constant 52 for the whole pass, independent of joint count (203-joint model,
-  batch 256: forward 47.3 to 0.84 ms). `get_joint_jacobian` gains the
-  `local_world_aligned` reference, so joints and frames now share all three
-  references. A new Jacobian time-variation API returns `J̇` for the
-  acceleration relation `a = J v̇ + J̇ v`: `compute_joint_jacobians_time_variation`,
-  `get_joint_jacobian_time_variation`, and `get_frame_jacobian_time_variation`
-  cover joints and frames in the world, local, and local-world-aligned frames,
-  where world and local pair with the spatial acceleration and
-  local-world-aligned with the classical acceleration of the moving frame
-  origin. It reuses the batched column pass and adds a constant 8 launches over
-  the Jacobian alone.
-- Forward kinematics now runs a batched matrix formulation — per-kind local
-  transforms in batched calls, one batched matmul per joint, one final
-  matrix-to-quaternion pass — cutting kernel launches from ~78 to ~2 per
-  joint (203-joint model, batch 256: forward 152 to 9.5 ms, with backward
-  551 to 44 ms). Outputs are canonical-sign normalized quaternions.
-  `forward_kinematics` gains opt-in `use_compile` (a `torch.compile` lane
-  cached per structure, batch-size dynamic; `use_warp` takes precedence).
-  The Warp FK lane accepts shape-batched joint placements with unbatched
-  frame placements instead of falling back to Torch. RNEA, ABA, CRBA, and
-  the centroidal map build their local-pose inverse adjoints and inertia
-  tables in single batched calls, roughly halving inverse-dynamics
-  forward+backward time, and the Warp RNEA backward differentiates only
-  outputs with incoming gradients.
-- Optimizers now expose `resume()` for cumulative multi-phase solves.
-  `TorchOptimizer` preserves moments, tangent buffers, and optional scheduler
-  state across same-layout input updates, rebuilds on actual layout changes,
-  and advances a caller-supplied PyTorch scheduler once per optimizer update.
-  The staged-fit guide and composed fitting proof cover frozen-layout handoff,
-  active-term changes, static observation swaps, scheduled Adam phases,
-  per-term logging, and L-BFGS polish without a phase configuration object.
-- `RobotVariable` now exposes topology-derived tangent groups, per-coordinate
-  square-root-information weights, and construction-time frozen groups shared
-  by dense, bounded, first-order, implicit, and temporal optimizers.
-  `SmoothnessResidual` unifies acceleration, jerk, and snap (orders two through
-  four); `AccelerationResidual` is replaced by order two. Velocity and
-  smoothness now avoid incorrect constant analytic blocks for spherical and
-  free-flyer logarithms and use dense autodiff for those models. CUDA implicit
-  backward now validates a square solve directly instead of depending on
-  unavailable CUDA least-squares rank metadata. The canonical mixed-manifold
-  trajectory benchmark reports only its valid dense route until a reviewed
-  all-scalar structured fixture is added.
-- Scene-SDF and masked-Chamfer residuals now consume composed point Nodes,
-  apply detached confidence linearly, and expose per-penalty activity gates;
-  scene distance may be point-to-point or point-to-plane. The new
-  `PointProjectionResidual` projects static or trajectory point sets through
-  the existing camera convention with explicit event-axis semantics.
-- Nodes now compose into recursively scoped, mergeable DAGs; static Variables
-  accept boolean and integer inputs, and `ScalarCost` adapts non-negative scalar
-  penalties to exact L2 objective terms.
-- Residual objectives now separate square-root-information `row_weight` from
-  the non-negative outer `weight`, add `sum`, `mean`, and detached-active-mean
-  reductions, and support explicit whole-term and per-group activity. Robust
-  kernel scale is independent of term importance. `Problem.error()` and task
-  result residual fields now expose whitened rows; `Problem.term_costs()`
-  exposes named objective contributions.
-- `Problem` now freezes a graph of residual objects and the variables and nodes
-  they reference. Variable subclasses own their tensor and geometry; residuals
-  own their weights, robust groups, and dependencies.
-- `solve_trajopt` now accepts residual objects or trajectory-variable residual
-  factories. Callers may supply their own `RobotVariable`, and optimizer
-  factories receive and own the assembled `Problem`.
-- `LevenbergMarquardt` and `GaussNewton` now share one dense or block-banded
-  path. `TorchOptimizer` adapts the same `Problem` to a standard
-  `torch.optim.Optimizer`; eligible converged LM solves can request guarded
-  implicit differentiation.
-- Temporal variables and residual patterns can route trajectory problems
-  through block-banded Cholesky. Problems without complete temporal structure
-  continue to use the dense path and report why.
-- Tensor-only FK, frame-placement, Jacobian, RNEA, ABA, CRBA, and CCRBA passes
-  are public and return named result objects. `ModelStructure` and
-  `ModelValues` are public, dynamics workspaces are optional, and gradients
-  can flow through configurations and model values.
-- `solve_ik` exposes implicit differentiation for eligible solves, and
-  `solve_contact_forces` no longer detaches the force and dynamics tensors it
-  returns. Ordinary task solves remain detached where documented.
-- Public functions validate tensor shape, dtype, and device once. Model values
-  are checked when attached to a model instead of during every kinematics or
-  dynamics call, and public input errors now use consistent wording.
-- `ccrba` now returns a frozen `CCRBAResult` dataclass with named centroidal-map
-  and momentum fields; tuple unpacking is removed.
-- The former optimization object hierarchy and nested import paths were removed,
-  including `CostStack`, `CostItem`, `CostKind`, `LeastSquaresProblem`,
-  the previous `Optimizer`/`OptimizationResult` protocol, `SolverState`,
-  `SolverStatus`, the custom
-  `Adam` state machine, L-BFGS and multi-stage wrappers, damping strategies,
-  phase records, and the `better_robot.costs` package. Every removed symbol
-  and its supported replacement is listed in the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
-- Scalar objectives, `ResidualState`, residual-owned Jacobian hooks,
-  `ResidualSpec`, provider `inputs` declarations, and the root/kinematics
-  `JacobianStrategy` export were removed or replaced by the single callable
-  residual protocol. Exact replacements are in the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
-- `LSTSQ`, the rank-deficient Cholesky fallback, `NormalCG`, `NormalOperator`,
-  matrix-free routing, pure linear-solve diagnostics, and nested
-  `optim.blocks`, `optim.kernels.*`, `optim.solvers.*`, and `optim.structure`
-  import paths were removed. Dense and declared temporal routes replace them;
-  the [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md)
-  cover each surface.
-- Unimplemented public dynamics exports (`compute_minverse`,
-  `compute_coriolis_matrix`, centroidal dynamics derivatives, three dynamics
-  integrators, and `nle`) and residual exports (`YoshikawaResidual`, collision
-  residuals, and `JointAccelLimit`) were removed. Their supported alternatives
-  are listed in the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
-- Raise-only jerk and nullspace residual exports, the unsupported angular
-  contact-consistency option, and the unused public model-value batch-shape
-  wrapper were removed. Supported alternatives are recorded in the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
-- The unused `ReferenceFrame` enum was replaced by the literal frame strings
-  accepted by the Jacobian API; see the
-  [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
-- Fused Warp forward kinematics and inverse dynamics are explicit GPU
-  alternatives with forward and gradient parity coverage. Unsupported opt-in
-  requests warn before using the PyTorch reference path, which remains the
-  default.
-- Tutorials now introduce the robotics concepts they use, guides show complete
-  tasks, concept chapters explain design trade-offs, and the generated
-  reference matches the current public API.
+### Changed
+- `Model` is one flat frozen record: the fields of `ModelStructure` and `ModelValues` live on it, it compares by
+  identity, and `Model.with_values(**fields)` replaces any tensor field by keyword.
+- Field names say what they hold: `Model.parent_joint_ids`, `Model.mimic_source_ids`, `Model.mimic_multipliers`,
+  `Model.mimic_offsets`, `Model.lower_position_limit`, `Model.upper_position_limit`, `Model.joints`; the
+  `KinematicState` accessors are plural (`joint_poses`, `frame_poses`, `joint_rotations`, ...).
+- `build_model` orders joints parents first and keeps the file's order wherever it already is: joint ids change
+  for some robots (the G1). Joint 0 is a `JointFixed` named `"universe"`.
+- Every body's frame carries the body's name (`"panda_hand"`, not `"body_panda_hand"`); a frame named like a body
+  or another frame is a `ModelError`.
+- `Model.q_neutral` is clamped into the joint limits at build.
+- `load(path, *, format=None, root_joint=None, device=None, dtype=torch.float32)` and
+  `parse(path, *, format=None)` take a path only; `root_joint=JointFreeFlyer()` makes a floating base.
+- `ModelBuilder.add_revolute` and `add_prismatic` take `axis=` as a unit 3-vector; `add_frame` takes `parent=`;
+  `add_joint` takes `kind=` as a joint object.
+- `IRJoint.joint` holds the joint object (with its axis and pitch).
+- Keyword renames: `iters=` is `iterations=` (`solve`, `solve_layer`, `solve_constrained`, `Phase`, `Result`,
+  `solve_ik`), `fext=` is `external_forces=` (`inverse_dynamics`, `forward_dynamics`), `jac=` is `jacobian=`
+  (`TermFn`, `Problem.residual`), `gtol`, `ftol`, `xtol` are `gradient_tolerance`, `loss_tolerance`,
+  `step_tolerance`, `State.it` is `State.iteration`.
+- `TorchOptim(factory, *, scheduler=None)` takes a function from the parameters to a `torch.optim.Optimizer`.
+- `Phase.on_start(problem, x)` returns `(x, data)`; `Problem.with_(*, data, weights, free)` replaces data entries.
+- `Solver` and `optim.Manifold` are abstract base classes; `RobustKernel` is the kernels' base.
+- `Model.random_configuration(*, generator)` and `terms.random_start(model, q0, *, generator)` require the
+  generator.
+- `forward_kinematics(..., check_quaternion_norm=True)` checks every quaternion joint.
+- `kinematics.integrate` raises `DtypeMismatchError` on mixed dtypes.
+- Public dataclasses and constructors are keyword-only after their leading arguments: `KinematicState`,
+  `RobotSpheres`, `RobotCapsules`, `Normal`, `BandedNormal`, `ArrowNormal`, `TermFn`, `Phase`, `State`, `Result`,
+  the IR records, `MeshSpec`, `Theme`, `Timeline`, and the layers (`SkeletonLayer(..., parent_ids=)`).
+- `Viewer.add(layers, *, group)` takes an iterable of layers; `Viewer.play(*, block=True)` pauses the timeline when
+  the serve ends.
+- A second `Viewer.on_pointer` registration raises `ArgumentError` (`clear_pointer` first); the pointer callbacks
+  receive viser's click and rect-select events.
+- `Viewer.add` and `Viewer.replace` reject a layer added twice with `ArgumentError`, and a failing layer leaves
+  the viewer as it was; `set_offset` and `remove_group` raise `UnknownNameError` for an unknown group.
+- A raising `PoseGizmo` callback stops the gizmo; `wait()` raises the callback's error.
+- `forward_kinematics` returns canonical-sign, normalized quaternions (`q` and `-q` are one rotation): compare
+  rotations, or align signs, before comparing raw components.
+- `inverse_dynamics` and `mass_matrix` include `Model.armature` (motor inertia; MJCF `armature`, zero from URDF),
+  so `forward_dynamics` does too, as in Pinocchio.
+- URDF `<dynamics>` and MJCF `damping` and `armature` reach `Model.damping` and `Model.armature`.
+- `inverse_dynamics`, `forward_dynamics`, `RobotSpheres.centers` and `RobotCapsules.segments` have bitwise
+  reproducible CUDA gradients (`tests/collision/test_collision.py::test_cuda_backward_is_bitwise_reproducible`).
+- `LBFGS` evaluates the first line-search trial with its gradient and stops the search once every problem has a
+  step; with bounds it holds the coordinates an active bound pins and tests the Armijo condition on the clipped
+  step; it tries up to 20 step sizes.
+- `Model.name` is the robot name of the file (`<robot name=...>`, `<mujoco model=...>`).
+- The URDF and MJCF parsers raise `ModelError` naming the file and the element at fault.
+- Errors are the `exceptions` classes throughout, `optim` included.
+- Python 3.12 or newer; the `io-mjcf` extra is `mjcf`; the `viewer` extra needs `viser>=1.0.30` and `pillow`;
+  the `dev` extra is a dependency group, beside `test-oracles` for the parity oracles.
 
-## v0.2.0 — 2026-04-11
+### Removed
+- `ModelStructure`, `ModelValues`, `Model.structure`, `Model.values`: use the fields of `Model`.
+- `Frame`, `Model.frames`: use `Model.frame_parent_joint_ids` and `Model.frame_placements`.
+- `Body`: use `Model.body_names` and `Model.body_inertias`.
+- `Joint`, `FrameType`, `JOINT_DIMENSIONS`, `Trajectory`, `StateMultibody`: no replacement; no caller used
+  them (joint objects carry `nq` and `nv`; keep clips in your own type).
+- `SE3`, `lie.SE3`, `lie.SO3`, `lie.Pose` and their `spatial` re-exports: use the `lie.se3` and `lie.so3` functions
+  on tensors.
+- `spatial.Motion`, `spatial.Force`, `spatial.Inertia`, `spatial.Symmetric3`: use `(..., 6)`, `(..., 10)` and
+  `(..., 3, 3)` tensors with the `spatial` functions (`transform_motion`, `cross_force`, `inertia_of_box`, ...).
+- `forward_kinematics_state`, `Model.fk`: use `forward_kinematics`.
+- `frame_jacobian_time_variation`, `joint_jacobian_time_variation`, `centroidal_map`, `centroidal_momentum` at the
+  root: use `kinematics.frame_jacobian_time_variation`, `kinematics.joint_jacobian_time_variation`,
+  `dynamics.centroidal_map` and `dynamics.centroidal_momentum`.
+- `data_model`: use `model`.
+- `Model.get_subtree`, `Model.get_support`, `Model.children`, `Model.subtrees`, `Model.supports`,
+  `Model.topo_order`: use `kinematics.subtree` and `kinematics.support`; joints are stored parents first.
+- `Model.expand_configuration`, `Model.has_mimic`, `Model.q_expansion`, `Model.q_offset`, `Model.v_expansion`: use
+  `kinematics.full_configuration`.
+- `Model.integrate`, `Model.difference`, `JointModel.integrate`, `JointModel.difference`: use
+  `kinematics.integrate` and `kinematics.difference`.
+- `Model.joint_name_to_id`, `Model.body_name_to_id`, `Model.frame_name_to_id`: use `Model.joint_id`,
+  `Model.body_id` and `Model.frame_id`.
+- `Model.body_inertia`, `Model.spatial_inertias`: use `Model.body_inertias` and `spatial.inertia_matrix`.
+- `Model.meta`, `IRModel.meta`: use `io.load_geometry` and `io.build_geometry`.
+- `Model.rotor_inertia`, `Model.friction`, `Model.reference_configurations`, `IRJoint.friction`: no replacement;
+  they were always zero or never read.
+- `JointRX`, `JointRY`, `JointRZ`, `JointRevoluteUnaligned`, `JointPX`, `JointPY`, `JointPZ`,
+  `JointPrismaticUnaligned`: use `JointRevolute(axis)` and `JointPrismatic(axis)`.
+- `JointUniverse`: use `JointFixed`.
+- `JointComposite`, `JointKind`, `JointModel.kind`, `joint_bias_acceleration`, `joint_motion_subspace_derivative`:
+  no replacement; nothing called them, and a joint's kind is its class.
+- `joint_placement`, `joint_motion_subspace`, `joint_velocity`, `JointModel.random_configuration`: use
+  `JointModel.placement`, `JointModel.motion_subspace` and `JointModel.random`.
+- Kind strings (`"revolute_rx"`, `"prismatic_px"`, `"revolute_unbounded"`, `"composite"`, `"ball"`, `"free"`, ...):
+  use the joint classes (`JointRevolute`, `JointPrismatic`, ...).
+- `se3.adjoint_inv` and the `tangents.*_jacobian_inv_*` functions: use `se3.adjoint_inverse` and
+  `tangents.*_jacobian_inverse_*`.
+- `se3.apply_base`: use `se3.compose(base[..., None, :], poses)`.
+- `so3.adjoint`: use `so3.to_matrix`.
+- `exceptions.BackendNotAvailableError`: use `exceptions.OptionalDependencyError`.
+- `exceptions.ModelInconsistencyError`, `io.IRError`: use `exceptions.ModelError`.
+- `load(free_flyer=)`, `load(preserve_joint_order=)`, `build_model(preserve_joint_order=)`, `format="builder"`, a
+  callable or `yourdfpy` source: use `root_joint=JointFreeFlyer()`, one joint order, and `io.build_model` on an IR.
+- `io.register_parser` and the parser registry: use `build_model(my_parser(path))`.
+- `io.AssetResolver`, `FilesystemResolver`, `PackageResolver`, `CompositeResolver`, `CachedDownloadResolver`: use
+  `viewer.robot_meshes(geometry, root=...)`, which reads the mesh URIs under `root`.
+- `io.IRGeom`, `IRBody.visual_geoms`, `IRBody.collision_geoms`: use `io.IRShape` in `IRModel.shapes`.
+- `IRJoint.kind`, `IRJoint.axis`, `IRJoint.pitch`, `IRJoint.joint_model`: use `IRJoint.joint`.
+- `IRFrame.frame_type`, `ModelBuilder.add_frame(frame_type=)`: no replacement; every frame has one type.
+- `ModelBuilder.add_revolute_x/y/z`, `add_prismatic_x/y/z`: use `ModelBuilder.add_revolute` and
+  `ModelBuilder.add_prismatic` with `axis=`.
+- `ModelBuilder.add_collision_geom`: use `ModelBuilder.add_shape`.
+- `io.builders` (`build_kinematic_tree_model`, `build_kinematic_tree_body`): use a loop over `ModelBuilder`.
+- `optim.CacheRef`: use the name string `Problem.cached` returns.
+- `Result.__getitem__`: use `Result.x`.
+- `viewer.RobotView`, `viewer.robot_layers`: use `RigidMeshLayer`, `robot_skeleton`, `FramesLayer` and
+  `SpheresLayer`.
+- `viewer.skeleton_spec`, `viewer.spread_offsets`: use `viewer.robot_skeleton`.
+- `Layer.times`, `Layer.root`: use `Viewer.add(..., times=)`.
+- The module paths `kinematics.state`, `kinematics.jacobian`, `dynamics.state`, `io.parsers`, `lie.types`,
+  `lie.alignment`, `spatial.motion`, `spatial.force`, `spatial.inertia`, `spatial.mesh` and their neighbours: use
+  the package (`better_robot.kinematics`, ...).
+- `Data` (`oMi`, `oMf`, `liMi`, `M`, `nle`, `J`, `dJ`, `Ag`, `hg`, `com`, ...) and `update_frame_placements`: use
+  `forward_kinematics` (`KinematicState.joint_poses`, `frame_poses`) and the `kinematics` and `dynamics` functions
+  (`mass_matrix`, `inverse_dynamics`, `joint_jacobian`, `dynamics.centroidal_map`, `center_of_mass`).
+- `compute_joint_jacobians`, `get_joint_jacobian`, `get_frame_jacobian`, `compute_joint_jacobians_time_variation`,
+  `get_*_jacobian_time_variation`, `kinematics.ReferenceFrame`: use `joint_jacobian`, `frame_jacobian` and the
+  `kinematics.*_jacobian_time_variation` functions with `reference="world"`, `"local"` or `"local_world_aligned"`.
+- `rnea`, `aba`, `crba`, `ccrba`, `CCRBAResult`, `compute_centroidal_map`, `compute_centroidal_momentum`, `nle`,
+  `bias_forces`: use `inverse_dynamics`, `forward_dynamics`, `mass_matrix`, `dynamics.centroidal_map` and
+  `dynamics.centroidal_momentum`; the bias forces are `inverse_dynamics` with zero acceleration.
+- `compute_minverse`, `compute_coriolis_matrix`, the dynamics derivative helpers (`compute_rnea_derivatives`,
+  `compute_aba_derivatives`, `compute_crba_derivatives`, centroidal derivatives): use `torch.linalg.inv` on
+  `mass_matrix` and differentiate the dynamics functions with autograd.
+- `integrate_q`, `semi_implicit_euler`, `symplectic_euler`, `rk4` and `dynamics.integrators`: use
+  `kinematics.integrate`; physics integration belongs to the caller's simulation.
+- `better_robot.dynamics.action`, `retarget`, `RetargetCostConfig`, `better_robot.tasks`: no replacement; build
+  the task as an `optim.Problem` from `terms`.
+- `solve_trajopt` and its parameterizations (`KnotTrajectory`, `BSplineTrajectory`,
+  `TrajectoryParameterization`): use an `optim.Problem` with a time variable (`Problem(..., time=("q",))`) and
+  `optim.solve`.
+- `CostStack`, `CostItem`, `CostKind`, `LeastSquaresProblem`, `ResidualItem`, `ObjectiveItem`, `ObjectiveTerm`,
+  `register_residual`, `get_residual`, `registered_residuals`, `better_robot.costs`: use `optim.Problem` with
+  `Problem.residual` and `Problem.scalar` terms.
+- The residual classes (`Residual`, `SmoothnessResidual`, `AccelerationResidual`, `JerkResidual`,
+  `RestResidual`, `NullspaceResidual`, `YoshikawaResidual`, `SelfCollisionResidual`, `WorldCollisionResidual`,
+  `JointAccelLimit`, `ContactConsistencyResidual`, `PointProjectionResidual`, the scene-SDF and masked-Chamfer
+  residuals, `ScalarCost`): use plain functions as `optim` terms and the `terms` factories (`rest`,
+  `finite_difference`, `self_clearance`, `velocity_limit`, ...).
+- Residual weights and gates (`weight` objects `ScaleWeight`, `DiagonalWeight`, `Weight`, `row_weight`,
+  `residual.enabled`, reductions, activity masks): use the term `weight=` and `Problem.with_(weights=...)`.
+- `ResidualState`, `residual_jacobian`, `ResidualSpec`, `jacobian_spec`, `JacobianStrategy`, provider `inputs` and
+  `reads` declarations: use `TermFn(fn, reads, *, jacobian=None)`; without `jacobian` the term is differentiated
+  by autograd.
+- `Variable`, `SO3Variable`, `SE3Variable`, `RobotVariable`, `VarSpec`, `Values`, `detach_values`, `Bounds`,
+  `SO3Manifold`, `SE3Manifold`, `RobotConfig`, `Node`, `RobotState`, `EvaluationContext`, `Provider`,
+  `RobotStateProvider`: use named tensors in `optim.Problem` with `manifolds=` (`terms.RobotManifold`) and
+  `bounds=`, and `Problem.cached` for shared work.
+- `Optimizer`, `OptimizationResult`, `OptimizerInfo`, `OptimizerConfig`, `SolverState`, `SolverStatus`, `LMState`,
+  `LMStatus`, `FirstOrderResult`, `run_first_order`, `TorchOptimizer`, `Adam`, `AdamState`, `AdamStatus`,
+  `LMThenLBFGS`, `MultiStageOptimizer`, `OptimizerStage`, `PhaseResult`, `run_phases`, `resume`: use
+  `optim.solve` and `optim.run` with `Phase`s, which return a `Result`.
+- `DampingStrategy`, `Constant`, `Adaptive`, `LevenbergMarquardt(block_step_limits=)`: use
+  `LevenbergMarquardt(damping=...)`.
+- `Cholesky`, `BandedCholesky`, `LSTSQ`, `LU`, `NormalCG`, `NormalOperator`, `BlockBandedMatrix`,
+  `TemporalAnalysis`, `LinearizationReason`, `LinearSystemKind`, `ImplicitDiffConfig`, `linearization=`: use
+  `Normal`, `BandedNormal` and `ArrowNormal`, chosen by `Problem(time=..., dense=...)`, and `optim.solve_layer`
+  for implicit gradients.
+- The import paths `optim.blocks`, `optim.kernels.*`, `optim.solvers.*`, `optim.structure`, `optim.providers`,
+  `optim.autograd`, `optim.manifolds`, `optim.optimizers`, `optim.strategies`: use `better_robot.optim`.
+- `IR_SCHEMA_VERSION`, `IRModel.schema_version`, `IRSchemaVersionError`: no replacement; the IR is an in-process
+  value, so parse the source file again after an upgrade.
+- `kinematics.chain`, `data_model.indexing`, `better_robot.utils`, `ExecutionBatch`, `flatten_execution_batch`,
+  `ModelValues.execution_batch_shape`: no replacement; they had no caller.
+- The Warp lanes (`use_warp`, the `warp` extra, the kernel modules, `kinematics._warp_bridge`) and
+  `forward_kinematics(use_compile=)`: use `torch.compile` on the library functions; torch is the one
+  implementation.
+- `Visualizer`, `SkeletonMode`, `URDFMeshMode`, `TrajectoryPlayer`: use `Viewer` with `robot_skeleton`,
+  `RigidMeshLayer` and its `Timeline`.
+- The development dependencies `hypothesis`, `pyperf`, `mypy`, `jaxtyping`, `pytest-benchmark`, `pytest-cov`,
+  `pytest-xdist`, `matplotlib` and the GitHub Actions workflow: no replacement; nothing used them, and the test
+  tiers run by local command and hooks.
 
-The first stable release of the PyTorch-native BetterRobot stack.
+### Fixed
+- The MJCF parser places capsule and cylinder `fromto` geometry as MuJoCo's compiler does.
+- URDF inertias honour `<inertial><origin rpy>`.
+- Zero-size batches run through forward kinematics, the dynamics functions and every solver.
+- `Viewer.url` reports the bound port, not the requested one.
+- `so3.to_euler` is exact at pitch ±π/2.
+- `robot_skeleton` draws the markers of axis-aligned revolute and prismatic joints along their axes.
+- `LBFGS` with bounds reaches the optimum of bound-heavy problems (a nonnegative force fit stopped 0.4-4 % above
+  it, now within 0.01 %), and a problem whose plain gradient step finds no decrease is done.
 
-The public API list below is historical and superseded; see [Unreleased](#unreleased)
-and the current [migration details](https://github.com/rihat99/BetterRobot/blob/dev/MIGRATION.md).
+## v0.2.0 (2026-04-11)
 
-### Highlights
+The first stable release of the PyTorch-native BetterRobot stack. Its named stubs (`compute_minverse`,
+`compute_coriolis_matrix`, the higher-order integrators, analytic derivatives, `JerkResidual`, `YoshikawaResidual`,
+`NullspaceResidual`, `SelfCollisionResidual`, `WorldCollisionResidual`, `JointAccelLimit`, `retarget`, the Warp
+kernels) raised on call.
 
+### Added
 - **Pinocchio-style `Model` / `Data` architecture.** Frozen `Model`,
   mutable `Data`, polymorphic `.to()`.
 - **Universal joint system.** Revolute (R{X,Y,Z}, unaligned, unbounded),
@@ -287,14 +275,12 @@ and the current [migration details](https://github.com/rihat99/BetterRobot/blob/
   Pluggable optimisers (LM / GN / Adam / L-BFGS / multi-stage), linear
   selectable solvers (Cholesky / LSTSQ), robust kernels
   (L2 / Huber / Cauchy / Tukey), and damping strategies (Constant /
-  Adaptive). Structured and iterative linear solves were not part of v0.2.0.
+  Adaptive).
 - **Featherstone dynamics.** RNEA, ABA, CRBA, CCRBA, centroidal momentum,
   centre of mass, and autograd-derived RNEA, ABA, and CRBA derivative helpers. Three-layer
   Crocoddyl-style action models for future optimal-control work.
 - **Trajectory optimisation.** `solve_trajopt` with knot parameterisation;
-  manifold-aware `Trajectory.resample`. The Euclidean B-spline basis remains a
-  numerical utility and is gated from robot trajopt pending a separately
-  reviewed manifold mapping.
+  manifold-aware `Trajectory.resample`.
 - **URDF + MJCF parsers.** `br.load(path)` dispatches by suffix;
   `free_flyer=True` adds a free-flyer root. Programmatic `ModelBuilder`
   for robots not described by a file.
@@ -304,34 +290,8 @@ and the current [migration details](https://github.com/rihat99/BetterRobot/blob/
 - **Viewer.** `Visualizer` with viser backend, `SkeletonMode`,
   `URDFMeshMode`, draggable IK target gizmos, frame-axes / grid /
   force-vector overlays, minimal `TrajectoryPlayer`.
-- **Public API.** 26 frozen symbols at `better_robot.__init__`,
-  enforced by `tests/contract/test_public_surface.py`.
-
-### Public API
-
-```
-Model, Data, Frame, Joint, Body,
-load, ModelBuilder,
-SE3,
-forward_kinematics, update_frame_placements,
-compute_joint_jacobians, get_joint_jacobian, get_frame_jacobian,
-JacobianStrategy,
-rnea, aba, crba, center_of_mass, compute_centroidal_map,
-register_residual,
-CostStack,
-LeastSquaresProblem,
-solve_ik, solve_trajopt, retarget, Trajectory,
-```
-
-### Known limitations
-
-The named symbols are public and stable; their bodies are stubbed and
-listed on the project roadmap:
-
-- Dynamics: `compute_minverse`, `compute_coriolis_matrix`, the
-  higher-order integrators, analytic Carpentier–Mansard derivatives.
-- Residuals: `JerkResidual`, `YoshikawaResidual`, `NullspaceResidual`,
-  `SelfCollisionResidual`, `WorldCollisionResidual`,
-  `JointAccelLimit`.
-- Tasks: `retarget`.
-- Backends: Warp kernels.
+- **Public API.** 26 symbols at `better_robot.__init__`: `Model`, `Data`, `Frame`, `Joint`, `Body`, `load`,
+  `ModelBuilder`, `SE3`, `forward_kinematics`, `update_frame_placements`, `compute_joint_jacobians`,
+  `get_joint_jacobian`, `get_frame_jacobian`, `JacobianStrategy`, `rnea`, `aba`, `crba`, `center_of_mass`,
+  `compute_centroidal_map`, `register_residual`, `CostStack`, `LeastSquaresProblem`, `solve_ik`, `solve_trajopt`,
+  `retarget`, `Trajectory`.

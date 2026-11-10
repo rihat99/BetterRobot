@@ -6,6 +6,5 @@
   "MIGRATION.md: tools/geometry/icp.py:58": "cites a line number; cite path::symbol",
   "docs/contracts/decisions/0011-caches-and-plans.md: tests/contract/test_compile_counters.py": "the record's enforcement test, written by the work package that implements the record",
   "docs/contracts/decisions/0039-test-robot-fixtures.md: tests/contract/test_repository_layout.py::test_no_symlinks_and_size": "the record's enforcement test, written by the work package that implements the record",
-  "docs/reference/changelog.md: layers/camera.py": "names no tracked file",
   "pyproject.toml: pinocchio/__init__.py": "a file of the installed pinocchio package; name the package, not a path"
 }
