@@ -1,4 +1,4 @@
-"""Tests for model/model.py."""
+"""Tests for ``src/better_robot/model/model.py``."""
 
 import pytest
 import torch

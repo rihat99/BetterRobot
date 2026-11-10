@@ -14,7 +14,7 @@ Run from the repository root (``tests.support`` must import):
 
     PYTHONPATH=. uv run python tests/kinematics/_generate_fk_reference.py
 
-See ``docs/conventions/testing.md §5.4``.
+See ``docs/contributing/testing.md``.
 """
 
 from __future__ import annotations

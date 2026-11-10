@@ -2,7 +2,7 @@
 
 Phase 4 pass criterion: analytic and finite-difference Jacobians agree.
 
-See ``docs/concepts/kinematics_and_jacobians.md``.
+See ``docs/concepts/kinematics-and-jacobians.md``.
 """
 
 from __future__ import annotations

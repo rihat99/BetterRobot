@@ -16,7 +16,7 @@ fp64 rotation-matrix ground truth.
 
 The oracle file is tracked; a missing ``fk_reference.npz`` fails the test.
 
-See ``docs/conventions/testing.md §4.5``.
+See ``docs/contributing/testing.md``.
 """
 
 from __future__ import annotations

@@ -32,7 +32,7 @@ model tensors in place.
   `expand_batch`); raw passes trust the result.
 - `manifolds.py` holds the six `JointManifold`s (fixed, Euclidean, circle, rotation,
   plane, rigid): `integrate`/`difference` written once each as the group exponential
-  and logarithm; `kinematics/configuration.py` groups the public coordinates by
+  and logarithm; `src/better_robot/kinematics/configuration.py` groups the public coordinates by
   manifold and runs one batched call per group behind `kinematics.integrate`
   and `kinematics.difference`.
 - `joints/` holds the abstract `JointModel` and the nine final kinds, one file
@@ -48,7 +48,7 @@ model tensors in place.
   orders and supports arbitrary leading batches.
 - Mimic targets have zero-width public slices. `mimic_source_ids`,
   `mimic_multipliers` and `mimic_offsets` hold each target's resolved chain
-  (public root joint, total scale, total offset); `kinematics/configuration.py`
+  (public root joint, total scale, total offset); `src/better_robot/kinematics/configuration.py`
   builds the expansion maps from them, and `src/better_robot/io/model_from_ir.py` reduces the
   limits with the same chain.
 

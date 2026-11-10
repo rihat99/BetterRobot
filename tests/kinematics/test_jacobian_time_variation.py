@@ -8,7 +8,7 @@ origin with angular DOF above it (so the LWA ``-v_pt × J_ang`` transport term i
 O(1)), and one case asserts ``WORLD J̇ != LWA J̇`` to prove the fixture exercises
 that term rather than greening a stripped implementation.
 
-See ``docs/concepts/kinematics_and_jacobians.md``.
+See ``docs/concepts/kinematics-and-jacobians.md``.
 """
 
 from __future__ import annotations
