@@ -2,7 +2,8 @@
 
 A unit is a first-level subpackage or module of the package; the package's own ``__init__.py`` is the unit named
 after the package. Every import counts, wherever it sits (module level, inside a function, under
-``TYPE_CHECKING``), because each one is a dependency a reader has to know about.
+``TYPE_CHECKING``), because each one is a dependency a reader has to know about; so does ``importlib.import_module``
+or ``__import__`` of a literal absolute name.
 """
 
 from __future__ import annotations
@@ -65,12 +66,24 @@ def _imports(node: ast.AST, own_package: tuple[str, ...]) -> list[tuple[tuple[st
     """``(absolute module parts, imported name)`` of each import in ``node``; the name is ``None`` for ``import``."""
     if isinstance(node, ast.Import):
         return [(tuple(alias.name.split(".")), None) for alias in node.names]
+    if isinstance(node, ast.Call) and _is_dynamic_import(node.func) and node.args:
+        name = node.args[0]
+        if isinstance(name, ast.Constant) and isinstance(name.value, str) and not name.value.startswith("."):
+            return [(tuple(name.value.split(".")), None)]
+        return []
     if not isinstance(node, ast.ImportFrom):
         return []
     base = own_package[: len(own_package) - node.level + 1] if node.level else ()
     if node.module:
         base = (*base, *node.module.split("."))
     return [(base, alias.name) for alias in node.names]
+
+
+def _is_dynamic_import(function: ast.expr) -> bool:
+    """``importlib.import_module``, ``import_module`` or ``__import__``."""
+    if isinstance(function, ast.Attribute):
+        return function.attr == "import_module"
+    return isinstance(function, ast.Name) and function.id in {"import_module", "__import__"}
 
 
 def _installed_units(package: str) -> set[str]:

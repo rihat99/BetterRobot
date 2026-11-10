@@ -20,19 +20,19 @@ def test_every_kind_of_import_is_an_edge(tmp_path: Path) -> None:
         tmp_path,
         {
             "__init__.py": "from . import low, mid\nfrom .top import run\n",
-            "low.py": "import math\n",
+            "low.py": "import importlib\n\ndef late():\n    return importlib.import_module('pkg.top.deep')\n",
             "mid/__init__.py": "from ..low import x\n",
             "mid/inner.py": "def f():\n    import pkg.side\n",
-            "side.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from pkg.low import y\n",
+            "side.py": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from pkg.low import y\n__import__('pkg.mid')\n",
             "top/__init__.py": "from pkg import mid\nfrom pkg import helper\n",
             "top/deep/leaf.py": "from ...side import z\nfrom .. import run\n",
         },
     )
     assert imported_packages(root, "pkg") == {
         "pkg": {"low", "mid", "top"},
-        "low": set(),
+        "low": {"top"},
         "mid": {"low", "side"},
-        "side": {"low"},
+        "side": {"low", "mid"},
         "top": {"mid", "pkg", "side"},
     }
 
