@@ -127,6 +127,7 @@ nav:
       - guides/use-with-betterhuman.md
       - guides/extend.md
       - guides/run-the-tests.md
+      - guides/release.md
   - Reference:
       - API:
           - better_robot: reference/api/better_robot.md
