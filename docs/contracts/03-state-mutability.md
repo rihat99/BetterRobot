@@ -60,9 +60,13 @@ function with a tensor input and asserts each input tensor's `_version` counter 
 
 ## C-STATE-4 Caches are explicit and keyed (SHOULD)
 
-If a function caches (for example a joint-ordering table), the cache lives in a named attribute or a
-`functools.lru_cache` keyed on immutable inputs, never in a module-level mutable or a hidden attribute set on
-the user's object. A cache never changes a result, only its cost. Documented exception: `KinematicState._memo`
+If a function caches (for example a joint-ordering table), the cache lives in a named attribute, never in a
+module-level mutable, a `functools` cache or a hidden attribute set on the user's object. A cache never changes a
+result, only its cost. Documented exceptions: the `functools.lru_cache` of
+`src/better_robot/optim/linearization.py::_layout`, the band layout of a time problem, a pure function of hashable
+structure (column spans, knots, block size, device) bounded at 64 entries, process-wide because its owner `Problem`
+keeps its private names to `problem.py` (`FUNCTOOLS_CACHES` of `tests/contract/test_caches.py`); and
+`KinematicState._memo`
 (`src/better_robot/kinematics/forward.py::KinematicState`) is a private memo dict inside the frozen
 state, keyed by `(name, grad mode)`, written only by `KinematicState._memoised` and bypassed under
 `torch.inference_mode` and `torch.compile` like `Model._value`, so a value made under `torch.no_grad` never

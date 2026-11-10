@@ -66,7 +66,8 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - No host sync and no Python branch on a tensor value in the hot paths (`tests/contract/test_hot_path_lint.py`).
 - No `torch.compile` call or kernel builder in `src` (`tests/contract/test_performance_rules.py`); torch is the only
   backend (record 0001).
-- No cache beyond `Model._plans`, `Model._memo` and `KinematicState._memo`, no `object.__setattr__`, no read of a
+- No cache beyond `Model._plans`, `Model._memo`, `KinematicState._memo` and the band layout's `lru_cache` in
+  `src/better_robot/optim/linearization.py` (reasoned in `FUNCTOOLS_CACHES`), no `object.__setattr__`, no read of a
   tensor's `_version` (`tests/contract/test_caches.py`).
 - No public kinematics, dynamics, Lie or spatial function mutates its tensor inputs
   (`tests/contract/test_no_inplace.py`); no public dataclass is mutable outside the reasoned list

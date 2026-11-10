@@ -191,6 +191,8 @@ def _band_layout(problem: Problem, terms: list[Term]) -> BandLayout | None:
     return _layout(spans, knots.pop(), max(max(windows) - 1, 1), device)
 
 
+# Process-wide on purpose (C-STATE-4): Problem keeps its private names to problem.py, and the layout depends only on
+# hashable structure, so problems of one shape share it.
 @functools.lru_cache(maxsize=64)
 def _layout(spans: tuple[tuple[int, int, bool], ...], knots: int, group: int, device: torch.device) -> BandLayout:
     """Band layout of ``knots`` knots in blocks of ``group`` knots, built once per problem structure (C-STATE-4).
