@@ -59,7 +59,7 @@ def test_distance_functions_reject_bad_inputs(name: str) -> None:
 
 
 def test_sphere_sphere_rejects_a_four_vector() -> None:
-    """The probe of AUDIT_BR finding 2: a ``(4,)`` centre used to return ``tensor(0.)``."""
+    """A ``(4,)`` centre is a shape error, never a distance."""
     with pytest.raises(ShapeError, match=r"center_a must have shape \(\.\.\., 3\), got \(4,\)"):
         collision.sphere_sphere(torch.zeros(4), torch.tensor(1.0), center_b=torch.ones(4), radius_b=torch.tensor(1.0))
 
@@ -85,7 +85,7 @@ def _robots(model: br.model.Model) -> tuple[collision.RobotSpheres, collision.Ro
 
 
 def test_robot_geometry_must_match_the_state_dtype_and_device(panda: br.model.Model) -> None:
-    """Spheres from a float64 model with a float32 state used to compute silently in float64."""
+    """Spheres from a float64 model with a float32 state raise instead of computing in float64."""
     spheres, capsules = _robots(panda)
     state32 = kinematics.forward_kinematics(panda.to(dtype=torch.float32), panda.q_neutral.float())
     pairs = torch.tensor([[0, 1]])

@@ -74,7 +74,7 @@ def test_units_import_only_their_declared_packages() -> None:
 
 
 def test_outside_import_ratchet_has_no_stale_entries() -> None:
-    """An import that no longer exists leaves the outside-import ratchet in the commit that removes it."""
+    """A removed import leaves the outside-import ratchet in the commit that removes it."""
     stale = sorted(OUTSIDE_RATCHET.keys() - _forbidden_imports())
     assert not stale, "remove these entries from tests/contract/ratchets/outside_imports.json:\n  " + "\n  ".join(stale)
 

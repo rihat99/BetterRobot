@@ -5,13 +5,11 @@ Compares current forward-kinematics output against
 re-generated only by an explicit run of ``_generate_fk_reference.py``
 after a deliberate algorithmic change.
 
-Oracle version 5 was generated after build_model took one joint order (the URDF's own,
-parents first): G1's joints and frames changed index, so its arrays are laid out anew (the old
-arrays, permuted by joint and frame name, equal the new FK to 1e-15). Version 4 came from the
-batched matrix FK lane after the URDF parser stopped rounding model values to float32. The comparison
-still sign-aligns quaternions (:func:`_sign_align_poses`) so a future gauge
-change surfaces as the deliberate-regeneration decision it is rather than a
-wall of sign flips. Pinocchio parity (``tests/parity/pinocchio``) remains the
+The arrays follow the model's one joint and frame order (parents first, the URDF's own order kept
+wherever it already is), and the model values they come from are the URDF's at full precision; the
+file's ``oracle_version`` names the generator that wrote it. The comparison sign-aligns quaternions
+(``_sign_align_poses``) so a gauge change surfaces as the deliberate-regeneration decision it is
+rather than a wall of sign flips. Pinocchio parity (``tests/parity/pinocchio``) remains the
 fp64 rotation-matrix ground truth.
 
 The oracle file is tracked; a missing ``fk_reference.npz`` fails the test.

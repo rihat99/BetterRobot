@@ -128,8 +128,8 @@ def test_no_docstring_uses_a_sphinx_role() -> None:
 
 
 def test_a_shape_near_a_parameter_documents_it_only_in_its_own_sentence_and_not_as_a_call() -> None:
-    """The review's plant: with ``q: (B..., nq)`` deleted from ``forward_kinematics``, the call
-    ``broadcast(B..., I...)`` within the same few words documented ``q``."""
+    """With ``q: (B..., nq)`` deleted from a docstring, the call ``broadcast(B..., I...)`` a few words after ``q``
+    does not document ``q``."""
 
     def planted(model: object, q: torch.Tensor) -> None: ...
 

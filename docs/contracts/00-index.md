@@ -93,6 +93,6 @@ Write an architecture decision record (ADR) under `decisions/` when a change doe
 - replaces a dependency the public API exposes (for example the viewer backend);
 - rejects a contract rule for a whole package.
 
-A bug fix, a new term, a new loader for an existing registry, or a rename inside one package does not need one.
+A bug fix, a new term, a new loader function, or a rename inside one package does not need one.
 Only the owner accepts an ADR: one the integrator writes is `Proposed (integrator, awaiting owner)` until then. An
 accepted ADR changes only in its Status line; a new ADR supersedes it or amends part of it.

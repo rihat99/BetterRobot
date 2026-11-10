@@ -108,7 +108,7 @@ def test_robot_manifold_is_a_frozen_value(panda):
 
 
 def test_robot_manifold_accepts_an_empty_batch(panda):
-    # tangent_dim used to index x[0], which raises IndexError for B == 0.
+    # tangent_dim must not index x[0], which raises IndexError for B == 0.
     problem = optim.Problem(
         {"q": torch.zeros(0, panda.nq, dtype=torch.float64)}, manifolds={"q": terms.RobotManifold(panda)}
     )

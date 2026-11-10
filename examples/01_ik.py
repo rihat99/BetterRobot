@@ -1,4 +1,4 @@
-"""Batched inverse kinematics with the new optimization layer.
+"""Batched inverse kinematics with ``optim`` and ``terms``.
 
 Shows the three levels: the one-line recipe, the open problem with a custom term added,
 and the same problem under a ``torch.optim`` optimizer.

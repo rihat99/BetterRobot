@@ -140,5 +140,5 @@ def test_no_test_is_dropped_from_every_tier() -> None:
     ],
 )
 def test_a_planted_tier_drop_is_found(path: str, source: str) -> None:
-    """The review's plants: both dropped tests from every tier and passed every check."""
+    """Each form drops a test from every tier without a skip, so each is found."""
     assert len(_tier_drops(path, source)) == 1
