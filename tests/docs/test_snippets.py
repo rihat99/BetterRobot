@@ -1,89 +1,43 @@
-"""Execute the Python snippets in ``docs/**/*.md`` and ``README.md``; check that every referenced image exists."""
+"""Run every Python fence of ``docs/**/*.md`` and ``README.md`` once and compare every ``output`` fence in full.
+
+``better_robot.testing.snippets.check_page`` does the run and the comparison (its docstring has the rules); this
+module also checks that output fences dock under a Python fence and that every referenced image exists.
+"""
 
 from __future__ import annotations
 
-import json
-import os
 import re
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
+from better_robot.testing.snippets import check_page
+
 REPO = Path(__file__).parents[2]
 DOCS = REPO / "docs"
-PAGE_TIMEOUT_S = 120
-
-# Fence info string: ```python [tags...]; a ``{ .no-run }`` attribute opts the block out of execution.
-FENCE = re.compile(r"^```[ \t]*python(?P<info>[^\n]*)\n(?P<body>.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL)
-IMAGE = re.compile(r"!\[[^\]]*\]\((?P<path>[^)\s]+)")
 OUTPUT_FENCE = re.compile(
     r"^(?P<indent>[ \t]*)```[ \t]*output[^\n]*\n(?P<body>.*?)^[ \t]*```[ \t]*$", re.MULTILINE | re.DOTALL
 )
+IMAGE = re.compile(r"!\[[^\]]*\]\((?P<path>[^)\s]+)")
 VIDEO_SRC = re.compile(r"""(?:src|poster)=["'](?P<path>[^"']+)["']""")
-# ``BR_DOCS_CAPTURE=1`` writes each page's per-block stdout to ``$BR_DOCS_CAPTURE_DIR/<page>.outputs.json``.
-CAPTURE = os.environ.get("BR_DOCS_CAPTURE") == "1"
-CAPTURE_DIR = Path(os.environ.get("BR_DOCS_CAPTURE_DIR", "/tmp/br_docs_outputs"))
 FIGURE = re.compile(r"(?P<path>(?:\.\./)*(?:figures|images)/[\w./-]+\.(?:svg|png|jpg|gif|webm|mp4|webp))")
-
-# Runs in a fresh interpreter so the CPU-only environment is set before torch loads, and so viser never binds:
-# ``viser.ViserServer`` is replaced by the shipped stand-in, ``better_robot.testing.FakeServer``.
-RUNNER = """
-import sys
-from better_robot.testing import FakeServer
-try:
-    import viser
-    viser.ViserServer = lambda *args, **kwargs: FakeServer()
-except ImportError:
-    pass
-namespace = {"__name__": "__docs__"}
-outputs = []
-for index, source in enumerate(sys.argv[1:]):
-    if __import__("os").environ.get("BR_DOCS_CAPTURE") == "1":
-        import io, contextlib
-        buffer = io.StringIO()
-        with contextlib.redirect_stdout(buffer):
-            exec(compile(source, f"<block {index}>", "exec"), namespace)
-        outputs.append(buffer.getvalue())
-    else:
-        exec(compile(source, f"<block {index}>", "exec"), namespace)
-if outputs:
-    sys.stderr.write("\\n__BR_DOCS_OUTPUTS__" + __import__("json").dumps(outputs))
-"""
+FOLDER_REASONS = {
+    "docs/contracts/": (
+        "a contract's or a record's example illustrates a rule or a decided call site: its 'bad' half is wrong on "
+        "purpose, and it names objects the page does not build"
+    ),
+}
 
 
 def _pages() -> list[Path]:
     return sorted(DOCS.rglob("*.md"))
 
 
-def _runnable_blocks(page: Path) -> list[str]:
-    return [m["body"] for m in FENCE.finditer(page.read_text()) if "no-run" not in m["info"]]
-
-
-def _pages_with_code() -> list[Path]:
-    return [page for page in [*_pages(), REPO / "README.md"] if _runnable_blocks(page)]
-
-
-@pytest.mark.parametrize("page", _pages_with_code(), ids=lambda p: p.relative_to(REPO).as_posix())
-def test_page_snippets_execute(page: Path) -> None:
-    """Run a page's Python blocks in order in one namespace, CPU only, with a fake viser server."""
-    env = {**os.environ, "CUDA_VISIBLE_DEVICES": "", "OMP_NUM_THREADS": "2", "MPLBACKEND": "Agg"}
-    completed = subprocess.run(
-        [sys.executable, "-c", RUNNER, *_runnable_blocks(page)],
-        cwd=REPO,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=PAGE_TIMEOUT_S,
-        check=False,
-    )
-    assert completed.returncode == 0, f"{page.relative_to(REPO)} failed:\n{completed.stderr[-4000:]}"
-    if CAPTURE:
-        outputs = json.loads(completed.stderr.rsplit("__BR_DOCS_OUTPUTS__", 1)[1])
-        target = CAPTURE_DIR / page.relative_to(REPO).with_suffix(".outputs.json")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(outputs, indent=1))
+@pytest.mark.parametrize("page", [*_pages(), REPO / "README.md"], ids=lambda p: p.relative_to(REPO).as_posix())
+def test_page_fences_run_and_print_their_output_fences(page: Path) -> None:
+    """Every fence runs once, CPU only, seeded, with a fake viser server; every output fence is compared in full."""
+    compared = check_page(page, root=REPO, folder_reasons=FOLDER_REASONS)
+    assert compared == len(OUTPUT_FENCE.findall(page.read_text())), f"{page.name}: an output fence went unchecked"
 
 
 def _output_fences(page: Path) -> list[tuple[int, str, str]]:
@@ -106,46 +60,9 @@ def test_output_fences_follow_python(page: Path) -> None:
         )
 
 
-@pytest.mark.parametrize("page", sorted((DOCS / "getting-started").glob("*.md")), ids=lambda p: p.name)
-def test_getting_started_outputs_fresh(page: Path) -> None:
-    """The first line of each output pane matches what the preceding block really prints (cheap staleness guard)."""
-    text = page.read_text()
-    fences = [(m.start(), m["body"]) for m in OUTPUT_FENCE.finditer(text)]
-    assert fences, f"{page.relative_to(REPO)} shows no output: a tutorial prints what its code prints"
-    blocks = [(m.end(), m["body"], "no-run" in m["info"]) for m in FENCE.finditer(text)]
-    runnable = [body for _, body, skip in blocks if not skip]
-    env = {
-        **os.environ,
-        "CUDA_VISIBLE_DEVICES": "",
-        "OMP_NUM_THREADS": "2",
-        "MPLBACKEND": "Agg",
-        "BR_DOCS_CAPTURE": "1",
-    }
-    completed = subprocess.run(
-        [sys.executable, "-c", RUNNER, *runnable],
-        cwd=REPO,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=PAGE_TIMEOUT_S,
-        check=False,
-    )
-    assert completed.returncode == 0, completed.stderr[-4000:]
-    outputs = json.loads(completed.stderr.rsplit("__BR_DOCS_OUTPUTS__", 1)[1])
-    for fence_start, body in fences:
-        end, _, skip = max((b for b in blocks if b[0] <= fence_start), key=lambda b: b[0])
-        if skip:
-            continue
-        actual = outputs[[b for b in blocks if not b[2]].index((end, _, skip))]
-        first = body.splitlines()[0]
-        assert actual.startswith(first), (
-            f"{page.name}: stale output pane, expected to start with {first!r}, got {actual[:120]!r}"
-        )
-
-
 def test_index_has_runnable_snippet() -> None:
     """The landing page example is part of the snippet run."""
-    assert _runnable_blocks(DOCS / "index.md")
+    assert re.search(r"^```python\n", (DOCS / "index.md").read_text(), re.MULTILINE)
 
 
 @pytest.mark.parametrize("page", _pages(), ids=lambda p: p.relative_to(DOCS).as_posix())

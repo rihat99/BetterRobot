@@ -3,8 +3,9 @@
 ``imported_packages`` walks every import of a package for its edge-table test; ``dead_citations`` resolves every
 repository path cited in tracked text (principle 7.8); ``check_joint_model`` checks a joint kind against the
 `JointModel` contract; ``FakeServer`` stands in for viser's server under the viewer; ``public_objects`` walks the
-``__all__`` tree a contract sweep checks and ``public_api`` describes it for the API snapshot; ``no_skips`` is the
-pytest plugin that fails every skip and xfail. Importing this package imports neither pytest nor an optional
+``__all__`` tree a contract sweep checks and ``public_api`` describes it for the API snapshot; ``snippets`` runs a
+Markdown page's Python fences and compares their output fences; ``no_skips`` is the pytest plugin that fails every
+skip and xfail. Importing this package imports neither pytest nor an optional
 dependency: ``no_skips`` loads on first access.
 """
 
@@ -13,6 +14,7 @@ from __future__ import annotations
 import importlib
 from types import ModuleType
 
+from . import snippets
 from .api import public_api, public_objects
 from .citations import dead_citations
 from .fake_server import FakeServer
@@ -27,6 +29,7 @@ __all__ = [
     "no_skips",
     "public_api",
     "public_objects",
+    "snippets",
 ]
 
 

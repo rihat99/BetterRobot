@@ -90,7 +90,7 @@ shape `(T,)`, non-decreasing. Step `k` then shows the latest sample at or before
 layer itself still receives a plain integer sample index in `set_step`. `viewer.set_fps(f)` changes the rate of the
 timeline itself, keeping one step per frame of the clip on screen; a clip browser calls it when it switches clips.
 
-```python { .no-run }
+```python { .no-run data-reason="names a clip, markers_10hz, that this page does not build" }
 viewer.add([PointsLayer("mocap", markers_10hz)], times=np.arange(len(markers_10hz)) / 10.0)
 ```
 
@@ -112,7 +112,7 @@ The other three calls consume the timeline:
 | `save(path)` | writes a `.viser` recording for viser's static web client | no |
 | `record(path)` | screenshots the scene in a headless Chromium to `.webm`, `.gif` or `.png` frames | no |
 
-```python { .no-run }
+```python { .no-run data-reason="blocks until Ctrl-C" }
 viewer.play()  # blocks until Ctrl-C
 ```
 
@@ -210,7 +210,7 @@ picked = vertices_in_sphere(vertices, center=np.array([0.5, 0.5, 0.5]), radius=0
 print(picked.shape)
 ```
 ```output
-(37,)
+(24,)
 ```
 
 ## Recording the scene
@@ -220,7 +220,7 @@ step and screenshots it. The output format follows the suffix: `.webm` (needs `f
 for numbered frames, or a directory of frames. Options are `steps`, `size` (width, height), `fps`, `gpu`
 and `camera`.
 
-```python { .no-run }
+```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_capture.py runs record" }
 import tempfile
 from pathlib import Path
 

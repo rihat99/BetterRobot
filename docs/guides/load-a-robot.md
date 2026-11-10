@@ -37,7 +37,7 @@ at most one joint, and names are required on every body, joint and site. A joint
 so `q` is MuJoCo's `qpos`; what the loader reads and ignores is listed in
 [the io chapter](../concepts/io.md).
 
-```python { .no-run }
+```python { .no-run data-reason="the file names stand for your own MJCF files" }
 model = br.load("scene.xml")              # .xml / .mjcf picks the MJCF parser
 model = br.load("robot.xml", format="mjcf")
 ```

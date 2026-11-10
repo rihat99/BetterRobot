@@ -64,7 +64,7 @@ geoms (scenery; its sites become frames on `"universe"`) and every simulation op
 `load` takes a path to a `.urdf` or MJCF `.xml` file. The `robot_descriptions` package provides paths for
 many published robots; it is an optional dependency.
 
-```python { .no-run }
+```python
 import torch
 import better_robot as br
 from robot_descriptions import panda_description

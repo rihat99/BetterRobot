@@ -93,15 +93,18 @@ kinematics and dynamics function (see [Differentiate](../guides/differentiate.md
 
 ## Docs snippets run
 
-`tests/docs/test_snippets.py` runs every `python` block of each page (and `README.md`) in order, in one
-namespace, on CPU, with a fake viewer server, 120 s per page. It also checks that every image, poster and
-clip a page references exists. The rules for a page:
+`tests/docs/test_snippets.py` runs every `python` fence of each page (and `README.md`) once, in order, in one
+namespace, on CPU, seeded (`torch`, `random` and `numpy` at 0), with a fake viewer server, 120 s per page, through
+`better_robot.testing.snippets.check_page`. Every `output` fence is compared in full with what the fence above it
+prints, and a page fails when the number of compared outputs differs from its number of `output` fences. It also
+checks that every image, poster and clip a page references exists; `tests/docs/test_readme_first_screen.py` checks
+that the README's first Python fence opens by line 40 with its output under it. The rules for a page:
 
 | Fence | Meaning |
 |---|---|
 | ```` ```python ```` | runs in the full tier, in page order |
-| ```` ```python { .no-run } ```` | shown but not run (licensed data, a live server) |
-| ```` ```output ```` | directly after a block that prints: its real output |
+| ```` ```python { .no-run data-reason="..." } ```` | shown but not run; the reason is required (a GPU, a live server, licensed data). The fences of `docs/contracts/` illustrate rules and records and opt out together |
+| ```` ```output ```` | docked under a fence that runs: its real output. A line `...` stands for any number of lines; a number with a fraction or an exponent matches within one unit of its last printed digit; all other text matches exactly |
 
 ```bash
 uv run pytest tests/docs -q -k load-a-robot                                     # one page
@@ -110,7 +113,7 @@ uv run mkdocs build --strict                                                    
 BETTER_ROBOT_CHROME=<chromium> node tools/docs_screenshots.mjs /tmp/shots       # every page as light/dark PNGs
 ```
 
-The capture run writes `<page>.outputs.json` with each block's stdout; paste it into the `output` fence. Look at
+The capture run writes `<page>.outputs.json` with each fence's output; copy it into the `output` fence. Look at
 the screenshots of the pages you changed before you open a pull request.
 
 ## Never weaken a test

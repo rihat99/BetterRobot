@@ -26,7 +26,7 @@ This is the quick start from the BetterHuman repository's `README.md`. It does n
 in the documentation tests: SMPL-family model files are licensed and are not shipped with either
 package. Download them from their project pages and follow the BetterHuman README to convert them.
 
-```python { .no-run }
+```python { .no-run data-reason="needs BetterHuman and licensed SMPL weights, which this repository does not install" }
 import torch
 import better_human as bh
 from better_human.viz import HumanView
@@ -59,7 +59,7 @@ Per-frame groups such as the SMPL-X expression go to `forward`:
 The terms follow the `TermFn` contract of `better_robot.optim`, so they mix freely with robot terms
 from `better_robot.terms` in one `Problem`. Register the human state once, then add terms that read it:
 
-```python { .no-run }
+```python { .no-run data-reason="needs BetterHuman and licensed SMPL weights, which this repository does not install" }
 from better_human import terms as human_terms
 
 problem.cached(human_terms.human_state(identity), name="state")
