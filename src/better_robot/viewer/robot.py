@@ -138,9 +138,9 @@ _KIND_WORD = {
 
 def skeleton_spec(model: Model) -> tuple[list[str], np.ndarray]:
     """Joint kind words and axes ``(njoints - 1, 3)`` (joint frame; ``+z`` for joints without one) of joints 1..,
-    for ``SkeletonLayer(kinds=, axes=)``."""
+    for ``SkeletonLayer(kinds=, axes=)``; a joint kind defined outside the library is ``"spherical"`` (a sphere)."""
     axes = np.array([joint.axis or (0.0, 0.0, 1.0) for joint in model.joints[1:]], dtype=np.float32).reshape(-1, 3)
-    return [_KIND_WORD[type(joint)] for joint in model.joints[1:]], axes
+    return [_KIND_WORD.get(type(joint), "spherical") for joint in model.joints[1:]], axes
 
 
 def spread_offsets(

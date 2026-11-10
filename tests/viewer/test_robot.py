@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import ClassVar, final
+
 import numpy as np
 import pytest
 import torch
 
 import better_robot as br
-from better_robot.lie.se3 import compose
+from better_robot.lie.se3 import compose, from_translation
+from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer import _lie
 from better_robot.viewer.layers.frames import FramesLayer
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
@@ -447,3 +451,39 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
         np.testing.assert_allclose(bones.batched_positions[-1], (start + expected[step]) / 2, atol=1e-5)
         length = np.linalg.norm(expected[step] - start)
         np.testing.assert_allclose(bones.batched_scales[-1], [radii[wrist], radii[wrist], length], rtol=1e-5)
+
+
+@final
+@dataclass(frozen=True)
+class _JointDrop(JointModel):
+    """A joint kind defined outside the library: a translation along -z of the joint frame."""
+
+    nq: ClassVar[int] = 1
+    nv: ClassVar[int] = 1
+    manifold: ClassVar[JointManifold] = JointPrismatic.manifold
+    axis: ClassVar[None] = None
+
+    def placement(self, q: torch.Tensor) -> torch.Tensor:
+        return from_translation(torch.cat((q.new_zeros(*q.shape[:-1], 2), -q), dim=-1))
+
+    def motion_subspace(self, q: torch.Tensor) -> torch.Tensor:
+        return q.new_tensor([0.0, 0.0, -1.0, 0.0, 0.0, 0.0]).expand(*q.shape[:-1], 6).unsqueeze(-1)
+
+    def neutral(self) -> torch.Tensor:
+        return torch.zeros(1)
+
+    def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+        return lower + (upper - lower) * torch.rand(1, generator=generator)
+
+
+def test_robot_skeleton_draws_a_joint_kind_from_outside_the_library_as_a_sphere() -> None:
+    """C-EXT-2: a kind outside the built-ins takes the generic path, a sphere (it raised a raw KeyError)."""
+    builder = br.ModelBuilder("drop")
+    builder.add_body("base")
+    builder.add_body("tip")
+    builder.add_joint("drop", kind=_JointDrop(), parent="base", child="tip", lower=0.0, upper=0.5)
+    model = br.io.build_model(builder.finalize())
+    poses = br.forward_kinematics(model, torch.tensor([[0.1], [0.2]])).joint_poses.numpy()
+    layer = robot_skeleton(model, poses)
+    Viewer(server=FakeServer()).add([layer])
+    assert list(layer.groups) == ["sphere"]
