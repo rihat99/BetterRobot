@@ -311,9 +311,10 @@ def slerp(
     of ``q1``/``q2`` (scalar or tensor accepted; ``t`` outside ``[0, 1]``
     extrapolates along the geodesic).
     """
-    check_tensors(q1=(q1, (4,)), q2=(q2, (4,)))
+    tensors: dict[str, tuple[object, tuple[int, ...]]] = {"q1": (q1, (4,)), "q2": (q2, (4,))}
     if isinstance(t, torch.Tensor):
-        check_tensor("t", t, shape=(), dtype=q1.dtype, device=q1.device, owner="q1")
+        tensors["t"] = (t, ())
+    check_tensors(**tensors)
     t = torch.as_tensor(t, dtype=q1.dtype, device=q1.device)
     while t.dim() < q1.dim():
         t = t.unsqueeze(-1)

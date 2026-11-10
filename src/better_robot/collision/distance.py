@@ -126,9 +126,14 @@ def sphere_halfspace(
 
     ``normal: (..., 3)`` has unit length, ``offset`` a number or ``(...)``. Returns ``(...)``.
     """
-    check_tensors(center=(center, (3,)), radius=(radius, ()), normal=(normal, (3,)))
+    tensors: dict[str, tuple[object, tuple[int, ...]]] = {
+        "center": (center, (3,)),
+        "radius": (radius, ()),
+        "normal": (normal, (3,)),
+    }
     if isinstance(offset, torch.Tensor):
-        check_tensor("offset", offset, shape=(), dtype=center.dtype, device=center.device, owner="center")
+        tensors["offset"] = (offset, ())
+    check_tensors(**tensors)
     return (center * normal).sum(-1) - offset - radius
 
 
@@ -165,7 +170,8 @@ def sphere_sdf(
     ``grid: (X, Y, Z)`` (each at least 2) holds the field at ``origin + voxel_size * (i, j, k)``,
     ``origin: (3,)``. Points outside the grid are clamped to its boundary. Returns ``(...)``.
     """
-    check_tensors(center=(center, (3,)), radius=(radius, ()), grid=(grid, ()), origin=(origin, (3,)))
+    check_tensors(center=(center, (3,)), radius=(radius, ()), origin=(origin, (3,)))
+    check_tensor("grid", grid, shape=(), dtype=center.dtype, device=center.device, owner="center")
     if grid.ndim != 3 or min(grid.shape) < 2 or origin.ndim != 1:
         raise ShapeError(
             f"grid must have shape (X, Y, Z) with each size at least 2 and origin (3,), got {tuple(grid.shape)} and "

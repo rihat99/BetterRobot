@@ -20,7 +20,7 @@ import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
 from ..lie.tangents import hat_so3_raw
-from ..lie._checks import check_tensors
+from ..lie._checks import check_tensor, check_tensors
 
 
 def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
@@ -270,7 +270,7 @@ def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
 def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> torch.Tensor:
     """``density`` as a tensor of shape ``()`` or ``vertices.shape[:-2]`` on the dtype and device of ``vertices``."""
     if isinstance(density, torch.Tensor):
-        check_tensors(vertices=(vertices, ()), density=(density, ()))
+        check_tensor("density", density, shape=(), dtype=vertices.dtype, device=vertices.device, owner="vertices")
         rho = density
     elif isinstance(density, Real) and not isinstance(density, bool):
         rho = vertices.new_tensor(float(density))  # bench-ok: a Python density becomes one scalar tensor

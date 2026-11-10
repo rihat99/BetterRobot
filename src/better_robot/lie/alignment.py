@@ -9,7 +9,7 @@ from __future__ import annotations
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
-from ._checks import check_tensor, check_tensors
+from ._checks import check_broadcast, check_tensor
 
 
 def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:
@@ -21,7 +21,8 @@ def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:
 
 
 def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
-    check_tensors(source=(source, (3,)), target=(target, (3,)))
+    check_tensor("source", source, shape=(3,))
+    check_tensor("target", target, shape=(3,), dtype=source.dtype, device=source.device, owner="source")
     if source.ndim < 2 or target.ndim < 2:
         raise ShapeError(
             f"source and target must have shape (..., N, 3), got {tuple(source.shape)} and {tuple(target.shape)}"
@@ -30,6 +31,7 @@ def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
         raise ShapeError(f"source and target need the same N, got {source.shape[-2]} and {target.shape[-2]}")
     if source.shape[-2] < 3:
         raise ShapeError(f"at least 3 points are required, got {source.shape[-2]}")
+    check_broadcast(source=source.shape[:-2], target=target.shape[:-2])
     _require_tensor_condition(
         torch.isfinite(source).all() & torch.isfinite(target).all(),
         "source and target must contain only finite values",

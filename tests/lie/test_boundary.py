@@ -6,6 +6,8 @@ The table lists the trailing shape of each tensor parameter; it must cover ``__a
 
 from __future__ import annotations
 
+import inspect
+
 import pytest
 import torch
 
@@ -88,6 +90,17 @@ def test_public_function_rejects_bad_inputs(qualified: str) -> None:
         if index:
             with pytest.raises(DtypeMismatchError, match=r"\.dtype=torch\.float64 != "):
                 call(valid[index].double())
+
+
+@pytest.mark.parametrize("qualified", sorted(name for name, shapes in PARAMETERS.items() if len(shapes) > 1))
+def test_batch_axes_that_do_not_broadcast_raise_naming_both_arguments(qualified: str) -> None:
+    function, shapes = _function(qualified), PARAMETERS[qualified]
+    first, *others = inspect.signature(function).parameters
+    for index, shape in enumerate(shapes[1:], start=1):
+        arguments = [torch.zeros(3, *shapes[0]), *(torch.zeros(3, *other) for other in shapes[1:])]
+        arguments[index] = torch.zeros(4, *shape)
+        with pytest.raises(ShapeError, match=rf"{first} has batch axes \(3,\) and {others[index - 1]} \(4,\), "):
+            function(*arguments)
 
 
 def test_the_dtype_rule_keeps_float32_and_float64() -> None:
