@@ -1,5 +1,3 @@
-.worktrees/
-
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -17,6 +15,7 @@ site/
 # benchmarks/run.py writes here by default; results are cited by command and commit, never tracked
 benchmarks/results/
 
+# the owner's local copies of other libraries' code, beside the checkout and never tracked
 references
 
 # Agent settings: the shared settings, rules and skills are tracked, the rest is per machine
