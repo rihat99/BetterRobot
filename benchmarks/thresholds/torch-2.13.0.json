@@ -1,0 +1,146 @@
+{
+ "meta": {
+  "commit": "1ed9049",
+  "dirty": false,
+  "command": "benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-2.13.0.json",
+  "package_file": "src/better_robot/__init__.py",
+  "torch": "2.13.0+cu129",
+  "python": "3.12.14",
+  "device": "cpu",
+  "device_name": "AMD EPYC 9654 96-Core Processor",
+  "threads": 1,
+  "affinity": [
+   257
+  ],
+  "dtype": "torch.float32",
+  "malloc_env": {
+   "MALLOC_MMAP_THRESHOLD_": null,
+   "MALLOC_TRIM_THRESHOLD_": null
+  },
+  "date": "2026-11-10T13:10:06",
+  "loadavg_start": "11.22 20.00 26.76 12/19161 3400491",
+  "loadavg_end": "9.16 18.21 25.83 200/19387 3402913",
+  "total_s": 46.9
+ },
+ "rows": [
+  {
+   "row": "fk_joints/panda/B1",
+   "batch": 1,
+   "loadavg": "11.22 20.00 26.76 6/19172 3400527",
+   "ops": 46,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "fk_joints/panda/B1024",
+   "batch": 1024,
+   "loadavg": "11.22 20.00 26.76 10/19168 3400548",
+   "ops": 46,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 2
+  },
+  {
+   "row": "jacobian/panda/B1",
+   "batch": 1,
+   "loadavg": "11.22 20.00 26.76 8/19177 3400567",
+   "ops": 69,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "rnea/panda/B1",
+   "batch": 1,
+   "loadavg": "10.89 19.78 26.65 6/19187 3400615",
+   "ops": 172,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "crba/panda/B1",
+   "batch": 1,
+   "loadavg": "10.89 19.78 26.65 6/19433 3400905",
+   "ops": 136,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "aba/panda/B1",
+   "batch": 1,
+   "loadavg": "10.89 19.78 26.65 9/19413 3400921",
+   "ops": 240,
+   "host_syncs": 2,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "fk_joints/g1/B1",
+   "batch": 1,
+   "loadavg": "10.49 19.55 26.54 14/19162 3401025",
+   "ops": 67,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "fk_joints/g1/B1024",
+   "batch": 1024,
+   "loadavg": "10.49 19.55 26.54 11/19162 3401034",
+   "ops": 67,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 2
+  },
+  {
+   "row": "jacobian/g1/B1",
+   "batch": 1,
+   "loadavg": "10.49 19.55 26.54 10/19157 3401049",
+   "ops": 89,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "rnea/g1/B1",
+   "batch": 1,
+   "loadavg": "10.37 19.38 26.44 8/19148 3401072",
+   "ops": 188,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "crba/g1/B1",
+   "batch": 1,
+   "loadavg": "10.37 19.38 26.44 8/19140 3401928",
+   "ops": 154,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "aba/g1/B1",
+   "batch": 1,
+   "loadavg": "10.37 19.38 26.44 8/19205 3402022",
+   "ops": 255,
+   "host_syncs": 2,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "ik/panda/B64",
+   "batch": 64,
+   "loadavg": "10.02 19.15 26.33 7/19175 3402077",
+   "success_fraction": 0.921875,
+   "worst_position_error_m": 0.07078872621059418,
+   "ops": null,
+   "host_syncs": null,
+   "graph_breaks": 5,
+   "recompiles": 12
+  }
+ ]
+}
