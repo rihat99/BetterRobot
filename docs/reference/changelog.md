@@ -62,6 +62,9 @@ that 0.3.0 renames or removes, one table row each.
 - `better_robot.testing`: `FakeServer` (viser without sockets), `check_joint_model`, `public_api`,
   `public_objects`, `imported_packages`, `dead_citations`, the docs snippet runner `snippets` and the `no_skips`
   pytest plugin; the `testing` extra installs pytest for it.
+- `FakeServer.gui` declares the GUI calls of an app built on the viewer, with viser's keywords: `add_dropdown`,
+  `add_text`, `add_number`, `add_markdown`, `add_tab_group` (tabs by `add_tab`) and `add_slider(..., disabled=)`;
+  each control reads back the value it was given.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
 
 ### Changed
@@ -114,6 +117,18 @@ that 0.3.0 renames or removes, one table row each.
 - `Model.name` is the robot name of the file (`<robot name=...>`, `<mujoco model=...>`).
 - The URDF and MJCF parsers raise `ModelError` naming the file and the element at fault.
 - Errors are the `exceptions` classes throughout, `optim` included.
+- Tensor arguments of the `lie` and `spatial` functions whose batch axes do not broadcast raise `ShapeError` naming
+  both, not torch's `RuntimeError`; so do `so3.slerp`'s tensor `t` and `sphere_halfspace`'s tensor `offset`.
+- `ik_problem` and `solve_ik` check `q0` as `(B, nq)` and each `targets[<frame>]` as `(..., 7)` in the model's dtype
+  and device, with a batch that broadcasts with `q0`'s, and name the argument at fault.
+- `Problem` raises `DtypeMismatchError` for a variable that is not float32 or float64 or for variables in two
+  dtypes, and `DeviceMismatchError` for two devices; a term output of the wrong shape raises `ShapeError` naming the
+  term; `iterations=` and `damping=` below 0 raise `ArgumentError`.
+- `RobotSpheres` checks its tables at construction (`frame_ids` `(S,)` long, `offsets` `(..., S, 3)`, `radii`
+  `(S,)`); `centers` and `self_distances` raise `ArgumentError` for a frame or sphere index outside its table.
+- `KinematicState` checks the shapes of `q` and its transform tables at construction (`ShapeError`).
+- `io.ModelBuilder`, `optim.Problem`, the solvers and `Euclidean` print a one-line repr with their settings.
+- The `no_skips` plugin makes a run with a skipped, xfailed or xpassed test exit nonzero.
 - Python 3.12 or newer; the `io-mjcf` extra is `mjcf`; the `viewer` extra needs `viser>=1.0.30` and `pillow`;
   the `dev` extra is a dependency group, beside `test-oracles` for the parity oracles.
 - `optim.State` is a frozen dataclass: assigning to a field raises `FrozenInstanceError` (build a new state with
