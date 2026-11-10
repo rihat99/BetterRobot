@@ -54,9 +54,13 @@ def _sections(text: str) -> list[tuple[str, str, list[str]]]:
 
 
 def _rows(text: str) -> list[list[str]]:
-    """The cells of every table body row of a Markdown page."""
-    rows = [[cell.strip() for cell in line.strip().strip("|").split(" | ")] for line in text.splitlines()]
-    return [row for row in rows if len(row) > 1 and not set(row[0]) <= {"-"} and row[:2] != ["0.2", "0.3.0"]]
+    """The cells of every table body row of a Markdown page (a header row is the one above ``|---|``)."""
+    lines = [line.strip() for line in text.splitlines() if line.startswith("|")] + [""]
+    return [
+        [cell.strip() for cell in line.strip("|").split(" | ")]
+        for line, below in zip(lines, lines[1:])
+        if not line.startswith("|-") and not below.startswith("|-")
+    ]
 
 
 def _names(cell: str) -> list[tuple[str, ...]]:
