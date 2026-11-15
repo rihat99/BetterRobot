@@ -68,3 +68,4 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0048](0048-viewer-pointer-and-layer-ownership.md) | One pointer callback at a time; a layer object draws in one place; `add` takes an iterable only | Proposed (integrator, awaiting owner) |
 | [0049](0049-collision-imports-lie.md) | `collision` imports `lie` for the one input validator | Proposed (integrator, awaiting owner) |
 | [0050](0050-testing-imports-optim.md) | `testing` imports `optim` for the robust-kernel checker | Proposed (integrator, awaiting owner) |
+| [0051](0051-distance-functions-for-the-analytic-jacobian.md) | A `distance_fn` reads its own centre and runs under `torch.func` | Proposed (integrator, awaiting owner) |

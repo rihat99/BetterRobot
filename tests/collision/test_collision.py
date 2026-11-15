@@ -5,7 +5,7 @@ import torch
 
 import better_robot as br
 from better_robot import collision, optim, terms
-from better_robot.exceptions import ArgumentError, UnknownNameError
+from better_robot.exceptions import ArgumentError, ShapeError, UnknownNameError
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -182,6 +182,42 @@ def test_terms_pass_check_jacobian(panda):
     assert errors["world"] < 1e-9 and errors["self"] < 1e-9
 
 
+def test_clearance_jacobians_cover_every_shape_and_the_closest_pairs(panda):
+    """The analytic clearance Jacobians (a pullback of ``distance_fn`` times ``point_jacobian``) equal autodiff for
+    every shipped shape, ``K`` obstacles per sphere and the unhinged inequality; ``closest=k`` keeps the k nearest
+    pairs, rows and Jacobian alike."""
+    spheres = _spheres(panda)
+    center, size = torch.tensor([0.3, 0.0, 0.5], dtype=DT), torch.tensor(0.1, dtype=DT)
+    rotation, grid = torch.linalg.qr(_randn(3, 3, seed=12))[0], 0.2 * _randn(10, 10, 10, seed=13)
+    shapes = {
+        "sphere": lambda c, r: collision.sphere_sphere(c, r, center_b=center, radius_b=size),
+        "halfspace": lambda c, r: collision.sphere_halfspace(c, r, normal=torch.eye(3, dtype=DT)[2], offset=0.3),
+        "box": lambda c, r: collision.sphere_box(
+            c, r, box_center=center, box_rotation=rotation, half_extents=torch.tensor([0.1, 0.2, 0.3], dtype=DT)
+        ),
+        "capsule": lambda c, r: collision.sphere_capsule(c, r, start=center, end=center + 0.2, capsule_radius=size),
+        "sdf": lambda c, r: collision.sphere_sdf(
+            c, r, grid=grid, origin=torch.tensor([-0.5, -0.5, 0.0], dtype=DT), voxel_size=0.12
+        ),
+        "walls": lambda c, r: torch.stack((c[..., 0] + 0.1, 0.3 - c[..., 0]), -1) - r[..., None],  # K = 2
+    }
+    q = terms.random_start(panda, panda.q_neutral.expand(16, -1), generator=torch.Generator().manual_seed(14))
+    problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)})
+    problem.cached(terms.kinematic_state(panda), name="state")
+    for name, shape in shapes.items():
+        problem.residual(name, terms.sphere_clearance(spheres, shape, margin=0.1))
+        problem.residual(f"{name}/inequality", terms.sphere_clearance(spheres, shape, margin=0.1, hinge=False))
+    pairs = collision.self_collision_pairs(panda, spheres)
+    problem.residual("self", terms.self_clearance(spheres, pairs=pairs, margin=0.3))
+    problem.residual("closest", terms.self_clearance(spheres, pairs=pairs, margin=0.3, closest=2))
+    residuals = problem.residuals()
+    assert residuals["walls"].shape == (16, 8) and residuals["closest"].shape == (16, 2)
+    torch.testing.assert_close(residuals["closest"], residuals["self"].topk(2).values, rtol=0, atol=0)
+    assert all(bool((value > 0).any()) for value in residuals.values())
+    errors = optim.check_jacobian(problem)
+    assert max(errors.values()) < 1e-12, errors
+
+
 def test_a_new_obstacle_shape_is_only_a_function(panda):
     """C-EXT-8: shapes the library does not ship, a floor and two walls, plug in as distance functions returning
     ``(B..., S)`` or ``(B..., S, K)``; ``sphere_clearance`` and the solver take them unchanged."""
@@ -201,6 +237,61 @@ def test_a_new_obstacle_shape_is_only_a_function(panda):
     assert residuals["floor"].shape == (2, count) and residuals["walls"].shape == (2, 2 * count)
     normal, _ = problem.linearize()
     assert torch.isfinite(normal.solve(damping=1e-3)).all()
+
+
+class _Floor(torch.autograd.Function):
+    """``z - 0.3`` of each centre as an old-style ``autograd.Function`` (no ``setup_context``): ``torch.func`` refuses it."""
+
+    @staticmethod
+    def forward(ctx, centers):
+        return centers[..., 2] - 0.3
+
+    @staticmethod
+    def backward(ctx, grad):
+        return torch.stack((0 * grad, 0 * grad, grad), -1)
+
+
+def test_a_distance_fn_torch_func_cannot_transform_takes_the_autodiff_route(panda):
+    """C-EXT-8: a ``distance_fn`` outside the analytic Jacobian's requirements, here an old-style
+    ``torch.autograd.Function``, registers as ``optim.TermFn(fn=term.fn, reads=term.reads)``: autodiff gives the
+    normal equations the analytic route gives for the same distance written in torch."""
+    spheres = _spheres(panda)
+    q = terms.random_start(panda, panda.q_neutral.expand(4, -1), generator=torch.Generator().manual_seed(15))
+
+    def linearized(term):
+        problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)})
+        problem.cached(terms.kinematic_state(panda), name="state")
+        problem.residual("floor", term)
+        return problem.linearize()[0]
+
+    custom = terms.sphere_clearance(spheres, lambda c, r: _Floor.apply(c) - r, margin=1.0)
+    autodiff = linearized(optim.TermFn(fn=custom.fn, reads=custom.reads))
+    analytic = linearized(terms.sphere_clearance(spheres, lambda c, r: c[..., 2] - 0.3 - r, margin=1.0))
+    assert bool((analytic.g != 0).any())
+    torch.testing.assert_close(autodiff.H, analytic.H, rtol=1e-12, atol=1e-12)
+    torch.testing.assert_close(autodiff.g, analytic.g, rtol=1e-12, atol=1e-12)
+
+
+def test_a_per_knot_jacobian_on_a_time_variable_needs_window_1(panda):
+    """A term whose analytic Jacobian is per knot (the clearance terms, ``frame_pose``) on a time variable registered
+    without ``window=`` fails at linearisation with a ``ShapeError`` naming ``window=1``, not torch's reshape error."""
+    spheres = _spheres(panda)
+    q = terms.random_start(panda, panda.q_neutral.expand(2, -1), generator=torch.Generator().manual_seed(16))
+    path = q[:, None].expand(2, 3, -1).clone()
+    goal = forward_kinematics(panda, path).frame_poses[..., panda.frame_id("panda_hand"), :]
+    per_knot = (
+        terms.sphere_clearance(spheres, lambda c, r: c[..., 2] - r, margin=1.0),
+        terms.self_clearance(spheres, pairs=collision.self_collision_pairs(panda, spheres), margin=1.0),
+        terms.frame_pose(panda, frame="panda_hand", target="goal"),
+    )
+    for term in per_knot:
+        problem = optim.Problem(
+            {"q": path}, manifolds={"q": terms.RobotManifold(panda)}, time=("q",), data={"goal": goal}
+        )
+        problem.cached(terms.kinematic_state(panda), name="state")
+        problem.residual("term", term)
+        with pytest.raises(ShapeError, match="window=1"):
+            problem.linearize()
 
 
 def test_pairs_ignore_frame_pairs(panda):

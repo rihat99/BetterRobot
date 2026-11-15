@@ -138,6 +138,7 @@ For a visual and mathematical introduction, see [Poses and twists](../concepts/l
 | **LOCAL** | A frame twist measured at the frame origin and expressed in that frame's axes. |
 | **WORLD** | A spatial twist expressed in world axes and shifted to the world origin. |
 | **LOCAL_WORLD_ALIGNED, LWA** | A twist measured at the frame origin but expressed in world axes. BetterRobot's default frame-Jacobian convention. |
+| **manipulability, threshold** | Yoshikawa's measure `sqrt(det(J Jᵀ))` of a frame's position Jacobian `J`: zero at a singular configuration, where the frame cannot move in some direction. `terms.manipulability(frame=, threshold=)` pushes only while it is below `threshold`. |
 
 See [Kinematics and Jacobians](../concepts/kinematics-and-jacobians.md) for when BetterRobot uses each
 derivative method.
@@ -219,7 +220,8 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **self-collision, self** | Contact between two parts of the same robot (`self_collision_pairs`, `self_distances`, `terms.self_clearance`). |
 | **signed distance, distance** | The distance between two shapes, negative when they overlap. |
 | **signed distance field, SDF** | A voxel grid of signed distances to an obstacle (`collision.sphere_sdf`). |
-| **clearance, margin, hinge** | The residual `margin - distance` between shapes: positive when they are closer than `margin`. With `hinge=True` it is clamped at zero, so a clear configuration costs nothing (`terms.self_clearance`, `terms.sphere_clearance`). |
+| **clearance, margin, hinge** | The residual `margin - distance` between shapes: positive when they are closer than `margin`. With `hinge=True` it is zero for a clear configuration, `gap² / (2 margin)` for a gap `margin - distance` below `margin`, then `gap - margin / 2`: a hinge whose slope has no jump (`terms.self_clearance`, `terms.sphere_clearance`). `terms.joint_limits(margin=)` uses the same hinge from `margin` inside the limits. |
+| **closest** | `terms.self_clearance(closest=k)` keeps the `k` nearest sphere pairs of each configuration, a fixed number of rows. |
 | **capsule** | A cylinder with a hemisphere on each end: a segment from `start` to `end` with a `radius`. |
 | **half-space** | The solid on one side of a plane, `{x : normal . x <= offset}`. |
 | **semi-axes** | The three half-lengths of an ellipsoid along its axes (`spatial.inertia_of_ellipsoid`). |

@@ -123,14 +123,23 @@ tensor([0.1651], dtype=torch.float64)
 
 `terms.sphere_clearance` and `terms.self_clearance` turn these distances into residuals `margin - distance`,
 hinged at zero so a clear configuration costs nothing, or left unhinged as an inequality for
-`optim.solve_constrained`. [Keep a trajectory clear of obstacles](../guides/avoid-collisions.md) bends a path around
-an obstacle with them.
+`optim.solve_constrained`. The hinge has no jump in its slope: for a gap `margin - distance` between 0 and `margin`
+the residual is `gap² / (2 margin)`, beyond it `gap - margin / 2`, so the Gauss-Newton model does not switch on at
+once when a sphere enters the margin. [Keep a trajectory clear of obstacles](../guides/avoid-collisions.md) bends a
+path around an obstacle with them.
+
+Both terms have analytic Jacobians: the gradient of each distance with respect to its sphere centre times
+`kinematics.point_jacobian`. For `self_clearance` the gradient is the unit vector between the two centres; for
+`sphere_clearance` it is the reverse-mode derivative of `distance_fn` alone, so any shape gets it, including a
+sampled SDF and a function of your own. A robot with many spheres has thousands of pairs:
+`self_clearance(..., closest=k)` keeps the `k` nearest pairs of each configuration, a fixed number of rows.
 
 ## Extending collision
 
 A new obstacle type is a new `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)`
-for `sphere_clearance`; the term and the solvers do not change (contract
-[08, collision section](../contracts/08-extension-points.md)). Robot geometry built from the IR (capsules read
+for `sphere_clearance`, entry `s` reading centre `s` only and transformable by `torch.func`; the term and the
+solvers do not change (contract [08, collision section](../contracts/08-extension-points.md), which also gives the
+autodiff route for any other function). Robot geometry built from the IR (capsules read
 from a model file, shapes fitted to meshes), closest points and contact follow
 record [0016: geometry is a value, not a field of `Model`](../contracts/decisions/0016-geometry-out-of-model.md).
 

@@ -115,15 +115,25 @@ Enforcement: `tests/contract/test_extension_points.py::test_normal_equations_com
 `terms.sphere_clearance(spheres, distance_fn, *, margin)` is the seam for any environment shape: a new obstacle
 type is a function `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)` (signed
 distance, positive outside, differentiable in `centers`), usually a closure over a `collision.sphere_*`
-primitive. The term and the solvers never change for a new shape. Robot geometry beyond spheres and closest
-points follow record [0016](decisions/0016-geometry-out-of-model.md).
+primitive. The term's analytic Jacobian pulls back through `distance_fn` alone, so the function also meets two
+requirements (record [0051](decisions/0051-distance-functions-for-the-analytic-jacobian.md)): entry `s` depends on
+centre `s` only, and `torch.func` can transform it (a `torch.autograd.Function` defines `setup_context`). A
+function that breaks either, such as an external kernel written as an old-style `autograd.Function` or a distance
+to a shape the spheres span together, keeps the term through autodiff: register
+`optim.TermFn(fn=term.fn, reads=term.reads)` in its place. The term and the solvers never change for a new shape.
+Robot geometry beyond spheres and closest points follow record [0016](decisions/0016-geometry-out-of-model.md).
 
 ```python { .no-run }
 # good: a new shape is a new function
 def to_table(centers, radii):
     return collision.sphere_box(centers, radii, box_center=center, box_rotation=rotation, half_extents=size)
 terms.sphere_clearance(spheres, to_table, margin=0.02)
+# good: a function torch.func cannot transform takes the autodiff route
+term = terms.sphere_clearance(spheres, external_kernel, margin=0.02)
+problem.residual("table", optim.TermFn(fn=term.fn, reads=term.reads))
 # bad: a new term class or a solver branch per obstacle type
 ```
 
-Enforcement: `tests/collision/test_collision.py::test_a_new_obstacle_shape_is_only_a_function`; `[review]`.
+Enforcement: `tests/collision/test_collision.py::test_a_new_obstacle_shape_is_only_a_function`,
+`tests/collision/test_collision.py::test_a_distance_fn_torch_func_cannot_transform_takes_the_autodiff_route`;
+`[review]`.

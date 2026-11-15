@@ -1,6 +1,6 @@
 # `better_robot.terms`
 
-Robot terms for `optim.Problem`: frame poses and positions, joint limits, rest pose, clearance, plus the `ik_problem` and `solve_ik` recipes.
+Robot terms for `optim.Problem`: frame poses and positions, joint limits, rest pose, clearance, manipulability, plus the `ik_problem` and `solve_ik` recipes.
 
 ::: better_robot.terms
     options:

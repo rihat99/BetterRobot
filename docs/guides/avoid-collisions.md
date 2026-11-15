@@ -72,16 +72,16 @@ problem.residual("clearance", terms.sphere_clearance(spheres, to_obstacle, margi
 
 result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
 print(f"straight {clearance(straight):+.3f} m, optimized {clearance(result.x['q'][0]):+.3f} m")
-# straight -0.070 m, optimized +0.019 m
+# straight -0.070 m, optimized +0.010 m
 assert clearance(result.x["q"][0]) > clearance(straight)
 ```
 ```output
-straight -0.070 m, optimized +0.019 m
+straight -0.070 m, optimized +0.010 m
 ```
 
 The clearance before optimization is negative: the tool sphere passes through the obstacle. After the
-solve it sits just under the 0.02 m margin, because the soft weight trades clearance against smoothness. Raise the weight or switch to the
-hard inequality to enforce it exactly.
+solve it sits halfway into the 0.02 m margin: the hinge pushes gently near the margin, and the soft weight trades
+clearance against smoothness. Raise the weight or switch to the hard inequality to enforce it exactly.
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/obstacle_trajectory.png" width="960"><source src="../../clips/obstacle_trajectory.webm" type="video/webm"></video><figcaption>The Panda, modelled as spheres, follows a trajectory that a clearance term bends around a spherical obstacle (<code>examples/06_obstacle_trajectory.py</code>).</figcaption></figure>
 

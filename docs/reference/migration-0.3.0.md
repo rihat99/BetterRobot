@@ -193,6 +193,8 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `solve_ik(..., iters=100)` | `solve_ik(..., iterations=100)` | also exported from the root |
 | `random_start(model, q0, *, generator=None)` | `random_start(model, q0, *, generator)` | the generator is required |
 | `frame_pose(..., state=CacheRef(...))`, `frame_position(..., state=CacheRef(...))`, `self_clearance(..., state=CacheRef(...))`, `sphere_clearance(..., state=CacheRef(...))` | `state=` | the name string of the cached state |
+| `sphere_clearance(..., hinge=True)`, `self_clearance(..., hinge=True)`: residual `max(margin - distance, 0)` | `sphere_clearance`, `self_clearance` | the hinge is C1, `gap² / (2 margin)` inside the margin band: raise the weight to keep the old push near the margin |
+| `sphere_clearance(spheres, distance_fn, ...)` with a `distance_fn` whose entry `s` reads other centres, or that `torch.func` cannot transform | `optim.TermFn(fn=term.fn, reads=term.reads)` of that term | the analytic Jacobian needs both (record [0051](../contracts/decisions/0051-distance-functions-for-the-analytic-jacobian.md)) |
 
 ## `viewer`
 
