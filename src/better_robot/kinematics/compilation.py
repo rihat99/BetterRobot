@@ -12,7 +12,7 @@ measurement found to go wrong when a library call is handed to ``torch.compile``
   batched matrix products, about half of a compiled batch-4096 call on CPU. While `compiled` traces
   (`fused_forms`), `small_matmul` writes them as a multiply and a sum, which inductor fuses with their neighbours;
   otherwise as ``@``: eagerly the multiply and sum is slower, and a caller's own ``torch.compile`` with a backend
-  that does not fuse (``backend="eager"``) would materialise it (G1 mass matrix 425 ms against 164 at batch 4096).
+  that does not fuse (``backend="eager"``) would materialise it (G1 mass matrix at batch 4096: 298 ms against 97).
 - CUDA graphs (``mode="reduce-overhead"``) replay into one memory pool, so the next call overwrites the tensors the
   previous call returned, without an error. The wrapper clones every CUDA tensor of the result (`_owned`).
 - Torch keeps at most 8 graphs per compiled function, and ``fullgraph=True`` makes a ninth an error. Grad modes,
@@ -30,6 +30,7 @@ measurement found to go wrong when a library call is handed to ``torch.compile``
 from __future__ import annotations
 
 import dataclasses
+import enum
 import functools
 import threading
 from collections.abc import Callable, Hashable
@@ -44,6 +45,8 @@ from ..model.model import Model
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 _MODES = ("default", "reduce-overhead")
+# Values a key holds as they are; an object of another type adds only its type (`_signature`).
+_VALUES = (str, int, float, complex, bool, type(None), torch.dtype, torch.device, enum.Enum)
 _TRACING = threading.local()  # ``active`` while `compiled` runs a graph in this thread
 
 
@@ -75,7 +78,9 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
     ``lambda q: forward_kinematics(model, q).joint_transforms``; a graph break in it raises. Calls are grouped by
     key: the grad mode and inference mode, and for each argument, also inside tuples, lists, dicts and dataclasses,
     a tensor's dtype, device, ``requires_grad`` and number of axes; a model's line (the model it was copied from) and
-    whether it has plans and memoised values yet; any other value itself, or its identity when it has no hash. The
+    whether it has plans and memoised values yet; a string, number, dtype, device or enum itself (a number in a
+    dataclass, such as a solver state's iteration, only its type); of another object only its type, so a new problem
+    or function of the same kind shares the key and torch's guards tell them apart. The
     first call of a key runs ``fn`` eagerly and returns its result, which builds the plans and memoised values; the
     second compiles (seconds); later calls run the graph. A side effect of ``fn`` runs once per call. The returned
     function keeps its own graphs: build it once, not once per call or per model.
@@ -137,22 +142,33 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
     return call
 
 
-def _signature(value: Any, shapes: list[torch.Size]) -> Hashable:
-    """What of ``value`` selects the graphs of `compiled`'s key; appends the shape of every tensor to ``shapes``."""
+def _signature(value: Any, shapes: list[torch.Size], *, in_dataclass: bool = False) -> Hashable:
+    """What of ``value`` selects the graphs of `compiled`'s key; appends the shape of every tensor to ``shapes``.
+
+    A number in a dataclass field, such as a solver state's iteration, adds only its type: torch makes a number that
+    changes dynamic after one recompile, while a key per value would compile at every step.
+    """
     if isinstance(value, torch.Tensor):
         shapes.append(value.shape)
         return (value.dtype, value.device, value.requires_grad, value.ndim)
     if isinstance(value, (tuple, list)):
-        return (type(value), *[_signature(item, shapes) for item in value])
+        return (type(value), *[_signature(item, shapes, in_dataclass=in_dataclass) for item in value])
     if isinstance(value, dict):
-        return (type(value), *[(name, _signature(item, shapes)) for name, item in value.items()])
+        return (
+            type(value),
+            *[(name, _signature(item, shapes, in_dataclass=in_dataclass)) for name, item in value.items()],
+        )
     if isinstance(value, Model):
         tensors = tuple([_signature(tensor, shapes) for tensor in _pytree.tree_leaves(value)])
         return (id(value._plan_owner or value), bool(value._plans), bool(value._memo), tensors)  # cold or warm
     if _is_instance(value):
         fields = dataclasses.fields(value)
-        return (type(value), *[_signature(getattr(value, field.name), shapes) for field in fields if field.init])
-    return (type(value), value if isinstance(value, Hashable) else id(value))
+        return (
+            type(value),
+            *[_signature(getattr(value, field.name), shapes, in_dataclass=True) for field in fields if field.init],
+        )
+    number = isinstance(value, (int, float, complex)) and not isinstance(value, bool)
+    return (type(value), value) if isinstance(value, _VALUES) and not (in_dataclass and number) else type(value)
 
 
 def _map_tensors(apply: Callable[[torch.Tensor], torch.Tensor], value: Any) -> Any:
