@@ -159,11 +159,17 @@ def test_limit_margin_spares_non_euclidean_coordinates_and_stops_at_mid_range(pa
 
 def test_manipulability_jacobian_is_zero_where_the_frame_is_exactly_singular(panda):
     """Only two joints move the origin of ``panda_link3``, so its manipulability is 0 at every configuration, and most
-    of these round to exactly 0: the Jacobian is the zero subgradient, not rounding noise divided by 0 (1e289)."""
-    state = forward_kinematics(panda, _random_q(panda, 64, 6))
+    of these round to exactly 0: the Jacobian is the zero subgradient, not rounding noise divided by 0 (1e289), and
+    the autodiff route of a mimic-driven frame is 0 too, not NaN."""
+    q = _random_q(panda, 64, 6)
+    state = forward_kinematics(panda, q)
     term = terms.manipulability(panda, frame="panda_link3", threshold=0.05)
     torch.testing.assert_close(term.fn(state), torch.full((64, 1), 0.025, dtype=torch.float64), rtol=0, atol=1e-9)
     assert float(term.jacobian(state)["q"].abs().max()) < 1e-8
+    problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)})
+    problem.cached(terms.kinematic_state(panda), name="state")
+    problem.residual("autodiff", optim.TermFn(fn=term.fn, reads=term.reads))
+    assert float(problem.linearize()[0].g.abs().max()) < 1e-8
 
 
 def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1):

@@ -168,7 +168,9 @@ def _yoshikawa(rows: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     gram = rows @ rows.mT
     # Row a of the adjugate of a symmetric 3x3 matrix is the cross product of its other two rows.
     adjugate = torch.linalg.cross(gram[..., [1, 2, 0], :], gram[..., [2, 0, 1], :])
-    return adjugate, (gram[..., 0, :] * adjugate[..., 0, :]).sum(-1).clamp_min(0.0).sqrt()
+    det = (gram[..., 0, :] * adjugate[..., 0, :]).sum(-1)
+    # where, not clamp_min: at det = +0.0 clamp_min passes sqrt'(0) = inf on to a zero derivative, NaN in autodiff.
+    return adjugate, torch.where(det > 0, det, 0.0).sqrt()
 
 
 def manipulability(model: Model, *, frame: int | str, threshold: float, state: str = "state", q: str = "q") -> TermFn:
@@ -215,7 +217,7 @@ def manipulability(model: Model, *, frame: int | str, threshold: float, state: s
         rows = linear + torch.linalg.cross(angular, origin, dim=-2)  # velocity of the frame origin
         adjugate, size = _yoshikawa(rows * columns)
         # dw = <P, dJ> with P = w (J Jᵀ)⁻¹ J = adj(J Jᵀ) J / w, finite as w -> 0. At w = 0, the tip of a cone where
-        # adj(J Jᵀ) J is rounding noise, P is 0: the smallest subgradient, which autodiff of the clamped det gives.
+        # adj(J Jᵀ) J is rounding noise, P is 0: the smallest subgradient, which autodiff of `_yoshikawa` gives.
         weights = adjugate @ (rows * columns) / torch.where(size > 0, size, torch.inf)[..., None, None]
         # dJ_k/dq_i = above[i, k] [J_i, J_k] (world columns) plus the moving origin; triple products fold the sum over k.
         first = torch.linalg.cross(linear, weights, dim=-2) + torch.linalg.cross(
