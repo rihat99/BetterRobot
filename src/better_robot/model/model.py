@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, final, override
+from typing import Any, TypeVar, final, override
 
 import torch
 from torch.utils import _pytree
@@ -29,6 +29,7 @@ _TENSOR_FIELDS = (
     "q_neutral",
 )
 _BATCHED_FIELDS = ("joint_placements", "body_inertias", "frame_placements")
+_V = TypeVar("_V", bound=torch.Tensor | tuple[torch.Tensor, ...])
 
 
 @final
@@ -318,22 +319,24 @@ class Model:
             self._plans[key] = owner._plans[key]
         return self._plans[key]
 
-    def _value(self, kind: str, derive: Callable[[Model], torch.Tensor]) -> torch.Tensor:
-        """``derive(model)``, memoised under ``(kind, grad mode, requires_grad flags)`` once it carries no graph.
+    def _value(self, kind: str, derive: Callable[[Model], _V]) -> _V:
+        """``derive(model)``, a tensor or a tuple of tensors, memoised under ``(kind, mode, requires_grad flags)``
+        once none of them carries a graph; ``mode`` is the grad mode, or ``"inference"`` under ``torch.inference_mode``.
 
         The flags of the tensor fields are in the key so that ``requires_grad_()`` on a model tensor after a query,
-        an in-place edit C-STATE-1 forbids, still gets a fresh value. Under ``torch.inference_mode`` nothing is
-        stored: an inference tensor served to a later autograd call would break it. Under ``torch.compile`` the
-        derivation is traced into the graph instead (Dynamo cannot trace the inference-mode check, and the fused
-        ops cost nothing there) (record 0040).
+        an in-place edit C-STATE-1 forbids, still gets a fresh value. A value made under ``torch.inference_mode`` is
+        an inference tensor, which a later autograd call cannot save for backward, so it is served only under
+        inference mode, where autograd records nothing, ``enable_grad`` or not (record 0052). Under
+        ``torch.compile`` the derivation is traced into the graph instead (Dynamo cannot trace the inference-mode
+        check, and the fused ops cost nothing there) (record 0040).
         """
-        if torch.compiler.is_compiling() or torch.is_inference_mode_enabled():
+        if torch.compiler.is_compiling():
             return derive(self)
         flags = tuple(getattr(self, name).requires_grad for name in _TENSOR_FIELDS)
-        key = (kind, torch.is_grad_enabled(), flags)
+        key = (kind, "inference" if torch.is_inference_mode_enabled() else torch.is_grad_enabled(), flags)
         if key not in self._memo:
             value = derive(self)
-            if value.requires_grad:  # a differentiable call owns its graph: converted per call
+            if any(part.requires_grad for part in _pytree.tree_leaves(value)):  # a differentiable call owns its graph
                 return value
             self._memo[key] = value
         return self._memo[key]

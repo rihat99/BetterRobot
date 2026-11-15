@@ -1,6 +1,6 @@
 # 0042 The model memo is keyed by the grad flags, copies share their plans, and the world geometry is cheaper
 
-**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-10
+**Status:** Proposed (integrator, awaiting owner); amendment proposed in 0052. **Date:** 2026-11-10
 
 ## Context
 Record [0040](0040-model-value-memo.md) keys `Model._memo` by `(kind, grad mode)` and says it is dropped "like
@@ -52,7 +52,8 @@ No public name changes. A caller that edits a model tensor in place is still out
 
 ## Enforcement
 C-STATE-4; `tests/contract/test_caches.py` (`test_requires_grad_after_a_query_still_yields_a_gradient`,
-`test_nothing_is_memoised_under_inference_mode`, `test_values_with_a_graph_are_never_memoised`);
+`test_values_with_a_graph_are_never_memoised`; the inference-mode test is
+`test_inference_mode_values_are_served_only_under_inference_mode` since record 0052);
 `tests/model/test_with_values.py::test_a_copy_shares_its_source_plans_and_computes_as_a_fresh_model`;
 `tests/kinematics/test_fk_compile.py` (the public FK, RNEA and CRBA trace as one graph).
 

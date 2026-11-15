@@ -5,21 +5,25 @@ products ``q_a q_b`` of a unit quaternion, and the raw value of a translation co
 of a model come from one batched product of each joint's own features with a constant per-joint matrix that
 depends only on the topology and the joint axes (`_plans.FkPlan`, built once per model, dtype and device; cost
 linear in the number of joints). Placements, which stay differentiable and may be batched, are folded into that
-matrix when they carry no batch (two small products independent of the batch size) or applied with one matmul,
-and the world chain needs one matmul per tree level. Transforms are ``[R | p]`` matrices throughout; nothing is
-converted to quaternions here. Rare joint kinds (planar, translation, helical, custom) are evaluated one by one
-through their own ``placement`` and written into the same tensor. Everything stays autograd- and ``torch.func``-safe
-(jacrev and jacfwd); no host syncs; the public wrapper traces as one graph under ``torch.compile(fullgraph=True)``
-(``tests/kinematics/test_fk_compile.py``).
+matrix when they carry no batch or applied with one matmul, and the world chain needs one matmul per tree level.
+Transforms are ``[R | p]`` matrices throughout; nothing is converted to quaternions here. Rare joint kinds (planar,
+translation, helical, custom) are evaluated one by one through their own ``placement`` and written into the same
+tensor. Frames are not computed here: `KinematicState.frame_transforms` derives them from the joints on first use
+(`world_frames`), so dynamics and joint-only callers never pay for them (21-23 % of a batch-4096 FK call). Everything
+stays autograd- and ``torch.func``-safe (jacrev and jacfwd); no host syncs; the public wrapper traces as one graph
+under ``torch.compile(fullgraph=True)`` (``tests/kinematics/test_fk_compile.py``).
 
 The ``(njoints, 7)`` and ``(nframes, 7)`` placements are converted to ``4x4`` matrices by `placement_matrices` and
 memoised on the model by grad mode (record 0040): converting per call cost 0.17 ms, 44 % of a batch-1 Panda FK
-call on CPU (0.19 -> 0.39 ms; one thread, float32, torch 2.13, AMD EPYC 9654) and under 1.2 % at batch 4096. With
-the memo batch 1 is back at 0.18 ms. Placements that carry a graph are converted per call so that each
-differentiable call owns its graph.
+call on CPU (0.19 -> 0.39 ms; one thread, float32, torch 2.13, AMD EPYC 9654) and under 1.2 % at batch 4096. The
+memo holds unbatched joint placements already folded into the feature map: the fold costs two products independent
+of the batch size, which were 29 % of a batch-1 G1 FK call. Placements that carry a graph are converted per call so
+that each differentiable call owns its graph.
 """
 
 from __future__ import annotations
+
+from typing import Literal, overload
 
 import torch
 
@@ -28,26 +32,47 @@ from ..model.model import Model
 from ._plans import fk_plan
 
 
-def placement_matrices(model: Model) -> tuple[torch.Tensor, torch.Tensor]:
-    """Joint and frame placements as ``4x4`` matrices, ``(I..., njoints, 4, 4)`` and ``(I..., nframes, 4, 4)``.
+@overload
+def placement_matrices(model: Model, part: Literal["joints"]) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]: ...
+@overload
+def placement_matrices(model: Model, part: Literal["frames"]) -> torch.Tensor: ...
+def placement_matrices(model: Model, part: str) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """The joint placements as the FK kernel reads them (`_joint_map`), or the frame placements
+    ``(I..., nframes, 4, 4)``.
 
-    Memoised on the model by grad mode (record 0040); placements that carry a graph are converted per call.
+    Memoised on the model by grad or inference mode (records 0040, 0052); placements that carry a graph are converted
+    per call.
     """
-    joints = model._value("joint_matrices", lambda m: se3.to_matrix_raw(m.joint_placements))
-    frames = model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))
-    return joints, frames
+    if part == "frames":
+        return model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))
+    return model._value("joint_matrices", _joint_map)
+
+
+def _joint_map(model: Model) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """Joint placement matrices ``(I..., njoints, 4, 4)``; without a value batch or a rare joint kind, the placements
+    folded into the feature map instead, ``(weight (njoints, F, 4, 4), bias (njoints, 4, 4))`` in level order.
+
+    The joint transform is affine in the features, so constant placements fold into the map's weight and bias.
+    """
+    matrices = se3.to_matrix_raw(model.joint_placements)
+    plan = fk_plan(model, dtype=matrices.dtype, device=matrices.device)
+    if matrices.ndim > 3 or plan.fallbacks:
+        return matrices
+    if plan.inverse_order is not None:
+        matrices = matrices.index_select(-3, plan.order)
+    return matrices.unsqueeze(1) @ plan.weight, matrices @ plan.bias
 
 
 def world_transforms(
-    model: Model, q_full: torch.Tensor, placements: torch.Tensor, frames: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """World ``[R | p]`` of every joint and frame, ``(N, njoints, 3, 4)`` and ``(N, nframes, 3, 4)``, in joint order.
+    model: Model, q_full: torch.Tensor, joint_map: torch.Tensor | tuple[torch.Tensor, torch.Tensor]
+) -> torch.Tensor:
+    """World ``[R | p]`` of every joint, ``(N, njoints, 3, 4)``, in joint order.
 
-    ``q_full: (N, nq_full)`` is the mimic-expanded configuration; ``placements`` and ``frames`` are the placement
-    matrices ``(njoints, 4, 4)`` and ``(nframes, 4, 4)``, or ``(N, njoints, 4, 4)`` and ``(N, nframes, 4, 4)`` when
-    the model's values are batched. Trusts validated inputs.
+    ``q_full: (N, nq_full)`` is the mimic-expanded configuration; ``joint_map`` is the first value of
+    `placement_matrices`, its placement matrices flattened to ``(N, njoints, 4, 4)`` when the model's values are
+    batched. Trusts validated inputs.
     """
-    plan = fk_plan(model, dtype=placements.dtype, device=placements.device)
+    plan = fk_plan(model, dtype=q_full.dtype, device=q_full.device)
     nj, count = plan.njoints, q_full.shape[0]
     features = []
     n_circle = plan.circle_columns.shape[0]
@@ -67,8 +92,6 @@ def world_transforms(
         features.append(outer.flatten(-3))
     if plan.linear_columns.numel():
         features.append(q_full.index_select(-1, plan.linear_columns))
-    if plan.inverse_order is not None:
-        placements = placements.index_select(-3, plan.order)
     if features:
         gathered = (
             torch.cat(features, dim=-1)
@@ -77,12 +100,11 @@ def world_transforms(
         )
     else:
         gathered = plan.bias.new_zeros(count, nj, 1)
-    if placements.ndim == 3 and not plan.fallbacks:
-        # The joint transform is affine in the features, so constant-per-batch placements fold into
-        # the map: two small products independent of the batch size instead of one N-sized matmul.
-        weight = placements.unsqueeze(1) @ plan.weight
-        local = (placements @ plan.bias) + torch.einsum("njf,jfab->njab", gathered, weight)
+    if isinstance(joint_map, tuple):
+        weight, bias = joint_map
+        local = bias + torch.einsum("njf,jfab->njab", gathered, weight)
     else:
+        placements = joint_map if plan.inverse_order is None else joint_map.index_select(-3, plan.order)
         joint = plan.bias + torch.einsum("njf,jfab->njab", gathered, plan.weight)
         for slot, joint_id, start, width in plan.fallbacks:
             pose = model.joints[joint_id].placement(q_full[:, start : start + width])
@@ -94,15 +116,18 @@ def world_transforms(
         parent = levels[-1] if position is None else levels[-1].index_select(1, position)
         levels.append(parent @ local[:, start:stop])
     world = torch.cat(levels, dim=1)
-    if plan.inverse_order is not None:
-        world = world.index_select(1, plan.inverse_order)
-    # Free the kernel's temporaries before the frame products so these reuse their memory instead of faulting in
-    # fresh pages: Panda FK at batch 4096, one CPU thread, 15.7 -> 12.6 ms.
-    del features, gathered, local, levels
-    parents = world.index_select(1, plan.frame_parents)
+    return world if plan.inverse_order is None else world.index_select(1, plan.inverse_order)
+
+
+def world_frames(model: Model, joints: torch.Tensor) -> torch.Tensor:
+    """World ``[R | p]`` of every frame, ``(B..., nframes, 3, 4)``, from the joints' ``(B..., njoints, 3, 4)``.
+
+    ``B...`` already holds the model's value batch ``I...``, so batched frame placements broadcast.
+    """
+    frames = placement_matrices(model, "frames")
+    parents = joints.index_select(-3, fk_plan(model, dtype=joints.dtype, device=joints.device).frame_parents)
     # einsum is several times faster than a broadcast matmul on CPU when one side has no batch axis.
-    frame_world = torch.einsum("nfab,fbc->nfac", parents, frames) if frames.ndim == 3 else parents @ frames
-    return world, frame_world
+    return torch.einsum("...fab,fbc->...fac", parents, frames) if frames.ndim == 3 else parents @ frames
 
 
-__all__ = ["placement_matrices", "world_transforms"]
+__all__ = ["placement_matrices", "world_frames", "world_transforms"]

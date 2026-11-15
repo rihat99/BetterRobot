@@ -97,8 +97,7 @@ ik/panda/B64                      5           12            -            -
 When a change adds a counter, remove what added it. When the change needs it, or when a change lowers a counter,
 run `uv run python benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-<version>.json` on a clean
 commit and commit that file alone, with a `Why:` line; a lowered counter is written down the same way, so the gate
-stays tight. The two host syncs of `aba` are `torch.linalg.cholesky` and `torch.cholesky_solve`, which check their
-result.
+stays tight. The host sync of `aba` on the CPU is the error check inside `torch.cholesky_solve`.
 
 ## Measure wall time
 

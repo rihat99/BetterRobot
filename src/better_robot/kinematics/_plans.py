@@ -110,9 +110,13 @@ def _feature_map(
     for entry, terms in _QUATERNION_TERMS.items():
         for a, b, factor in terms:
             products[a * 4 + b, entry] += factor
+    # Only the 10 products q_a q_b with a <= b carry a weight; reading the other 6 would widen every joint's padding
+    # (a free flyer sets the width F of all joints: 19 -> 13 on the G1). Read from the table, not from tensor values,
+    # so a plan built inside a compiled call traces.
+    used = sorted({4 * a + b for terms in _QUATERNION_TERMS.values() for a, b, _ in terms})
     for index, (joint, _) in enumerate(quaternions):
         bias[slot[joint], :3, :3] = 0.0
-        entries[slot[joint]] += [(base + 16 * index + k, block(products[k].view(3, 3))) for k in range(16)]
+        entries[slot[joint]] += [(base + 16 * index + k, block(products[k].view(3, 3))) for k in used]
     base += 16 * len(quaternions)
     for index, (joint, _, direction) in enumerate(linear):
         entries[slot[joint]].append((base + index, block(translation=direction)))

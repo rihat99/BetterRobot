@@ -88,6 +88,12 @@ that 0.3.0 renames or removes, one table row each.
 - Field names say what they hold: `Model.parent_joint_ids`, `Model.mimic_source_ids`, `Model.mimic_multipliers`,
   `Model.mimic_offsets`, `Model.lower_position_limit`, `Model.upper_position_limit`, `Model.joints`; the
   `KinematicState` accessors are plural (`joint_poses`, `frame_poses`, `joint_rotations`, ...).
+- `KinematicState.frame_transforms` is a property computed from the joint transforms on first use and memoised on
+  the state, so `forward_kinematics` and the dynamics never compute frames they do not read; the constructor takes
+  `model`, `q` and `joint_transforms` only. It and the accessors built on it (`frame_rotations`,
+  `frame_translations`, `frame_poses`, `frame_pose_of`) follow the grad mode of the read, not that of
+  `forward_kinematics`: read under `torch.no_grad` or `torch.inference_mode` they carry no graph, and read with grad
+  enabled from a state made under `torch.no_grad` they carry one to the model tensors that require grad.
 - `build_model` orders joints parents first and keeps the file's order wherever it already is: joint ids change
   for some robots (the G1). Joint 0 is a `JointFixed` named `"universe"`.
 - Every body's frame carries the body's name (`"panda_hand"`, not `"body_panda_hand"`); a frame named like a body
@@ -123,6 +129,10 @@ that 0.3.0 renames or removes, one table row each.
   rotations, or align signs, before comparing raw components.
 - `inverse_dynamics` and `mass_matrix` include `Model.armature` (motor inertia; MJCF `armature`, zero from URDF),
   so `forward_dynamics` does too, as in Pinocchio.
+- `forward_dynamics` gives NaN accelerations for a batch element whose mass matrix is not positive definite (a
+  non-physical model) instead of raising torch's `_LinAlgError` for the whole batch; the other elements keep theirs.
+  The factorization is not checked on the host, so a CUDA graph can capture the call. An input shared across the
+  batch then gets non-finite gradients; one batched per element keeps finite gradients for the other elements.
 - URDF `<dynamics>` and MJCF `damping` and `armature` reach `Model.damping` and `Model.armature`.
 - `inverse_dynamics`, `forward_dynamics`, `RobotSpheres.centers` and `RobotCapsules.segments` have bitwise
   reproducible CUDA gradients (`tests/collision/test_collision.py::test_cuda_backward_is_bitwise_reproducible`).

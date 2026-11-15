@@ -41,8 +41,11 @@ def forward_dynamics(
     """Joint accelerations ``ddq = M(q)⁻¹ (τ - C(q, v) v - g(q) + Σ_i J_iᵀ f_i)``, ``(B..., nv)``.
 
     ``v, tau: (B..., nv)``; ``external_forces: (B..., njoints, 6)`` as in `inverse_dynamics`. The bias forces come
-    from `inverse_dynamics` with zero acceleration, then a Cholesky solve with `mass_matrix`. Raises as
-    `inverse_dynamics`.
+    from `inverse_dynamics` with zero acceleration, then a Cholesky solve with `mass_matrix`. A batch element whose
+    mass matrix is not positive definite (a non-physical model, for example a massless moving body) gets NaN
+    accelerations; the other elements keep theirs. Their gradients stay finite only for inputs batched per element:
+    an input shared across the batch (for example ``q (nq,)`` against a model value batch) gets non-finite gradients,
+    even from a loss that reads only the finite elements. Raises as `inverse_dynamics`.
     """
     check_state(model, state)
     kin = world_kinematics(model, state)
@@ -50,8 +53,10 @@ def forward_dynamics(
     bias = _torques(model, kin, v_full, torch.zeros_like(v_full), _external_forces(model, kin.batch, external_forces))
     check_tensor("tau", tau, shape=(model.nv,), dtype=model.dtype, device=model.device)
     tau = expand_batch("tau", tau, kin.batch, (model.nv,))
-    factor = torch.linalg.cholesky(_mass_matrix(model, kin))
-    return torch.cholesky_solve((tau - bias).unsqueeze(-1), factor).squeeze(-1)
+    # cholesky_ex leaves the check to us: no host sync, so the call can be captured in a CUDA graph.
+    factor, info = torch.linalg.cholesky_ex(_mass_matrix(model, kin))
+    ddq = torch.cholesky_solve((tau - bias).unsqueeze(-1), factor).squeeze(-1)
+    return torch.where((info == 0).unsqueeze(-1), ddq, torch.nan)
 
 
 __all__ = ["forward_dynamics", "mass_matrix"]

@@ -14,8 +14,7 @@ from better_robot.kinematics import forward_kinematics
 from tests.support.robots import panda_urdf
 
 
-@pytest.fixture(scope="module")
-def free_flyer_model():
+def _free_flyer():
     builder = ModelBuilder("free_flyer_compile")
     builder.add_body("base", mass=1.0)
     builder.add_free_flyer_root(
@@ -26,6 +25,11 @@ def free_flyer_model():
     return build_model(builder.finalize())
 
 
+@pytest.fixture(scope="module")
+def free_flyer_model():
+    return _free_flyer()
+
+
 def test_free_flyer_fk_compiles_fullgraph(free_flyer_model):
     """The public wrapper (validation, memoised placements, the kernel) traces as one graph for a quaternion joint."""
     torch._dynamo.reset()
@@ -33,6 +37,16 @@ def test_free_flyer_fk_compiles_fullgraph(free_flyer_model):
     expected = forward_kinematics(free_flyer_model, q)
     actual = torch.compile(lambda q: forward_kinematics(free_flyer_model, q).joint_transforms, fullgraph=True)(q)
     torch.testing.assert_close(actual, expected.joint_transforms)
+
+
+def test_free_flyer_fk_compiles_fullgraph_on_a_cold_plan():
+    """A fresh model's first call is the compiled one, so the FK plan is built inside the trace: no plan step may read
+    a tensor value."""
+    model = _free_flyer()
+    torch._dynamo.reset()
+    q = model.q_neutral.unsqueeze(0).expand(2, -1).clone()
+    actual = torch.compile(lambda q: forward_kinematics(model, q).joint_transforms, fullgraph=True)(q)
+    torch.testing.assert_close(actual, forward_kinematics(model, q).joint_transforms)
 
 
 def test_quaternion_norm_check_is_opt_in(free_flyer_model):

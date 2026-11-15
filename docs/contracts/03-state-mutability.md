@@ -68,13 +68,15 @@ structure (column spans, knots, block size, device) bounded at 64 entries, proce
 keeps its private names to `problem.py` (`FUNCTOOLS_CACHES` of `tests/contract/test_caches.py`); and
 `KinematicState._memo`
 (`src/better_robot/kinematics/forward.py::KinematicState`) is a private memo dict inside the frozen
-state, keyed by `(name, grad mode)`, written only by `KinematicState._memoised` and bypassed under
-`torch.inference_mode` and `torch.compile` like `Model._value`, so a value made under `torch.no_grad` never
-serves a differentiable call. Its allowed names, each derived only from the state's own
-`joint_transforms`/`frame_transforms` and the model structure, are:
+state, keyed by `(name, mode)`, written only by `KinematicState._memoised` and bypassed under `torch.compile` like
+`Model._value`; `mode` is the grad mode, or `"inference"` under `torch.inference_mode` (record
+[0052](decisions/0052-memo-under-inference-mode.md)), so a value made under `torch.no_grad` never serves a
+differentiable call and an inference tensor never reaches autograd. Its allowed names, each derived only from the
+state's own `joint_transforms` and its model, are:
 
 | name | filled by | value |
 |------|-----------|-------|
+| `"frame_transforms"` | `KinematicState.frame_transforms` | `(B..., nframes, 3, 4)` world `[R | p]` of every frame |
 | `"joint_poses"` | `KinematicState.joint_poses` | `(B..., njoints, 7)` world poses |
 | `"frame_poses"` | `KinematicState.frame_poses` | `(B..., nframes, 7)` world poses |
 | `"jacobian_columns"` | `KinematicState.jacobian_columns` | `(B..., 6, nv_full)` world Jacobian column table |
@@ -85,9 +87,8 @@ constant tensors derived from the static fields, keyed by kind, dtype and device
 `with_values` and `to` copy of a model (`Model._plan_owner`; a copy keeps every static field, and keeps the first
 model of its line alive, with that model's tensors and value memo). `Model._memo` holds
 values derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind,
-grad mode and the tensor fields' `requires_grad` flags, written only when the value carries no autograd graph and
-bypassed under `torch.inference_mode`, so nothing on the model is keyed by a tensor's `_version` (decision
-records 0011, 0040 and 0042).
+mode and the tensor fields' `requires_grad` flags and written only when the value carries no autograd graph, so
+nothing on the model is keyed by a tensor's `_version` (decision records 0011, 0040, 0042 and 0052).
 
 Enforcement: `tests/contract/test_caches.py`; `[review]`.
 

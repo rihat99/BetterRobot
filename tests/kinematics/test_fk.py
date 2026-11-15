@@ -123,11 +123,11 @@ def test_a_hand_built_state_with_the_wrong_shapes_fails_at_construction() -> Non
     """The review built a state whose tables did not fit the model; frame_jacobian then raised a raw IndexError."""
     model = load(panda_urdf())
     state = forward_kinematics(model, model.q_neutral.expand(2, -1))
-    tables = {"q": state.q, "joint_transforms": state.joint_transforms, "frame_transforms": state.frame_transforms}
+    tables = {"q": state.q, "joint_transforms": state.joint_transforms}
     bad_tables = [
         ("q", state.q[:, :3], r"q must have shape \(B\.\.\., \d+\) with the batch \(2,\) of q"),
         ("joint_transforms", state.joint_transforms[:, :2], r"joint_transforms must have shape \(B\.\.\., \d+, 3, 4\)"),
-        ("frame_transforms", state.frame_transforms[:1], r"frame_transforms .* with the batch \(2,\) of q, got \(1,"),
+        ("joint_transforms", state.joint_transforms[:1], r"joint_transforms .* with the batch \(2,\) of q, got \(1,"),
     ]
     for name, table, match in bad_tables:
         with pytest.raises(ShapeError, match=match):

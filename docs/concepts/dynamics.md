@@ -24,8 +24,12 @@ $$
 
 `forward_dynamics` does not run the articulated-body algorithm. It computes the bias
 $C v + g - J^\top f_\text{ext}$ with one RNEA pass at zero acceleration, factors $M$ with
-`torch.linalg.cholesky`, and solves with `torch.cholesky_solve`. The result matches Pinocchio's ABA
-(see the parity table below).
+`torch.linalg.cholesky_ex`, and solves with `torch.cholesky_solve`. The result matches Pinocchio's ABA
+(see the parity table below). The factorization is not checked on the host, so a CUDA graph can capture the call;
+a batch element whose $M$ is not positive definite (a non-physical model) gets NaN accelerations and the other
+elements keep theirs. Gradients follow the same split only for inputs batched per element: an input shared across
+the batch, such as one `q` against a model value batch, gets non-finite gradients even from a loss that reads only
+the finite elements.
 
 ```python
 import torch

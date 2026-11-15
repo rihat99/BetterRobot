@@ -3,9 +3,9 @@
 ``Model._plans``, ``Model._memo`` and ``KinematicState._memo`` are the only caches: all are ``init=False``, never
 copied by ``dataclasses.replace``, written by one function each (``Model._plan``, ``Model._value``,
 ``KinematicState._memoised``) and keyed by grad mode on the value side (the model memo also by the tensor fields'
-``requires_grad`` flags; both bypassed under inference mode), and nothing in ``src`` writes through
-``object.__setattr__``, reads a tensor's ``_version`` or touches ``torch._C``. A ``functools`` cache lives as long as
-the process, so ``FUNCTOOLS_CACHES`` lists, with its reason, the one ``src`` keeps.
+``requires_grad`` flags; both keep inference-mode values under a key of their own), and nothing in ``src`` writes
+through ``object.__setattr__``, reads a tensor's ``_version`` or touches ``torch._C``. A ``functools`` cache lives as
+long as the process, so ``FUNCTOOLS_CACHES`` lists, with its reason, the one ``src`` keeps.
 """
 
 from __future__ import annotations
@@ -56,6 +56,7 @@ def _derived(state: KinematicState, model: Model) -> dict[str, torch.Tensor]:
     """One tensor per memo name of a state; the dynamics memo is read through the gravity torque."""
     zeros = torch.zeros(model.nv, dtype=model.dtype)
     return {
+        "frame_transforms": state.frame_transforms,
         "joint_poses": state.joint_poses,
         "frame_poses": state.frame_poses,
         "jacobian_columns": state.jacobian_columns,
@@ -82,9 +83,7 @@ def test_replace_starts_with_empty_caches() -> None:
     before = _derived(state, model)
     assert set(state._memo) == {(name, True) for name in before}
     fresh = forward_kinematics(model, q + 0.1)
-    moved = dataclasses.replace(
-        state, q=fresh.q, joint_transforms=fresh.joint_transforms, frame_transforms=fresh.frame_transforms
-    )
+    moved = dataclasses.replace(state, q=fresh.q, joint_transforms=fresh.joint_transforms)
     assert moved._memo == {}
     after = _derived(fresh, model)
     for name, value in _derived(moved, model).items():
@@ -113,7 +112,8 @@ def test_values_with_a_graph_are_never_memoised() -> None:
     model = load(panda_urdf(), dtype=torch.float64)
     placements = model.joint_placements.clone().requires_grad_()
     model = model.with_values(joint_placements=placements)
-    first, second = (placement_matrices(model)[0] for _ in range(2))
+    # the placements folded into the FK weight
+    first, second = (placement_matrices(model, "joints")[0] for _ in range(2))
     assert first.requires_grad and first is not second and _model_modes(model, "joint_matrices") == set()
     forward_kinematics(model, model.q_neutral).frame_poses.sum().backward()
     assert placements.grad is not None
@@ -151,21 +151,28 @@ def test_a_leaf_stepped_in_place_is_not_seen() -> None:
     assert not torch.allclose(rebuilt, before), "the step changed the placements"
 
 
-def test_nothing_is_memoised_under_inference_mode() -> None:
-    """Under inference mode values are derived per call, even inside ``torch.enable_grad`` (what ``Problem.gradient``
-    does), so no inference tensor is ever served to a later autograd call."""
+def test_inference_mode_values_are_served_only_under_inference_mode() -> None:
+    """A value made under inference mode, even inside ``torch.enable_grad`` (grad mode reports on, autograd records
+    nothing), is an inference tensor kept under its own key: inference-mode calls reuse it, and a later autograd call
+    gets a fresh value and its gradient (record 0052)."""
     model = load(panda_urdf(), dtype=torch.float64)
     q = model.q_neutral
     with torch.inference_mode(), torch.enable_grad():
-        forward_kinematics(model, q)
-    assert model._memo == {}
-    forward_kinematics(model, q.clone().requires_grad_()).frame_translations.sum().backward()
-    assert _model_modes(model, "joint_matrices") == {True}
+        forward_kinematics(model, q).frame_transforms
+        weight = placement_matrices(model, "joints")[0]
+        assert weight.is_inference() and placement_matrices(model, "joints")[0] is weight, (
+            "inference mode reuses its value"
+        )
+    assert _model_modes(model, "joint_matrices") == _model_modes(model, "frame_matrices") == {"inference"}
+    q = q.clone().requires_grad_()
+    forward_kinematics(model, q).frame_translations.sum().backward()
+    assert q.grad is not None and _model_modes(model, "joint_matrices") == {"inference", True}
+    assert not placement_matrices(model, "joints")[0].is_inference()
 
 
-def test_state_memo_is_bypassed_under_inference_mode() -> None:
-    """A state read under ``inference_mode`` with ``enable_grad`` (grad mode reports on) stores nothing, so a later
-    autograd call of the same state gets the gradient of a fresh state (record 0040)."""
+def test_state_memo_keeps_inference_mode_values_apart() -> None:
+    """A state read under ``inference_mode`` with ``enable_grad`` (grad mode reports on) stores its values under the
+    inference key only, so a later autograd call of the same state gets the gradient of a fresh state (record 0052)."""
     model = load(panda_urdf(), dtype=torch.float64)
 
     def gradient(read_under_inference_mode: bool) -> torch.Tensor:
@@ -174,7 +181,7 @@ def test_state_memo_is_bypassed_under_inference_mode() -> None:
         if read_under_inference_mode:
             with torch.inference_mode(), torch.enable_grad():
                 _derived(state, model)
-            assert state._memo == {}
+            assert {mode for _, mode in state._memo} == {"inference"}
         loss = sum((value**2).sum() for value in _derived(state, model).values())
         return torch.autograd.grad(loss, q)[0]
 

@@ -36,6 +36,26 @@ def test_forward_dynamics_inverts_inverse_dynamics_with_leading_batch_axes(g1: b
     )
 
 
+def test_a_mass_matrix_that_is_not_positive_definite_gives_nan_accelerations(g1: br.Model) -> None:
+    """The factorization is not checked on the host (a CUDA graph can capture the call): a batch element whose mass
+    matrix is singular, here with every body massless, gets NaN, and the others their accelerations. Gradients of
+    the others stay finite only for inputs batched per element; a shared input's gradient is not finite, even from a
+    loss that reads only the finite element (the documented cost of one factorization per call)."""
+    q, v, _ = _inputs(g1, (2,), seed=7)
+    tau = torch.randn(2, g1.nv, dtype=torch.float64, generator=torch.Generator().manual_seed(8))
+    massless = g1.with_values(body_inertias=torch.stack((g1.body_inertias, torch.zeros_like(g1.body_inertias))))
+    q = q.requires_grad_()
+    ddq = forward_dynamics(massless, forward_kinematics(massless, q), v=v, tau=tau)
+    torch.testing.assert_close(ddq[0], forward_dynamics(g1, forward_kinematics(g1, q[0]), v=v[0], tau=tau[0]))
+    assert ddq[1].isnan().all()
+    ddq[0].sum().backward()
+    assert q.grad[0].isfinite().all()
+
+    shared = q[0].detach().requires_grad_()
+    forward_dynamics(massless, forward_kinematics(massless, shared), v=v, tau=tau)[0].sum().backward()
+    assert not shared.grad.isfinite().all()
+
+
 def test_mass_matrix_is_the_acceleration_jacobian_of_inverse_dynamics(g1: br.Model) -> None:
     # The mass matrix comes from composite inertias, the torque from body wrenches: two formulas.
     q, v, _ = _inputs(g1, (2,), seed=1)

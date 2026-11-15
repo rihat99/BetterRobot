@@ -39,8 +39,8 @@ tensor([ 1.0731e-01, -3.2653e-17,  9.2494e-01,  9.2332e-01,  3.8245e-01,
 ```
 
 `forward_kinematics` returns a `KinematicState`: an immutable record of one query. It stores
-`joint_transforms (..., njoints, 3, 4)` and `frame_transforms (..., nframes, 3, 4)`, the world `[R | p]` of
-every joint and frame, and derives the rest on demand:
+`joint_transforms (..., njoints, 3, 4)`, the world `[R | p]` of every joint, and derives the rest on demand, the
+frames' `frame_transforms (..., nframes, 3, 4)` included:
 
 | Field | Shape | Meaning |
 |---|---|---|
