@@ -13,7 +13,7 @@ measurement found to go wrong when a library call is handed to ``torch.compile``
   multiply and a sum under ``torch.compile``, which inductor fuses with their neighbours, and as ``@`` in eager mode,
   where that form is slower.
 - CUDA graphs (``mode="reduce-overhead"``) replay into one memory pool, so the next call overwrites the tensors the
-  previous call returned. The wrapper clones every CUDA tensor of the result.
+  previous call returned, without an error. The wrapper clones every CUDA tensor of the result (`_owned`).
 - Batch sizes. ``torch.compile``'s own policy applies: the first batch size compiles a graph specialised to it, a
   second size one graph for every size, and batch 1 one graph of its own. A graph for every size is up to a fifth
   slower on CPU, so this is cheaper than compiling for every size from the start.
