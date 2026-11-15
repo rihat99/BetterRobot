@@ -3,7 +3,7 @@
 Every tensor in ``State`` is batch-first. A step computes all batch elements and keeps
 the old value where an element is done or its step was rejected, so shapes never change.
 ``step`` itself reads no tensor back to Python, except the ``LBFGS`` line search: one flag
-per trial, to stop once every problem has its step.
+per trial, to stop once every problem has its step (``stop_search=False`` runs every trial instead).
 """
 
 from __future__ import annotations
@@ -245,7 +245,8 @@ class LBFGS(Solver):
 
     Every step tries the step sizes 1, ½, ¼, ... (at most ``line_search`` of them) and each problem
     takes the largest one that satisfies the Armijo condition on the step actually taken; the search
-    stops as soon as every problem has its step (one host read per trial). The first trial is evaluated
+    stops as soon as every problem has its step (one host read per trial); with ``stop_search=False`` it runs all
+    ``line_search`` trials and reads nothing, the same steps at more evaluations. The first trial is evaluated
     with its gradient: when every problem takes it, that is the step's only evaluation; otherwise the
     gradient is evaluated again at the new points. The plain gradient step (no history yet) has length
     ``1 / |g|_1``, a guess: a stiff term that adds curvature but little gradient (a residual near
@@ -265,11 +266,12 @@ class LBFGS(Solver):
         line_search: int = 20,
         armijo: float = 1e-4,
         gradient_tolerance: float | None = None,
+        stop_search: bool = True,
     ) -> None:
         if line_search < 1:
             raise ArgumentError(f"line_search must be at least 1, got {line_search}")
         self.history, self.line_search, self.armijo = history, line_search, armijo
-        self.gradient_tolerance = gradient_tolerance
+        self.gradient_tolerance, self.stop_search = gradient_tolerance, stop_search
 
     warm_keys = ("s", "y", "rho")
 
@@ -334,7 +336,7 @@ class LBFGS(Solver):
                 best_step = torch.where(ok.unsqueeze(-1), step, best_step)
                 best_terms = _selected_terms(ok, terms, best_terms)
                 found |= ok
-                if bool((found | state.done).all()):  # bench-ok: later trials could change nothing
+                if self.stop_search and bool((found | state.done).all()):  # bench-ok: later trials change nothing
                     break
         if trial == 0:  # every problem kept its start point or took the first trial
             g_new = torch.where(found.unsqueeze(-1), g_first, state.extra["g"])

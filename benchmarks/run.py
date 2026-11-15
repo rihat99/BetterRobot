@@ -11,7 +11,7 @@ Wall time across functions, robots, compile modes and batch sizes, with Pinocchi
 
 Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Panda and G1 (``tests/fixtures/robots``):
 ``fk_joints/{panda,g1}/B{1,1024}`` (``forward_kinematics(model, q).joint_transforms``), ``ik/panda/B64``
-(``solve_ik`` to 64 ``panda_hand`` poses, 4 restarts, fixed generators; it also records ``success_fraction`` and
+(``solve_ik`` to 64 ``panda_hand`` poses, 5 seeds, fixed generators; it also records ``success_fraction`` and
 ``worst_position_error_m``), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
 (one cold ``optim.solve_qp`` of seeded random programs with that many variables and rows). Each has four counters, deterministic for
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
@@ -183,7 +183,7 @@ def ik_case(device: torch.device) -> Case:
 
     def ik(q0: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         generator = torch.Generator(device=q0.device).manual_seed(1)
-        return br.solve_ik(model, {IK_FRAME: targets}, q0=q0, restarts=4, generator=generator).x["q"]
+        return br.solve_ik(model, {IK_FRAME: targets}, q0=q0, seeds=5, generator=generator).x["q"]
 
     def accuracy(q: torch.Tensor) -> dict[str, float]:
         error = (br.forward_kinematics(model, q).frame_poses[:, frame, :3] - targets[:, :3]).norm(dim=-1)

@@ -37,7 +37,7 @@ Counter rows are fixed functions; their counters gate (below). `state` is `forwa
 | `rnea/{panda,g1}/B1` | `inverse_dynamics(model, state, v=v, a=a)` |
 | `crba/{panda,g1}/B1` | `mass_matrix(model, state)` |
 | `aba/{panda,g1}/B1` | `forward_dynamics(model, state, v=v, tau=tau)` |
-| `ik/panda/B64` | `solve_ik` to 64 reachable `panda_hand` poses, 4 restarts; also `success_fraction` and `worst_position_error_m` |
+| `ik/panda/B64` | `solve_ik` to 64 reachable `panda_hand` poses, 5 seeds; also `success_fraction` and `worst_position_error_m` |
 | `qp/n7m30/B1`, `qp/n35m150/B1024` | one cold `optim.solve_qp` of seeded random programs with 7 or 35 variables and 30 or 150 rows |
 
 Each counter row has four counters, the same for every run with one torch version and device:
@@ -150,9 +150,9 @@ computes, so compiled code cannot drop it.
 | `mass_matrix` | `mass_matrix(model, state)` |
 | `forward_dynamics` | `forward_dynamics(model, state, v=v, tau=tau)` |
 | `center_of_mass` | `center_of_mass(model, state)` |
-| `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from the start |
-| `solve_ik` | `solve_ik(model, targets, q0=start)`: at most 100 iterations, one start |
-| `solve_ik_multistart` | the same with `restarts=4`, five starts |
+| `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from `init` at the start |
+| `solve_ik` | `solve_ik(model, targets, q0=start)`: the default call, one start |
+| `solve_ik_multistart` | the same with `seeds=32, iterations=16`; a library before `seeds=` runs `restarts=4`, five starts in sequence |
 
 With `--grad`, a row of each kinematics and dynamics function also times
 `torch.autograd.grad(sum(output.sum()), q)` (`grad` true in the row).
@@ -161,7 +161,7 @@ The IK start is the Panda's home pose (joints 0, -30, 0, -135, 0, 100 and 0 degr
 height 0.793 m and every joint at zero. The targets are the poses of `panda_hand`, or of both hands and both ankles of
 G1, at seeded configurations with every limited joint uniform within its limits and G1's base at the start pose;
 batch `B` takes the first `B`, so a batch above 1024 solves fresh targets. A solve row records `iterations`
-(`Result.iterations`, summed over the starts), `success_rate` (every target within 1 mm and 0.01 rad) over
+(`Result.iterations`, summed over sequential restarts) and `seeds` (starts per target), `success_rate` (every target within 1 mm and 0.01 rad) over
 `success_targets` targets, and the median position and rotation errors. A batch below 1024 reports the accuracy of an
 eager solve of the first 1024 targets, never of one sample: a solve treats each sample on its own.
 
@@ -171,7 +171,8 @@ compiles a throwaway function, so the compiler's one-time start-up is paid once,
 `torch.compiler.reset()` in an empty compile cache of its own and records its first call as `compile_seconds`, then
 `graph_breaks`, `graphs`, `recompiles` after the warm-up (counted with the garbage collector off, as the counter
 gate does), `cudagraph_skips` and `max_rel_diff_vs_eager`, the largest `max |compiled - eager| / max |eager|` over the
-outputs of a replayed call, and `adapter`, the compiler used (`kinematics.compiled` or `torch.compile`). A row that
+outputs of a replayed call, and `adapter`, the compiler used (`kinematics.compiled`, `torch.compile`, or for a solve
+`solve_ik(step=)`: its LM step compiled once by `kinematics.compiled` and passed to every call). A row that
 raises records its `error`; the larger batches of that function, pass and mode
 are then recorded as `skipped`, with the reason. `adapt` in the script is the one place that turns a mode into a
 callable.

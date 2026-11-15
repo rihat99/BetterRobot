@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 import torch
 
@@ -10,7 +10,7 @@ from ..exceptions import ArgumentError, ShapeError
 from ..kinematics import euclidean_columns
 from ..lie._checks import check_broadcast, check_tensor
 from ..model import Model
-from ..optim import LevenbergMarquardt, Problem, Result, Solver, solve
+from ..optim import LevenbergMarquardt, Phase, Problem, Result, Solver, State, run
 from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest
 
 
@@ -34,6 +34,13 @@ def ik_problem(
     ``q0`` and each target are checked here, once, in the model's dtype on its device (a target batch broadcasts
     with ``B``); the solver's iterations trust them.
     """
+    _check(model, targets, q0)
+    return _problem(model, targets, q0, limit_weight, rest_weight, q_rest)
+
+
+def _check(model: Model, targets: Mapping[str, torch.Tensor], q0: torch.Tensor) -> None:
+    """The boundary checks of ``ik_problem`` and ``solve_ik``: ``q0: (B, nq)`` and targets ``(..., 7)`` broadcasting
+    with ``B``, in the model's dtype on its device."""
     check_tensor("q0", q0, shape=(model.nq,), dtype=model.dtype, device=model.device)
     if q0.ndim != 2:
         raise ShapeError(f"q0 must be (B, {model.nq}), got {tuple(q0.shape)}")
@@ -41,6 +48,17 @@ def ik_problem(
         name = f"targets[{frame!r}]"
         check_tensor(name, pose, shape=(7,), dtype=model.dtype, device=model.device)
         check_broadcast(q0=tuple(q0.shape[:-1]), **{name: tuple(pose.shape[:-1])})
+
+
+def _problem(
+    model: Model,
+    targets: Mapping[str, torch.Tensor],
+    q0: torch.Tensor,
+    limit_weight: float,
+    rest_weight: float,
+    q_rest: torch.Tensor | None,
+) -> Problem:
+    """``ik_problem`` of checked inputs."""
     problem = Problem(
         {"q": q0},
         manifolds={"q": RobotManifold(model)},
@@ -81,33 +99,47 @@ def solve_ik(
     *,
     q0: torch.Tensor,
     solver: Solver | None = None,
-    iterations: int = 100,
-    restarts: int = 0,
+    iterations: int = 50,
+    seeds: int = 1,
     generator: torch.Generator | None = None,
+    step: Callable[[Problem, State], State] | None = None,
 ) -> Result:
-    """Solve ``ik_problem`` from ``q0: (B, nq)`` with LM (or ``solver``). The configuration is ``result.x["q"]``.
+    """Solve ``ik_problem`` from ``q0: (B, nq)`` with LM (or ``solver``) for ``iterations`` steps. The configuration
+    is ``result.x["q"]``.
 
-    ``restarts`` (0 or more) extra attempts start from random configurations drawn with ``generator`` (required when
-    ``restarts > 0``); each batch element keeps its best attempt. This is what gets past the local minima of a
-    single start.
+    ``seeds`` starts per target are solved as one batch of ``seeds * B`` problems: the first is ``q0``, the others
+    are random configurations (``random_start``) drawn with ``generator``, required when ``seeds > 1``. Each target
+    keeps the start that reached the lowest loss; that is what gets past the local minima of a single start. The
+    solve runs exactly ``iterations`` steps and reads nothing back from the device on the way (``Phase`` with
+    ``stop_every=0``); ``step`` replaces ``solver.step``, for a compiled one (``Phase``). With ``seeds > 1`` the
+    result's ``history`` and ``diagnostics`` are those of the kept start and ``state`` is ``None``.
     """
-    if restarts < 0:
-        raise ArgumentError(f"restarts must be at least 0, got {restarts}")
-    if restarts > 0 and generator is None:
-        raise ArgumentError("restarts draw random starts; pass a generator on q0's device")
-    problem = ik_problem(model, targets, q0=q0)
-    solver = solver or LevenbergMarquardt()
-    best = solve(problem, solver, iterations=iterations)
-    for _ in range(restarts):
-        attempt = solve(problem, solver, iterations=iterations, x={"q": random_start(model, q0, generator=generator)})
-        better = attempt.loss < best.loss
-        best = Result(
-            x={"q": torch.where(better[:, None], attempt.x["q"], best.x["q"])},
-            loss=torch.where(better, attempt.loss, best.loss),
-            done=torch.where(better, attempt.done, best.done),
-            iterations=best.iterations + attempt.iterations,
-        )
-    return best
+    if seeds < 1:
+        raise ArgumentError(f"seeds must be at least 1, got {seeds}")
+    if seeds > 1 and generator is None:
+        raise ArgumentError("seeds after the first start at random configurations; pass a generator on q0's device")
+    _check(model, targets, q0)
+    batch = q0.shape[0]
+    if seeds > 1:
+        draws = random_start(model, q0.repeat(seeds - 1, 1), generator=generator)
+        q0 = torch.cat([q0, draws])
+        targets = {frame: pose.expand(batch, 7).repeat(seeds, 1) for frame, pose in targets.items()}
+    problem = _problem(model, targets, q0, 0.0, 0.0, None)
+    result = run(problem, [Phase(solver or LevenbergMarquardt(), iterations, stop_every=0, step=step)])
+    if seeds == 1:
+        return result
+    # the flat index of each target's best start, seed-major: start s of target b is row s * B + b
+    best = result.loss.view(seeds, batch).argmin(0) * batch + torch.arange(batch, device=q0.device)
+    return Result(
+        x={"q": result.x["q"][best]},
+        loss=result.loss[best],
+        done=result.done[best],
+        iterations=result.iterations,
+        history={phase: losses[:, best] for phase, losses in result.history.items()},
+        diagnostics={
+            phase: {key: value[:, best] for key, value in steps.items()} for phase, steps in result.diagnostics.items()
+        },
+    )
 
 
 __all__ = ["ik_problem", "random_start", "solve_ik"]

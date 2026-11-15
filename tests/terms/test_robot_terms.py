@@ -41,21 +41,36 @@ def test_analytic_jacobians_match_autodiff(panda):
     assert max(errors.values()) < 1e-5, errors
 
 
-def test_ik_with_restarts_reaches_every_target_inside_limits(panda):
+def test_ik_with_seeds_reaches_every_target_inside_limits(panda):
     goal = forward_kinematics(panda, _random_q(panda, 32, 2)).frame_poses[:, panda.frame_id(FRAME)]
     q0 = _random_q(panda, 32, 3)
-    result = terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=16, generator=torch.Generator().manual_seed(4))
+    result = terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=17, generator=torch.Generator().manual_seed(4))
     q = result.x["q"]
     reached = forward_kinematics(panda, q).frame_poses[:, panda.frame_id(FRAME)]
     assert float((reached[:, :3] - goal[:, :3]).norm(dim=-1).max()) < 1e-6
     assert bool(((q >= panda.lower_position_limit) & (q <= panda.upper_position_limit)).all())
 
 
-def test_ik_restarts_need_a_generator(panda):
+def test_ik_seeds_keep_the_best_start_of_each_target_and_the_first_is_q0(panda):
+    """Seed 0 is ``q0`` itself, solved in the same batch as the others: no target ends worse than from ``q0`` alone,
+    and the kept start's loss is the one ``result.loss`` reports."""
+    goal = forward_kinematics(panda, _random_q(panda, 16, 5)).frame_poses[:, panda.frame_id(FRAME)]
+    q0 = _random_q(panda, 16, 6)
+    alone = terms.solve_ik(panda, {FRAME: goal}, q0=q0, iterations=8)
+    seeded = terms.solve_ik(
+        panda, {FRAME: goal}, q0=q0, iterations=8, seeds=4, generator=torch.Generator().manual_seed(7)
+    )
+    assert bool((seeded.loss <= alone.loss * (1 + 1e-9)).all())
+    assert bool((seeded.loss < alone.loss).any())
+    assert torch.allclose(seeded.loss, terms.ik_problem(panda, {FRAME: goal}, q0=seeded.x["q"]).loss(), rtol=1e-12)
+    assert seeded.history["phase"].shape == (8, 16) and seeded.state is None
+
+
+def test_ik_seeds_need_a_generator(panda):
     q0 = panda.q_neutral[None]
     goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
     with pytest.raises(br.exceptions.ArgumentError, match="generator"):
-        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=1)
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=2)
 
 
 def test_random_start_and_solve_ik_check_their_arguments(panda):
@@ -67,8 +82,8 @@ def test_random_start_and_solve_ik_check_their_arguments(panda):
     with pytest.raises(br.exceptions.ArgumentError, match="generator"):
         terms.random_start(panda, q0, generator=None)
     goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
-    with pytest.raises(br.exceptions.ArgumentError, match="restarts must be at least 0"):
-        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=-3)
+    with pytest.raises(br.exceptions.ArgumentError, match="seeds must be at least 1"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=0)
 
 
 @pytest.mark.parametrize("entry", [terms.ik_problem, terms.solve_ik])

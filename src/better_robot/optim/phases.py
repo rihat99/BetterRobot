@@ -27,7 +27,12 @@ class Phase:
     ``on_step(problem, state)`` runs after every step, for logging; ``state.extra["terms"]`` holds
     the loss of every term (and, under ``TorchOptim``, ``state.extra["info"]`` the terms' info dicts)
     from the step's own evaluation, so logging costs no second forward. Every ``stop_every``
-    iterations the driver stops early if all problems are done; 0 runs exactly ``iterations`` steps.
+    iterations the driver stops early if all problems are done, which reads ``done`` back to the host; 0 runs
+    exactly ``iterations`` steps and reads nothing (with LM, Gauss-Newton, or ``LBFGS(stop_search=False)``, a
+    fixed budget the device runs without waiting for the host).
+    ``step(problem, state) -> State`` replaces ``solver.step``, for one compiled once and reused across solves:
+    ``kinematics.compiled(lambda problem, state: solver.step(problem, state), mode="reduce-overhead")``. It is
+    handed ``iteration=0`` and the driver counts, so a compiled step does not specialise on the count.
     """
 
     solver: Solver
@@ -41,6 +46,7 @@ class Phase:
     ) = None
     on_step: Callable[[Problem, State], None] | None = None
     stop_every: int = 1
+    step: Callable[[Problem, State], State] | None = None
 
     def __post_init__(self) -> None:
         """Refuse a negative step budget (``ArgumentError``)."""
@@ -111,8 +117,9 @@ def run(
             kept = {key: warm.extra[key] for key in phase.solver.warm_keys}
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []
+        step = phase.step or phase.solver.step
         for iteration in range(phase.iterations):
-            state = phase.solver.step(view, state)
+            state = replace(step(view, replace(state, iteration=0)), iteration=state.iteration + 1)
             losses.append(state.loss)
             steps.append({key: state.extra[key] for key in DIAGNOSTICS if key in state.extra})
             if phase.on_step is not None:
@@ -139,9 +146,11 @@ def solve(
     iterations: int = 50,
     x: Mapping[str, torch.Tensor] | None = None,
     state: State | None = None,
+    step: Callable[[Problem, State], State] | None = None,
 ) -> Result:
-    """Run one solver for at most ``iterations`` steps; ``state`` warm-starts it (see ``run``)."""
-    return run(problem, [Phase(solver=solver, iterations=iterations)], x=x, state=state)
+    """Run one solver for at most ``iterations`` steps; ``state`` warm-starts it (see ``run``), ``step`` replaces
+    ``solver.step`` (see ``Phase``)."""
+    return run(problem, [Phase(solver=solver, iterations=iterations, step=step)], x=x, state=state)
 
 
 def solve_layer(

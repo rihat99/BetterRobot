@@ -4,6 +4,7 @@ import warnings
 
 import pytest
 import torch
+from torch.utils._python_dispatch import TorchDispatchMode
 
 from better_robot import exceptions, optim
 
@@ -187,6 +188,32 @@ def test_lbfgs_line_search_stops_once_every_problem_has_a_step() -> None:
         before = len(calls)
         state = solver.step(problem, state)
         assert len(calls) - before == 1  # the first trial is accepted: its evaluation also gives the gradient
+
+
+class _HostReads(TorchDispatchMode):
+    """Counts the operators that copy a tensor value to the host (``bool``, ``item``, mask indexing)."""
+
+    count = 0
+
+    def __torch_dispatch__(self, func, types, args=(), kwargs=None):
+        self.count += func.overloadpacket in (torch.ops.aten._local_scalar_dense, torch.ops.aten.nonzero)
+        return func(*args, **(kwargs or {}))
+
+
+@pytest.mark.parametrize(
+    "solver",
+    [optim.LevenbergMarquardt(), optim.GaussNewton(damping=1e-3), optim.LBFGS(line_search=4, stop_search=False)],
+    ids=["lm", "gn", "lbfgs"],
+)
+def test_a_fixed_budget_reads_nothing_back(solver) -> None:
+    """``stop_every=0`` with these solvers is the path a CUDA graph replays: no tensor value reaches the host."""
+    problem = _rosenbrock()
+    with _HostReads() as reads:
+        result = optim.run(problem, [optim.Phase(solver, 6, stop_every=0)])
+    assert reads.count == 0 and result.iterations == 6
+    if isinstance(solver, optim.LBFGS):  # the same steps as the search that stops once every problem has one
+        stopping = optim.run(problem, [optim.Phase(optim.LBFGS(line_search=4), 6, stop_every=0)])
+        assert torch.equal(result.x["x"], stopping.x["x"])
 
 
 def test_lbfgs_rejects_a_line_search_without_trials() -> None:
