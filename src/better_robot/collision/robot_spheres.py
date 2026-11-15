@@ -1,19 +1,23 @@
 """A robot approximated by spheres rigidly attached to its frames, and self-collision distances between them.
 
-``RobotSpheres`` stores, per sphere, a frame id, an offset in that frame and a radius. ``self_collision_pairs``
-filters pairs that cannot collide (same rigid body, bodies joined by one moving joint, or frame pairs the caller
-ignores); ``self_distances`` evaluates the signed sphere-sphere distances for the remaining pairs.
+``RobotSpheres`` stores, per sphere, a frame id, an offset in that frame and a radius. ``load_spheres`` reads them
+from a sphere file (``SPHERE_SETS`` holds those that ship with the package). ``self_collision_pairs`` filters pairs
+that cannot collide (same rigid body, bodies joined by one moving joint, or frame pairs the caller ignores);
+``self_distances`` evaluates the signed sphere-sphere distances for the remaining pairs.
 """
 
 from __future__ import annotations
 
+import json
+import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, final, override
+from pathlib import Path
+from typing import TYPE_CHECKING, TypeGuard, final, override
 
 import torch
 
-from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
+from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ModelError, ShapeError
 from ..kinematics import KinematicState
 from ..lie._checks import check_tensor
 from ..model.model import Model
@@ -21,6 +25,10 @@ from .distance import sphere_sphere_raw
 
 if TYPE_CHECKING:
     from .robot_capsules import RobotCapsules
+
+#: The folder of the sphere files that ship with the package: ``panda.json`` (Franka Panda) and ``g1.json`` (Unitree
+#: G1 with 29 joints), fitted by ``tools/fit_spheres.py`` to their descriptions' collision shapes.
+SPHERE_SETS = Path(__file__).parent / "sphere_sets"
 
 
 @final
@@ -108,6 +116,60 @@ class RobotSpheres:
             ) from error
         translation = state.frame_translations[..., self.frame_ids, :]
         return translation + (rotation * self.offsets[..., None, :]).sum(-1)
+
+
+def load_spheres(path: str | Path, model: Model) -> tuple[RobotSpheres, list[tuple[str, str]]]:
+    """The spheres of the sphere file at ``path`` on ``model``'s frames, and the frame pairs its self-collision ignores.
+
+    A sphere file is JSON: ``"spheres"`` maps a frame name to its spheres ``[x, y, z, radius]`` (centre in that
+    frame's coordinates, finite, radius positive), and ``"ignore"`` lists ``[frame_a, frame_b, reason]``: the frame
+    pairs to pass to ``self_collision_pairs(model, spheres, ignore=...)`` beyond those that function drops itself,
+    each with why. Other keys are notes. A file of another form raises ``ModelError``, a frame the model lacks
+    ``UnknownNameError``.
+
+    ```python
+    spheres, ignore = load_spheres(SPHERE_SETS / "panda.json", model)
+    pairs = self_collision_pairs(model, spheres, ignore=ignore)  # (P, 2)
+    ```
+    """
+    try:
+        data = json.loads(Path(path).read_text())
+    except json.JSONDecodeError as error:
+        raise ModelError(f"{path}: not JSON: {error}") from error
+    spheres = data.get("spheres") if isinstance(data, dict) else None
+    ignore = data.get("ignore", []) if isinstance(data, dict) else None
+    if not (_sphere_table(spheres) and isinstance(ignore, list) and all(_ignore_row(row) for row in ignore)):
+        raise ModelError(
+            f'{path}: a sphere file holds "spheres": {{frame: [[x, y, z, radius], ...]}} with finite numbers and '
+            'positive radii, and "ignore": [[frame, frame, reason], ...]'
+        )
+    robot = RobotSpheres.from_frames(
+        model, {frame: [(row[:3], row[3]) for row in entries] for frame, entries in spheres.items()}
+    )
+    return robot, [(first, second) for first, second, _ in ignore]
+
+
+def _sphere_table(spheres: object) -> TypeGuard[dict[str, list[list[float]]]]:
+    """Whether ``spheres`` maps frame names to lists of ``[x, y, z, radius]`` rows of finite numbers, radius > 0."""
+    return isinstance(spheres, dict) and all(
+        isinstance(entries, list)
+        and all(
+            isinstance(row, list)
+            and len(row) == 4
+            and all(
+                isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+                for value in row
+            )
+            and row[3] > 0
+            for row in entries
+        )
+        for entries in spheres.values()
+    )
+
+
+def _ignore_row(row: object) -> bool:
+    """Whether ``row`` is ``[frame_a, frame_b, reason]``, three strings."""
+    return isinstance(row, list) and len(row) == 3 and all(isinstance(value, str) for value in row)
 
 
 def self_collision_pairs(

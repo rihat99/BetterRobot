@@ -96,6 +96,66 @@ tensor([0.2599, 0.3945], dtype=torch.float64)
 The sphere on `link2` and the `tool` sphere are on the same body, so they form no pair. The base
 and `link1` are joined by `j1`, so they would form none either.
 
+## Sphere sets for the Panda and the G1 ship with the package
+
+`load_spheres(path, model)` reads a sphere file: JSON whose `"spheres"` maps a frame name to rows
+`[x, y, z, radius]` (the centre in that frame's coordinates) and whose `"ignore"` lists `[frame_a, frame_b, reason]`,
+the frame pairs to pass to `self_collision_pairs` beyond the pairs the function drops itself. `SPHERE_SETS` is the
+folder of the files that ship with the package: `panda.json` (42 spheres) and `g1.json` (103 spheres, for the G1
+with 29 joints).
+
+```python
+import math
+import torch
+from robot_descriptions import panda_description
+from better_robot import collision, forward_kinematics, load
+
+panda = load(panda_description.URDF_PATH, dtype=torch.float64)
+spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
+pairs = collision.self_collision_pairs(panda, spheres, ignore=ignore)
+ready = torch.tensor([0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04], dtype=torch.float64)
+distances = collision.self_distances(spheres, forward_kinematics(panda, ready), pairs=pairs)
+print(spheres, tuple(pairs.shape), ignore[0])
+print(f"closest kept pair at the ready pose: {1e3 * float(distances.min()):.0f} mm")
+```
+```output
+RobotSpheres(42 spheres, float64, cpu) (294, 2) ('panda_hand', 'panda_link3')
+closest kept pair at the ready pose: 92 mm
+```
+
+The ignore lists follow MoveIt's rules, checked on the collision shapes themselves: a pair is ignored when its shapes
+collide in none of 100000 random configurations within the joint limits (`never`), in all of them (`always`), or at
+the neutral configuration (`neutral`). On the Panda this is MoveIt's own list: the neutral configuration folds the hand
+down beside link 5, so `panda_link5` with `panda_link7` and with the hand, and the two closed fingers, are in contact
+there and ignored. On the G1 the knee and the foot are `neutral`. Every other pair is kept and clear at the neutral
+configuration, the Panda's only by a fraction of a millimetre (its fingers beside link 5): a Panda demo starts from
+the ready pose above, the start of the trajectory guide, where the closest kept pair is 92 mm apart.
+
+The spheres of a body hold all its collision shapes: no surface point lies more than 0.5 mm outside them, with two
+exceptions. Where two kept bodies are close at the neutral configuration (the G1's arms beside its torso and its hips
+below the pelvis, the Panda's fingers beside link 5), each sphere reaches at most halfway across the gap between their
+shapes, so the shapes there may lie up to 4.7 mm outside. And a foot's spheres reach at most 5 mm below its sole, so
+a floor constraint holds the G1 on its soles; the edges of the sole may lie up to 8.4 mm outside them. The G1's feet
+and hands hold their display meshes, since its description gives the feet four 5 mm contact spheres and the hands no
+collision shape. Holding the shapes costs overshoot: the spheres' surface lies on average 7 to 37 mm beyond the
+shapes, depending on the body, and 65 mm on the G1's head, which two spheres hold.
+`tools/fit_spheres.py` fits a file for another robot or sphere count; its docstring says how, and each file's
+`command` records the call that wrote it.
+
+A body that rests on the floor by design, such as the Panda's `panda_link0` on its mounting plate, has spheres below
+the floor: leave it out of a floor constraint, or the constraint holds at no configuration.
+
+```python
+moving = spheres.frame_ids != panda.frame_id("panda_link0")
+above_floor = collision.RobotSpheres(
+    frame_ids=spheres.frame_ids[moving], offsets=spheres.offsets[moving], radii=spheres.radii[moving]
+)
+print(above_floor)
+```
+```output
+RobotSpheres(39 spheres, float64, cpu)
+```
+
 ## Capsules cover long links with few primitives
 
 `RobotCapsules` approximates the robot by `C` capsules: capsule `c` is every point within `radii[c]` of the
