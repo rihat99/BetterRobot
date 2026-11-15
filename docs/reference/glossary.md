@@ -181,8 +181,8 @@ derivative method.
 | **least squares** | Choose variables that make the sum of squared residual entries small. This balances many errors at once. |
 | **quadratic program, QP** | Minimise `½ xᵀH x + gᵀx` subject to linear rows `lower <= rows x <= upper`: the constrained form of one Gauss-Newton step (`optim.solve_qp`). |
 | **Hessian** | The matrix `H` of a quadratic objective: for one Gauss-Newton step, the `H` of the normal equations with its damping. |
-| **row** | One linear constraint of a quadratic program, `lower <= a · x <= upper`; an equality when both bounds are equal, one-sided when one is infinite. |
-| **primal, dual** | Of a constrained problem: its variables `x`, and the multipliers of its rows. The primal residual is the largest row violation, the dual residual the largest entry of `H x + g + rowsᵀ dual`. |
+| **row** | One linear constraint of a quadratic program, `lower <= a · x <= upper`; an equality when both bounds are equal, one-sided when one is infinite. An elastic row (`solve_qp`) gives way once holding it would take a multiplier beyond `weight`. |
+| **primal, dual** | Of a constrained problem: its variables `x`, and the multipliers of its rows. The primal residual is the largest distance of a row from where its multiplier holds it (its violation where the multiplier is zero), the dual residual the largest entry of `H x + g + rowsᵀ dual`. |
 | **robust kernel, kernel** | A function `rho` of a squared residual norm that reduces the influence of large residuals, often to limit outliers. |
 | **Huber, Cauchy, Tukey, Geman-McClure** | The robust kernels of `optim`. Huber is quadratic inside `delta` and linear outside; Cauchy (Lorentzian) grows logarithmically; Geman-McClure is bounded; Tukey's biweight is flat beyond its cutoff `c`, so larger residuals get no weight. |
 | **gradient** | The local direction in which a scalar objective increases fastest. |

@@ -1,12 +1,13 @@
-"""A batch of independent quadratic programs with two-sided linear rows, solved by a fixed number of cheap steps.
+"""A batch of independent quadratic programs with two-sided linear rows: one warm-startable step of a fixed cost.
 
-``solve_qp`` minimises ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper`` per batch element. An equality is a
-row with ``lower == upper``, a one-sided row has an infinite bound, a box on ``x`` is identity rows. The method is the
-alternating direction method of multipliers in the form OSQP uses (one factorization of ``H + penalty · rowsᵀ rows``
-per call, then ``iterations`` steps of three matrix-vector products each), followed by one active-set step that is
-kept where it lands on the exact solution (decision record 0054). Every batch element runs the same steps, with
-no Python branch on a tensor value and no host read, so the whole solve traces as one graph. It is made to be called
-once per step of an outer loop and started from its own last answer.
+``solve_qp`` minimises ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper`` per batch element, with elastic
+rows (a row gives way once its multiplier reaches ``weight``). An equality is a row with ``lower == upper``, a
+one-sided row has an infinite bound, a box on ``x`` is identity rows. The method is the alternating direction method
+of multipliers in the form OSQP uses (one factorization of ``H + penalty · rowsᵀ rows`` per call, then ``iterations``
+steps of three matrix-vector products each), followed by one active-set step that is kept where it lands on the
+exact solution (decision record 0054). Every batch element runs the same steps, with no Python branch on a tensor
+value and no host read, so the whole solve traces as one graph. It is made to be called once per step of an outer
+loop and started from its own last answer: accuracy comes from those repeated warm calls, not from one call.
 """
 
 from __future__ import annotations
@@ -138,35 +139,54 @@ def solve_qp(
     weight: float = 1e3,
     warm: QPSolution | None = None,
 ) -> QPSolution:
-    """Minimise ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper``, per batch element.
+    """One warm-startable step towards the minimiser of ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper``.
 
     ``hessian: (B..., N, N)`` is ``H``, symmetric positive semi-definite (the ``H`` of a `Normal` with its damping
     added), ``gradient: (B..., N)`` is ``g``, ``rows: (B..., M, N)`` with ``M >= 1``, ``lower, upper: (B..., M)``.
-    All share the batch axes ``B...``. A bound may be infinite; a padding row is a zero row with both bounds
-    infinite; a row whose ``lower`` is above its ``upper`` is the equality ``rows x = upper``. The factorizations
-    run in float64 whatever the dtype, which the result keeps; the result carries no gradient.
+    All share the batch axes ``B...``; each batch element is a problem of its own. A bound may be infinite; a
+    padding row is a zero row with both bounds infinite; a row whose ``lower`` is above its ``upper`` is the
+    equality ``rows x = upper``. The factorizations run in float64 whatever the dtype, which the result keeps; the
+    result carries no gradient.
 
-    Each of the ``iterations`` steps moves ``x`` towards the rows and ``dual`` towards the multipliers; then the rows
-    the multipliers press on are solved as equalities, and where that point satisfies every row and every sign it
-    is returned: the exact solution, with both residuals at rounding. Elsewhere the last step is returned, and
-    ``primal_residual`` and ``dual_residual`` say how far it still is, in the caller's units. ``warm`` starts from the
-    solution of a nearby problem with the same row layout (the last step of a solver or of a control loop); it
-    carries ``x``, ``dual`` and the ``penalty`` the last solve tuned, so the steps of consecutive calls add up while
-    the problem changes slowly; the penalty is kept within a factor of 1000 of the one a cold solve of the new
-    problem starts with, and nothing in it needs a reset. A cold solve starts from ``x = 0``.
+    A call runs ``iterations`` steps, each moving ``x`` towards the rows and ``dual`` towards the multipliers, then
+    solves the rows the multipliers press on as equalities. Where that point puts every row where its multiplier
+    holds it and makes the gradient vanish, both to a relative ``1e-6`` (of the largest row value and of the largest
+    term of the gradient), it is returned as the solution; its multipliers have the right sign and stay within
+    ``weight``. Elsewhere the last step is returned, and ``primal_residual`` and ``dual_residual`` say how far it
+    still is, in the caller's units.
+
+    One call is a step, not a solve: accuracy comes from calling again with ``warm=`` set to the last solution, not
+    from more ``iterations``, because the penalty that sets the pace of the steps is tuned between calls. On random
+    feasible problems of 7 variables and 30 rows, half of them active, ``cond(H) = 1e4``, a cold call solves (both
+    residuals under 1e-8) none of 256 at 20 to 500 iterations (median violation 0.34 at 20, 0.063 at 500), while
+    warm calls of 20 iterations on the same problems solve 46, 185 and 247 of them after 5, 12 and 40 calls (35
+    variables and 150 rows: 43 of 128 after 40 calls). An outer loop whose problem changes little between its
+    steps gets the same from one warm call per step. ``warm`` is the solution of a nearby problem with the same row
+    layout; it carries ``x``, ``dual`` and the ``penalty`` the last call tuned, the penalty is kept within a factor
+    of 1000 of the one a cold call of the new problem starts with, and nothing in it needs a reset. A cold call
+    starts from ``x = 0``.
+
+    The rows bound the step only in the limit. A cold call on an ill-conditioned ``H`` can return a step far outside
+    a box of identity rows: 35 against a box of 0.3 at ``cond(H) = 1e8`` and 20 iterations, 3.4 at 200 iterations,
+    0.30 after 5 warm calls; ``primal_residual`` reports it.
 
     The rows are elastic: a row gives way once holding it would take a multiplier beyond ``weight``, so the problem
     solved is ``½ xᵀH x + gᵀx + weight · (sum of the rows' violations)`` and every ``dual`` stays within
     ``±weight``. Where the rows can all hold with multipliers under ``weight``, its minimiser is the one under hard
-    rows. Where they cannot, it is the point whose violations sum to the least, and among such points the one of
-    least objective: it may break one row by much where the least-squares compromise breaks many by little, and
-    ``primal_residual`` stays positive. ``weight`` is in units of the objective per unit of a row. Scaling the
-    objective by ``s`` scales every multiplier by ``s``: scale ``weight`` with it (the default suits an objective of
-    order one). Scaling a row and its bounds by ``t`` divides its multiplier by ``t`` and counts its violation ``t``
-    times: that is how a row is weighted against the others. The unit-diagonal scaling of the variables inside the
-    solve changes neither. A larger ``weight`` holds the rows against a larger objective and takes longer to let go
-    of rows that were in conflict (ten warm calls at the default). A zero row whose bounds exclude 0 can never
-    hold: its multiplier goes to ``weight`` and stays there, and the other rows are solved as without it.
+    rows. Where they cannot, it is the L1-elastic minimiser: the least sum of violations, and among such points the
+    least objective, with ``primal_residual`` positive. It may break one row by much where the least-squares
+    compromise breaks many by little, and that row may be a box row: two rows in conflict inside a box of 0.3 can
+    both hold once one box row gives way, by a step of 1.8. Scale a box's rows up when the box must win.
+
+    ``weight`` is in units of the objective per unit of a row. Scaling the objective by ``s`` scales every
+    multiplier by ``s``: scale ``weight`` with it. Scaling a row and its bounds by ``t`` divides its multiplier by
+    ``t`` and counts its violation ``t`` times: that is how a row is weighted against the others. The unit-diagonal
+    scaling of the variables inside the solve changes neither. The default suits an objective of order one: the
+    multipliers of inverse-kinematics loops (Panda, G1) with unit term weights stay under 5, and rows that were in
+    conflict let go within ten warm calls (with ``weight=1e4``, up to 4 of 512 problems were still wrong after ten).
+    A larger ``weight`` holds the rows against a larger objective and takes longer to let go. A zero row whose
+    bounds exclude 0 can never hold: its multiplier goes to ``weight`` and stays there, and the other rows are
+    solved as without it.
 
     A batch element whose ``H + penalty · rowsᵀ rows`` is not positive definite, or whose data are not finite, gets
     ``x = 0``, ``dual = 0``, both residuals ``inf`` and ``penalty = 1``.

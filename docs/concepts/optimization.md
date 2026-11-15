@@ -194,11 +194,12 @@ tensor([2.3851e-07, 3.0286e-06, 1.1951e-06, 5.3854e-07])
 
 ## A quadratic program per step
 
-`solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=1e3, warm=None)` minimises
-$\tfrac12 x^\top H x + g^\top x$ subject to `lower <= rows x <= upper` for a batch of independent problems: the
-step of a Gauss-Newton method under linear constraints. An equality is a row with `lower == upper`, a one-sided row
-has an infinite bound, a box on `x` is identity rows, and a padding row is a zero row with infinite bounds. It is a
-building block: no solver calls it yet.
+`solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=1e3, warm=None)` takes one step towards
+the minimiser of $\tfrac12 x^\top H x + g^\top x$ subject to `lower <= rows x <= upper` for a batch of independent
+problems: the step of a Gauss-Newton method under linear constraints. An equality is a row with `lower == upper`, a
+one-sided row has an infinite bound, a box on `x` is identity rows, a padding row is a zero row with infinite
+bounds, and a row whose `lower` is above its `upper` is the equality at `upper`. It is a building block: no solver
+calls it yet.
 
 ```python
 import torch
@@ -213,21 +214,40 @@ print(solution.x, solution.dual)
 tensor([[ 1.7500, -0.7500]]) tensor([[0.2500]])
 ```
 
-It runs a fixed number of cheap steps (ADMM in the OSQP form: one factorization, then two matrix-vector products
-per step) and then solves the rows the multipliers press on as equalities; where that point satisfies every row it
-is the exact solution and is returned, as above. Elsewhere the last step is returned and
-`solution.primal_residual` (largest distance of a row from where its multiplier holds it: its violation, or how far
-a row that is pressed on sits off its bound) and `solution.dual_residual` (largest entry of
-`H x + g + rowsᵀ dual`) say how far it is. Pass the last `QPSolution` as `warm=` when the next problem is close
-(the next step of a solver, the next tick of a control loop): the steps of consecutive calls add up, and the
-solution carries the row weight (`penalty`) the last solve tuned.
+A call runs a fixed number of cheap steps (ADMM in the OSQP form: one factorization, then three matrix-vector
+products per step) and then solves the rows the multipliers press on as equalities. Where that point puts every row
+where its multiplier holds it and makes the gradient vanish, both to a relative `1e-6`, it is the solution and is
+returned, as above. Elsewhere the last step is returned, and `solution.primal_residual` (largest distance of a row
+from where its multiplier holds it: its violation, or how far a row that is pressed on sits off its bound) and
+`solution.dual_residual` (largest entry of `H x + g + rowsᵀ dual`) say how far it is, in the caller's units.
+
+One call is a step, not a solve. Pass the last `QPSolution` as `warm=` to the next call (the next step of a solver,
+the next tick of a control loop): it carries `x`, `dual` and the row weight (`penalty`) the last call tuned, and the
+calls add up while the problem changes little. Accuracy comes from these warm calls, not from `iterations`: the
+penalty that sets the pace of the steps is tuned between calls. On random feasible problems with half of the rows
+active and $\mathrm{cond}(H) = 10^4$, a problem counts as solved when both residuals are under `1e-8`:
+
+| Calls | 7 variables, 30 rows: solved of 256 | median violation | 35 variables, 150 rows: solved of 128 | median violation |
+|---|---|---|---|---|
+| one cold call of 20 iterations | 0 | 0.34 | 0 | 0.52 |
+| one cold call of 500 iterations | 0 | 0.063 | 0 | 0.13 |
+| 5 warm calls of 20 iterations | 46 | 0.0061 | 0 | 0.030 |
+| 12 warm calls of 20 iterations | 185 | 7e-16 | 0 | 0.0055 |
+| 40 warm calls of 20 iterations | 247 | 4e-16 | 43 | 2.3e-4 |
+
+The rows bound the step only in the limit: at $\mathrm{cond}(H) = 10^8$ one cold call of 20 iterations returned
+steps up to 35 against a box of 0.3, and five warm calls 0.30; `primal_residual` reports such a step.
 
 The rows are elastic. A row gives way once holding it would take a multiplier beyond `weight`, so the problem
 solved is $\tfrac12 x^\top H x + g^\top x + \text{weight} \cdot \sum_i \text{violation}_i$ and no multiplier
-passes `weight`. Rows that can all hold with smaller multipliers are held exactly. Rows that cannot all hold give
-the point whose violations sum to the least, in the units the rows are given in: scaling a row and its bounds
-counts its violation that many times, and `weight` scales with the objective (the default suits an objective of
-order one). Such a point may break one row by much where a least-squares compromise would break many by little.
+passes `weight`. Rows that can all hold with smaller multipliers are held exactly. Rows that cannot all hold give the
+L1-elastic minimiser: the point whose violations sum to the least, in the units the rows are given in, and among
+those the one of least objective. Such a point may break one row by much where a least-squares compromise would
+break many by little, and the row that gives way may be a box row: scale the rows of a box up when the box must
+win. Scaling a row and its bounds by $t$ counts its violation $t$ times and lets the row push $t$ times harder, and
+`weight` scales with the objective. The default `1e3` suits an objective of order one: inverse-kinematics loops with
+unit term weights need multipliers under 5, and rows that were in conflict let go within ten warm calls. A zero row
+whose bounds exclude 0 never holds: its multiplier stays at `weight` and the other rows are solved as without it.
 The solve runs in float64, the same steps for every batch element, with no host read, and returns no gradient
 ([record 0054](../contracts/decisions/0054-quadratic-programs-by-admm-and-one-active-set-step.md)).
 
