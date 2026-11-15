@@ -44,9 +44,9 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
   (`tests/kinematics/test_fk_compile.py`): loop over joints and tree levels (Python ints from the plan),
   never over batch elements.
 - `compiled` (`compilation.py`) is the only `torch.compile` call (record 0053). Each key (grad and inference
-  mode; per argument a tensor's dtype, device, `requires_grad` and axes, a model's line and cold or warm state, a
-  string or number outside a dataclass, another object's type) has its own `torch.compile` and 8 graphs; its first call runs `fn` eagerly, so plans and memos are
-  graph inputs, not traced code. A batched product of small matrices goes through `small_matmul`, and the FK joint
+  mode; per argument a tensor's dtype, device, `requires_grad` and axes, a model's name, a string or number outside
+  a dataclass, another object's type) has its own `torch.compile` and 8 graphs; its first call, and the first call of
+  a model argument new to it, runs `fn` eagerly, so plans and memos are graph inputs, not traced code. A batched product of small matrices goes through `small_matmul`, and the FK joint
   map's einsum takes the same multiply-and-sum form, only while `compiled` traces (`fused_forms`): eagerly and under
   a caller's own `torch.compile` they stay `@` and einsum. Read the generated code before trusting a speedup:
   inductor can inline the level chain into one kernel and recompute it.

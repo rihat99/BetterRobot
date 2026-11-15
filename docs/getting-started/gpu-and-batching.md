@@ -107,8 +107,9 @@ dynamics = compiled(
 
 Build the compiled function once and keep it: each one compiles its own graphs. Calls are grouped by key, the grad
 mode (`torch.no_grad` or not, `torch.inference_mode`) and what the arguments are: a tensor's dtype, device,
-`requires_grad` and number of axes, a frame name or other value, a model passed as an argument and whether its plans
-are built yet. A key's first call runs eagerly, its second compiles, and a second batch size compiles once more, a
+`requires_grad` and number of axes, a frame name or other value. A key's first call runs eagerly, and so does the
+first call of a model passed as an argument (a model made anew for every call runs eagerly every time); its second
+compiles, and a second batch size compiles once more, a
 graph for every size. Torch keeps at most 8 graphs per key and a ninth raises: a value `fn` reads from a closure or
 global variable, such as a frame name, takes a graph of its key each time it changes, so pass it as an argument. A
 Python number argument that changes on every call compiles once per value, up to torch's 256 graphs per function:

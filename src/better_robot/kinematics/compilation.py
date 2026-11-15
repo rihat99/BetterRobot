@@ -6,8 +6,8 @@ measurement found to go wrong when a library call is handed to ``torch.compile``
 - Plans and memoised model values built inside the trace. A model's first call builds its plans; traced, that
   call compiles a graph that rebuilds them (386 operators for the Panda's FK instead of 33) and is then replaced by
   a recompile. A memoised value, such as the placements folded into the FK map, was derived again in every compiled
-  call. The first call of each key (below) runs eagerly, and a compiled call reads the model memo
-  (`Model._value`), so both enter the graph as inputs.
+  call. The first call of each key (below), and of each model argument new to it, runs eagerly, and a compiled call
+  reads the model memo (`Model._value`), so both enter the graph as inputs.
 - Batched products of small matrices (``3x4 @ 4x4``, ``3x3 @ 3x1``, ``6x6 @ 6x1``) left by inductor as extern
   batched matrix products, about half of a compiled batch-4096 call on CPU. While `compiled` traces
   (`fused_forms`), `small_matmul` writes them as a multiply and a sum, which inductor fuses with their neighbours;

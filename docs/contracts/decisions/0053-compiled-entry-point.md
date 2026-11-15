@@ -31,13 +31,14 @@ The owner chose opt-in compiled entry points inside the library, with eager stay
 We will provide one entry point, `kinematics.compiled(fn, *, mode="default" | "reduce-overhead")`, in
 `src/better_robot/kinematics/compilation.py`, and `torch.compile` is called nowhere else and only when the caller
 calls `compiled`. It groups calls by key: the grad mode and inference mode, and for each argument (also inside
-tuples, lists, dicts and dataclasses) a tensor's dtype, device, `requires_grad` and number of axes, a model's line
-(the model it was copied from) and whether it has plans and memoised values yet, a string, number, dtype, device or
-enum itself (a number in a dataclass, such as a solver state's iteration, only its type, as torch makes a changing
+tuples, lists, dicts and dataclasses) a tensor's dtype, device, `requires_grad` and number of axes, a model's name
+and its tensors', a string, number, dtype, device or enum itself (a number in a dataclass, such as a solver state's iteration, only its type, as torch makes a changing
 number dynamic), and of another object only its type (a new problem of the same kind shares the key; torch's guards
 tell them apart). Each key has its own `torch.compile(fn, fullgraph=True, isolate_recompiles=True)`, so
 its own budget of 8 graphs, which only batch sizes use. A key's first call runs `fn` eagerly and returns that
-result, which builds the plans and memoised model values; the second compiles; `fn` runs once per call. Calls that
+result, which builds the plans and memoised model values; the second compiles; `fn` runs once per call. A model
+argument new to a key also runs eagerly once (each key keeps a weak set of the models it warmed), so no graph builds
+plans and the model's caches are read only by their writers. Calls that
 may compile (a new key or a new shape) hold a lock. `Model._value` is read, never written, under `torch.compile`,
 keyed by the grad mode alone (Dynamo cannot trace the inference-mode check, and no such value is an inference
 tensor); batch sizes follow `torch.compile`'s own policy (the first size static, a second size one dynamic graph,
@@ -89,9 +90,9 @@ reads from a closure or global variable, such as a frame name, is not in the key
 the key and the ninth raises (a closure string changed nine times raised; a closure float became dynamic after one
 recompile). A Python number argument that changes on every call (an iteration count) makes a key and a compile per
 value, up to torch's 256 graphs per function. Each function `compiled` returns keeps its own graphs, so one built
-per model or per call compiles again. A copy made by `with_values` and passed as an argument enters cold: its first
-calls use a graph that derives the memoised values inside it; once an eager call has filled its memo it shares the
-graphs of its line.
+per call compiles again. A model made anew for every call (a `with_values` copy per step passed as an argument) runs
+eagerly every time; a copy used again shares its line's graphs after its eager call (three copies through one
+function: one graph).
 
 ## Alternatives
 - A `compile=` keyword on each public function: every function grows a keyword and its own cache of graphs, and a
@@ -134,7 +135,8 @@ dataclass and a tuple of states); `tests/contract/test_caches.py::test_a_compile
   of `tests/contract/test_layer_dependencies.py` gets a row (`exceptions`, `model`), with `compilation` added to the
   rows of `kinematics` and `dynamics` (gate data); a package of one module, against principle 1.2's few deep modules.
   (d) `optim`, where the solver steps live: `optim` imports only torch and `exceptions` and knows nothing about
-  robots, but `compiled` reads `Model` (cold or warm in the key, kept as it is in the clone), and the flag
+  robots, but `compiled` knows `Model` (it tracks model arguments for their eager call and keeps a model as it is in
+the clone), and the flag
   `fused_forms` reads must be importable by `kinematics` and `dynamics`, which may not import `optim`. It would need
   a robot-free rule for both, or a change of the edge table; `small_matmul` stays in `kinematics`, and C-PERF-5's
   check would name `optim`'s module.
