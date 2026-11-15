@@ -31,6 +31,7 @@ def sphere_clearance(
     *,
     margin: float,
     hinge: bool = True,
+    closest: int | None = None,
     state: str = "state",
     q: str = "q",
 ) -> TermFn:
@@ -40,19 +41,29 @@ def sphere_clearance(
     ``(B..., S, K)`` for ``K`` obstacles. Residual ``(B..., S * K)``; with ``window=1`` on a time axis it is
     ``(B, T, S * K)``. With ``hinge=True`` each residual is zero while ``distance >= margin``, ``margin / 2`` at
     contact (``distance = 0``) and ``margin / 2 - distance`` beyond it; with ``hinge=False`` it is
-    ``margin - distance``.
+    ``margin - distance``. With ``closest`` below ``S * K`` only the ``closest`` smallest distances of each
+    configuration are kept, nearest first, as in `self_clearance`: residual ``(B..., closest)``.
 
     The Jacobian, with respect to the variable ``q`` that the cached ``state`` reads, pulls back through
     ``distance_fn`` alone, so the function must meet two requirements (C-EXT-8): entry ``s`` depends on centre ``s``
     only, and ``torch.func`` can transform it (a ``torch.autograd.Function`` defines ``setup_context``). For any other
     function register ``optim.TermFn(fn=term.fn, reads=term.reads)``: the same residual, differentiated by autodiff.
     """
+    if closest is not None and closest < 1:
+        raise ArgumentError(f"closest must be at least 1, got {closest}")
     frames = spheres.frame_ids.tolist()  # bench-ok: once per term; point_jacobian takes frame ids as ints
     band = _band(torch.tensor(max(margin, 0.0), dtype=spheres.radii.dtype, device=spheres.radii.device))
 
+    def nearest(distance: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """The kept distances of ``distance: (B..., S * K)`` and, when only some are kept, their indices."""
+        if closest is None or closest >= distance.shape[-1]:
+            return distance, None
+        distance, index = distance.topk(closest, dim=-1, largest=False)
+        return distance, index
+
     def residual(kinematics: KinematicState) -> torch.Tensor:
         centers = spheres.centers(kinematics)
-        gap = margin - distance_fn(centers, spheres.radii).flatten(centers.dim() - 2)
+        gap = margin - nearest(distance_fn(centers, spheres.radii).flatten(centers.dim() - 2))[0]
         return _hinge(gap, band) if hinge else gap
 
     def jacobian(kinematics: KinematicState) -> dict[str, torch.Tensor]:
@@ -68,10 +79,13 @@ def sphere_clearance(
             seeds = seeds.reshape(count, *(1,) * (distance.dim() - 1), count).expand(count, *distance.shape)
             gradient = torch.func.vmap(pull)(seeds)[0].movedim(0, -2)  # (B..., S, K, 3)
         points = point_jacobian(kinematics.model, kinematics, frames=frames, points=spheres.offsets)
-        rows = gradient @ points  # (B..., S, K, nv)
+        rows = (gradient @ points).flatten(-3, -2)  # (B..., S * K, nv)
+        distance, index = nearest(distance.flatten(-2))
+        if index is not None:
+            rows = torch.take_along_dim(rows, index.unsqueeze(-1), dim=-2)
         if hinge:
             rows = _hinge_slope(margin - distance, band)[..., None] * rows
-        return {q: -rows.flatten(-3, -2)}
+        return {q: -rows}
 
     return TermFn(fn=residual, reads=(state,), jacobian=jacobian)
 

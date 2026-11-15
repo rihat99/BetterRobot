@@ -20,7 +20,7 @@ from .evaluation import CONSTRAINTS, active_terms
 from .linear import ArrowNormal, BandedNormal, Normal
 from .linearization import Rows, linearize
 from .problem import Problem
-from .qp import solve_qp
+from .qp import QPSolution, solve_qp
 
 
 @final
@@ -335,24 +335,6 @@ class SequentialQP(Solver):
         self.damping, self.gain, self.tolerance = damping, gain, tolerance
         self.gradient_tolerance, self.step_tolerance = gradient_tolerance, step_tolerance
 
-    def _program(
-        self, problem: Problem, x: dict[str, torch.Tensor], rows: Rows | None
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Rows ``(B, M, N)`` and bounds ``(B, M), (B, M)`` of the step from ``x``: the constraint terms at the
-        gain, then the box of the problem's bounds."""
-        matrices, lowers, uppers = [], [], []
-        if rows is not None:
-            matrices.append(rows.jacobian)
-            lowers.append(self.gain * (rows.lower - rows.value))
-            uppers.append(self.gain * (rows.upper - rows.value))
-        bounds = problem.step_bounds(x)
-        if bounds is not None:
-            identity = torch.eye(bounds[0].shape[-1], dtype=bounds[0].dtype, device=bounds[0].device)
-            matrices.append(identity.expand(bounds[0].shape[0], -1, -1))
-            lowers.append(bounds[0])
-            uppers.append(bounds[1])
-        return torch.cat(matrices, dim=1), torch.cat(lowers, dim=1), torch.cat(uppers, dim=1)
-
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         normal, loss, terms, rows = linearize(problem, x)
@@ -363,7 +345,7 @@ class SequentialQP(Solver):
                 "SequentialQP holds constraint terms and bounds, and the problem has neither; use LevenbergMarquardt"
             )
         damping = torch.full_like(loss, self.damping)
-        matrix, lower, upper = self._program(problem, x, rows)
+        matrix, lower, upper = _program(problem, x, rows, self.gain, 1.0)
         # The first program is solved here, cold: a first state then has every key of a stepped one.
         solution = solve_qp(_damped(normal, damping), normal.g, rows=matrix, lower=lower, upper=upper)
         extra: dict[str, Any] = {
@@ -390,7 +372,7 @@ class SequentialQP(Solver):
             state.extra[key] for key in ("damping", "growth", "radius", "normal", "rows")
         )
         point, point_loss = state.extra["iterate"]
-        matrix, lower, upper = self._program(problem, point, rows)
+        matrix, lower, upper = _program(problem, point, rows, self.gain, 1.0)
         solution = solve_qp(
             _damped(normal, damping), normal.g, rows=matrix, lower=lower, upper=upper, warm=state.extra["qp"]
         )
@@ -465,6 +447,89 @@ class SequentialQP(Solver):
                 "iterate": (_select(accept, candidate, point), torch.where(accept, loss_new, point_loss)),
             },
         )
+
+
+def track(
+    problem: Problem,
+    x: dict[str, torch.Tensor],
+    *,
+    warm: QPSolution | None = None,
+    gain: float = 0.5,
+    damping: float = 1e-3,
+    step: float | torch.Tensor | None = None,
+) -> tuple[dict[str, torch.Tensor], QPSolution]:
+    """One step of differential inverse kinematics: ``x`` moved toward the problem's targets under its constraint
+    terms and bounds, by one quadratic program. Returns the new point and the program's solution; pass that back as
+    ``warm=`` on the next call (it is all the state a loop carries).
+
+    ``x`` holds one ``(B, *event)`` tensor per variable. The step ``delta`` minimizes ``½ deltaᵀ(H + damping·I) delta
+    + gᵀdelta``, the Gauss-Newton model of the cost terms at ``x`` (``H``, ``g`` of `Problem.linearize`) with
+    ``damping`` on its diagonal, subject to the rows of `SequentialQP` at ``gain``: a constraint term held to ``lower
+    <= value <= upper`` gives ``gain · (lower - value) <= J · delta <= gain · (upper - value)``, and the problem's
+    bounds give the box ``gain · (lower - x) <= delta <= gain · (upper - x)``. So a row's distance to its bound
+    shrinks by at most ``1 - gain`` per call (a discrete barrier: exact for rows linear in ``x``, such as the bounds,
+    and up to the curvature the rows do not see for the others), and a violation is repaired at the same rate.
+    ``step``, a number or ``(N,)``, bounds every entry of ``delta`` (a robot's velocity limits times the time step);
+    a coordinate beyond its bound by more than ``step / gain`` goes back at ``step``. The damping is added as a
+    multiple of the identity, so ``H + damping·I`` stays positive definite where the targets' Jacobian loses rank and
+    on coordinates no cost term reads; it shortens every step and moves no fixed point.
+
+    Unlike `SequentialQP` nothing is accepted or refused: the step is taken, with its rows elastic as in `solve_qp`.
+    The targets move between calls through ``problem.with_(data=...)``; the rows must keep their count (``closest=``)
+    so that ``warm`` fits. The problem needs dense normal equations and a constraint term, bounds or ``step``. One
+    evaluation, one `solve_qp` and one retraction per call, with no read back to the host.
+    """
+    if not 0 < gain <= 1:
+        raise ArgumentError(f"gain must be in (0, 1], got {gain}")
+    if damping < 0:
+        raise ArgumentError(f"damping must be at least 0, got {damping}")
+    if isinstance(step, torch.Tensor) and step.shape not in ((), (problem.tangent_dim,)):
+        raise ShapeError(f"step must be a number or have shape ({problem.tangent_dim},), got {tuple(step.shape)}")
+    normal, _, _, rows = linearize(problem, x)
+    if not isinstance(normal, Normal):
+        raise ArgumentError("track takes dense normal equations; build the problem with dense=True")
+    matrix, lower, upper = _program(problem, x, rows, gain, gain, step)
+    diagonal = torch.full_like(normal.g, damping)
+    solution = solve_qp(
+        normal.H + torch.diag_embed(diagonal), normal.g, rows=matrix, lower=lower, upper=upper, warm=warm
+    )
+    with torch.no_grad():
+        return problem.retract(x, solution.x), solution
+
+
+def _program(
+    problem: Problem,
+    x: dict[str, torch.Tensor],
+    rows: Rows | None,
+    gain: float,
+    box: float,
+    step: float | torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Rows ``(B, M, N)`` and bounds ``(B, M), (B, M)`` of a step from ``x``: the constraint terms at ``gain``, then
+    the box of the problem's bounds at ``box``, clamped to ``±step`` (a number or ``(N,)``)."""
+    matrices, lowers, uppers = [], [], []
+    if rows is not None:
+        matrices.append(rows.jacobian)
+        lowers.append(gain * (rows.lower - rows.value))
+        uppers.append(gain * (rows.upper - rows.value))
+    bounds = problem.step_bounds(x)
+    if bounds is None and step is not None:
+        first = next(iter(x.values()))
+        infinite = first.new_full((first.shape[0], problem.tangent_dim), torch.inf)
+        bounds = (-infinite, infinite)
+    if bounds is not None:
+        low, high = box * bounds[0], box * bounds[1]
+        if step is not None:
+            limit = torch.as_tensor(step, dtype=low.dtype, device=low.device)
+            # both sides inside ±step: a coordinate beyond its bound by more than step / box goes back at step
+            low, high = torch.clamp(low, -limit, limit), torch.clamp(high, -limit, limit)
+        identity = torch.eye(low.shape[-1], dtype=low.dtype, device=low.device)
+        matrices.append(identity.expand(low.shape[0], -1, -1))
+        lowers.append(low)
+        uppers.append(high)
+    if not matrices:
+        raise ArgumentError("the problem has no constraint term and no bounds, and no step limit was given")
+    return torch.cat(matrices, dim=1), torch.cat(lowers, dim=1), torch.cat(uppers, dim=1)
 
 
 def _excess(rows: Rows, value: torch.Tensor) -> torch.Tensor:
@@ -701,4 +766,4 @@ class TorchOptim(Solver):
             )
 
 
-__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "SequentialQP", "Solver", "State", "TorchOptim"]
+__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "SequentialQP", "Solver", "State", "TorchOptim", "track"]
