@@ -143,6 +143,29 @@ def test_limit_margin_and_manipulability_jacobians_match_autodiff(panda, g1):
         assert max(errors.values()) < 1e-12, errors
 
 
+def test_limit_margin_spares_non_euclidean_coordinates_and_stops_at_mid_range(panda):
+    """The margin shifts Euclidean coordinates only: a spherical or planar root at its neutral value costs nothing.
+    A range under twice the margin, the gripper's 0.04 m against 0.1, gets half its range: zero at mid-range,
+    a quarter of the range at the limits."""
+    for root in (br.model.JointSpherical(), br.model.JointPlanar()):
+        model = br.load(panda_urdf(), dtype=torch.float64, root_joint=root)
+        residual = terms.joint_limits(model, margin=0.1).fn(model.q_neutral[None])
+        assert bool((residual[0, : model.nq - panda.nq] == 0).all()), residual
+    limits = terms.joint_limits(panda, margin=0.1)
+    lower, upper = panda.lower_position_limit, panda.upper_position_limit
+    torch.testing.assert_close(limits.fn((lower + upper)[None] / 2), torch.zeros(1, panda.nq, dtype=torch.float64))
+    torch.testing.assert_close(limits.fn(upper[None])[0, -1], torch.tensor(0.01, dtype=torch.float64))
+
+
+def test_manipulability_jacobian_is_zero_where_the_frame_is_exactly_singular(panda):
+    """Only two joints move the origin of ``panda_link3``, so its manipulability is 0 at every configuration, and most
+    of these round to exactly 0: the Jacobian is the zero subgradient, not rounding noise divided by 0 (1e289)."""
+    state = forward_kinematics(panda, _random_q(panda, 64, 6))
+    term = terms.manipulability(panda, frame="panda_link3", threshold=0.05)
+    torch.testing.assert_close(term.fn(state), torch.full((64, 1), 0.025, dtype=torch.float64), rtol=0, atol=1e-9)
+    assert float(term.jacobian(state)["q"].abs().max()) < 1e-8
+
+
 def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1):
     generator = torch.Generator().manual_seed(0)
     q = br.kinematics.integrate(

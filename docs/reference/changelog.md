@@ -77,7 +77,8 @@ that 0.3.0 renames or removes, one table row each.
 - [Release a version](../guides/release.md): the release checklist, from the public-API diff to the downstream pins.
 - `terms.manipulability(model, *, frame, threshold)`: a hinge on Yoshikawa's manipulability of a frame's position
   Jacobian that pushes away from singular configurations below `threshold`, with an analytic Jacobian.
-- `terms.joint_limits(..., margin=)` starts its penalty `margin` inside the limits (a number or `(nq,)`);
+- `terms.joint_limits(..., margin=)` starts its penalty `margin` inside the limits (a number or `(nq,)`; Euclidean
+  coordinates only, at most half a joint's range);
   `terms.self_clearance(..., closest=k)` keeps the `k` nearest sphere pairs of each configuration; both clearance
   terms take `q=`, the variable their Jacobian is for.
 
@@ -164,6 +165,11 @@ that 0.3.0 renames or removes, one table row each.
   centre times `kinematics.point_jacobian`), 5-47x cheaper to linearize than autodiff at batch 64 to 1024 on one
   CPU core (Panda, float64), and their hinge is C1: `gap² / (2 margin)` inside the margin band, `gap - margin / 2`
   beyond it, so a soft clearance settles deeper inside the margin than with the 0.2 hinge at the same weight.
+  A `distance_fn` keeps entry `s` on centre `s` and runs under `torch.func` (record
+  [0051](../contracts/decisions/0051-distance-functions-for-the-analytic-jacobian.md)); any other function takes
+  the autodiff route through `optim.TermFn(fn=term.fn, reads=term.reads)`.
+- `Problem.linearize` raises `ShapeError` naming `window=1` when an analytic Jacobian block does not have the term's
+  shape, as when a per-knot term (`frame_pose`, the clearance terms) reads a time variable without `window=`.
 
 ### Removed
 - `ModelStructure`, `ModelValues`, `Model.structure`, `Model.values`: use the fields of `Model`.

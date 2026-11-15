@@ -137,15 +137,22 @@ def _hinge(gap: torch.Tensor, band: tuple[torch.Tensor, torch.Tensor]) -> torch.
 def joint_limits(model: Model, *, margin: float | torch.Tensor = 0.0, q: str = "q") -> TermFn:
     """Push away from the position limits, starting ``margin`` inside them. Residual ``(B, nq)``, signed like ``q``.
 
-    Each coordinate costs nothing while it stays ``margin`` inside its limits; past that point the residual is the C1
-    hinge of `sphere_clearance` across the ``margin`` band, then linear beyond the limit. ``margin`` is a number or
-    ``(nq,)`` (radians or metres per coordinate); with the default 0 the residual is the violation of the limits.
+    ``margin`` is a number or ``(nq,)`` in each coordinate's unit (radians or metres). It applies to the Euclidean
+    coordinates only (`kinematics.euclidean_columns`): a quaternion or ``(cos, sin)`` coordinate keeps its plain
+    limits. A coordinate whose range is narrower than twice ``margin`` gets half its range, so its residual is zero
+    at mid-range only. The residual is zero while a coordinate stays ``margin`` inside its limits; past that point,
+    by ``gap``, it is ``gap² / (2 margin)``, the C1 hinge of `sphere_clearance`, so it is ``margin / 2`` at the limit
+    and ``gap - margin / 2`` beyond it. With the default 0 it is the violation of the limits.
     """
     band = torch.as_tensor(margin, dtype=model.dtype, device=model.device)
     if band.shape not in ((), (model.nq,)):
         raise ShapeError(f"margin must be a number or have shape ({model.nq},), got {tuple(band.shape)}")
-    lower, upper = model.lower_position_limit + band, model.upper_position_limit - band
-    band = _band(band.clamp_min(0.0))
+    half_range = (model.upper_position_limit - model.lower_position_limit) / 2
+    width = torch.zeros_like(half_range)
+    euclidean = euclidean_columns(model)[0]
+    width[euclidean] = torch.minimum(band, half_range)[euclidean]
+    lower, upper = model.lower_position_limit + width, model.upper_position_limit - width
+    band = _band(width.clamp_min(0.0))
 
     def violation(value: torch.Tensor) -> torch.Tensor:
         return _hinge(value - upper, band) - _hinge(lower - value, band)
@@ -207,8 +214,9 @@ def manipulability(model: Model, *, frame: int | str, threshold: float, state: s
         origin = kinematics.frame_translations[..., frame_id, :, None].expand_as(angular)
         rows = linear + torch.linalg.cross(angular, origin, dim=-2)  # velocity of the frame origin
         adjugate, size = _yoshikawa(rows * columns)
-        # dw = <P, dJ> with P = w (J Jᵀ)⁻¹ J = adj(J Jᵀ) J / w, which stays finite as w -> 0.
-        weights = adjugate @ (rows * columns) / size.clamp_min(torch.finfo(size.dtype).tiny)[..., None, None]
+        # dw = <P, dJ> with P = w (J Jᵀ)⁻¹ J = adj(J Jᵀ) J / w, finite as w -> 0. At w = 0, the tip of a cone where
+        # adj(J Jᵀ) J is rounding noise, P is 0: the smallest subgradient, which autodiff of the clamped det gives.
+        weights = adjugate @ (rows * columns) / torch.where(size > 0, size, torch.inf)[..., None, None]
         # dJ_k/dq_i = above[i, k] [J_i, J_k] (world columns) plus the moving origin; triple products fold the sum over k.
         first = torch.linalg.cross(linear, weights, dim=-2) + torch.linalg.cross(
             angular, torch.linalg.cross(origin, weights, dim=-2), dim=-2

@@ -137,8 +137,9 @@ sampled SDF and a function of your own. A robot with many spheres has thousands 
 ## Extending collision
 
 A new obstacle type is a new `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)`
-for `sphere_clearance`, entry `s` reading centre `s` only; the term and the solvers do not change (contract
-[08, collision section](../contracts/08-extension-points.md)). Robot geometry built from the IR (capsules read
+for `sphere_clearance`, entry `s` reading centre `s` only and transformable by `torch.func`; the term and the
+solvers do not change (contract [08, collision section](../contracts/08-extension-points.md), which also gives the
+autodiff route for any other function). Robot geometry built from the IR (capsules read
 from a model file, shapes fitted to meshes), closest points and contact follow
 record [0016: geometry is a value, not a field of `Model`](../contracts/decisions/0016-geometry-out-of-model.md).
 

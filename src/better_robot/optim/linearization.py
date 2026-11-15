@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, final
 
 import torch
 
-from ..exceptions import ArgumentError
+from ..exceptions import ArgumentError, ShapeError
 
 from .evaluation import (
     Evaluation,
@@ -263,6 +263,11 @@ def _analytic_pieces(
             columns = torch.arange(span.start, span.stop, device=block.device)[None]
             # Explicit row count: a -1 is ambiguous when the batch is empty.
             rows = weighted_value.shape[1:].numel()
+            if block.shape[1:].numel() != rows * (span.stop - span.start):
+                raise ShapeError(
+                    f"residual {term.name!r}: its jacobian block for {name!r} has shape {tuple(block.shape)}, not "
+                    f"(B, {rows}, {span.stop - span.start}); a jacobian per knot of a time variable needs window=1"
+                )
             block = block.reshape(batch, 1, rows, span.stop - span.start) * scale
             pieces.append(_Piece(columns, block, name not in problem.time))
     return pieces

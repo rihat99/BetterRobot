@@ -7,8 +7,9 @@ inequality ``<= 0`` for ``better_robot.optim.solve_constrained``.
 
 Jacobians are analytic: the gradient of each distance with respect to its sphere centre times
 ``kinematics.point_jacobian``. For ``sphere_clearance`` that gradient is the reverse-mode derivative of
-``distance_fn`` alone (``torch.func.vjp``), so every obstacle shape, the SDF and a caller's own function included,
-gets it without code of its own. On a time axis register the terms with ``window=1``.
+``distance_fn`` alone (``torch.func.vjp``), so every obstacle shape gets it without code of its own: the SDF, and a
+caller's function that meets the two requirements `sphere_clearance` states. On a time axis register the terms with
+``window=1``.
 """
 
 from __future__ import annotations
@@ -36,9 +37,15 @@ def sphere_clearance(
     """Clearance of every sphere to static obstacles.
 
     ``distance_fn(centers: (B..., S, 3), radii: (S,))`` returns signed distances ``(B..., S)`` or
-    ``(B..., S, K)`` for ``K`` obstacles, entry ``s`` reading centre ``s`` only. Residual ``(B..., S * K)``; with
-    ``window=1`` on a time axis it is ``(B, T, S * K)``. The Jacobian is with respect to the variable ``q`` that the
-    cached ``state`` reads.
+    ``(B..., S, K)`` for ``K`` obstacles. Residual ``(B..., S * K)``; with ``window=1`` on a time axis it is
+    ``(B, T, S * K)``. With ``hinge=True`` each residual is zero while ``distance >= margin``, ``margin / 2`` at
+    contact (``distance = 0``) and ``margin / 2 - distance`` beyond it; with ``hinge=False`` it is
+    ``margin - distance``.
+
+    The Jacobian, with respect to the variable ``q`` that the cached ``state`` reads, pulls back through
+    ``distance_fn`` alone, so the function must meet two requirements (C-EXT-8): entry ``s`` depends on centre ``s``
+    only, and ``torch.func`` can transform it (a ``torch.autograd.Function`` defines ``setup_context``). For any other
+    function register ``optim.TermFn(fn=term.fn, reads=term.reads)``: the same residual, differentiated by autodiff.
     """
     frames = spheres.frame_ids.tolist()  # bench-ok: once per term; point_jacobian takes frame ids as ints
     band = _band(torch.tensor(max(margin, 0.0), dtype=spheres.radii.dtype, device=spheres.radii.device))
@@ -82,7 +89,7 @@ def self_clearance(
     """Clearance between the sphere pairs ``pairs: (P, 2)`` (see ``collision.self_collision_pairs``).
 
     Residual ``(B..., P)``, or ``(B..., closest)``: the ``closest`` pairs of each configuration, nearest first, when
-    ``closest`` is below ``P``. Keeping a fixed number of rows bounds the cost on robots with thousands of pairs; a
+    ``closest`` is below ``P``; hinged as in `sphere_clearance`. Keeping a fixed number of rows bounds the cost on robots with thousands of pairs; a
     pair outside them costs nothing, so choose ``closest`` above the number of pairs that can be inside the margin
     at once. The Jacobian is with respect to the variable ``q`` that the cached ``state`` reads.
     """
