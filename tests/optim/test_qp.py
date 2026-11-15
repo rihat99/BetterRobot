@@ -79,6 +79,8 @@ def test_warm_calls_reach_the_optimality_conditions() -> None:
     assert solution.dual_residual.max().item() < 1e-8
     # The active-set step makes one cold call exact on more than half of the elements (39 of 64 when written).
     assert ((first.primal_residual < 1e-8) & (first.dual_residual < 1e-8)).sum().item() >= 32
+    assert solution.exact.all() and first.exact.sum().item() >= 32
+    assert (first.primal_residual[first.exact] < 1e-8).all() and (first.dual_residual[first.exact] < 1e-8).all()
     value = (rows @ solution.x.unsqueeze(-1)).squeeze(-1)
     slack_upper = torch.where(torch.isfinite(upper), upper - value, torch.zeros_like(value))
     slack_lower = torch.where(torch.isfinite(lower), value - lower, torch.zeros_like(value))
@@ -222,6 +224,44 @@ def test_a_warm_call_at_the_elastic_minimiser_of_rows_in_conflict_stays_there() 
     assert (again.x - solution.x).abs().max().item() < 1e-8
 
 
+def test_an_exact_element_is_a_minimiser_where_the_curvature_is_weak() -> None:
+    """Problems shaped like damped inverse kinematics, damping 1e-6: what is flagged exact meets the optimality conditions.
+
+    The active-set step used to cut a multiplier of the wrong sign to zero and keep its point where the gradient
+    left was under 1e-6 of its largest term. In these 52 calls, 8 kept points had a gradient up to 2.6e-6 and sat
+    3.7e-3 to 5.8e-2 from the minimiser, along a curvature of 5e-6 (second review of record 0054). Such a point is
+    now refused; the gradient of a kept one is the floor of the solve, 1e-9 of the step.
+    """
+    generator = torch.Generator().manual_seed(3)
+    draw = lambda *shape: torch.randn(*shape, generator=generator, dtype=torch.float64)  # noqa: E731
+    jacobian, residual, turn, shift, pair = (
+        draw(512, 6, 7),
+        draw(512, 6),
+        draw(512, 6, 7),
+        draw(512, 6),
+        draw(512, 1, 7),
+    )
+    rows = torch.cat([pair, pair, torch.eye(7, dtype=torch.float64).expand(512, 7, 7)], 1)
+    edge = torch.full((512, 7), 0.3, dtype=torch.float64)
+    open_side = torch.full((512, 1), INF, dtype=torch.float64)
+    solution, kept = None, 0
+    for call in range(52):
+        J = jacobian + 0.1 * math.sin(0.05 * call) * turn
+        H = J.mT @ J
+        H = H + 1e-6 * torch.diag_embed(H.diagonal(dim1=-2, dim2=-1))
+        g = (J.mT @ (residual + 0.2 * math.sin(0.07 * call) * shift).unsqueeze(-1)).squeeze(-1)
+        side = torch.full((512, 1), -0.05 if call < 40 else 0.05, dtype=torch.float64)  # 40 calls in conflict
+        lower, upper = torch.cat([-open_side, -side, -edge], 1), torch.cat([side, open_side, edge], 1)
+        solution = solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=solution)
+        gradient = (H @ solution.x.unsqueeze(-1)).squeeze(-1) + g + (rows.mT @ solution.dual.unsqueeze(-1)).squeeze(-1)
+        reach = (rows @ solution.x.unsqueeze(-1)).squeeze(-1) + solution.dual
+        slope = torch.clamp(reach - torch.clamp(reach, lower, upper), -1e3, 1e3)
+        assert (gradient.abs().amax(-1) * solution.exact).max().item() < 1e-7
+        assert ((slope - solution.dual).abs().amax(-1) * solution.exact).max().item() < 1e-9
+        kept += solution.exact.sum().item()
+    assert kept > 20000  # 21645 of 26624 when written
+
+
 def test_padding_and_repeated_rows_do_not_move_the_solution() -> None:
     problem = _problems(16, 5, 8, seed=1)
     H, g, rows, lower, upper = problem
@@ -298,7 +338,7 @@ def test_a_failed_element_is_flagged_and_leaves_the_others_alone() -> None:
     for bad in (0, 1):
         assert solution.x[bad].abs().max().item() == 0.0 and solution.dual[bad].abs().max().item() == 0.0
         assert solution.primal_residual[bad].item() == INF and solution.dual_residual[bad].item() == INF
-        assert solution.penalty[bad].item() == 1.0
+        assert solution.penalty[bad].item() == 1.0 and not solution.exact[bad].item()
     torch.testing.assert_close(solution.x[2], good.x[2])
     with pytest.raises(ShapeError, match="at least one row"):
         solve_qp(H, g, rows=rows[:, :0], lower=lower[:, :0], upper=upper[:, :0])
@@ -309,7 +349,7 @@ def test_a_failed_element_is_flagged_and_leaves_the_others_alone() -> None:
         solve_qp(H, g, rows=rows[:, :5], lower=lower[:, :5], upper=upper[:, :5], warm=good)
     reshaped = QPSolution(
         good.x.reshape(2, 6), good.dual.reshape(2, 9), primal_residual=good.primal_residual,
-        dual_residual=good.dual_residual, penalty=good.penalty[:2],
+        dual_residual=good.dual_residual, penalty=good.penalty[:2], exact=good.exact[:2],
     )  # fmt: skip
     with pytest.raises(ShapeError, match="warm start of the same problem layout"):
         solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=reshaped)
@@ -324,6 +364,7 @@ def test_batch_axes_dtype_and_gradient() -> None:
     )  # fmt: skip
     single = solve_qp(H[0], g[0], rows=rows[0], lower=lower[0], upper=upper[0])
     assert grid.x.shape == (2, 3, 4) and grid.dual.shape == (2, 3, 7) and grid.penalty.shape == (2, 3)
+    assert grid.exact.shape == (2, 3) and grid.exact.dtype == torch.bool
     assert single.x.shape == (4,) and single.primal_residual.shape == ()
     assert grid.x.dtype == torch.float32 and not grid.x.requires_grad
     torch.testing.assert_close(grid.x.reshape(6, 4), flat.x)
@@ -337,7 +378,7 @@ def test_solve_traces_as_one_graph_with_no_host_read() -> None:
     def twice(H, g, rows, lower, upper):
         first = solve_qp(H, g, rows=rows, lower=lower, upper=upper)
         second = solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=first)
-        return second.x, second.dual, second.primal_residual, second.dual_residual, second.penalty
+        return second.x, second.dual, second.primal_residual, second.dual_residual, second.exact, second.penalty
 
     torch._dynamo.reset()
     expected = twice(*problem)

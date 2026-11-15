@@ -45,6 +45,9 @@ class QPSolution:
     primal_residual: torch.Tensor
     dual_residual: torch.Tensor  #: ``(B...,)`` largest entry of ``H x + g + rowsᵀ dual``.
     penalty: torch.Tensor  #: ``(B...,)`` weight of the rows against ``H`` that the next warm solve starts with.
+    #: ``(B...,)`` bool: ``x`` and ``dual`` are the active-set point, the minimiser of the elastic problem. Where
+    #: rows give way, ``primal_residual`` stays positive at the minimiser and this is the only sign of having it.
+    exact: torch.Tensor
 
     @override
     def __repr__(self) -> str:
@@ -100,10 +103,11 @@ def _active_set_step(
     """The rows that ``v: (B, M)`` puts on a bound solved as equalities: ``y: (B, 1, N)``, ``dual``, where it is exact.
 
     The equalities are held by a stiff penalty and `_UPDATES` multiplier updates. A row that ``yields`` (its
-    multiplier is at ``weight``) keeps that multiplier and is not held. A multiplier of the wrong sign or beyond
-    ``weight`` is cut, so the pair is the solution exactly when its gradient vanishes and every row is where its
-    multiplier holds it; a row that yields may sit beyond its bound. An equality row (``lower == upper``) is always
-    held and its multiplier has either sign.
+    multiplier is at ``weight``) keeps that multiplier and is not held. The pair is the solution when its gradient
+    vanishes, every row is where its multiplier holds it (a row that yields may sit beyond its bound) and no held
+    row asks for a multiplier of the wrong sign or beyond ``weight``. Such a multiplier is not cut to fit: the
+    gradient that the cut leaves is small, but along a direction of weak curvature a small gradient is a long way
+    from the minimiser. An equality row (``lower == upper``) is always held and its multiplier has either sign.
     """
     equal = problem.lower == problem.upper
     above, below = (v >= problem.upper) | equal, (v <= problem.lower) | equal
@@ -120,11 +124,13 @@ def _active_set_step(
         value = problem.values(y)
     nothing = torch.zeros_like(v)
     lowest, highest = torch.where(below, -weight, nothing), torch.where(above, weight, nothing)
-    force = torch.clamp(force + stiff * (value - bound), lowest, highest)
+    asked = force + stiff * (value - bound)
+    force = torch.clamp(asked, lowest, highest)
     gap, slope, ahead = problem.measure(y, value, force)
     strict = torch.where(yields & (gap * dual > 0), nothing, gap)
     reach = torch.maximum(value.abs().amax(-1), torch.clamp(value, problem.lower, problem.upper).abs().amax(-1))
-    exact = (info == 0) & (strict.abs().amax(-1) <= _EXACT * reach) & (ahead <= _EXACT)
+    allowed = ((asked == force) | (stiff == 0)).all(-1)
+    exact = (info == 0) & allowed & (strict.abs().amax(-1) <= _EXACT * reach) & (ahead <= _EXACT)
     return y, force, gap, slope, exact
 
 
@@ -275,6 +281,7 @@ def solve_qp(
         primal_residual=torch.where(ok, primal, failed).to(gradient.dtype).reshape(batch),
         dual_residual=torch.where(ok, stationarity, failed).to(gradient.dtype).reshape(batch),
         penalty=torch.where(ok, penalty, torch.ones_like(penalty)).to(gradient.dtype).reshape(batch),
+        exact=(exact.squeeze(-1) & ok).reshape(batch),
     )
 
 

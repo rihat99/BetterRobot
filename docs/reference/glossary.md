@@ -304,7 +304,7 @@ actual, add, aim, angle, apply, argument, arrow, aspect, at, atomic, attached, a
 border, box, brand, build, by, cached, callback, camera, cell, center, check, clear, client, color, column, component,
 consistently, constrained, contact, control, corner, create, cylinder, dark, decrease, default, delta, dense, density,
 dependency, diagnostics, diagonal, dispose, done, element, elevation, ellipsoid, end, entry, equality, error, estimate,
-evaluate, every, exception, expected, extend, extent, extra, face, factory, field, fill, finalize, flat, floor,
+evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize, flat, floor,
 folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, group, growth, half, head, height,
 history, host, human, identity, ignore, image, imported, inequality, install, inverse, iteration, keep, key, label,
 layout, length, light, limit, line, linearize, listed, load, loop, lower, masked, mass, match, matrix, mesh, mismatch,
