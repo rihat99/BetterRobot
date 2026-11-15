@@ -1,8 +1,9 @@
-"""Performance rules a check can read: no Python loop over a batch (C-PERF-2), no compiler or kernel (C-PERF-5).
+"""Performance rules a check can read: no Python loop over a batch (C-PERF-2), compilation only on request (C-PERF-5).
 
 C-PERF-2 is checked by behaviour: every entry point of ``tests/contract/_public_ops.py`` dispatches the same number
 of torch operators for a batch of two as for a batch of seven, so no Python loop runs per batch element. C-PERF-5 reads
-the source: ``src/better_robot`` neither calls nor decorates with ``torch.compile`` and imports no kernel builder.
+the source: ``torch.compile`` is called only inside ``kinematics.compiled``, never decorates a function, and no module
+imports a kernel builder or the compiler's own modules, whose settings are process-wide.
 """
 
 from __future__ import annotations
@@ -22,6 +23,11 @@ from ._public_ops import CASE_NAMES, build_case
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
 BATCHES = (2, 7)
 KERNEL_BUILDERS = ("torch.utils.cpp_extension", "triton", "numba", "cupy")
+# Their configuration and decomposition tables are process-wide: a module that imports them can change every
+# compile of the process (record 0053).
+COMPILER_MODULES = ("torch._dynamo", "torch._inductor")
+# The one function that calls torch.compile, on the caller's request (record 0053).
+ENTRY_POINT = ("src/better_robot/kinematics/compilation.py", "compiled")
 
 
 class _OperatorCount(TorchDispatchMode):
@@ -65,23 +71,41 @@ def test_a_batch_dispatches_the_same_operators_at_every_size(name: str) -> None:
     assert counts[0] == counts[1], f"{name}: {counts[0]} operators at batch {BATCHES[0]}, {counts[1]} at {BATCHES[1]}"
 
 
-def test_src_compiles_nothing_and_builds_no_kernel() -> None:
-    """C-PERF-5: compilation is the caller's choice, and the only implementation is torch (record 0001)."""
+def _is_torch_compile(node: ast.AST) -> bool:
+    return isinstance(node, ast.Attribute) and node.attr == "compile" and ast.unparse(node.value) == "torch"
+
+
+def test_only_the_entry_point_compiles_and_nothing_builds_a_kernel() -> None:
+    """C-PERF-5: compilation is the caller's request through ``kinematics.compiled`` (record 0053), and the only
+    implementation is torch (record 0001)."""
     found = []
     for path in sorted(SRC.rglob("*.py")):
-        for node in ast.walk(ast.parse(path.read_text())):
-            if isinstance(node, ast.Attribute) and node.attr == "compile" and ast.unparse(node.value) == "torch":
-                found.append(f"{path.relative_to(SRC)}: torch.compile")
+        relative = str(path.relative_to(SRC))
+        tree = ast.parse(path.read_text())
+        allowed = {
+            id(node)
+            for entry in tree.body
+            if path == SRC.parents[1] / ENTRY_POINT[0]
+            and isinstance(entry, ast.FunctionDef)
+            and entry.name == ENTRY_POINT[1]
+            for statement in entry.body
+            for node in ast.walk(statement)
+            if _is_torch_compile(node)
+        }
+        for node in ast.walk(tree):
+            if _is_torch_compile(node) and id(node) not in allowed:
+                found.append(f"{relative}: torch.compile")
             if (
                 isinstance(node, ast.ImportFrom)
                 and node.module == "torch"
-                and "compile" in {a.name for a in node.names}
+                and {"compile", "_dynamo", "_inductor"} & {a.name for a in node.names}
             ):
-                found.append(f"{path.relative_to(SRC)}: from torch import compile")
+                found.append(f"{relative}: from torch import {', '.join(a.name for a in node.names)}")
             modules = []
             if isinstance(node, ast.Import):
                 modules = [alias.name for alias in node.names]
             elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                 modules = [node.module]
-            found += [f"{path.relative_to(SRC)}: {module}" for module in modules if module.startswith(KERNEL_BUILDERS)]
+            forbidden = KERNEL_BUILDERS + COMPILER_MODULES
+            found += [f"{relative}: {module}" for module in modules if module.startswith(forbidden)]
     assert not found, found
