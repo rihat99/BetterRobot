@@ -35,8 +35,8 @@ sample, so lever arms stay of the robot's size and float32 accuracy does not deg
   `world_inertias`, against `spatial.transform_*`.
 * Cross products and inertia matrices are `spatial`'s unchecked ``*_raw`` twins: the public wrappers check every input
   once, and the checked forms add 2.2-3.1 us per call at batch 1.
-* Constant matrices multiply from the right (``x.mT @ support``) so torch folds the batch into one ``mm``; a left
-  multiply becomes a slow batched ``bmm``.
+* Constant matrices multiply from the right, joints last (``wrenches @ support`` with world wrenches
+  ``(N, 6, njoints)``), so torch folds the batch into one ``mm``; a left multiply becomes a slow batched ``bmm``.
 
 Cost model: at batch 1 and in backward the operator count dominates. At large CPU batches every operator streams an
 ``(N, njoints, 6)`` tensor through memory, so a per-joint loop on cache-resident slices is not much slower in forward
@@ -53,6 +53,7 @@ import torch
 
 from ..kinematics import KinematicState
 from ..kinematics._plans import JacobianPlan, jacobian_plan
+from ..kinematics.compilation import fused_forms, small_matmul
 from ..model.model import Model
 from ..model.topology import build_supports
 from ..spatial.algebra import cross_force_raw, cross_motion_raw
@@ -125,13 +126,21 @@ class WorldKinematics:
         """Express world twists ``(N, njoints, 6)`` in each joint's own frame (``Ad(oMi⁻¹)``)."""
         rotations_t = self.rotations.mT
         linear = motions[..., :3] - torch.linalg.cross(self.translations, motions[..., 3:])
-        return torch.cat((rotations_t @ linear.unsqueeze(-1), rotations_t @ motions[..., 3:, None]), dim=-2).squeeze(-1)
+        linear, angular = (
+            small_matmul(rotations_t, linear.unsqueeze(-1)),
+            small_matmul(rotations_t, motions[..., 3:, None]),
+        )
+        return torch.cat((linear, angular), dim=-2).squeeze(-1)
 
     def to_world_force(self, wrenches: torch.Tensor) -> torch.Tensor:
-        """Express joint-frame wrenches ``(N, njoints, 6)`` in the world frame (``Ad(oMi)⁻ᵀ``)."""
-        linear = (self.rotations @ wrenches[..., :3, None]).squeeze(-1)
-        angular = (self.rotations @ wrenches[..., 3:, None]).squeeze(-1) + torch.linalg.cross(self.translations, linear)
-        return torch.cat((linear, angular), dim=-1)
+        """Express joint-frame wrenches ``(N, njoints, 6)`` in the world frame (``Ad(oMi)⁻ᵀ``), ``(N, 6, njoints)``.
+
+        Joints last, so a product with a constant ``(njoints, k)`` support matrix folds the batch into one ``mm``.
+        """
+        linear = small_matmul(self.rotations, wrenches[..., :3, None]).squeeze(-1)
+        angular = small_matmul(self.rotations, wrenches[..., 3:, None]).squeeze(-1)
+        angular = angular + torch.linalg.cross(self.translations, linear)
+        return torch.cat((linear.mT, angular.mT), dim=-2)
 
     def world_inertias(self) -> torch.Tensor:
         """Spatial inertia of every body about ``origin`` in world axes, ``(N, njoints, 6, 6)``.
@@ -140,8 +149,10 @@ class WorldKinematics:
         ``R I_c Rᵀ``) and handed unpacked to `spatial`'s matrix kernel; the ``6x6`` congruence with the adjoint costs
         several times more memory traffic.
         """
-        com_world = (self.rotations @ self.body_inertias[..., 1:4, None]).squeeze(-1) + self.translations
-        rotational = self.rotations @ rotational_inertia_raw(self.body_inertias) @ self.rotations.mT
+        com_world = small_matmul(self.rotations, self.body_inertias[..., 1:4, None]).squeeze(-1) + self.translations
+        rotational = small_matmul(
+            small_matmul(self.rotations, rotational_inertia_raw(self.body_inertias)), self.rotations.mT
+        )
         mass = self.body_inertias[..., 0].expand(com_world.shape[:-1])
         return inertia_matrix_from_mass_com_raw(mass, com_world, rotational_inertia=rotational)
 
@@ -175,10 +186,10 @@ def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
 
 def apply_inertias(inertias: torch.Tensor, motions: torch.Tensor) -> torch.Tensor:
     """``I v`` for ``(njoints, 6, 6)`` or ``(N, njoints, 6, 6)`` inertias and ``(N, njoints, 6)`` twists."""
-    if inertias.ndim == 3:
+    if inertias.ndim == 3 and not fused_forms():
         # einsum batches over joints without materialising the broadcast inertia.
         return torch.einsum("jab,njb->nja", inertias, motions)
-    return (inertias @ motions.unsqueeze(-1)).squeeze(-1)
+    return small_matmul(inertias, motions.unsqueeze(-1)).squeeze(-1)
 
 
 def inverse_dynamics_full(
@@ -213,11 +224,9 @@ def inverse_dynamics_full(
     local_wrenches = local_wrenches + cross_force_raw(local_velocities, momenta)
     if external_forces is not None:
         local_wrenches = local_wrenches - external_forces
-    wrenches = kin.to_world_force(local_wrenches)
-    # Right-multiplying by the constant support matrix folds the batch into one large mm.
-    subtree_wrenches = (wrenches.mT @ plan.support.to(wrenches.dtype)).mT  # (N, njoints, 6)
-    column_wrenches = subtree_wrenches[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
-    return (kin.columns.mT * column_wrenches).sum(-1)
+    wrenches = kin.to_world_force(local_wrenches)  # (N, 6, njoints)
+    subtree_wrenches = wrenches @ plan.support.to(wrenches.dtype)  # (N, 6, njoints)
+    return (kin.columns * subtree_wrenches[..., plan.jacobian.column_owner]).sum(-2)
 
 
 def momentum_columns(kin: WorldKinematics) -> torch.Tensor:
@@ -229,12 +238,12 @@ def momentum_columns(kin: WorldKinematics) -> torch.Tensor:
     inertias = kin.world_inertias()
     composite = (inertias.flatten(-2, -1).mT @ plan.support.to(inertias.dtype)).mT  # (N, njoints, 36)
     composite = composite.reshape(*inertias.shape)[..., plan.jacobian.column_owner, :, :]  # (N, nv_full, 6, 6)
-    return (composite @ kin.columns.mT.unsqueeze(-1)).squeeze(-1).mT
+    return small_matmul(composite, kin.columns.mT.unsqueeze(-1)).squeeze(-1).mT
 
 
 def mass_matrix_full(kin: WorldKinematics) -> torch.Tensor:
     """Joint-space inertia matrix over the full tangent, ``(N, nv_full, nv_full)``."""
-    products = kin.columns.mT @ momentum_columns(kin)  # (N, nv_full, nv_full)
+    products = small_matmul(kin.columns.mT, momentum_columns(kin))  # (N, nv_full, nv_full)
     # Two passes over the (large) matrix: keep the entries whose row is on the column's path,
     # mirror them below, zero the rest.
     return torch.where(kin.plan.upper, products, torch.where(kin.plan.lower, products.mT, 0.0))

@@ -24,7 +24,8 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
   (same rotation). Compare rotations, not quaternion signs.
 - `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, mode)` like `Model._value`: `mode` is the
   grad mode, or `"inference"` under `torch.inference_mode` (record 0052), so an inference tensor is served only
-  where autograd records nothing (`enable_grad` reports grad mode on there); `torch.compile` bypasses it.
+  where autograd records nothing (`enable_grad` reports grad mode on there); `torch.compile` bypasses it, and reads
+  `Model._value` under the grad-mode key without writing it (record 0053).
   `world_geometry` (the dynamics' view of the state, record 0041) is a state property like the others; no other
   package writes the memo. A new name goes into the table of
   `docs/contracts/03-state-mutability.md` in the same change. `dataclasses.replace` starts with an empty memo
@@ -42,6 +43,13 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
 - Public wrappers trace as one graph under `torch.compile(fullgraph=True)`
   (`tests/kinematics/test_fk_compile.py`): loop over joints and tree levels (Python ints from the plan),
   never over batch elements.
+- `compiled` (`compilation.py`) is the only `torch.compile` call (record 0053). Each key (grad and inference
+  mode; per argument a tensor's dtype, device, `requires_grad` and axes, a model's name, a string or number outside
+  a dataclass, another object's type) has its own `torch.compile` and 8 graphs; its first call, and the first call of
+  a model argument new to it, runs `fn` eagerly, so plans and memos are graph inputs, not traced code. A batched product of small matrices goes through `small_matmul`, and the FK joint
+  map's einsum takes the same multiply-and-sum form, only while `compiled` traces (`fused_forms`): eagerly and under
+  a caller's own `torch.compile` they stay `@` and einsum. Read the generated code before trusting a speedup:
+  inductor can inline the level chain into one kernel and recompute it.
 - `nq != nv` for quaternion and planar joints: step with `integrate(model, q, v)`, subtract with
   `difference(model, q0, q1)`, never add a tangent to `q`. Mimic joints have no public coordinates:
   `full_configuration` expands `q`, `reduced_columns` contracts Jacobian columns and generalized forces.

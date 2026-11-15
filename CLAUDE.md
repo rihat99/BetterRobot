@@ -64,7 +64,9 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - `lie`, `spatial` and `optim` import nothing outside the package but torch, `optim` knows nothing about robots, and
   `import better_robot` loads no optional package (`tests/contract/test_optional_imports.py`).
 - No host sync and no Python branch on a tensor value in the hot paths (`tests/contract/test_hot_path_lint.py`).
-- No `torch.compile` call or kernel builder in `src` (`tests/contract/test_performance_rules.py`); torch is the only
+- No `torch.compile` call in `src` outside `kinematics.compiled`, the opt-in entry point (record 0053); no use of
+  `torch._dynamo`, `torch._inductor`, `torch.jit`, `torch.library`, of `torch.compiler` beyond `is_compiling` and
+  `assume_constant_result`, or of a kernel builder (`tests/contract/test_performance_rules.py`); torch is the only
   backend (record 0001).
 - No cache beyond `Model._plans`, `Model._memo`, `KinematicState._memo` and the band layout's `lru_cache` in
   `src/better_robot/optim/linearization.py` (reasoned in `FUNCTOOLS_CACHES`), no `object.__setattr__`, no read of a

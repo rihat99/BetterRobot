@@ -20,6 +20,7 @@ import math
 import torch
 
 from ._plans import JacobianPlan
+from .compilation import small_matmul
 
 
 def world_column_table(transforms: torch.Tensor, plan: JacobianPlan) -> torch.Tensor:
@@ -30,7 +31,7 @@ def world_column_table(transforms: torch.Tensor, plan: JacobianPlan) -> torch.Te
     masking and mimic reduction are the caller's job. Trusts validated inputs.
     """
     owners = transforms.index_select(-3, plan.column_owner)  # (B..., nv_full, 3, 4)
-    rotated = owners[..., :3] @ plan.column_subspace  # (B..., nv_full, 3, 2): R s_linear, R s_angular
+    rotated = small_matmul(owners[..., :3], plan.column_subspace)  # (B..., nv_full, 3, 2): R s_linear, R s_angular
     angular = rotated[..., 1]
     linear = rotated[..., 0] + torch.linalg.cross(owners[..., 3], angular)
     return torch.cat((linear, angular), dim=-1).transpose(-1, -2)  # (B..., 6, nv_full)

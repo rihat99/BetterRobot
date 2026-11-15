@@ -11,7 +11,8 @@ Usage (from the repository root; on CPU pin one core whose SMT sibling is idle; 
 Robots, from ``tests/fixtures/robots``: ``panda`` (fixed base, nq = nv = 8: seven arm joints and one finger coordinate
 the other finger mimics), ``panda7`` (the same with both fingers fixed: the 7-dof arm frax ships) and ``g1``
 (free-flyer root, nq 36, nv 35, for every function). Modes: ``eager``, ``compile`` and ``reduce-overhead`` (CUDA
-default); ``adapt`` is the one adapter from a mode to a callable.
+default); ``adapt`` is the one adapter from a mode to a callable: the library's ``kinematics.compiled`` (record 0053),
+or ``torch.compile`` for a solve, whose loop breaks the graph, and for a library version without that entry point.
 
 Functions. A call does what a user's call does and returns what it computes, so compiled code cannot drop it:
 ``forward_kinematics`` returns ``forward_kinematics(model, q).joint_transforms``, ``forward_kinematics_frames`` the
@@ -72,7 +73,8 @@ Row schema, shared by every row of a run and of a reference JSON (``{"meta": {..
 A run's rows add ``grad``, ``nq``, ``nv``, ``seconds_min``, ``seconds_spread`` (interquartile range over the
 median), ``samples``, ``calls_per_sample``, ``page_faults`` per call, ``loadavg``, on CUDA ``gpu_other_pids`` (other
 processes on the GPU at the row's start or end: the row was timed on a shared GPU), on compiled rows
-``graph_breaks``, ``graphs``, ``recompiles``, ``cudagraph_skips`` and ``max_rel_diff_vs_eager`` (largest
+``adapter`` (``ADAPTERS``), ``graph_breaks``, ``graphs``, ``recompiles``, ``cudagraph_skips`` and
+``max_rel_diff_vs_eager`` (largest
 ``max |compiled - eager| / max |eager|`` over the outputs), on IK rows ``iterations``, ``success_rate``,
 ``success_targets``, ``median_position_error_m`` and ``median_rotation_error_rad``.
 
@@ -145,11 +147,24 @@ ROW_BUDGET_S = 1.0
 IK_POSITION_M, IK_ROTATION_RAD = 1e-3, 1e-2
 FIXED_MALLOC = {"MALLOC_MMAP_THRESHOLD_": "134217728", "MALLOC_TRIM_THRESHOLD_": "268435456"}
 MODES = ("eager", "compile", "reduce-overhead")
+SOLVES = ("solve_ik", "solve_ik_multistart")  # their loop reads the device to stop early: graph breaks
+ADAPTERS = ("kinematics.compiled", "torch.compile")
+COMPILED = getattr(br.kinematics, "compiled", None)  # None in a library version before record 0053
 
 
-def adapt(fn: Callable[..., Any], mode: str) -> Callable[..., Any]:
-    """The callable of ``fn`` in ``mode``: itself, ``torch.compile(fn)`` or ``torch.compile(fn, mode=mode)``."""
-    return fn if mode == "eager" else torch.compile(fn, mode=None if mode == "compile" else mode)
+def adapter(function: str) -> str:
+    """The ``ADAPTERS`` entry that compiles ``function``: ``torch.compile`` for a solve or a library without
+    ``kinematics.compiled``."""
+    return ADAPTERS[1] if function in SOLVES or COMPILED is None else ADAPTERS[0]
+
+
+def adapt(fn: Callable[..., Any], mode: str, compiler: str = ADAPTERS[0]) -> Callable[..., Any]:
+    """The callable of ``fn`` in ``mode``: itself, or ``fn`` compiled by ``compiler`` (``adapter``) in that mode."""
+    if mode == "eager":
+        return fn
+    if compiler == ADAPTERS[1] or COMPILED is None:
+        return torch.compile(fn, mode=None if mode == "compile" else mode)
+    return COMPILED(fn, mode="default" if mode == "compile" else mode)
 
 
 def fk_frames(model: br.Model, frame: int, q: torch.Tensor, v: torch.Tensor, a: torch.Tensor) -> tuple:
@@ -337,9 +352,10 @@ def measure(
     eager_output: list[torch.Tensor] | None,
     *,
     grad: bool,
+    compiler: str,
 ) -> tuple[dict[str, Any], list[torch.Tensor]]:
-    """Time ``adapt(fn, mode)(*args)`` of ``fn, args, report = case()``, or its forward and backward (module
-    docstring): the row's fields and the tensors of its output."""
+    """Time ``adapt(fn, mode, compiler)(*args)`` of ``fn, args, report = case()``, or its forward and backward
+    (module docstring): the row's fields and the tensors of its output."""
     sync = (lambda: torch.cuda.synchronize(device)) if device.type == "cuda" else (lambda: None)
     fn, args, report = case()
     row: dict[str, Any] = {}
@@ -348,7 +364,7 @@ def measure(
         if compiled:
             torch.compiler.reset()
             dynamo_counters.clear()
-        call = forward_backward(adapt(fn, mode), args) if grad else partial(adapt(fn, mode), *args)
+        call = forward_backward(adapt(fn, mode, compiler), args) if grad else partial(adapt(fn, mode, compiler), *args)
         sync()
         start = time.perf_counter()
         output = call()
@@ -372,6 +388,7 @@ def measure(
         if not grad:
             row |= report(output) if report is not None else {}
     if compiled:
+        row["adapter"] = compiler
         row["graph_breaks"] = sum(dynamo_counters["graph_break"].values())
         row["graphs"] = dynamo_counters["stats"]["unique_graphs"]
         row["recompiles"] = recompiles
@@ -525,7 +542,16 @@ def better_robot_rows(
                         if (function, grad, mode) in stopped:
                             row["skipped"] = stopped[function, grad, mode]
                         else:
-                            measured = partial(measure, case, mode, device, args.repeats, eager_output, grad=grad)
+                            measured = partial(
+                                measure,
+                                case,
+                                mode,
+                                device,
+                                args.repeats,
+                                eager_output,
+                                grad=grad,
+                                compiler=adapter(function),
+                            )
                             fields, output = row_fields(measured, pool_solve if batch < POOL else None)
                             row |= fields
                             eager_output = output if mode == "eager" else eager_output

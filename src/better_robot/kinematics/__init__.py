@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .compilation import compiled
 from .configuration import difference, euclidean_columns, full_configuration, integrate
 from .forward import KinematicState, forward_kinematics
 from .jacobians import (
@@ -15,6 +16,7 @@ from .tree import subtree, support
 
 __all__ = [
     "KinematicState",
+    "compiled",
     "difference",
     "euclidean_columns",
     "forward_kinematics",

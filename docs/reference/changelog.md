@@ -85,6 +85,13 @@ that 0.3.0 renames or removes, one table row each.
   coordinates only, at most half a joint's range);
   `terms.self_clearance(..., closest=k)` keeps the `k` nearest sphere pairs of each configuration; both clearance
   terms take `q=`, the variable their Jacobian is for.
+- `kinematics.compiled(fn, *, mode="default" | "reduce-overhead")`: an opt-in `torch.compile` of a function that
+  calls the library, one graph family per grad mode and argument kind, each compiled on its second call; under
+  `"reduce-overhead"` (CUDA graphs) each result is the caller's own (record
+  [0053](../contracts/decisions/0053-compiled-entry-point.md)). A compiled call reads the model's memoised values
+  instead of deriving them again, and small batched products compile to fused kernels: at batch 4096 on one CPU
+  core (float32) the compiled FK runs 5.2 times faster than this release's eager on the Panda arm and 3.7 times on
+  the G1 humanoid, inverse dynamics 4.0 and 3.3 times.
 
 ### Changed
 - `Model` is one flat frozen record: the fields of `ModelStructure` and `ModelValues` live on it, it compares by

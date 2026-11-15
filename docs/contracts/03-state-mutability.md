@@ -68,8 +68,8 @@ structure (column spans, knots, block size, device) bounded at 64 entries, proce
 keeps its private names to `problem.py` (`FUNCTOOLS_CACHES` of `tests/contract/test_caches.py`); and
 `KinematicState._memo`
 (`src/better_robot/kinematics/forward.py::KinematicState`) is a private memo dict inside the frozen
-state, keyed by `(name, mode)`, written only by `KinematicState._memoised` and bypassed under `torch.compile` like
-`Model._value`; `mode` is the grad mode, or `"inference"` under `torch.inference_mode` (record
+state, keyed by `(name, mode)`, written only by `KinematicState._memoised` and bypassed under `torch.compile` (where
+`Model._value` is read, never written: record [0053](decisions/0053-compiled-entry-point.md)); `mode` is the grad mode, or `"inference"` under `torch.inference_mode` (record
 [0052](decisions/0052-memo-under-inference-mode.md)), so a value made under `torch.no_grad` never serves a
 differentiable call and an inference tensor never reaches autograd. Its allowed names, each derived only from the
 state's own `joint_transforms` and its model, are:

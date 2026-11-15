@@ -163,6 +163,7 @@
   "better_robot.kinematics.KinematicState.joint_rotations": "property",
   "better_robot.kinematics.KinematicState.joint_translations": "property",
   "better_robot.kinematics.KinematicState.world_geometry": "property",
+  "better_robot.kinematics.compiled": "function(fn: 'Callable[_P, _R]', *, mode: \"Literal['default', 'reduce-overhead']\" = 'default') -> 'Callable[_P, _R]'",
   "better_robot.kinematics.difference": "function(model: 'Model', q0: 'torch.Tensor', q1: 'torch.Tensor') -> 'torch.Tensor'",
   "better_robot.kinematics.euclidean_columns": "function(model: 'Model') -> 'tuple[torch.Tensor, torch.Tensor]'",
   "better_robot.kinematics.forward_kinematics": "function(model: 'Model', q: 'torch.Tensor', *, check_quaternion_norm: 'bool' = False) -> 'KinematicState'",
