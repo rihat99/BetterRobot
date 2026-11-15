@@ -15,7 +15,7 @@ default); ``adapt`` is the one adapter from a mode to a callable.
 
 Functions. A call does what a user's call does and returns what it computes, so compiled code cannot drop it:
 ``forward_kinematics`` returns ``forward_kinematics(model, q).joint_transforms``, ``forward_kinematics_frames`` the
-joint and the frame transforms (eager computes the frames in both at 3654884; compiled code only in the second),
+joint and the frame transforms (an eager state may compute the frames for both; compiled code only for the second),
 ``joint_poses``, ``frame_jacobian`` (first ``IK_FRAMES`` frame), ``joint_jacobians`` (the state's
 ``jacobian_columns``, the column table each joint's Jacobian masks, as Pinocchio's ``computeJointJacobians``),
 ``inverse_dynamics``, ``mass_matrix``, ``forward_dynamics`` and ``center_of_mass``, each of a fresh state. ``--grad``
