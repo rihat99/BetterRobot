@@ -217,6 +217,39 @@ def test_padding_and_repeated_rows_do_not_move_the_solution() -> None:
     torch.testing.assert_close(doubled.x, plain.x, atol=1e-8, rtol=0)
 
 
+def test_a_zero_row_that_cannot_hold_stays_bounded_and_crossed_bounds_are_an_equality() -> None:
+    problem = _problems(16, 5, 8, seed=1)
+    H, g, rows, lower, upper = problem
+    plain = _repeat(problem, 12)
+    # 0 <= -0.3 can never hold: the multiplier of that row stops at the weight and the others are solved as before.
+    zero, never = torch.zeros(16, 1, 5, dtype=torch.float64), torch.full((16, 1), -0.3, dtype=torch.float64)
+    stuck_problem = (
+        H,
+        g,
+        torch.cat([rows, zero], 1),
+        torch.cat([lower, torch.full_like(never, -INF)], 1),
+        torch.cat([upper, never], 1),
+    )
+    stuck = _repeat(stuck_problem, 12)
+    torch.testing.assert_close(stuck.x, plain.x, atol=1e-8, rtol=0)
+    torch.testing.assert_close(stuck.dual[:, -1], torch.full((16,), 1e3, dtype=torch.float64), atol=1e-9, rtol=0)
+    torch.testing.assert_close(stuck.primal_residual, torch.full((16,), 0.3, dtype=torch.float64), atol=1e-9, rtol=0)
+    first = solve_qp(*stuck_problem[:2], rows=stuck_problem[2], lower=stuck_problem[3], upper=stuck_problem[4])
+    assert (stuck.penalty <= 1e4 * first.penalty).all()  # within 1e3 of the cold penalty, which one call moves by 10
+
+    # lower = 1 above upper = -1 on x0: the row is the equality x0 = -1.
+    crossed = solve_qp(
+        torch.eye(2, dtype=torch.float64),
+        torch.tensor([0.3, -0.5], dtype=torch.float64),
+        rows=torch.tensor([[1.0, 0.0]], dtype=torch.float64),
+        lower=torch.tensor([1.0], dtype=torch.float64),
+        upper=torch.tensor([-1.0], dtype=torch.float64),
+    )
+    torch.testing.assert_close(crossed.x, torch.tensor([-1.0, 0.5], dtype=torch.float64), atol=1e-9, rtol=0)
+    torch.testing.assert_close(crossed.dual, torch.tensor([0.7], dtype=torch.float64), atol=1e-8, rtol=0)
+    assert crossed.primal_residual.item() < 1e-9
+
+
 def test_more_active_rows_than_variables() -> None:
     """Forty half-spaces tangent to a ball around a vertex the objective pulls past: the vertex."""
     generator = torch.Generator().manual_seed(2)

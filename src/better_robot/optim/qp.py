@@ -142,9 +142,10 @@ def solve_qp(
     """Minimise ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper``, per batch element.
 
     ``hessian: (B..., N, N)`` is ``H``, symmetric positive semi-definite (the ``H`` of a `Normal` with its damping
-    added), ``gradient: (B..., N)`` is ``g``, ``rows: (B..., M, N)`` with ``M >= 1``, ``lower, upper: (B..., M)``; a
-    bound may be infinite, and a padding row is a zero row with both bounds infinite. All share the batch axes ``B...``. The factorizations run in float64
-    whatever the dtype, which the result keeps; the result carries no gradient.
+    added), ``gradient: (B..., N)`` is ``g``, ``rows: (B..., M, N)`` with ``M >= 1``, ``lower, upper: (B..., M)``.
+    All share the batch axes ``B...``. A bound may be infinite; a padding row is a zero row with both bounds
+    infinite; a row whose ``lower`` is above its ``upper`` is the equality ``rows x = upper``. The factorizations
+    run in float64 whatever the dtype, which the result keeps; the result carries no gradient.
 
     Each of the ``iterations`` steps moves ``x`` towards the rows and ``dual`` towards the multipliers; then the rows
     the multipliers press on are solved as equalities, and where that point satisfies every row and every sign it
@@ -165,7 +166,8 @@ def solve_qp(
     order one). Scaling a row and its bounds by ``t`` divides its multiplier by ``t`` and counts its violation ``t``
     times: that is how a row is weighted against the others. The unit-diagonal scaling of the variables inside the
     solve changes neither. A larger ``weight`` holds the rows against a larger objective and takes longer to let go
-    of rows that were in conflict (ten warm calls at the default).
+    of rows that were in conflict (ten warm calls at the default). A zero row whose bounds exclude 0 can never
+    hold: its multiplier goes to ``weight`` and stays there, and the other rows are solved as without it.
 
     A batch element whose ``H + penalty · rowsᵀ rows`` is not positive definite, or whose data are not finite, gets
     ``x = 0``, ``dual = 0``, both residuals ``inf`` and ``penalty = 1``.
@@ -194,7 +196,7 @@ def solve_qp(
         H=matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2) + _FLOOR * identity,
         c=(gradient.detach().double().reshape(-1, size) * scale).unsqueeze(-2),
         A=rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2),
-        lower=lower.detach().double().reshape(-1, count),
+        lower=torch.minimum(lower, upper).detach().double().reshape(-1, count),
         upper=upper.detach().double().reshape(-1, count),
     )
     gram = torch.bmm(problem.A.mT, problem.A)
