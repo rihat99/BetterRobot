@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from better_robot import exceptions, optim
-from better_robot.optim.linearization import linearize_rows
+from better_robot.optim.linearization import linearize
 
 PLANE = torch.tensor([1.0, 2.0, -1.0], dtype=torch.float64)
 
@@ -67,7 +67,7 @@ def test_constraint_terms_are_rows_scaled_by_their_weight_and_no_part_of_the_los
     )
     problem.equality("sum", lambda x: x.sum(-1, keepdim=True))
     assert [problem.terms[name].kind for name in ("ball", "corner", "sum")] == ["inequality", "inequality", "equality"]
-    _, loss, losses, rows = linearize_rows(problem)
+    _, loss, losses, rows = linearize(problem)
     torch.testing.assert_close(loss, 0.5 * ((x - problem.data["target"]) ** 2).sum(-1))
     assert set(losses) == {"fit"} and rows is not None
     torch.testing.assert_close(
@@ -83,7 +83,7 @@ def test_constraint_terms_are_rows_scaled_by_their_weight_and_no_part_of_the_los
     torch.testing.assert_close(rows.violation, unweighted.clamp_min(0.0))
     assert max(optim.check_jacobian(problem).values()) < 1e-6
     frozen = problem.with_(free={"x": torch.tensor([True, False, True])}, weights={"ball": 0.0})
-    held = linearize_rows(frozen)[3]
+    held = linearize(frozen)[3]
     assert held is not None and held.value.shape == (64, 3) and bool((held.jacobian[:, :, 1] == 0).all())
 
 

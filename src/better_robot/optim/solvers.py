@@ -18,7 +18,7 @@ import torch
 from ..exceptions import ArgumentError, ShapeError
 from .evaluation import CONSTRAINTS, active_terms
 from .linear import ArrowNormal, BandedNormal, Normal
-from .linearization import Rows, linearize, linearize_rows
+from .linearization import Rows, linearize
 from .problem import Problem
 from .qp import solve_qp
 
@@ -175,7 +175,7 @@ class LevenbergMarquardt(Solver):
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         _cost_only(problem, self)
-        normal, loss, terms = linearize(problem, x)
+        normal, loss, terms, _ = linearize(problem, x)
         extra: dict[str, Any] = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0)}
         extra.update(_no_step(normal.g, problem.step_bounds(x), loss), terms=terms, normal=normal)
         return State(
@@ -191,11 +191,11 @@ class LevenbergMarquardt(Solver):
         delta = normal.solve(damping)
         with torch.no_grad():
             candidate = problem.retract(state.x, delta)
-        normal_new, loss_new, terms_new = linearize(problem, candidate)
+        normal_new, loss_new, terms_new, _ = linearize(problem, candidate)
         decrease = state.loss - loss_new
         accept = (decrease > 0) & torch.isfinite(loss_new) & ~state.done
-        gain = decrease / normal.predicted_decrease(delta).clamp_min(1e-30)
-        shrink = (1.0 - (2.0 * gain - 1.0) ** 3).clamp(min=1.0 / 3.0, max=1.0)
+        ratio = decrease / normal.predicted_decrease(delta).clamp_min(1e-30)
+        shrink = (1.0 - (2.0 * ratio - 1.0) ** 3).clamp(min=1.0 / 3.0, max=1.0)
         new_damping = torch.where(accept, damping * shrink, damping * growth).clamp(1e-12, 1e12)
         new_growth = torch.where(accept, torch.full_like(growth, 2.0), growth * 2.0)
         gradient_tolerance, loss_tolerance, step_tolerance = _tolerances(
@@ -236,7 +236,7 @@ class GaussNewton(Solver):
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         _cost_only(problem, self)
-        normal, loss, terms = linearize(problem, x)
+        normal, loss, terms, _ = linearize(problem, x)
         return State(
             x=dict(x),
             loss=loss,
@@ -254,7 +254,7 @@ class GaussNewton(Solver):
         delta = normal.solve(self.damping)
         with torch.no_grad():
             candidate = problem.retract(state.x, delta)
-        normal_new, loss_new, terms_new = linearize(problem, candidate)
+        normal_new, loss_new, terms_new, _ = linearize(problem, candidate)
         move = torch.isfinite(loss_new) & ~state.done
         gradient_tolerance, _, step_tolerance = _tolerances(
             state.loss.dtype, self.gradient_tolerance, None, self.step_tolerance
@@ -354,7 +354,7 @@ class SequentialQP(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
-        normal, loss, terms, rows = linearize_rows(problem, x)
+        normal, loss, terms, rows = linearize(problem, x)
         if not isinstance(normal, Normal):
             raise ArgumentError("SequentialQP takes dense normal equations; build the problem with dense=True")
         if rows is None and not problem.bounds:
@@ -401,7 +401,7 @@ class SequentialQP(Solver):
         step_norm = delta.abs().amax(-1)
         with torch.no_grad():
             candidate = problem.retract(point, delta)
-        normal_new, loss_new, terms_new, rows_new = linearize_rows(problem, candidate)
+        normal_new, loss_new, terms_new, rows_new = linearize(problem, candidate)
         decrease, predicted = point_loss - loss_new, normal.predicted_decrease(delta)
         violation = violation_new = torch.zeros_like(loss_new)
         if rows is not None and rows_new is not None:

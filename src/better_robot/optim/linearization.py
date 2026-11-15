@@ -2,8 +2,8 @@
 
 A term's Jacobian comes from its analytic ``jacobian``, from autodiff by knot colours for a time-local term
 (``window=``), or from one batched backward pass shared by every other term. ``linearize`` adds each
-block's ``JᵀJ`` and ``Jᵀr`` to a dense, banded or arrowhead sink; ``linearize_rows`` returns, from the same
-evaluation, the constraint terms as dense ``Rows``; ``check_jacobian`` compares each route with plain autodiff.
+block's ``JᵀJ`` and ``Jᵀr`` to a dense, banded or arrowhead sink and returns, from the same evaluation, the
+constraint terms as dense ``Rows``; ``check_jacobian`` compares each route with plain autodiff.
 """
 
 from __future__ import annotations
@@ -90,17 +90,10 @@ def _stepped(problem: Problem, x: Values, delta: torch.Tensor) -> dict[str, torc
 
 def linearize(
     problem: Problem, x: Values | None = None
-) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor]]:
-    """Gauss-Newton normal equations, the loss ``(B,)`` and the detached loss of every active term ``{name: (B,)}``
-    at ``x`` (default: the problem's variables), from one evaluation."""
-    return _normal_equations(problem, x, active_terms(problem))[:3]
-
-
-def linearize_rows(
-    problem: Problem, x: Values | None = None
 ) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor], Rows | None]:
-    """What `linearize` returns and, from the same evaluation, the active constraint terms as `Rows` (``None``
-    without one)."""
+    """Gauss-Newton normal equations, the loss ``(B,)``, the detached loss of every active cost term ``{name: (B,)}``
+    and the active constraint terms as `Rows` (``None`` without one) at ``x`` (default: the problem's variables),
+    from one evaluation."""
     return _normal_equations(problem, x, active_terms(problem))
 
 
@@ -448,4 +441,4 @@ def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float
     return errors
 
 
-__all__ = ["Rows", "check_jacobian", "free_mask", "gradient", "linearize", "linearize_rows"]
+__all__ = ["Rows", "check_jacobian", "free_mask", "gradient", "linearize"]
