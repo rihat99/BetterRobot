@@ -85,6 +85,30 @@ uv run python benchmarks/speed.py run --device cuda --batches 1,4096 --robots pa
     Batch first, then move to CUDA. A batch of one gains nothing from the GPU; a batch of thousands
     costs about the same as a batch of one.
 
+## Compile a call you repeat
+
+Eager is the default: each torch operator runs as it comes. For a call you repeat, `kinematics.compiled` turns a
+function of tensors into one compiled graph of fused kernels:
+
+```python { .no-run data-reason="compiles for seconds; tests/kinematics/test_compilation.py runs the same call" }
+from better_robot.kinematics import compiled
+
+fk = compiled(lambda q: forward_kinematics(model, q).joint_transforms)
+with torch.no_grad():
+    fk(q_batch)               # runs once eagerly, then compiles (seconds)
+    transforms = fk(q_batch)  # the compiled graph
+
+dynamics = compiled(
+    lambda q, v, tau: br.forward_dynamics(model, forward_kinematics(model, q), v=v, tau=tau),
+    mode="reduce-overhead",   # CUDA graphs: removes the launch cost of small batches
+)
+```
+
+The first call of each grad mode (`torch.no_grad` or not) runs eagerly and compiles; a second batch size compiles
+once more, a graph for every size. Under `mode="reduce-overhead"` each result is a copy you may keep across calls.
+Compare the modes on your machine with `--modes eager,compile` (and `reduce-overhead` on CUDA) in the commands
+above.
+
 ## Where next
 
 - [Visualize a robot](visualize.md) — show one of those batched solutions in the viewer.
