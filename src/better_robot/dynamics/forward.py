@@ -43,7 +43,9 @@ def forward_dynamics(
     ``v, tau: (B..., nv)``; ``external_forces: (B..., njoints, 6)`` as in `inverse_dynamics`. The bias forces come
     from `inverse_dynamics` with zero acceleration, then a Cholesky solve with `mass_matrix`. A batch element whose
     mass matrix is not positive definite (a non-physical model, for example a massless moving body) gets NaN
-    accelerations. Raises as `inverse_dynamics`.
+    accelerations; the other elements keep theirs. Their gradients stay finite only for inputs batched per element:
+    an input shared across the batch (for example ``q (nq,)`` against a model value batch) gets non-finite gradients,
+    even from a loss that reads only the finite elements. Raises as `inverse_dynamics`.
     """
     check_state(model, state)
     kin = world_kinematics(model, state)
