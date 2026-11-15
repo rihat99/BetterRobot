@@ -295,7 +295,8 @@ class ArrowNormal:
         schur = C - flat_border.mT @ solved[..., :-1]
         factor, info = torch.linalg.cholesky_ex(schur)
         right = rhs_shared.unsqueeze(-1) - flat_border.mT @ solved[..., -1:]
-        shared = torch.cholesky_solve(right, factor)  # (B, Ns, 1)
+        half = torch.linalg.solve_triangular(factor, right, upper=False)  # not cholesky_solve: see Normal.solve
+        shared = torch.linalg.solve_triangular(factor.mT, half, upper=True)  # (B, Ns, 1)
         time = (solved[..., -1:] - solved[..., :-1] @ shared).view_as(rhs_time) * scale
         delta = g.new_zeros(g.shape)
         delta = delta.index_copy(1, layout.time_columns, self.band._from_band(time))
