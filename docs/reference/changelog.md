@@ -154,10 +154,12 @@ that 0.3.0 renames or removes, one table row each.
   are reported.
 - The contributing pages are gone: [extending](../guides/extend.md) and [running the tests](../guides/run-the-tests.md)
   are guides, and [the test suite](tests.md) is reference.
-- `benchmarks/run.py` is the one benchmark runner: the full tier fails when a graph break, recompile, operator or
-  host sync of its counter rows (forward kinematics, Jacobian, RNEA, CRBA, ABA, `solve_ik`) exceeds
-  `benchmarks/thresholds/torch-<version>.json` (`tests/contract/test_compile_counters.py`); wall time is recorded
-  with the load average and page faults, never gated.
+- `benchmarks/run.py` is the counter gate: the full tier fails when a graph break, recompile, operator or host sync
+  of its counter rows (forward kinematics, Jacobian, RNEA, CRBA, ABA, `solve_ik`) exceeds
+  `benchmarks/thresholds/torch-<version>.json` (`tests/contract/test_compile_counters.py`).
+  `benchmarks/speed.py` records wall time, never gated: kinematics, dynamics and IK functions on Panda and G1, CPU
+  and CUDA, eager and compiled, batch 1 to 65536, with IK success rates, Pinocchio rows and a table against an
+  earlier run or another library's timings ([benchmark and profile](../guides/benchmark-and-profile.md)).
 - The hooks in `.pre-commit-config.yaml` run through `uv run --locked`: ruff check, ruff format --check and the fast
   tier before a commit, the full tier before a push. The release tier is one command,
   `bash tools/release_tier.sh --gpu <index>` ([running the tests](../guides/run-the-tests.md)).

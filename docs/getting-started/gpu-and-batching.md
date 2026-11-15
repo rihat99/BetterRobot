@@ -75,8 +75,8 @@ hardly grows from one query to thousands, so a large batch runs many times faste
 both on your machine (Panda, batches 1 and 4096):
 
 ```bash
-CUDA_VISIBLE_DEVICES="" uv run python benchmarks/run.py --device cpu --batches 1,4096 --models panda --algos rnea,crba,aba
-uv run python benchmarks/run.py --device cuda --batches 1,4096 --models panda --algos rnea,crba,aba
+CUDA_VISIBLE_DEVICES="" uv run python benchmarks/speed.py run --device cpu --batches 1,4096 --robots panda --functions rnea,crba,aba --modes eager
+uv run python benchmarks/speed.py run --device cuda --batches 1,4096 --robots panda --functions rnea,crba,aba --modes eager
 ```
 
 [Benchmark and profile](../guides/benchmark-and-profile.md) explains the columns it prints.

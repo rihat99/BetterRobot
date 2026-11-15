@@ -1,38 +1,32 @@
 # Benchmark and profile
 
-`benchmarks/run.py` is the one place BetterRobot measures speed. It records two kinds of numbers: counters, which
-do not change from run to run and gate every push, and wall time, which does change and is recorded with the
-machine's load beside it. This guide runs it, reads its output, and profiles one call with `torch.profiler`.
+BetterRobot measures speed in two places. `benchmarks/run.py` records counters, which do not change from run to run
+and gate every push. `benchmarks/speed.py` records wall time, which does change: every kinematics, dynamics and IK
+function on Panda and G1, on CPU and CUDA, eager and compiled, from batch 1 to 65536, beside Pinocchio and other
+libraries. This guide runs both, reads their output, and profiles one call with `torch.profiler`.
 
-## Run the benchmark
+## Run the counter rows
 
 From the repository root:
 
 ```bash
 uv run python benchmarks/run.py --counters-only   # counter rows, checked against the thresholds: about 1 min
-uv run python benchmarks/run.py                   # counter rows and the sweep, with wall time: about 7 min
-uv run python benchmarks/run.py --device cuda --batches 1,4096 --models panda,tree200 --algos fk,rnea
+uv run python benchmarks/run.py                   # counter rows with their wall time
+uv run python benchmarks/run.py --device cuda --counters-only
 ```
 
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `--device` | `cpu` | `cpu` or `cuda` |
-| `--batches` | `1,64,256,4096` | sweep batch sizes `B` of `q (B, nq)` |
-| `--models` | `panda,g1,tree25,tree200` | sweep models: `panda`, `g1` (free flyer) from `tests/fixtures/robots/`, or `tree<N>`, a seeded random tree of `N` revolute joints |
-| `--algos` | `fk,jacobian,rnea,crba,aba` | sweep algorithms |
 | `--repeats` | `20` | most timed calls per row; fewer once a row has taken 2 s |
 | `--threads` | `1` | Torch threads for the run |
 | `--rows` | all | comma-separated row ids to measure |
 | `--counters-only` | off | counter rows only, no wall time; exit 1 on a counter above its threshold |
 | `--timing-only` | off | wall time only, no counters |
-| `--max-call-s` | `20` | skip the larger batches of a sweep row once one call takes longer |
 | `--out` | `benchmarks/results/<commit>_<device>.json` | output file; results are never committed |
 
-Every number is `float32`, with the internal checks off: the runner stops when `BETTER_ROBOT_INTERNAL_CHECKS=1`,
-because the checks add host syncs and operators. Robots load from the tracked test fixtures, so the runner works
-offline.
-
-## What each row measures
+Every number is `float32`, with the internal checks off: both scripts stop when `BETTER_ROBOT_INTERNAL_CHECKS=1`,
+because the checks add host syncs and operators. Robots load from the tracked test fixtures, so both work offline.
 
 Counter rows are fixed functions; their counters gate (below). `state` is `forward_kinematics(model, q)`.
 
@@ -57,15 +51,9 @@ Each counter row has four counters, the same for every run with one torch versio
   are counted on CPU too, so the CPU gate catches a new one. The IK row has neither `ops` nor `host_syncs`: profiling
   one solve takes a minute.
 
-Sweep rows, ids `<algo>/<model>/B<batch>/<mode>/<impl>`, time each algorithm over `--models` and `--batches`:
-`mode="forward"` is one call under `torch.no_grad()`, `mode="forward_backward"` adds the backward pass of
-`sum(output)` with respect to `q`. They record `ops` and `host_syncs` of one call too. When `pinocchio` imports,
-reference rows (`impl="pinocchio"`) are added for Panda and G1: `float64`, CPU, batch 1, forward only.
-
-Wall time (`median_ms`, `min_ms`) is per call, after one warm-up call; CUDA rows synchronize before reading the
-clock. `page_faults` is the minor page faults per call. Every row records the load average when it started, and the
-JSON's `meta` records the commit, dirty flag, command, torch and Python versions, CPU or GPU, threads, CPU affinity
-and the load average at start and end. Wall time compares only on the same machine, thread count and similar load.
+Without `--counters-only` each counter row also gets its wall time (`median_ms`, `min_ms`) per call, after one
+warm-up call, and `page_faults`, the minor page faults per call. The JSON's `meta` records the commit, dirty flag,
+command, torch and Python versions, CPU or GPU, threads, CPU affinity and the load average at start and end.
 
 ## The counter gate
 
@@ -112,30 +100,96 @@ commit and commit that file alone, with a `Why:` line; a lowered counter is writ
 stays tight. The two host syncs of `aba` are `torch.linalg.cholesky` and `torch.cholesky_solve`, which check their
 result.
 
-## Recorded wall time
+## Measure wall time
 
-Measured with `uv run python benchmarks/run.py` (the defaults) at the clean commit `22aed80`: AMD EPYC 9654, one
-thread pinned to an idle core, torch 2.13, a shared host with load average 16 to 38 during the run (397 s). Forward
-mode, ms per call; batch-4096 rows give the default-allocator time with its page faults per call, then the time with
-fixed allocator thresholds (next section).
+`benchmarks/speed.py run` times every function below on Panda (fixed base) and G1 (free-flyer root) from
+`tests/fixtures/robots/`, at each batch size, in each mode. On CPU, pin one idle core; on CUDA, check that no one
+else uses the GPU, since every row records the other processes it finds there.
 
-| Algorithm | Model | `B = 1` | Pinocchio `B = 1` | `B = 4096` default (faults) | `B = 4096` fixed | `ops` |
-|-----------|-------|--------:|------------------:|----------------------------:|-----------------:|------:|
-| FK | Panda | 0.424 | 0.0005 | 13.7 (1984) | 9.60 | 140 |
-| Jacobian | Panda | 0.267 | 0.0007 | 9.72 (0) | 9.63 | 69 |
-| RNEA | Panda | 0.544 | 0.0017 | 29.1 (0) | 28.8 | 172 |
-| CRBA | Panda | 0.494 | 0.0012 | 42.7 (5757) | 29.2 | 136 |
-| ABA | Panda | 0.786 | 0.0057 | 62.4 (5334) | 50.2 | 240 |
-| FK | G1 | 0.576 | 0.0013 | 57.7 (10301) | 33.5 | 161 |
-| Jacobian | G1 | 0.427 | 0.0023 | 53.7 (7184) | 37.0 | 89 |
-| RNEA | G1 | 0.714 | 0.0054 | 101 (1) | 101 | 188 |
-| CRBA | G1 | 0.648 | 0.0046 | 139 (14728) | 104 | 154 |
-| ABA | G1 | 0.969 | 0.0187 | 241 (21418) | 187 | 255 |
+```bash
+taskset -c 5 uv run python benchmarks/speed.py run --device cpu --out cpu.json
+CUDA_VISIBLE_DEVICES=0 uv run python benchmarks/speed.py run --device cuda --out cuda.json
+uv run python benchmarks/speed.py run --functions fk,rnea --robots panda --batches 1,4096 --modes eager
+```
 
-At batch 1, Pinocchio's C++ is two to three orders of magnitude faster: the cost here is operator dispatch, which is
-why `ops` is reported. The library pays off at large batches and on GPU, where one call serves thousands of
-configurations. The sweep's `fk` returns joint poses, so its `ops` differ from those of the counter row `fk_joints`,
-which returns joint transforms.
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--device` | `cpu` | `cpu` or `cuda` |
+| `--dtype` | `float32` | or `float64` |
+| `--functions` | all | comma-separated names from the table below |
+| `--robots` | `panda,g1` | `panda`, `g1` |
+| `--batches` | `1,64,1024,4096,16384,65536` | batch sizes `B` of `q (B, nq)` |
+| `--modes` | `eager,compile`, and `reduce-overhead` on CUDA | `eager`; `compile` is `torch.compile(fn)`; `reduce-overhead` is `torch.compile(fn, mode="reduce-overhead")`, which replays CUDA graphs |
+| `--repeats` | `15` | most samples per row |
+| `--threads` | `1` | Torch threads for the run |
+| `--max-call-s` | `5` | skip the larger batches of a function and mode once one call takes longer |
+| `--max-compile-s` | `300` | the same, once one compile takes longer |
+| `--out` | `benchmarks/results/speed_<commit>_<device>.json` | output file, rewritten after every row |
+
+`state` is `forward_kinematics(model, q)`, and each call builds it, as a user's call does.
+
+| Function | One call |
+|----------|----------|
+| `fk` | `forward_kinematics(model, q).joint_transforms`: the state alone |
+| `fk_poses` | `forward_kinematics(model, q).joint_poses` |
+| `jacobian` | `frame_jacobian(model, state, frame=...)` of `panda_hand` or G1's `left_rubber_hand` |
+| `jacobian_columns` | `state.jacobian_columns`, the column table every Jacobian masks |
+| `rnea` | `inverse_dynamics(model, state, v=v, a=a)` |
+| `crba` | `mass_matrix(model, state)` |
+| `aba` | `forward_dynamics(model, state, v=v, tau=tau)` |
+| `com` | `center_of_mass(model, state)` |
+| `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from `q_neutral` |
+| `solve_ik` | `solve_ik(model, targets, q0=q_neutral)`: 100 iterations, one start |
+| `solve_ik_multistart` | the same with `restarts=4`, five starts |
+
+The IK targets are the poses of `panda_hand`, or of both hands and both ankles of G1, at seeded random
+configurations. A solve row records `success_rate` (every target within 1 mm and 0.01 rad), `iterations` and the
+median position and rotation errors.
+
+Each row times one call under `torch.no_grad`, after warm-up calls, as the median over at most `--repeats` samples;
+a sample is one or more calls, at least 10 ms long, between `torch.cuda.synchronize` calls. A compiled row starts
+from `torch.compiler.reset()` and records its first call as `compile_seconds` (shorter when inductor's on-disk cache
+already holds the graph), then `graph_breaks`, `graphs`, `recompiles` after the warm-up, `cudagraph_skips` and
+`max_abs_diff_vs_eager`. A row that raises records its `error`; the larger batches of that function and mode are then
+recorded as `skipped`, with the reason. `MODES` in the script is the one place that turns a mode into a callable.
+
+On CPU the run adds Pinocchio rows (`float64`, batch 1, one call per sample) for every function Pinocchio has. The
+run re-executes itself with the allocator thresholds of the last section fixed, so a large batch's time does not
+depend on what the process freed before. `meta` records the commit, the tree of `src/` (the library measured,
+whatever the benchmark's own commit), torch and CUDA versions, host, device name, threads and CPU affinity, the
+allocator variables, the load average and, on CUDA, the GPU's utilization, memory and other processes at start and
+end.
+
+## Compare runs and libraries
+
+Every row of a run, and every row of another library's timings, uses one schema, so a JSON written elsewhere
+reads as a reference column:
+
+| Field | Meaning |
+|-------|---------|
+| `library` | `better_robot`, `pinocchio`, or the other library's name |
+| `function` | a name from the function table |
+| `robot` | `panda` or `g1` |
+| `device` | `cpu` or `cuda` |
+| `dtype` | `float32` or `float64` |
+| `batch` | samples per call |
+| `mode` | `eager`, `compile`, `reduce-overhead`; another library names its own |
+| `seconds_per_call` | median wall time of one call; absent when the row has `error` or `skipped` |
+| `compile_seconds` | the first call of a compiled row, when there is one |
+
+A run's rows add `seconds_min`, `seconds_spread` (interquartile range over the median), `samples`, `page_faults`
+per call, `loadavg` and, on CUDA, `gpu_other_pids`: a row with any was timed on a shared GPU.
+
+```bash
+uv run python benchmarks/speed.py table after.json --before before.json
+uv run python benchmarks/speed.py table cuda.json --reference cpu.json other_cuda.json --functions fk,rnea --batches 1,4096
+```
+
+`table` prints one markdown line per row: microseconds per sample and compile seconds; with `--before`, the same
+row of the older run and the speedup `before/after`; with `--reference`, for each other library its microseconds
+per sample and the ratio `ours/<library>`, the times BetterRobot is slower. A reference row matches on function,
+robot, device and batch; a Pinocchio row, one call per sample on the CPU, matches every device and batch at its
+batch-1 time. `--functions`, `--robots`, `--batches` and `--modes` select rows.
 
 ## Large batches and the allocator
 
@@ -150,15 +204,12 @@ value turns glibc's adjustment off, and 128 MiB and 256 MiB keep a large batch's
 MALLOC_MMAP_THRESHOLD_=134217728 MALLOC_TRIM_THRESHOLD_=268435456 uv run python your_script.py
 ```
 
-Measured in the run above, forward mode at batch 4096: FK on G1 takes 57.7 ms with 10 301 page faults per call by
-default and 33.5 ms with fewer than one once the thresholds are fixed; CRBA on Panda takes 42.7 ms with 5757 faults
-against 29.2 ms; FK on the 200-joint random tree 418 ms against 179 ms. The default number depends on the process,
-the fixed one does not. The counter row `fk_joints/g1/B1024` took 12.2 ms with 3120 faults per call by
-default in one process and 6.0 ms in another; with fixed thresholds it takes 6.0 ms in both.
-
-The runner measures every row at batch 1024 and above both ways: it re-runs those rows in a child process with the
-two variables set and records `fixed_malloc_median_ms` and `fixed_malloc_page_faults` beside the default numbers. A
-"no slower" verdict at those batches reads the fixed-threshold number and its page faults.
+Measured at the commit `22aed80`, one thread, forward kinematics returning joint poses at batch 4096: FK on G1 takes
+57.7 ms with 10 301 page faults per call by default and 33.5 ms with fewer than one once the thresholds are fixed;
+CRBA on Panda takes 42.7 ms with 5757 faults against 29.2 ms; FK on a 200-joint random tree 418 ms against 179 ms.
+The default number depends on the process, the fixed one does not. The counter row `fk_joints/g1/B1024` took 12.2
+ms with 3120 faults per call by default in one process and 6.0 ms in another; with fixed thresholds it takes 6.0 ms
+in both. `benchmarks/speed.py` sets both thresholds for its whole run, and its rows keep `page_faults` per call.
 
 ## Profile one call
 
