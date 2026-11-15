@@ -34,13 +34,16 @@ Enforcement: `tests/contract/test_performance_rules.py::test_a_batch_dispatches_
 (every entry point of the contract tests' public-ops registry dispatches as many torch operators for a batch of
 two as for a batch of seven).
 
-## C-PERF-5 The library compiles nothing and ships no custom kernel (MUST)
+## C-PERF-5 The library compiles only on request and ships no custom kernel (MUST)
 
-Compilation is the caller's choice: no module calls or decorates with `torch.compile`; the public kinematics and
-dynamics trace as one graph when the caller compiles them (`tests/kinematics/test_fk_compile.py`). Torch is the only
-implementation (record [0001](decisions/0001-torch-only.md)): no C++ extension, Triton, Numba or CuPy kernel.
+Compilation is the caller's choice. The one place that calls `torch.compile` is `kinematics.compiled`, which the
+caller calls (record [0053](decisions/0053-compiled-entry-point.md)); nothing compiles at import, no library function
+is decorated with `torch.compile`, and no module imports `torch._dynamo` or `torch._inductor`, whose settings and
+decomposition tables are process-wide. The public kinematics and dynamics trace as one graph when compiled
+(`tests/kinematics/test_fk_compile.py`, `tests/kinematics/test_compilation.py`). Torch is the only implementation
+(record [0001](decisions/0001-torch-only.md)): no C++ extension, Triton, Numba or CuPy kernel.
 
-Enforcement: `tests/contract/test_performance_rules.py::test_src_compiles_nothing_and_builds_no_kernel`.
+Enforcement: `tests/contract/test_performance_rules.py::test_only_the_entry_point_compiles_and_nothing_builds_a_kernel`.
 
 ## C-PERF-3 The counters of the hot entry points do not grow (MUST)
 

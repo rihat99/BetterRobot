@@ -24,7 +24,8 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
   (same rotation). Compare rotations, not quaternion signs.
 - `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, mode)` like `Model._value`: `mode` is the
   grad mode, or `"inference"` under `torch.inference_mode` (record 0052), so an inference tensor is served only
-  where autograd records nothing (`enable_grad` reports grad mode on there); `torch.compile` bypasses it.
+  where autograd records nothing (`enable_grad` reports grad mode on there); `torch.compile` bypasses it, and reads
+  `Model._value` under the grad-mode key without writing it (record 0053).
   `world_geometry` (the dynamics' view of the state, record 0041) is a state property like the others; no other
   package writes the memo. A new name goes into the table of
   `docs/contracts/03-state-mutability.md` in the same change. `dataclasses.replace` starts with an empty memo
@@ -42,6 +43,11 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
 - Public wrappers trace as one graph under `torch.compile(fullgraph=True)`
   (`tests/kinematics/test_fk_compile.py`): loop over joints and tree levels (Python ints from the plan),
   never over batch elements.
+- `compiled` (`compilation.py`) is the only `torch.compile` call (record 0053). It runs `fn` eagerly once per
+  grad mode first, so plans and memos are graph inputs, not traced code. A batched product of small matrices goes
+  through `small_matmul` (multiply-and-sum under compile, which inductor fuses; `@` eagerly, where it is faster);
+  the FK joint map's einsum takes the same form under compile. Read the generated code before trusting a speedup:
+  inductor can inline the level chain into one kernel and recompute it.
 - `nq != nv` for quaternion and planar joints: step with `integrate(model, q, v)`, subtract with
   `difference(model, q0, q1)`, never add a tangent to `q`. Mimic joints have no public coordinates:
   `full_configuration` expands `q`, `reduced_columns` contracts Jacobian columns and generalized forces.

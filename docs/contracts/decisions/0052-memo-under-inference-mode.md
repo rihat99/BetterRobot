@@ -1,6 +1,6 @@
 # 0052 The memos keep inference-mode values under a key of their own
 
-**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-15
+**Status:** Proposed (integrator, awaiting owner); amendment proposed in 0053. **Date:** 2026-11-15
 
 ## Context
 Record [0042](0042-memo-keys-and-shared-plans.md) bypasses `Model._value` and `KinematicState._memoised` under

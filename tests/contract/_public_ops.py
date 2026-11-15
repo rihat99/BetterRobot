@@ -196,6 +196,7 @@ _NO_TENSOR = "takes no tensor: dtype, device and batch shape are its arguments"
 _FACES = "an integer face-table routine: no floating result whose dtype or batch could change"
 #: Public functions without a case, each with the reason no generic contract test can drive it.
 NOT_DRIVEN: dict[str, str] = {
+    "compiled": "takes a function, not tensors; its results are the function's (tests/kinematics/test_compilation.py)",
     "euclidean_columns": _TOPOLOGY,
     "subtree": _TOPOLOGY,
     "support": _TOPOLOGY,

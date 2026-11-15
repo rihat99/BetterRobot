@@ -57,7 +57,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_frozen.py`, `test_model_fields.py`, `test_hashing.py`, `test_caches.py` | public records are frozen, `Model` is one flat record, equality and `structure_key` follow record 0010, caches and plans follow records 0011 and 0040 |
 | `test_identifiers.py`, `test_keyword_only.py`, `test_name_words.py`, `test_se3_vocabulary.py` | a frame, joint or body parameter takes `int \| str`; at most two positional arguments; layouts, units and SE(3) words in public names |
 | `test_internal_checks.py`, `test_no_probing.py` | one switch guards every check that reads tensor values; no `getattr` with a literal and no `hasattr` in `src` |
-| `test_performance_rules.py` | a batch of two and a batch of seven dispatch the same torch operators (slow); `src` compiles nothing and builds no kernel |
+| `test_performance_rules.py` | a batch of two and a batch of seven dispatch the same torch operators (slow); `torch.compile` is called only by `kinematics.compiled`, and nothing imports the compiler's modules or builds a kernel |
 | `test_compile_counters.py` | the graph breaks, recompiles, operators and host syncs of every counter row of `benchmarks/run.py` stay at or below `benchmarks/thresholds/` on CPU (slow); each hot path contract 09 names has counter rows |
 | `test_public_differentiability.py` | gradients reach `q` and the model tensors through every public kinematics and dynamics function (see [Differentiate](../guides/differentiate.md)) |
 | `test_repr.py` | every public type has a one-line repr under 200 characters that names the type |

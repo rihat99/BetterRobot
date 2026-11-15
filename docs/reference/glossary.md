@@ -209,6 +209,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **device** | Where a tensor lives, such as the CPU or one CUDA GPU. |
 | **dtype** | The tensor's numeric type, such as `torch.float32` or `torch.float64`. |
 | **compute pass** | One complete operation over the robot, such as FK or RNEA. |
+| **compiled** | A call turned by `torch.compile` into one graph of fused kernels, made on request by `kinematics.compiled` (record [0053](../contracts/decisions/0053-compiled-entry-point.md)); eager, the default, runs each torch operator as it comes. |
 
 ## Geometry and collision
 
@@ -303,7 +304,7 @@ evaluate, every, exception, expected, extend, extent, extra, face, factory, fiel
 folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, group, growth, half, head, height,
 history, host, human, identity, ignore, image, imported, inequality, install, inverse, iteration, keep, key, label,
 layout, length, light, limit, line, linearize, listed, load, loop, lower, masked, mass, match, matrix, mesh, mismatch,
-multiplier, name, new, no, norm, normalize, object, of, offset, old, on, opacity, optional, order, orient, other,
+mode, multiplier, name, new, no, norm, normalize, object, of, offset, old, on, opacity, optional, order, orient, other,
 outer, output, over, package, page, pair, panel, parse, path, pause, penalty, permutation, pitch, plane, play,
 playing, plot, point, pointer, port, position, predicted, project, public, radii, radius, ramp, random, read, reason,
 rebuild, record, remove, replace, resize, restart, restrict, result, rigid, robot, run, save, scalar, scale, scene,

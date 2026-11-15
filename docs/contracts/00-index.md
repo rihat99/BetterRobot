@@ -20,7 +20,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | [06 Validation and errors](06-validation-errors.md) | where to validate, opt-in value checks, the exception tree, string-wired reads |
 | [07 Dependencies and layering](07-dependencies-layering.md) | package DAG, lazy optional deps |
 | [08 Extension points](08-extension-points.md) | terms, joint kinds, loaders, adding solvers/layers/packages, no deprecated alias, pre-1.0 versioning |
-| [09 Performance](09-performance.md) | no host sync, batch not loop, no compiler or kernel in the library, benchmarks |
+| [09 Performance](09-performance.md) | no host sync, batch not loop, compilation only on request and no kernel, benchmarks |
 | [10 Docs and tests](10-docs-tests.md) | docstring format, no Sphinx roles, executable snippets |
 | [Decisions](decisions/index.md) | architecture decision records (ADRs) |
 
@@ -71,7 +71,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-EXT-8 | `tests/collision/test_collision.py::test_a_new_obstacle_shape_is_only_a_function`, `tests/collision/test_collision.py::test_a_distance_fn_torch_func_cannot_transform_takes_the_autodiff_route`, `[review]` |
 | C-PERF-2 | `tests/contract/test_performance_rules.py::test_a_batch_dispatches_the_same_operators_at_every_size` |
 | C-PERF-3 | `tests/contract/test_compile_counters.py` |
-| C-PERF-5 | `tests/contract/test_performance_rules.py::test_src_compiles_nothing_and_builds_no_kernel` |
+| C-PERF-5 | `tests/contract/test_performance_rules.py::test_only_the_entry_point_compiles_and_nothing_builds_a_kernel` |
 | C-DOC-1 | `tests/contract/test_docstrings.py`, `tests/contract/test_ruff_ratchets.py` |
 | C-DOC-2 | `tests/docs/test_snippets.py` |
 | C-DOC-3 | `tests/contract/test_contract_matrix.py` |
