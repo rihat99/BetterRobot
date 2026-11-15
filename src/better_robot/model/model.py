@@ -327,12 +327,14 @@ class Model:
         an in-place edit C-STATE-1 forbids, still gets a fresh value. A value made under ``torch.inference_mode`` is
         an inference tensor, which a later autograd call cannot save for backward, so it is served only under
         inference mode, where autograd records nothing, ``enable_grad`` or not (record 0052). Under
-        ``torch.compile`` the derivation is traced into the graph instead (Dynamo cannot trace the inference-mode
-        check, and the fused ops cost nothing there) (record 0040).
+        ``torch.compile`` the memo is read, never written, under the grad mode alone (Dynamo cannot trace the
+        inference-mode check; such a value is never an inference tensor), so a value an eager call stored enters the
+        graph as an input and a missing one is derived in the graph (record 0053).
         """
-        if torch.compiler.is_compiling():
-            return derive(self)
         flags = tuple(getattr(self, name).requires_grad for name in _TENSOR_FIELDS)
+        if torch.compiler.is_compiling():
+            key = (kind, torch.is_grad_enabled(), flags)
+            return self._memo[key] if key in self._memo else derive(self)
         key = (kind, "inference" if torch.is_inference_mode_enabled() else torch.is_grad_enabled(), flags)
         if key not in self._memo:
             value = derive(self)

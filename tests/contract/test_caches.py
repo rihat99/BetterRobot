@@ -3,7 +3,8 @@
 ``Model._plans``, ``Model._memo`` and ``KinematicState._memo`` are the only caches: all are ``init=False``, never
 copied by ``dataclasses.replace``, written by one function each (``Model._plan``, ``Model._value``,
 ``KinematicState._memoised``) and keyed by grad mode on the value side (the model memo also by the tensor fields'
-``requires_grad`` flags; both keep inference-mode values under a key of their own), and nothing in ``src`` writes
+``requires_grad`` flags; both keep inference-mode values under a key of their own; a compiled call reads the model
+memo and writes neither), and nothing in ``src`` writes
 through ``object.__setattr__``, reads a tensor's ``_version`` or touches ``torch._C``. A ``functools`` cache lives as
 long as the process, so ``FUNCTOOLS_CACHES`` lists, with its reason, the one ``src`` keeps.
 """
@@ -168,6 +169,27 @@ def test_inference_mode_values_are_served_only_under_inference_mode() -> None:
     forward_kinematics(model, q).frame_translations.sum().backward()
     assert q.grad is not None and _model_modes(model, "joint_matrices") == {"inference", True}
     assert not placement_matrices(model, "joints")[0].is_inference()
+
+
+def test_a_compiled_call_reads_the_model_memo_and_writes_nothing() -> None:
+    """Under ``torch.compile`` the model memo is read under the grad mode, so the folded FK map an eager call stored
+    enters the graph as an input instead of being derived in every compiled call, and nothing is written
+    (record 0053)."""
+    model = load(panda_urdf(), dtype=torch.float64)
+    q = model.q_neutral.expand(2, -1)
+    inputs: list[torch.Tensor] = []
+
+    def backend(graph: torch.fx.GraphModule, example_inputs: list[torch.Tensor]):  # noqa: ANN202
+        inputs.extend(example_inputs)
+        return graph.forward
+
+    torch._dynamo.reset()
+    with torch.no_grad():
+        forward_kinematics(model, q)
+        stored, weight = dict(model._memo), placement_matrices(model, "joints")[0]
+        torch.compile(lambda q: forward_kinematics(model, q).joint_transforms, backend=backend, fullgraph=True)(q)
+    assert any(tensor.data_ptr() == weight.data_ptr() for tensor in inputs), "the stored fold is a graph input"
+    assert model._memo == stored
 
 
 def test_state_memo_keeps_inference_mode_values_apart() -> None:
