@@ -18,7 +18,8 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
 - A state's batch is `broadcast(B..., I...)` of `q` with the model's value batch; shapes that do not
   broadcast raise `ShapeError`. Add singleton axes yourself (`(B, 1, njoints, 7)` next to `(B, T, nq)`);
   nothing unsqueezes.
-- `KinematicState` stores `[R | p]` matrices; `joint_poses` and `frame_poses` convert on first use with
+- `KinematicState` stores the joints' `[R | p]` matrices; `frame_transforms` is derived from them on first use
+  (dynamics never reads it). `joint_poses` and `frame_poses` convert on first use with
   canonical-sign quaternions (`so3.from_matrix`), so a quaternion may be `-q` against a composition lane
   (same rotation). Compare rotations, not quaternion signs.
 - `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, grad mode)` and bypassed under

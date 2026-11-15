@@ -56,6 +56,7 @@ def _derived(state: KinematicState, model: Model) -> dict[str, torch.Tensor]:
     """One tensor per memo name of a state; the dynamics memo is read through the gravity torque."""
     zeros = torch.zeros(model.nv, dtype=model.dtype)
     return {
+        "frame_transforms": state.frame_transforms,
         "joint_poses": state.joint_poses,
         "frame_poses": state.frame_poses,
         "jacobian_columns": state.jacobian_columns,
@@ -82,9 +83,7 @@ def test_replace_starts_with_empty_caches() -> None:
     before = _derived(state, model)
     assert set(state._memo) == {(name, True) for name in before}
     fresh = forward_kinematics(model, q + 0.1)
-    moved = dataclasses.replace(
-        state, q=fresh.q, joint_transforms=fresh.joint_transforms, frame_transforms=fresh.frame_transforms
-    )
+    moved = dataclasses.replace(state, q=fresh.q, joint_transforms=fresh.joint_transforms)
     assert moved._memo == {}
     after = _derived(fresh, model)
     for name, value in _derived(moved, model).items():
@@ -113,7 +112,7 @@ def test_values_with_a_graph_are_never_memoised() -> None:
     model = load(panda_urdf(), dtype=torch.float64)
     placements = model.joint_placements.clone().requires_grad_()
     model = model.with_values(joint_placements=placements)
-    first, second = (placement_matrices(model)[0] for _ in range(2))
+    first, second = (placement_matrices(model)[0][0] for _ in range(2))  # the placements folded into the FK weight
     assert first.requires_grad and first is not second and _model_modes(model, "joint_matrices") == set()
     forward_kinematics(model, model.q_neutral).frame_poses.sum().backward()
     assert placements.grad is not None

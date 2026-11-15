@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, final, override
+from typing import Any, TypeVar, final, override
 
 import torch
 from torch.utils import _pytree
@@ -29,6 +29,7 @@ _TENSOR_FIELDS = (
     "q_neutral",
 )
 _BATCHED_FIELDS = ("joint_placements", "body_inertias", "frame_placements")
+_V = TypeVar("_V", bound=torch.Tensor | tuple[torch.Tensor, ...])
 
 
 @final
@@ -318,8 +319,9 @@ class Model:
             self._plans[key] = owner._plans[key]
         return self._plans[key]
 
-    def _value(self, kind: str, derive: Callable[[Model], torch.Tensor]) -> torch.Tensor:
-        """``derive(model)``, memoised under ``(kind, grad mode, requires_grad flags)`` once it carries no graph.
+    def _value(self, kind: str, derive: Callable[[Model], _V]) -> _V:
+        """``derive(model)``, a tensor or a tuple of tensors, memoised under ``(kind, grad mode, requires_grad flags)``
+        once none of them carries a graph.
 
         The flags of the tensor fields are in the key so that ``requires_grad_()`` on a model tensor after a query,
         an in-place edit C-STATE-1 forbids, still gets a fresh value. Under ``torch.inference_mode`` nothing is
@@ -333,7 +335,7 @@ class Model:
         key = (kind, torch.is_grad_enabled(), flags)
         if key not in self._memo:
             value = derive(self)
-            if value.requires_grad:  # a differentiable call owns its graph: converted per call
+            if any(part.requires_grad for part in _pytree.tree_leaves(value)):  # a differentiable call owns its graph
                 return value
             self._memo[key] = value
         return self._memo[key]

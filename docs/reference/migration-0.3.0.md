@@ -118,7 +118,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `KinematicState.frame_rotation`, `KinematicState.frame_translation` | `KinematicState.frame_rotations`, `KinematicState.frame_translations` | |
 | `KinematicState.structure` | `KinematicState.model` | |
 | `KinematicState.joint_transform`, `KinematicState.frame_transform` | `KinematicState.joint_transforms`, `KinematicState.frame_transforms` | |
-| `KinematicState(structure, q, joint_transform, frame_transform)` | `KinematicState(*, model, q, joint_transforms, frame_transforms)` | `forward_kinematics` builds states; the constructor is keyword-only |
+| `KinematicState(structure, q, joint_transform, frame_transform)` | `KinematicState(*, model, q, joint_transforms)` | `forward_kinematics` builds states; the constructor is keyword-only; `frame_transforms` is computed from the joints on first use |
 | `forward_kinematics_state(model, q, *, check_quaternion_norm)` | `forward_kinematics(model, q, *, check_quaternion_norm)` | the flag checks every quaternion joint |
 
 ## `dynamics` and `collision`

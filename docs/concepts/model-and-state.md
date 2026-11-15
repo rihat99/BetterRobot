@@ -95,13 +95,13 @@ downstream quantity with respect to it. `model.to(device=..., dtype=...)` moves 
 ## Forward kinematics returns a `KinematicState`
 
 `forward_kinematics(model, q)` takes `q (B..., nq)` and returns a frozen `KinematicState`. It stores
-three tensors; everything else is derived on demand and memoized.
+two tensors, `q` and `joint_transforms`; everything else, the frames included, is derived on demand and memoized.
 
 | Member | Shape | Meaning |
 |--------|-------|---------|
 | `q` | `(B..., nq)` | the configuration the state was computed at |
 | `joint_transforms` | `(B..., njoints, 3, 4)` | world `[R | p]` of every joint |
-| `frame_transforms` | `(B..., nframes, 3, 4)` | world `[R | p]` of every frame |
+| `frame_transforms` | `(B..., nframes, 3, 4)` | world `[R | p]` of every frame, computed from the joints on first use |
 | `joint_translations`, `joint_rotations` | `(B..., njoints, 3)`, `(..., 3, 3)` | slices of `joint_transforms` |
 | `frame_translations`, `frame_rotations` | `(B..., nframes, 3)`, `(..., 3, 3)` | slices of `frame_transforms` |
 | `joint_poses`, `frame_poses` | `(B..., n, 7)` | the same placements as `[tx, ty, tz, qx, qy, qz, qw]` |

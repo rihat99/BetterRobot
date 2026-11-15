@@ -70,11 +70,12 @@ keeps its private names to `problem.py` (`FUNCTOOLS_CACHES` of `tests/contract/t
 (`src/better_robot/kinematics/forward.py::KinematicState`) is a private memo dict inside the frozen
 state, keyed by `(name, grad mode)`, written only by `KinematicState._memoised` and bypassed under
 `torch.inference_mode` and `torch.compile` like `Model._value`, so a value made under `torch.no_grad` never
-serves a differentiable call. Its allowed names, each derived only from the state's own
-`joint_transforms`/`frame_transforms` and the model structure, are:
+serves a differentiable call. Its allowed names, each derived only from the state's own `joint_transforms` and
+its model, are:
 
 | name | filled by | value |
 |------|-----------|-------|
+| `"frame_transforms"` | `KinematicState.frame_transforms` | `(B..., nframes, 3, 4)` world `[R | p]` of every frame |
 | `"joint_poses"` | `KinematicState.joint_poses` | `(B..., njoints, 7)` world poses |
 | `"frame_poses"` | `KinematicState.frame_poses` | `(B..., nframes, 7)` world poses |
 | `"jacobian_columns"` | `KinematicState.jacobian_columns` | `(B..., 6, nv_full)` world Jacobian column table |

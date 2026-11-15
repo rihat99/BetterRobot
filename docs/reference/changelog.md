@@ -88,6 +88,9 @@ that 0.3.0 renames or removes, one table row each.
 - Field names say what they hold: `Model.parent_joint_ids`, `Model.mimic_source_ids`, `Model.mimic_multipliers`,
   `Model.mimic_offsets`, `Model.lower_position_limit`, `Model.upper_position_limit`, `Model.joints`; the
   `KinematicState` accessors are plural (`joint_poses`, `frame_poses`, `joint_rotations`, ...).
+- `KinematicState.frame_transforms` is a property computed from the joint transforms on first use and memoised on
+  the state, so `forward_kinematics` and the dynamics never compute frames they do not read; the constructor takes
+  `model`, `q` and `joint_transforms` only.
 - `build_model` orders joints parents first and keeps the file's order wherever it already is: joint ids change
   for some robots (the G1). Joint 0 is a `JointFixed` named `"universe"`.
 - Every body's frame carries the body's name (`"panda_hand"`, not `"body_panda_hand"`); a frame named like a body

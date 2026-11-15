@@ -96,9 +96,9 @@ Two coordinates, but four joints: `universe` and a fixed `root_joint` that attac
     where $T_{0j}$ is the world pose of joint $j$, $\lambda(j)$ its parent joint, $X_j(q_j)$ the joint's own
     motion, and $p(f)$ the parent joint of frame $f$.
 
-6. The result is a frozen `KinematicState` holding `joint_transforms` `(B..., njoints, 3, 4)` and
-   `frame_transforms` `(B..., nframes, 3, 4)`. `state.frame_pose_of(name)` reads one frame as a 7-vector
-   `[tx, ty, tz, qx, qy, qz, qw]`.
+6. The result is a frozen `KinematicState` holding `joint_transforms` `(B..., njoints, 3, 4)`; the frames'
+   `frame_transforms` `(B..., nframes, 3, 4)` are computed from them on first use, so dynamics never pays for them.
+   `state.frame_pose_of(name)` reads one frame as a 7-vector `[tx, ty, tz, qx, qy, qz, qw]`.
 
 Every later query takes that state instead of `q`: `frame_jacobian(model, state, frame=...)`,
 `inverse_dynamics(model, state, v=..., a=...)`, the terms in `better_robot.terms`. So the check in step 1 runs

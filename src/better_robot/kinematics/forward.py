@@ -14,7 +14,7 @@ from ..lie import so3
 from ..lie._checks import check_tensor
 from ..model._checks import batch_shape, expand_batch
 from ..model.model import Model
-from ._fk import placement_matrices, world_transforms
+from ._fk import placement_matrices, world_frames, world_transforms
 from ._jacobian import geometry_about_first_joint, world_column_table
 from ._plans import fk_plan, jacobian_plan
 from .configuration import full_configuration_raw
@@ -35,7 +35,7 @@ def _poses(transforms: torch.Tensor) -> torch.Tensor:
 class KinematicState:
     """World placements of every joint and frame at one configuration batch, as ``[R | p]`` matrices.
 
-    Poses, rotations, translations and the Jacobian column table are derived from the transforms on first use.
+    Frame transforms, poses and the Jacobian column table are derived from the joint transforms on first use.
     Derived tensors are memoised under ``(name, grad mode)`` by the one writer `_memoised`, so a value made under
     ``torch.no_grad`` never serves a differentiable call, and never under ``torch.inference_mode``;
     ``dataclasses.replace`` starts with an empty memo.
@@ -44,18 +44,16 @@ class KinematicState:
     model: Model  #: The model the state was computed from.
     q: torch.Tensor = field(repr=False)  #: ``(B..., nq)`` configuration the state was computed at.
     joint_transforms: torch.Tensor = field(repr=False)  #: ``(B..., njoints, 3, 4)`` world ``[R | p]`` of every joint.
-    frame_transforms: torch.Tensor = field(repr=False)  #: ``(B..., nframes, 3, 4)`` world ``[R | p]`` of every frame.
     _memo: dict[tuple[str, bool], Any] = field(default_factory=dict, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        """Check that ``q`` and the transform tables have the model's sizes and one batch (``ShapeError``)."""
+        """Check that ``q`` and the joint transforms have the model's sizes and one batch (``ShapeError``)."""
         # Shapes only, about 1.2 us: forward_kinematics builds a state on every call, and a hand-built one is caught
         # here instead of failing later with a raw IndexError.
         model, batch = self.model, tuple(self.q.shape[:-1])
         tables = (
             ("q", self.q, (model.nq,)),
             ("joint_transforms", self.joint_transforms, (model.njoints, 3, 4)),
-            ("frame_transforms", self.frame_transforms, (model.nframes, 3, 4)),
         )
         for name, value, event in tables:
             if tuple(value.shape) != (*batch, *event):
@@ -63,6 +61,11 @@ class KinematicState:
                     f"{name} must have shape (B..., {', '.join(map(str, event))}) with the batch {batch} of q, got "
                     f"{tuple(value.shape)}; build a state with forward_kinematics(model, q)"
                 )
+
+    @property
+    def frame_transforms(self) -> torch.Tensor:
+        """``(B..., nframes, 3, 4)`` world ``[R | p]`` of every frame, computed from the joints on first use."""
+        return self._memoised("frame_transforms", lambda: world_frames(self.model, self.joint_transforms))
 
     @property
     def joint_rotations(self) -> torch.Tensor:
@@ -200,24 +203,17 @@ def forward_kinematics(model: Model, q: torch.Tensor, *, check_quaternion_norm: 
     check_tensor("q", q, shape=(model.nq,), dtype=model.dtype, device=model.device)
     batch = batch_shape(model, "q", q, (model.nq,))
     q = expand_batch("q", q, batch, (model.nq,))
-    placements, frames = placement_matrices(model)
+    joint_map = placement_matrices(model)[0]
     count = math.prod(batch)  # explicit: a model without coordinates has zero-width q
-    nj, nf = model.njoints, model.nframes
-    # Unbatched model values broadcast inside the matmuls; batched ones are flattened with q.
-    if placements.ndim > 3:
-        placements = placements.broadcast_to(*batch, nj, 4, 4).reshape(count, nj, 4, 4)
-    if frames.ndim > 3:
-        frames = frames.broadcast_to(*batch, nf, 4, 4).reshape(count, nf, 4, 4)
+    nj = model.njoints
+    # Unbatched placements are folded into the kernel's map; batched ones are flattened with q.
+    if isinstance(joint_map, torch.Tensor) and joint_map.ndim > 3:
+        joint_map = joint_map.broadcast_to(*batch, nj, 4, 4).reshape(count, nj, 4, 4)
     q_full = full_configuration_raw(model, q).reshape(count, model.nq_full)
     if check_quaternion_norm:
         _check_quaternion_norms(model, q_full)
-    joints, frames = world_transforms(model, q_full, placements, frames)
-    return KinematicState(
-        model=model,
-        q=q,
-        joint_transforms=joints.view(*batch, nj, 3, 4),
-        frame_transforms=frames.view(*batch, nf, 3, 4),
-    )
+    joints = world_transforms(model, q_full, joint_map)
+    return KinematicState(model=model, q=q, joint_transforms=joints.view(*batch, nj, 3, 4))
 
 
 __all__ = ["KinematicState", "forward_kinematics"]
