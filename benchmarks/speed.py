@@ -12,10 +12,11 @@ of ``tests/fixtures/robots``, at each ``--batches`` size, in each ``--modes`` en
 ``MODES`` is the one adapter from a mode to a callable; a compiled library entry point replaces it there. On CPU it
 adds Pinocchio float64 rows at batch 1 (group ``test-oracles``), one call per sample.
 
-A call includes what a user's call includes: ``fk`` is ``forward_kinematics(model, q).joint_transforms`` (the state
-alone), ``fk_poses`` its ``joint_poses``, ``jacobian`` the ``frame_jacobian`` of the first ``IK_FRAMES`` frame,
-``jacobian_columns`` the state's column table, ``rnea``, ``crba``, ``aba`` and ``com`` the dynamics function of a
-fresh state; ``ik_step`` is one ``LevenbergMarquardt.step`` on ``ik_problem`` from ``q_neutral``; ``solve_ik`` the
+A call includes what a user's call includes: ``forward_kinematics`` is ``forward_kinematics(model, q).joint_transforms``
+(the state alone), ``joint_poses`` its ``joint_poses``, ``frame_jacobian`` the Jacobian of the first ``IK_FRAMES``
+frame, ``joint_jacobians`` the state's ``jacobian_columns`` (every joint's Jacobian is a mask of it, as in
+Pinocchio's ``computeJointJacobians``), ``inverse_dynamics``, ``mass_matrix``, ``forward_dynamics`` and
+``center_of_mass`` that function of a fresh state; ``ik_step`` is one ``LevenbergMarquardt.step`` on ``ik_problem`` from ``q_neutral``; ``solve_ik`` the
 default call (100 iterations, one start) and ``solve_ik_multistart`` five starts (``restarts=4``), each to the
 ``IK_FRAMES`` poses of seeded random configurations. IK rows record ``success_rate`` (every frame within 1 mm and
 0.01 rad) and ``iterations``. Every call runs under ``torch.no_grad`` on seeded inputs (a pool of 1024 samples,
@@ -95,14 +96,20 @@ MODES: dict[str, Callable[[Callable[..., Any]], Callable[..., Any]]] = {
     "reduce-overhead": partial(torch.compile, mode="reduce-overhead"),
 }
 KINEMATICS: dict[str, Callable[..., torch.Tensor]] = {
-    "fk": lambda model, frame, q, v, a: br.forward_kinematics(model, q).joint_transforms,
-    "fk_poses": lambda model, frame, q, v, a: br.forward_kinematics(model, q).joint_poses,
-    "jacobian": lambda model, frame, q, v, a: br.frame_jacobian(model, br.forward_kinematics(model, q), frame=frame),
-    "jacobian_columns": lambda model, frame, q, v, a: br.forward_kinematics(model, q).jacobian_columns,
-    "rnea": lambda model, frame, q, v, a: br.inverse_dynamics(model, br.forward_kinematics(model, q), v=v, a=a),
-    "crba": lambda model, frame, q, v, a: br.mass_matrix(model, br.forward_kinematics(model, q)),
-    "aba": lambda model, frame, q, v, a: br.forward_dynamics(model, br.forward_kinematics(model, q), v=v, tau=a),
-    "com": lambda model, frame, q, v, a: br.center_of_mass(model, br.forward_kinematics(model, q)),
+    "forward_kinematics": lambda model, frame, q, v, a: br.forward_kinematics(model, q).joint_transforms,
+    "joint_poses": lambda model, frame, q, v, a: br.forward_kinematics(model, q).joint_poses,
+    "frame_jacobian": lambda model, frame, q, v, a: br.frame_jacobian(
+        model, br.forward_kinematics(model, q), frame=frame
+    ),
+    "joint_jacobians": lambda model, frame, q, v, a: br.forward_kinematics(model, q).jacobian_columns,
+    "inverse_dynamics": lambda model, frame, q, v, a: br.inverse_dynamics(
+        model, br.forward_kinematics(model, q), v=v, a=a
+    ),
+    "mass_matrix": lambda model, frame, q, v, a: br.mass_matrix(model, br.forward_kinematics(model, q)),
+    "forward_dynamics": lambda model, frame, q, v, a: br.forward_dynamics(
+        model, br.forward_kinematics(model, q), v=v, tau=a
+    ),
+    "center_of_mass": lambda model, frame, q, v, a: br.center_of_mass(model, br.forward_kinematics(model, q)),
 }
 FUNCTIONS = (*KINEMATICS, "ik_step", "solve_ik", "solve_ik_multistart")
 SERIAL_REFERENCES = {"pinocchio"}  # one call per sample: its batch-1 time per sample holds at every batch
@@ -368,13 +375,13 @@ def pinocchio_rows(args: argparse.Namespace) -> list[dict[str, Any]]:
         v, a = (rng.standard_normal(model.nv) for _ in range(2))
         frame = model.getFrameId(IK_FRAMES[robot][0])
         calls = {
-            "fk": lambda: pin.forwardKinematics(model, data, q),
-            "jacobian": lambda: pin.computeFrameJacobian(model, data, q, frame, pin.LOCAL_WORLD_ALIGNED),
-            "jacobian_columns": lambda: pin.computeJointJacobians(model, data, q),
-            "rnea": lambda: pin.rnea(model, data, q, v, a),
-            "crba": lambda: pin.crba(model, data, q),
-            "aba": lambda: pin.aba(model, data, q, v, a),
-            "com": lambda: pin.centerOfMass(model, data, q),
+            "forward_kinematics": lambda: pin.forwardKinematics(model, data, q),
+            "frame_jacobian": lambda: pin.computeFrameJacobian(model, data, q, frame, pin.LOCAL_WORLD_ALIGNED),
+            "joint_jacobians": lambda: pin.computeJointJacobians(model, data, q),
+            "inverse_dynamics": lambda: pin.rnea(model, data, q, v, a),
+            "mass_matrix": lambda: pin.crba(model, data, q),
+            "forward_dynamics": lambda: pin.aba(model, data, q, v, a),
+            "center_of_mass": lambda: pin.centerOfMass(model, data, q),
         }
         for function in (name for name in args.functions if name in calls):
             row = {"library": "pinocchio", "function": function, "robot": robot, "device": "cpu", "dtype": "float64"}

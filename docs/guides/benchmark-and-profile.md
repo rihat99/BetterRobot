@@ -109,7 +109,7 @@ else uses the GPU, since every row records the other processes it finds there.
 ```bash
 taskset -c 5 uv run python benchmarks/speed.py run --device cpu --out cpu.json
 CUDA_VISIBLE_DEVICES=0 uv run python benchmarks/speed.py run --device cuda --out cuda.json
-uv run python benchmarks/speed.py run --functions fk,rnea --robots panda --batches 1,4096 --modes eager
+uv run python benchmarks/speed.py run --functions forward_kinematics,inverse_dynamics --robots panda --modes eager
 ```
 
 | Flag | Default | Meaning |
@@ -130,14 +130,14 @@ uv run python benchmarks/speed.py run --functions fk,rnea --robots panda --batch
 
 | Function | One call |
 |----------|----------|
-| `fk` | `forward_kinematics(model, q).joint_transforms`: the state alone |
-| `fk_poses` | `forward_kinematics(model, q).joint_poses` |
-| `jacobian` | `frame_jacobian(model, state, frame=...)` of `panda_hand` or G1's `left_rubber_hand` |
-| `jacobian_columns` | `state.jacobian_columns`, the column table every Jacobian masks |
-| `rnea` | `inverse_dynamics(model, state, v=v, a=a)` |
-| `crba` | `mass_matrix(model, state)` |
-| `aba` | `forward_dynamics(model, state, v=v, tau=tau)` |
-| `com` | `center_of_mass(model, state)` |
+| `forward_kinematics` | `forward_kinematics(model, q).joint_transforms`: the state alone |
+| `joint_poses` | `forward_kinematics(model, q).joint_poses` |
+| `frame_jacobian` | `frame_jacobian(model, state, frame=...)` of `panda_hand` or G1's `left_rubber_hand` |
+| `joint_jacobians` | `state.jacobian_columns`, the column table every joint's Jacobian masks |
+| `inverse_dynamics` | `inverse_dynamics(model, state, v=v, a=a)` |
+| `mass_matrix` | `mass_matrix(model, state)` |
+| `forward_dynamics` | `forward_dynamics(model, state, v=v, tau=tau)` |
+| `center_of_mass` | `center_of_mass(model, state)` |
 | `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from `q_neutral` |
 | `solve_ik` | `solve_ik(model, targets, q0=q_neutral)`: 100 iterations, one start |
 | `solve_ik_multistart` | the same with `restarts=4`, five starts |
@@ -182,7 +182,7 @@ per call, `loadavg` and, on CUDA, `gpu_other_pids`: a row with any was timed on 
 
 ```bash
 uv run python benchmarks/speed.py table after.json --before before.json
-uv run python benchmarks/speed.py table cuda.json --reference cpu.json other_cuda.json --functions fk,rnea --batches 1,4096
+uv run python benchmarks/speed.py table cuda.json --reference cpu.json other_cuda.json --batches 1,4096
 ```
 
 `table` prints one markdown line per row: microseconds per sample and compile seconds; with `--before`, the same

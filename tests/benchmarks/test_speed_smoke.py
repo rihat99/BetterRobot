@@ -17,7 +17,7 @@ SPEED = REPO_ROOT / "benchmarks" / "speed.py"
 
 def test_speed_run_records_rows_and_context_and_table_compares_them(tmp_path: Path) -> None:
     out = tmp_path / "run.json"
-    command = [sys.executable, str(SPEED), "run", "--functions", "fk,solve_ik", "--robots", "panda"]
+    command = [sys.executable, str(SPEED), "run", "--functions", "forward_kinematics,solve_ik", "--robots", "panda"]
     command += ["--batches", "64", "--modes", "eager", "--repeats", "3", "--out", str(out)]
     env = {**os.environ, "BETTER_ROBOT_INTERNAL_CHECKS": "0"}
     for name in ("MALLOC_MMAP_THRESHOLD_", "MALLOC_TRIM_THRESHOLD_"):  # the run sets them itself
@@ -32,7 +32,7 @@ def test_speed_run_records_rows_and_context_and_table_compares_them(tmp_path: Pa
     assert all(meta["malloc_env"].values()), "the run re-executes itself with the allocator thresholds fixed"
     schema = {"library", "function", "robot", "device", "dtype", "batch", "mode", "seconds_per_call"}
     assert schema | {"seconds_spread", "samples", "page_faults"} <= fk.keys()
-    assert (fk["function"], ik["function"], fk["batch"]) == ("fk", "solve_ik", 64)
+    assert (fk["function"], ik["function"], fk["batch"]) == ("forward_kinematics", "solve_ik", 64)
     assert 0.0 <= ik["success_rate"] <= 1.0 and ik["iterations"] > 0
 
     table = [sys.executable, str(SPEED), "table", str(out), "--before", str(out)]
