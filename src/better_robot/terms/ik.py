@@ -125,7 +125,8 @@ def solve_ik(
     batch = q0.shape[0]
     if seeds > 1:
         for frame, pose in targets.items():  # the fold pairs each row of q0 with one pose of each target
-            if torch.broadcast_shapes(pose.shape[:-1], (batch,)).numel() != batch:
+            axes = torch.broadcast_shapes(pose.shape[:-1], (batch,))
+            if axes.numel() != batch:
                 raise ShapeError(
                     f"with seeds > 1, each row of q0 (batch ({batch},)) takes one pose of targets[{frame!r}], whose "
                     f"batch axes {tuple(pose.shape[:-1])} hold more"
