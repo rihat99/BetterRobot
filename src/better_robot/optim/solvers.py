@@ -156,7 +156,7 @@ class LevenbergMarquardt(Solver):
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         normal, loss, terms = linearize(problem, x)
-        extra = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0)}
+        extra: dict[str, Any] = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0)}
         extra.update(_no_step(normal.g, problem.step_bounds(x), loss), terms=terms, normal=normal)
         return State(
             x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
