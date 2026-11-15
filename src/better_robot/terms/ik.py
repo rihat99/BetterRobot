@@ -133,6 +133,8 @@ def solve_ik(
         draws = random_start(model, q0.repeat(seeds - 1, 1), generator=generator)
         q0 = torch.cat([q0, draws])
         targets = {frame: pose.reshape(-1, 7).expand(batch, 7).repeat(seeds, 1) for frame, pose in targets.items()}
+    # contiguous, as the seeds' fold makes them: a compiled step then sees one stride for every call of a shape
+    targets, q0 = {frame: pose.contiguous() for frame, pose in targets.items()}, q0.contiguous()
     problem = _problem(model, targets, q0, 0.0, 0.0, None)
     result = run(problem, [Phase(solver or LevenbergMarquardt(), iterations, stop_every=0, step=step)])
     if seeds == 1:

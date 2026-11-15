@@ -31,7 +31,10 @@ class State:
     (largest entry of the step taken, 0 where none was taken), ``accepted`` (bool, the step
     moved the variables) and ``damping`` (LM only, damping for the next step). LM, Gauss-Newton
     and L-BFGS write the first three; ``TorchOptim`` writes none. ``run`` stacks them into
-    ``Result.diagnostics``. ``Solver.warm_keys`` names the ``extra`` entries a warm start keeps.
+    ``Result.diagnostics``. LM's and Gauss-Newton's ``init`` writes them too, for no step (``grad_norm`` at
+    ``x``, ``step_norm`` 0, ``accepted`` false): a first state has the keys of a stepped one, so a compiled step
+    serves both with one key.
+    ``Solver.warm_keys`` names the ``extra`` entries a warm start keeps.
 
     Every solver also writes ``terms``, ``{name: (B,)}``: the detached loss of each active term from
     the evaluation that ``loss`` comes from, so logging needs no second forward. ``TorchOptim`` adds
@@ -153,8 +156,8 @@ class LevenbergMarquardt(Solver):
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
         normal, loss, terms = linearize(problem, x)
-        extra = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0), "terms": terms}
-        extra["normal"] = normal
+        extra = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0)}
+        extra.update(_no_step(normal.g, problem.step_bounds(x), loss), terms=terms, normal=normal)
         return State(
             x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
         )
@@ -218,7 +221,7 @@ class GaussNewton(Solver):
             loss=loss,
             done=torch.zeros_like(loss, dtype=torch.bool),
             solver=type(self),
-            extra={"terms": terms, "normal": normal},
+            extra={**_no_step(normal.g, problem.step_bounds(x), loss), "terms": terms, "normal": normal},
         )
 
     @override
@@ -251,6 +254,19 @@ class GaussNewton(Solver):
                 "normal": _selected_normal(move, normal_new, state.extra["normal"]),
             },
         )
+
+
+def _no_step(
+    g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None, loss: torch.Tensor
+) -> dict[str, torch.Tensor]:
+    """The diagnostic keys of a state no step has made, from the gradient ``g: (B, n)`` at its ``x`` and the step
+    bounds there: ``init`` writes them so that its state has the keys of a stepped one (one `kinematics.compiled` key
+    for both)."""
+    return {
+        "grad_norm": _projected(g, bounds).abs().amax(-1),
+        "step_norm": torch.zeros_like(loss),
+        "accepted": torch.zeros_like(loss, dtype=torch.bool),
+    }
 
 
 def _free(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor | bool:

@@ -82,17 +82,29 @@ def test_ik_seeds_keep_the_best_start_of_each_target_and_the_first_is_q0(panda):
 
 def test_a_compiled_step_serves_every_solve_without_a_graph_per_step(panda):
     """``solve_ik(step=kinematics.compiled(solver.step))``: the driver hands the step ``iteration=0`` and a state whose
-    normal equations ride in ``extra``; three solves of new targets compile at most two graphs and match eager."""
+    normal equations ride in ``extra``, with the same keys from ``init`` as from a step; three solves of new strided
+    targets and a seeds solve of the same batch compile one graph and match eager."""
     solver = optim.LevenbergMarquardt()
     step = br.kinematics.compiled(solver.step)
     counters.clear()
-    for seed in (10, 11, 12):
-        goal = forward_kinematics(panda, _random_q(panda, 8, seed)).frame_poses[:, panda.frame_id(FRAME)]
-        q0 = _random_q(panda, 8, 3)
-        compiled = terms.solve_ik(panda, {FRAME: goal}, q0=q0, solver=solver, iterations=4, step=step)
-        eager = terms.solve_ik(panda, {FRAME: goal}, q0=q0, solver=solver, iterations=4)
+    for seed, batch, seeds in ((10, 8, 1), (11, 8, 1), (12, 8, 1), (13, 4, 2)):
+        goal = forward_kinematics(panda, _random_q(panda, batch, seed)).frame_poses[:, panda.frame_id(FRAME)]
+        q0 = _random_q(panda, batch, 3)
+        compiled, eager = (
+            terms.solve_ik(
+                panda,
+                {FRAME: goal},
+                q0=q0,
+                solver=solver,
+                iterations=4,
+                seeds=seeds,
+                generator=torch.Generator().manual_seed(1),
+                step=hook,
+            )
+            for hook in (step, None)
+        )
         torch.testing.assert_close(compiled.x["q"], eager.x["q"], rtol=0.0, atol=1e-9)
-    assert counters["stats"]["unique_graphs"] <= 2
+    assert counters["stats"]["unique_graphs"] == 1
 
 
 @pytest.mark.cuda
