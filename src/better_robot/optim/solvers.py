@@ -289,12 +289,16 @@ class SequentialQP(Solver):
     the problem's bounds are a box on the step. The quadratic program starts from the solution of the last one
     (``State.extra["qp"]``, also kept by a warm start), so the row count must stay fixed between steps.
 
-    A step is taken where it lowers the merit: the loss plus the constraint terms' summed violation, weighted by
-    the largest multiplier of the step's program (what a unit of violation is worth in loss there). The damping
-    follows the ratio of that decrease to the one the program predicted, by Nielsen's rule: a good ratio lowers
-    it, a poor one raises it, also on a step that is taken. That is what stands in for the curvature of the
-    constraint terms, which the rows do not carry: along a curved constraint that presses on the solution, the
-    damping settles where the steps stop overshooting.
+    A step is taken where it lowers the merit: the loss plus the constraint terms' summed violation times a price,
+    the largest multiplier of the step's program, capped by the larger of two prices that redundant rows do not
+    inflate (the multipliers' pull along one row, and the loss the step gives up per unit of violation it repairs).
+    The damping follows the ratio of that decrease to the one the program predicted, by Nielsen's rule: a good
+    ratio lowers it, a poor one raises it, also on a step that is taken. That is what stands in for the curvature
+    of the constraint terms, which the rows do not carry: along a curved constraint that presses on the solution,
+    the damping settles where the steps stop overshooting. The damping cannot shorten a step that a row forces, so
+    the step is also scaled back to a radius on its largest entry. There is none at first. A refused step leaves
+    its length as the radius once the damping has reached 1, and a quarter of its length where it had been scaled
+    back or was no shorter than the radius; a step that is taken doubles the radius.
 
     The iterate may leave a curved constraint by what its rows do not see, and later steps bring it back.
     ``State.x`` is the last iterate that was within ``tolerance`` of every bound (in the terms' own units) or,
@@ -304,13 +308,13 @@ class SequentialQP(Solver):
     there. A problem is done once its iterate is within ``tolerance`` and either the gradient of the loss plus the
     rows' multipliers has no entry over ``gradient_tolerance`` or a step it took had none over ``step_tolerance``
     (LM's defaults; LM's test on the loss decrease has no place here, the merit being flat along a step that only
-    repairs a row), or when its damping has reached the maximum.
+    repairs a row), or when its damping has reached the maximum or its radius the minimum.
 
     The normal equations must be dense (``Problem(dense=True)`` for a ``time=`` problem), and the problem needs a
     constraint term or bounds: without either, use `LevenbergMarquardt`.
     """
 
-    warm_keys = ("damping", "growth", "qp")
+    warm_keys = ("damping", "growth", "radius", "qp")
 
     def __init__(
         self,
@@ -364,6 +368,7 @@ class SequentialQP(Solver):
         extra: dict[str, Any] = {
             "damping": damping,
             "growth": torch.full_like(loss, 2.0),
+            "radius": torch.full_like(loss, torch.inf),
             "grad_norm": (normal.g + (solution.dual.unsqueeze(-2) @ matrix).squeeze(-2)).abs().amax(-1),
             "step_norm": torch.zeros_like(loss),
             "accepted": torch.zeros_like(loss, dtype=torch.bool),
@@ -380,38 +385,59 @@ class SequentialQP(Solver):
 
     @override
     def step(self, problem: Problem, state: State) -> State:
-        damping, growth, normal, rows = (state.extra[key] for key in ("damping", "growth", "normal", "rows"))
+        damping, growth, radius, normal, rows = (
+            state.extra[key] for key in ("damping", "growth", "radius", "normal", "rows")
+        )
         point, point_loss = state.extra["iterate"]
         matrix, lower, upper = self._program(problem, point, rows)
         solution = solve_qp(
             _damped(normal, damping), normal.g, rows=matrix, lower=lower, upper=upper, warm=state.extra["qp"]
         )
-        delta = solution.x
+        # The radius scales the program's step back and leaves the program alone: a shorter step along it still
+        # descends the program's convex model, and a box of the radius in the program makes its solutions inexact.
+        length = solution.x.abs().amax(-1)
+        tiny = torch.finfo(length.dtype).tiny
+        delta = solution.x * (radius / length.clamp_min(tiny)).clamp(max=1.0).unsqueeze(-1)
+        step_norm = delta.abs().amax(-1)
         with torch.no_grad():
             candidate = problem.retract(point, delta)
         normal_new, loss_new, terms_new, rows_new = linearize_rows(problem, candidate)
         decrease, predicted = point_loss - loss_new, normal.predicted_decrease(delta)
         violation = violation_new = torch.zeros_like(loss_new)
         if rows is not None and rows_new is not None:
-            penalty = solution.dual[:, : rows.value.shape[1]].abs().amax(-1)
+            dual = solution.dual[:, : rows.value.shape[1]]
             excess = _excess(rows, rows.value)
             linear = rows.value + (rows.jacobian @ delta.unsqueeze(-1)).squeeze(-1)
+            repair = excess - _excess(rows, linear)
+            # Two prices of a unit of violation that multipliers drifting apart on redundant rows do not raise:
+            # the share of the multipliers' pull along a row, and what the step's repair costs the loss model.
+            pull = (rows.jacobian @ (dual.unsqueeze(-2) @ rows.jacobian).transpose(-1, -2)).squeeze(-1).abs()
+            along = torch.where(dual != 0, pull / rows.jacobian.square().sum(-1).clamp_min(tiny), 0.0).amax(-1)
+            steering = torch.where(repair > 0, (-predicted).clamp_min(0.0) / (0.9 * repair).clamp_min(tiny), 0.0)
+            penalty = torch.minimum(dual.abs().amax(-1), torch.maximum(along, steering))
             decrease = decrease + penalty * (excess - _excess(rows_new, rows_new.value))
-            predicted = predicted + penalty * (excess - _excess(rows, linear))
+            predicted = predicted + penalty * repair
             violation, violation_new = rows.violation, rows_new.violation
         accept = (decrease > 0) & ~state.done
         ratio = decrease / predicted.clamp_min(1e-30)
         # Nielsen's factor whole: a taken step whose ratio is under a half raises the damping.
         factor = (1.0 - (2.0 * ratio - 1.0) ** 3).clamp(min=1.0 / 3.0, max=2.0)
-        # A done problem keeps its damping and growth, so a warm start from it does not begin at the maximum.
+        # A done problem keeps its damping, growth and radius, so a warm start from it does not begin at a limit.
         new_damping = torch.where(accept, damping * factor, damping * growth).clamp(1e-12, 1e12)
         new_damping = torch.where(state.done, damping, new_damping)
         new_growth = torch.where(accept, torch.full_like(growth, 2.0), torch.where(state.done, growth, growth * 2.0))
+        # Below a damping of 1 a refusal is the damping's to answer, and the radius stays. Past it a refused step
+        # leaves its length, and a quarter of it where the damping cannot shorten it: the step was already cut to
+        # the radius, or it is no shorter than the last one refused.
+        stiff = damping >= 1.0
+        forced = (length > radius) | (stiff & (step_norm >= 0.9 * radius))
+        refused = torch.where(forced, 0.25 * step_norm, torch.where(stiff, step_norm, radius))
+        new_radius = torch.where(accept, 2.0 * radius, refused)
+        new_radius = torch.where(state.done, radius, new_radius.clamp_min(1e-12))
         gradient_tolerance, _, step_tolerance = _tolerances(
             state.loss.dtype, self.gradient_tolerance, None, self.step_tolerance
         )
         grad_norm = (normal.g + (solution.dual.unsqueeze(-2) @ matrix).squeeze(-2)).abs().amax(-1)
-        step_norm = delta.abs().amax(-1)
         inside = torch.where(accept, violation_new, violation) <= self.tolerance
         settled = inside & ((grad_norm < gradient_tolerance) | (accept & (step_norm < step_tolerance)))
         reported = state.extra["violation"]
@@ -420,12 +446,13 @@ class SequentialQP(Solver):
         return State(
             x=_select(report, candidate, state.x),
             loss=torch.where(report, loss_new, state.loss),
-            done=state.done | settled | (new_damping >= 1e12),
+            done=state.done | settled | (new_damping >= 1e12) | (new_radius <= 1e-12),
             solver=type(self),
             iteration=state.iteration + 1,
             extra={
                 "damping": new_damping,
                 "growth": new_growth,
+                "radius": new_radius,
                 "grad_norm": grad_norm,
                 "step_norm": torch.where(accept, step_norm, torch.zeros_like(step_norm)),
                 "accepted": accept,

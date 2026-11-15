@@ -9,12 +9,26 @@ from better_robot.optim.linearization import linearize_rows
 PLANE = torch.tensor([1.0, 2.0, -1.0], dtype=torch.float64)
 
 
-def _fit(case: str = "") -> tuple[optim.Problem, torch.Tensor]:
-    """``(problem, optimum)``: 64 points of three variables, each pulled to its target, under the constraint of
-    ``case`` (a box, a plane, the unit ball, the unit sphere); the optimum is the closed form."""
-    generator = torch.Generator().manual_seed(0)
-    target = torch.randn(64, 3, dtype=torch.float64, generator=generator) * 2
-    start = torch.randn(64, 3, dtype=torch.float64, generator=generator) * 0.3
+#: ``(seed, problems, spread of the targets, spread of the starts)`` of eight draws at two scales.
+DRAWS = tuple((100 + seed, 256, *spread) for seed in range(8) for spread in ((2.0, 0.3), (5.0, 1.0)))
+
+
+def _square(x: torch.Tensor) -> torch.Tensor:
+    return (x * x).sum(-1, keepdim=True)
+
+
+def _fit(
+    case: str = "", draws: tuple[tuple[int, int, float, float], ...] = ((0, 64, 2.0, 0.3),)
+) -> tuple[optim.Problem, torch.Tensor]:
+    """``(problem, optimum)``: points of three variables (64 unless ``draws`` says otherwise), each pulled to its
+    target, under the constraint of ``case`` (a box, a plane, the unit ball, the unit sphere); the optimum is the
+    closed form."""
+    targets, starts = [], []
+    for seed, count, far, near in draws:
+        generator = torch.Generator().manual_seed(seed)
+        targets.append(torch.randn(count, 3, dtype=torch.float64, generator=generator) * far)
+        starts.append(torch.randn(count, 3, dtype=torch.float64, generator=generator) * near)
+    target, start = torch.cat(targets), torch.cat(starts)
     norm = target.norm(dim=-1, keepdim=True)
     if case == "box":
         bounds = {"x": (torch.full((3,), -0.5, dtype=torch.float64), torch.full((3,), 0.7, dtype=torch.float64))}
@@ -82,6 +96,52 @@ def test_sequential_qp_reaches_the_closed_form_optimum(case: str, steps: int) ->
     result = optim.run(problem, [optim.Phase(optim.SequentialQP(), steps, stop_every=0)])
     assert float((result.x["x"] - optimum).norm(dim=-1).max()) < 1e-6
     assert float(result.diagnostics["phase"]["violation"][-1].max()) < 1e-6
+
+
+@pytest.mark.parametrize(("case", "steps"), [("box", 5), ("plane", 25), ("ball", 50), ("sphere", 75)])
+def test_the_step_budget_of_a_closed_form_holds_on_every_draw(case: str, steps: int) -> None:
+    """Eight draws of 256 problems at two scales: the slowest draw is within 1e-6 of its optimum after 2, 22, 44 and
+    65 steps."""
+    problem, optimum = _fit(case, DRAWS)
+    result = optim.run(problem, [optim.Phase(optim.SequentialQP(), steps, stop_every=0)])
+    assert float((result.x["x"] - optimum).norm(dim=-1).max()) < 1e-6
+
+
+@pytest.mark.parametrize("weight", [1.0, 1e4])
+def test_a_step_that_a_row_forces_is_shortened_until_it_is_taken(weight: float) -> None:
+    """From near the centre of the unit sphere the linearized row asks for a step of 50, which no damping shortens
+    at a weight where the row does not give way: the radius does."""
+    start = torch.tensor([[0.01, 0.0, 0.0], [0.05, 0.02, 0.0], [0.2, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=torch.float64)
+    target = torch.tensor([2.0, 1.0, 0.5], dtype=torch.float64).expand(4, 3)
+    problem = optim.Problem({"x": start}, data={"target": target})
+    problem.residual("fit", lambda x, target: x - target)
+    problem.equality("sphere", lambda x: _square(x) - 1.0, weight=weight)
+    result = optim.run(problem, [optim.Phase(optim.SequentialQP(), 100, stop_every=0)])
+    assert float((result.x["x"] - target / target.norm(dim=-1, keepdim=True)).norm(dim=-1).max()) < 1e-6
+    assert bool(result.done.all())
+
+
+def test_no_problem_is_done_outside_a_constraint_it_can_meet() -> None:
+    """The unit circle with ``y <= 0.5``, from starts as far as the targets: every problem ends on the circle and
+    under the line."""
+    generator = torch.Generator().manual_seed(1)
+    target = torch.randn(256, 2, dtype=torch.float64, generator=generator) * 2
+    start = torch.randn(256, 2, dtype=torch.float64, generator=generator) * 2
+    problem = optim.Problem({"x": start}, data={"target": target})
+    problem.residual("fit", lambda x, target: x - target)
+    problem.equality("circle", lambda x: _square(x) - 1.0)
+    problem.inequality("below", lambda x: x[:, 1:], upper=0.5)
+    x = optim.run(problem, [optim.Phase(optim.SequentialQP(), 60, stop_every=0)]).x["x"]
+    assert float((_square(x) - 1.0).abs().max()) < 1e-6 and float(x[:, 1].max()) < 0.5 + 1e-6
+
+
+def test_rows_that_say_the_same_thing_twice_do_not_stall_the_steps() -> None:
+    """The unit ball and the unit sphere hold the same surface, so their multipliers are not unique and drift apart
+    (to hundreds); the merit's price does not follow them."""
+    problem, optimum = _fit("sphere")
+    problem.inequality("ball", _square, upper=1.0)
+    result = optim.run(problem, [optim.Phase(optim.SequentialQP(), 150, stop_every=0)])
+    assert float((result.x["x"] - optimum).norm(dim=-1).max()) < 1e-6
 
 
 def test_the_reported_point_never_leaves_the_tolerance_while_the_iterate_does() -> None:
