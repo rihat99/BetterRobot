@@ -101,35 +101,45 @@ stays tight. The host sync of `aba` on the CPU is the error check inside `torch.
 
 ## Measure wall time
 
-`benchmarks/speed.py run` times every function below on Panda (fixed base) and G1 (free-flyer root) from
-`tests/fixtures/robots/`, at each batch size, in each mode. On CPU, pin one idle core; on CUDA, check that no one
-else uses the GPU, since every row records the other processes it finds there.
+`benchmarks/speed.py run` times every function below on three robots of `tests/fixtures/robots/`, at each batch
+size, in each mode: `panda` (fixed base, nq = nv = 8, the second finger mimics the first), `panda7` (the same with
+both fingers fixed, the 7-dof arm other libraries ship) and `g1` (free-flyer root, nq 36, nv 35). On CPU, pin one core
+whose SMT sibling is idle; on CUDA, check that no one else uses the GPU, since every row records the other processes
+it finds there. Never time CPU and CUDA at the same time: the two runs share the host.
 
 ```bash
-taskset -c 5 uv run python benchmarks/speed.py run --device cpu --out cpu.json
-CUDA_VISIBLE_DEVICES=0 uv run python benchmarks/speed.py run --device cuda --out cuda.json
-uv run python benchmarks/speed.py run --functions forward_kinematics,inverse_dynamics --robots panda --modes eager
+taskset -c 5 uv run python benchmarks/speed.py run --device cpu --grad --out cpu.json
+taskset -c 5 uv run python benchmarks/speed.py run --device cpu --dtype float64 --robots panda7,g1 --out cpu64.json
+CUDA_VISIBLE_DEVICES=0 uv run python benchmarks/speed.py run --device cuda --grad --out cuda.json
+uv run python benchmarks/speed.py run --functions forward_kinematics,inverse_dynamics --robots panda7 --modes eager
+PYTHONPATH=/path/to/other/checkout/src uv run python benchmarks/speed.py run --out other.json
 ```
+
+The last line times another version of the library with this script: `PYTHONPATH` puts that checkout's `src/` first,
+and `meta` names the library measured.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `--device` | `cpu` | `cpu` or `cuda` |
 | `--dtype` | `float32` | or `float64` |
+| `--grad` | off | add a forward-and-backward row for each kinematics and dynamics function |
 | `--functions` | all | comma-separated names from the table below |
-| `--robots` | `panda,g1` | `panda`, `g1` |
+| `--robots` | `panda,panda7,g1` | any of them |
 | `--batches` | `1,64,1024,4096,16384,65536` | batch sizes `B` of `q (B, nq)` |
 | `--modes` | `eager,compile`, and `reduce-overhead` on CUDA | `eager`; `compile` is `torch.compile(fn)`; `reduce-overhead` is `torch.compile(fn, mode="reduce-overhead")`, which replays CUDA graphs |
 | `--repeats` | `15` | most samples per row |
 | `--threads` | `1` | Torch threads for the run |
-| `--max-call-s` | `5` | skip the larger batches of a function and mode once one call takes longer |
+| `--max-call-s` | `5` | skip the larger batches of a function, pass and mode once one call takes longer |
 | `--max-compile-s` | `300` | the same, once one compile takes longer |
 | `--out` | `benchmarks/results/speed_<commit>_<device>.json` | output file, rewritten after every row |
 
-`state` is `forward_kinematics(model, q)`, and each call builds it, as a user's call does.
+`state` is `forward_kinematics(model, q)`, and each call builds it, as a user's call does. Each call returns what it
+computes, so compiled code cannot drop it.
 
 | Function | One call |
 |----------|----------|
-| `forward_kinematics` | `forward_kinematics(model, q).joint_transforms`: the state alone |
+| `forward_kinematics` | `forward_kinematics(model, q).joint_transforms`: the joints alone |
+| `forward_kinematics_frames` | the joint and the frame transforms of the state |
 | `joint_poses` | `forward_kinematics(model, q).joint_poses` |
 | `frame_jacobian` | `frame_jacobian(model, state, frame=...)` of `panda_hand` or G1's `left_rubber_hand` |
 | `joint_jacobians` | `state.jacobian_columns`, the column table every joint's Jacobian masks |
@@ -137,27 +147,37 @@ uv run python benchmarks/speed.py run --functions forward_kinematics,inverse_dyn
 | `mass_matrix` | `mass_matrix(model, state)` |
 | `forward_dynamics` | `forward_dynamics(model, state, v=v, tau=tau)` |
 | `center_of_mass` | `center_of_mass(model, state)` |
-| `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from `q_neutral` |
-| `solve_ik` | `solve_ik(model, targets, q0=q_neutral)`: 100 iterations, one start |
+| `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from the start |
+| `solve_ik` | `solve_ik(model, targets, q0=start)`: at most 100 iterations, one start |
 | `solve_ik_multistart` | the same with `restarts=4`, five starts |
 
-The IK targets are the poses of `panda_hand`, or of both hands and both ankles of G1, at seeded random
-configurations. A solve row records `success_rate` (every target within 1 mm and 0.01 rad), `iterations` and the
-median position and rotation errors.
+With `--grad`, a row of each kinematics and dynamics function also times
+`torch.autograd.grad(sum(output.sum()), q)` (`grad` true in the row).
 
-Each row times one call under `torch.no_grad`, after warm-up calls, as the median over at most `--repeats` samples;
-a sample is one or more calls, at least 10 ms long, between `torch.cuda.synchronize` calls. A compiled row starts
-from `torch.compiler.reset()` and records its first call as `compile_seconds` (shorter when inductor's on-disk cache
-already holds the graph), then `graph_breaks`, `graphs`, `recompiles` after the warm-up, `cudagraph_skips` and
-`max_abs_diff_vs_eager`. A row that raises records its `error`; the larger batches of that function and mode are then
-recorded as `skipped`, with the reason. `MODES` in the script is the one place that turns a mode into a callable.
+The IK start is the Panda's home pose (joints 0, -30, 0, -135, 0, 100 and 0 degrees), or G1 standing with its base at
+height 0.793 m and every joint at zero. The targets are the poses of `panda_hand`, or of both hands and both ankles of
+G1, at seeded configurations with every limited joint uniform within its limits and G1's base at the start pose;
+batch `B` takes the first `B`, so a batch above 1024 solves fresh targets. A solve row records `iterations`
+(`Result.iterations`, summed over the starts), `success_rate` (every target within 1 mm and 0.01 rad) over
+`success_targets` targets, and the median position and rotation errors. A batch below 1024 reports the accuracy of an
+eager solve of the first 1024 targets, never of one sample: a solve treats each sample on its own.
 
-On CPU the run adds Pinocchio rows (`float64`, batch 1, one call per sample) for every function Pinocchio has. The
-run re-executes itself with the allocator thresholds of the last section fixed, so a large batch's time does not
-depend on what the process freed before. `meta` records the commit, the tree of `src/` (the library measured,
-whatever the benchmark's own commit), torch and CUDA versions, host, device name, threads and CPU affinity, the
-allocator variables, the load average and, on CUDA, the GPU's utilization, memory and other processes at start and
-end.
+Each row times one call after warm-up calls, as the median over at least 3 and at most `--repeats` samples; a sample
+is one or more calls, at least 10 ms long, between `torch.cuda.synchronize` calls. Compiles are cold: the run first
+compiles a throwaway function, so the compiler's one-time start-up is paid once, then each compiled row runs after
+`torch.compiler.reset()` in an empty compile cache of its own and records its first call as `compile_seconds`, then
+`graph_breaks`, `graphs`, `recompiles` after the warm-up (counted with the garbage collector off, as the counter
+gate does), `cudagraph_skips` and `max_rel_diff_vs_eager`, the largest `max |compiled - eager| / max |eager|` over the
+outputs of a replayed call. A row that raises records its `error`; the larger batches of that function, pass and mode
+are then recorded as `skipped`, with the reason. `adapt` in the script is the one place that turns a mode into a
+callable.
+
+On CPU the run adds Pinocchio rows (`float64`, batch 1, one call per sample, on the same three models) for every
+function Pinocchio has. The run re-executes itself with the allocator thresholds of the last section fixed, so a large
+batch's time does not depend on what the process freed before. `meta` records the commit of the script, the library
+measured (`src_root`, its commit, the tree of its `src/` and whether it is dirty), torch and CUDA versions, host,
+device name, threads, the CPU affinity and how busy the cores' SMT siblings were at start and end, the allocator
+variables, the load average and, on CUDA, the GPU's utilization, memory and other processes at start and end.
 
 ## Compare runs and libraries
 
@@ -168,7 +188,7 @@ reads as a reference column:
 |-------|---------|
 | `library` | `better_robot`, `pinocchio`, or the other library's name |
 | `function` | a name from the function table |
-| `robot` | `panda` or `g1` |
+| `robot` | `panda`, `panda7` or `g1` |
 | `device` | `cpu` or `cuda` |
 | `dtype` | `float32` or `float64` |
 | `batch` | samples per call |
@@ -176,19 +196,26 @@ reads as a reference column:
 | `seconds_per_call` | median wall time of one call; absent when the row has `error` or `skipped` |
 | `compile_seconds` | the first call of a compiled row, when there is one |
 
-A run's rows add `seconds_min`, `seconds_spread` (interquartile range over the median), `samples`, `page_faults`
-per call, `loadavg` and, on CUDA, `gpu_other_pids`: a row with any was timed on a shared GPU.
+A run's rows add `grad`, `nq`, `nv`, `seconds_min`, `seconds_spread` (interquartile range over the median), `samples`,
+`page_faults` per call, `loadavg` and, on CUDA, `gpu_other_pids`: a row with any was timed on a shared GPU.
 
 ```bash
 uv run python benchmarks/speed.py table after.json --before before.json
-uv run python benchmarks/speed.py table cuda.json --reference cpu.json other_cuda.json --batches 1,4096
+uv run python benchmarks/speed.py table cpu.json cpu64.json --reference other_cpu.json --batches 1,4096
+uv run python benchmarks/speed.py table cuda.json --reference cpu.json other_cuda.json
 ```
 
-`table` prints one markdown line per row: microseconds per sample and compile seconds; with `--before`, the same
-row of the older run and the speedup `before/after`; with `--reference`, for each other library its microseconds
-per sample and the ratio `ours/<library>`, the times BetterRobot is slower. A reference row matches on function,
-robot, device and batch; a Pinocchio row, one call per sample on the CPU, matches every device and batch at its
-batch-1 time. `--functions`, `--robots`, `--batches` and `--modes` select rows.
+`table` prints the rows of one or more runs as two markdown tables, kinematics and dynamics first, then IK: for each
+row its microseconds per sample, spread, sample count, page faults per call and compile seconds; an IK row adds
+iterations, microseconds per iteration and success. With `--before`, the same row of older runs and the speedup
+`before/after`; with `--reference`, and for the runs' own Pinocchio rows, each other library's microseconds per
+sample, its dtype and mode (and `nv` when it differs from ours), on IK rows its iterations, microseconds per iteration
+and success, and the ratio `ours/<library>`, the times BetterRobot is slower. A ratio within the two rows' spreads is
+marked `~`, one without a spread `?`, one across dtypes `*`; a pair that computes different things reads `n/c`. A
+reference row matches on function, robot, device and batch, preferring the same dtype; another library's 7-dof Panda
+matches `panda7`; a Pinocchio row, one call per sample on the CPU, matches every device and batch at its batch-1
+time. CPU rows above batch 4096 are flagged, since page faults dominate them. `--functions`, `--robots`, `--batches`
+and `--modes` select rows.
 
 ## Large batches and the allocator
 

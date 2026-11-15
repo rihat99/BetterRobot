@@ -68,7 +68,6 @@ SWEEP = (1, 2, 3, 64)
 COUNTERS = ("graph_breaks", "recompiles", "ops", "host_syncs")
 SYNC_OPS = frozenset({"aten::_local_scalar_dense", "aten::nonzero"})  # item/bool/float/int of a tensor; mask indexing
 LARGE_BATCH = 1024
-FIXED_MALLOC = {"MALLOC_MMAP_THRESHOLD_": "134217728", "MALLOC_TRIM_THRESHOLD_": "268435456"}
 IK_FRAME = "panda_hand"
 IK_SUCCESS_M = 1e-3
 
@@ -320,7 +319,7 @@ def context(args: argparse.Namespace, device: torch.device) -> dict[str, Any]:
         "threads": torch.get_num_threads(),
         "affinity": sorted(os.sched_getaffinity(0)),
         "dtype": str(DTYPE),
-        "malloc_env": {name: os.environ.get(name) for name in FIXED_MALLOC},
+        "malloc_env": {name: os.environ.get(name) for name in ("MALLOC_MMAP_THRESHOLD_", "MALLOC_TRIM_THRESHOLD_")},
         "date": datetime.datetime.now().isoformat(timespec="seconds"),
         "loadavg_start": loadavg(),
     }
