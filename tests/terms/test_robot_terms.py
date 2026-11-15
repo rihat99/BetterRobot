@@ -6,6 +6,7 @@ from typing import ClassVar, final
 
 import pytest
 import torch
+from torch._dynamo.utils import counters
 
 import better_robot as br
 from better_robot import optim, terms
@@ -76,6 +77,21 @@ def test_ik_seeds_keep_the_best_start_of_each_target_and_the_first_is_q0(panda):
     assert bool((seeded.loss < alone.loss).any())
     assert torch.allclose(seeded.loss, terms.ik_problem(panda, {FRAME: goal}, q0=seeded.x["q"]).loss(), rtol=1e-12)
     assert seeded.history["phase"].shape == (8, 16) and seeded.state is None
+
+
+def test_a_compiled_step_serves_every_solve_without_a_graph_per_step(panda):
+    """``solve_ik(step=kinematics.compiled(solver.step))``: the driver hands the step ``iteration=0`` and a state whose
+    normal equations ride in ``extra``; three solves of new targets compile at most two graphs and match eager."""
+    solver = optim.LevenbergMarquardt()
+    step = br.kinematics.compiled(solver.step)
+    counters.clear()
+    for seed in (10, 11, 12):
+        goal = forward_kinematics(panda, _random_q(panda, 8, seed)).frame_poses[:, panda.frame_id(FRAME)]
+        q0 = _random_q(panda, 8, 3)
+        compiled = terms.solve_ik(panda, {FRAME: goal}, q0=q0, solver=solver, iterations=4, step=step)
+        eager = terms.solve_ik(panda, {FRAME: goal}, q0=q0, solver=solver, iterations=4)
+        torch.testing.assert_close(compiled.x["q"], eager.x["q"], rtol=0.0, atol=1e-9)
+    assert counters["stats"]["unique_graphs"] <= 2
 
 
 def test_ik_seeds_need_a_generator(panda):
