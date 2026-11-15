@@ -49,8 +49,8 @@ Each counter row has four counters, the same for every run with one torch versio
   dispatch overhead that dominates small batches.
 - `host_syncs`: calls of `aten::_local_scalar_dense` (`item`, `bool`, `float` or `int` of a tensor) and
   `aten::nonzero` (also inside boolean-mask indexing). On CUDA each one makes the host wait for the GPU queue; they
-  are counted on CPU too, so the CPU gate catches a new one. The IK row has neither `ops` nor `host_syncs`: profiling
-  one solve takes a minute.
+  are counted on CPU too, so the CPU gate catches a new one. The IK row's solve runs a fixed number of steps with no
+  host sync, so its threshold is 0.
 
 Without `--counters-only` each counter row also gets its wall time (`median_ms`, `min_ms`) per call, after one
 warm-up call, and `page_faults`, the minor page faults per call. The JSON's `meta` records the commit, dirty flag,

@@ -17,8 +17,7 @@ Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Pan
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
 ``torch.compile(fn, backend="eager")``, first called at the row's batch, is called at each batch of ``SWEEP``),
 ``ops`` (top-level ``aten::`` operators of one call) and ``host_syncs`` (calls of the operators that make the host
-wait for a CUDA queue, ``SYNC_OPS``). The IK row has no ``ops`` or ``host_syncs``: one profiled solve records about
-560 000 operator events and takes a minute. The run exits 1 when a counter row exceeds its threshold in
+wait for a CUDA queue, ``SYNC_OPS``). The run exits 1 when a counter row exceeds its threshold in
 ``benchmarks/thresholds/torch-<version>.json``, has none, or no such file exists for the installed torch; a thresholds
 file is this runner's ``--counters-only`` output from a clean commit, changed only in a commit of its own.
 
@@ -194,7 +193,7 @@ def ik_case(device: torch.device) -> Case:
 
     sweep = tuple((q0[:size], targets[:size]) for size in SWEEP)
     call = partial(ik, q0, targets)
-    return Case("ik/panda/B64", 64, call, ik, (q0, targets), sweep, profiled=False, report=accuracy)
+    return Case("ik/panda/B64", 64, call, ik, (q0, targets), sweep, report=accuracy)
 
 
 def profile_counts(call: Callable[[], object]) -> tuple[int, int]:

@@ -136,9 +136,9 @@
    "batch": 64,
    "loadavg": "10.02 19.15 26.33 7/19175 3402077",
    "success_fraction": 0.921875,
-   "worst_position_error_m": 0.07078872621059418,
-   "ops": null,
-   "host_syncs": null,
+   "worst_position_error_m": 0.0707888975739479,
+   "ops": 30446,
+   "host_syncs": 0,
    "graph_breaks": 5,
    "recompiles": 12
   },
