@@ -41,6 +41,12 @@ IK, aligned with the frax reference run as far as the two algorithms allow:
   and for several, at its own budget, by time and success;
 - ``iterations``: ``Result.iterations``, the steps every sample of the batch runs, summed over sequential restarts
   (frax: the median over samples of its own count, summed over the starts); ``seeds``: the starts per target.
+- ``ik_step_constrained``: one ``SequentialQP.step`` from ``init(start)`` of the same problem with clearance rows
+  (``CLEARANCE``: an obstacle sphere and the robot's own sphere pairs kept ``MARGIN_M`` apart, the ``closest`` pairs
+  as rows; the joint limits are the step's box); ``solve_ik_constrained``: ``CONSTRAINED_ITERATIONS`` such steps
+  (``Phase(stop_every=0)``). The start holds every row. A solve row adds ``max_violation_m`` and ``within_1e-4``, the
+  largest violation over every row (all sphere pairs) and the share of targets within 1e-4 m; ``success_rate`` counts
+  every target, and a target whose configuration breaks a row cannot be reached (G1: almost every target does);
 - compiled solves: a library with ``solve_ik(step=)`` compiles its LM step once per row with ``kinematics.compiled``
   and passes it (adapter ``solve_ik(step=)``); an older one compiles the whole solve with ``torch.compile``, which
   breaks the graph at every early-stop read.
@@ -127,7 +133,7 @@ from torch._inductor.utils import fresh_cache
 
 import better_robot as br
 from better_robot.model import JointFixed
-from better_robot.optim import LevenbergMarquardt, State
+from better_robot.optim import LevenbergMarquardt, Phase, SequentialQP, State
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROBOT_DIR = REPO_ROOT / "tests" / "fixtures" / "robots"
@@ -156,7 +162,7 @@ ROW_BUDGET_S = 1.0
 IK_POSITION_M, IK_ROTATION_RAD = 1e-3, 1e-2
 FIXED_MALLOC = {"MALLOC_MMAP_THRESHOLD_": "134217728", "MALLOC_TRIM_THRESHOLD_": "268435456"}
 MODES = ("eager", "compile", "reduce-overhead")
-SOLVES = ("solve_ik", "solve_ik_multistart")
+SOLVES = ("solve_ik", "solve_ik_multistart", "solve_ik_constrained")
 ADAPTERS = ("kinematics.compiled", "torch.compile", "solve_ik(step=)")
 COMPILED = getattr(br.kinematics, "compiled", None)  # None in a library version before record 0053
 SEEDS = "seeds" in inspect.signature(br.solve_ik).parameters  # False before batched seeds; then also no step=
@@ -205,7 +211,15 @@ KINEMATICS: dict[str, Callable[..., torch.Tensor | tuple]] = {
     ),
     "center_of_mass": lambda model, frame, q, v, a: br.center_of_mass(model, br.forward_kinematics(model, q)),
 }
-FUNCTIONS = (*KINEMATICS, "ik_step", "solve_ik", "solve_ik_multistart")
+FUNCTIONS = (*KINEMATICS, "ik_step", "solve_ik", "solve_ik_multistart", "ik_step_constrained", "solve_ik_constrained")
+# sphere file, obstacle (x, y, z, radius) and the number of closest self pairs of the constrained IK rows
+CLEARANCE = {
+    "panda": ("panda.json", (0.45, 0.25, 0.45, 0.10), 8),
+    "panda7": ("panda.json", (0.45, 0.25, 0.45, 0.10), 8),
+    "g1": ("g1.json", (0.50, 0.0, 1.00, 0.12), 64),
+}
+MARGIN_M = 0.02
+CONSTRAINED_ITERATIONS = 50
 SERIAL_REFERENCES = {"pinocchio"}  # one call per sample: its batch-1 time per sample holds at every batch
 
 
@@ -231,6 +245,39 @@ def start_configuration(robot: str, model: br.Model) -> torch.Tensor:
     return start
 
 
+def clearance_rows(
+    robot: str, model: br.Model, start: torch.Tensor
+) -> tuple[Callable[[br.optim.Problem], None], Callable[[torch.Tensor], torch.Tensor]]:
+    """``(add, worst)`` of the constrained IK rows (module docstring): ``add(problem)`` registers the obstacle and
+    self clearances as inequality terms, ``worst(q: (B, nq)) -> (B,)`` is the largest violation over every row. A
+    self pair closer than ``MARGIN_M + 0.01`` at ``start`` is left out, so the start holds every row."""
+    file, obstacle, closest = CLEARANCE[robot]
+    spheres, ignore = br.collision.load_spheres(br.collision.SPHERE_SETS / file, model)
+    pairs = br.collision.self_collision_pairs(model, spheres, ignore=ignore)
+    state = br.forward_kinematics(model, start)
+    pairs = pairs[br.collision.self_distances(spheres, state, pairs=pairs) >= MARGIN_M + 0.01]
+    centre, radius = torch.tensor(obstacle[:3], dtype=model.dtype, device=model.device), obstacle[3]
+
+    def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
+        return (centers - centre).norm(dim=-1) - radii - radius
+
+    def add(problem: br.optim.Problem) -> None:
+        avoid = br.terms.sphere_clearance(spheres, to_obstacle, margin=MARGIN_M, hinge=False)
+        apart = br.terms.self_clearance(spheres, pairs=pairs, margin=MARGIN_M, hinge=False, closest=closest)
+        problem.inequality("obstacle", avoid, upper=0.0)
+        problem.inequality("self", apart, upper=0.0)
+
+    def worst(q: torch.Tensor) -> torch.Tensor:
+        state = br.forward_kinematics(model, q)
+        distances = [to_obstacle(spheres.centers(state), spheres.radii)]
+        distances.append(br.collision.self_distances(spheres, state, pairs=pairs))
+        limits = torch.maximum(model.lower_position_limit - q, q - model.upper_position_limit)
+        limits = limits[:, br.kinematics.euclidean_columns(model)[0]].amax(-1)
+        return torch.maximum((MARGIN_M - torch.cat(distances, dim=-1)).amax(-1), limits).clamp_min(0.0)
+
+    return add, worst
+
+
 def ik_case(
     function: str, robot: str, model: br.Model, q_target: torch.Tensor, start: torch.Tensor, mode: str = "eager"
 ) -> tuple[Callable[..., Any], tuple[Any, ...], Callable[[Any], dict[str, Any]]]:
@@ -245,15 +292,36 @@ def ik_case(
         targets = reached.frame_transforms[:, frame_ids]  # (B, F, 3, 4)
         poses = tuple(reached.frame_poses[:, frame_ids].unbind(1))
     q0 = start.expand(q_target.shape[0], model.nq).clone()
-    solver = LevenbergMarquardt()
-    if function == "ik_step":
+    constrained = function.endswith("_constrained")
+    solver = SequentialQP() if constrained else LevenbergMarquardt()
+    add, worst = clearance_rows(robot, model, start) if constrained else (lambda problem: None, None)
+    if function in ("ik_step", "ik_step_constrained"):
         problem = br.terms.ik_problem(model, dict(zip(frames, poses, strict=True)), q0=q0)
+        add(problem)
 
         def step(state: State) -> tuple:
             new = solver.step(problem, state)
             return new.x["q"], new.loss, new.done, new.extra["damping"]
 
         return step, (solver.init(problem, {"q": q0}),), lambda output: {"iterations": 1}
+    if worst is not None:
+        hook = COMPILED(solver.step, mode=COMPILE_MODES[mode]) if mode != "eager" else None
+
+        def held(q0: torch.Tensor, *poses: torch.Tensor) -> tuple[torch.Tensor, int]:
+            problem = br.terms.ik_problem(model, dict(zip(frames, poses, strict=True)), q0=q0)
+            add(problem)
+            result = br.optim.run(problem, [Phase(solver, CONSTRAINED_ITERATIONS, stop_every=0, step=hook)])
+            return result.x["q"], result.iterations
+
+        def within(output: tuple[torch.Tensor, int]) -> dict[str, Any]:
+            violation = worst(output[0])
+            fields = {
+                "max_violation_m": violation.max().item(),
+                "within_1e-4": (violation <= 1e-4).double().mean().item(),
+            }
+            return {"iterations": output[1], "seeds": 1} | fields | ik_accuracy(robot, model, output[0], targets)
+
+        return held, (q0, *poses), within
     seeds, iterations = MULTISTART if function == "solve_ik_multistart" else (1, None)
     keywords: dict[str, Any] = {}
     if SEEDS:
