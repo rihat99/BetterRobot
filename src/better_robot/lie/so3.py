@@ -61,47 +61,24 @@ def to_matrix_raw(q: torch.Tensor) -> torch.Tensor:
 def from_matrix_raw(R: torch.Tensor) -> torch.Tensor:
     """`from_matrix` without input checks, for checked inputs: ``(..., 3, 3) → (..., 4)``.
 
-    The Shepperd 1978 variant picks the largest diagonal component to avoid
-    cancellation as ``qw → 0`` and keeps every branch differentiable.
+    Shepperd 1978: every row of ``4 q qᵀ`` is linear in ``R``, and row ``k`` is ``4 q_k q``. The row of ``qw`` when
+    ``trace > 0``, else of the component of the largest diagonal entry, divided by its norm (at least 1) is ``q``
+    with that component positive, free of cancellation as ``qw → 0``; one gather, differentiable.
     """
-    m00, m01, m02 = R[..., 0, 0], R[..., 0, 1], R[..., 0, 2]
-    m10, m11, m12 = R[..., 1, 0], R[..., 1, 1], R[..., 1, 2]
-    m20, m21, m22 = R[..., 2, 0], R[..., 2, 1], R[..., 2, 2]
-    trace = m00 + m11 + m22
-
-    s1 = (trace + 1.0).clamp(min=1e-30).sqrt() * 2.0
-    qw1 = 0.25 * s1
-    qx1 = (m21 - m12) / s1
-    qy1 = (m02 - m20) / s1
-    qz1 = (m10 - m01) / s1
-
-    s2 = (1.0 + m00 - m11 - m22).clamp(min=1e-30).sqrt() * 2.0
-    qw2 = (m21 - m12) / s2
-    qx2 = 0.25 * s2
-    qy2 = (m01 + m10) / s2
-    qz2 = (m02 + m20) / s2
-
-    s3 = (1.0 - m00 + m11 - m22).clamp(min=1e-30).sqrt() * 2.0
-    qw3 = (m02 - m20) / s3
-    qx3 = (m01 + m10) / s3
-    qy3 = 0.25 * s3
-    qz3 = (m12 + m21) / s3
-
-    s4 = (1.0 - m00 - m11 + m22).clamp(min=1e-30).sqrt() * 2.0
-    qw4 = (m10 - m01) / s4
-    qx4 = (m02 + m20) / s4
-    qy4 = (m12 + m21) / s4
-    qz4 = 0.25 * s4
-
-    cond1 = trace > 0
-    cond2 = (m00 > m11) & (m00 > m22)
-    cond3 = m11 > m22
-    qw = torch.where(cond1, qw1, torch.where(cond2, qw2, torch.where(cond3, qw3, qw4)))
-    qx = torch.where(cond1, qx1, torch.where(cond2, qx2, torch.where(cond3, qx3, qx4)))
-    qy = torch.where(cond1, qy1, torch.where(cond2, qy2, torch.where(cond3, qy3, qy4)))
-    qz = torch.where(cond1, qz1, torch.where(cond2, qz2, torch.where(cond3, qz3, qz4)))
-    q = torch.stack([qx, qy, qz, qw], dim=-1)
-    return q / q.norm(dim=-1, keepdim=True).clamp(min=1e-12)
+    diagonal = R.diagonal(dim1=-2, dim2=-1)  # (..., 3)
+    trace = diagonal.sum(-1, keepdim=True)
+    eye = torch.eye(3, dtype=R.dtype, device=R.device)
+    # 4 q_xyz q_xyzᵀ = R + Rᵀ + (1 - trace) I; 4 qw q_xyz = vee(R - Rᵀ); 4 qw² = 1 + trace.
+    block = R + R.mT + (1.0 - trace).unsqueeze(-1) * eye
+    skew = R - R.mT
+    axial = torch.stack([skew[..., 2, 1], skew[..., 0, 2], skew[..., 1, 0]], dim=-1)
+    rows = torch.cat(
+        [torch.cat([block, axial.unsqueeze(-1)], dim=-1), torch.cat([axial, 1.0 + trace], dim=-1).unsqueeze(-2)],
+        dim=-2,
+    )  # (..., 4, 4) = 4 q qᵀ
+    index = torch.where(trace > 0, 3, diagonal.argmax(-1, keepdim=True))  # (..., 1)
+    row = rows.gather(-2, index.unsqueeze(-1).expand(*index.shape, 4)).squeeze(-2)
+    return row / row.norm(dim=-1, keepdim=True)
 
 
 def identity(
