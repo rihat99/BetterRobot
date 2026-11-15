@@ -93,8 +93,8 @@ rnea/g1/B1                        0            1          188            0
 crba/g1/B1                        0            1          154            0
 aba/g1/B1                         0            1          255            2
 ik/panda/B64                      5           12            -            -
-qp/n7m30/B1                       0            1          548            0
-qp/n35m150/B1024                  0            2          548            0
+qp/n7m30/B1                       0            1          561            0
+qp/n35m150/B1024                  0            2          561            0
 ```
 
 When a change adds a counter, remove what added it. When the change needs it, or when a change lowers a counter,
