@@ -145,8 +145,8 @@
   {
    "row": "qp/n7m30/B1",
    "batch": 1,
-   "loadavg": "62.33 49.35 80.52 11/19977 1144693",
-   "ops": 436,
+   "loadavg": "30.68 39.06 46.89 10/19380 169739",
+   "ops": 548,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -154,8 +154,8 @@
   {
    "row": "qp/n35m150/B1024",
    "batch": 1024,
-   "loadavg": "62.33 49.35 80.52 10/19984 1146518",
-   "ops": 437,
+   "loadavg": "30.68 39.06 46.89 10/19402 171254",
+   "ops": 548,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 2
