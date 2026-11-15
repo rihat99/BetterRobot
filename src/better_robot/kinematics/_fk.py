@@ -33,7 +33,8 @@ from ._plans import fk_plan
 def placement_matrices(model: Model) -> tuple[torch.Tensor | tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
     """The joint placements as the FK kernel reads them (`_joint_map`) and the frame placements ``(I..., nframes, 4, 4)``.
 
-    Memoised on the model by grad mode (record 0040); placements that carry a graph are converted per call.
+    Memoised on the model by grad or inference mode (records 0040, 0052); placements that carry a graph are converted
+    per call.
     """
     joints = model._value("joint_matrices", _joint_map)
     frames = model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))
