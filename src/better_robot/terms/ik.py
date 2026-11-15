@@ -50,18 +50,6 @@ def _check(model: Model, targets: Mapping[str, torch.Tensor], q0: torch.Tensor) 
         check_broadcast(q0=tuple(q0.shape[:-1]), **{name: tuple(pose.shape[:-1])})
 
 
-def _one_pose_per_row(frame: str, pose: torch.Tensor, batch: int) -> torch.Tensor:
-    """``(batch, 7)`` of a checked target ``pose: (..., 7)`` that broadcasts to one pose per row of ``q0``, else
-    ``ShapeError`` (more poses than rows, which the seeds' fold cannot pair with starts)."""
-    axes = torch.broadcast_shapes(pose.shape[:-1], (batch,))
-    if axes.numel() != batch:
-        raise ShapeError(
-            f"with seeds > 1, each row of q0 (batch ({batch},)) takes one pose of targets[{frame!r}], whose batch axes "
-            f"{tuple(pose.shape[:-1])} broadcast to {tuple(axes)}"
-        )
-    return pose.expand(*axes, 7).reshape(batch, 7)
-
-
 def _problem(
     model: Model,
     targets: Mapping[str, torch.Tensor],
@@ -136,9 +124,15 @@ def solve_ik(
     _check(model, targets, q0)
     batch = q0.shape[0]
     if seeds > 1:
+        for frame, pose in targets.items():  # the fold pairs each row of q0 with one pose of each target
+            if torch.broadcast_shapes(pose.shape[:-1], (batch,)).numel() != batch:
+                raise ShapeError(
+                    f"with seeds > 1, each row of q0 (batch ({batch},)) takes one pose of targets[{frame!r}], whose "
+                    f"batch axes {tuple(pose.shape[:-1])} hold more"
+                )
         draws = random_start(model, q0.repeat(seeds - 1, 1), generator=generator)
         q0 = torch.cat([q0, draws])
-        targets = {frame: _one_pose_per_row(frame, pose, batch).repeat(seeds, 1) for frame, pose in targets.items()}
+        targets = {frame: pose.reshape(-1, 7).expand(batch, 7).repeat(seeds, 1) for frame, pose in targets.items()}
     problem = _problem(model, targets, q0, 0.0, 0.0, None)
     result = run(problem, [Phase(solver or LevenbergMarquardt(), iterations, stop_every=0, step=step)])
     if seeds == 1:
