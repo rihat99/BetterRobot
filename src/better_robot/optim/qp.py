@@ -22,7 +22,8 @@ _FLOOR = (
     1e-9  # added to the unit-diagonal H, as Normal.solve does: a variable the objective does not see stays solvable
 )
 _RELAXATION = 1.6  # over-relaxation of each step (the default of OSQP)
-_PENALTIES = (1e-6, 1e6)  # range of the penalty, in unit-diagonal variables
+_PENALTIES = (1e-6, 1e6)  # range of the cold penalty, in unit-diagonal variables
+_RANGE = 1e3  # a penalty stays within this factor of the cold one of the problem it is used on
 _RETUNE = 10.0  # largest factor by which one solve changes the penalty it hands to the next
 _SETTLED = 1e-10  # relative residual under which a side counts as converged when the penalty is retuned
 _STIFFNESS = 1e6  # weight of an active row in the active-set step, in units of the cold penalty
@@ -38,7 +39,9 @@ class QPSolution:
     x: torch.Tensor  #: ``(B..., N)`` the minimiser, exact or approximate (the residuals say which).
     dual: torch.Tensor  #: ``(B..., M)`` multiplier of each row: positive presses on ``upper``, negative on ``lower``.
     _: KW_ONLY
-    primal_residual: torch.Tensor  #: ``(B...,)`` largest violation of a row by ``x``, in that row's unit.
+    #: ``(B...,)`` largest distance of a row from where its multiplier holds it, in that row's unit: from ``upper``
+    #: where ``dual > 0``, from ``lower`` where ``dual < 0``, from the bounds where ``dual == 0`` (the violation).
+    primal_residual: torch.Tensor
     dual_residual: torch.Tensor  #: ``(B...,)`` largest entry of ``H x + g + rowsᵀ dual``.
     penalty: torch.Tensor  #: ``(B...,)`` weight of the rows against ``H`` that the next warm solve starts with.
 
@@ -69,13 +72,18 @@ class _Scaled:
         return torch.bmm(y, self.A.mT).squeeze(-2)
 
     def measure(self, y: torch.Tensor, value: torch.Tensor, dual: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        """Largest violation ``(B,)`` of the row values ``value``, the gradient ``(B, 1, N)`` and its relative size."""
-        primal = torch.maximum(value - self.upper, self.lower - value).clamp_min(0.0).amax(-1)
+        """How far each row value is from where ``dual`` holds it ``(B, M)``, the gradient ``(B, 1, N)``, its relative size.
+
+        A positive multiplier holds its row on ``upper``, a negative one on ``lower``, a zero one between the bounds:
+        the distance is the row's violation, or how far a row that is pressed on sits off its bound.
+        """
+        inside = torch.clamp(value, self.lower, self.upper)
+        gap = value - torch.where(dual > 0, self.upper, torch.where(dual < 0, self.lower, inside))
         curve = torch.bmm(y, self.H)
         back = torch.bmm(dual.unsqueeze(-2), self.A)
         gradient = curve + self.c + back
         parts = torch.maximum(torch.maximum(curve.abs().amax(-1), back.abs().amax(-1)), self.c.abs().amax(-1))
-        return primal, gradient, (gradient.abs().amax(-1) / parts.clamp_min(1e-300)).squeeze(-1)
+        return gap, gradient, (gradient.abs().amax(-1) / parts.clamp_min(1e-300)).squeeze(-1)
 
 
 def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
@@ -86,29 +94,36 @@ def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
 
 
 def _active_set_step(
-    problem: _Scaled, v: torch.Tensor, dual: torch.Tensor, cold: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    """The rows that ``v: (B, M)`` puts on a bound solved as equalities: ``y: (B, 1, N)``, its row values, ``dual``, status.
+    problem: _Scaled, v: torch.Tensor, give: torch.Tensor, rho: torch.Tensor, cold: torch.Tensor, weight: float
+) -> tuple[torch.Tensor, ...]:
+    """The rows that ``v: (B, M)`` puts on a bound solved as equalities: ``y: (B, 1, N)``, ``dual``, where it is exact.
 
-    The equalities are held by a stiff penalty and `_UPDATES` multiplier updates; a multiplier of the wrong sign is
-    dropped, so the pair is a solution exactly when it also satisfies the rows that were left out.
+    The equalities are held by a stiff penalty and `_UPDATES` multiplier updates. A row whose multiplier
+    ``rho · give`` is at ``weight`` gives way: it keeps that multiplier and is not held. A multiplier of the wrong
+    sign or beyond ``weight`` is cut, so the pair is the solution exactly when its gradient vanishes and every row
+    is where its multiplier holds it; a row that gives way may sit beyond its bound.
     """
     above, below = v >= problem.upper, v <= problem.lower
-    active = (above | below).to(v.dtype)
-    bound = torch.where(above, problem.upper, torch.where(below, problem.lower, torch.zeros_like(v)))
-    stiff = _STIFFNESS * cold.unsqueeze(-1) * active
+    yields = give.abs() >= weight / rho
+    bound = torch.clamp(v, problem.lower, problem.upper)
+    stiff = _STIFFNESS * cold.unsqueeze(-1) * ((above | below) & ~yields)
     weighted = (problem.A * stiff.unsqueeze(-1)).mT
     factor, info = torch.linalg.cholesky_ex(problem.H + torch.bmm(weighted, problem.A))
-    pull, force = stiff * bound, dual * active
+    pull, force = stiff * bound, rho * give
     y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
     value = problem.values(y)
     for _ in range(_UPDATES):
         force = force + stiff * (value - bound)
         y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
         value = problem.values(y)
-    force = force + stiff * (value - bound)
-    signed = torch.where(above, force.clamp_min(0.0), force.clamp_max(0.0))
-    return y, value, torch.where(above & below, force, signed) * active, info
+    nothing = torch.zeros_like(v)
+    lowest, highest = torch.where(below, -weight, nothing), torch.where(above, weight, nothing)
+    force = torch.clamp(force + stiff * (value - bound), lowest, highest)
+    gap, slope, ahead = problem.measure(y, value, force)
+    strict = torch.where(yields & (gap * give > 0), nothing, gap)
+    reach = torch.maximum(value.abs().amax(-1), torch.clamp(value, problem.lower, problem.upper).abs().amax(-1))
+    exact = (info == 0) & (strict.abs().amax(-1) <= _EXACT * reach) & (ahead <= _EXACT)
+    return y, force, gap, slope, exact
 
 
 def solve_qp(
@@ -119,6 +134,7 @@ def solve_qp(
     lower: torch.Tensor,
     upper: torch.Tensor,
     iterations: int = 20,
+    weight: float = 1e3,
     warm: QPSolution | None = None,
 ) -> QPSolution:
     """Minimise ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper``, per batch element.
@@ -134,13 +150,23 @@ def solve_qp(
     ``primal_residual`` and ``dual_residual`` say how far it still is, in the caller's units. ``warm`` starts from the
     solution of a nearby problem with the same row layout (the last step of a solver or of a control loop); it
     carries ``x``, ``dual`` and the ``penalty`` the last solve tuned, so the steps of consecutive calls add up while
-    the problem changes slowly. A cold solve starts from ``x = 0``.
+    the problem changes slowly; the penalty is kept within a factor of 1000 of the one a cold solve of the new
+    problem starts with, and nothing in it needs a reset. A cold solve starts from ``x = 0``.
 
-    When the rows cannot all hold, ``x`` tends to the point that violates them least, in the sum of squares of the
-    violations in the units the rows are given in (scale a row and its bounds to weight it), and to the minimiser
-    of the objective among such points; ``primal_residual`` stays positive and the ``dual`` of the rows in conflict
-    grows with every step. A batch element whose ``H + penalty · rowsᵀ rows`` is not positive definite, or whose
-    data are not finite, gets ``x = 0``, ``dual = 0``, both residuals ``inf`` and ``penalty = 1``.
+    The rows are elastic: a row gives way once holding it would take a multiplier beyond ``weight``, so the problem
+    solved is ``½ xᵀH x + gᵀx + weight · (sum of the rows' violations)`` and every ``dual`` stays within
+    ``±weight``. Where the rows can all hold with multipliers under ``weight``, its minimiser is the one under hard
+    rows. Where they cannot, it is the point whose violations sum to the least, and among such points the one of
+    least objective: it may break one row by much where the least-squares compromise breaks many by little, and
+    ``primal_residual`` stays positive. ``weight`` is in units of the objective per unit of a row. Scaling the
+    objective by ``s`` scales every multiplier by ``s``: scale ``weight`` with it (the default suits an objective of
+    order one). Scaling a row and its bounds by ``t`` divides its multiplier by ``t`` and counts its violation ``t``
+    times: that is how a row is weighted against the others. The unit-diagonal scaling of the variables inside the
+    solve changes neither. A larger ``weight`` holds the rows against a larger objective and takes longer to let go
+    of rows that were in conflict (ten warm calls at the default).
+
+    A batch element whose ``H + penalty · rowsᵀ rows`` is not positive definite, or whose data are not finite, gets
+    ``x = 0``, ``dual = 0``, both residuals ``inf`` and ``penalty = 1``.
     """
     batch, size, count = gradient.shape[:-1], gradient.shape[-1], lower.shape[-1]
     if hessian.shape != (*batch, size, size) or rows.shape != (*batch, count, size) or upper.shape != (*batch, count):
@@ -170,41 +196,42 @@ def solve_qp(
         penalty = cold
         y, dual = torch.zeros_like(problem.c), torch.zeros_like(problem.lower)
     else:
-        penalty = warm.penalty.detach().double().reshape(-1)
+        penalty = torch.clamp(warm.penalty.detach().double().reshape(-1), cold / _RANGE, cold * _RANGE)
         y = (warm.x.detach().double().reshape(-1, size) / scale).unsqueeze(-2)
-        dual = warm.dual.detach().double().reshape(-1, count)
+        dual = warm.dual.detach().double().reshape(-1, count).clamp(-weight, weight)
     rho = penalty.unsqueeze(-1)
+    most = weight / rho
 
     # The inverse of H + penalty · rowsᵀ rows, by N right-hand sides: each step is then three products with a vector.
     factor, info = torch.linalg.cholesky_ex(problem.H + rho.unsqueeze(-1) * gram)
     inverse = _solve(factor, identity.expand_as(gram))
     free, spread = -torch.bmm(problem.c, inverse), rho.unsqueeze(-1) * inverse
-    # State v = z + dual / penalty: z = clamp(v) is the rows' value inside the bounds, the rest is the multiplier.
+    # State v = z + give: z is where the rows are held, give = dual / penalty. A row is held inside its bounds until
+    # its multiplier reaches `weight`; from there it gives way and z follows v beyond the bound (the L1-elastic row).
     value = problem.values(y)
-    z = torch.clamp(value, problem.lower, problem.upper)
-    v = z + dual / rho
+    z, give = torch.clamp(value, problem.lower, problem.upper), dual / rho
+    v = z + give
     for _ in range(iterations):
-        y = torch.baddbmm(free, torch.bmm((z + z - v).unsqueeze(-2), problem.A), spread)
+        y = torch.baddbmm(free, torch.bmm((z - give).unsqueeze(-2), problem.A), spread)
         value = problem.values(y)
         v = torch.add(v, value - z, alpha=_RELAXATION)
-        z = torch.clamp(v, problem.lower, problem.upper)
-    dual = rho * (v - z)
-    primal, slope, ahead = problem.measure(y, value, dual)
-    # The next solve weighs the rows more when they lag behind the multipliers, less when they lead (OSQP's rule).
-    # Both sides are floored at `_SETTLED`: a pair that has converged keeps its penalty instead of following rounding.
+        give = torch.clamp(v - torch.clamp(v, problem.lower, problem.upper), -most, most)
+        z = v - give
+    dual = rho * give
+    gap, slope, ahead = problem.measure(y, value, dual)
+    # The next solve weighs the rows more when they lag behind the multipliers, less when they lead (OSQP's rule), by
+    # the residuals of the elastic problem: they vanish at its minimiser even when the rows cannot all hold, so a
+    # long stretch of such problems leaves a penalty the next problem can use. Both sides are floored at `_SETTLED`:
+    # a pair that has converged keeps its penalty instead of following rounding.
     behind = (value - z).abs().amax(-1) / torch.maximum(value.abs().amax(-1), z.abs().amax(-1)).clamp_min(1e-300)
     change = (behind.clamp_min(_SETTLED) / ahead.clamp_min(_SETTLED)).sqrt().clamp(1.0 / _RETUNE, _RETUNE)
-    penalty = (penalty * change).clamp(*_PENALTIES)
+    penalty = torch.clamp(penalty * change, cold / _RANGE, cold * _RANGE)
 
-    held, held_value, force, held_info = _active_set_step(problem, v, dual, cold)
-    held_primal, held_slope, held_ahead = problem.measure(held, held_value, force)
-    reach = torch.maximum(
-        held_value.abs().amax(-1), torch.clamp(held_value, problem.lower, problem.upper).abs().amax(-1)
-    )
-    exact = ((held_info == 0) & (held_primal <= _EXACT * reach) & (held_ahead <= _EXACT)).unsqueeze(-1)
+    held, force, held_gap, held_slope, exact = _active_set_step(problem, v, give, rho, cold, weight)
+    exact = exact.unsqueeze(-1)
     y = torch.where(exact, held.squeeze(-2), y.squeeze(-2))
     dual = torch.where(exact, force, dual)
-    primal = torch.where(exact.squeeze(-1), held_primal, primal)
+    primal = torch.where(exact, held_gap, gap).abs().amax(-1)
     slope = torch.where(exact, held_slope.squeeze(-2), slope.squeeze(-2))
 
     x = y * scale

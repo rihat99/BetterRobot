@@ -194,7 +194,7 @@ tensor([2.3851e-07, 3.0286e-06, 1.1951e-06, 5.3854e-07])
 
 ## A quadratic program per step
 
-`solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, warm=None)` minimises
+`solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=1e3, warm=None)` minimises
 $\tfrac12 x^\top H x + g^\top x$ subject to `lower <= rows x <= upper` for a batch of independent problems: the
 step of a Gauss-Newton method under linear constraints. An equality is a row with `lower == upper`, a one-sided row
 has an infinite bound, a box on `x` is identity rows, and a padding row is a zero row with infinite bounds. It is a
@@ -216,12 +216,19 @@ tensor([[ 1.7500, -0.7500]]) tensor([[0.2500]])
 It runs a fixed number of cheap steps (ADMM in the OSQP form: one factorization, then two matrix-vector products
 per step) and then solves the rows the multipliers press on as equalities; where that point satisfies every row it
 is the exact solution and is returned, as above. Elsewhere the last step is returned and
-`solution.primal_residual` (largest row violation) and `solution.dual_residual` (largest entry of
+`solution.primal_residual` (largest distance of a row from where its multiplier holds it: its violation, or how far
+a row that is pressed on sits off its bound) and `solution.dual_residual` (largest entry of
 `H x + g + rowsᵀ dual`) say how far it is. Pass the last `QPSolution` as `warm=` when the next problem is close
 (the next step of a solver, the next tick of a control loop): the steps of consecutive calls add up, and the
-solution carries the row weight (`penalty`) the last solve tuned. When the rows cannot all hold, `x` is the point
-of least squared violation in the units the rows are given in, so scaling a row weights it. The solve runs in
-float64, the same steps for every batch element, with no host read, and returns no gradient
+solution carries the row weight (`penalty`) the last solve tuned.
+
+The rows are elastic. A row gives way once holding it would take a multiplier beyond `weight`, so the problem
+solved is $\tfrac12 x^\top H x + g^\top x + \text{weight} \cdot \sum_i \text{violation}_i$ and no multiplier
+passes `weight`. Rows that can all hold with smaller multipliers are held exactly. Rows that cannot all hold give
+the point whose violations sum to the least, in the units the rows are given in: scaling a row and its bounds
+counts its violation that many times, and `weight` scales with the objective (the default suits an objective of
+order one). Such a point may break one row by much where a least-squares compromise would break many by little.
+The solve runs in float64, the same steps for every batch element, with no host read, and returns no gradient
 ([record 0054](../contracts/decisions/0054-quadratic-programs-by-admm-and-one-active-set-step.md)).
 
 ## Reserved vocabulary

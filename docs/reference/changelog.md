@@ -10,10 +10,11 @@ that 0.3.0 renames or removes, one table row each.
 ## v0.3.0 (2026-11-10)
 
 ### Added
-- `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, warm=None) -> QPSolution`: a batch of
-  quadratic programs with two-sided linear rows, by a fixed number of warm-startable ADMM steps and one active-set
-  step, in float64, with no host read (record 0054). `QPSolution` has `x`, `dual`, `primal_residual`,
-  `dual_residual` and `penalty`. No solver calls it yet.
+- `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=1e3, warm=None) -> QPSolution`: a
+  batch of quadratic programs with two-sided linear rows, by a fixed number of warm-startable ADMM steps and one
+  active-set step, in float64, with no host read (record 0054). The rows are elastic: a row gives way once its
+  multiplier would pass `weight`. `QPSolution` has `x`, `dual`, `primal_residual`, `dual_residual` and `penalty`.
+  No solver calls it yet.
 - `better_robot` exports its twelve packages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`,
   `collision`, `io`, `optim`, `terms`, `viewer`, `testing`) and `JointFreeFlyer`, `solve_ik` and `Viewer` beside the
   core functions.

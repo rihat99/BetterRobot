@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 import torch
 
@@ -67,32 +69,121 @@ def test_warm_calls_reach_the_optimality_conditions() -> None:
     pressing_up, pressing_down = solution.dual.clamp_min(0.0), (-solution.dual).clamp_min(0.0)
     assert (pressing_up * slack_upper).abs().max().item() < 1e-8
     assert (pressing_down * slack_lower).abs().max().item() < 1e-8
-    # The residuals are the ones the caller would compute.
-    violation = torch.maximum(value - upper, lower - value).clamp_min(0.0).amax(-1)
-    gradient = (H @ solution.x.unsqueeze(-1)).squeeze(-1) + g + (rows.mT @ solution.dual.unsqueeze(-1)).squeeze(-1)
-    torch.testing.assert_close(solution.primal_residual, violation, atol=1e-12, rtol=0)
-    torch.testing.assert_close(solution.dual_residual, gradient.abs().amax(-1), atol=1e-9, rtol=0)
+    # The residuals are the ones the caller would compute, also on a step that is not the solution: each row against
+    # the bound its multiplier presses on, or against its bounds; the largest violation is never above it.
+    for step in (solution, first):
+        value = (rows @ step.x.unsqueeze(-1)).squeeze(-1)
+        held = torch.where(step.dual > 0, upper, torch.where(step.dual < 0, lower, torch.clamp(value, lower, upper)))
+        violation = torch.maximum(value - upper, lower - value).clamp_min(0.0).amax(-1)
+        gradient = (H @ step.x.unsqueeze(-1)).squeeze(-1) + g + (rows.mT @ step.dual.unsqueeze(-1)).squeeze(-1)
+        torch.testing.assert_close(step.primal_residual, (value - held).abs().amax(-1), atol=1e-12, rtol=0)
+        torch.testing.assert_close(step.dual_residual, gradient.abs().amax(-1), atol=1e-9, rtol=0)
+        assert (step.primal_residual >= violation - 1e-12).all()
+    assert (first.primal_residual > 1e-3).any()
 
 
-def test_rows_in_conflict_give_the_least_squares_compromise_in_the_rows_units() -> None:
-    """``x0 <= -1`` against ``x0 >= 1``: the middle, and the heavier side once a row is scaled; ``x1`` is untouched."""
+def test_rows_in_conflict_give_the_elastic_minimiser_in_the_rows_units() -> None:
+    """``x0 <= -1`` against ``x0 >= 1``: any ``x0`` between costs the same, so the objective picks; ``x1`` is untouched."""
     H = torch.eye(2, dtype=torch.float64)
     g = torch.tensor([0.3, -0.5], dtype=torch.float64)
     rows = torch.tensor([[1.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float64)
     lower = torch.tensor([-INF, 1.0, -INF], dtype=torch.float64)
     upper = torch.tensor([-1.0, INF, 2.0], dtype=torch.float64)
-    even = solve_qp(H, g, rows=rows, lower=lower, upper=upper, iterations=200)
-    torch.testing.assert_close(even.x, torch.tensor([0.0, 0.5], dtype=torch.float64), atol=1e-8, rtol=0)
-    assert even.primal_residual.item() == pytest.approx(1.0, abs=1e-8)
-    # Scaling a row and its bound by 3 weights its violation by 9: argmin (x + 1)^2 + 9 (1 - x)^2 = 0.8.
-    scaled = solve_qp(
-        H, g, rows=rows * torch.tensor([[1.0], [3.0], [1.0]]), lower=lower * 3, upper=upper, iterations=200
+    even = _repeat((H, g, rows, lower, upper), 30)
+    torch.testing.assert_close(even.x, torch.tensor([-0.3, 0.5], dtype=torch.float64), atol=1e-8, rtol=0)
+    # Both rows give way: their multipliers sit at the weight and cancel; the residual is the larger violation.
+    torch.testing.assert_close(even.dual, torch.tensor([1e3, -1e3, 0.0], dtype=torch.float64), atol=1e-6, rtol=0)
+    assert even.primal_residual.item() == pytest.approx(1.3, abs=1e-8)
+    assert even.dual_residual.item() < 1e-8
+    # Scaling a row and its bound by 3 counts its violation three times: that row holds, the other gives way.
+    scaled = _repeat((H, g, rows * torch.tensor([[1.0], [3.0], [1.0]]), lower * 3, upper), 30)
+    torch.testing.assert_close(scaled.x, torch.tensor([1.0, 0.5], dtype=torch.float64), atol=1e-8, rtol=0)
+    expected = torch.tensor([1e3, -(1e3 + 1.3) / 3, 0.0], dtype=torch.float64)
+    torch.testing.assert_close(scaled.dual, expected, atol=1e-6, rtol=0)
+    assert scaled.primal_residual.item() == pytest.approx(2.0, abs=1e-8)
+
+
+def test_a_row_gives_way_at_the_weight() -> None:
+    """A box whose multipliers would be -1.5 and 2 under ``weight=1``: each side moves until its pull is 1."""
+    g = torch.tensor([[2.0, -0.05, -3.0]], dtype=torch.float64)
+    eye = torch.eye(3, dtype=torch.float64)[None]
+    low, high = torch.full((1, 3), -0.5, dtype=torch.float64), torch.full((1, 3), 1.0, dtype=torch.float64)
+    soft = _repeat((eye, g, eye, low, high), 10, weight=1.0)
+    torch.testing.assert_close(soft.x, torch.tensor([[-1.0, 0.05, 2.0]], dtype=torch.float64), atol=1e-8, rtol=0)
+    torch.testing.assert_close(soft.dual, torch.tensor([[-1.0, 0.0, 1.0]], dtype=torch.float64), atol=1e-8, rtol=0)
+    assert soft.primal_residual.item() == pytest.approx(1.0, abs=1e-8) and soft.dual_residual.item() < 1e-8
+
+
+def _conflict(kind: str, call: int, *, conflict: bool, batch: int = 48, size: int = 7) -> tuple[torch.Tensor, ...]:
+    """Two rows in conflict inside a 0.3 box, ``H`` with a 1e-4 floor; without ``conflict`` the two rows hold.
+
+    ``drift``: two different rows whose normals move about 1 % per call; ``turn``: one row asked both ways, turning
+    slowly, the gradient moving; ``fixed``: the same row, constant.
+    """
+    generator = torch.Generator().manual_seed(1)
+    draw = lambda *shape: torch.randn(*shape, generator=generator, dtype=torch.float64)  # noqa: E731
+    root = draw(batch, size, size)
+    H, g = root.mT @ root / size + 1e-4 * torch.eye(size, dtype=torch.float64), draw(batch, size)
+    first, other, turn, turn_other = (
+        draw(batch, 1, size),
+        draw(batch, 1, size),
+        draw(batch, 1, size),
+        draw(batch, 1, size),
     )
-    torch.testing.assert_close(scaled.x, torch.tensor([0.8, 0.5], dtype=torch.float64), atol=1e-8, rtol=0)
-    # The multipliers of the rows in conflict grow with the steps; the point does not.
-    longer = solve_qp(H, g, rows=rows, lower=lower, upper=upper, iterations=400)
-    assert longer.dual[0].item() > 1.5 * even.dual[0].item()
-    torch.testing.assert_close(longer.x, even.x, atol=1e-8, rtol=0)
+    box = torch.eye(size, dtype=torch.float64).expand(batch, size, size)
+    edge, open_side = (
+        torch.full((batch, size), 0.3, dtype=torch.float64),
+        torch.full((batch, 1), INF, dtype=torch.float64),
+    )
+    one = torch.ones(batch, 1, dtype=torch.float64)
+    side = -one if conflict else one
+    if kind == "drift":  # first x <= -1 and second x <= -1 with second close to -first
+        second = -first + 0.3 * other
+        pair = torch.cat(
+            [first + 0.05 * math.sin(0.01 * call) * turn, second + 0.05 * math.cos(0.01 * call) * turn_other], 1
+        )
+        return (
+            H,
+            g,
+            torch.cat([pair, box], 1),
+            torch.cat([-open_side, -open_side, -edge], 1),
+            torch.cat([side, side, edge], 1),
+        )
+    if kind == "turn":
+        first, g = first + 0.02 * math.sin(0.1 * call) * turn, g + 0.01 * math.sin(0.05 * call)
+    pair = torch.cat([first, first], 1)  # first x <= -1 against first x >= 1
+    return (
+        H,
+        g,
+        torch.cat([pair, box], 1),
+        torch.cat([-open_side, -side, -edge], 1),
+        torch.cat([side, open_side, edge], 1),
+    )
+
+
+@pytest.mark.parametrize(("kind", "stretch"), [("drift", 100), ("turn", 100), ("fixed", 50)])
+def test_a_long_stretch_of_rows_in_conflict_neither_winds_up_nor_hides_a_wrong_step(kind: str, stretch: int) -> None:
+    """Warm calls through rows in conflict keep a bounded step; once the rows can hold, ten calls are exact again.
+
+    With hard rows the multipliers and the carried penalty grew through the stretch: steps of 47 against a box of
+    0.3, and afterwards wrong steps that reported both residuals under 1e-4 (review of record 0054).
+    """
+    solution = None
+    for call in range(stretch):
+        H, g, rows, lower, upper = _conflict(kind, call, conflict=True)
+        solution = solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=solution)
+        # The elastic minimisers of these problems reach 1.8: one box row gives way where both rows can then hold.
+        assert solution.x.abs().max().item() < 2.0
+        assert solution.dual.abs().max().item() <= 1e3 * (1 + 1e-12)
+    for call in range(stretch, stretch + 10):
+        problem = _conflict(kind, call, conflict=False)
+        H, g, rows, lower, upper = problem
+        solution = solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=solution)
+        reference = _repeat(problem, 25, iterations=100)
+        assert reference.primal_residual.max().item() < 1e-8 and reference.dual_residual.max().item() < 1e-7
+        wrong = (solution.x - reference.x).abs().amax(-1) > 1e-3
+        assert not (wrong & (solution.primal_residual < 1e-4) & (solution.dual_residual < 1e-4)).any()
+    assert not wrong.any()
 
 
 def test_padding_and_repeated_rows_do_not_move_the_solution() -> None:
