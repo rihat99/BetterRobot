@@ -119,6 +119,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `KinematicState.structure` | `KinematicState.model` | |
 | `KinematicState.joint_transform`, `KinematicState.frame_transform` | `KinematicState.joint_transforms`, `KinematicState.frame_transforms` | |
 | `KinematicState(structure, q, joint_transform, frame_transform)` | `KinematicState(*, model, q, joint_transforms)` | `forward_kinematics` builds states; the constructor is keyword-only; `frame_transforms` is computed from the joints on first use |
+| `KinematicState.frame_transform`, `KinematicState.frame_pose` read under another grad mode than the one of `forward_kinematics` | `KinematicState.frame_transforms`, `KinematicState.frame_poses` | computed on first read under the grad mode of that read: under `torch.no_grad` or `torch.inference_mode` no graph; with grad enabled on a state made under `torch.no_grad`, a graph to the model tensors that require grad |
 | `forward_kinematics_state(model, q, *, check_quaternion_norm)` | `forward_kinematics(model, q, *, check_quaternion_norm)` | the flag checks every quaternion joint |
 
 ## `dynamics` and `collision`
@@ -127,6 +128,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 |---|---|---|
 | `inverse_dynamics(model, state, *, v, a, fext=None)` | `inverse_dynamics(model, state, *, v, a, external_forces=None)` | full word |
 | `forward_dynamics(model, state, *, v, tau, fext=None)` | `forward_dynamics(model, state, *, v, tau, external_forces=None)` | |
+| `forward_dynamics` raising torch's `_LinAlgError` for a mass matrix that is not positive definite | `forward_dynamics` | NaN accelerations for that batch element only; test `ddq.isnan()` where the error was caught |
 | `StateMultibody` | — | nothing called it |
 | `RobotSpheres(frame_ids, offsets, radii)`, `RobotCapsules(frame_ids, starts, ends, radii)` | `collision.RobotSpheres`, `collision.RobotCapsules` | the fields are keyword-only: `frame_ids=`, `offsets=` |
 
