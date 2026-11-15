@@ -95,7 +95,8 @@ from better_robot.kinematics import compiled
 
 fk = compiled(lambda q: forward_kinematics(model, q).joint_transforms)
 with torch.no_grad():
-    fk(q_batch)               # runs once eagerly, then compiles (seconds)
+    fk(q_batch)               # runs eagerly once and returns that result
+    fk(q_batch)               # compiles (seconds)
     transforms = fk(q_batch)  # the compiled graph
 
 dynamics = compiled(
@@ -104,10 +105,16 @@ dynamics = compiled(
 )
 ```
 
-The first call of each grad mode (`torch.no_grad` or not) runs eagerly and compiles; a second batch size compiles
-once more, a graph for every size. Under `mode="reduce-overhead"` each result is a copy you may keep across calls.
-Compare the modes on your machine with `--modes eager,compile` (and `reduce-overhead` on CUDA) in the commands
-above.
+Build the compiled function once and keep it: each one compiles its own graphs. Calls are grouped by key, the grad
+mode (`torch.no_grad` or not, `torch.inference_mode`) and what the arguments are: a tensor's dtype, device,
+`requires_grad` and number of axes, a frame name or other value, a model passed as an argument and whether its plans
+are built yet. A key's first call runs eagerly, its second compiles, and a second batch size compiles once more, a
+graph for every size. Torch keeps at most 8 graphs per key and a ninth raises: a value `fn` reads from a closure or
+global variable, such as a frame name, takes a graph of its key each time it changes, so pass it as an argument. A
+Python number argument that changes on every call compiles once per value, up to torch's 256 graphs per function:
+pass it as a tensor. Under `mode="reduce-overhead"` each result is a copy you may keep across
+calls. A library error raised inside the graph is raised again as the library's own class. Compare the modes on your
+machine with `--modes eager,compile` (and `reduce-overhead` on CUDA) in the commands above.
 
 ## Where next
 

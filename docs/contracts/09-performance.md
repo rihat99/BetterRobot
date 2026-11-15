@@ -38,8 +38,9 @@ two as for a batch of seven).
 
 Compilation is the caller's choice. The one place that calls `torch.compile` is `kinematics.compiled`, which the
 caller calls (record [0053](decisions/0053-compiled-entry-point.md)); nothing compiles at import, no library function
-is decorated with `torch.compile`, and no module imports `torch._dynamo` or `torch._inductor`, whose settings and
-decomposition tables are process-wide. The public kinematics and dynamics trace as one graph when compiled
+is decorated with `torch.compile`, and no module names `torch._dynamo` or `torch._inductor`, whose settings and
+decomposition tables are process-wide, `torch.compiler` beyond `is_compiling` and `assume_constant_result`,
+`torch.jit` or `torch.library`. The public kinematics and dynamics trace as one graph when compiled
 (`tests/kinematics/test_fk_compile.py`, `tests/kinematics/test_compilation.py`). Torch is the only implementation
 (record [0001](decisions/0001-torch-only.md)): no C++ extension, Triton, Numba or CuPy kernel.
 

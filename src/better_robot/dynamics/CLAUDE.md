@@ -19,6 +19,7 @@ The design notes and their numbers live in the `_world.py` docstring.
 - Frame changes use the joint rotation matrices, not the quaternion `spatial.transform_*` (why: `_world.py`).
 - Under `kinematics.compiled(..., mode="reduce-overhead")` a host sync breaks CUDA-graph capture: no
   `linalg.cholesky` or `linalg.solve` with their error checks, use the `_ex` forms (`forward_dynamics` does).
-  A new grad mode, a second batch size or another model object compiles a new graph.
+  A new grad mode, dtype, non-tensor argument value or cold model argument is a key of its own (an eager first
+  call, then a compile); a warm `with_values` copy reuses its line's graphs; a second batch size compiles once more.
 - `to_world_force` returns `(N, 6, njoints)`: joints last, so the support product is one `mm` over the batch.
 - Pinocchio parity (`tests/parity/pinocchio/`) is the oracle; never weaken it.
