@@ -192,7 +192,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 
 | 0.2 | 0.3.0 | note |
 |---|---|---|
-| `solve_ik(..., iters=100)` | `solve_ik(..., iterations=50)` | also exported from the root; the default is 50 steps, always run (no early exit) |
+| `solve_ik(..., iters=100)` | `solve_ik(..., iterations=100)` | also exported from the root; every step runs (no early exit), and the default is now 50 |
 | `solve_ik(..., restarts=k, generator=g)` | `solve_ik(..., seeds=k + 1, generator=g)` | the starts run as one batch for `iterations` steps and the lowest per target is kept; `seeds=32, iterations=16` is the benchmark's multi-start call |
 | `random_start(model, q0, *, generator=None)` | `random_start(model, q0, *, generator)` | the generator is required |
 | `frame_pose(..., state=CacheRef(...))`, `frame_position(..., state=CacheRef(...))`, `self_clearance(..., state=CacheRef(...))`, `sphere_clearance(..., state=CacheRef(...))` | `state=` | the name string of the cached state |

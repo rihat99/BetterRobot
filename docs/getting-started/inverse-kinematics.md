@@ -45,7 +45,7 @@ stay on the manifold:
 `seeds` solves several starts per target in the same batch, `q0` first and the others drawn inside the limits
 with `generator`, and keeps the one that ends lowest, which escapes local minima one start cannot. More seeds with
 fewer iterations reach more targets in the same time: `seeds=32, iterations=16` reaches every Panda benchmark target
-(see [Benchmark and profile](../guides/benchmark-and-profile.md)).
+on CPU and 0.999 of them on a GPU (see [Benchmark and profile](../guides/benchmark-and-profile.md)).
 
 ```python
 result = solve_ik(model, {FRAME: target}, q0=q0, seeds=8, generator=generator)

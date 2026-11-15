@@ -174,8 +174,10 @@ that 0.3.0 renames or removes, one table row each.
 - `solve_ik` runs a fixed `iterations=50` (it ran at most 100 and stopped once every target converged) and reads
   nothing back to the host inside the loop. One start, Panda7, one CPU core, eager, against 0.3.0 before this
   change: batch 1 takes 87 ms (66 ms before, which stopped after 23 iterations), batch 64 114 ms (237 ms), batch 1024
-  395 ms (1110 ms); success 0.824 (0.829). G1 from one start reaches 0.580 of its targets (0.657 with 100
-  iterations): use `seeds=`.
+  395 ms (1110 ms); success 0.824 (0.829). On one GPU (RTX PRO 6000 Blackwell) batch 1 takes 229 ms eager (102 ms
+  before, which stopped after 13 iterations) and 26.0 ms with its step compiled (`solve_ik(step=)`; 9.2 ms for the
+  whole call under `torch.compile` before); batch 1024 takes 239 ms eager (828 ms) and 26.2 ms compiled (51.4 ms).
+  G1 from one start reaches 0.580 of its targets (0.657 with 100 iterations): use `seeds=`.
 - LM and Gauss-Newton keep the normal equations at `x` in `State.extra["normal"]`: a step linearizes once, at its
   candidate, instead of linearizing `x` and evaluating the candidate, with the same iterates. `frame_pose` builds its
   error from the frame's `[R | p]` and has a closed-form Jacobian (the same residual within rounding);
