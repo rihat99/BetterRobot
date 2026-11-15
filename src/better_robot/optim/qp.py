@@ -3,7 +3,7 @@
 ``solve_qp`` minimises ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper`` per batch element. An equality is a
 row with ``lower == upper``, a one-sided row has an infinite bound, a box on ``x`` is identity rows. The method is the
 alternating direction method of multipliers in the form OSQP uses (one factorization of ``H + penalty · rowsᵀ rows``
-per call, then ``iterations`` steps of two matrix-vector products each), followed by one active-set step that is
+per call, then ``iterations`` steps of three matrix-vector products each), followed by one active-set step that is
 kept where it lands on the exact solution (decision record 0054). Every batch element runs the same steps, with
 no Python branch on a tensor value and no host read, so the whole solve traces as one graph. It is made to be called
 once per step of an outer loop and started from its own last answer.
@@ -52,25 +52,30 @@ class QPSolution:
 @final
 @dataclass(frozen=True)
 class _Scaled:
-    """One batch of problems in unit-diagonal variables ``x = scale · y``; the rows keep the caller's units."""
+    """One batch of problems in unit-diagonal variables ``x = scale · y``; the rows keep the caller's units.
+
+    A vector of the variables is a row ``(B, 1, N)``: a row times a batch of matrices is the fast product, several
+    times faster on one CPU thread than the matrices times a column, and it needs no transposed copy of ``A``.
+    """
 
     H: torch.Tensor  # (B, N, N) unit diagonal plus the floor
-    c: torch.Tensor  # (B, N, 1)
+    c: torch.Tensor  # (B, 1, N)
     A: torch.Tensor  # (B, M, N)
-    At: torch.Tensor  # (B, N, M)
     lower: torch.Tensor  # (B, M)
     upper: torch.Tensor  # (B, M)
 
-    def measure(self, y: torch.Tensor, dual: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        """Row values ``(B, M)``, their largest violation ``(B,)``, the gradient ``(B, N)`` and its relative size."""
-        value = torch.bmm(self.A, y).squeeze(-1)
+    def values(self, y: torch.Tensor) -> torch.Tensor:
+        """The rows at ``y: (B, 1, N)``: ``(B, M)``."""
+        return torch.bmm(y, self.A.mT).squeeze(-2)
+
+    def measure(self, y: torch.Tensor, value: torch.Tensor, dual: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Largest violation ``(B,)`` of the row values ``value``, the gradient ``(B, 1, N)`` and its relative size."""
         primal = torch.maximum(value - self.upper, self.lower - value).clamp_min(0.0).amax(-1)
-        curve = torch.bmm(self.H, y).squeeze(-1)
-        back = torch.bmm(self.At, dual.unsqueeze(-1)).squeeze(-1)
-        gradient = curve + self.c.squeeze(-1) + back
-        parts = torch.maximum(curve.abs().amax(-1), back.abs().amax(-1))
-        parts = torch.maximum(parts, self.c.abs().amax(-2).squeeze(-1))
-        return value, primal, gradient, gradient.abs().amax(-1) / parts.clamp_min(1e-300)
+        curve = torch.bmm(y, self.H)
+        back = torch.bmm(dual.unsqueeze(-2), self.A)
+        gradient = curve + self.c + back
+        parts = torch.maximum(torch.maximum(curve.abs().amax(-1), back.abs().amax(-1)), self.c.abs().amax(-1))
+        return primal, gradient, (gradient.abs().amax(-1) / parts.clamp_min(1e-300)).squeeze(-1)
 
 
 def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
@@ -82,8 +87,8 @@ def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
 
 def _active_set_step(
     problem: _Scaled, v: torch.Tensor, dual: torch.Tensor, cold: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """The rows that ``v: (B, M)`` puts on a bound solved as equalities: ``y: (B, N, 1)``, ``dual: (B, M)``, status.
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The rows that ``v: (B, M)`` puts on a bound solved as equalities: ``y: (B, 1, N)``, its row values, ``dual``, status.
 
     The equalities are held by a stiff penalty and `_UPDATES` multiplier updates; a multiplier of the wrong sign is
     dropped, so the pair is a solution exactly when it also satisfies the rows that were left out.
@@ -92,15 +97,18 @@ def _active_set_step(
     active = (above | below).to(v.dtype)
     bound = torch.where(above, problem.upper, torch.where(below, problem.lower, torch.zeros_like(v)))
     stiff = _STIFFNESS * cold.unsqueeze(-1) * active
-    factor, info = torch.linalg.cholesky_ex(problem.H + torch.bmm(problem.At * stiff.unsqueeze(-2), problem.A))
-    force = dual * active
-    y = _solve(factor, torch.bmm(problem.At, (stiff * bound - force).unsqueeze(-1)) - problem.c)
+    weighted = (problem.A * stiff.unsqueeze(-1)).mT
+    factor, info = torch.linalg.cholesky_ex(problem.H + torch.bmm(weighted, problem.A))
+    pull, force = stiff * bound, dual * active
+    y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
+    value = problem.values(y)
     for _ in range(_UPDATES):
-        force = force + stiff * (torch.bmm(problem.A, y).squeeze(-1) - bound)
-        y = _solve(factor, torch.bmm(problem.At, (stiff * bound - force).unsqueeze(-1)) - problem.c)
-    force = force + stiff * (torch.bmm(problem.A, y).squeeze(-1) - bound)
+        force = force + stiff * (value - bound)
+        y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
+        value = problem.values(y)
+    force = force + stiff * (value - bound)
     signed = torch.where(above, force.clamp_min(0.0), force.clamp_max(0.0))
-    return y, torch.where(above & below, force, signed) * active, info
+    return y, value, torch.where(above & below, force, signed) * active, info
 
 
 def solve_qp(
@@ -147,17 +155,15 @@ def solve_qp(
     matrix = hessian.detach().double().reshape(-1, size, size)
     diagonal = matrix.diagonal(dim1=-2, dim2=-1)
     scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-    along = rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2)
-    floor = _FLOOR * torch.eye(size, dtype=matrix.dtype, device=matrix.device)
+    identity = torch.eye(size, dtype=matrix.dtype, device=matrix.device)
     problem = _Scaled(
-        H=matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2) + floor,
-        c=(gradient.detach().double().reshape(-1, size) * scale).unsqueeze(-1),
-        A=along,
-        At=along.mT.contiguous(),
+        H=matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2) + _FLOOR * identity,
+        c=(gradient.detach().double().reshape(-1, size) * scale).unsqueeze(-2),
+        A=rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2),
         lower=lower.detach().double().reshape(-1, count),
         upper=upper.detach().double().reshape(-1, count),
     )
-    gram = torch.bmm(problem.At, problem.A)
+    gram = torch.bmm(problem.A.mT, problem.A)
     # The rows weigh as much as the objective: trace(cold · gram) = trace(unit-diagonal H) = N.
     cold = (size / gram.diagonal(dim1=-2, dim2=-1).sum(-1).clamp_min(1e-300)).clamp(*_PENALTIES)
     if warm is None:
@@ -165,37 +171,41 @@ def solve_qp(
         y, dual = torch.zeros_like(problem.c), torch.zeros_like(problem.lower)
     else:
         penalty = warm.penalty.detach().double().reshape(-1)
-        y = (warm.x.detach().double().reshape(-1, size) / scale).unsqueeze(-1)
+        y = (warm.x.detach().double().reshape(-1, size) / scale).unsqueeze(-2)
         dual = warm.dual.detach().double().reshape(-1, count)
     rho = penalty.unsqueeze(-1)
 
+    # The inverse of H + penalty · rowsᵀ rows, by N right-hand sides: each step is then three products with a vector.
     factor, info = torch.linalg.cholesky_ex(problem.H + rho.unsqueeze(-1) * gram)
-    right = _solve(factor, torch.cat([rho.unsqueeze(-1) * problem.At, -problem.c], dim=-1))
-    lift, free = right[..., :count].contiguous(), right[..., count:].contiguous()
+    inverse = _solve(factor, identity.expand_as(gram))
+    free, spread = -torch.bmm(problem.c, inverse), rho.unsqueeze(-1) * inverse
     # State v = z + dual / penalty: z = clamp(v) is the rows' value inside the bounds, the rest is the multiplier.
-    z = torch.clamp(torch.bmm(problem.A, y).squeeze(-1), problem.lower, problem.upper)
+    value = problem.values(y)
+    z = torch.clamp(value, problem.lower, problem.upper)
     v = z + dual / rho
     for _ in range(iterations):
-        y = torch.baddbmm(free, lift, (z + z - v).unsqueeze(-1))
-        v = torch.add(v, torch.bmm(problem.A, y).squeeze(-1) - z, alpha=_RELAXATION)
+        y = torch.baddbmm(free, torch.bmm((z + z - v).unsqueeze(-2), problem.A), spread)
+        value = problem.values(y)
+        v = torch.add(v, value - z, alpha=_RELAXATION)
         z = torch.clamp(v, problem.lower, problem.upper)
     dual = rho * (v - z)
-    value, primal, slope, ahead = problem.measure(y, dual)
+    primal, slope, ahead = problem.measure(y, value, dual)
     # The next solve weighs the rows more when they lag behind the multipliers, less when they lead (OSQP's rule).
     # Both sides are floored at `_SETTLED`: a pair that has converged keeps its penalty instead of following rounding.
     behind = (value - z).abs().amax(-1) / torch.maximum(value.abs().amax(-1), z.abs().amax(-1)).clamp_min(1e-300)
     change = (behind.clamp_min(_SETTLED) / ahead.clamp_min(_SETTLED)).sqrt().clamp(1.0 / _RETUNE, _RETUNE)
     penalty = (penalty * change).clamp(*_PENALTIES)
 
-    held, force, held_info = _active_set_step(problem, v, dual, cold)
-    held_value, held_primal, held_slope, held_ahead = problem.measure(held, force)
+    held, held_value, force, held_info = _active_set_step(problem, v, dual, cold)
+    held_primal, held_slope, held_ahead = problem.measure(held, held_value, force)
     reach = torch.maximum(
         held_value.abs().amax(-1), torch.clamp(held_value, problem.lower, problem.upper).abs().amax(-1)
     )
     exact = ((held_info == 0) & (held_primal <= _EXACT * reach) & (held_ahead <= _EXACT)).unsqueeze(-1)
-    y, dual = torch.where(exact, held.squeeze(-1), y.squeeze(-1)), torch.where(exact, force, dual)
+    y = torch.where(exact, held.squeeze(-2), y.squeeze(-2))
+    dual = torch.where(exact, force, dual)
     primal = torch.where(exact.squeeze(-1), held_primal, primal)
-    slope = torch.where(exact, held_slope, slope)
+    slope = torch.where(exact, held_slope.squeeze(-2), slope.squeeze(-2))
 
     x = y * scale
     stationarity = ((slope - _FLOOR * y) / scale).abs().amax(-1)  # of the caller's H, without the floor
