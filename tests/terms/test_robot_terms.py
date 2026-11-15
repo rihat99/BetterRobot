@@ -1,11 +1,13 @@
 """Robot terms: analytic Jacobians equal autodiff; IK reaches reachable targets inside the limits."""
 
 import re
+import warnings
 from dataclasses import dataclass
 from typing import ClassVar, final
 
 import pytest
 import torch
+from torch._dynamo.utils import counters
 
 import better_robot as br
 from better_robot import optim, terms
@@ -41,21 +43,122 @@ def test_analytic_jacobians_match_autodiff(panda):
     assert max(errors.values()) < 1e-5, errors
 
 
-def test_ik_with_restarts_reaches_every_target_inside_limits(panda):
+@pytest.mark.parametrize("angle", [0.0, 1e-3, 0.19, 0.21, 2.0, 3.14])
+def test_pose_jacobian_matches_autodiff_at_every_rotation_error(panda, angle):
+    """The closed-form pose Jacobian switches to series below a 0.2 rad error and has ``cot(θ/2)`` near π."""
+    q = _random_q(panda, 8, 8)
+    pose = forward_kinematics(panda, q).frame_poses[:, panda.frame_id(FRAME)]
+    axis = torch.nn.functional.normalize(torch.randn(8, 3, generator=torch.Generator().manual_seed(9), dtype=q.dtype))
+    offset = torch.cat([torch.full((8, 3), 0.1, dtype=q.dtype), so3.exp(angle * axis)], dim=-1)
+    goal = br.lie.se3.compose(pose, offset)
+    errors = optim.check_jacobian(terms.ik_problem(panda, {FRAME: goal}, q0=q), {"q": q})
+    assert errors[f"pose/{FRAME}"] < 1e-12, errors
+
+
+def test_ik_with_seeds_reaches_every_target_inside_limits(panda):
     goal = forward_kinematics(panda, _random_q(panda, 32, 2)).frame_poses[:, panda.frame_id(FRAME)]
     q0 = _random_q(panda, 32, 3)
-    result = terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=16, generator=torch.Generator().manual_seed(4))
+    result = terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=17, generator=torch.Generator().manual_seed(4))
     q = result.x["q"]
     reached = forward_kinematics(panda, q).frame_poses[:, panda.frame_id(FRAME)]
     assert float((reached[:, :3] - goal[:, :3]).norm(dim=-1).max()) < 1e-6
     assert bool(((q >= panda.lower_position_limit) & (q <= panda.upper_position_limit)).all())
 
 
-def test_ik_restarts_need_a_generator(panda):
+def test_ik_seeds_keep_the_best_start_of_each_target_and_the_first_is_q0(panda):
+    """Seed 0 is ``q0`` itself, solved in the same batch as the others: no target ends worse than from ``q0`` alone,
+    and the kept start's loss is the one ``result.loss`` reports."""
+    goal = forward_kinematics(panda, _random_q(panda, 16, 5)).frame_poses[:, panda.frame_id(FRAME)]
+    q0 = _random_q(panda, 16, 6)
+    alone = terms.solve_ik(panda, {FRAME: goal}, q0=q0, iterations=8)
+    seeded = terms.solve_ik(
+        panda, {FRAME: goal}, q0=q0, iterations=8, seeds=4, generator=torch.Generator().manual_seed(7)
+    )
+    assert bool((seeded.loss <= alone.loss * (1 + 1e-9)).all())
+    assert bool((seeded.loss < alone.loss).any())
+    assert torch.allclose(seeded.loss, terms.ik_problem(panda, {FRAME: goal}, q0=seeded.x["q"]).loss(), rtol=1e-12)
+    assert seeded.history["phase"].shape == (8, 16) and seeded.state is None
+
+
+def test_a_compiled_step_serves_every_solve_without_a_graph_per_step(panda):
+    """``solve_ik(step=kinematics.compiled(solver.step))``: the driver hands the step ``iteration=0`` and a state whose
+    normal equations ride in ``extra``, with the same keys from ``init`` as from a step; three solves of new strided
+    targets and a seeds solve of the same batch compile one graph and match eager."""
+    solver = optim.LevenbergMarquardt()
+    step = br.kinematics.compiled(solver.step)
+    counters.clear()
+    for seed, batch, seeds in ((10, 8, 1), (11, 8, 1), (12, 8, 1), (13, 4, 2)):
+        goal = forward_kinematics(panda, _random_q(panda, batch, seed)).frame_poses[:, panda.frame_id(FRAME)]
+        q0 = _random_q(panda, batch, 3)
+        compiled, eager = (
+            terms.solve_ik(
+                panda,
+                {FRAME: goal},
+                q0=q0,
+                solver=solver,
+                iterations=4,
+                seeds=seeds,
+                generator=torch.Generator().manual_seed(1),
+                step=hook,
+            )
+            for hook in (step, None)
+        )
+        torch.testing.assert_close(compiled.x["q"], eager.x["q"], rtol=0.0, atol=1e-9)
+    assert counters["stats"]["unique_graphs"] == 1
+
+
+@pytest.mark.cuda
+@pytest.mark.parametrize("seeds", [1, 3])
+@pytest.mark.parametrize(
+    "solver",
+    [optim.LevenbergMarquardt(), optim.GaussNewton(damping=1e-3), optim.LBFGS(stop_search=False)],
+    ids=["lm", "gn", "lbfgs"],
+)
+def test_solve_ik_on_cuda_makes_no_synchronizing_call(solver, seeds):
+    """The fixed budget never waits for the device: under ``set_sync_debug_mode("error")`` any synchronizing call
+    raises, a value read back or a number copied to the device (Gauss-Newton's float damping once was)."""
+    model = br.load(panda_urdf(), device=torch.device("cuda"))
+    q0, q_goal = (
+        terms.random_start(model, model.q_neutral.expand(8, -1), generator=torch.Generator("cuda").manual_seed(seed))
+        for seed in (3, 2)
+    )
+    goal = forward_kinematics(model, q_goal).frame_poses[:, model.frame_id(FRAME)]
+
+    def solve():
+        generator = torch.Generator("cuda").manual_seed(1) if seeds > 1 else None
+        return terms.solve_ik(
+            model, {FRAME: goal}, q0=q0, solver=solver, iterations=3, seeds=seeds, generator=generator
+        )
+
+    solve()  # the model's plans and memo are built on the first call
+    torch.cuda.synchronize()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Synchronization debug mode")
+        torch.cuda.set_sync_debug_mode("error")
+    try:
+        result = solve()
+    finally:
+        torch.cuda.set_sync_debug_mode(0)
+    assert result.x["q"].shape == q0.shape
+
+
+def test_ik_seeds_take_one_pose_per_start_or_raise_shape_error(panda):
+    """The seeds' fold pairs each row of ``q0`` with one pose: ``(1, 1, 7)`` for one row solves, and five poses for
+    one row raise ``ShapeError`` as from a single start, never a raw torch error."""
+    q0 = panda.q_neutral[None]
+    goal = forward_kinematics(panda, _random_q(panda, 5, 8)).frame_poses[:, panda.frame_id(FRAME)]
+    generator = torch.Generator().manual_seed(9)
+    result = terms.solve_ik(panda, {FRAME: goal[:1, None]}, q0=q0, seeds=3, generator=generator)
+    assert result.x["q"].shape == q0.shape and float(result.loss) < 1e-12
+    with pytest.raises(br.exceptions.ShapeError, match="one pose"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=3, generator=generator)
+
+
+def test_ik_seeds_need_a_generator(panda):
     q0 = panda.q_neutral[None]
     goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
     with pytest.raises(br.exceptions.ArgumentError, match="generator"):
-        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=1)
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=2)
 
 
 def test_random_start_and_solve_ik_check_their_arguments(panda):
@@ -67,8 +170,8 @@ def test_random_start_and_solve_ik_check_their_arguments(panda):
     with pytest.raises(br.exceptions.ArgumentError, match="generator"):
         terms.random_start(panda, q0, generator=None)
     goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
-    with pytest.raises(br.exceptions.ArgumentError, match="restarts must be at least 0"):
-        terms.solve_ik(panda, {FRAME: goal}, q0=q0, restarts=-3)
+    with pytest.raises(br.exceptions.ArgumentError, match="seeds must be at least 1"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=0)
 
 
 @pytest.mark.parametrize("entry", [terms.ik_problem, terms.solve_ik])

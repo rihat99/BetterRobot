@@ -33,11 +33,17 @@ IK, aligned with the frax reference run as far as the two algorithms allow:
 - success: every target frame within 1 mm and 0.01 rad, over at least ``POOL`` targets (``success_targets``): a row
   with ``B < POOL`` reports an eager solve of the whole pool, since a solve treats each sample on its own (LM freezes
   a done element; the restarts draw per sample);
-- ``ik_step``: one ``LevenbergMarquardt.step`` from the start (frax: one QP step from ``init(start)``, which is zeros);
-  ``solve_ik``: the default call, at most 100 LM iterations, stopping once every sample is done (frax: at most 200
-  steps, stopping at 1e-4 on max |v|); ``solve_ik_multistart``: five starts, ``restarts=4`` (frax: five samples);
-- ``iterations``: ``Result.iterations``, summed over the starts, which every sample of the batch runs (frax: the median
-  over samples of its own count, summed over the starts).
+- ``ik_step``: one ``LevenbergMarquardt.step`` from ``init(start)`` (frax: one QP step from ``init(start)``, which is
+  zeros); ``solve_ik``: the default call, one start (frax: at most 200 steps, stopping at 1e-4 on max |v|);
+  ``solve_ik_multistart``: the library's multi-start call, ``MULTISTART`` (``seeds``, ``iterations``): every start of
+  every target in one batch, the best kept; a library before ``seeds=`` runs ``restarts=4``, five starts one after
+  another, each to at most 100 iterations (frax: five samples). Both rows compare a library's own call for one start
+  and for several, at its own budget, by time and success;
+- ``iterations``: ``Result.iterations``, the steps every sample of the batch runs, summed over sequential restarts
+  (frax: the median over samples of its own count, summed over the starts); ``seeds``: the starts per target.
+- compiled solves: a library with ``solve_ik(step=)`` compiles its LM step once per row with ``kinematics.compiled``
+  and passes it (adapter ``solve_ik(step=)``); an older one compiles the whole solve with ``torch.compile``, which
+  breaks the graph at every early-stop read.
 
 What still differs: LM with hard bounds against frax's QP with a posture task and limit rows; the frames (``panda_hand``,
 G1's ``rubber_hand`` and ``ankle_roll`` links against frax's end-effector, hand and foot offsets); frax's G1 URDF
@@ -47,8 +53,10 @@ Timing. A row is warmed up, then timed as the median over samples, each one or m
 between ``torch.cuda.synchronize`` calls: at least ``MIN_SAMPLES``, at most ``--repeats``, none started after
 ``ROW_BUDGET_S``. Compiles are cold: the run first compiles a throwaway function (the compiler's one-time start-up)
 and calls each function once eagerly at batch 1 (filling the model's memo, which a compiled first call would trace),
-then each compiled row runs after ``torch.compiler.reset()`` in an empty compile cache of its own; its first call is
-``compile_seconds``. A compiled row's counted calls (the timed ones and one more) run with the garbage collector off,
+then each compiled row runs after ``torch.compiler.reset()`` in an empty compile cache of its own;
+``compile_seconds`` sums the warm-up calls that compile a graph (``kinematics.compiled`` runs a key's first call
+eagerly and compiles on the second; a solve compiles its step inside, once per key it meets). A compiled row's
+counted calls (the timed ones and one more) run with the garbage collector off,
 as in the counter gate, so ``recompiles`` counts only graphs compiled after the warm-up; that last call (a CUDA graph
 replay under reduce-overhead) is compared with eager as ``max_rel_diff_vs_eager``. A failure is a row with ``error``;
 the larger batches of that function, pass and mode are then ``skipped``, as are those after a call above
@@ -68,14 +76,14 @@ Row schema, shared by every row of a run and of a reference JSON (``{"meta": {..
     batch             samples per call
     mode              one of MODES; a reference names its own ("jit", "jit(vmap)", "c++")
     seconds_per_call  median wall time of one call; absent when the row has "error" or "skipped" (text)
-    compile_seconds   the first call of a compiled row (optional)
+    compile_seconds   the warm-up calls of a compiled row that compile a graph, summed (optional)
 
 A run's rows add ``grad``, ``nq``, ``nv``, ``seconds_min``, ``seconds_spread`` (interquartile range over the
 median), ``samples``, ``calls_per_sample``, ``page_faults`` per call, ``loadavg``, on CUDA ``gpu_other_pids`` (other
 processes on the GPU at the row's start or end: the row was timed on a shared GPU), on compiled rows
 ``adapter`` (``ADAPTERS``), ``graph_breaks``, ``graphs``, ``recompiles``, ``cudagraph_skips`` and
 ``max_rel_diff_vs_eager`` (largest
-``max |compiled - eager| / max |eager|`` over the outputs), on IK rows ``iterations``, ``success_rate``,
+``max |compiled - eager| / max |eager|`` over the outputs), on IK rows ``iterations``, on solves ``seeds``, ``success_rate``,
 ``success_targets``, ``median_position_error_m`` and ``median_rotation_error_rad``.
 
 ``table`` prints the rows of one or more runs as two markdown tables, kinematics and dynamics, then IK: microseconds
@@ -97,6 +105,7 @@ import contextlib
 import dataclasses
 import datetime
 import gc
+import inspect
 import json
 import math
 import os
@@ -147,20 +156,26 @@ ROW_BUDGET_S = 1.0
 IK_POSITION_M, IK_ROTATION_RAD = 1e-3, 1e-2
 FIXED_MALLOC = {"MALLOC_MMAP_THRESHOLD_": "134217728", "MALLOC_TRIM_THRESHOLD_": "268435456"}
 MODES = ("eager", "compile", "reduce-overhead")
-SOLVES = ("solve_ik", "solve_ik_multistart")  # their loop reads the device to stop early: graph breaks
-ADAPTERS = ("kinematics.compiled", "torch.compile")
+SOLVES = ("solve_ik", "solve_ik_multistart")
+ADAPTERS = ("kinematics.compiled", "torch.compile", "solve_ik(step=)")
 COMPILED = getattr(br.kinematics, "compiled", None)  # None in a library version before record 0053
+SEEDS = "seeds" in inspect.signature(br.solve_ik).parameters  # False before batched seeds; then also no step=
+COMPILE_MODES = {"compile": "default", "reduce-overhead": "reduce-overhead"}
+MULTISTART = (32, 16)  # (seeds, iterations) of solve_ik_multistart: success 1.000 Panda, 0.991 G1 (I1 measurement)
 
 
 def adapter(function: str) -> str:
-    """The ``ADAPTERS`` entry that compiles ``function``: ``torch.compile`` for a solve or a library without
-    ``kinematics.compiled``."""
-    return ADAPTERS[1] if function in SOLVES or COMPILED is None else ADAPTERS[0]
+    """The ``ADAPTERS`` entry that compiles ``function``: the solve's own ``step=`` hook, else ``torch.compile`` for a
+    solve or a library without ``kinematics.compiled``."""
+    if function in SOLVES:
+        return ADAPTERS[2] if SEEDS else ADAPTERS[1]
+    return ADAPTERS[1] if COMPILED is None else ADAPTERS[0]
 
 
 def adapt(fn: Callable[..., Any], mode: str, compiler: str = ADAPTERS[0]) -> Callable[..., Any]:
-    """The callable of ``fn`` in ``mode``: itself, or ``fn`` compiled by ``compiler`` (``adapter``) in that mode."""
-    if mode == "eager":
+    """The callable of ``fn`` in ``mode``: itself, or ``fn`` compiled by ``compiler`` (``adapter``) in that mode; a
+    ``solve_ik(step=)`` case compiled its step itself."""
+    if mode == "eager" or compiler == ADAPTERS[2]:
         return fn
     if compiler == ADAPTERS[1] or COMPILED is None:
         return torch.compile(fn, mode=None if mode == "compile" else mode)
@@ -217,9 +232,10 @@ def start_configuration(robot: str, model: br.Model) -> torch.Tensor:
 
 
 def ik_case(
-    function: str, robot: str, model: br.Model, q_target: torch.Tensor, start: torch.Tensor
-) -> tuple[Callable[..., Any], tuple[torch.Tensor, ...], Callable[[Any], dict[str, Any]]]:
-    """``(fn, args, report)`` of an IK row toward the ``IK_FRAMES`` poses at ``q_target: (B, nq)``, from ``start: (nq,)``.
+    function: str, robot: str, model: br.Model, q_target: torch.Tensor, start: torch.Tensor, mode: str = "eager"
+) -> tuple[Callable[..., Any], tuple[Any, ...], Callable[[Any], dict[str, Any]]]:
+    """``(fn, args, report)`` of an IK row toward the ``IK_FRAMES`` poses at ``q_target: (B, nq)``, from ``start: (nq,)``;
+    ``mode`` compiles a solve's step (``adapter``).
 
     ``fn(*args)`` returns ``(q, ...)``; ``report(output)`` gives the call's iterations and, for a solve, its accuracy.
     """
@@ -229,36 +245,34 @@ def ik_case(
         targets = reached.frame_transforms[:, frame_ids]  # (B, F, 3, 4)
         poses = tuple(reached.frame_poses[:, frame_ids].unbind(1))
     q0 = start.expand(q_target.shape[0], model.nq).clone()
+    solver = LevenbergMarquardt()
     if function == "ik_step":
         problem = br.terms.ik_problem(model, dict(zip(frames, poses, strict=True)), q0=q0)
-        solver = LevenbergMarquardt()
-        begin = solver.init(problem, {"q": q0})
-        names = tuple(begin.extra["terms"])
 
-        def step(q: torch.Tensor, loss: torch.Tensor, done: torch.Tensor, *extra: torch.Tensor) -> tuple:
-            damping, growth, *terms = extra
-            state = State(
-                x={"q": q},
-                loss=loss,
-                done=done,
-                solver=LevenbergMarquardt,
-                extra={"damping": damping, "growth": growth, "terms": dict(zip(names, terms, strict=True))},
-            )
+        def step(state: State) -> tuple:
             new = solver.step(problem, state)
             return new.x["q"], new.loss, new.done, new.extra["damping"]
 
-        extra = (begin.extra["damping"], begin.extra["growth"], *begin.extra["terms"].values())
-        return step, (q0, begin.loss, begin.done, *extra), lambda output: {"iterations": 1}
-    restarts = 4 if function == "solve_ik_multistart" else 0
+        return step, (solver.init(problem, {"q": q0}),), lambda output: {"iterations": 1}
+    seeds, iterations = MULTISTART if function == "solve_ik_multistart" else (1, None)
+    keywords: dict[str, Any] = {}
+    if SEEDS:
+        keywords |= {"seeds": seeds} | ({"iterations": iterations} if iterations else {})
+        if mode != "eager":
+            keywords["solver"] = solver
+            keywords["step"] = COMPILED(solver.step, mode=COMPILE_MODES[mode])
+    elif function == "solve_ik_multistart":
+        keywords["restarts"] = 4
 
     def solve(q0: torch.Tensor, *poses: torch.Tensor) -> tuple[torch.Tensor, int]:
-        generator = torch.Generator(device=q0.device).manual_seed(1) if restarts else None
-        targets = dict(zip(frames, poses, strict=True))
-        result = br.solve_ik(model, targets, q0=q0, restarts=restarts, generator=generator)
+        many = keywords.get("seeds", 1) > 1 or "restarts" in keywords
+        generator = torch.Generator(device=q0.device).manual_seed(1) if many else None
+        result = br.solve_ik(model, dict(zip(frames, poses, strict=True)), q0=q0, generator=generator, **keywords)
         return result.x["q"], result.iterations
 
     def report(output: tuple[torch.Tensor, int]) -> dict[str, Any]:
-        return {"iterations": output[1]} | ik_accuracy(robot, model, output[0], targets)
+        starts = keywords.get("seeds", keywords.get("restarts", 0) + 1)
+        return {"iterations": output[1], "seeds": starts} | ik_accuracy(robot, model, output[0], targets)
 
     return solve, (q0, *poses), report
 
@@ -345,7 +359,7 @@ def forward_backward(fn: Callable[..., Any], args: tuple[torch.Tensor, ...]) -> 
 
 
 def measure(
-    case: Callable[[], tuple],
+    case: Callable[..., tuple],
     mode: str,
     device: torch.device,
     repeats: int,
@@ -354,10 +368,10 @@ def measure(
     grad: bool,
     compiler: str,
 ) -> tuple[dict[str, Any], list[torch.Tensor]]:
-    """Time ``adapt(fn, mode, compiler)(*args)`` of ``fn, args, report = case()``, or its forward and backward
+    """Time ``adapt(fn, mode, compiler)(*args)`` of ``fn, args, report = case(mode)``, or its forward and backward
     (module docstring): the row's fields and the tensors of its output."""
     sync = (lambda: torch.cuda.synchronize(device)) if device.type == "cuda" else (lambda: None)
-    fn, args, report = case()
+    fn, args, report = case(mode)
     row: dict[str, Any] = {}
     compiled = mode != "eager"
     with fresh_cache() if compiled else contextlib.nullcontext(), contextlib.nullcontext() if grad else torch.no_grad():
@@ -365,14 +379,17 @@ def measure(
             torch.compiler.reset()
             dynamo_counters.clear()
         call = forward_backward(adapt(fn, mode, compiler), args) if grad else partial(adapt(fn, mode, compiler), *args)
-        sync()
-        start = time.perf_counter()
-        output = call()
-        sync()
+        compile_seconds = 0.0
+        for _ in range((4 if compiler == ADAPTERS[0] else 3) if compiled else 1):  # the warm-up
+            graphs = dynamo_counters["stats"]["unique_graphs"]
+            sync()
+            start = time.perf_counter()
+            output = call()
+            sync()
+            if dynamo_counters["stats"]["unique_graphs"] > graphs:
+                compile_seconds += time.perf_counter() - start
         if compiled:
-            row["compile_seconds"] = time.perf_counter() - start
-            call()
-            call()
+            row["compile_seconds"] = compile_seconds
             gc.collect()
             gc.disable()  # a collection inside a compiled call runs weakref callbacks that dynamo counts as frames
         try:
@@ -473,9 +490,10 @@ def siblings_busy(cores: list[int], seconds: float = 1.0) -> dict[str, float]:
 
 
 def kinematics_case(
-    function: str, robot: str, model: br.Model, q: torch.Tensor, v: torch.Tensor, a: torch.Tensor
+    function: str, robot: str, model: br.Model, q: torch.Tensor, v: torch.Tensor, a: torch.Tensor, mode: str = "eager"
 ) -> tuple[Callable[..., Any], tuple[torch.Tensor, ...], None]:
-    """``(fn, args, None)`` of a ``KINEMATICS`` row at ``q, v, a: (B, nq), (B, nv), (B, nv)``."""
+    """``(fn, args, None)`` of a ``KINEMATICS`` row at ``q, v, a: (B, nq), (B, nv), (B, nv)``; ``adapt`` compiles it
+    for ``mode``."""
     return partial(KINEMATICS[function], model, model.frame_id(IK_FRAMES[robot][0])), (q, v, a), None
 
 
@@ -487,7 +505,7 @@ def make_case(
     inputs: tuple[torch.Tensor, ...],
     ik_q: torch.Tensor,
     start: torch.Tensor,
-) -> Callable[[], tuple]:
+) -> Callable[..., tuple]:
     """The case of a row at ``batch``: kinematics at the pool ``inputs = (q, v, a)`` tiled, IK toward the first
     ``batch`` targets ``ik_q: (N, nq)``."""
     if function in KINEMATICS:
@@ -504,9 +522,10 @@ def warm_compiler(device: torch.device, modes: list[str]) -> None:
         with fresh_cache():
             torch.compiler.reset()
             compiled = adapt(lambda t: t.sin() * 2, mode)
-            with torch.no_grad():
-                compiled(x)
-            torch.autograd.grad(compiled(x).sum(), x)
+            for _ in range(2):  # kinematics.compiled compiles a key on its second call
+                with torch.no_grad():
+                    compiled(x)
+                torch.autograd.grad(compiled(x).sum(), x)
     torch.compiler.reset()
 
 

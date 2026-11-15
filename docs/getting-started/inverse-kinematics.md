@@ -31,20 +31,24 @@ too (`torch.Generator(device=q0.device)`).
 ## Solve with one call
 
 `solve_ik` builds a pose term per target frame, keeps the joints inside their limits, and runs
-Levenberg-Marquardt (LM) on all 32 problems together. Each iteration evaluates the residual
+Levenberg-Marquardt (LM) on all 32 problems together, a fixed `iterations=50` steps with no early exit, so the
+loop never waits on a convergence check. Each iteration evaluates the residual
 $r(q)$ (pose error and limit violations) and its Jacobian $J = \partial r / \partial q$, then takes the
 damped step $\Delta q = -(J^\top J + \lambda D)^{-1} J^\top r$, where $D = \mathrm{diag}(J^\top J)$ and
 $\lambda$ grows when a step is rejected, then integrates it with `kinematics.integrate`, so configurations
 stay on the manifold:
 
-![The IK loop: forward kinematics gives the pose error, the Jacobian gives the step, kinematics.integrate applies it, and the loop repeats until the residual is small.](../figures/ik_loop.svg){ width="860" }
+![The IK loop: forward kinematics gives the pose error, the Jacobian gives the step, kinematics.integrate applies it, and the loop repeats a fixed number of times.](../figures/ik_loop.svg){ width="860" }
 
 *One LM iteration of `solve_ik`; the whole loop is batched over the 32 targets.*
 
-`restarts` retries from random starts to escape local minima:
+`seeds` solves several starts per target in the same batch, `q0` first and the others drawn inside the limits
+with `generator`, and keeps the one that ends lowest, which escapes local minima one start cannot. More seeds with
+fewer iterations reach more targets in the same time: `seeds=32, iterations=16` reaches every Panda benchmark target
+on CPU and 0.999 of them on a GPU (see [Benchmark and profile](../guides/benchmark-and-profile.md)).
 
 ```python
-result = solve_ik(model, {FRAME: target}, q0=q0, restarts=4, generator=generator)
+result = solve_ik(model, {FRAME: target}, q0=q0, seeds=8, generator=generator)
 q = result.x["q"]  # (32, nq)
 
 reached = forward_kinematics(model, q).frame_poses[:, hand]
@@ -52,7 +56,7 @@ error = (reached[:, :3] - target[:, :3]).norm(dim=-1)
 print(f"reached (<0.1 mm): {float((error < 1e-4).float().mean()):.2f}, median error {float(error.median()):.1e} m")
 ```
 ```output
-reached (<0.1 mm): 0.97, median error 2.3e-12 m
+reached (<0.1 mm): 1.00, median error 3.0e-13 m
 ```
 
 `result.x` is a dict of the solved variables; IK has one variable, `"q"`:

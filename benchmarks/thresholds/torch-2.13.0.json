@@ -73,7 +73,7 @@
    "batch": 1,
    "loadavg": "10.89 19.78 26.65 9/19413 3400921",
    "ops": 240,
-   "host_syncs": 2,
+   "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
   },
@@ -127,7 +127,7 @@
    "batch": 1,
    "loadavg": "10.37 19.38 26.44 8/19205 3402022",
    "ops": 255,
-   "host_syncs": 2,
+   "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
   },
@@ -136,9 +136,9 @@
    "batch": 64,
    "loadavg": "10.02 19.15 26.33 7/19175 3402077",
    "success_fraction": 0.921875,
-   "worst_position_error_m": 0.07078872621059418,
-   "ops": null,
-   "host_syncs": null,
+   "worst_position_error_m": 0.0707888975739479,
+   "ops": 30446,
+   "host_syncs": 0,
    "graph_breaks": 5,
    "recompiles": 12
   },

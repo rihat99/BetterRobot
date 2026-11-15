@@ -194,6 +194,9 @@ print(ball.ball.points)
 A solver subclasses `better_robot.optim.Solver` with `init(problem, x) -> State` and
 `step(problem, state) -> State`. Both are pure: every step returns a new `State` and writes nothing into the problem.
 `solve` and `run` call `init` once and `step` up to the iteration budget; `State.done` stops a batch element early.
+A state belongs to the problem `init` made it for: a hand-driven loop that changes the problem's data (a new target
+each tick) calls `init` again, because a state may carry values of the old data (LM and Gauss-Newton keep the normal
+equations at `x`).
 
 ```python
 import torch

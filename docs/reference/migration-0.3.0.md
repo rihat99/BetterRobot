@@ -182,7 +182,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `solve(..., iters=)`, `solve_layer(..., iters=)`, `solve_constrained(..., iters=)` | `iterations=` | |
 | `LevenbergMarquardt(gtol, ftol, xtol)`, `GaussNewton(gtol, xtol)`, `LBFGS(gtol)` | `gradient_tolerance=`, `loss_tolerance=`, `step_tolerance=` | each solver keeps the subset it had |
 | `TorchOptim(optimizer_cls, *, scheduler, **kwargs)` | `TorchOptim(factory, *, scheduler=None)` | `factory(params)` returns a `torch.optim.Optimizer` |
-| `State.it` | `State.iteration` | |
+| `State.it` | `State.iteration` | a step passed as `Phase(step=)` or `solve(..., step=)`, and every step inside `solve_ik`, reads 0 here; `run` keeps the count |
 | `State(x, loss, done, it=0, extra)` | `State(x, loss, *, done, solver, iteration=0, extra)` | `done` is keyword-only; `solver` is the class of the solver that made the state, and a warm start needs a solver of that class |
 | `Result(x, loss, done, iters, ...)` | `Result(x, loss, *, done, iterations, ...)` | `done` and the fields after it are keyword-only |
 | `Solver`, `Manifold` as `Protocol`s | `optim.Solver`, `optim.Manifold` | abstract bases: subclass them |
@@ -192,7 +192,8 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 
 | 0.2 | 0.3.0 | note |
 |---|---|---|
-| `solve_ik(..., iters=100)` | `solve_ik(..., iterations=100)` | also exported from the root |
+| `solve_ik(..., iters=100)` | `solve_ik(..., iterations=100)` | also exported from the root; every step runs (no early exit), and the default is now 50 |
+| `solve_ik(..., restarts=k, generator=g)` | `solve_ik(..., seeds=k + 1, generator=g)` | the starts run as one batch for `iterations` steps and the lowest per target is kept; `seeds=32, iterations=16` is the benchmark's multi-start call |
 | `random_start(model, q0, *, generator=None)` | `random_start(model, q0, *, generator)` | the generator is required |
 | `frame_pose(..., state=CacheRef(...))`, `frame_position(..., state=CacheRef(...))`, `self_clearance(..., state=CacheRef(...))`, `sphere_clearance(..., state=CacheRef(...))` | `state=` | the name string of the cached state |
 | `sphere_clearance(..., hinge=True)`, `self_clearance(..., hinge=True)`: residual `max(margin - distance, 0)` | `sphere_clearance`, `self_clearance` | the hinge is C1, `gap² / (2 margin)` inside the margin band: raise the weight to keep the old push near the margin |

@@ -3,19 +3,21 @@
 Every tensor in ``State`` is batch-first. A step computes all batch elements and keeps
 the old value where an element is done or its step was rejected, so shapes never change.
 ``step`` itself reads no tensor back to Python, except the ``LBFGS`` line search: one flag
-per trial, to stop once every problem has its step.
+per trial, to stop once every problem has its step (``stop_search=False`` runs every trial instead).
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from dataclasses import KW_ONLY, dataclass, field
+from dataclasses import KW_ONLY, dataclass, field, fields, replace
 from typing import Any, ClassVar, final, override
 
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
+from .linear import ArrowNormal, BandedNormal, Normal
+from .linearization import linearize
 from .problem import Problem
 
 
@@ -29,12 +31,20 @@ class State:
     (largest entry of the step taken, 0 where none was taken), ``accepted`` (bool, the step
     moved the variables) and ``damping`` (LM only, damping for the next step). LM, Gauss-Newton
     and L-BFGS write the first three; ``TorchOptim`` writes none. ``run`` stacks them into
-    ``Result.diagnostics``. ``Solver.warm_keys`` names the ``extra`` entries a warm start keeps.
+    ``Result.diagnostics``. LM's and Gauss-Newton's ``init`` writes them too, for no step (``grad_norm`` at
+    ``x``, ``step_norm`` 0, ``accepted`` false): a first state has the keys of a stepped one, so a compiled step
+    serves both with one key.
+    ``Solver.warm_keys`` names the ``extra`` entries a warm start keeps.
 
     Every solver also writes ``terms``, ``{name: (B,)}``: the detached loss of each active term from
     the evaluation that ``loss`` comes from, so logging needs no second forward. ``TorchOptim`` adds
     ``info``, the ``{name: info}`` dicts of terms returning ``(value, info)`` (see ``Problem.evaluate``).
+    LM and Gauss-Newton keep ``normal``, the normal equations at ``x``: a step linearizes once, at its candidate,
+    and that serves the next step where the candidate is taken.
     ``solver`` is the class of the solver that made the state; a warm start needs a solver of that class.
+    A state belongs to the problem ``init`` made it for: ``step`` it with that problem only. A loop that changes the
+    problem's data (a new target each tick) calls ``init`` again, or ``run(..., state=)``, which does; stepping the old
+    state would reuse the previous data's ``normal``.
     """
 
     x: dict[str, torch.Tensor] = field(repr=False)  #: variables, each ``(B, *event)``.
@@ -42,7 +52,7 @@ class State:
     _: KW_ONLY
     done: torch.Tensor = field(repr=False)  #: ``(B,)`` bool, per-problem convergence.
     solver: type[Solver]  #: the solver kind that made this state.
-    iteration: int = 0  #: steps taken so far.
+    iteration: int = 0  #: steps taken so far; 0 inside a ``Phase.step`` hook, whose count ``run`` keeps.
     extra: dict[str, Any] = field(default_factory=dict, repr=False)  #: solver-owned (damping, moments, ...).
 
 
@@ -72,7 +82,8 @@ class Solver(ABC):
 
     @abstractmethod
     def step(self, problem: Problem, state: State) -> State:
-        """One iteration for every batch element; done or rejected elements keep their values."""
+        """One iteration for every batch element; done or rejected elements keep their values. ``problem`` is the one
+        ``state`` was made for (see ``State``)."""
 
 
 def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
@@ -80,6 +91,21 @@ def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, tor
     return {
         name: torch.where(mask.reshape(-1, *([1] * (value.ndim - 1))), value, old[name]) for name, value in new.items()
     }
+
+
+def _selected_normal(
+    mask: torch.Tensor, new: Normal | BandedNormal | ArrowNormal, old: Normal | BandedNormal | ArrowNormal
+) -> Normal | BandedNormal | ArrowNormal:
+    """Normal equations: ``new`` where ``mask: (B,)`` is true, else ``old``; the band of an arrow too, one layout."""
+    changes: dict[str, Any] = {}
+    for item in fields(new):
+        value = getattr(new, item.name)
+        if isinstance(value, torch.Tensor):
+            keep = mask.reshape(-1, *([1] * (value.ndim - 1)))
+            changes[item.name] = torch.where(keep, value, getattr(old, item.name))
+        elif isinstance(value, BandedNormal):
+            changes[item.name] = _selected_normal(mask, value, getattr(old, item.name))
+    return replace(new, **changes)
 
 
 def _selected_terms(
@@ -129,24 +155,23 @@ class LevenbergMarquardt(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
-        with torch.no_grad():
-            loss, terms, _ = problem.evaluate(x)
-        extra = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0), "terms": terms}
+        normal, loss, terms = linearize(problem, x)
+        extra: dict[str, Any] = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0)}
+        extra.update(_no_step(normal.g, problem.step_bounds(x), loss), terms=terms, normal=normal)
         return State(
             x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
         )
 
     @override
     def step(self, problem: Problem, state: State) -> State:
-        damping, growth = state.extra["damping"], state.extra["growth"]
-        normal, _ = problem.linearize(state.x)
+        damping, growth, normal = state.extra["damping"], state.extra["growth"], state.extra["normal"]
         bounds = problem.step_bounds(state.x)
         if bounds is not None:
             normal = normal.restrict(*bounds)
         delta = normal.solve(damping)
         with torch.no_grad():
             candidate = problem.retract(state.x, delta)
-            loss_new, terms_new, _ = problem.evaluate(candidate)
+        normal_new, loss_new, terms_new = linearize(problem, candidate)
         decrease = state.loss - loss_new
         accept = (decrease > 0) & torch.isfinite(loss_new) & ~state.done
         gain = decrease / normal.predicted_decrease(delta).clamp_min(1e-30)
@@ -172,6 +197,7 @@ class LevenbergMarquardt(Solver):
                 "step_norm": torch.where(accept, step_norm, torch.zeros_like(step_norm)),
                 "accepted": accept,
                 "terms": _selected_terms(accept, terms_new, state.extra["terms"]),
+                "normal": _selected_normal(accept, normal_new, state.extra["normal"]),
             },
         )
 
@@ -189,26 +215,25 @@ class GaussNewton(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
-        with torch.no_grad():
-            loss, terms, _ = problem.evaluate(x)
+        normal, loss, terms = linearize(problem, x)
         return State(
             x=dict(x),
             loss=loss,
             done=torch.zeros_like(loss, dtype=torch.bool),
             solver=type(self),
-            extra={"terms": terms},
+            extra={**_no_step(normal.g, problem.step_bounds(x), loss), "terms": terms, "normal": normal},
         )
 
     @override
     def step(self, problem: Problem, state: State) -> State:
-        normal, _ = problem.linearize(state.x)
+        normal = state.extra["normal"]
         bounds = problem.step_bounds(state.x)
         if bounds is not None:
             normal = normal.restrict(*bounds)
         delta = normal.solve(self.damping)
         with torch.no_grad():
             candidate = problem.retract(state.x, delta)
-            loss_new, terms_new, _ = problem.evaluate(candidate)
+        normal_new, loss_new, terms_new = linearize(problem, candidate)
         move = torch.isfinite(loss_new) & ~state.done
         gradient_tolerance, _, step_tolerance = _tolerances(
             state.loss.dtype, self.gradient_tolerance, None, self.step_tolerance
@@ -222,8 +247,26 @@ class GaussNewton(Solver):
             done=done,
             solver=type(self),
             iteration=state.iteration + 1,
-            extra={**extra, "accepted": move, "terms": _selected_terms(move, terms_new, state.extra["terms"])},
+            extra={
+                **extra,
+                "accepted": move,
+                "terms": _selected_terms(move, terms_new, state.extra["terms"]),
+                "normal": _selected_normal(move, normal_new, state.extra["normal"]),
+            },
         )
+
+
+def _no_step(
+    g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None, loss: torch.Tensor
+) -> dict[str, torch.Tensor]:
+    """The diagnostic keys of a state no step has made, from the gradient ``g: (B, n)`` at its ``x`` and the step
+    bounds there: ``init`` writes them so that its state has the keys of a stepped one (one `kinematics.compiled` key
+    for both)."""
+    return {
+        "grad_norm": _projected(g, bounds).abs().amax(-1),
+        "step_norm": torch.zeros_like(loss),
+        "accepted": torch.zeros_like(loss, dtype=torch.bool),
+    }
 
 
 def _free(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor | bool:
@@ -245,7 +288,8 @@ class LBFGS(Solver):
 
     Every step tries the step sizes 1, ½, ¼, ... (at most ``line_search`` of them) and each problem
     takes the largest one that satisfies the Armijo condition on the step actually taken; the search
-    stops as soon as every problem has its step (one host read per trial). The first trial is evaluated
+    stops as soon as every problem has its step (one host read per trial); with ``stop_search=False`` it runs all
+    ``line_search`` trials and reads nothing, the same steps at more evaluations. The first trial is evaluated
     with its gradient: when every problem takes it, that is the step's only evaluation; otherwise the
     gradient is evaluated again at the new points. The plain gradient step (no history yet) has length
     ``1 / |g|_1``, a guess: a stiff term that adds curvature but little gradient (a residual near
@@ -265,11 +309,12 @@ class LBFGS(Solver):
         line_search: int = 20,
         armijo: float = 1e-4,
         gradient_tolerance: float | None = None,
+        stop_search: bool = True,
     ) -> None:
         if line_search < 1:
             raise ArgumentError(f"line_search must be at least 1, got {line_search}")
         self.history, self.line_search, self.armijo = history, line_search, armijo
-        self.gradient_tolerance = gradient_tolerance
+        self.gradient_tolerance, self.stop_search = gradient_tolerance, stop_search
 
     warm_keys = ("s", "y", "rho")
 
@@ -334,7 +379,7 @@ class LBFGS(Solver):
                 best_step = torch.where(ok.unsqueeze(-1), step, best_step)
                 best_terms = _selected_terms(ok, terms, best_terms)
                 found |= ok
-                if bool((found | state.done).all()):  # bench-ok: later trials could change nothing
+                if self.stop_search and bool((found | state.done).all()):  # bench-ok: later trials change nothing
                     break
         if trial == 0:  # every problem kept its start point or took the first trial
             g_new = torch.where(found.unsqueeze(-1), g_first, state.extra["g"])

@@ -132,7 +132,9 @@ A solver subclasses the abstract `Solver`: `init(problem, x) -> State` and
 each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
 `State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`,
 `solver` (the class of the solver that made it), the step count `iteration`, and `extra` for solver-owned values
-(damping, moments). Every solver also writes
+(damping, moments). LM and Gauss-Newton keep `extra["normal"]`, the normal equations at `x`: a step linearizes
+once, at its candidate, and a candidate that is taken brings its linearization to the next step. Every solver also
+writes
 `extra["terms"]`, the detached `(B,)` loss of each active term from the evaluation `loss` comes from, and
 `TorchOptim` writes `extra["info"]`, so a `Phase.on_step` logger needs no second forward.
 
@@ -140,7 +142,7 @@ each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) 
 |---|---|---|
 | `LevenbergMarquardt(damping=, gradient_tolerance=, loss_tolerance=, step_tolerance=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
 | `GaussNewton(damping=0.0)` | `linearize` | full step, optional fixed damping; fast near a good start |
-| `LBFGS(history=10, line_search=20)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one; the first trial carries its gradient, so a step that every problem takes there costs one evaluation; bounds by projection |
+| `LBFGS(history=10, line_search=20, stop_search=True)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one (`stop_search=False` runs every trial and reads nothing back); the first trial carries its gradient, so a step that every problem takes there costs one evaluation; bounds by projection |
 | `TorchOptim(lambda params: torch.optim.Adam(params, lr=...))` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
 
 Because a solver is two functions, you can drive it yourself:
@@ -158,8 +160,9 @@ print(state.iteration, state.loss)
 
 ## `solve`, `run` and friends
 
-- `solve(problem, solver, *, iterations=50, x=None, state=None) -> Result` runs one solver until every problem is
-  done or `iterations` steps pass. `Result.state` is the final solver state; passing it back as `state=` warm-starts
+- `solve(problem, solver, *, iterations=50, x=None, state=None, step=None) -> Result` runs one solver until every
+  problem is done or `iterations` steps pass; `step(problem, state)` replaces `solver.step`, for a step compiled once
+  with `kinematics.compiled` and reused across solves. `Result.state` is the final solver state; passing it back as `state=` warm-starts
   the next solve with the same solver kind (LM keeps its damping, L-BFGS its curvature memory) from `x`, else
   `state.x`; a state from another kind raises `ArgumentError`. An `x` given to `solve`, `run` or a `Problem`
   method holds one `(B, *event)` tensor per variable and nothing else (it never overrides a data entry).
@@ -167,7 +170,9 @@ print(state.iteration, state.loss)
   `Result` has `x` (the solved variables, `result.x["q"]`), `loss`, `done`, `iterations` and a per-phase loss
   `history`.
 - `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
-  coordinates ([Fit a clip](../guides/fit-a-clip.md)).
+  coordinates ([Fit a clip](../guides/fit-a-clip.md)). `Phase(stop_every=0)` runs exactly `iterations` steps and
+  reads nothing back to the host, so the device never waits for Python (LM, Gauss-Newton,
+  `LBFGS(stop_search=False)`); `solve_ik` runs this way.
 - `solve_layer(problem, solver, *, iterations=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
   ([Own the loop](../guides/own-the-loop.md)).
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard

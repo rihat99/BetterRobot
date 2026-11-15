@@ -30,12 +30,12 @@ generator = torch.Generator().manual_seed(0)
 q0 = model.q_neutral.expand(64, -1)
 # 64 reachable hand poses from random configurations, one batched solve, and forward kinematics checks every answer.
 targets = br.forward_kinematics(model, terms.random_start(model, q0, generator=generator)).frame_pose_of("panda_hand")
-result = br.solve_ik(model, {"panda_hand": targets}, q0=q0, restarts=4, generator=generator)
+result = br.solve_ik(model, {"panda_hand": targets}, q0=q0, seeds=8, generator=generator)
 reached = br.forward_kinematics(model, result.x["q"]).frame_pose_of("panda_hand")
 print(float((reached[:, :3] - targets[:, :3]).norm(dim=-1).median()))
 ```
 ```output
-3.1075885246701783e-12
+4.984544333484977e-13
 ```
 
 The printed number is the median distance, in metres, between the hand and its target over the 64 solves.

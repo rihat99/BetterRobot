@@ -54,14 +54,17 @@ class Normal:
         """
         H, g = self.H.double(), (self.g if g is None else g).double()
         diagonal = H.diagonal(dim1=-2, dim2=-1)
-        scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
+        scale = torch.where(diagonal > 0, diagonal, 1.0).rsqrt()
         scaled = H * scale.unsqueeze(-1) * scale.unsqueeze(-2)
-        shift = torch.as_tensor(damping, dtype=H.dtype, device=H.device).expand(H.shape[0]) + floor
-        scaled = scaled + torch.diag_embed(shift.unsqueeze(-1).expand_as(diagonal))
+        # A number stays a Python scalar: torch.as_tensor of it is a host-to-device copy, a stream sync on CUDA.
+        shift = damping.to(H).unsqueeze(-1) + floor if isinstance(damping, torch.Tensor) else damping + floor
+        scaled.diagonal(dim1=-2, dim2=-1).add_(shift)
         factor, info = torch.linalg.cholesky_ex(scaled)
-        delta = torch.cholesky_solve(-(g * scale).unsqueeze(-1), factor).squeeze(-1) * scale
+        # Two triangular solves, not torch.cholesky_solve: that one checks its result with a host read.
+        half = torch.linalg.solve_triangular(factor, -(g * scale).unsqueeze(-1), upper=False)
+        delta = torch.linalg.solve_triangular(factor.mT, half, upper=True).squeeze(-1) * scale
         ok = (info == 0).unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
-        delta = torch.where(ok, delta, torch.zeros_like(delta)).to(self.g.dtype)
+        delta = torch.where(ok, delta, 0.0).to(self.g.dtype)
         if self.lower is not None:
             delta = torch.minimum(torch.maximum(delta, self.lower), self.upper)
         return delta
@@ -168,7 +171,11 @@ class BandedNormal:
         batch, blocks, size, _ = D.shape
         diagonal = D.diagonal(dim1=-2, dim2=-1)
         scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-        shift = torch.as_tensor(damping, dtype=D.dtype, device=D.device).expand(batch) + floor
+        shift = (  # a number fills on the device: no host-to-device copy (see Normal.solve)
+            damping.to(D).expand(batch) + floor
+            if isinstance(damping, torch.Tensor)
+            else D.new_full((batch,), damping + floor)
+        )
         D = D * scale.unsqueeze(-1) * scale.unsqueeze(-2) + torch.diag_embed(
             shift.view(batch, 1, 1).expand(batch, blocks, size)
         )
@@ -281,7 +288,11 @@ class ArrowNormal:
         C = self.corner.double()
         diagonal = C.diagonal(dim1=-2, dim2=-1)
         scale_shared = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-        shift = torch.as_tensor(damping, dtype=C.dtype, device=C.device).expand(batch) + floor
+        shift = (  # a number fills on the device: no host-to-device copy (see Normal.solve)
+            damping.to(C).expand(batch) + floor
+            if isinstance(damping, torch.Tensor)
+            else C.new_full((batch,), damping + floor)
+        )
         C = C * scale_shared.unsqueeze(-1) * scale_shared.unsqueeze(-2) + torch.diag_embed(
             shift.unsqueeze(-1).expand_as(diagonal)
         )
@@ -293,7 +304,8 @@ class ArrowNormal:
         schur = C - flat_border.mT @ solved[..., :-1]
         factor, info = torch.linalg.cholesky_ex(schur)
         right = rhs_shared.unsqueeze(-1) - flat_border.mT @ solved[..., -1:]
-        shared = torch.cholesky_solve(right, factor)  # (B, Ns, 1)
+        half = torch.linalg.solve_triangular(factor, right, upper=False)  # not cholesky_solve: see Normal.solve
+        shared = torch.linalg.solve_triangular(factor.mT, half, upper=True)  # (B, Ns, 1)
         time = (solved[..., -1:] - solved[..., :-1] @ shared).view_as(rhs_time) * scale
         delta = g.new_zeros(g.shape)
         delta = delta.index_copy(1, layout.time_columns, self.band._from_band(time))

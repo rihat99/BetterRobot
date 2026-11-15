@@ -129,6 +129,7 @@ For a visual and mathematical introduction, see [Poses and twists](../concepts/l
 | **kinematics** | The geometry of motion: where every frame is and how fast it moves, without forces (`better_robot.kinematics`). |
 | **forward kinematics, FK** | Joint configuration in, poses out: `forward_kinematics(model, q)` returns a `KinematicState`. |
 | **inverse kinematics, IK** | Desired frame poses in, a joint configuration out. IK is solved as an optimization problem because several joints and targets interact. |
+| **seed** | One start of a multi-start solve. `solve_ik(seeds=)` solves every seed of every target in one batch and keeps the best per target; the first seed is `q0`, the others random configurations. |
 | **Jacobian** | A table that predicts how outputs move when inputs change a little. A frame Jacobian `(B..., 6, nv)` maps joint velocity to frame twist. |
 | **Jacobian time variation, time variation** | `dJ/dt` along `v`, `(B..., 6, nv)` (`frame_jacobian_time_variation`). |
 | **analytic Jacobian** | A derivative block written from a mathematical formula. It may be exact or a documented local approximation; either way, it is compared with automatic differentiation or finite differences. |
@@ -189,7 +190,7 @@ derivative method.
 | **Gauss-Newton, GN** | A least-squares method that linearizes residuals and solves the resulting local quadratic problem. |
 | **Levenberg-Marquardt, LM** | Gauss-Newton with adjustable damping. Low damping takes a bolder Newton-like step; high damping a more cautious gradient-like step. |
 | **L-BFGS** | Limited-memory BFGS: a quasi-Newton method that keeps a short `history` of steps and gradients (`optim.LBFGS`). |
-| **line search, Armijo** | Shrink a step along its direction until the loss decreases enough: the Armijo condition (`LBFGS(armijo=)`). |
+| **line search, Armijo** | Shrink a step along its direction until the loss decreases enough: the Armijo condition (`LBFGS(armijo=)`). `LBFGS(stop_search=False)` tries every step length instead of stopping at the first that every problem accepts. |
 | **Cholesky factorization** | A fast way to solve a positive-definite symmetric linear system. |
 | **bound** | A lower or upper limit on a Euclidean coordinate. |
 | **convergence** | The solver met its stopping rule. A returned result can still hold a useful final candidate when it did not converge. |
@@ -311,8 +312,8 @@ layout, length, light, limit, line, linearize, listed, load, loop, lower, masked
 mode, multiplier, name, new, no, norm, normalize, object, of, offset, old, on, opacity, optional, order, orient, other,
 outer, output, over, package, page, pair, panel, parse, path, pause, penalty, permutation, pitch, plane, play,
 playing, plot, point, pointer, port, position, predicted, project, public, radii, radius, ramp, random, read, reason,
-rebuild, record, remove, replace, resize, restart, restrict, result, rigid, robot, run, save, scalar, scale, scene,
-scheduler, section, segment, serializer, series, server, set, shading, shaft, show, size, skeleton, skip, sleep,
+rebuild, record, remove, replace, resize, restrict, result, rigid, robot, run, save, scalar, scale, scene,
+scheduler, search, section, segment, serializer, series, server, set, shading, shaft, show, size, skeleton, skip, sleep,
 slice, solution, solve, solver, source, spelling, sphere, squared, start, stop, target, testing, theme, thickness, time, timeout,
 to, toggle, tolerance, torque, unknown, up, upper, valid, validate, value, vector, vertices, visible, voxel, weight,
 width, with, word

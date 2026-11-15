@@ -37,7 +37,7 @@ Counter rows are fixed functions; their counters gate (below). `state` is `forwa
 | `rnea/{panda,g1}/B1` | `inverse_dynamics(model, state, v=v, a=a)` |
 | `crba/{panda,g1}/B1` | `mass_matrix(model, state)` |
 | `aba/{panda,g1}/B1` | `forward_dynamics(model, state, v=v, tau=tau)` |
-| `ik/panda/B64` | `solve_ik` to 64 reachable `panda_hand` poses, 4 restarts; also `success_fraction` and `worst_position_error_m` |
+| `ik/panda/B64` | `solve_ik` to 64 reachable `panda_hand` poses, 5 seeds; also `success_fraction` and `worst_position_error_m` |
 | `qp/n7m30/B1`, `qp/n35m150/B1024` | one cold `optim.solve_qp` of seeded random programs with 7 or 35 variables and 30 or 150 rows |
 
 Each counter row has four counters, the same for every run with one torch version and device:
@@ -49,8 +49,8 @@ Each counter row has four counters, the same for every run with one torch versio
   dispatch overhead that dominates small batches.
 - `host_syncs`: calls of `aten::_local_scalar_dense` (`item`, `bool`, `float` or `int` of a tensor) and
   `aten::nonzero` (also inside boolean-mask indexing). On CUDA each one makes the host wait for the GPU queue; they
-  are counted on CPU too, so the CPU gate catches a new one. The IK row has neither `ops` nor `host_syncs`: profiling
-  one solve takes a minute.
+  are counted on CPU too, so the CPU gate catches a new one. The IK row's solve runs a fixed number of steps with no
+  host sync, so its threshold is 0.
 
 Without `--counters-only` each counter row also gets its wall time (`median_ms`, `min_ms`) per call, after one
 warm-up call, and `page_faults`, the minor page faults per call. The JSON's `meta` records the commit, dirty flag,
@@ -85,14 +85,14 @@ fk_joints/panda/B1024             0            2           46            0
 jacobian/panda/B1                 0            1           69            0
 rnea/panda/B1                     0            1          172            0
 crba/panda/B1                     0            1          136            0
-aba/panda/B1                      0            1          240            2
+aba/panda/B1                      0            1          240            0
 fk_joints/g1/B1                   0            1           67            0
 fk_joints/g1/B1024                0            2           67            0
 jacobian/g1/B1                    0            1           89            0
 rnea/g1/B1                        0            1          188            0
 crba/g1/B1                        0            1          154            0
-aba/g1/B1                         0            1          255            2
-ik/panda/B64                      5           12            -            -
+aba/g1/B1                         0            1          255            0
+ik/panda/B64                      5           12        30446            0
 qp/n7m30/B1                       0            1          561            0
 qp/n35m150/B1024                  0            2          561            0
 ```
@@ -100,7 +100,8 @@ qp/n35m150/B1024                  0            2          561            0
 When a change adds a counter, remove what added it. When the change needs it, or when a change lowers a counter,
 run `uv run python benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-<version>.json` on a clean
 commit and commit that file alone, with a `Why:` line; a lowered counter is written down the same way, so the gate
-stays tight. The host sync of `aba` on the CPU is the error check inside `torch.cholesky_solve`.
+stays tight. A sync inside another operator counts too: `torch.cholesky_solve` checks its result with one, so
+`forward_dynamics` and the solvers' normal equations solve with `torch.linalg.solve_triangular`.
 
 ## Measure wall time
 
@@ -150,9 +151,9 @@ computes, so compiled code cannot drop it.
 | `mass_matrix` | `mass_matrix(model, state)` |
 | `forward_dynamics` | `forward_dynamics(model, state, v=v, tau=tau)` |
 | `center_of_mass` | `center_of_mass(model, state)` |
-| `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from the start |
-| `solve_ik` | `solve_ik(model, targets, q0=start)`: at most 100 iterations, one start |
-| `solve_ik_multistart` | the same with `restarts=4`, five starts |
+| `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from `init` at the start |
+| `solve_ik` | `solve_ik(model, targets, q0=start)`: the default call, one start |
+| `solve_ik_multistart` | the same with `seeds=32, iterations=16`; a library before `seeds=` runs `restarts=4`, five starts in sequence |
 
 With `--grad`, a row of each kinematics and dynamics function also times
 `torch.autograd.grad(sum(output.sum()), q)` (`grad` true in the row).
@@ -161,17 +162,20 @@ The IK start is the Panda's home pose (joints 0, -30, 0, -135, 0, 100 and 0 degr
 height 0.793 m and every joint at zero. The targets are the poses of `panda_hand`, or of both hands and both ankles of
 G1, at seeded configurations with every limited joint uniform within its limits and G1's base at the start pose;
 batch `B` takes the first `B`, so a batch above 1024 solves fresh targets. A solve row records `iterations`
-(`Result.iterations`, summed over the starts), `success_rate` (every target within 1 mm and 0.01 rad) over
+(`Result.iterations`, summed over sequential restarts) and `seeds` (starts per target), `success_rate` (every target within 1 mm and 0.01 rad) over
 `success_targets` targets, and the median position and rotation errors. A batch below 1024 reports the accuracy of an
 eager solve of the first 1024 targets, never of one sample: a solve treats each sample on its own.
 
 Each row times one call after warm-up calls, as the median over at least 3 and at most `--repeats` samples; a sample
 is one or more calls, at least 10 ms long, between `torch.cuda.synchronize` calls. Compiles are cold: the run first
 compiles a throwaway function, so the compiler's one-time start-up is paid once, then each compiled row runs after
-`torch.compiler.reset()` in an empty compile cache of its own and records its first call as `compile_seconds`, then
+`torch.compiler.reset()` in an empty compile cache of its own and records as `compile_seconds` the warm-up calls
+that compile a graph, summed (`kinematics.compiled` runs a key's first call eagerly and compiles on the second; a
+solve compiles its step inside, once per key it meets), then
 `graph_breaks`, `graphs`, `recompiles` after the warm-up (counted with the garbage collector off, as the counter
 gate does), `cudagraph_skips` and `max_rel_diff_vs_eager`, the largest `max |compiled - eager| / max |eager|` over the
-outputs of a replayed call, and `adapter`, the compiler used (`kinematics.compiled` or `torch.compile`). A row that
+outputs of a replayed call, and `adapter`, the compiler used (`kinematics.compiled`, `torch.compile`, or for a solve
+`solve_ik(step=)`: its LM step compiled once by `kinematics.compiled` and passed to every call). A row that
 raises records its `error`; the larger batches of that function, pass and mode
 are then recorded as `skipped`, with the reason. `adapt` in the script is the one place that turns a mode into a
 callable.
@@ -198,7 +202,7 @@ reads as a reference column:
 | `batch` | samples per call |
 | `mode` | `eager`, `compile`, `reduce-overhead`; another library names its own |
 | `seconds_per_call` | median wall time of one call; absent when the row has `error` or `skipped` |
-| `compile_seconds` | the first call of a compiled row, when there is one |
+| `compile_seconds` | the warm-up calls of a compiled row that compile a graph, summed, when there is one |
 
 A run's rows add `grad`, `nq`, `nv`, `seconds_min`, `seconds_spread` (interquartile range over the median), `samples`,
 `page_faults` per call, `loadavg` and, on CUDA, `gpu_other_pids`: a row with any was timed on a shared GPU.

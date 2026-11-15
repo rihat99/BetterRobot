@@ -189,6 +189,54 @@ def test_lbfgs_line_search_stops_once_every_problem_has_a_step() -> None:
         assert len(calls) - before == 1  # the first trial is accepted: its evaluation also gives the gradient
 
 
+def _host_reads(call):
+    """``(reads, call())``: profiled operators that copy a tensor value to the host (``bool``, ``item``, mask
+    indexing), nested ones too; a dispatch mode sees only the outermost, not ``torch.cholesky_solve``'s own check."""
+    with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as profile:
+        result = call()
+    return sum(event.name in ("aten::_local_scalar_dense", "aten::nonzero") for event in profile.events()), result
+
+
+@pytest.mark.parametrize(
+    "solver",
+    [optim.LevenbergMarquardt(), optim.GaussNewton(damping=1e-3), optim.LBFGS(line_search=4, stop_search=False)],
+    ids=["lm", "gn", "lbfgs"],
+)
+def test_a_fixed_budget_reads_nothing_back(solver) -> None:
+    """``stop_every=0`` with these solvers is the path a CUDA graph replays: no tensor value reaches the host."""
+    problem = _rosenbrock()
+    reads, result = _host_reads(lambda: optim.run(problem, [optim.Phase(solver, 6, stop_every=0)]))
+    assert reads == 0 and result.iterations == 6
+    if isinstance(solver, optim.LBFGS):  # the same steps as the search that stops once every problem has one
+        stopping = optim.run(problem, [optim.Phase(optim.LBFGS(line_search=4), 6, stop_every=0)])
+        assert torch.equal(result.x["x"], stopping.x["x"])
+
+
+def test_a_solver_step_sees_the_count_and_a_step_hook_sees_zero() -> None:
+    """``State.iteration`` is the steps taken so far inside ``solver.step`` (a schedule may read it); a ``Phase.step``
+    hook is handed 0 so a compiled step does not specialise on it, and ``run`` keeps the count."""
+
+    class Counting(optim.Solver):
+        def __init__(self) -> None:
+            self.seen: list[int] = []
+
+        def init(self, problem, x):
+            loss = problem.evaluate(x)[0]
+            return optim.State(x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=Counting)
+
+        def step(self, problem, state):
+            self.seen.append(state.iteration)
+            x = {name: value * (1 - 0.5 / (1 + state.iteration)) for name, value in state.x.items()}
+            loss = problem.evaluate(x)[0]
+            return optim.State(x=x, loss=loss, done=state.done, solver=Counting, iteration=state.iteration + 1)
+
+    plain, hooked = Counting(), Counting()
+    result = optim.solve(_rosenbrock(), plain, iterations=5)
+    hooked_result = optim.solve(_rosenbrock(), hooked, iterations=5, step=hooked.step)
+    assert plain.seen == [0, 1, 2, 3, 4] and hooked.seen == [0] * 5
+    assert result.iterations == hooked_result.iterations == hooked_result.state.iteration == 5
+
+
 def test_lbfgs_rejects_a_line_search_without_trials() -> None:
     with pytest.raises(ValueError, match="line_search"):
         optim.LBFGS(line_search=0)

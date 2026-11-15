@@ -11,14 +11,13 @@ Wall time across functions, robots, compile modes and batch sizes, with Pinocchi
 
 Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Panda and G1 (``tests/fixtures/robots``):
 ``fk_joints/{panda,g1}/B{1,1024}`` (``forward_kinematics(model, q).joint_transforms``), ``ik/panda/B64``
-(``solve_ik`` to 64 ``panda_hand`` poses, 4 restarts, fixed generators; it also records ``success_fraction`` and
+(``solve_ik`` to 64 ``panda_hand`` poses, 5 seeds, fixed generators; it also records ``success_fraction`` and
 ``worst_position_error_m``), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
 (one cold ``optim.solve_qp`` of seeded random programs with that many variables and rows). Each has four counters, deterministic for
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
 ``torch.compile(fn, backend="eager")``, first called at the row's batch, is called at each batch of ``SWEEP``),
 ``ops`` (top-level ``aten::`` operators of one call) and ``host_syncs`` (calls of the operators that make the host
-wait for a CUDA queue, ``SYNC_OPS``). The IK row has no ``ops`` or ``host_syncs``: one profiled solve records about
-560 000 operator events and takes a minute. The run exits 1 when a counter row exceeds its threshold in
+wait for a CUDA queue, ``SYNC_OPS``). The run exits 1 when a counter row exceeds its threshold in
 ``benchmarks/thresholds/torch-<version>.json``, has none, or no such file exists for the installed torch; a thresholds
 file is this runner's ``--counters-only`` output from a clean commit, changed only in a commit of its own.
 
@@ -183,7 +182,7 @@ def ik_case(device: torch.device) -> Case:
 
     def ik(q0: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         generator = torch.Generator(device=q0.device).manual_seed(1)
-        return br.solve_ik(model, {IK_FRAME: targets}, q0=q0, restarts=4, generator=generator).x["q"]
+        return br.solve_ik(model, {IK_FRAME: targets}, q0=q0, seeds=5, generator=generator).x["q"]
 
     def accuracy(q: torch.Tensor) -> dict[str, float]:
         error = (br.forward_kinematics(model, q).frame_poses[:, frame, :3] - targets[:, :3]).norm(dim=-1)
@@ -194,7 +193,7 @@ def ik_case(device: torch.device) -> Case:
 
     sweep = tuple((q0[:size], targets[:size]) for size in SWEEP)
     call = partial(ik, q0, targets)
-    return Case("ik/panda/B64", 64, call, ik, (q0, targets), sweep, profiled=False, report=accuracy)
+    return Case("ik/panda/B64", 64, call, ik, (q0, targets), sweep, report=accuracy)
 
 
 def profile_counts(call: Callable[[], object]) -> tuple[int, int]:

@@ -1,5 +1,6 @@
 """SO(3) group operations of ``better_robot.lie.so3`` on seeded random rotations and hand-built cases."""
 
+import itertools
 import math
 
 import pytest
@@ -55,3 +56,32 @@ def test_normalize():
     """normalize returns a unit quaternion."""
     q_norm = so3.normalize(torch.tensor([0.0, 0.0, 0.0, 2.0]))
     torch.testing.assert_close(q_norm.norm(), torch.tensor(1.0))
+
+
+def _rotations_with_equal_diagonal_entries() -> torch.Tensor:
+    """``(30, 3, 3)`` exact float64 rotations: the 24 with entries in {-1, 0, 1}, then the six by pi about the face
+    diagonals ``a``, ``R = a aᵀ - I`` for ``|a|² = 2``."""
+    rotations = []
+    for columns in itertools.permutations(range(3)):
+        for signs in itertools.product([-1.0, 1.0], repeat=3):
+            matrix = torch.zeros(3, 3, dtype=torch.float64)
+            matrix[range(3), list(columns)] = torch.tensor(signs, dtype=torch.float64)
+            if torch.det(matrix) > 0:
+                rotations.append(matrix)
+    for axis in [(1, 1, 0), (1, -1, 0), (1, 0, 1), (1, 0, -1), (0, 1, 1), (0, 1, -1)]:
+        a = torch.tensor(axis, dtype=torch.float64)
+        rotations.append(torch.outer(a, a) - torch.eye(3, dtype=torch.float64))
+    return torch.stack(rotations)
+
+
+@pytest.mark.parametrize("dtype", [torch.float64, torch.float32])
+def test_from_matrix_sign_rule_at_equal_diagonal_entries(dtype):
+    """``qw > 0`` when the trace is positive, else the component of the largest diagonal entry, the last of equal
+    ones, is positive: one quaternion per rotation, the same at ties on every device."""
+    R = _rotations_with_equal_diagonal_entries()
+    q = so3.from_matrix(R.to(dtype))
+    torch.testing.assert_close(so3.to_matrix(q), R.to(dtype), atol=1e-6, rtol=0.0)
+    for matrix, quaternion in zip(R, q):
+        diagonal = matrix.diagonal().tolist()
+        largest = max(index for index in range(3) if diagonal[index] == max(diagonal))
+        assert float(quaternion[3 if sum(diagonal) > 0 else largest]) > 0

@@ -27,7 +27,14 @@ class Phase:
     ``on_step(problem, state)`` runs after every step, for logging; ``state.extra["terms"]`` holds
     the loss of every term (and, under ``TorchOptim``, ``state.extra["info"]`` the terms' info dicts)
     from the step's own evaluation, so logging costs no second forward. Every ``stop_every``
-    iterations the driver stops early if all problems are done; 0 runs exactly ``iterations`` steps.
+    iterations the driver stops early if all problems are done, which reads ``done`` back to the host; 0 runs
+    exactly ``iterations`` steps and reads nothing (with LM, Gauss-Newton, or ``LBFGS(stop_search=False)``, a
+    fixed budget the device runs without waiting for the host).
+    ``step(problem, state) -> State`` replaces ``solver.step``, for one compiled once and reused across solves:
+    ``kinematics.compiled(lambda problem, state: solver.step(problem, state), mode="reduce-overhead")``, where
+    ``solver`` is this phase's ``solver``: ``init`` comes from it, and a step of another solver reads a state it did
+    not make. It is handed ``state.iteration == 0`` on every call and the driver counts, so a compiled step does
+    not specialise on the count; without ``step``, ``solver.step`` sees the steps taken so far.
     """
 
     solver: Solver
@@ -41,6 +48,7 @@ class Phase:
     ) = None
     on_step: Callable[[Problem, State], None] | None = None
     stop_every: int = 1
+    step: Callable[[Problem, State], State] | None = None
 
     def __post_init__(self) -> None:
         """Refuse a negative step budget (``ArgumentError``)."""
@@ -112,7 +120,11 @@ def run(
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []
         for iteration in range(phase.iterations):
-            state = phase.solver.step(view, state)
+            state = (
+                phase.solver.step(view, state)
+                if phase.step is None
+                else replace(phase.step(view, replace(state, iteration=0)), iteration=state.iteration + 1)
+            )
             losses.append(state.loss)
             steps.append({key: state.extra[key] for key in DIAGNOSTICS if key in state.extra})
             if phase.on_step is not None:
@@ -139,9 +151,12 @@ def solve(
     iterations: int = 50,
     x: Mapping[str, torch.Tensor] | None = None,
     state: State | None = None,
+    step: Callable[[Problem, State], State] | None = None,
 ) -> Result:
-    """Run one solver for at most ``iterations`` steps; ``state`` warm-starts it (see ``run``)."""
-    return run(problem, [Phase(solver=solver, iterations=iterations)], x=x, state=state)
+    """Run one solver for at most ``iterations`` steps; ``state`` warm-starts it (see ``run``), ``step`` replaces
+    ``solver.step`` (see ``Phase``) and is that same solver's step, such as
+    ``kinematics.compiled(lambda problem, state: solver.step(problem, state))`` of the ``solver`` passed here."""
+    return run(problem, [Phase(solver=solver, iterations=iterations, step=step)], x=x, state=state)
 
 
 def solve_layer(
