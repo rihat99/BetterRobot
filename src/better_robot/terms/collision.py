@@ -51,7 +51,7 @@ def sphere_clearance(
     def jacobian(kinematics: KinematicState) -> dict[str, torch.Tensor]:
         centers = spheres.centers(kinematics)
         distance, pull = torch.func.vjp(
-            lambda points: distance_fn(points, spheres.radii).reshape(*points.shape[:-1], -1), centers
+            lambda at: distance_fn(at, spheres.radii).reshape(*at.shape[:-1], -1), centers
         )  # (B..., S, K)
         count = distance.shape[-1]
         if count == 1:
