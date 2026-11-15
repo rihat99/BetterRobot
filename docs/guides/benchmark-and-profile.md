@@ -126,7 +126,7 @@ and `meta` names the library measured.
 | `--functions` | all | comma-separated names from the table below |
 | `--robots` | `panda,panda7,g1` | any of them |
 | `--batches` | `1,64,1024,4096,16384,65536` | batch sizes `B` of `q (B, nq)` |
-| `--modes` | `eager,compile`, and `reduce-overhead` on CUDA | `eager`; `compile` is `torch.compile(fn)`; `reduce-overhead` is `torch.compile(fn, mode="reduce-overhead")`, which replays CUDA graphs |
+| `--modes` | `eager,compile`, and `reduce-overhead` on CUDA | `eager`; `compile` is `kinematics.compiled(fn)`; `reduce-overhead` is `kinematics.compiled(fn, mode="reduce-overhead")`, which replays CUDA graphs. A solve, whose loop breaks the graph, and a library version without `kinematics.compiled` use `torch.compile(fn)` with the same mode |
 | `--repeats` | `15` | most samples per row |
 | `--threads` | `1` | Torch threads for the run |
 | `--max-call-s` | `5` | skip the larger batches of a function, pass and mode once one call takes longer |
@@ -168,7 +168,8 @@ compiles a throwaway function, so the compiler's one-time start-up is paid once,
 `torch.compiler.reset()` in an empty compile cache of its own and records its first call as `compile_seconds`, then
 `graph_breaks`, `graphs`, `recompiles` after the warm-up (counted with the garbage collector off, as the counter
 gate does), `cudagraph_skips` and `max_rel_diff_vs_eager`, the largest `max |compiled - eager| / max |eager|` over the
-outputs of a replayed call. A row that raises records its `error`; the larger batches of that function, pass and mode
+outputs of a replayed call, and `adapter`, the compiler used (`kinematics.compiled` or `torch.compile`). A row that
+raises records its `error`; the larger batches of that function, pass and mode
 are then recorded as `skipped`, with the reason. `adapt` in the script is the one place that turns a mode into a
 callable.
 
