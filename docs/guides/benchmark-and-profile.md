@@ -85,14 +85,14 @@ fk_joints/panda/B1024             0            2           46            0
 jacobian/panda/B1                 0            1           69            0
 rnea/panda/B1                     0            1          172            0
 crba/panda/B1                     0            1          136            0
-aba/panda/B1                      0            1          240            2
+aba/panda/B1                      0            1          240            0
 fk_joints/g1/B1                   0            1           67            0
 fk_joints/g1/B1024                0            2           67            0
 jacobian/g1/B1                    0            1           89            0
 rnea/g1/B1                        0            1          188            0
 crba/g1/B1                        0            1          154            0
-aba/g1/B1                         0            1          255            2
-ik/panda/B64                      5           12            -            -
+aba/g1/B1                         0            1          255            0
+ik/panda/B64                      5           12        30446            0
 qp/n7m30/B1                       0            1          561            0
 qp/n35m150/B1024                  0            2          561            0
 ```
@@ -100,7 +100,8 @@ qp/n35m150/B1024                  0            2          561            0
 When a change adds a counter, remove what added it. When the change needs it, or when a change lowers a counter,
 run `uv run python benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-<version>.json` on a clean
 commit and commit that file alone, with a `Why:` line; a lowered counter is written down the same way, so the gate
-stays tight. The host sync of `aba` on the CPU is the error check inside `torch.cholesky_solve`.
+stays tight. A sync inside another operator counts too: `torch.cholesky_solve` checks its result with one, so
+`forward_dynamics` and the solvers' normal equations solve with `torch.linalg.solve_triangular`.
 
 ## Measure wall time
 
