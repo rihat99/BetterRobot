@@ -35,6 +35,7 @@ from .manifold import Euclidean, Manifold
 from .phases import Phase, Result, run, solve, solve_layer
 from .linearization import check_jacobian
 from .problem import Problem, Term, TermFn
+from .qp import QPSolution, solve_qp
 from .solvers import LBFGS, GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
     "Normal",
     "Phase",
     "Problem",
+    "QPSolution",
     "Result",
     "RobustKernel",
     "Solver",
@@ -64,4 +66,5 @@ __all__ = [
     "solve",
     "solve_constrained",
     "solve_layer",
+    "solve_qp",
 ]
