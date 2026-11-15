@@ -50,6 +50,18 @@ def _check(model: Model, targets: Mapping[str, torch.Tensor], q0: torch.Tensor) 
         check_broadcast(q0=tuple(q0.shape[:-1]), **{name: tuple(pose.shape[:-1])})
 
 
+def _one_pose_per_row(frame: str, pose: torch.Tensor, batch: int) -> torch.Tensor:
+    """``(batch, 7)`` of a checked target ``pose: (..., 7)`` that broadcasts to one pose per row of ``q0``, else
+    ``ShapeError`` (more poses than rows, which the seeds' fold cannot pair with starts)."""
+    axes = torch.broadcast_shapes(pose.shape[:-1], (batch,))
+    if axes.numel() != batch:
+        raise ShapeError(
+            f"with seeds > 1, each row of q0 (batch ({batch},)) takes one pose of targets[{frame!r}], whose batch axes "
+            f"{tuple(pose.shape[:-1])} broadcast to {tuple(axes)}"
+        )
+    return pose.expand(*axes, 7).reshape(batch, 7)
+
+
 def _problem(
     model: Model,
     targets: Mapping[str, torch.Tensor],
@@ -108,8 +120,9 @@ def solve_ik(
     is ``result.x["q"]``.
 
     ``seeds`` starts per target are solved as one batch of ``seeds * B`` problems: the first is ``q0``, the others
-    are random configurations (``random_start``) drawn with ``generator``, required when ``seeds > 1``. Each target
-    keeps the start that reached the lowest loss; that is what gets past the local minima of a single start. The
+    are random configurations (``random_start``) drawn with ``generator``, required when ``seeds > 1``; each target
+    must then broadcast to one pose per row of ``q0`` (``ShapeError`` otherwise). Each target keeps the start that
+    reached the lowest loss; that is what gets past the local minima of a single start. The
     solve runs exactly ``iterations`` steps and reads nothing back from the device on the way (``Phase`` with
     ``stop_every=0``); ``step`` replaces ``solver.step``, for a compiled one (``Phase``). With ``seeds > 1`` the
     result's ``history`` and ``diagnostics`` are those of the kept start and ``state`` is ``None``.
@@ -123,7 +136,7 @@ def solve_ik(
     if seeds > 1:
         draws = random_start(model, q0.repeat(seeds - 1, 1), generator=generator)
         q0 = torch.cat([q0, draws])
-        targets = {frame: pose.expand(batch, 7).repeat(seeds, 1) for frame, pose in targets.items()}
+        targets = {frame: _one_pose_per_row(frame, pose, batch).repeat(seeds, 1) for frame, pose in targets.items()}
     problem = _problem(model, targets, q0, 0.0, 0.0, None)
     result = run(problem, [Phase(solver or LevenbergMarquardt(), iterations, stop_every=0, step=step)])
     if seeds == 1:

@@ -130,6 +130,18 @@ def test_solve_ik_on_cuda_makes_no_synchronizing_call(solver, seeds):
     assert result.x["q"].shape == q0.shape
 
 
+def test_ik_seeds_take_one_pose_per_start_or_raise_shape_error(panda):
+    """The seeds' fold pairs each row of ``q0`` with one pose: ``(1, 1, 7)`` for one row solves, and five poses for
+    one row raise ``ShapeError`` as from a single start, never a raw torch error."""
+    q0 = panda.q_neutral[None]
+    goal = forward_kinematics(panda, _random_q(panda, 5, 8)).frame_poses[:, panda.frame_id(FRAME)]
+    generator = torch.Generator().manual_seed(9)
+    result = terms.solve_ik(panda, {FRAME: goal[:1, None]}, q0=q0, seeds=3, generator=generator)
+    assert result.x["q"].shape == q0.shape and float(result.loss) < 1e-12
+    with pytest.raises(br.exceptions.ShapeError, match="one pose"):
+        terms.solve_ik(panda, {FRAME: goal}, q0=q0, seeds=3, generator=generator)
+
+
 def test_ik_seeds_need_a_generator(panda):
     q0 = panda.q_neutral[None]
     goal = forward_kinematics(panda, q0).frame_poses[:, panda.frame_id(FRAME)]
