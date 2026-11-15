@@ -101,9 +101,11 @@ def _active_set_step(
     The equalities are held by a stiff penalty and `_UPDATES` multiplier updates. A row whose multiplier
     ``rho · give`` is at ``weight`` gives way: it keeps that multiplier and is not held. A multiplier of the wrong
     sign or beyond ``weight`` is cut, so the pair is the solution exactly when its gradient vanishes and every row
-    is where its multiplier holds it; a row that gives way may sit beyond its bound.
+    is where its multiplier holds it; a row that gives way may sit beyond its bound. An equality row
+    (``lower == upper``) is always held and its multiplier has either sign.
     """
-    above, below = v >= problem.upper, v <= problem.lower
+    equal = problem.lower == problem.upper
+    above, below = (v >= problem.upper) | equal, (v <= problem.lower) | equal
     yields = give.abs() >= weight / rho
     bound = torch.clamp(v, problem.lower, problem.upper)
     stiff = _STIFFNESS * cold.unsqueeze(-1) * ((above | below) & ~yields)

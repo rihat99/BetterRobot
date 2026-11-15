@@ -53,6 +53,22 @@ def test_box_and_equality_closed_forms() -> None:
     assert plane.primal_residual.item() < 1e-9 and plane.dual_residual.item() < 1e-9
 
 
+def test_equality_rows_alone_are_a_linear_solve() -> None:
+    """Four equalities on seven variables: every element is exact after one cold call, whatever its multiplier signs."""
+    generator = torch.Generator().manual_seed(0)
+    g = torch.randn(256, 7, generator=generator, dtype=torch.float64)
+    rows = torch.randn(256, 4, 7, generator=generator, dtype=torch.float64)
+    bound = torch.randn(256, 4, generator=generator, dtype=torch.float64)
+    H = torch.eye(7, dtype=torch.float64).expand(256, 7, 7)
+    for iterations in (1, 20):
+        solution = solve_qp(H, g, rows=rows, lower=bound, upper=bound, iterations=iterations)
+        assert solution.primal_residual.max().item() < 1e-8 and solution.dual_residual.max().item() < 1e-8
+        # The closed form: x = -g - rows' dual with (rows rows') dual = -(rows g + bound).
+        dual = torch.linalg.solve(rows @ rows.mT, -((rows @ g.unsqueeze(-1)).squeeze(-1) + bound))
+        torch.testing.assert_close(solution.dual, dual, atol=1e-8, rtol=1e-8)
+        assert (dual > 0.1).any() and (dual < -0.1).any()
+
+
 def test_warm_calls_reach_the_optimality_conditions() -> None:
     """Repeated warm calls land every element on its KKT point: rows, stationarity, signs, complementarity."""
     problem = _problems(64, 6, 14, seed=0)
