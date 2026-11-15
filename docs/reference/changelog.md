@@ -14,8 +14,8 @@ that 0.3.0 renames or removes, one table row each.
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
   fixed number of ADMM steps and one active-set step, in float64, with no host read (record 0054). Accuracy comes
   from repeated warm calls, not from `iterations`. The rows are L1-elastic: a row gives way once its multiplier
-  would pass `weight`. `QPSolution` has `x`, `dual`, `primal_residual`, `dual_residual` and `penalty`. No solver
-  calls it yet.
+  would pass `weight`. `QPSolution` has `x`, `dual`, `primal_residual`, `dual_residual`, `penalty` and `exact`
+  (the mask of the elements whose active-set point was kept). No solver calls it yet.
 - `better_robot` exports its twelve packages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`,
   `collision`, `io`, `optim`, `terms`, `viewer`, `testing`) and `JointFreeFlyer`, `solve_ik` and `Viewer` beside the
   core functions.
