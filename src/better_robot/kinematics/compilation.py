@@ -35,7 +35,7 @@ import functools
 import threading
 import weakref
 from collections.abc import Callable, Hashable
-from typing import Any, Literal, ParamSpec, TypeVar, final
+from typing import Any, Literal, ParamSpec, TypeVar, cast, final
 
 import torch
 from torch.utils import _pytree
@@ -113,7 +113,7 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
     ready: dict[Hashable, Callable[_P, _R]] = {}  # (key, shapes) that ran its graph once: no compile ahead
     lock = threading.Lock()
 
-    def run(graph: Callable[_P, _R], args: Any, kwargs: Any) -> _R:
+    def run(graph: Callable[_P, _R], /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         _TRACING.active = True
         try:
             result = graph(*args, **kwargs)
@@ -134,7 +134,7 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
         seen = (key, *shapes)
         graph = ready.get(seen)
         if graph is not None and (not models or warmed[key].issuperset(models)):
-            return run(graph, args, kwargs)
+            return run(graph, *args, **kwargs)
         with lock:
             if key not in graphs or not warmed[key].issuperset(models):
                 if torch.is_inference_mode_enabled():  # memoise under the no-grad key, the one a compiled call reads
@@ -143,13 +143,14 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
                 else:
                     result = fn(*args, **kwargs)
                 if key not in graphs:
-                    graphs[key] = torch.compile(
+                    # torch 2.13's overloads of torch.compile omit isolate_recompiles, which the function takes
+                    graphs[key] = cast("Any", torch.compile)(
                         fn, fullgraph=True, mode=None if mode == "default" else mode, isolate_recompiles=True
                     )
                     warmed[key] = weakref.WeakSet()
                 warmed[key].update(models)
                 return result
-            result = run(graphs[key], args, kwargs)
+            result = run(graphs[key], *args, **kwargs)
             ready[seen] = graphs[key]
             return result
 
