@@ -237,8 +237,10 @@ def solve_qp(
     free, spread = -torch.bmm(problem.c, inverse), rho.unsqueeze(-1) * inverse
     # State v = z + give: z is where the rows are held, give = dual / penalty. A row is held inside its bounds until
     # its multiplier reaches `weight`; from there it gives way and z follows v beyond the bound (the L1-elastic row).
+    # A start takes z from the rows as they are (OSQP's warm start): pulled inside the bounds, the z of a row that
+    # gives way would leave the minimiser a warm call starts at.
     value = problem.values(y)
-    z, give = torch.clamp(value, problem.lower, problem.upper), dual / rho
+    z, give = value, dual / rho
     v = z + give
     for _ in range(iterations):
         y = torch.baddbmm(free, torch.bmm((z - give).unsqueeze(-2), problem.A), spread)

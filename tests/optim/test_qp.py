@@ -202,6 +202,26 @@ def test_a_long_stretch_of_rows_in_conflict_neither_winds_up_nor_hides_a_wrong_s
     assert not wrong.any()
 
 
+def test_a_warm_call_at_the_elastic_minimiser_of_rows_in_conflict_stays_there() -> None:
+    """Twenty warm calls put every element on its elastic minimiser, certified here; one more call leaves it there.
+
+    A warm start that pulled the rows inside their bounds moved 78 of 512 such minimisers by up to 0.27 (second
+    review of record 0054), so some elements never settled.
+    """
+    problem = _conflict("fixed", 0, conflict=True)
+    H, g, rows, lower, upper = problem
+    solution = _repeat(problem, 20)
+    # The certificate: the gradient vanishes, and each multiplier is the slope of `weight` times the violation at
+    # its row: zero inside the bounds, of the side's sign on a bound, `weight` beyond it.
+    gradient = (H @ solution.x.unsqueeze(-1)).squeeze(-1) + g + (rows.mT @ solution.dual.unsqueeze(-1)).squeeze(-1)
+    reach = (rows @ solution.x.unsqueeze(-1)).squeeze(-1) + solution.dual
+    slope = torch.clamp(reach - torch.clamp(reach, lower, upper), -1e3, 1e3)
+    assert gradient.abs().max().item() < 1e-8 and (slope - solution.dual).abs().max().item() < 1e-8
+    assert (solution.primal_residual > 0.5).all()  # the rows cannot all hold
+    again = solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=solution)
+    assert (again.x - solution.x).abs().max().item() < 1e-8
+
+
 def test_padding_and_repeated_rows_do_not_move_the_solution() -> None:
     problem = _problems(16, 5, 8, seed=1)
     H, g, rows, lower, upper = problem
