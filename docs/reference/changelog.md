@@ -161,9 +161,9 @@ that 0.3.0 renames or removes, one table row each.
   tier before a commit, the full tier before a push. The release tier is one command,
   `bash tools/release_tier.sh --gpu <index>` ([running the tests](../guides/run-the-tests.md)).
 - `terms.sphere_clearance` and `terms.self_clearance` have analytic Jacobians (the distance gradient at each sphere
-  centre times `kinematics.point_jacobian`), 11-69x cheaper to linearize than autodiff at batch 64 to 1024, and
-  their hinge is C1: `gap² / (2 margin)` inside the margin band, `gap - margin / 2` beyond it, so a soft clearance
-  settles deeper inside the margin than with the 0.2 hinge at the same weight.
+  centre times `kinematics.point_jacobian`), 5-47x cheaper to linearize than autodiff at batch 64 to 1024 on one
+  CPU core (Panda, float64), and their hinge is C1: `gap² / (2 margin)` inside the margin band, `gap - margin / 2`
+  beyond it, so a soft clearance settles deeper inside the margin than with the 0.2 hinge at the same weight.
 
 ### Removed
 - `ModelStructure`, `ModelValues`, `Model.structure`, `Model.values`: use the fields of `Model`.

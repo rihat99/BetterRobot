@@ -112,20 +112,26 @@ def _identity_jacobian(model: Model, q: str, sign_fn: Callable[[torch.Tensor], t
     return lambda value: {q: torch.diag_embed(sign_fn(value))}
 
 
-def _hinge(gap: torch.Tensor, width: torch.Tensor) -> torch.Tensor:
-    """C1 hinge of ``gap``: 0 for ``gap <= 0``, ``gap² / (2 width)`` up to ``width``, then ``gap - width / 2``.
+def _band(width: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """``(1 / width, width / 2)``, the constants of `_hinge` for a band ``width >= 0``; a zero width is a plain hinge."""
+    return 1.0 / width.clamp_min(torch.finfo(width.dtype).tiny), width / 2
 
-    ``width >= 0`` broadcasts with ``gap``; a zero width is the plain hinge ``max(gap, 0)``. The plain hinge's slope
-    steps from 0 to 1, so the Gauss-Newton model jumps when a term starts to act; this slope ramps across the band.
+
+def _hinge_slope(gap: torch.Tensor, band: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    """Slope of `_hinge`: 0 for ``gap <= 0``, rising linearly to 1 across the band, then 1. Same shape as ``gap``."""
+    return (gap.clamp_min(0.0) * band[0]).clamp_max(1.0)
+
+
+def _hinge(gap: torch.Tensor, band: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    """C1 hinge of ``gap`` over a band of width ``w`` (`_band`): 0 for ``gap <= 0``, ``gap² / (2 w)`` up to ``w``, then
+    ``gap - w / 2``.
+
+    The plain hinge ``max(gap, 0)`` (``w = 0``) has a step in its slope, so the Gauss-Newton model of a term jumps when
+    it starts to act; this slope ramps across the band. With ``s`` the slope the value is ``s (gap - s w / 2)``.
     """
-    inside = torch.minimum(gap.clamp_min(0.0), width)
-    return inside * inside / (2 * width).clamp_min(torch.finfo(gap.dtype).tiny) + (gap - width).clamp_min(0.0)
-
-
-def _hinge_slope(gap: torch.Tensor, width: torch.Tensor) -> torch.Tensor:
-    """Derivative of `_hinge` with respect to ``gap``, same shape."""
-    inside = torch.minimum(gap.clamp_min(0.0), width)
-    return torch.where(gap > width, 1.0, inside / width.clamp_min(torch.finfo(gap.dtype).tiny))
+    rise = gap.clamp_min(0.0)
+    slope = (rise * band[0]).clamp_max(1.0)
+    return slope * (rise - band[1] * slope)
 
 
 def joint_limits(model: Model, *, margin: float | torch.Tensor = 0.0, q: str = "q") -> TermFn:
@@ -138,14 +144,14 @@ def joint_limits(model: Model, *, margin: float | torch.Tensor = 0.0, q: str = "
     band = torch.as_tensor(margin, dtype=model.dtype, device=model.device)
     if band.shape not in ((), (model.nq,)):
         raise ShapeError(f"margin must be a number or have shape ({model.nq},), got {tuple(band.shape)}")
-    width = band.clamp_min(0.0)
     lower, upper = model.lower_position_limit + band, model.upper_position_limit - band
+    band = _band(band.clamp_min(0.0))
 
     def violation(value: torch.Tensor) -> torch.Tensor:
-        return _hinge(value - upper, width) - _hinge(lower - value, width)
+        return _hinge(value - upper, band) - _hinge(lower - value, band)
 
     def slope(value: torch.Tensor) -> torch.Tensor:
-        return _hinge_slope(value - upper, width) + _hinge_slope(lower - value, width)
+        return _hinge_slope(value - upper, band) + _hinge_slope(lower - value, band)
 
     return TermFn(fn=violation, reads=(q,), jacobian=_identity_jacobian(model, q, slope))
 
@@ -171,6 +177,7 @@ def manipulability(model: Model, *, frame: int | str, threshold: float, state: s
         raise ArgumentError(f"threshold must be positive, got {threshold}")
     frame_id = model.frame_id(frame)
     width = torch.tensor(threshold, dtype=model.dtype, device=model.device)
+    band = _band(width)
     owner = [0] * model.nv  # the joint of each tangent column
     for joint in range(model.njoints):
         for column in range(model.nvs[joint]):
@@ -181,7 +188,7 @@ def manipulability(model: Model, *, frame: int | str, threshold: float, state: s
 
     def residual(kinematics: KinematicState) -> torch.Tensor:
         _, size = _yoshikawa(frame_jacobian(model, kinematics, frame=frame_id)[..., :3, :] * columns)
-        return _hinge(width - size, width)[..., None]
+        return _hinge(width - size, band)[..., None]
 
     chain = support(model, joint=model.frame_parent_joint_ids[frame_id])
     if any(model.mimic_source_ids[joint] != joint for joint in chain):
@@ -211,7 +218,7 @@ def manipulability(model: Model, *, frame: int | str, threshold: float, state: s
         gradient = (
             (angular * (first @ above.mT)).sum(-2) + (linear * (second @ above.mT)).sum(-2) + (rows * third).sum(-2)
         )
-        return {q: -(_hinge_slope(width - size, width)[..., None] * gradient)[..., None, :]}
+        return {q: -(_hinge_slope(width - size, band)[..., None] * gradient)[..., None, :]}
 
     return TermFn(fn=residual, reads=(state,), jacobian=jacobian)
 

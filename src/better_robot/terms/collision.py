@@ -21,7 +21,7 @@ from ..collision import RobotSpheres, self_distances
 from ..exceptions import ArgumentError
 from ..kinematics import KinematicState, point_jacobian
 from ..optim import TermFn
-from .robot import _hinge, _hinge_slope
+from .robot import _band, _hinge, _hinge_slope
 
 
 def sphere_clearance(
@@ -41,12 +41,12 @@ def sphere_clearance(
     cached ``state`` reads.
     """
     frames = spheres.frame_ids.tolist()  # bench-ok: once per term; point_jacobian takes frame ids as ints
-    width = torch.tensor(max(margin, 0.0), dtype=spheres.radii.dtype, device=spheres.radii.device)
+    band = _band(torch.tensor(max(margin, 0.0), dtype=spheres.radii.dtype, device=spheres.radii.device))
 
     def residual(kinematics: KinematicState) -> torch.Tensor:
         centers = spheres.centers(kinematics)
         gap = margin - distance_fn(centers, spheres.radii).flatten(centers.dim() - 2)
-        return _hinge(gap, width) if hinge else gap
+        return _hinge(gap, band) if hinge else gap
 
     def jacobian(kinematics: KinematicState) -> dict[str, torch.Tensor]:
         centers = spheres.centers(kinematics)
@@ -63,7 +63,7 @@ def sphere_clearance(
         points = point_jacobian(kinematics.model, kinematics, frames=frames, points=spheres.offsets)
         rows = gradient @ points  # (B..., S, K, nv)
         if hinge:
-            rows = _hinge_slope(margin - distance, width)[..., None] * rows
+            rows = _hinge_slope(margin - distance, band)[..., None] * rows
         return {q: -rows.flatten(-3, -2)}
 
     return TermFn(fn=residual, reads=(state,), jacobian=jacobian)
@@ -89,7 +89,7 @@ def self_clearance(
     if closest is not None and closest < 1:
         raise ArgumentError(f"closest must be at least 1, got {closest}")
     frames = spheres.frame_ids.tolist()  # bench-ok: once per term; point_jacobian takes frame ids as ints
-    width = torch.tensor(max(margin, 0.0), dtype=spheres.radii.dtype, device=spheres.radii.device)
+    band = _band(torch.tensor(max(margin, 0.0), dtype=spheres.radii.dtype, device=spheres.radii.device))
     keep = pairs.shape[0] if closest is None else min(closest, pairs.shape[0])
 
     def nearest(kinematics: KinematicState) -> tuple[torch.Tensor, torch.Tensor | None]:
@@ -102,7 +102,7 @@ def self_clearance(
 
     def residual(kinematics: KinematicState) -> torch.Tensor:
         gap = margin - nearest(kinematics)[0]
-        return _hinge(gap, width) if hinge else gap
+        return _hinge(gap, band) if hinge else gap
 
     def jacobian(kinematics: KinematicState) -> dict[str, torch.Tensor]:
         distance, index = nearest(kinematics)
@@ -125,7 +125,7 @@ def self_clearance(
         normal = torch.where(length > 1e-24, delta / length.clamp_min(1e-24).sqrt(), 0.0)
         rows = (normal.unsqueeze(-2) @ (gather(points, first) - gather(points, second))).squeeze(-2)
         if hinge:
-            rows = _hinge_slope(margin - distance, width)[..., None] * rows
+            rows = _hinge_slope(margin - distance, band)[..., None] * rows
         return {q: -rows}
 
     return TermFn(fn=residual, reads=(state,), jacobian=jacobian)
