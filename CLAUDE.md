@@ -120,7 +120,8 @@ file); no test checks them, a reviewer does.
 - Rules and their enforcers: `docs/contracts/00-index.md`; scope, non-goals and rejected ideas:
   `docs/contracts/scope.md`; the public plan: `docs/reference/roadmap.md`.
 - Procedures: `.claude/skills/add-joint-kind/SKILL.md` and `.claude/skills/release/SKILL.md`.
-- `tools/` holds the scripts named above, `tools/hot_path_lint.py` (run by its contract test) and
-  `tools/docs_screenshots.mjs` (light and dark screenshots of the docs pages).
+- `tools/` holds the scripts named above, `tools/hot_path_lint.py` (run by its contract test),
+  `tools/docs_screenshots.mjs` (light and dark screenshots of the docs pages) and `tools/fit_spheres.py` (writes the
+  sphere files of `collision.SPHERE_SETS`; its command is recorded in each file).
 - `agent_notes/` (one folder per task: plan, state, notes) and `trash/` are ignored whole; nothing tracked cites
   them.

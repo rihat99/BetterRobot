@@ -96,6 +96,41 @@ tensor([0.2599, 0.3945], dtype=torch.float64)
 The sphere on `link2` and the `tool` sphere are on the same body, so they form no pair. The base
 and `link1` are joined by `j1`, so they would form none either.
 
+## Sphere sets for the Panda and the G1 ship with the package
+
+`load_spheres(path, model)` reads a sphere file: JSON whose `"spheres"` maps a frame name to rows
+`[x, y, z, radius]` (the centre in that frame's coordinates) and whose `"ignore"` lists the frame pairs to pass to
+`self_collision_pairs`, those whose spheres overlap at the neutral configuration beyond the pairs the function drops
+itself. `SPHERE_SETS` is the folder of the files that ship with the package: `panda.json` (42 spheres) and `g1.json`
+(91 spheres, for the G1 with 29 joints).
+
+```python
+import torch
+from robot_descriptions import panda_description
+from better_robot import collision, forward_kinematics, load
+
+panda = load(panda_description.URDF_PATH, dtype=torch.float64)
+spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
+pairs = collision.self_collision_pairs(panda, spheres, ignore=ignore)
+distances = collision.self_distances(spheres, forward_kinematics(panda, panda.q_neutral), pairs=pairs)
+print(spheres, tuple(pairs.shape), ignore[0])
+print(bool((distances > 0).all()))   # every pair kept is clear at the neutral configuration
+```
+```output
+RobotSpheres(42 spheres, float64, cpu) (535, 2) ('panda_hand', 'panda_link5')
+True
+```
+
+The spheres of a body hold all its collision shapes: no surface point lies more than 0.5 mm outside them. The G1's
+feet and hands hold their display meshes instead, since its description gives the feet four 5 mm contact spheres and
+the hands no collision shape. Holding the shapes costs overshoot: the spheres' surface lies on average 8 to 43 mm
+beyond the shapes, depending on the body. So pairs that are close at the neutral configuration overlap and are
+ignored. On the Panda these are `panda_link5` with `panda_link7`, the hand and each finger, and the two fingers
+(the meshes of link 5, link 7 and the hand touch there, as do the closed fingers); on the G1 they include the
+shoulder and elbow links with the torso, whose meshes are 9 to 37 mm apart there. Pass your own `ignore` to keep
+such a pair. `tools/fit_spheres.py` fits a file for another robot or sphere count; its
+docstring says how.
+
 ## Capsules cover long links with few primitives
 
 `RobotCapsules` approximates the robot by `C` capsules: capsule `c` is every point within `radii[c]` of the

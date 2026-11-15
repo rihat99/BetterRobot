@@ -37,6 +37,9 @@ that 0.3.0 renames or removes, one table row each.
 - `collision`: `RobotSpheres` and `RobotCapsules` (frame-attached spheres and segments), `self_collision_pairs`
   (with `ignore=`), `self_distances`, `self_capsule_distances` and the pair distances `sphere_sphere`,
   `sphere_capsule`, `capsule_capsule`, `sphere_halfspace`, `sphere_box`, `sphere_sdf`.
+- `collision.load_spheres(path, model)`: a sphere file (JSON, spheres per frame and the frame pairs self-collision
+  ignores) as `RobotSpheres` and its ignore list; `collision.SPHERE_SETS`, the folder of the files for the Franka
+  Panda and the Unitree G1, fitted to their collision shapes by `tools/fit_spheres.py`.
 - `optim`: named-tensor problems of plain-function terms. `Problem` with `residual`, `scalar` and `cached` terms
   (`TermFn`, `Term`, `RobustKernel` and the kernels `Huber`, `Cauchy`, `Tukey`, `GemanMcClure`), the solvers
   `LevenbergMarquardt`, `GaussNewton`, `LBFGS` and `TorchOptim` (an abstract `Solver` with `warm_keys`), `solve`,
