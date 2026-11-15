@@ -41,6 +41,7 @@ WATCHED_FILES = (
     "src/better_robot/optim/solvers.py",
     "src/better_robot/optim/linear.py",
     "src/better_robot/optim/linearization.py",
+    "src/better_robot/optim/qp.py",
 )
 ALLOC_FNS = ("zeros", "ones", "empty", "full", "rand", "randn", "eye")
 

@@ -31,6 +31,7 @@ HOT_PATH_ROWS = {
     "src/better_robot/optim/solvers.py": {"ik"},  # solve_ik runs the Levenberg-Marquardt step
     "src/better_robot/optim/linearization.py": {"ik"},  # every step linearizes the terms
     "src/better_robot/optim/linear.py": {"ik"},  # and solves the normal equations
+    "src/better_robot/optim/qp.py": {"qp"},  # one cold solve_qp of seeded random programs
 }
 
 

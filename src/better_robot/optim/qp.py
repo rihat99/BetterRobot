@@ -4,15 +4,15 @@
 row with ``lower == upper``, a one-sided row has an infinite bound, a box on ``x`` is identity rows. The method is the
 alternating direction method of multipliers in the form OSQP uses (one factorization of ``H + penalty · rowsᵀ rows``
 per call, then ``iterations`` steps of two matrix-vector products each), followed by one active-set step that is
-kept where it lands on the exact solution (decision record 0053). Every batch element runs the same steps, with
+kept where it lands on the exact solution (decision record 0054). Every batch element runs the same steps, with
 no Python branch on a tensor value and no host read, so the whole solve traces as one graph. It is made to be called
 once per step of an outer loop and started from its own last answer.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import final
+from dataclasses import KW_ONLY, dataclass
+from typing import final, override
 
 import torch
 
@@ -37,9 +37,16 @@ class QPSolution:
 
     x: torch.Tensor  #: ``(B..., N)`` the minimiser, exact or approximate (the residuals say which).
     dual: torch.Tensor  #: ``(B..., M)`` multiplier of each row: positive presses on ``upper``, negative on ``lower``.
+    _: KW_ONLY
     primal_residual: torch.Tensor  #: ``(B...,)`` largest violation of a row by ``x``, in that row's unit.
     dual_residual: torch.Tensor  #: ``(B...,)`` largest entry of ``H x + g + rowsᵀ dual``.
     penalty: torch.Tensor  #: ``(B...,)`` weight of the rows against ``H`` that the next warm solve starts with.
+
+    @override
+    def __repr__(self) -> str:
+        dtype = str(self.x.dtype).removeprefix("torch.")
+        batch, size, count = tuple(self.x.shape[:-1]), self.x.shape[-1], self.dual.shape[-1]
+        return f"QPSolution(B={batch}, N={size}, M={count}, {dtype}, {self.x.device})"
 
 
 @final
@@ -95,8 +102,8 @@ def _active_set_step(
 
 
 def solve_qp(
-    H: torch.Tensor,
-    g: torch.Tensor,
+    hessian: torch.Tensor,
+    gradient: torch.Tensor,
     *,
     rows: torch.Tensor,
     lower: torch.Tensor,
@@ -106,9 +113,9 @@ def solve_qp(
 ) -> QPSolution:
     """Minimise ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper``, per batch element.
 
-    ``H: (B..., N, N)`` symmetric positive semi-definite (a Gauss-Newton ``H`` with its damping), ``g: (B..., N)``,
-    ``rows: (B..., M, N)`` with ``M >= 1``, ``lower, upper: (B..., M)``; a bound may be infinite, and a padding row is
-    a zero row with both bounds infinite. All share the batch axes ``B...``. The factorizations run in float64
+    ``hessian: (B..., N, N)`` is ``H``, symmetric positive semi-definite (the ``H`` of a `Normal` with its damping
+    added), ``gradient: (B..., N)`` is ``g``, ``rows: (B..., M, N)`` with ``M >= 1``, ``lower, upper: (B..., M)``; a
+    bound may be infinite, and a padding row is a zero row with both bounds infinite. All share the batch axes ``B...``. The factorizations run in float64
     whatever the dtype, which the result keeps; the result carries no gradient.
 
     Each of the ``iterations`` steps moves ``x`` towards the rows and ``dual`` towards the multipliers; then the rows
@@ -125,28 +132,30 @@ def solve_qp(
     grows with every step. A batch element whose ``H + penalty · rowsᵀ rows`` is not positive definite, or whose
     data are not finite, gets ``x = 0``, ``dual = 0``, both residuals ``inf`` and ``penalty = 1``.
     """
-    batch, size, count = g.shape[:-1], g.shape[-1], lower.shape[-1]
-    if H.shape != (*batch, size, size) or rows.shape != (*batch, count, size) or upper.shape != (*batch, count):
+    batch, size, count = gradient.shape[:-1], gradient.shape[-1], lower.shape[-1]
+    if hessian.shape != (*batch, size, size) or rows.shape != (*batch, count, size) or upper.shape != (*batch, count):
         raise ShapeError(
-            f"solve_qp takes H (B..., N, N), g (B..., N), rows (B..., M, N) and lower, upper (B..., M); got "
-            f"{tuple(H.shape)}, {tuple(g.shape)}, {tuple(rows.shape)}, {tuple(lower.shape)}, {tuple(upper.shape)}"
+            f"solve_qp takes hessian (B..., N, N), gradient (B..., N), rows (B..., M, N) and lower, upper (B..., M); got "
+            f"{tuple(hessian.shape)}, {tuple(gradient.shape)}, {tuple(rows.shape)}, {tuple(lower.shape)}, {tuple(upper.shape)}"
         )
     if count == 0:
-        raise ShapeError("solve_qp needs at least one row; without rows the minimiser is Normal(H, g).solve()")
-    H64 = H.detach().double().reshape(-1, size, size)
-    diagonal = H64.diagonal(dim1=-2, dim2=-1)
+        raise ShapeError(
+            "solve_qp needs at least one row; without rows the minimiser is Normal(hessian, gradient).solve()"
+        )
+    matrix = hessian.detach().double().reshape(-1, size, size)
+    diagonal = matrix.diagonal(dim1=-2, dim2=-1)
     scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-    A = rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2)
+    along = rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2)
+    floor = _FLOOR * torch.eye(size, dtype=matrix.dtype, device=matrix.device)
     problem = _Scaled(
-        H=H64 * scale.unsqueeze(-1) * scale.unsqueeze(-2)
-        + _FLOOR * torch.eye(size, dtype=H64.dtype, device=H64.device),
-        c=(g.detach().double().reshape(-1, size) * scale).unsqueeze(-1),
-        A=A,
-        At=A.mT.contiguous(),
+        H=matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2) + floor,
+        c=(gradient.detach().double().reshape(-1, size) * scale).unsqueeze(-1),
+        A=along,
+        At=along.mT.contiguous(),
         lower=lower.detach().double().reshape(-1, count),
         upper=upper.detach().double().reshape(-1, count),
     )
-    gram = torch.bmm(problem.At, A)
+    gram = torch.bmm(problem.At, problem.A)
     # The rows weigh as much as the objective: trace(cold · gram) = trace(unit-diagonal H) = N.
     cold = (size / gram.diagonal(dim1=-2, dim2=-1).sum(-1).clamp_min(1e-300)).clamp(*_PENALTIES)
     if warm is None:
@@ -162,14 +171,14 @@ def solve_qp(
     right = _solve(factor, torch.cat([rho.unsqueeze(-1) * problem.At, -problem.c], dim=-1))
     lift, free = right[..., :count].contiguous(), right[..., count:].contiguous()
     # State v = z + dual / penalty: z = clamp(v) is the rows' value inside the bounds, the rest is the multiplier.
-    z = torch.clamp(torch.bmm(A, y).squeeze(-1), problem.lower, problem.upper)
+    z = torch.clamp(torch.bmm(problem.A, y).squeeze(-1), problem.lower, problem.upper)
     v = z + dual / rho
     for _ in range(iterations):
         y = torch.baddbmm(free, lift, (z + z - v).unsqueeze(-1))
-        v = torch.add(v, torch.bmm(A, y).squeeze(-1) - z, alpha=_RELAXATION)
+        v = torch.add(v, torch.bmm(problem.A, y).squeeze(-1) - z, alpha=_RELAXATION)
         z = torch.clamp(v, problem.lower, problem.upper)
     dual = rho * (v - z)
-    value, primal, gradient, ahead = problem.measure(y, dual)
+    value, primal, slope, ahead = problem.measure(y, dual)
     # The next solve weighs the rows more when they lag behind the multipliers, less when they lead (OSQP's rule).
     # Both sides are floored at `_SETTLED`: a pair that has converged keeps its penalty instead of following rounding.
     behind = (value - z).abs().amax(-1) / torch.maximum(value.abs().amax(-1), z.abs().amax(-1)).clamp_min(1e-300)
@@ -177,25 +186,25 @@ def solve_qp(
     penalty = (penalty * change).clamp(*_PENALTIES)
 
     held, force, held_info = _active_set_step(problem, v, dual, cold)
-    held_value, held_primal, held_gradient, held_ahead = problem.measure(held, force)
+    held_value, held_primal, held_slope, held_ahead = problem.measure(held, force)
     reach = torch.maximum(
         held_value.abs().amax(-1), torch.clamp(held_value, problem.lower, problem.upper).abs().amax(-1)
     )
     exact = ((held_info == 0) & (held_primal <= _EXACT * reach) & (held_ahead <= _EXACT)).unsqueeze(-1)
     y, dual = torch.where(exact, held.squeeze(-1), y.squeeze(-1)), torch.where(exact, force, dual)
     primal = torch.where(exact.squeeze(-1), held_primal, primal)
-    gradient = torch.where(exact, held_gradient, gradient)
+    slope = torch.where(exact, held_slope, slope)
 
     x = y * scale
-    stationarity = ((gradient - _FLOOR * y) / scale).abs().amax(-1)  # of the caller's H, without the floor
+    stationarity = ((slope - _FLOOR * y) / scale).abs().amax(-1)  # of the caller's H, without the floor
     ok = (info == 0) & torch.isfinite(x).all(-1) & torch.isfinite(dual).all(-1)
     failed = torch.full_like(primal, float("inf"))
     return QPSolution(
-        x=torch.where(ok.unsqueeze(-1), x, torch.zeros_like(x)).to(g.dtype).reshape(*batch, size),
-        dual=torch.where(ok.unsqueeze(-1), dual, torch.zeros_like(dual)).to(g.dtype).reshape(*batch, count),
-        primal_residual=torch.where(ok, primal, failed).to(g.dtype).reshape(batch),
-        dual_residual=torch.where(ok, stationarity, failed).to(g.dtype).reshape(batch),
-        penalty=torch.where(ok, penalty, torch.ones_like(penalty)).to(g.dtype).reshape(batch),
+        x=torch.where(ok.unsqueeze(-1), x, torch.zeros_like(x)).to(gradient.dtype).reshape(*batch, size),
+        dual=torch.where(ok.unsqueeze(-1), dual, torch.zeros_like(dual)).to(gradient.dtype).reshape(*batch, count),
+        primal_residual=torch.where(ok, primal, failed).to(gradient.dtype).reshape(batch),
+        dual_residual=torch.where(ok, stationarity, failed).to(gradient.dtype).reshape(batch),
+        penalty=torch.where(ok, penalty, torch.ones_like(penalty)).to(gradient.dtype).reshape(batch),
     )
 
 

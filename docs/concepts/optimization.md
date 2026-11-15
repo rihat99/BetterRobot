@@ -192,6 +192,38 @@ print(result.loss)
 tensor([2.3851e-07, 3.0286e-06, 1.1951e-06, 5.3854e-07])
 ```
 
+## A quadratic program per step
+
+`solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, warm=None)` minimises
+$\tfrac12 x^\top H x + g^\top x$ subject to `lower <= rows x <= upper` for a batch of independent problems: the
+step of a Gauss-Newton method under linear constraints. An equality is a row with `lower == upper`, a one-sided row
+has an infinite bound, a box on `x` is identity rows, and a padding row is a zero row with infinite bounds. It is a
+building block: no solver calls it yet.
+
+```python
+import torch
+from better_robot.optim import solve_qp
+
+hessian, gradient = torch.eye(2)[None], torch.tensor([[-2.0, 0.5]])
+rows = torch.tensor([[[1.0, 1.0]]])  # x0 + x1 <= 1
+solution = solve_qp(hessian, gradient, rows=rows, lower=torch.tensor([[-torch.inf]]), upper=torch.tensor([[1.0]]))
+print(solution.x, solution.dual)
+```
+```output
+tensor([[ 1.7500, -0.7500]]) tensor([[0.2500]])
+```
+
+It runs a fixed number of cheap steps (ADMM in the OSQP form: one factorization, then two matrix-vector products
+per step) and then solves the rows the multipliers press on as equalities; where that point satisfies every row it
+is the exact solution and is returned, as above. Elsewhere the last step is returned and
+`solution.primal_residual` (largest row violation) and `solution.dual_residual` (largest entry of
+`H x + g + rowsᵀ dual`) say how far it is. Pass the last `QPSolution` as `warm=` when the next problem is close
+(the next step of a solver, the next tick of a control loop): the steps of consecutive calls add up, and the
+solution carries the row weight (`penalty`) the last solve tuned. When the rows cannot all hold, `x` is the point
+of least squared violation in the units the rows are given in, so scaling a row weights it. The solve runs in
+float64, the same steps for every batch element, with no host read, and returns no gradient
+([record 0054](../contracts/decisions/0054-quadratic-programs-by-admm-and-one-active-set-step.md)).
+
 ## Reserved vocabulary
 
 Every variable has exactly one batch axis `(B, *event)` ([C-TENS-5](../contracts/02-tensors.md)). A

@@ -142,7 +142,7 @@ def test_a_failed_element_is_flagged_and_leaves_the_others_alone() -> None:
     torch.testing.assert_close(solution.x[2], good.x[2])
     with pytest.raises(ShapeError, match="at least one row"):
         solve_qp(H, g, rows=rows[:, :0], lower=lower[:, :0], upper=upper[:, :0])
-    with pytest.raises(ShapeError, match=r"H \(B\.\.\., N, N\)"):
+    with pytest.raises(ShapeError, match=r"hessian \(B\.\.\., N, N\)"):
         solve_qp(H, g, rows=rows, lower=lower, upper=upper[:, :-1])
 
 
