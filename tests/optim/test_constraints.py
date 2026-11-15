@@ -174,6 +174,18 @@ def test_the_reported_point_never_leaves_the_tolerance_while_the_iterate_does() 
     assert float(torch.stack(worst).max()) <= 1e-4 < float(torch.stack(outside).max())
 
 
+def test_a_problem_is_not_done_while_its_iterate_is_outside_the_tolerance() -> None:
+    """With tolerances loose enough to stop at any step, a problem still runs until its iterate is within
+    ``tolerance`` of the ball it had left."""
+    problem, _ = _fit("ball")
+    left = []
+    solver = optim.SequentialQP(gradient_tolerance=1e3, step_tolerance=1e3)
+    record = lambda _, state: left.append(state.extra["rows"].violation.max())  # noqa: E731
+    result = optim.run(problem, [optim.Phase(solver, 30, stop_every=0, on_step=record)])
+    assert result.state is not None and float(torch.stack(left).max()) > 1e-4
+    assert bool(result.done.all()) and float(result.state.extra["rows"].violation.max()) <= 1e-4
+
+
 def test_only_sequential_qp_takes_constraint_terms() -> None:
     problem, _ = _fit("ball")
     cost_only = [

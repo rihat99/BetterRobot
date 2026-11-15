@@ -1,5 +1,6 @@
 """Inverse kinematics under clearance rows: ``SequentialQP`` on a Panda that avoids a sphere and itself."""
 
+import dataclasses
 import math
 
 import pytest
@@ -71,12 +72,32 @@ def test_every_row_holds_at_the_end_of_a_constrained_ik_run(scene) -> None:
     assert int(reached(q, goal).sum()) >= 45  # 47 measured, 44 of them among the 52 clear targets
 
 
+def _tensors(value: object, path: str = "state") -> dict[str, torch.Tensor]:
+    """``{path: tensor}`` of every tensor a state holds, through its dataclasses, dicts and tuples."""
+    if isinstance(value, torch.Tensor):
+        return {path: value}
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        value = {item.name: getattr(value, item.name) for item in dataclasses.fields(value)}
+    elif isinstance(value, tuple):
+        value = dict(enumerate(value))
+    if not isinstance(value, dict):
+        return {}
+    return {name: found for key, item in value.items() for name, found in _tensors(item, f"{path}.{key}").items()}
+
+
 @pytest.mark.slow
-def test_a_compiled_step_equals_the_eager_one(scene) -> None:
+@pytest.mark.parametrize("mode", ["default", "reduce-overhead"])
+def test_a_compiled_step_equals_the_eager_one(scene, mode: str) -> None:
+    """In both modes, over the whole state: the reported point, the iterate, its rows and normal equations, the
+    quadratic program and the step control."""
     build, _, _ = scene
     solver = optim.SequentialQP()
-    step = br.kinematics.compiled(solver.step)
+    step = br.kinematics.compiled(solver.step, mode=mode)
     problem, _, _ = build(4, 1)
     compiled, eager = (optim.run(problem, [optim.Phase(solver, 6, stop_every=0, step=hook)]) for hook in (step, None))
-    torch.testing.assert_close(compiled.x["q"], eager.x["q"], rtol=0.0, atol=1e-9)
-    torch.testing.assert_close(compiled.loss, eager.loss, rtol=0.0, atol=1e-12)
+    found, expected = _tensors(compiled.state), _tensors(eager.state)
+    assert found.keys() == expected.keys() and {"state.extra.radius", "state.extra.qp.dual"} <= found.keys()
+    for name, tensor in expected.items():
+        torch.testing.assert_close(
+            found[name], tensor, rtol=1e-9, atol=1e-9, msg=lambda text, name=name: f"{name}: {text}"
+        )
