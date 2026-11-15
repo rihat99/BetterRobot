@@ -10,12 +10,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from dataclasses import KW_ONLY, dataclass, field
+from dataclasses import KW_ONLY, dataclass, field, fields, replace
 from typing import Any, ClassVar, final, override
 
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
+from .linear import ArrowNormal, BandedNormal, Normal
+from .linearization import linearize
 from .problem import Problem
 
 
@@ -34,6 +36,8 @@ class State:
     Every solver also writes ``terms``, ``{name: (B,)}``: the detached loss of each active term from
     the evaluation that ``loss`` comes from, so logging needs no second forward. ``TorchOptim`` adds
     ``info``, the ``{name: info}`` dicts of terms returning ``(value, info)`` (see ``Problem.evaluate``).
+    LM and Gauss-Newton keep ``normal``, the normal equations at ``x``: a step linearizes once, at its candidate,
+    and that serves the next step where the candidate is taken.
     ``solver`` is the class of the solver that made the state; a warm start needs a solver of that class.
     """
 
@@ -80,6 +84,21 @@ def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, tor
     return {
         name: torch.where(mask.reshape(-1, *([1] * (value.ndim - 1))), value, old[name]) for name, value in new.items()
     }
+
+
+def _selected_normal(
+    mask: torch.Tensor, new: Normal | BandedNormal | ArrowNormal, old: Normal | BandedNormal | ArrowNormal
+) -> Normal | BandedNormal | ArrowNormal:
+    """Normal equations: ``new`` where ``mask: (B,)`` is true, else ``old``; the band of an arrow too, one layout."""
+    changes: dict[str, Any] = {}
+    for item in fields(new):
+        value = getattr(new, item.name)
+        if isinstance(value, torch.Tensor):
+            keep = mask.reshape(-1, *([1] * (value.ndim - 1)))
+            changes[item.name] = torch.where(keep, value, getattr(old, item.name))
+        elif isinstance(value, BandedNormal):
+            changes[item.name] = _selected_normal(mask, value, getattr(old, item.name))
+    return replace(new, **changes)
 
 
 def _selected_terms(
@@ -129,24 +148,23 @@ class LevenbergMarquardt(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
-        with torch.no_grad():
-            loss, terms, _ = problem.evaluate(x)
+        normal, loss, terms = linearize(problem, x)
         extra = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0), "terms": terms}
+        extra["normal"] = normal
         return State(
             x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
         )
 
     @override
     def step(self, problem: Problem, state: State) -> State:
-        damping, growth = state.extra["damping"], state.extra["growth"]
-        normal, _ = problem.linearize(state.x)
+        damping, growth, normal = state.extra["damping"], state.extra["growth"], state.extra["normal"]
         bounds = problem.step_bounds(state.x)
         if bounds is not None:
             normal = normal.restrict(*bounds)
         delta = normal.solve(damping)
         with torch.no_grad():
             candidate = problem.retract(state.x, delta)
-            loss_new, terms_new, _ = problem.evaluate(candidate)
+        normal_new, loss_new, terms_new = linearize(problem, candidate)
         decrease = state.loss - loss_new
         accept = (decrease > 0) & torch.isfinite(loss_new) & ~state.done
         gain = decrease / normal.predicted_decrease(delta).clamp_min(1e-30)
@@ -172,6 +190,7 @@ class LevenbergMarquardt(Solver):
                 "step_norm": torch.where(accept, step_norm, torch.zeros_like(step_norm)),
                 "accepted": accept,
                 "terms": _selected_terms(accept, terms_new, state.extra["terms"]),
+                "normal": _selected_normal(accept, normal_new, state.extra["normal"]),
             },
         )
 
@@ -189,26 +208,25 @@ class GaussNewton(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
-        with torch.no_grad():
-            loss, terms, _ = problem.evaluate(x)
+        normal, loss, terms = linearize(problem, x)
         return State(
             x=dict(x),
             loss=loss,
             done=torch.zeros_like(loss, dtype=torch.bool),
             solver=type(self),
-            extra={"terms": terms},
+            extra={"terms": terms, "normal": normal},
         )
 
     @override
     def step(self, problem: Problem, state: State) -> State:
-        normal, _ = problem.linearize(state.x)
+        normal = state.extra["normal"]
         bounds = problem.step_bounds(state.x)
         if bounds is not None:
             normal = normal.restrict(*bounds)
         delta = normal.solve(self.damping)
         with torch.no_grad():
             candidate = problem.retract(state.x, delta)
-            loss_new, terms_new, _ = problem.evaluate(candidate)
+        normal_new, loss_new, terms_new = linearize(problem, candidate)
         move = torch.isfinite(loss_new) & ~state.done
         gradient_tolerance, _, step_tolerance = _tolerances(
             state.loss.dtype, self.gradient_tolerance, None, self.step_tolerance
@@ -222,7 +240,12 @@ class GaussNewton(Solver):
             done=done,
             solver=type(self),
             iteration=state.iteration + 1,
-            extra={**extra, "accepted": move, "terms": _selected_terms(move, terms_new, state.extra["terms"])},
+            extra={
+                **extra,
+                "accepted": move,
+                "terms": _selected_terms(move, terms_new, state.extra["terms"]),
+                "normal": _selected_normal(move, normal_new, state.extra["normal"]),
+            },
         )
 
 

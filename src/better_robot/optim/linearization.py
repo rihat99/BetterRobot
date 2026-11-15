@@ -73,15 +73,19 @@ def _stepped(problem: Problem, x: Values, delta: torch.Tensor) -> dict[str, torc
     return {name: problem.manifolds[name].retract(value, delta[:, slices[name]]) for name, value in x.items()}
 
 
-def linearize(problem: Problem, x: Values | None = None) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
-    """Gauss-Newton normal equations and the loss ``(B,)`` at ``x`` (default: the problem's variables)."""
+def linearize(
+    problem: Problem, x: Values | None = None
+) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor]]:
+    """Gauss-Newton normal equations, the loss ``(B,)`` and the detached loss of every active term ``{name: (B,)}``
+    at ``x`` (default: the problem's variables), from one evaluation."""
     return _normal_equations(problem, x, active_terms(problem))
 
 
 def _normal_equations(
     problem: Problem, x: Values | None, terms: list[Term]
-) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]:
-    """Normal equations of ``terms`` (registered on ``problem``, or derived from its terms) and their loss."""
+) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor]]:
+    """Normal equations of ``terms`` (registered on ``problem``, or derived from its terms), their loss and the loss
+    of each."""
     x = {name: value.detach() for name, value in checked_values(problem, x).items()}
     traced = [t for t in terms if t.kind == "scalar" or t.jacobian is None]
     loss = zero_loss(problem)
@@ -99,14 +103,16 @@ def _normal_equations(
         else:
             delta = None
             evaluation = Evaluation(problem, x)
-        dense_rows, scalar_total = [], None
+        dense_rows, scalar_total, losses = [], None, {}
         for term in terms:
             value = weighted(problem, term, evaluation)
             if term.kind == "scalar":
-                loss = loss + value.detach()
+                losses[term.name] = value.detach()
+                loss = loss + losses[term.name]
                 scalar_total = value if scalar_total is None else scalar_total + value
                 continue
-            loss = loss + residual_loss(term, value).detach()
+            losses[term.name] = residual_loss(term, value).detach()
+            loss = loss + losses[term.name]
             reweighted = value * irls(term, value)
             if term.jacobian is not None:
                 with torch.no_grad():
@@ -135,7 +141,7 @@ def _normal_equations(
             _accumulate(sink, g, [_Piece(columns[None], block, layout is not None)], stacked.detach()[:, None])
     normal = sink.finish(g)
     mask = free_mask(problem)
-    return (normal if mask is None else normal.masked(mask)), loss
+    return (normal if mask is None else normal.masked(mask)), loss, losses
 
 
 def gradient(
@@ -355,8 +361,8 @@ def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float
     for term in active_terms(problem):
         if term.kind != "residual" or (term.jacobian is None and term.window is None):
             continue
-        normal_a, _ = _normal_equations(problem, x, [term])
-        normal_b, _ = _normal_equations(problem, x, [replace(term, jacobian=None, window=None)])
+        normal_a, _, _ = _normal_equations(problem, x, [term])
+        normal_b, _, _ = _normal_equations(problem, x, [replace(term, jacobian=None, window=None)])
         H_a = normal_a.H if isinstance(normal_a, Normal) else normal_a.dense()
         H_b = normal_b.H if isinstance(normal_b, Normal) else normal_b.dense()
         scale = max(float(H_b.abs().max()), 1e-300)

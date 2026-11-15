@@ -132,7 +132,9 @@ A solver subclasses the abstract `Solver`: `init(problem, x) -> State` and
 each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
 `State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`,
 `solver` (the class of the solver that made it), the step count `iteration`, and `extra` for solver-owned values
-(damping, moments). Every solver also writes
+(damping, moments). LM and Gauss-Newton keep `extra["normal"]`, the normal equations at `x`: a step linearizes
+once, at its candidate, and a candidate that is taken brings its linearization to the next step. Every solver also
+writes
 `extra["terms"]`, the detached `(B,)` loss of each active term from the evaluation `loss` comes from, and
 `TorchOptim` writes `extra["info"]`, so a `Phase.on_step` logger needs no second forward.
 

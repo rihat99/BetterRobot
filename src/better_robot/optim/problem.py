@@ -379,7 +379,7 @@ class Problem:
         evaluation, so cached values are computed once and their dependence on the variables
         is kept. Robust kernels enter as iteratively reweighted least squares.
         """
-        return linearize(self, x)
+        return linearize(self, x)[:2]
 
     def gradient(
         self, x: Values | None = None, *, create_graph: bool = False
