@@ -35,8 +35,8 @@ sample, so lever arms stay of the robot's size and float32 accuracy does not deg
   `world_inertias`, against `spatial.transform_*`.
 * Cross products and inertia matrices are `spatial`'s unchecked ``*_raw`` twins: the public wrappers check every input
   once, and the checked forms add 2.2-3.1 us per call at batch 1.
-* Constant matrices multiply from the right (``x.mT @ support``) so torch folds the batch into one ``mm``; a left
-  multiply becomes a slow batched ``bmm``.
+* Constant matrices multiply from the right, joints last (``wrenches @ support`` with world wrenches
+  ``(N, 6, njoints)``), so torch folds the batch into one ``mm``; a left multiply becomes a slow batched ``bmm``.
 
 Cost model: at batch 1 and in backward the operator count dominates. At large CPU batches every operator streams an
 ``(N, njoints, 6)`` tensor through memory, so a per-joint loop on cache-resident slices is not much slower in forward
@@ -53,7 +53,7 @@ import torch
 
 from ..kinematics import KinematicState
 from ..kinematics._plans import JacobianPlan, jacobian_plan
-from ..kinematics.compilation import small_matmul
+from ..kinematics.compilation import fused_forms, small_matmul
 from ..model.model import Model
 from ..model.topology import build_supports
 from ..spatial.algebra import cross_force_raw, cross_motion_raw
@@ -186,7 +186,7 @@ def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
 
 def apply_inertias(inertias: torch.Tensor, motions: torch.Tensor) -> torch.Tensor:
     """``I v`` for ``(njoints, 6, 6)`` or ``(N, njoints, 6, 6)`` inertias and ``(N, njoints, 6)`` twists."""
-    if inertias.ndim == 3 and not torch.compiler.is_compiling():
+    if inertias.ndim == 3 and not fused_forms():
         # einsum batches over joints without materialising the broadcast inertia.
         return torch.einsum("jab,njb->nja", inertias, motions)
     return small_matmul(inertias, motions.unsqueeze(-1)).squeeze(-1)

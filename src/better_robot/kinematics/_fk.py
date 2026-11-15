@@ -30,7 +30,7 @@ import torch
 from ..lie import se3
 from ..model.model import Model
 from ._plans import fk_plan
-from .compilation import small_matmul
+from .compilation import fused_forms, small_matmul
 
 
 @overload
@@ -103,7 +103,7 @@ def world_transforms(
         gathered = plan.bias.new_zeros(count, nj, 1)
     if isinstance(joint_map, tuple):
         weight, bias = joint_map
-        if torch.compiler.is_compiling():
+        if fused_forms():
             local = bias + small_matmul(gathered.unsqueeze(-2), weight.flatten(-2)).view(count, nj, 4, 4)
         else:
             local = bias + torch.einsum("njf,jfab->njab", gathered, weight)
