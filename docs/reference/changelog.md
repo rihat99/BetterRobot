@@ -103,7 +103,8 @@ that 0.3.0 renames or removes, one table row each.
   `q0`, the others `terms.random_start` draws with the required `generator`) and the lowest per target is kept.
   `solve_ik(..., step=)`, `Phase(step=)` and `optim.solve(..., step=)` take a callable `(problem, state) -> State`
   in place of `solver.step`, such as a step compiled once with `kinematics.compiled` and reused across solves; the
-  driver hands it `iteration=0` and counts itself, so it compiles once. `LBFGS(stop_search=False)` runs every
+  driver hands it `state.iteration == 0` and counts itself, so it compiles once (a solver's own step, without the
+  hook, sees the steps taken so far). `LBFGS(stop_search=False)` runs every
   line-search trial and reads nothing back to the host.
 
 ### Changed

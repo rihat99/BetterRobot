@@ -46,7 +46,7 @@ class State:
     _: KW_ONLY
     done: torch.Tensor = field(repr=False)  #: ``(B,)`` bool, per-problem convergence.
     solver: type[Solver]  #: the solver kind that made this state.
-    iteration: int = 0  #: steps taken so far.
+    iteration: int = 0  #: steps taken so far; 0 inside a ``Phase.step`` hook, whose count ``run`` keeps.
     extra: dict[str, Any] = field(default_factory=dict, repr=False)  #: solver-owned (damping, moments, ...).
 
 

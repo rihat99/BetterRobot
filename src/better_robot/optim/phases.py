@@ -32,7 +32,8 @@ class Phase:
     fixed budget the device runs without waiting for the host).
     ``step(problem, state) -> State`` replaces ``solver.step``, for one compiled once and reused across solves:
     ``kinematics.compiled(lambda problem, state: solver.step(problem, state), mode="reduce-overhead")``. It is
-    handed ``iteration=0`` and the driver counts, so a compiled step does not specialise on the count.
+    handed ``state.iteration == 0`` on every call and the driver counts, so a compiled step does not specialise on
+    the count; without ``step``, ``solver.step`` sees the steps taken so far.
     """
 
     solver: Solver
@@ -117,9 +118,12 @@ def run(
             kept = {key: warm.extra[key] for key in phase.solver.warm_keys}
             state, warm = replace(state, extra={**state.extra, **kept}), None
         losses, steps = [], []
-        step = phase.step or phase.solver.step
         for iteration in range(phase.iterations):
-            state = replace(step(view, replace(state, iteration=0)), iteration=state.iteration + 1)
+            state = (
+                phase.solver.step(view, state)
+                if phase.step is None
+                else replace(phase.step(view, replace(state, iteration=0)), iteration=state.iteration + 1)
+            )
             losses.append(state.loss)
             steps.append({key: state.extra[key] for key in DIAGNOSTICS if key in state.extra})
             if phase.on_step is not None:
