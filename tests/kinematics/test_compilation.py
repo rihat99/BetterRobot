@@ -47,13 +47,18 @@ def test_an_unknown_mode_raises():
 
 
 @pytest.mark.cuda
+# Inductor advises TF32 matmuls, a process-wide setting the library leaves to the caller; its CUDA-graph tree
+# captures an empty graph on purpose to keep its memory pool alive, a warning it records but "error" raises.
+@pytest.mark.filterwarnings("ignore:TensorFloat32 tensor cores:UserWarning")
+@pytest.mark.filterwarnings("ignore:The CUDA Graph is empty:UserWarning")
 def test_reduce_overhead_captures_forward_dynamics_and_keeps_each_result():
     """CUDA graphs capture forward dynamics (no host sync), and a result stays valid after the next replay, which
     overwrites the graph's own outputs without an error: plain tensors and the tensors of a dataclass result, whose
     model stays the caller's."""
-    model = load(panda_urdf(), dtype=torch.float32).to(device=torch.device("cuda"))
+    model = load(panda_urdf(), dtype=torch.float32)
     generator = torch.Generator().manual_seed(0)
     q = torch.stack([model.random_configuration(generator=generator) for _ in range(64)]).cuda()
+    model = model.to(device=torch.device("cuda"))
     v, tau = (torch.randn(64, model.nv, generator=generator).cuda() for _ in range(2))
     aba = compiled(
         lambda q, v, tau: forward_dynamics(model, forward_kinematics(model, q), v=v, tau=tau), mode="reduce-overhead"
