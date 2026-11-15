@@ -19,7 +19,7 @@ from typing import Any, final, override
 import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError, UnknownNameError
-from .evaluation import Values, evaluate, residuals
+from .evaluation import CONSTRAINTS, Values, evaluate, residuals
 from .kernels import RobustKernel
 from .linear import ArrowNormal, BandedNormal, Normal
 from .linearization import gradient, linearize
@@ -61,6 +61,12 @@ class Term:
     window: int | None = None  #: time-local term: row ``t`` reads knots ``t .. t + window - 1``.
     lower: float | torch.Tensor | None = None  #: constraint terms: ``lower <= value``; ``None`` is no bound.
     upper: float | torch.Tensor | None = None  #: constraint terms: ``value <= upper``; ``None`` is no bound.
+
+
+def _require_row_weight(name: str, kind: str, weight: float | torch.Tensor) -> None:
+    """Refuse a negative number as the weight of a constraint term: it would turn the row around."""
+    if kind in CONSTRAINTS and not isinstance(weight, torch.Tensor) and weight < 0:
+        raise ArgumentError(f"{kind} term {name!r}: weight must be at least 0 (0 switches the term off), got {weight}")
 
 
 @final
@@ -318,9 +324,11 @@ class Problem:
         """Add the constraint ``fn(...) = 0``, ``fn(...) -> (B, ..., k)``: one row per entry.
 
         A constraint term is no part of the loss; ``SequentialQP`` holds its rows at every step. ``weight``, a
-        positive number or a tensor of the output's shape (with or without the batch axis), scales the rows: where
-        the rows of a step cannot all hold, a row's violation counts ``weight`` times. ``reads`` and ``jacobian`` are
-        those of ``residual``; a ``TermFn`` brings its own, and may not carry a ``window``.
+        positive number or a tensor of the output's shape (with or without the batch axis) without a negative entry,
+        scales the rows: where the rows of a step cannot all hold, a row's violation counts ``weight`` times. The
+        number 0 switches the term off, as for a cost term, and an entry 0 of a tensor switches its row off; a
+        negative number is refused (``ArgumentError``). ``reads`` and ``jacobian`` are those of ``residual``; a
+        ``TermFn`` brings its own, and may not carry a ``window``.
         """
         self._add_constraint(name, fn, "equality", weight, jacobian, reads, 0.0, 0.0)
 
@@ -369,9 +377,10 @@ class Problem:
                     self._require_new_name(name)
             problem._data = {**self._data, **data}
         if weights is not None:
-            for name in weights:
+            for name, weight in weights.items():
                 if name not in self._terms:
                     raise UnknownNameError("term", name, valid=list(self._terms))
+                _require_row_weight(name, self._terms[name].kind, weight)
             problem._weights = {**self._weights, **weights}
         if free is not None:
             problem._free = {}
@@ -514,6 +523,7 @@ class Problem:
             reads = reads if reads is not None else fn.reads
             jacobian = jacobian if jacobian is not None else fn.jacobian
             fn = fn.fn
+        _require_row_weight(name, kind, weight)
         self._add(name, fn, kind, weight, None, jacobian, reads, None, lower, upper)
 
     def _copy(self) -> Problem:

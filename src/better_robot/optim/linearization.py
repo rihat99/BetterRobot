@@ -189,7 +189,9 @@ def _rows(problem: Problem, terms: list[Term], evaluation: Evaluation, delta: to
         flat = value.flatten(1)
         lower, upper = _side(term.lower, weight, value, -torch.inf), _side(term.upper, weight, value, torch.inf)
         scale = weight.expand_as(value).flatten(1) if isinstance(weight, torch.Tensor) else weight
-        violations.append((torch.maximum(flat - upper, lower - flat).clamp_min(0.0) / scale).amax(-1))
+        excess = torch.maximum(flat - upper, lower - flat).clamp_min(0.0) / scale
+        # An entry of weight 0 switches its row off: a zero row in the step, and no violation rather than 0 / 0.
+        violations.append((torch.where(scale > 0, excess, 0.0) if isinstance(scale, torch.Tensor) else excess).amax(-1))
         block = None
         if term.jacobian is not None:
             block = value.new_zeros(batch, flat.shape[1], size)

@@ -144,6 +144,24 @@ def test_rows_that_say_the_same_thing_twice_do_not_stall_the_steps() -> None:
     assert float((result.x["x"] - optimum).norm(dim=-1).max()) < 1e-6
 
 
+def test_a_zero_weight_switches_a_row_off_and_a_negative_number_is_refused() -> None:
+    """Each problem holds one of ``x0 <= 0.5`` and ``x1 <= 0.5`` and has the other switched off by a zero entry of
+    the weight: the row that is off holds nothing and adds no violation (it was 0 / 0, which froze ``State.x``)."""
+    start = torch.full((2, 3), 0.1, dtype=torch.float64)
+    problem = optim.Problem({"x": start}, data={"target": torch.full((2, 3), 2.0, dtype=torch.float64)})
+    problem.residual("fit", lambda x, target: x - target)
+    weight = torch.tensor([[1.0, 0.0], [0.0, 1.0]], dtype=torch.float64)
+    problem.inequality("corner", lambda x: x[:, :2], upper=0.5, weight=weight)
+    result = optim.run(problem, [optim.Phase(optim.SequentialQP(), 30, stop_every=0)])
+    expected = torch.tensor([[0.5, 2.0, 2.0], [2.0, 0.5, 2.0]], dtype=torch.float64)
+    torch.testing.assert_close(result.x["x"], expected, atol=1e-6, rtol=0.0)
+    assert float(result.diagnostics["phase"]["violation"].max()) < 1e-6
+    with pytest.raises(exceptions.ArgumentError, match="at least 0"):
+        problem.with_(weights={"corner": -1.0})
+    with pytest.raises(exceptions.ArgumentError, match="at least 0"):
+        _fit()[0].equality("sum", lambda x: x.sum(-1, keepdim=True), weight=-1.0)
+
+
 def test_the_reported_point_never_leaves_the_tolerance_while_the_iterate_does() -> None:
     problem, _ = _fit("ball")
     worst, outside = [], []
