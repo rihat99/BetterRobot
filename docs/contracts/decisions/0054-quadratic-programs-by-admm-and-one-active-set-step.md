@@ -139,9 +139,17 @@ The budget of the task, 5 to 10 times one `Normal.solve` at batch 1024 and more,
 core: the call without iterations, compiled, already costs 9.1 to 9.6 times (the Gram product of the rows, two
 factorizations, the inverse and the active-set step), and each iteration adds about 0.4 ms at 7 variables and 5
 ms (eager) to 12 ms (compiled) at 35. Compiling helps at 7 variables and costs at 35, where inductor's code for the
-batched products is slower than eager. On GPU, compiled, the first version took 6.7 to 7.6 times at 7 variables
-and 30 rows (batch 1024; 18 times at 16384) and 13 to 20 times at 35 variables and 150 rows; the present form was
-not measured on GPU.
+batched products is slower than eager. On one GPU (free when the run started and when it ended, not watched in
+between), compiled, against a compiled `Normal.solve` (0.19 ms at 7 variables and 0.46 ms at 35, batch 1024):
+
+| Variables, rows | Batch | 0 iterations | 10 iterations | 20 iterations |
+|---|---|---|---|---|
+| 7, 30 | 1024 | 0.85 ms (4.5x) | 1.08 ms (5.8x) | 1.49 ms (7.9x) |
+| 35, 150 | 1024 | 3.46 ms (7.6x) | 4.84 ms (11x) | 5.54 ms (12x) |
+| 7, 30 | 16384 | 2.99 ms (8.9x) | 4.54 ms (14x) | 5.62 ms (17x) |
+| 35, 150 | 16384 | 49.3 ms (10x) | 70.7 ms (14x) | 83.0 ms (17x) |
+
+The budget is met at 7 variables and batch 1024 only.
 
 The result carries no gradient.
 
