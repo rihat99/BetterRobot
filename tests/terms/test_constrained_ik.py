@@ -69,7 +69,7 @@ def test_every_row_holds_at_the_end_of_a_constrained_ik_run(scene) -> None:
     q = result.x["q"]
     assert float(worst(q).max()) <= 1e-4
     assert float(result.diagnostics["phase"]["violation"].max()) <= 1e-4
-    assert int(reached(q, goal).sum()) >= 45  # 47 measured, 44 of them among the 52 clear targets
+    assert int(reached(q, goal).sum()) >= 45  # 46 measured, 44 of them among the 52 clear targets
 
 
 def _tensors(value: object, path: str = "state") -> dict[str, torch.Tensor]:

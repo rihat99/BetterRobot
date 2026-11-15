@@ -93,7 +93,7 @@ print("rows:", report(held.x["q"]))
 print("cost:", report(cost.x["q"]))
 ```
 ```output
-rows: reached 47 of 64, 0 inside the margin, deepest 0.0 mm
+rows: reached 46 of 64, 0 inside the margin, deepest 0.0 mm
 cost: reached 41 of 64, 17 inside the margin, deepest 5.2 mm
 ```
 
