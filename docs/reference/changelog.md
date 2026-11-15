@@ -99,6 +99,12 @@ that 0.3.0 renames or removes, one table row each.
   instead of deriving them again, and small batched products compile to fused kernels: at batch 4096 on one CPU
   core (float32) the compiled FK runs 5.2 times faster than this release's eager on the Panda arm and 3.7 times on
   the G1 humanoid, inverse dynamics 4.0 and 3.3 times.
+- `solve_ik(..., seeds=, generator=)` replaces `restarts=`: `seeds` starts per target run as one batch (the first is
+  `q0`, the others `terms.random_start` draws with the required `generator`) and the lowest per target is kept.
+  `solve_ik(..., step=)`, `Phase(step=)` and `optim.solve(..., step=)` take a callable `(problem, state) -> State`
+  in place of `solver.step`, such as a step compiled once with `kinematics.compiled` and reused across solves; the
+  driver hands it `iteration=0` and counts itself, so it compiles once. `LBFGS(stop_search=False)` runs every
+  line-search trial and reads nothing back to the host.
 
 ### Changed
 - `Model` is one flat frozen record: the fields of `ModelStructure` and `ModelValues` live on it, it compares by
@@ -164,6 +170,16 @@ that 0.3.0 renames or removes, one table row each.
   both, not torch's `RuntimeError`; so do `so3.slerp`'s tensor `t` and `sphere_halfspace`'s tensor `offset`.
 - `ik_problem` and `solve_ik` check `q0` as `(B, nq)` and each `targets[<frame>]` as `(..., 7)` in the model's dtype
   and device, with a batch that broadcasts with `q0`'s, and name the argument at fault.
+- `solve_ik` runs a fixed `iterations=50` (it ran at most 100 and stopped once every target converged) and reads
+  nothing back to the host inside the loop. One start, Panda7, one CPU core, eager, against 0.3.0 before this
+  change: batch 1 takes 87 ms (66 ms before, which stopped after 23 iterations), batch 64 114 ms (237 ms), batch 1024
+  395 ms (1110 ms); success 0.824 (0.829). G1 from one start reaches 0.580 of its targets (0.657 with 100
+  iterations): use `seeds=`.
+- LM and Gauss-Newton keep the normal equations at `x` in `State.extra["normal"]`: a step linearizes once, at its
+  candidate, instead of linearizing `x` and evaluating the candidate, with the same iterates. `frame_pose` builds its
+  error from the frame's `[R | p]` and has a closed-form Jacobian (the same residual within rounding);
+  `so3.from_matrix` gathers one row of `4 q qᵀ`. An LM step of Panda7 IK has 764 operators instead of 1391 and runs
+  1.6 times faster on one CPU core at batch 1 (G1: 1.8 times).
 - `Problem` raises `DtypeMismatchError` for a variable that is not float32 or float64 or for variables in two
   dtypes, and `DeviceMismatchError` for two devices; a term output of the wrong shape raises `ShapeError` naming the
   term; `iterations=` and `damping=` below 0 raise `ArgumentError`.

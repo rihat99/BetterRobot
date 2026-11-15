@@ -6,7 +6,7 @@ forward-kinematics pass that ``frame_pose`` and ``frame_position`` read; ``joint
 ``self_clearance`` keep collision spheres apart, and ``manipulability`` keeps a frame away from singular
 configurations. ``RobotManifold`` steps ``q`` with ``kinematics.integrate``.
 ``ik_problem`` and ``solve_ik`` are the inverse-kinematics recipe built from these terms, and ``random_start``
-samples restarts.
+draws the extra seeds.
 """
 
 from __future__ import annotations
