@@ -59,7 +59,9 @@ class Normal:
         shift = torch.as_tensor(damping, dtype=H.dtype, device=H.device).unsqueeze(-1) + floor  # (B, 1) or (1,)
         scaled.diagonal(dim1=-2, dim2=-1).add_(shift)
         factor, info = torch.linalg.cholesky_ex(scaled)
-        delta = torch.cholesky_solve(-(g * scale).unsqueeze(-1), factor).squeeze(-1) * scale
+        # Two triangular solves, not torch.cholesky_solve: that one checks its result with a host read.
+        half = torch.linalg.solve_triangular(factor, -(g * scale).unsqueeze(-1), upper=False)
+        delta = torch.linalg.solve_triangular(factor.mT, half, upper=True).squeeze(-1) * scale
         ok = (info == 0).unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
         delta = torch.where(ok, delta, 0.0).to(self.g.dtype)
         if self.lower is not None:
