@@ -10,7 +10,7 @@ that 0.3.0 renames or removes, one table row each.
 ## v0.3.0 (2026-11-10)
 
 ### Added
-- `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=1e3, warm=None) -> QPSolution`:
+- `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None) -> QPSolution`:
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
   fixed number of ADMM steps and one active-set step, in float64, with no host read (record 0054). Accuracy comes
   from repeated warm calls, not from `iterations`. The rows are L1-elastic: a row gives way once its multiplier
