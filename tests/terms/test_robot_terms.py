@@ -1,6 +1,7 @@
 """Robot terms: analytic Jacobians equal autodiff; IK reaches reachable targets inside the limits."""
 
 import re
+import warnings
 from dataclasses import dataclass
 from typing import ClassVar, final
 
@@ -92,6 +93,41 @@ def test_a_compiled_step_serves_every_solve_without_a_graph_per_step(panda):
         eager = terms.solve_ik(panda, {FRAME: goal}, q0=q0, solver=solver, iterations=4)
         torch.testing.assert_close(compiled.x["q"], eager.x["q"], rtol=0.0, atol=1e-9)
     assert counters["stats"]["unique_graphs"] <= 2
+
+
+@pytest.mark.cuda
+@pytest.mark.parametrize("seeds", [1, 3])
+@pytest.mark.parametrize(
+    "solver",
+    [optim.LevenbergMarquardt(), optim.GaussNewton(damping=1e-3), optim.LBFGS(stop_search=False)],
+    ids=["lm", "gn", "lbfgs"],
+)
+def test_solve_ik_on_cuda_makes_no_synchronizing_call(solver, seeds):
+    """The fixed budget never waits for the device: under ``set_sync_debug_mode("error")`` any synchronizing call
+    raises, a value read back or a number copied to the device (Gauss-Newton's float damping once was)."""
+    model = br.load(panda_urdf(), device=torch.device("cuda"))
+    q0, q_goal = (
+        terms.random_start(model, model.q_neutral.expand(8, -1), generator=torch.Generator("cuda").manual_seed(seed))
+        for seed in (3, 2)
+    )
+    goal = forward_kinematics(model, q_goal).frame_poses[:, model.frame_id(FRAME)]
+
+    def solve():
+        generator = torch.Generator("cuda").manual_seed(1) if seeds > 1 else None
+        return terms.solve_ik(
+            model, {FRAME: goal}, q0=q0, solver=solver, iterations=3, seeds=seeds, generator=generator
+        )
+
+    solve()  # the model's plans and memo are built on the first call
+    torch.cuda.synchronize()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Synchronization debug mode")
+        torch.cuda.set_sync_debug_mode("error")
+    try:
+        result = solve()
+    finally:
+        torch.cuda.set_sync_debug_mode(0)
+    assert result.x["q"].shape == q0.shape
 
 
 def test_ik_seeds_need_a_generator(panda):

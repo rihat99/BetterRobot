@@ -56,7 +56,8 @@ class Normal:
         diagonal = H.diagonal(dim1=-2, dim2=-1)
         scale = torch.where(diagonal > 0, diagonal, 1.0).rsqrt()
         scaled = H * scale.unsqueeze(-1) * scale.unsqueeze(-2)
-        shift = torch.as_tensor(damping, dtype=H.dtype, device=H.device).unsqueeze(-1) + floor  # (B, 1) or (1,)
+        # A number stays a Python scalar: torch.as_tensor of it is a host-to-device copy, a stream sync on CUDA.
+        shift = damping.to(H).unsqueeze(-1) + floor if isinstance(damping, torch.Tensor) else damping + floor
         scaled.diagonal(dim1=-2, dim2=-1).add_(shift)
         factor, info = torch.linalg.cholesky_ex(scaled)
         # Two triangular solves, not torch.cholesky_solve: that one checks its result with a host read.
@@ -170,7 +171,11 @@ class BandedNormal:
         batch, blocks, size, _ = D.shape
         diagonal = D.diagonal(dim1=-2, dim2=-1)
         scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-        shift = torch.as_tensor(damping, dtype=D.dtype, device=D.device).expand(batch) + floor
+        shift = (  # a number fills on the device: no host-to-device copy (see Normal.solve)
+            damping.to(D).expand(batch) + floor
+            if isinstance(damping, torch.Tensor)
+            else D.new_full((batch,), damping + floor)
+        )
         D = D * scale.unsqueeze(-1) * scale.unsqueeze(-2) + torch.diag_embed(
             shift.view(batch, 1, 1).expand(batch, blocks, size)
         )
@@ -283,7 +288,11 @@ class ArrowNormal:
         C = self.corner.double()
         diagonal = C.diagonal(dim1=-2, dim2=-1)
         scale_shared = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-        shift = torch.as_tensor(damping, dtype=C.dtype, device=C.device).expand(batch) + floor
+        shift = (  # a number fills on the device: no host-to-device copy (see Normal.solve)
+            damping.to(C).expand(batch) + floor
+            if isinstance(damping, torch.Tensor)
+            else C.new_full((batch,), damping + floor)
+        )
         C = C * scale_shared.unsqueeze(-1) * scale_shared.unsqueeze(-2) + torch.diag_embed(
             shift.unsqueeze(-1).expand_as(diagonal)
         )
