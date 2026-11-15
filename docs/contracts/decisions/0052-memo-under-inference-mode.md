@@ -34,8 +34,16 @@ the key instead of by not storing.
 
 ## Alternatives
 - Keep the bypass and document it: inference mode stays slower than `torch.no_grad` at small batch.
-- Serve a value made outside inference mode inside it too: saves one derivation per model, but splits the key rule
-  into two cases for no measured gain.
+- Derive a value under `torch.inference_mode(False)` and `torch.no_grad` and keep it under the no-grad key, as
+  `Model._plan` does, so the memo never holds an inference tensor. It is correct in every mode order tried (reads
+  under inference mode, no-grad and grad in either order, model tensors that require grad, `torch.func` inside
+  inference mode, a model built inside inference mode) and free for the model memo, which derives once per model.
+  But every state-memo derivation then runs outside inference mode: batch-1 calls under inference mode that read
+  the state memo are 8 to 28 % slower (`frame_jacobian` 0.212 against 0.255 ms on the G1, 0.161 against 0.205 ms
+  on the Panda; one CPU thread, float32, median of three interleaved rounds), and keeping the inference key for the
+  state memo alone leaves two rules. Deriving under `torch.inference_mode(False)` alone turns grad mode on, so a
+  read inside inference mode of a state with a graph would return, and keep under the no-grad key, a value with a
+  graph.
 
 ## Compatibility
 No public name changes; results are unchanged.

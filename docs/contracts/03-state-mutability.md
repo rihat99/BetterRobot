@@ -71,8 +71,8 @@ keeps its private names to `problem.py` (`FUNCTOOLS_CACHES` of `tests/contract/t
 state, keyed by `(name, mode)`, written only by `KinematicState._memoised` and bypassed under `torch.compile` like
 `Model._value`; `mode` is the grad mode, or `"inference"` under `torch.inference_mode` (record
 [0052](decisions/0052-memo-under-inference-mode.md)), so a value made under `torch.no_grad` never serves a
-differentiable call and an inference tensor never reaches autograd. Its allowed names, each derived only from the state's own `joint_transforms` and
-its model, are:
+differentiable call and an inference tensor never reaches autograd. Its allowed names, each derived only from the
+state's own `joint_transforms` and its model, are:
 
 | name | filled by | value |
 |------|-----------|-------|
