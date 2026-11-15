@@ -39,6 +39,9 @@ class State:
     LM and Gauss-Newton keep ``normal``, the normal equations at ``x``: a step linearizes once, at its candidate,
     and that serves the next step where the candidate is taken.
     ``solver`` is the class of the solver that made the state; a warm start needs a solver of that class.
+    A state belongs to the problem ``init`` made it for: ``step`` it with that problem only. A loop that changes the
+    problem's data (a new target each tick) calls ``init`` again, or ``run(..., state=)``, which does; stepping the old
+    state would reuse the previous data's ``normal``.
     """
 
     x: dict[str, torch.Tensor] = field(repr=False)  #: variables, each ``(B, *event)``.
@@ -76,7 +79,8 @@ class Solver(ABC):
 
     @abstractmethod
     def step(self, problem: Problem, state: State) -> State:
-        """One iteration for every batch element; done or rejected elements keep their values."""
+        """One iteration for every batch element; done or rejected elements keep their values. ``problem`` is the one
+        ``state`` was made for (see ``State``)."""
 
 
 def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
