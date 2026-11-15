@@ -32,7 +32,7 @@ def test_matrix_frame_changes_match_spatial(seed: int) -> None:
     motion_error = float(
         (kin.to_joint_frames(twists) - spatial.transform_motion(se3.inverse(poses), twists)).abs().max()
     )
-    force_error = float((kin.to_world_force(wrenches) - spatial.transform_force(poses, wrenches)).abs().max())
+    force_error = float((kin.to_world_force(wrenches).mT - spatial.transform_force(poses, wrenches)).abs().max())
     oracle_inertias = spatial.inertia_matrix(spatial.transform_inertia(poses, model.body_inertias))
     inertia_error = float((kin.world_inertias() - oracle_inertias).abs().max())
     assert motion_error <= TOLERANCE, "twist to joint frames vs spatial.transform_motion"

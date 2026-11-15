@@ -133,11 +133,14 @@ class WorldKinematics:
         return torch.cat((linear, angular), dim=-2).squeeze(-1)
 
     def to_world_force(self, wrenches: torch.Tensor) -> torch.Tensor:
-        """Express joint-frame wrenches ``(N, njoints, 6)`` in the world frame (``Ad(oMi)⁻ᵀ``)."""
+        """Express joint-frame wrenches ``(N, njoints, 6)`` in the world frame (``Ad(oMi)⁻ᵀ``), ``(N, 6, njoints)``.
+
+        Joints last, so a product with a constant ``(njoints, k)`` support matrix folds the batch into one ``mm``.
+        """
         linear = small_matmul(self.rotations, wrenches[..., :3, None]).squeeze(-1)
         angular = small_matmul(self.rotations, wrenches[..., 3:, None]).squeeze(-1)
         angular = angular + torch.linalg.cross(self.translations, linear)
-        return torch.cat((linear, angular), dim=-1)
+        return torch.cat((linear.mT, angular.mT), dim=-2)
 
     def world_inertias(self) -> torch.Tensor:
         """Spatial inertia of every body about ``origin`` in world axes, ``(N, njoints, 6, 6)``.
@@ -221,11 +224,9 @@ def inverse_dynamics_full(
     local_wrenches = local_wrenches + cross_force_raw(local_velocities, momenta)
     if external_forces is not None:
         local_wrenches = local_wrenches - external_forces
-    wrenches = kin.to_world_force(local_wrenches)
-    # Right-multiplying by the constant support matrix folds the batch into one large mm.
-    subtree_wrenches = (wrenches.mT @ plan.support.to(wrenches.dtype)).mT  # (N, njoints, 6)
-    column_wrenches = subtree_wrenches[..., plan.jacobian.column_owner, :]  # (N, nv_full, 6)
-    return (kin.columns.mT * column_wrenches).sum(-1)
+    wrenches = kin.to_world_force(local_wrenches)  # (N, 6, njoints)
+    subtree_wrenches = wrenches @ plan.support.to(wrenches.dtype)  # (N, 6, njoints)
+    return (kin.columns * subtree_wrenches[..., plan.jacobian.column_owner]).sum(-2)
 
 
 def momentum_columns(kin: WorldKinematics) -> torch.Tensor:
