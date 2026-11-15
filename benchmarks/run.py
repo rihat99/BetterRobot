@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import gc
 import json
 import os
 import platform
@@ -208,11 +209,18 @@ def compile_counts(fn: Callable[..., Any], args: tuple, sweep: tuple[tuple, ...]
     torch._dynamo.reset()
     dynamo_counters.clear()
     compiled = torch.compile(fn, backend="eager")
-    compiled(*args)
-    after_first = dynamo_counters["frames"]["ok"]
-    for sweep_args in sweep:
-        compiled(*sweep_args)
-    recompiles = dynamo_counters["frames"]["ok"] - after_first
+    # A collection inside a compiled call runs weakref callbacks (WeakKeyDictionary.remove) that dynamo counts as
+    # frames; when one falls depends on allocation history, so the count would vary between runs.
+    gc.collect()
+    gc.disable()
+    try:
+        compiled(*args)
+        after_first = dynamo_counters["frames"]["ok"]
+        for sweep_args in sweep:
+            compiled(*sweep_args)
+        recompiles = dynamo_counters["frames"]["ok"] - after_first
+    finally:
+        gc.enable()
     torch._dynamo.reset()
     return graph_breaks, recompiles
 
