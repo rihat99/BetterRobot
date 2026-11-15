@@ -31,9 +31,10 @@ class Phase:
     exactly ``iterations`` steps and reads nothing (with LM, Gauss-Newton, or ``LBFGS(stop_search=False)``, a
     fixed budget the device runs without waiting for the host).
     ``step(problem, state) -> State`` replaces ``solver.step``, for one compiled once and reused across solves:
-    ``kinematics.compiled(lambda problem, state: solver.step(problem, state), mode="reduce-overhead")``. It is
-    handed ``state.iteration == 0`` on every call and the driver counts, so a compiled step does not specialise on
-    the count; without ``step``, ``solver.step`` sees the steps taken so far.
+    ``kinematics.compiled(lambda problem, state: solver.step(problem, state), mode="reduce-overhead")``, where
+    ``solver`` is this phase's ``solver``: ``init`` comes from it, and a step of another solver reads a state it did
+    not make. It is handed ``state.iteration == 0`` on every call and the driver counts, so a compiled step does
+    not specialise on the count; without ``step``, ``solver.step`` sees the steps taken so far.
     """
 
     solver: Solver
@@ -153,7 +154,8 @@ def solve(
     step: Callable[[Problem, State], State] | None = None,
 ) -> Result:
     """Run one solver for at most ``iterations`` steps; ``state`` warm-starts it (see ``run``), ``step`` replaces
-    ``solver.step`` (see ``Phase``)."""
+    ``solver.step`` (see ``Phase``) and is that same solver's step, such as
+    ``kinematics.compiled(lambda problem, state: solver.step(problem, state))`` of the ``solver`` passed here."""
     return run(problem, [Phase(solver=solver, iterations=iterations, step=step)], x=x, state=state)
 
 

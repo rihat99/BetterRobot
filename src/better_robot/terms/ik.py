@@ -122,10 +122,12 @@ def solve_ik(
     ``seeds`` starts per target are solved as one batch of ``seeds * B`` problems: the first is ``q0``, the others
     are random configurations (``random_start``) drawn with ``generator``, required when ``seeds > 1``; each target
     must then broadcast to one pose per row of ``q0`` (``ShapeError`` otherwise). Each target keeps the start that
-    reached the lowest loss; that is what gets past the local minima of a single start. The
-    solve runs exactly ``iterations`` steps and reads nothing back from the device on the way (``Phase`` with
-    ``stop_every=0``); ``step`` replaces ``solver.step``, for a compiled one (``Phase``). With ``seeds > 1`` the
-    result's ``history`` and ``diagnostics`` are those of the kept start and ``state`` is ``None``.
+    reached the lowest loss; that is what gets past the local minima of a single start. The solve runs exactly
+    ``iterations`` steps and reads nothing back from the device on the way (``Phase`` with ``stop_every=0``).
+    ``step`` replaces ``solver.step``, for a compiled one (``Phase``), and is the step of the ``solver`` passed here:
+    ``kinematics.compiled(lambda problem, state: solver.step(problem, state))`` with ``solver=solver`` (with no
+    ``solver``, the step of a ``LevenbergMarquardt()``). With ``seeds > 1`` the result's ``history`` and
+    ``diagnostics`` are those of the kept start and ``state`` is ``None``.
     """
     if seeds < 1:
         raise ArgumentError(f"seeds must be at least 1, got {seeds}")
