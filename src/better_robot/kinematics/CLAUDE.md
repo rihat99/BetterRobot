@@ -22,9 +22,9 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
   (dynamics never reads it). `joint_poses` and `frame_poses` convert on first use with
   canonical-sign quaternions (`so3.from_matrix`), so a quaternion may be `-q` against a composition lane
   (same rotation). Compare rotations, not quaternion signs.
-- `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, grad mode)` and bypassed under
-  `torch.inference_mode` and `torch.compile` like `Model._value`: `enable_grad` inside inference mode reports
-  grad mode on, so a stored inference tensor would break a later autograd call of the same state.
+- `KinematicState._memo` has one writer, `_memoised`, keyed by `(name, mode)` like `Model._value`: `mode` is the
+  grad mode, or `"inference"` under `torch.inference_mode` (record 0052), so an inference tensor is served only
+  where autograd records nothing (`enable_grad` reports grad mode on there); `torch.compile` bypasses it.
   `world_geometry` (the dynamics' view of the state, record 0041) is a state property like the others; no other
   package writes the memo. A new name goes into the table of
   `docs/contracts/03-state-mutability.md` in the same change. `dataclasses.replace` starts with an empty memo
@@ -32,8 +32,8 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
 - Plans (`_plans.py`) are pure functions of the static fields, built by `Model._plan` once per dtype and
   device. Never read a tensor's `_version` or write through `object.__setattr__`
   (`tests/contract/test_caches.py`).
-- Placement matrices are memoised on the model by grad mode and the tensor fields' `requires_grad` flags, never
-  under `torch.inference_mode` (record 0040): a model whose tensors are edited in place after a query serves the
+- Placement matrices (the joints' folded into the FK map) are memoised on the model by mode and the tensor fields'
+  `requires_grad` flags (records 0040, 0052): a model whose tensors are edited in place after a query serves the
   old matrices. Build a new model with `with_values`.
 - `check_quaternion_norm=True` reads values and syncs the device; it is the only value check and covers
   every spherical and free-flyer joint. Below the public wrappers everything trusts validated inputs: no

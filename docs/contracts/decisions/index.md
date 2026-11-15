@@ -57,9 +57,9 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0037](0037-urdf-typed-adapter.md) | URDF parsing goes through one typed adapter | Accepted |
 | [0038](0038-remove-downloader-and-registry.md) | No network downloader and no parser registry in `io` | Accepted |
 | [0039](0039-test-robot-fixtures.md) | The test robots are tracked fixtures | Accepted |
-| [0040](0040-model-value-memo.md) | A value-side memo on `Model`, keyed by grad mode | Accepted; amendment proposed in [0042](0042-memo-keys-and-shared-plans.md) |
+| [0040](0040-model-value-memo.md) | A value-side memo on `Model`, keyed by grad mode | Accepted; amendment proposed in [0042](0042-memo-keys-and-shared-plans.md), [0052](0052-memo-under-inference-mode.md) |
 | [0041](0041-world-geometry-on-the-state.md) | The world geometry is a memoised value of `KinematicState`, owned by kinematics | Proposed (integrator, awaiting owner); amendment proposed in [0042](0042-memo-keys-and-shared-plans.md) |
-| [0042](0042-memo-keys-and-shared-plans.md) | The model memo is keyed by the grad flags, copies share their plans, and the world geometry is cheaper | Proposed (integrator, awaiting owner) |
+| [0042](0042-memo-keys-and-shared-plans.md) | The model memo is keyed by the grad flags, copies share their plans, and the world geometry is cheaper | Proposed (integrator, awaiting owner); amendment proposed in [0052](0052-memo-under-inference-mode.md) |
 | [0043](0043-constant-motion-subspace.md) | A joint's motion subspace is constant in its child frame; no `velocity` method | Proposed (integrator, awaiting owner) |
 | [0044](0044-inertia-layout-and-rotational-inertia.md) | The inertia vector follows MuJoCo's `fullinertia` order; `spatial.rotational_inertia` is public | Proposed (integrator, awaiting owner) |
 | [0045](0045-attached-shapes.md) | A shape is attached to a body by an `AttachedShape` record | Proposed (integrator, awaiting owner) |
@@ -69,3 +69,4 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0049](0049-collision-imports-lie.md) | `collision` imports `lie` for the one input validator | Proposed (integrator, awaiting owner) |
 | [0050](0050-testing-imports-optim.md) | `testing` imports `optim` for the robust-kernel checker | Proposed (integrator, awaiting owner) |
 | [0051](0051-distance-functions-for-the-analytic-jacobian.md) | A `distance_fn` reads its own centre and runs under `torch.func` | Proposed (integrator, awaiting owner) |
+| [0052](0052-memo-under-inference-mode.md) | The memos keep inference-mode values under a key of their own | Proposed (integrator, awaiting owner) |

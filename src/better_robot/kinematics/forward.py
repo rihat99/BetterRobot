@@ -36,15 +36,15 @@ class KinematicState:
     """World placements of every joint and frame at one configuration batch, as ``[R | p]`` matrices.
 
     Frame transforms, poses and the Jacobian column table are derived from the joint transforms on first use.
-    Derived tensors are memoised under ``(name, grad mode)`` by the one writer `_memoised`, so a value made under
-    ``torch.no_grad`` never serves a differentiable call, and never under ``torch.inference_mode``;
-    ``dataclasses.replace`` starts with an empty memo.
+    Derived tensors are memoised under ``(name, mode)`` by the one writer `_memoised`, so a value made under
+    ``torch.no_grad`` never serves a differentiable call, and one made under ``torch.inference_mode`` is served only
+    there; ``dataclasses.replace`` starts with an empty memo.
     """
 
     model: Model  #: The model the state was computed from.
     q: torch.Tensor = field(repr=False)  #: ``(B..., nq)`` configuration the state was computed at.
     joint_transforms: torch.Tensor = field(repr=False)  #: ``(B..., njoints, 3, 4)`` world ``[R | p]`` of every joint.
-    _memo: dict[tuple[str, bool], Any] = field(default_factory=dict, init=False, repr=False, compare=False)
+    _memo: dict[tuple[str, bool | str], Any] = field(default_factory=dict, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Check that ``q`` and the joint transforms have the model's sizes and one batch (``ShapeError``)."""
@@ -128,16 +128,16 @@ class KinematicState:
         )
 
     def _memoised(self, name: str, derive: Callable[[], _T]) -> _T:
-        """``derive()`` once per ``(name, grad mode)``: the only writer of ``_memo``.
+        """``derive()`` once per ``(name, mode)``: the only writer of ``_memo``.
 
-        Under ``torch.inference_mode`` nothing is stored, as in `Model._value`: ``enable_grad`` inside inference mode
-        reports grad mode on, so an inference tensor would be served to a later autograd call of the same state and
-        drop or break its gradient. Under ``torch.compile`` the derivation is traced into the graph instead (Dynamo
-        cannot trace the inference-mode check) (record 0040).
+        ``mode`` is the grad mode, or ``"inference"`` under ``torch.inference_mode``, as in `Model._value`: an
+        inference tensor is served only under inference mode, where autograd records nothing even inside
+        ``enable_grad``, never to a later autograd call of the same state (record 0052). Under ``torch.compile`` the
+        derivation is traced into the graph instead (Dynamo cannot trace the inference-mode check) (record 0040).
         """
-        if torch.compiler.is_compiling() or torch.is_inference_mode_enabled():
+        if torch.compiler.is_compiling():
             return derive()
-        key = (name, torch.is_grad_enabled())
+        key = (name, "inference" if torch.is_inference_mode_enabled() else torch.is_grad_enabled())
         if key not in self._memo:
             self._memo[key] = derive()
         return self._memo[key]
