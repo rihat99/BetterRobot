@@ -60,6 +60,7 @@ NOT_BREAKING: dict[str, str] = {
     "better_robot.optim.Tukey": _KERNEL,
     "better_robot.optim.Euclidean": _MANIFOLD,
     "better_robot.terms.RobotManifold": _MANIFOLD,
+    "better_robot.terms.joint_limits": "`margin=` is new with the default 0, which gives the 0.2 residual",
     "better_robot.optim.Problem.scalar": "`fn` also takes a `TermFn`; a callable works as before",
     "better_robot.viewer.Layer.apply_theme": _THEME,
     "better_robot.viewer.GroundLayer.apply_theme": _THEME,
