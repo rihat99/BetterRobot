@@ -182,7 +182,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `solve(..., iters=)`, `solve_layer(..., iters=)`, `solve_constrained(..., iters=)` | `iterations=` | |
 | `LevenbergMarquardt(gtol, ftol, xtol)`, `GaussNewton(gtol, xtol)`, `LBFGS(gtol)` | `gradient_tolerance=`, `loss_tolerance=`, `step_tolerance=` | each solver keeps the subset it had |
 | `TorchOptim(optimizer_cls, *, scheduler, **kwargs)` | `TorchOptim(factory, *, scheduler=None)` | `factory(params)` returns a `torch.optim.Optimizer` |
-| `State.it` | `State.iteration` | a step passed as `Phase(step=)` or `solve(..., step=)` reads 0 here; `run` keeps the count |
+| `State.it` | `State.iteration` | a step passed as `Phase(step=)` or `solve(..., step=)`, and every step inside `solve_ik`, reads 0 here; `run` keeps the count |
 | `State(x, loss, done, it=0, extra)` | `State(x, loss, *, done, solver, iteration=0, extra)` | `done` is keyword-only; `solver` is the class of the solver that made the state, and a warm start needs a solver of that class |
 | `Result(x, loss, done, iters, ...)` | `Result(x, loss, *, done, iterations, ...)` | `done` and the fields after it are keyword-only |
 | `Solver`, `Manifold` as `Protocol`s | `optim.Solver`, `optim.Manifold` | abstract bases: subclass them |

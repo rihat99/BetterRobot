@@ -114,8 +114,9 @@ def solve_ik(
     ``iterations`` steps and reads nothing back from the device on the way (``Phase`` with ``stop_every=0``).
     ``step`` replaces ``solver.step``, for a compiled one (``Phase``), and is the step of the ``solver`` passed here:
     ``kinematics.compiled(lambda problem, state: solver.step(problem, state))`` with ``solver=solver`` (with no
-    ``solver``, the step of a ``LevenbergMarquardt()``). With ``seeds > 1`` the result's ``history`` and
-    ``diagnostics`` are those of the kept start and ``state`` is ``None``.
+    ``solver``, the step of a ``LevenbergMarquardt()``). Every step here, the solver's own too, is handed
+    ``state.iteration == 0`` as a ``Phase.step`` hook is (``optim.solve`` hands a solver's own step the count). With
+    ``seeds > 1`` the result's ``history`` and ``diagnostics`` are those of the kept start and ``state`` is ``None``.
     """
     if seeds < 1:
         raise ArgumentError(f"seeds must be at least 1, got {seeds}")
@@ -137,7 +138,9 @@ def solve_ik(
     # contiguous, as the seeds' fold makes them: a compiled step then sees one stride for every call of a shape
     targets, q0 = {frame: pose.contiguous() for frame, pose in targets.items()}, q0.contiguous()
     problem = _problem(model, targets, q0, 0.0, 0.0, None)
-    result = run(problem, [Phase(solver or LevenbergMarquardt(), iterations, stop_every=0, step=step)])
+    solver = solver or LevenbergMarquardt()
+    # the solver's own step goes as the hook too, so a torch.compile of the whole call does not recompile it on the count
+    result = run(problem, [Phase(solver, iterations, stop_every=0, step=step or solver.step)])
     if seeds == 1:
         return result
     # the flat index of each target's best start, seed-major: start s of target b is row s * B + b
