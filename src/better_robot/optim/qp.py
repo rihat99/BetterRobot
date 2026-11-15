@@ -94,24 +94,23 @@ def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
 
 
 def _active_set_step(
-    problem: _Scaled, v: torch.Tensor, give: torch.Tensor, rho: torch.Tensor, cold: torch.Tensor, weight: float
+    problem: _Scaled, v: torch.Tensor, dual: torch.Tensor, yields: torch.Tensor, cold: torch.Tensor, weight: float
 ) -> tuple[torch.Tensor, ...]:
     """The rows that ``v: (B, M)`` puts on a bound solved as equalities: ``y: (B, 1, N)``, ``dual``, where it is exact.
 
-    The equalities are held by a stiff penalty and `_UPDATES` multiplier updates. A row whose multiplier
-    ``rho · give`` is at ``weight`` gives way: it keeps that multiplier and is not held. A multiplier of the wrong
-    sign or beyond ``weight`` is cut, so the pair is the solution exactly when its gradient vanishes and every row
-    is where its multiplier holds it; a row that gives way may sit beyond its bound. An equality row
-    (``lower == upper``) is always held and its multiplier has either sign.
+    The equalities are held by a stiff penalty and `_UPDATES` multiplier updates. A row that ``yields`` (its
+    multiplier is at ``weight``) keeps that multiplier and is not held. A multiplier of the wrong sign or beyond
+    ``weight`` is cut, so the pair is the solution exactly when its gradient vanishes and every row is where its
+    multiplier holds it; a row that yields may sit beyond its bound. An equality row (``lower == upper``) is always
+    held and its multiplier has either sign.
     """
     equal = problem.lower == problem.upper
     above, below = (v >= problem.upper) | equal, (v <= problem.lower) | equal
-    yields = give.abs() >= weight / rho
     bound = torch.clamp(v, problem.lower, problem.upper)
     stiff = _STIFFNESS * cold.unsqueeze(-1) * ((above | below) & ~yields)
     weighted = (problem.A * stiff.unsqueeze(-1)).mT
     factor, info = torch.linalg.cholesky_ex(problem.H + torch.bmm(weighted, problem.A))
-    pull, force = stiff * bound, rho * give
+    pull, force = stiff * bound, dual
     y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
     value = problem.values(y)
     for _ in range(_UPDATES):
@@ -122,7 +121,7 @@ def _active_set_step(
     lowest, highest = torch.where(below, -weight, nothing), torch.where(above, weight, nothing)
     force = torch.clamp(force + stiff * (value - bound), lowest, highest)
     gap, slope, ahead = problem.measure(y, value, force)
-    strict = torch.where(yields & (gap * give > 0), nothing, gap)
+    strict = torch.where(yields & (gap * dual > 0), nothing, gap)
     reach = torch.maximum(value.abs().amax(-1), torch.clamp(value, problem.lower, problem.upper).abs().amax(-1))
     exact = (info == 0) & (strict.abs().amax(-1) <= _EXACT * reach) & (ahead <= _EXACT)
     return y, force, gap, slope, exact
@@ -237,7 +236,7 @@ def solve_qp(
     change = (behind.clamp_min(_SETTLED) / ahead.clamp_min(_SETTLED)).sqrt().clamp(1.0 / _RETUNE, _RETUNE)
     penalty = torch.clamp(penalty * change, cold / _RANGE, cold * _RANGE)
 
-    held, force, held_gap, held_slope, exact = _active_set_step(problem, v, give, rho, cold, weight)
+    held, force, held_gap, held_slope, exact = _active_set_step(problem, v, dual, give.abs() >= most, cold, weight)
     exact = exact.unsqueeze(-1)
     y = torch.where(exact, held.squeeze(-2), y.squeeze(-2))
     dual = torch.where(exact, force, dual)
