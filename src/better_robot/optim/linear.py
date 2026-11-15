@@ -54,14 +54,14 @@ class Normal:
         """
         H, g = self.H.double(), (self.g if g is None else g).double()
         diagonal = H.diagonal(dim1=-2, dim2=-1)
-        scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
+        scale = torch.where(diagonal > 0, diagonal, 1.0).rsqrt()
         scaled = H * scale.unsqueeze(-1) * scale.unsqueeze(-2)
-        shift = torch.as_tensor(damping, dtype=H.dtype, device=H.device).expand(H.shape[0]) + floor
-        scaled = scaled + torch.diag_embed(shift.unsqueeze(-1).expand_as(diagonal))
+        shift = torch.as_tensor(damping, dtype=H.dtype, device=H.device).unsqueeze(-1) + floor  # (B, 1) or (1,)
+        scaled.diagonal(dim1=-2, dim2=-1).add_(shift)
         factor, info = torch.linalg.cholesky_ex(scaled)
         delta = torch.cholesky_solve(-(g * scale).unsqueeze(-1), factor).squeeze(-1) * scale
         ok = (info == 0).unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
-        delta = torch.where(ok, delta, torch.zeros_like(delta)).to(self.g.dtype)
+        delta = torch.where(ok, delta, 0.0).to(self.g.dtype)
         if self.lower is not None:
             delta = torch.minimum(torch.maximum(delta, self.lower), self.upper)
         return delta
