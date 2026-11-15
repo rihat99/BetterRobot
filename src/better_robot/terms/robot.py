@@ -24,7 +24,7 @@ from ..kinematics import (
     integrate,
     support,
 )
-from ..lie import se3, tangents
+from ..lie import se3, so3, tangents
 from ..model import JointFreeFlyer, Model
 from ..optim import Manifold, TermFn
 
@@ -73,16 +73,46 @@ def kinematic_state(model: Model, *, q: str = "q") -> TermFn:
 
 
 def frame_pose(model: Model, *, frame: int | str, target: str, state: str = "state", q: str = "q") -> TermFn:
-    """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``."""
+    """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``: the
+    ``se3.log`` of ``target⁻¹ ∘ pose``."""
     frame_id = model.frame_id(frame)
 
     # The solver calls these on every iteration with inputs ik_problem (or the caller) checked once: raw kernels (principle 2.8).
+    def relative(kinematics: KinematicState, goal: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Translation ``(B, 3)`` and quaternion ``(B, 4)`` of ``goal⁻¹ ∘ pose``, from the state's ``[R | p]``."""
+        transform = kinematics.frame_transforms[..., frame_id, :, :]
+        inverse = so3.to_matrix_raw(goal[..., 3:]).mT
+        translation = (inverse @ (transform[..., 3] - goal[..., :3]).unsqueeze(-1)).squeeze(-1)
+        return translation, so3.from_matrix_raw(inverse @ transform[..., :3])
+
     def error(kinematics: KinematicState, goal: torch.Tensor) -> torch.Tensor:
-        return se3.log_raw(se3.compose_raw(se3.inverse_raw(goal), kinematics.frame_pose_of(frame_id)))
+        return se3.log_raw(torch.cat(relative(kinematics, goal), dim=-1))
 
     def jacobian(kinematics: KinematicState, goal: torch.Tensor) -> dict[str, torch.Tensor]:
-        local = frame_jacobian(model, kinematics, frame=frame_id, reference="local")
-        return {q: tangents.right_jacobian_inverse_se3_raw(error(kinematics, goal)) @ local}
+        # A body twist ξ of the frame moves the error [ρ, ω] = [V⁻¹(ω) p, ω] by dω = A ξ_ω, A = Jr⁻¹(ω), and dρ =
+        # A ξ_v + M A ξ_ω (V⁻¹ R = Jr⁻¹), with V⁻¹(ω) = I - Ω/2 + c Ω² and M = ∂(V⁻¹(ω) p)/∂ω at fixed p.
+        p, quaternion = relative(kinematics, goal)
+        w = so3.log_raw(quaternion)
+        theta2 = (w * w).sum(-1, keepdim=True)
+        small = theta2 < 0.04  # below θ = 0.2 the closed forms cancel; the series' next terms are below 1e-16
+        s = torch.where(small, torch.ones_like(theta2), theta2)
+        theta = s.sqrt()
+        cot = 1.0 / torch.tan(0.5 * theta)
+        series = 1 / 12 + theta2 * (1 / 720 + theta2 * (1 / 30240 + theta2 * (1 / 1209600 + theta2 / 47900160)))
+        c = torch.where(small, series, 1.0 / s - cot / (2.0 * theta))
+        series = 1 / 720 + theta2 * (1 / 15120 + theta2 * (1 / 403200 + theta2 / 11975040))
+        dc = torch.where(small, series, (cot / (4.0 * theta) + (1.0 + cot * cot) / 8.0 - 1.0 / s) / s)  # dc / dθ²
+        skew = tangents.hat_so3_raw(w)
+        eye = torch.eye(3, dtype=w.dtype, device=w.device)
+        a = eye + 0.5 * skew + c.unsqueeze(-1) * (skew @ skew)  # A
+        wp = (w * p).sum(-1, keepdim=True)
+        # M = ½ P̂ + c ((ω·p) I + ω pᵀ - 2 p ωᵀ) + 2 c' (Ω² p) ωᵀ, Ω² p = ω (ω·p) - θ² p
+        u = 2.0 * (dc * (w * wp - p * theta2) - c * p)
+        m = 0.5 * tangents.hat_so3_raw(p) + (c * wp).unsqueeze(-1) * eye + (c * w).unsqueeze(-1) * p.unsqueeze(-2)
+        m = m + u.unsqueeze(-1) * w.unsqueeze(-2)  # M
+        local = frame_jacobian(model, kinematics, frame=frame_id, reference="local")  # (B, 6, nv), [linear, angular]
+        angular = a @ local[..., 3:, :]
+        return {q: torch.cat([a @ local[..., :3, :] + m @ angular, angular], dim=-2)}
 
     return TermFn(fn=error, reads=(state, target), jacobian=jacobian)
 

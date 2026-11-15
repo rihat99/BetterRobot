@@ -41,6 +41,18 @@ def test_analytic_jacobians_match_autodiff(panda):
     assert max(errors.values()) < 1e-5, errors
 
 
+@pytest.mark.parametrize("angle", [0.0, 1e-3, 0.19, 0.21, 2.0, 3.14])
+def test_pose_jacobian_matches_autodiff_at_every_rotation_error(panda, angle):
+    """The closed-form pose Jacobian switches to series below a 0.2 rad error and has ``cot(θ/2)`` near π."""
+    q = _random_q(panda, 8, 8)
+    pose = forward_kinematics(panda, q).frame_poses[:, panda.frame_id(FRAME)]
+    axis = torch.nn.functional.normalize(torch.randn(8, 3, generator=torch.Generator().manual_seed(9), dtype=q.dtype))
+    offset = torch.cat([torch.full((8, 3), 0.1, dtype=q.dtype), so3.exp(angle * axis)], dim=-1)
+    goal = br.lie.se3.compose(pose, offset)
+    errors = optim.check_jacobian(terms.ik_problem(panda, {FRAME: goal}, q0=q), {"q": q})
+    assert errors[f"pose/{FRAME}"] < 1e-12, errors
+
+
 def test_ik_with_seeds_reaches_every_target_inside_limits(panda):
     goal = forward_kinematics(panda, _random_q(panda, 32, 2)).frame_poses[:, panda.frame_id(FRAME)]
     q0 = _random_q(panda, 32, 3)
