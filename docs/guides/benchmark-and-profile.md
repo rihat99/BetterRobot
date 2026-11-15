@@ -169,8 +169,9 @@ eager solve of the first 1024 targets, never of one sample: a solve treats each 
 Each row times one call after warm-up calls, as the median over at least 3 and at most `--repeats` samples; a sample
 is one or more calls, at least 10 ms long, between `torch.cuda.synchronize` calls. Compiles are cold: the run first
 compiles a throwaway function, so the compiler's one-time start-up is paid once, then each compiled row runs after
-`torch.compiler.reset()` in an empty compile cache of its own and records the call that compiles as `compile_seconds`
-(the first; with `kinematics.compiled`, which runs a key's first call eagerly, the second), then
+`torch.compiler.reset()` in an empty compile cache of its own and records as `compile_seconds` the warm-up calls
+that compile a graph, summed (`kinematics.compiled` runs a key's first call eagerly and compiles on the second; a
+solve compiles its step inside, once per key it meets), then
 `graph_breaks`, `graphs`, `recompiles` after the warm-up (counted with the garbage collector off, as the counter
 gate does), `cudagraph_skips` and `max_rel_diff_vs_eager`, the largest `max |compiled - eager| / max |eager|` over the
 outputs of a replayed call, and `adapter`, the compiler used (`kinematics.compiled`, `torch.compile`, or for a solve
@@ -201,7 +202,7 @@ reads as a reference column:
 | `batch` | samples per call |
 | `mode` | `eager`, `compile`, `reduce-overhead`; another library names its own |
 | `seconds_per_call` | median wall time of one call; absent when the row has `error` or `skipped` |
-| `compile_seconds` | the call of a compiled row that compiles, when there is one |
+| `compile_seconds` | the warm-up calls of a compiled row that compile a graph, summed, when there is one |
 
 A run's rows add `grad`, `nq`, `nv`, `seconds_min`, `seconds_spread` (interquartile range over the median), `samples`,
 `page_faults` per call, `loadavg` and, on CUDA, `gpu_other_pids`: a row with any was timed on a shared GPU.

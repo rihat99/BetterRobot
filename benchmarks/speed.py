@@ -53,9 +53,10 @@ Timing. A row is warmed up, then timed as the median over samples, each one or m
 between ``torch.cuda.synchronize`` calls: at least ``MIN_SAMPLES``, at most ``--repeats``, none started after
 ``ROW_BUDGET_S``. Compiles are cold: the run first compiles a throwaway function (the compiler's one-time start-up)
 and calls each function once eagerly at batch 1 (filling the model's memo, which a compiled first call would trace),
-then each compiled row runs after ``torch.compiler.reset()`` in an empty compile cache of its own; the call that
-compiles is ``compile_seconds`` (the first; with ``kinematics.compiled``, which runs a key's first call eagerly, the
-second). A compiled row's counted calls (the timed ones and one more) run with the garbage collector off,
+then each compiled row runs after ``torch.compiler.reset()`` in an empty compile cache of its own;
+``compile_seconds`` sums the warm-up calls that compile a graph (``kinematics.compiled`` runs a key's first call
+eagerly and compiles on the second; a solve compiles its step inside, once per key it meets). A compiled row's
+counted calls (the timed ones and one more) run with the garbage collector off,
 as in the counter gate, so ``recompiles`` counts only graphs compiled after the warm-up; that last call (a CUDA graph
 replay under reduce-overhead) is compared with eager as ``max_rel_diff_vs_eager``. A failure is a row with ``error``;
 the larger batches of that function, pass and mode are then ``skipped``, as are those after a call above
@@ -75,7 +76,7 @@ Row schema, shared by every row of a run and of a reference JSON (``{"meta": {..
     batch             samples per call
     mode              one of MODES; a reference names its own ("jit", "jit(vmap)", "c++")
     seconds_per_call  median wall time of one call; absent when the row has "error" or "skipped" (text)
-    compile_seconds   the call of a compiled row that compiles (optional)
+    compile_seconds   the warm-up calls of a compiled row that compile a graph, summed (optional)
 
 A run's rows add ``grad``, ``nq``, ``nv``, ``seconds_min``, ``seconds_spread`` (interquartile range over the
 median), ``samples``, ``calls_per_sample``, ``page_faults`` per call, ``loadavg``, on CUDA ``gpu_other_pids`` (other
@@ -378,16 +379,17 @@ def measure(
             torch.compiler.reset()
             dynamo_counters.clear()
         call = forward_backward(adapt(fn, mode, compiler), args) if grad else partial(adapt(fn, mode, compiler), *args)
-        if compiled and compiler == ADAPTERS[0]:
-            call()  # kinematics.compiled runs a key's first call eagerly and compiles on the second
-        sync()
-        start = time.perf_counter()
-        output = call()
-        sync()
+        compile_seconds = 0.0
+        for _ in range((4 if compiler == ADAPTERS[0] else 3) if compiled else 1):  # the warm-up
+            graphs = dynamo_counters["stats"]["unique_graphs"]
+            sync()
+            start = time.perf_counter()
+            output = call()
+            sync()
+            if dynamo_counters["stats"]["unique_graphs"] > graphs:
+                compile_seconds += time.perf_counter() - start
         if compiled:
-            row["compile_seconds"] = time.perf_counter() - start
-            call()
-            call()
+            row["compile_seconds"] = compile_seconds
             gc.collect()
             gc.disable()  # a collection inside a compiled call runs weakref callbacks that dynamo counts as frames
         try:
