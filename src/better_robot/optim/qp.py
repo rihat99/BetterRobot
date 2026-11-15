@@ -17,7 +17,7 @@ from typing import final, override
 
 import torch
 
-from ..exceptions import ShapeError
+from ..exceptions import ArgumentError, ShapeError
 
 _FLOOR = (
     1e-9  # added to the unit-diagonal H, as Normal.solve does: a variable the objective does not see stays solvable
@@ -98,14 +98,14 @@ def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
 
 
 def _active_set_step(
-    problem: _Scaled, v: torch.Tensor, dual: torch.Tensor, yields: torch.Tensor, cold: torch.Tensor, weight: float
+    problem: _Scaled, v: torch.Tensor, dual: torch.Tensor, yields: torch.Tensor, cold: torch.Tensor, cap: torch.Tensor
 ) -> tuple[torch.Tensor, ...]:
     """The rows that ``v: (B, M)`` puts on a bound solved as equalities: ``y: (B, 1, N)``, ``dual``, where it is exact.
 
     The equalities are held by a stiff penalty and `_UPDATES` multiplier updates. A row that ``yields`` (its
-    multiplier is at ``weight``) keeps that multiplier and is not held. The pair is the solution when its gradient
+    multiplier is at ``cap: (B, 1)``) keeps that multiplier and is not held. The pair is the solution when its gradient
     vanishes, every row is where its multiplier holds it (a row that yields may sit beyond its bound) and no held
-    row asks for a multiplier of the wrong sign or beyond ``weight``. Such a multiplier is not cut to fit: the
+    row asks for a multiplier of the wrong sign or beyond ``cap``. Such a multiplier is not cut to fit: the
     gradient that the cut leaves is small, but along a direction of weak curvature a small gradient is a long way
     from the minimiser. An equality row (``lower == upper``) is always held and its multiplier has either sign.
     """
@@ -123,7 +123,7 @@ def _active_set_step(
         y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
         value = problem.values(y)
     nothing = torch.zeros_like(v)
-    lowest, highest = torch.where(below, -weight, nothing), torch.where(above, weight, nothing)
+    lowest, highest = torch.where(below, -cap, nothing), torch.where(above, cap, nothing)
     asked = force + stiff * (value - bound)
     force = torch.clamp(asked, lowest, highest)
     gap, slope, ahead = problem.measure(y, value, force)
@@ -134,6 +134,37 @@ def _active_set_step(
     return y, force, gap, slope, exact
 
 
+def _checked(
+    hessian: torch.Tensor,
+    gradient: torch.Tensor,
+    rows: torch.Tensor,
+    lower: torch.Tensor,
+    upper: torch.Tensor,
+    weight: float,
+    warm: QPSolution | None,
+) -> tuple[torch.Size, int, int]:
+    """The batch shape, ``N`` and ``M`` of inputs that fit each other: the one check at the boundary, shapes and types only."""
+    if isinstance(weight, bool) or not isinstance(weight, int | float) or not weight > 0:
+        raise ArgumentError(f"solve_qp takes a positive Python number as weight, got {weight!r}")
+    batch, size, count = gradient.shape[:-1], gradient.shape[-1], lower.shape[-1]
+    if hessian.shape != (*batch, size, size) or rows.shape != (*batch, count, size) or upper.shape != (*batch, count):
+        raise ShapeError(
+            f"solve_qp takes hessian (B..., N, N), gradient (B..., N), rows (B..., M, N) and lower, upper (B..., M); got "
+            f"{tuple(hessian.shape)}, {tuple(gradient.shape)}, {tuple(rows.shape)}, {tuple(lower.shape)}, {tuple(upper.shape)}"
+        )
+    if count == 0:
+        raise ShapeError(
+            "solve_qp needs at least one row; without rows the minimiser is Normal(hessian, gradient).solve()"
+        )
+    if warm is not None and (warm.x.shape, warm.dual.shape, warm.penalty.shape) != (gradient.shape, lower.shape, batch):
+        raise ShapeError(
+            f"solve_qp takes a warm start of the same problem layout: x {tuple(gradient.shape)}, dual "
+            f"{tuple(lower.shape)}, penalty {tuple(batch)}; got {tuple(warm.x.shape)}, {tuple(warm.dual.shape)}, "
+            f"{tuple(warm.penalty.shape)}"
+        )
+    return batch, size, count
+
+
 def solve_qp(
     hessian: torch.Tensor,
     gradient: torch.Tensor,
@@ -142,7 +173,7 @@ def solve_qp(
     lower: torch.Tensor,
     upper: torch.Tensor,
     iterations: int = 20,
-    weight: float = 1e3,
+    weight: float = 100.0,
     warm: QPSolution | None = None,
 ) -> QPSolution:
     """One warm-startable step towards the minimiser of ``½ xᵀH x + gᵀx`` subject to ``lower <= rows x <= upper``.
@@ -197,29 +228,18 @@ def solve_qp(
     A batch element whose ``H + penalty · rowsᵀ rows`` is not positive definite, or whose data are not finite, gets
     ``x = 0``, ``dual = 0``, both residuals ``inf`` and ``penalty = 1``.
     """
-    batch, size, count = gradient.shape[:-1], gradient.shape[-1], lower.shape[-1]
-    if hessian.shape != (*batch, size, size) or rows.shape != (*batch, count, size) or upper.shape != (*batch, count):
-        raise ShapeError(
-            f"solve_qp takes hessian (B..., N, N), gradient (B..., N), rows (B..., M, N) and lower, upper (B..., M); got "
-            f"{tuple(hessian.shape)}, {tuple(gradient.shape)}, {tuple(rows.shape)}, {tuple(lower.shape)}, {tuple(upper.shape)}"
-        )
-    if count == 0:
-        raise ShapeError(
-            "solve_qp needs at least one row; without rows the minimiser is Normal(hessian, gradient).solve()"
-        )
-    if warm is not None and (warm.x.shape, warm.dual.shape, warm.penalty.shape) != (gradient.shape, lower.shape, batch):
-        raise ShapeError(
-            f"solve_qp takes a warm start of the same problem layout: x {tuple(gradient.shape)}, dual "
-            f"{tuple(lower.shape)}, penalty {tuple(batch)}; got {tuple(warm.x.shape)}, {tuple(warm.dual.shape)}, "
-            f"{tuple(warm.penalty.shape)}"
-        )
+    batch, size, count = _checked(hessian, gradient, rows, lower, upper, weight, warm)
     matrix = hessian.detach().double().reshape(-1, size, size)
     diagonal = matrix.diagonal(dim1=-2, dim2=-1)
     scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
     identity = torch.eye(size, dtype=matrix.dtype, device=matrix.device)
+    linear = gradient.detach().double().reshape(-1, size)
+    # The multipliers stop at `weight` times the size of the objective's gradient: at x = 0, or one unit of a
+    # variable away where that is larger, so that a gradient that vanishes does not let every row go.
+    cap = weight * torch.maximum(linear.abs().amax(-1), diagonal.amax(-1)).unsqueeze(-1)
     problem = _Scaled(
         H=matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2) + _FLOOR * identity,
-        c=(gradient.detach().double().reshape(-1, size) * scale).unsqueeze(-2),
+        c=(linear * scale).unsqueeze(-2),
         A=rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2),
         lower=torch.minimum(lower, upper).detach().double().reshape(-1, count),
         upper=upper.detach().double().reshape(-1, count),
@@ -233,16 +253,16 @@ def solve_qp(
     else:
         penalty = torch.clamp(warm.penalty.detach().double().reshape(-1), cold / _RANGE, cold * _RANGE)
         y = (warm.x.detach().double().reshape(-1, size) / scale).unsqueeze(-2)
-        dual = warm.dual.detach().double().reshape(-1, count).clamp(-weight, weight)
+        dual = torch.clamp(warm.dual.detach().double().reshape(-1, count), -cap, cap)
     rho = penalty.unsqueeze(-1)
-    most = weight / rho
+    most = cap / rho
 
     # The inverse of H + penalty · rowsᵀ rows, by N right-hand sides: each step is then three products with a vector.
     factor, info = torch.linalg.cholesky_ex(problem.H + rho.unsqueeze(-1) * gram)
     inverse = _solve(factor, identity.expand_as(gram))
     free, spread = -torch.bmm(problem.c, inverse), rho.unsqueeze(-1) * inverse
     # State v = z + give: z is where the rows are held, give = dual / penalty. A row is held inside its bounds until
-    # its multiplier reaches `weight`; from there it gives way and z follows v beyond the bound (the L1-elastic row).
+    # its multiplier reaches `cap`; from there it gives way and z follows v beyond the bound (the L1-elastic row).
     # A start takes z from the rows as they are (OSQP's warm start): pulled inside the bounds, the z of a row that
     # gives way would leave the minimiser a warm call starts at.
     value = problem.values(y)
@@ -264,7 +284,7 @@ def solve_qp(
     change = (behind.clamp_min(_SETTLED) / ahead.clamp_min(_SETTLED)).sqrt().clamp(1.0 / _RETUNE, _RETUNE)
     penalty = torch.clamp(penalty * change, cold / _RANGE, cold * _RANGE)
 
-    held, force, held_gap, held_slope, exact = _active_set_step(problem, v, dual, give.abs() >= most, cold, weight)
+    held, force, held_gap, held_slope, exact = _active_set_step(problem, v, dual, give.abs() >= most, cold, cap)
     exact = exact.unsqueeze(-1)
     y = torch.where(exact, held.squeeze(-2), y.squeeze(-2))
     dual = torch.where(exact, force, dual)
