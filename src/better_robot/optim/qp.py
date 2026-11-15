@@ -94,9 +94,11 @@ def _active_set_step(
     stiff = _STIFFNESS * cold.unsqueeze(-1) * active
     factor, info = torch.linalg.cholesky_ex(problem.H + torch.bmm(problem.At * stiff.unsqueeze(-2), problem.A))
     force = dual * active
-    for _ in range(_UPDATES + 1):
-        y = _solve(factor, torch.bmm(problem.At, (stiff * bound - force).unsqueeze(-1)) - problem.c)
+    y = _solve(factor, torch.bmm(problem.At, (stiff * bound - force).unsqueeze(-1)) - problem.c)
+    for _ in range(_UPDATES):
         force = force + stiff * (torch.bmm(problem.A, y).squeeze(-1) - bound)
+        y = _solve(factor, torch.bmm(problem.At, (stiff * bound - force).unsqueeze(-1)) - problem.c)
+    force = force + stiff * (torch.bmm(problem.A, y).squeeze(-1) - bound)
     signed = torch.where(above, force.clamp_min(0.0), force.clamp_max(0.0))
     return y, torch.where(above & below, force, signed) * active, info
 
