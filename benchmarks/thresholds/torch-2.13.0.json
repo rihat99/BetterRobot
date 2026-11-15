@@ -145,10 +145,10 @@
   {
    "row": "ik_constrained/panda/B64",
    "batch": 64,
-   "loadavg": "24.73 27.33 27.89 41/19518 1402816",
+   "loadavg": "12.04 11.09 12.97 11/18946 1478913",
    "success_fraction": 0.46875,
    "worst_violation_m": 8.168444037437439e-05,
-   "ops": 30512,
+   "ops": 31393,
    "host_syncs": 0,
    "graph_breaks": 3,
    "recompiles": 11
