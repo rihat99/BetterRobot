@@ -73,7 +73,7 @@
    "batch": 1,
    "loadavg": "10.89 19.78 26.65 9/19413 3400921",
    "ops": 240,
-   "host_syncs": 2,
+   "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
   },
@@ -127,7 +127,7 @@
    "batch": 1,
    "loadavg": "10.37 19.38 26.44 8/19205 3402022",
    "ops": 255,
-   "host_syncs": 2,
+   "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
   },
