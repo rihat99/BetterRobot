@@ -147,6 +147,7 @@ BUILDERS: dict[str, Callable[[], object]] = {
     "better_robot.optim.Phase": lambda: optim.Phase(optim.LevenbergMarquardt(), 10),
     "better_robot.optim.Problem": lambda: _problems()[0],
     "better_robot.optim.Result": _result,
+    "better_robot.optim.SequentialQP": optim.SequentialQP,
     "better_robot.optim.State": lambda: _result().state,
     "better_robot.optim.Term": lambda: _problems()[0].terms["offset"],
     "better_robot.optim.TermFn": lambda: optim.TermFn(fn=lambda x: x, reads=("x",)),

@@ -340,8 +340,8 @@ class Problem:
         A bound is a number or a tensor of the output's shape (with or without the batch axis), in the output's unit;
         ``None`` leaves that side open, and at least one side is given (``ArgumentError``). The function is the one a
         cost term would take: ``inequality("clear", terms.self_clearance(..., hinge=False), upper=0.0)`` holds
-        ``margin - distance <= 0`` with the residual and Jacobian that the hinged cost is made of. ``weight``,
-        ``reads`` and ``jacobian`` are those of ``equality``.
+        ``margin - distance <= 0`` with the residual and Jacobian that the hinged cost is made of. ``weight``
+        ``(B, ..., k)`` or ``(..., k)``, ``reads`` and ``jacobian`` are those of ``equality``.
         """
         if lower is None and upper is None:
             raise ArgumentError(f"inequality term {name!r} needs a bound: give lower=, upper= or both")
