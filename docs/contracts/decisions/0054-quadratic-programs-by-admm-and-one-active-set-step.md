@@ -159,20 +159,20 @@ minimiser does; `exact` is unset on every wrong problem at every call.
 
 The cap. Each variant below ran on the same tables: problems shaped like inverse kinematics with the objective
 scaled by 1, 1000 and 3000 (feasible, near-opposed rows down to a wedge of 0.03), twelve cases of rows that ask for
-a motion while `g` is small or zero, the recovery scenarios above, and the closed loops below.
+a motion while `g` is small or zero, the recovery scenarios above, and (all but the fourth) the closed loops below.
 
 | Cap | feasible rows that gave way at objective times 1000 / 3000 (of 512) | rows asking for a motion that gave way (12 cases) | recovery, last wrong call: drift at times 1 / 0.01 / 1000; both ways; fixed |
 |---|---|---|---|
 | `1e3`, absolute | 11 / 182 | 0 at times 1; 15, 53, 13 and 13 at times 1000 | 9 / 157 wrong at call 20 / rows broken, steps of 531; 7; 8 |
 | `100 ‖g‖∞` | 0 / 0 | 8 of 502 where `g` is small; all where `g` is zero | 7 / 7 / 7; 6; 7 |
 | `100 max(‖g‖∞, 1)` | 0 / 0 | 8, 3 and 217 at times 1000 | 7 / 14 / 7; 6; 7 |
-| `100 ‖g‖∞` of the unit-diagonal problem | 1 / 12 | up to 337 of 502 | not run |
+| `100 ‖g‖∞` of the unit-diagonal problem | 1 / 12 | up to 337 of 502 | 7 / 9 / 4; 6; 8 |
 | `30 max(‖g‖∞, max diag H)` | 0 / 0 (margin 8.4) | 0 | 5 / 5 / 5; 4; 5 |
 | `100 max(‖g‖∞, max diag H)` (this record) | 0 / 0 (margin 28) | 0 | 7 / 7 / 7; 6; 7 |
 
 The margin is the smallest ratio of the cap to the largest multiplier a feasible problem needs, at the wedge of
 0.03. The review's rule for an absolute cap, at least 3 `‖g‖∞` and 15 `‖g‖∞` with near-opposed rows, is met 6.7
-times over at the default. The closed loops are identical under every cap: the cap never binds there (the largest
+times over at the default. The closed loops are identical under every cap run on them: the cap never binds there (the largest
 multiplier is 18 `‖g‖∞` on Panda, 3.8 to 5.4 on G1). A pure `‖g‖∞` scale is unsafe because `g` vanishes at the end
 of a converging loop while a row may still ask for a motion; the diagonal of `H` is the scale of the objective one
 unit of a variable away.
