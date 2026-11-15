@@ -30,6 +30,7 @@ import torch
 from ..lie import se3
 from ..model.model import Model
 from ._plans import fk_plan
+from .compilation import small_matmul
 
 
 @overload
@@ -102,7 +103,10 @@ def world_transforms(
         gathered = plan.bias.new_zeros(count, nj, 1)
     if isinstance(joint_map, tuple):
         weight, bias = joint_map
-        local = bias + torch.einsum("njf,jfab->njab", gathered, weight)
+        if torch.compiler.is_compiling():
+            local = bias + small_matmul(gathered.unsqueeze(-2), weight.flatten(-2)).view(count, nj, 4, 4)
+        else:
+            local = bias + torch.einsum("njf,jfab->njab", gathered, weight)
     else:
         placements = joint_map if plan.inverse_order is None else joint_map.index_select(-3, plan.order)
         joint = plan.bias + torch.einsum("njf,jfab->njab", gathered, plan.weight)
@@ -114,7 +118,7 @@ def world_transforms(
     levels = [local[:, first_start:first_stop, :3]]
     for (start, stop), position in zip(plan.level_slices[1:], plan.parent_position):
         parent = levels[-1] if position is None else levels[-1].index_select(1, position)
-        levels.append(parent @ local[:, start:stop])
+        levels.append(small_matmul(parent, local[:, start:stop]))
     world = torch.cat(levels, dim=1)
     return world if plan.inverse_order is None else world.index_select(1, plan.inverse_order)
 

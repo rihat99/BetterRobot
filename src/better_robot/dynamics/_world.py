@@ -53,6 +53,7 @@ import torch
 
 from ..kinematics import KinematicState
 from ..kinematics._plans import JacobianPlan, jacobian_plan
+from ..kinematics.compilation import small_matmul
 from ..model.model import Model
 from ..model.topology import build_supports
 from ..spatial.algebra import cross_force_raw, cross_motion_raw
@@ -125,12 +126,17 @@ class WorldKinematics:
         """Express world twists ``(N, njoints, 6)`` in each joint's own frame (``Ad(oMi⁻¹)``)."""
         rotations_t = self.rotations.mT
         linear = motions[..., :3] - torch.linalg.cross(self.translations, motions[..., 3:])
-        return torch.cat((rotations_t @ linear.unsqueeze(-1), rotations_t @ motions[..., 3:, None]), dim=-2).squeeze(-1)
+        linear, angular = (
+            small_matmul(rotations_t, linear.unsqueeze(-1)),
+            small_matmul(rotations_t, motions[..., 3:, None]),
+        )
+        return torch.cat((linear, angular), dim=-2).squeeze(-1)
 
     def to_world_force(self, wrenches: torch.Tensor) -> torch.Tensor:
         """Express joint-frame wrenches ``(N, njoints, 6)`` in the world frame (``Ad(oMi)⁻ᵀ``)."""
-        linear = (self.rotations @ wrenches[..., :3, None]).squeeze(-1)
-        angular = (self.rotations @ wrenches[..., 3:, None]).squeeze(-1) + torch.linalg.cross(self.translations, linear)
+        linear = small_matmul(self.rotations, wrenches[..., :3, None]).squeeze(-1)
+        angular = small_matmul(self.rotations, wrenches[..., 3:, None]).squeeze(-1)
+        angular = angular + torch.linalg.cross(self.translations, linear)
         return torch.cat((linear, angular), dim=-1)
 
     def world_inertias(self) -> torch.Tensor:
@@ -140,8 +146,10 @@ class WorldKinematics:
         ``R I_c Rᵀ``) and handed unpacked to `spatial`'s matrix kernel; the ``6x6`` congruence with the adjoint costs
         several times more memory traffic.
         """
-        com_world = (self.rotations @ self.body_inertias[..., 1:4, None]).squeeze(-1) + self.translations
-        rotational = self.rotations @ rotational_inertia_raw(self.body_inertias) @ self.rotations.mT
+        com_world = small_matmul(self.rotations, self.body_inertias[..., 1:4, None]).squeeze(-1) + self.translations
+        rotational = small_matmul(
+            small_matmul(self.rotations, rotational_inertia_raw(self.body_inertias)), self.rotations.mT
+        )
         mass = self.body_inertias[..., 0].expand(com_world.shape[:-1])
         return inertia_matrix_from_mass_com_raw(mass, com_world, rotational_inertia=rotational)
 
@@ -175,10 +183,10 @@ def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
 
 def apply_inertias(inertias: torch.Tensor, motions: torch.Tensor) -> torch.Tensor:
     """``I v`` for ``(njoints, 6, 6)`` or ``(N, njoints, 6, 6)`` inertias and ``(N, njoints, 6)`` twists."""
-    if inertias.ndim == 3:
+    if inertias.ndim == 3 and not torch.compiler.is_compiling():
         # einsum batches over joints without materialising the broadcast inertia.
         return torch.einsum("jab,njb->nja", inertias, motions)
-    return (inertias @ motions.unsqueeze(-1)).squeeze(-1)
+    return small_matmul(inertias, motions.unsqueeze(-1)).squeeze(-1)
 
 
 def inverse_dynamics_full(
@@ -229,12 +237,12 @@ def momentum_columns(kin: WorldKinematics) -> torch.Tensor:
     inertias = kin.world_inertias()
     composite = (inertias.flatten(-2, -1).mT @ plan.support.to(inertias.dtype)).mT  # (N, njoints, 36)
     composite = composite.reshape(*inertias.shape)[..., plan.jacobian.column_owner, :, :]  # (N, nv_full, 6, 6)
-    return (composite @ kin.columns.mT.unsqueeze(-1)).squeeze(-1).mT
+    return small_matmul(composite, kin.columns.mT.unsqueeze(-1)).squeeze(-1).mT
 
 
 def mass_matrix_full(kin: WorldKinematics) -> torch.Tensor:
     """Joint-space inertia matrix over the full tangent, ``(N, nv_full, nv_full)``."""
-    products = kin.columns.mT @ momentum_columns(kin)  # (N, nv_full, nv_full)
+    products = small_matmul(kin.columns.mT, momentum_columns(kin))  # (N, nv_full, nv_full)
     # Two passes over the (large) matrix: keep the entries whose row is on the column's path,
     # mirror them below, zero the rest.
     return torch.where(kin.plan.upper, products, torch.where(kin.plan.lower, products.mT, 0.0))
