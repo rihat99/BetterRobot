@@ -1,11 +1,12 @@
 {
-  "source": "Unitree G1 (29 joints) of unitree_ros 267182b, https://github.com/unitreerobotics/unitree_ros/tree/267182b/robots/g1_description (BSD-3-Clause): g1_29dof.urdf and its meshes, tracked without the meshes as tests/fixtures/robots/g1/g1_29dof.urdf; the feet and hands are fitted to their display meshes, as the description gives the feet four 5 mm contact spheres and the hands no collision shape",
-  "command": "uv run --extra meshes python tools/fit_spheres.py g1_29dof.urdf g1.json --default 2 --count pelvis_contour_link=3 --count torso_link=6 --count logo_link=0 --count left_hip_pitch_link=3 --count left_hip_roll_link=4 --count left_hip_yaw_link=4 --count left_knee_link=6 --count left_ankle_pitch_link=1 --count left_ankle_roll_link=4 --count left_shoulder_pitch_link=1 --count left_shoulder_roll_link=1 --count left_shoulder_yaw_link=3 --count left_elbow_link=3 --count left_wrist_roll_link=2 --count left_wrist_pitch_link=2 --count left_wrist_yaw_link=1 --count left_rubber_hand=4 --count right_hip_pitch_link=3 --count right_hip_roll_link=4 --count right_hip_yaw_link=4 --count right_knee_link=6 --count right_ankle_pitch_link=1 --count right_ankle_roll_link=4 --count right_shoulder_pitch_link=1 --count right_shoulder_roll_link=1 --count right_shoulder_yaw_link=3 --count right_elbow_link=3 --count right_wrist_roll_link=2 --count right_wrist_pitch_link=2 --count right_wrist_yaw_link=1 --count right_rubber_hand=4 --visual left_ankle_roll_link --visual left_rubber_hand --visual right_ankle_roll_link --visual right_rubber_hand --mirror --samples 4000",
+  "source": "Unitree G1 (29 joints) of unitree_ros 267182b, https://github.com/unitreerobotics/unitree_ros/tree/267182b/robots/g1_description (BSD-3-Clause): g1_29dof.urdf and its meshes, read from the robot_descriptions cache (module g1_description, fetched on first use); the URDF is tracked without the meshes as tests/fixtures/robots/g1/g1_29dof.urdf. The feet and hands are fitted to their display meshes, as the description gives the feet four 5 mm contact spheres and the hands no collision shape",
+  "command": "uv run --extra meshes --extra demos --group test-oracles python tools/fit_spheres.py g1_description src/better_robot/collision/sphere_sets/g1.json --default 2 --count pelvis_contour_link=3 --count torso_link=6 --count logo_link=0 --count left_hip_pitch_link=3 --count left_hip_roll_link=4 --count left_hip_yaw_link=4 --count left_knee_link=6 --count left_ankle_pitch_link=1 --count left_ankle_roll_link=8 --count left_shoulder_pitch_link=1 --count left_shoulder_roll_link=1 --count left_shoulder_yaw_link=5 --count left_elbow_link=3 --count left_wrist_roll_link=2 --count left_wrist_pitch_link=2 --count left_wrist_yaw_link=1 --count left_rubber_hand=4 --count right_hip_pitch_link=3 --count right_hip_roll_link=4 --count right_hip_yaw_link=4 --count right_knee_link=6 --count right_ankle_pitch_link=1 --count right_ankle_roll_link=8 --count right_shoulder_pitch_link=1 --count right_shoulder_roll_link=1 --count right_shoulder_yaw_link=5 --count right_elbow_link=3 --count right_wrist_roll_link=2 --count right_wrist_pitch_link=2 --count right_wrist_yaw_link=1 --count right_rubber_hand=4 --visual left_ankle_roll_link --visual left_rubber_hand --visual right_ankle_roll_link --visual right_rubber_hand --mirror --sole left_ankle_roll_link --sole right_ankle_roll_link --source 'Unitree G1 (29 joints) of unitree_ros 267182b, https://github.com/unitreerobotics/unitree_ros/tree/267182b/robots/g1_description (BSD-3-Clause): g1_29dof.urdf and its meshes, read from the robot_descriptions cache (module g1_description, fetched on first use); the URDF is tracked without the meshes as tests/fixtures/robots/g1/g1_29dof.urdf. The feet and hands are fitted to their display meshes, as the description gives the feet four 5 mm contact spheres and the hands no collision shape'",
+  "shape_check": "coal on the fitted shapes at the neutral configuration and at 100000 random configurations within the joint limits (torch generator seed 0): an ignored pair collides in none of them (never), in all the random ones (always) or at the neutral one (neutral)",
   "spheres": {
     "pelvis_contour_link": [
-      [-0.0001, -0.0022, -0.0755, 0.0806],
-      [0.0009, 0.0013, -0.0585, 0.077],
-      [0.0012, -0.0087, -0.0772, 0.0807]
+      [-0.002, 0.0, -0.0608, 0.0773],
+      [0.0, 0.0, -0.0884, 0.0674],
+      [0.0036, 0.0, -0.0594, 0.0761]
     ],
     "left_hip_pitch_link": [
       [0.0057, 0.0437, -0.0338, 0.0574],
@@ -36,10 +37,14 @@
       [-0.0074, 0.0004, -0.0077, 0.0243]
     ],
     "left_ankle_roll_link": [
-      [0.0001, 0.0023, 0.003, 0.0619],
-      [0.0928, -0.0034, -0.0229, 0.0516],
-      [-0.0535, -0.009, -0.0101, 0.0468],
-      [0.0662, -0.0002, -0.0258, 0.0456]
+      [0.0174, -0.0043, 0.022, 0.0626],
+      [0.0887, -0.0021, 0.002, 0.0426],
+      [-0.0289, 0.0017, 0.0212, 0.0617],
+      [0.0504, 0.0013, 0.0159, 0.0564],
+      [0.118, 0.0058, -0.0104, 0.0302],
+      [0.0906, 0.0198, -0.0031, 0.0375],
+      [0.1111, -0.0219, -0.0145, 0.026],
+      [0.0618, -0.026, 0.0003, 0.0409]
     ],
     "right_hip_pitch_link": [
       [0.0057, -0.0437, -0.0338, 0.0574],
@@ -70,42 +75,48 @@
       [-0.0074, -0.0004, -0.0077, 0.0243]
     ],
     "right_ankle_roll_link": [
-      [0.0001, -0.0023, 0.003, 0.0619],
-      [0.0928, 0.0034, -0.0229, 0.0516],
-      [-0.0535, 0.009, -0.0101, 0.0468],
-      [0.0662, 0.0002, -0.0258, 0.0456]
+      [0.0174, 0.0043, 0.022, 0.0626],
+      [0.0887, 0.0021, 0.002, 0.0426],
+      [-0.0289, -0.0017, 0.0212, 0.0617],
+      [0.0504, -0.0013, 0.0159, 0.0564],
+      [0.118, -0.0058, -0.0104, 0.0302],
+      [0.0906, -0.0198, -0.0031, 0.0375],
+      [0.1111, 0.0219, -0.0145, 0.026],
+      [0.0618, 0.026, 0.0003, 0.0409]
     ],
     "torso_link": [
-      [0.0071, 0.0052, 0.1134, 0.1118],
-      [-0.0112, -0.0008, 0.238, 0.1136],
-      [-0.0114, -0.0298, 0.0311, 0.0953],
-      [0.0169, -0.0654, 0.1643, 0.101],
-      [0.0032, 0.0457, 0.0458, 0.0845],
-      [0.0035, 0.0698, 0.2013, 0.0763]
+      [0.006, 0.0, 0.1265, 0.1091],
+      [0.003, 0.0, 0.2258, 0.1132],
+      [0.0011, 0.0, 0.0591, 0.0985],
+      [-0.0008, 0.0, 0.1755, 0.1073],
+      [-0.0441, 0.0, 0.1352, 0.1128],
+      [-0.0129, 0.0, 0.0899, 0.1015]
     ],
     "head_link": [
-      [0.0005, 0.0047, 0.4177, 0.1142],
-      [-0.0243, -0.012, 0.3306, 0.0878]
+      [-0.0062, 0.0527, 0.4225, 0.1235],
+      [-0.0062, -0.0527, 0.4225, 0.1235]
     ],
     "waist_support_link": [
-      [0.0, 0.0014, 0.042, 0.0807],
-      [0.0053, -0.0076, 0.0493, 0.0791]
+      [-0.0008, 0.0131, 0.0502, 0.071],
+      [-0.0008, -0.0131, 0.0502, 0.071]
     ],
     "left_shoulder_pitch_link": [
       [0.0006, 0.0388, -0.008, 0.0413]
     ],
     "left_shoulder_roll_link": [
-      [-0.0047, 0.0035, -0.0531, 0.036]
+      [-0.0047, 0.0035, -0.0531, 0.0344]
     ],
     "left_shoulder_yaw_link": [
-      [0.012, -0.0002, -0.0729, 0.0512],
-      [-0.0044, 0.0034, 0.0195, 0.0489],
-      [-0.0094, 0.0023, -0.0332, 0.04]
+      [0.0142, -0.0018, -0.0816, 0.0453],
+      [-0.0044, 0.0034, 0.0195, 0.0367],
+      [-0.0143, 0.0008, -0.0287, 0.0371],
+      [0.0085, 0.0003, -0.0137, 0.0336],
+      [0.012, -0.0002, -0.0729, 0.0464]
     ],
     "left_elbow_link": [
       [0.0643, 0.0071, -0.0073, 0.0487],
-      [0.0056, 0.0012, -0.0055, 0.045],
-      [0.0167, 0.0065, -0.0212, 0.0304]
+      [0.0025, 0.0044, -0.0007, 0.039],
+      [0.0177, 0.005, -0.0086, 0.0396]
     ],
     "left_wrist_roll_link": [
       [0.0286, -0.0014, 0.002, 0.0417],
@@ -128,17 +139,19 @@
       [0.0006, -0.0388, -0.008, 0.0413]
     ],
     "right_shoulder_roll_link": [
-      [-0.0047, -0.0035, -0.0531, 0.036]
+      [-0.0047, -0.0035, -0.0531, 0.0344]
     ],
     "right_shoulder_yaw_link": [
-      [0.012, 0.0002, -0.0729, 0.0512],
-      [-0.0044, -0.0034, 0.0195, 0.0489],
-      [-0.0094, -0.0023, -0.0332, 0.04]
+      [0.0142, 0.0018, -0.0816, 0.0453],
+      [-0.0044, -0.0034, 0.0195, 0.0367],
+      [-0.0143, -0.0008, -0.0287, 0.0371],
+      [0.0085, -0.0003, -0.0137, 0.0336],
+      [0.012, 0.0002, -0.0729, 0.0464]
     ],
     "right_elbow_link": [
       [0.0643, -0.0071, -0.0073, 0.0487],
-      [0.0056, -0.0012, -0.0055, 0.045],
-      [0.0167, -0.0065, -0.0212, 0.0304]
+      [0.0025, -0.0044, -0.0007, 0.039],
+      [0.0177, -0.005, -0.0086, 0.0396]
     ],
     "right_wrist_roll_link": [
       [0.0286, 0.0014, 0.002, 0.0417],
@@ -159,20 +172,104 @@
     ]
   },
   "ignore": [
-    ["left_ankle_roll_link", "left_knee_link"],
-    ["left_elbow_link", "left_wrist_pitch_link"],
-    ["left_elbow_link", "torso_link"],
-    ["left_shoulder_roll_link", "torso_link"],
-    ["left_shoulder_yaw_link", "torso_link"],
-    ["left_wrist_roll_link", "left_wrist_yaw_link"],
-    ["pelvis_contour_link", "right_hip_roll_link"],
-    ["pelvis_contour_link", "torso_link"],
-    ["pelvis_contour_link", "waist_support_link"],
-    ["right_ankle_roll_link", "right_knee_link"],
-    ["right_elbow_link", "right_wrist_pitch_link"],
-    ["right_elbow_link", "torso_link"],
-    ["right_shoulder_roll_link", "torso_link"],
-    ["right_shoulder_yaw_link", "torso_link"],
-    ["right_wrist_roll_link", "right_wrist_yaw_link"]
+    ["head_link", "left_hip_pitch_link", "never"],
+    ["head_link", "left_hip_roll_link", "never"],
+    ["head_link", "pelvis_contour_link", "never"],
+    ["head_link", "right_hip_pitch_link", "never"],
+    ["head_link", "right_hip_roll_link", "never"],
+    ["left_ankle_pitch_link", "left_hip_roll_link", "never"],
+    ["left_ankle_pitch_link", "left_hip_yaw_link", "never"],
+    ["left_ankle_roll_link", "left_hip_yaw_link", "never"],
+    ["left_ankle_roll_link", "left_knee_link", "neutral"],
+    ["left_elbow_link", "left_rubber_hand", "never"],
+    ["left_elbow_link", "left_shoulder_pitch_link", "never"],
+    ["left_elbow_link", "left_shoulder_roll_link", "never"],
+    ["left_elbow_link", "left_wrist_pitch_link", "never"],
+    ["left_elbow_link", "left_wrist_yaw_link", "never"],
+    ["left_hip_pitch_link", "left_hip_yaw_link", "never"],
+    ["left_hip_pitch_link", "left_knee_link", "never"],
+    ["left_hip_pitch_link", "left_shoulder_pitch_link", "never"],
+    ["left_hip_pitch_link", "left_shoulder_roll_link", "never"],
+    ["left_hip_pitch_link", "left_shoulder_yaw_link", "never"],
+    ["left_hip_pitch_link", "right_hip_pitch_link", "never"],
+    ["left_hip_pitch_link", "right_hip_roll_link", "never"],
+    ["left_hip_pitch_link", "right_hip_yaw_link", "never"],
+    ["left_hip_pitch_link", "right_shoulder_pitch_link", "never"],
+    ["left_hip_pitch_link", "right_shoulder_roll_link", "never"],
+    ["left_hip_pitch_link", "right_shoulder_yaw_link", "never"],
+    ["left_hip_pitch_link", "torso_link", "never"],
+    ["left_hip_pitch_link", "waist_support_link", "never"],
+    ["left_hip_roll_link", "left_knee_link", "never"],
+    ["left_hip_roll_link", "left_shoulder_pitch_link", "never"],
+    ["left_hip_roll_link", "left_shoulder_roll_link", "never"],
+    ["left_hip_roll_link", "right_hip_pitch_link", "never"],
+    ["left_hip_roll_link", "right_hip_roll_link", "never"],
+    ["left_hip_roll_link", "right_hip_yaw_link", "never"],
+    ["left_hip_roll_link", "right_shoulder_pitch_link", "never"],
+    ["left_hip_roll_link", "right_shoulder_roll_link", "never"],
+    ["left_hip_yaw_link", "pelvis_contour_link", "never"],
+    ["left_hip_yaw_link", "right_hip_pitch_link", "never"],
+    ["left_hip_yaw_link", "right_hip_roll_link", "never"],
+    ["left_rubber_hand", "left_shoulder_yaw_link", "never"],
+    ["left_rubber_hand", "left_wrist_roll_link", "never"],
+    ["left_shoulder_pitch_link", "left_shoulder_yaw_link", "never"],
+    ["left_shoulder_pitch_link", "left_wrist_roll_link", "never"],
+    ["left_shoulder_pitch_link", "pelvis_contour_link", "never"],
+    ["left_shoulder_pitch_link", "right_hip_pitch_link", "never"],
+    ["left_shoulder_pitch_link", "right_hip_roll_link", "never"],
+    ["left_shoulder_pitch_link", "right_shoulder_pitch_link", "never"],
+    ["left_shoulder_pitch_link", "right_shoulder_roll_link", "never"],
+    ["left_shoulder_pitch_link", "right_shoulder_yaw_link", "never"],
+    ["left_shoulder_roll_link", "left_wrist_roll_link", "never"],
+    ["left_shoulder_roll_link", "pelvis_contour_link", "never"],
+    ["left_shoulder_roll_link", "right_hip_pitch_link", "never"],
+    ["left_shoulder_roll_link", "right_hip_roll_link", "never"],
+    ["left_shoulder_roll_link", "right_shoulder_pitch_link", "never"],
+    ["left_shoulder_roll_link", "right_shoulder_roll_link", "never"],
+    ["left_shoulder_roll_link", "waist_support_link", "never"],
+    ["left_shoulder_yaw_link", "left_wrist_pitch_link", "never"],
+    ["left_shoulder_yaw_link", "left_wrist_roll_link", "never"],
+    ["left_shoulder_yaw_link", "left_wrist_yaw_link", "never"],
+    ["left_shoulder_yaw_link", "pelvis_contour_link", "never"],
+    ["left_shoulder_yaw_link", "right_hip_pitch_link", "never"],
+    ["left_shoulder_yaw_link", "right_shoulder_pitch_link", "never"],
+    ["left_shoulder_yaw_link", "waist_support_link", "never"],
+    ["left_wrist_roll_link", "left_wrist_yaw_link", "never"],
+    ["pelvis_contour_link", "right_hip_yaw_link", "never"],
+    ["pelvis_contour_link", "right_shoulder_pitch_link", "never"],
+    ["pelvis_contour_link", "right_shoulder_roll_link", "never"],
+    ["pelvis_contour_link", "right_shoulder_yaw_link", "never"],
+    ["pelvis_contour_link", "torso_link", "never"],
+    ["pelvis_contour_link", "waist_support_link", "never"],
+    ["right_ankle_pitch_link", "right_hip_roll_link", "never"],
+    ["right_ankle_pitch_link", "right_hip_yaw_link", "never"],
+    ["right_ankle_roll_link", "right_hip_yaw_link", "never"],
+    ["right_ankle_roll_link", "right_knee_link", "neutral"],
+    ["right_elbow_link", "right_rubber_hand", "never"],
+    ["right_elbow_link", "right_shoulder_pitch_link", "never"],
+    ["right_elbow_link", "right_shoulder_roll_link", "never"],
+    ["right_elbow_link", "right_wrist_pitch_link", "never"],
+    ["right_elbow_link", "right_wrist_yaw_link", "never"],
+    ["right_hip_pitch_link", "right_hip_yaw_link", "never"],
+    ["right_hip_pitch_link", "right_knee_link", "never"],
+    ["right_hip_pitch_link", "right_shoulder_pitch_link", "never"],
+    ["right_hip_pitch_link", "right_shoulder_roll_link", "never"],
+    ["right_hip_pitch_link", "right_shoulder_yaw_link", "never"],
+    ["right_hip_pitch_link", "torso_link", "never"],
+    ["right_hip_pitch_link", "waist_support_link", "never"],
+    ["right_hip_roll_link", "right_knee_link", "never"],
+    ["right_hip_roll_link", "right_shoulder_pitch_link", "never"],
+    ["right_hip_roll_link", "right_shoulder_roll_link", "never"],
+    ["right_rubber_hand", "right_shoulder_yaw_link", "never"],
+    ["right_rubber_hand", "right_wrist_roll_link", "never"],
+    ["right_shoulder_pitch_link", "right_shoulder_yaw_link", "never"],
+    ["right_shoulder_pitch_link", "right_wrist_roll_link", "never"],
+    ["right_shoulder_roll_link", "right_wrist_roll_link", "never"],
+    ["right_shoulder_roll_link", "waist_support_link", "never"],
+    ["right_shoulder_yaw_link", "right_wrist_pitch_link", "never"],
+    ["right_shoulder_yaw_link", "right_wrist_roll_link", "never"],
+    ["right_shoulder_yaw_link", "right_wrist_yaw_link", "never"],
+    ["right_shoulder_yaw_link", "waist_support_link", "never"],
+    ["right_wrist_roll_link", "right_wrist_yaw_link", "never"]
   ]
 }
