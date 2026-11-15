@@ -122,6 +122,27 @@ def g1():
     return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
 
 
+def test_limit_margin_and_manipulability_jacobians_match_autodiff(panda, g1):
+    """``joint_limits(margin=)`` starts ``margin`` inside the limits and reaches ``margin / 2`` at them; the
+    manipulability Jacobian (Lie brackets of the world columns) equals autodiff on an arm and on a floating base."""
+    upper = panda.upper_position_limit
+    limits = terms.joint_limits(panda, margin=0.01)  # under half of every range, the gripper's 0.04 m included
+    torch.testing.assert_close(
+        limits.fn(torch.stack((upper - 0.01, upper))), torch.stack((0 * upper, 0.005 + 0 * upper))
+    )
+    for model, frame in ((panda, FRAME), (g1, "left_rubber_hand")):
+        q = _random_q(model, 8, 5)
+        problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(model)})
+        problem.cached(terms.kinematic_state(model), name="state")
+        problem.residual("manipulability", terms.manipulability(model, frame=frame, threshold=0.05))
+        if model is panda:
+            problem.residual("limits", terms.joint_limits(panda, margin=torch.linspace(0.0, 0.3, panda.nq)))
+        residuals = problem.residuals()
+        assert all(bool((value > 0).any()) for value in residuals.values()) and len(residuals) == 1 + (model is panda)
+        errors = optim.check_jacobian(problem)
+        assert max(errors.values()) < 1e-12, errors
+
+
 def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1):
     generator = torch.Generator().manual_seed(0)
     q = br.kinematics.integrate(

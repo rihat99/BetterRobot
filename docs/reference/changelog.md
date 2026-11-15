@@ -75,6 +75,11 @@ that 0.3.0 renames or removes, one table row each.
   the package, and `read(page)` those of another page; `words`, `entry` and `spelling` check a name against them.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
 - [Release a version](../guides/release.md): the release checklist, from the public-API diff to the downstream pins.
+- `terms.manipulability(model, *, frame, threshold)`: a hinge on Yoshikawa's manipulability of a frame's position
+  Jacobian that pushes away from singular configurations below `threshold`, with an analytic Jacobian.
+- `terms.joint_limits(..., margin=)` starts its penalty `margin` inside the limits (a number or `(nq,)`);
+  `terms.self_clearance(..., closest=k)` keeps the `k` nearest sphere pairs of each configuration; both clearance
+  terms take `q=`, the variable their Jacobian is for.
 
 ### Changed
 - `Model` is one flat frozen record: the fields of `ModelStructure` and `ModelValues` live on it, it compares by
@@ -155,6 +160,10 @@ that 0.3.0 renames or removes, one table row each.
 - The hooks in `.pre-commit-config.yaml` run through `uv run --locked`: ruff check, ruff format --check and the fast
   tier before a commit, the full tier before a push. The release tier is one command,
   `bash tools/release_tier.sh --gpu <index>` ([running the tests](../guides/run-the-tests.md)).
+- `terms.sphere_clearance` and `terms.self_clearance` have analytic Jacobians (the distance gradient at each sphere
+  centre times `kinematics.point_jacobian`), 11-69x cheaper to linearize than autodiff at batch 64 to 1024, and
+  their hinge is C1: `gap² / (2 margin)` inside the margin band, `gap - margin / 2` beyond it, so a soft clearance
+  settles deeper inside the margin than with the 0.2 hinge at the same weight.
 
 ### Removed
 - `ModelStructure`, `ModelValues`, `Model.structure`, `Model.values`: use the fields of `Model`.

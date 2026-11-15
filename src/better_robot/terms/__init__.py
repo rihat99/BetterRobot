@@ -3,7 +3,8 @@
 Each factory returns a ``TermFn`` to register on a ``better_robot.optim.Problem``. ``kinematic_state`` is the cached
 forward-kinematics pass that ``frame_pose`` and ``frame_position`` read; ``joint_limits``, ``rest``,
 ``finite_difference`` and ``velocity_limit`` act on the configuration ``q``; ``sphere_clearance`` and
-``self_clearance`` keep collision spheres apart. ``RobotManifold`` steps ``q`` with ``kinematics.integrate``.
+``self_clearance`` keep collision spheres apart, and ``manipulability`` keeps a frame away from singular
+configurations. ``RobotManifold`` steps ``q`` with ``kinematics.integrate``.
 ``ik_problem`` and ``solve_ik`` are the inverse-kinematics recipe built from these terms, and ``random_start``
 samples restarts.
 """
@@ -19,6 +20,7 @@ from .robot import (
     frame_position,
     joint_limits,
     kinematic_state,
+    manipulability,
     rest,
     velocity_limit,
 )
@@ -31,6 +33,7 @@ __all__ = [
     "ik_problem",
     "joint_limits",
     "kinematic_state",
+    "manipulability",
     "random_start",
     "rest",
     "self_clearance",

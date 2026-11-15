@@ -14,7 +14,7 @@ from typing import final, override
 
 import torch
 
-from ..exceptions import ArgumentError
+from ..exceptions import ArgumentError, ShapeError
 from ..kinematics import (
     KinematicState,
     difference,
@@ -22,6 +22,7 @@ from ..kinematics import (
     forward_kinematics,
     frame_jacobian,
     integrate,
+    support,
 )
 from ..lie import se3, tangents
 from ..model import JointFreeFlyer, Model
@@ -111,17 +112,108 @@ def _identity_jacobian(model: Model, q: str, sign_fn: Callable[[torch.Tensor], t
     return lambda value: {q: torch.diag_embed(sign_fn(value))}
 
 
-def joint_limits(model: Model, *, q: str = "q") -> TermFn:
-    """Violation of the position limits, zero inside them. Residual ``(B, nq)``."""
-    lower, upper = model.lower_position_limit, model.upper_position_limit
+def _hinge(gap: torch.Tensor, width: torch.Tensor) -> torch.Tensor:
+    """C1 hinge of ``gap``: 0 for ``gap <= 0``, ``gap² / (2 width)`` up to ``width``, then ``gap - width / 2``.
+
+    ``width >= 0`` broadcasts with ``gap``; a zero width is the plain hinge ``max(gap, 0)``. The plain hinge's slope
+    steps from 0 to 1, so the Gauss-Newton model jumps when a term starts to act; this slope ramps across the band.
+    """
+    inside = torch.minimum(gap.clamp_min(0.0), width)
+    return inside * inside / (2 * width).clamp_min(torch.finfo(gap.dtype).tiny) + (gap - width).clamp_min(0.0)
+
+
+def _hinge_slope(gap: torch.Tensor, width: torch.Tensor) -> torch.Tensor:
+    """Derivative of `_hinge` with respect to ``gap``, same shape."""
+    inside = torch.minimum(gap.clamp_min(0.0), width)
+    return torch.where(gap > width, 1.0, inside / width.clamp_min(torch.finfo(gap.dtype).tiny))
+
+
+def joint_limits(model: Model, *, margin: float | torch.Tensor = 0.0, q: str = "q") -> TermFn:
+    """Push away from the position limits, starting ``margin`` inside them. Residual ``(B, nq)``, signed like ``q``.
+
+    Each coordinate costs nothing while it stays ``margin`` inside its limits; past that point the residual is the C1
+    hinge of `sphere_clearance` across the ``margin`` band, then linear beyond the limit. ``margin`` is a number or
+    ``(nq,)`` (radians or metres per coordinate); with the default 0 the residual is the violation of the limits.
+    """
+    band = torch.as_tensor(margin, dtype=model.dtype, device=model.device)
+    if band.shape not in ((), (model.nq,)):
+        raise ShapeError(f"margin must be a number or have shape ({model.nq},), got {tuple(band.shape)}")
+    width = band.clamp_min(0.0)
+    lower, upper = model.lower_position_limit + band, model.upper_position_limit - band
 
     def violation(value: torch.Tensor) -> torch.Tensor:
-        return (value - upper).clamp_min(0.0) - (lower - value).clamp_min(0.0)
+        return _hinge(value - upper, width) - _hinge(lower - value, width)
 
     def slope(value: torch.Tensor) -> torch.Tensor:
-        return ((value > upper) | (value < lower)).to(value.dtype)
+        return _hinge_slope(value - upper, width) + _hinge_slope(lower - value, width)
 
     return TermFn(fn=violation, reads=(q,), jacobian=_identity_jacobian(model, q, slope))
+
+
+def _yoshikawa(rows: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Adjugate ``(B..., 3, 3)`` of ``rows rowsᵀ`` and Yoshikawa's ``sqrt(det(rows rowsᵀ))`` ``(B...)`` of ``rows (B..., 3, n)``."""
+    gram = rows @ rows.mT
+    # Row a of the adjugate of a symmetric 3x3 matrix is the cross product of its other two rows.
+    adjugate = torch.linalg.cross(gram[..., [1, 2, 0], :], gram[..., [2, 0, 1], :])
+    return adjugate, (gram[..., 0, :] * adjugate[..., 0, :]).sum(-1).clamp_min(0.0).sqrt()
+
+
+def manipulability(model: Model, *, frame: int | str, threshold: float, state: str = "state", q: str = "q") -> TermFn:
+    """Push ``frame`` away from singular configurations once its manipulability falls below ``threshold``.
+
+    The manipulability is Yoshikawa's ``w = sqrt(det(J Jᵀ))`` of the position rows ``J (3, nv)`` of the frame's
+    Jacobian without the columns of free-flyer joints, which move the frame in every direction. Residual ``(B, 1)``:
+    the C1 hinge of ``threshold - w`` with band ``threshold`` (`joint_limits`), zero while ``w >= threshold``.
+    The Jacobian is analytic (each column of the world Jacobian moves by its Lie bracket with the columns above it),
+    or autodiff when a mimic joint drives the frame.
+    """
+    if threshold <= 0:
+        raise ArgumentError(f"threshold must be positive, got {threshold}")
+    frame_id = model.frame_id(frame)
+    width = torch.tensor(threshold, dtype=model.dtype, device=model.device)
+    owner = [0] * model.nv  # the joint of each tangent column
+    for joint in range(model.njoints):
+        for column in range(model.nvs[joint]):
+            owner[model.idx_vs[joint] + column] = joint
+    columns = torch.tensor(
+        [not isinstance(model.joints[joint], JointFreeFlyer) for joint in owner], dtype=model.dtype, device=model.device
+    )
+
+    def residual(kinematics: KinematicState) -> torch.Tensor:
+        _, size = _yoshikawa(frame_jacobian(model, kinematics, frame=frame_id)[..., :3, :] * columns)
+        return _hinge(width - size, width)[..., None]
+
+    chain = support(model, joint=model.frame_parent_joint_ids[frame_id])
+    if any(model.mimic_source_ids[joint] != joint for joint in chain):
+        return TermFn(fn=residual, reads=(state,))
+    chains = {joint: support(model, joint=joint) for joint in set(owner)}
+    # above[i, k]: column i belongs to joint k's support, so moving it carries column k (pairs within one joint too).
+    above = torch.tensor(
+        [[owner[i] in chains[owner[k]] for k in range(model.nv)] for i in range(model.nv)],
+        dtype=model.dtype,
+        device=model.device,
+    )
+
+    def jacobian(kinematics: KinematicState) -> dict[str, torch.Tensor]:
+        world = frame_jacobian(model, kinematics, frame=frame_id, reference="world")  # (B..., 6, nv)
+        linear, angular = world[..., :3, :], world[..., 3:, :]
+        origin = kinematics.frame_translations[..., frame_id, :, None].expand_as(angular)
+        rows = linear + torch.linalg.cross(angular, origin, dim=-2)  # velocity of the frame origin
+        adjugate, size = _yoshikawa(rows * columns)
+        # dw = <P, dJ> with P = w (J Jᵀ)⁻¹ J = adj(J Jᵀ) J / w, which stays finite as w -> 0.
+        weights = adjugate @ (rows * columns) / size.clamp_min(torch.finfo(size.dtype).tiny)[..., None, None]
+        # dJ_k/dq_i = above[i, k] [J_i, J_k] (world columns) plus the moving origin; triple products fold the sum over k.
+        first = torch.linalg.cross(linear, weights, dim=-2) + torch.linalg.cross(
+            angular, torch.linalg.cross(origin, weights, dim=-2), dim=-2
+        )
+        second = torch.linalg.cross(angular, weights, dim=-2)
+        third = torch.linalg.cross(weights, angular, dim=-2).sum(-1, keepdim=True)
+        gradient = (
+            (angular * (first @ above.mT)).sum(-2) + (linear * (second @ above.mT)).sum(-2) + (rows * third).sum(-2)
+        )
+        return {q: -(_hinge_slope(width - size, width)[..., None] * gradient)[..., None, :]}
+
+    return TermFn(fn=residual, reads=(state,), jacobian=jacobian)
 
 
 def rest(model: Model, q_rest: torch.Tensor, *, q: str = "q") -> TermFn:
@@ -203,6 +295,7 @@ __all__ = [
     "frame_position",
     "joint_limits",
     "kinematic_state",
+    "manipulability",
     "rest",
     "velocity_limit",
 ]

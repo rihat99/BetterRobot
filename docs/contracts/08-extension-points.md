@@ -114,7 +114,8 @@ Enforcement: `tests/contract/test_extension_points.py::test_normal_equations_com
 
 `terms.sphere_clearance(spheres, distance_fn, *, margin)` is the seam for any environment shape: a new obstacle
 type is a function `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)` (signed
-distance, positive outside, differentiable in `centers`), usually a closure over a `collision.sphere_*`
+distance, positive outside, differentiable in `centers`, entry `s` reading centre `s` only, which the term's
+analytic Jacobian relies on), usually a closure over a `collision.sphere_*`
 primitive. The term and the solvers never change for a new shape. Robot geometry beyond spheres and closest
 points follow record [0016](decisions/0016-geometry-out-of-model.md).
 
