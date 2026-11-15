@@ -43,7 +43,7 @@ SUITES = {
     "parity": "comparisons against an oracle, one folder per oracle",
     "docs": "every snippet of README.md and docs/, with its output",
     "examples": "every example, headless",
-    "benchmarks": "the smoke test of benchmarks/run.py",
+    "benchmarks": "the smoke test of benchmarks/speed.py",
     "support": "fixtures and helpers that only these tests import, never collected",
     "fixtures": "the tracked test robots with their licences (record 0039)",
 }

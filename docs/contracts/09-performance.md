@@ -47,7 +47,7 @@ Enforcement: `tests/contract/test_performance_rules.py::test_src_compiles_nothin
 `benchmarks/run.py --counters-only` measures, on CPU, the graph breaks, recompiles, top-level operators and
 host-syncing operators of every hot entry point and compares them with `benchmarks/thresholds/torch-<version>.json`;
 a counter above its threshold fails. Wall time is a measurement, not a gate: an optimisation shows
-`benchmarks/run.py` before and after in its review ([Benchmark and profile](../guides/benchmark-and-profile.md)).
+`benchmarks/speed.py` before and after in its review ([Benchmark and profile](../guides/benchmark-and-profile.md)).
 `C-PERF-4` ("Measure before optimising") is retired and its ID is not reused.
 
 Enforcement: `tests/contract/test_compile_counters.py`.
