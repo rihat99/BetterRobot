@@ -38,6 +38,7 @@ Counter rows are fixed functions; their counters gate (below). `state` is `forwa
 | `crba/{panda,g1}/B1` | `mass_matrix(model, state)` |
 | `aba/{panda,g1}/B1` | `forward_dynamics(model, state, v=v, tau=tau)` |
 | `ik/panda/B64` | `solve_ik` to 64 reachable `panda_hand` poses, 4 restarts; also `success_fraction` and `worst_position_error_m` |
+| `qp/n7m30/B1`, `qp/n35m150/B1024` | one cold `optim.solve_qp` of seeded random programs with 7 or 35 variables and 30 or 150 rows |
 
 Each counter row has four counters, the same for every run with one torch version and device:
 
@@ -92,6 +93,8 @@ rnea/g1/B1                        0            1          188            0
 crba/g1/B1                        0            1          154            0
 aba/g1/B1                         0            1          255            2
 ik/panda/B64                      5           12            -            -
+qp/n7m30/B1                       0            1          436            0
+qp/n35m150/B1024                  0            2          437            0
 ```
 
 When a change adds a counter, remove what added it. When the change needs it, or when a change lowers a counter,
