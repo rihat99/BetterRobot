@@ -53,9 +53,11 @@ def forward_dynamics(
     bias = _torques(model, kin, v_full, torch.zeros_like(v_full), _external_forces(model, kin.batch, external_forces))
     check_tensor("tau", tau, shape=(model.nv,), dtype=model.dtype, device=model.device)
     tau = expand_batch("tau", tau, kin.batch, (model.nv,))
-    # cholesky_ex leaves the check to us: no host sync, so the call can be captured in a CUDA graph.
+    # cholesky_ex and two triangular solves leave the check to us (torch.cholesky_solve reads its own back to the
+    # host): no host sync, so the call can be captured in a CUDA graph.
     factor, info = torch.linalg.cholesky_ex(_mass_matrix(model, kin))
-    ddq = torch.cholesky_solve((tau - bias).unsqueeze(-1), factor).squeeze(-1)
+    half = torch.linalg.solve_triangular(factor, (tau - bias).unsqueeze(-1), upper=False)
+    ddq = torch.linalg.solve_triangular(factor.mT, half, upper=True).squeeze(-1)
     return torch.where((info == 0).unsqueeze(-1), ddq, torch.nan)
 
 
