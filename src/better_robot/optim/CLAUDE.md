@@ -35,6 +35,10 @@ robot terms live in `better_robot.terms`. Each invariant names its enforcer; `[r
   `tests/optim/test_problem.py::test_problem_is_immutable`,
   `tests/optim/test_problem.py::test_callbacks_cannot_register_on_the_views_run_hands_them`.
 - Linear solves run in float64 with unit-diagonal scaling whatever the problem dtype. `[review]`.
+- `solve_qp` runs the same steps for every batch element and reads nothing back: no `cholesky_solve`, no
+  `cholesky_inverse` (both read their status), no branch on a value. Its rows stay in the caller's units: scaling
+  them to unit length in the metric of `H⁻¹` makes the steps slower. `tests/optim/test_qp.py`,
+  `tests/contract/test_hot_path_lint.py`.
 - Every class here is abstract or `@final`. `tests/contract/test_abstract_or_final.py`.
 - Every entry that takes `x` (`run`, hence `solve`; the `Problem` evaluation methods; `check_jacobian`) checks it
   once with `evaluation.checked_values`: one `(B, *event)` tensor per variable, so `x` never overrides data.

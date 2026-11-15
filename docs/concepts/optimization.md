@@ -192,6 +192,81 @@ print(result.loss)
 tensor([2.3851e-07, 3.0286e-06, 1.1951e-06, 5.3854e-07])
 ```
 
+## A quadratic program per step
+
+`solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None)` takes one step towards
+the minimiser of $\tfrac12 x^\top H x + g^\top x$ subject to `lower <= rows x <= upper` for a batch of independent
+problems: the step of a Gauss-Newton method under linear constraints. An equality is a row with `lower == upper`, a
+one-sided row has an infinite bound, a box on `x` is identity rows, a padding row is a zero row with infinite
+bounds, and a row whose `lower` is above its `upper` is the equality at `upper`. It is a building block: no solver
+calls it yet.
+
+```python
+import torch
+from better_robot.optim import solve_qp
+
+hessian, gradient = torch.eye(2)[None], torch.tensor([[-2.0, 0.5]])
+rows = torch.tensor([[[1.0, 1.0]]])  # x0 + x1 <= 1
+solution = solve_qp(hessian, gradient, rows=rows, lower=torch.tensor([[-torch.inf]]), upper=torch.tensor([[1.0]]))
+print(solution.x, solution.dual)
+```
+```output
+tensor([[ 1.7500, -0.7500]]) tensor([[0.2500]])
+```
+
+A call runs a fixed number of cheap steps (ADMM in the OSQP form: one factorization, then three matrix-vector
+products per step) and then solves the rows the multipliers press on as equalities. Where that point puts every row
+where its multiplier holds it and makes the gradient vanish, both to a relative `1e-6`, and no row it holds asks
+for a multiplier of the wrong sign or beyond the cap (below), it is the solution: it is returned and
+`solution.exact` is set, as above. A point that would need such a multiplier cut is refused, because along a
+direction of weak curvature the small gradient the cut leaves is far from the minimiser. Elsewhere the last step is
+returned, and `solution.primal_residual` (largest distance of a row from where its multiplier holds it: its
+violation, or how far a row that is pressed on sits off its bound) and `solution.dual_residual` (largest entry of
+`H x + g + rowsᵀ dual`) say how far it is, in the caller's units.
+
+Small residuals bound the gap in the objective, not the distance to the minimiser. On problems shaped like damped
+inverse kinematics (damping `1e-4`), steps up to `1.6e-2` from the minimiser reported a primal residual of 0 and a
+dual residual under `1e-4`, with an objective at most `1.4e-6` above the minimum. `exact` is the sign that a step
+is the minimiser.
+
+One call is a step, not a solve. Pass the last `QPSolution` as `warm=` to the next call (the next step of a solver,
+the next tick of a control loop): it carries `x`, `dual` and the row weight (`penalty`) the last call tuned, and the
+calls add up while the problem changes little. Accuracy comes from these warm calls, not from `iterations`: the
+penalty that sets the pace of the steps is tuned between calls. On random feasible problems with half of the rows
+active and $\mathrm{cond}(H) = 10^4$, a problem counts as solved when both residuals are under `1e-8`:
+
+| Calls | 7 variables, 30 rows: solved of 256 | median violation | 35 variables, 150 rows: solved of 128 | median violation |
+|---|---|---|---|---|
+| one cold call of 20 iterations | 0 | 0.33 | 0 | 0.50 |
+| one cold call of 500 iterations | 0 | 0.062 | 0 | 0.13 |
+| 5 warm calls of 20 iterations | 47 | 0.0064 | 0 | 0.029 |
+| 12 warm calls of 20 iterations | 181 | 7e-16 | 0 | 0.0055 |
+| 40 warm calls of 20 iterations | 247 | 4e-16 | 44 | 2.5e-4 |
+
+A warm call started at the minimiser stays there: each row starts from its value at the given `x`. The rows bound
+the step only in the limit: at $\mathrm{cond}(H) = 10^8$ one cold call of 20 iterations returned steps up to 35
+against a box of 0.3, and five warm calls 0.30; `primal_residual` reports such a step.
+
+The rows are elastic. Each problem has a cap, `weight` times the larger of $\lVert g\rVert_\infty$ and the largest
+diagonal entry of $H$. A row gives way once holding it would take a multiplier beyond the cap, so the problem solved
+is $\tfrac12 x^\top H x + g^\top x + \text{cap} \cdot \sum_i \text{violation}_i$ and no multiplier passes the cap.
+Rows that can all hold with smaller multipliers are held exactly. Rows that cannot all hold give the L1-elastic
+minimiser for that cap: a row gives way where holding it would cost the objective more than the cap per unit of its
+violation, in the units the row is given in, and `primal_residual` stays positive (only `exact` says that a step is
+this minimiser). As `weight` grows, that point tends to the least sum of violations and, among those, the least
+objective. It may break one row by much where a least-squares compromise would break many by little, and the row
+that gives way may be a box row: scale the rows of a box up when the box must win. Scaling a row and its bounds by
+$t$ counts its violation $t$ times and lets the row push $t$ times harder.
+
+The cap scales with the objective, so `weight` is a pure number; comparing a multiplier with a gradient assumes rows
+whose coefficients are of order one and variables in natural units. With the default `100.0`, no row of a feasible
+problem had to give way on problems shaped like inverse kinematics with the objective scaled by 1 to 3000 (the
+multipliers needed stayed at least 28 times under the cap), and rows that had been in conflict let go within 7
+warm calls at 7 variables and 23 at 35 variables with 150 rows. A zero row whose bounds exclude 0 never holds: its
+multiplier stays at the cap and the other rows are solved as without it.
+The solve runs in float64, the same steps for every batch element, with no host read, and returns no gradient
+([record 0054](../contracts/decisions/0054-quadratic-programs-by-admm-and-one-active-set-step.md)).
+
 ## Reserved vocabulary
 
 Every variable has exactly one batch axis `(B, *event)` ([C-TENS-5](../contracts/02-tensors.md)). A

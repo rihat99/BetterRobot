@@ -141,6 +141,24 @@
    "host_syncs": null,
    "graph_breaks": 5,
    "recompiles": 12
+  },
+  {
+   "row": "qp/n7m30/B1",
+   "batch": 1,
+   "loadavg": "62.19 62.60 68.00 19/19255 3964413",
+   "ops": 561,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 1
+  },
+  {
+   "row": "qp/n35m150/B1024",
+   "batch": 1024,
+   "loadavg": "62.19 62.60 68.00 19/19258 3966383",
+   "ops": 561,
+   "host_syncs": 0,
+   "graph_breaks": 0,
+   "recompiles": 2
   }
  ]
 }

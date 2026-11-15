@@ -10,7 +10,8 @@ There is no `C-PERF-1`: the first performance rule lives in `02` as `C-TENS-4`, 
 The performance reason for `C-TENS-4` (`02`): `.item()`, `.cpu()`, `bool(tensor)` and data-dependent Python
 control flow stall the GPU queue. Hot paths are the per-call code under `lie`, `spatial`, `kinematics`, `dynamics`
 and `terms`, the solver step in `src/better_robot/optim/solvers.py`, and the linearization and linear algebra the
-step runs every iteration, `src/better_robot/optim/linearization.py` and `src/better_robot/optim/linear.py`; this is
+step runs every iteration, `src/better_robot/optim/linearization.py` and `src/better_robot/optim/linear.py`, and
+the quadratic program of a constrained step, `src/better_robot/optim/qp.py`; this is
 the list `tools/hot_path_lint.py` watches, and `tests/contract/test_hot_path_lint.py` keeps the two equal.
 Once-per-model setup (plan building) is not a hot path and is exempted with `# bench-ok`. So is the `LBFGS` line
 search, which reads one flag per trial: a trial is a full loss evaluation,

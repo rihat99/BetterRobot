@@ -12,7 +12,8 @@ Wall time across functions, robots, compile modes and batch sizes, with Pinocchi
 Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Panda and G1 (``tests/fixtures/robots``):
 ``fk_joints/{panda,g1}/B{1,1024}`` (``forward_kinematics(model, q).joint_transforms``), ``ik/panda/B64``
 (``solve_ik`` to 64 ``panda_hand`` poses, 4 restarts, fixed generators; it also records ``success_fraction`` and
-``worst_position_error_m``) and ``{jacobian,rnea,crba,aba}/{panda,g1}/B1``. Each has four counters, deterministic for
+``worst_position_error_m``), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
+(one cold ``optim.solve_qp`` of seeded random programs with that many variables and rows). Each has four counters, deterministic for
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
 ``torch.compile(fn, backend="eager")``, first called at the row's batch, is called at each batch of ``SWEEP``),
 ``ops`` (top-level ``aten::`` operators of one call) and ``host_syncs`` (calls of the operators that make the host
@@ -141,7 +142,26 @@ def counter_cases(device: torch.device) -> list[Case]:
         for algo in ("jacobian", "rnea", "crba", "aba"):
             cases.append(counter_case(f"{algo}/{name}/B1", partial(ALGORITHMS[algo], model), (pool, v, u), 1))
     cases.append(ik_case(device))
+    for size, count, batch in ((7, 30, 1), (35, 150, LARGE_BATCH)):
+        generator = torch.Generator().manual_seed(0)
+        root = torch.randn(LARGE_BATCH, size, size, generator=generator)
+        programs = (
+            root.mT @ root + torch.eye(size),
+            torch.randn(LARGE_BATCH, size, generator=generator),
+            torch.randn(LARGE_BATCH, count, size, generator=generator),
+        )
+        programs = tuple(pool.to(device) for pool in programs)
+        cases.append(counter_case(f"qp/n{size}m{count}/B{batch}", solve_qp_in_unit_bounds, programs, batch))
     return cases
+
+
+def solve_qp_in_unit_bounds(
+    hessian: torch.Tensor, gradient: torch.Tensor, rows: torch.Tensor
+) -> tuple[torch.Tensor, ...]:
+    """One cold ``solve_qp`` with every row between -1 and 1: ``x: (B, N)`` and ``dual: (B, M)``."""
+    bound = torch.ones_like(rows[..., 0])
+    solution = br.optim.solve_qp(hessian, gradient, rows=rows, lower=-bound, upper=bound)
+    return solution.x, solution.dual
 
 
 def counter_case(row: str, fn: Callable[..., Any], pools: tuple[torch.Tensor, ...], batch: int) -> Case:

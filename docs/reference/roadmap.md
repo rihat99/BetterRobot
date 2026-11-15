@@ -116,7 +116,7 @@ The [API reference](api/better_robot.md) is the exact signature source.
 | `BlockSparseSink` with block Cholesky / PCG in pure torch | multi-body fitting, long problems | sink seam (now) | next |
 | One flattened batch axis inside solvers | simpler solver code, compile | batch-axis rule documented (now) | later |
 | Schur complement beyond the arrow border; matrix-free normal route | trajectories too long for banded Cholesky | block-sparse sink | later |
-| QP subproblem and SQP | constrained IK and trajectories | constraint term kinds | later |
+| QP subproblem and SQP | constrained IK and trajectories | constraint term kinds; the batched QP solver `optim.solve_qp` exists | later |
 | Shooting and DDP/iLQR | trajectory optimization | warm start (now), dynamics derivatives | later |
 | Fixed-shape, `torch.compile`-friendly step | real-time solves in a caller's control loop | compile-clean kinematics (now) | maybe |
 | Forward-mode Jacobians when the tangent is narrower than the residual | point-heavy terms | a benchmark that beats reverse mode, which stays the default | maybe |

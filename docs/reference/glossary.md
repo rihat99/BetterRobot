@@ -179,6 +179,10 @@ derivative method.
 | **normal equations, normal** | `H delta = -g`, the linear system of one Gauss-Newton step, with `H` and `g` from the Jacobian and the weighted residuals (`optim.Normal`). In geometry, a normal is a unit vector perpendicular to a surface (`sphere_halfspace(normal=)`). |
 | **banded normal, arrow normal** | The block-tridiagonal normal equations of a trajectory problem (`BandedNormal`), and the same bordered by variables shared over time (`ArrowNormal`). Both solve in time linear in the number of knots. |
 | **least squares** | Choose variables that make the sum of squared residual entries small. This balances many errors at once. |
+| **quadratic program, QP** | Minimise `½ xᵀH x + gᵀx` subject to linear rows `lower <= rows x <= upper`: the constrained form of one Gauss-Newton step (`optim.solve_qp`). |
+| **Hessian** | The matrix `H` of a quadratic objective: for one Gauss-Newton step, the `H` of the normal equations with its damping. |
+| **row** | One linear constraint of a quadratic program, `lower <= a · x <= upper`; an equality when both bounds are equal, one-sided when one is infinite. An elastic row (`solve_qp`) gives way once holding it would take a multiplier beyond the cap that `weight` sets. |
+| **primal, dual** | Of a constrained problem: its variables `x`, and the multipliers of its rows. The primal residual is the largest distance of a row from where its multiplier holds it (its violation where the multiplier is zero), the dual residual the largest entry of `H x + g + rowsᵀ dual`. |
 | **robust kernel, kernel** | A function `rho` of a squared residual norm that reduces the influence of large residuals, often to limit outliers. |
 | **Huber, Cauchy, Tukey, Geman-McClure** | The robust kernels of `optim`. Huber is quadratic inside `delta` and linear outside; Cauchy (Lorentzian) grows logarithmically; Geman-McClure is bounded; Tukey's biweight is flat beyond its cutoff `c`, so larger residuals get no weight. |
 | **gradient** | The local direction in which a scalar objective increases fastest. |
@@ -300,7 +304,7 @@ actual, add, aim, angle, apply, argument, arrow, aspect, at, atomic, attached, a
 border, box, brand, build, by, cached, callback, camera, cell, center, check, clear, client, color, column, component,
 consistently, constrained, contact, control, corner, create, cylinder, dark, decrease, default, delta, dense, density,
 dependency, diagnostics, diagonal, dispose, done, element, elevation, ellipsoid, end, entry, equality, error, estimate,
-evaluate, every, exception, expected, extend, extent, extra, face, factory, field, fill, finalize, flat, floor,
+evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize, flat, floor,
 folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, group, growth, half, head, height,
 history, host, human, identity, ignore, image, imported, inequality, install, inverse, iteration, keep, key, label,
 layout, length, light, limit, line, linearize, listed, load, loop, lower, masked, mass, match, matrix, mesh, mismatch,
@@ -309,6 +313,6 @@ outer, output, over, package, page, pair, panel, parse, path, pause, penalty, pe
 playing, plot, point, pointer, port, position, predicted, project, public, radii, radius, ramp, random, read, reason,
 rebuild, record, remove, replace, resize, restart, restrict, result, rigid, robot, run, save, scalar, scale, scene,
 scheduler, section, segment, serializer, series, server, set, shading, shaft, show, size, skeleton, skip, sleep,
-slice, solve, solver, source, spelling, sphere, squared, start, stop, target, testing, theme, thickness, time, timeout,
+slice, solution, solve, solver, source, spelling, sphere, squared, start, stop, target, testing, theme, thickness, time, timeout,
 to, toggle, tolerance, torque, unknown, up, upper, valid, validate, value, vector, vertices, visible, voxel, weight,
 width, with, word
