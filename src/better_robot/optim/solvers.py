@@ -403,7 +403,10 @@ class SequentialQP(Solver):
         ratio = decrease / predicted.clamp_min(1e-30)
         # Nielsen's factor whole: a taken step whose ratio is under a half raises the damping.
         factor = (1.0 - (2.0 * ratio - 1.0) ** 3).clamp(min=1.0 / 3.0, max=2.0)
+        # A done problem keeps its damping and growth, so a warm start from it does not begin at the maximum.
         new_damping = torch.where(accept, damping * factor, damping * growth).clamp(1e-12, 1e12)
+        new_damping = torch.where(state.done, damping, new_damping)
+        new_growth = torch.where(accept, torch.full_like(growth, 2.0), torch.where(state.done, growth, growth * 2.0))
         gradient_tolerance, _, step_tolerance = _tolerances(
             state.loss.dtype, self.gradient_tolerance, None, self.step_tolerance
         )
@@ -422,7 +425,7 @@ class SequentialQP(Solver):
             iteration=state.iteration + 1,
             extra={
                 "damping": new_damping,
-                "growth": torch.where(accept, torch.full_like(growth, 2.0), growth * 2.0),
+                "growth": new_growth,
                 "grad_norm": grad_norm,
                 "step_norm": torch.where(accept, step_norm, torch.zeros_like(step_norm)),
                 "accepted": accept,

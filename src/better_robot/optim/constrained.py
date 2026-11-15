@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 import torch
 
 from ..exceptions import ArgumentError, UnknownNameError
-from .evaluation import zero_loss
+from .evaluation import CONSTRAINTS, zero_loss
 from .phases import Result, solve
 from .problem import Problem, Term
 from .solvers import Solver
@@ -45,6 +45,11 @@ def _augmented(problem: Problem, terms: Mapping[str, Term], shifts: Mapping[str,
         out.cached(cached, name=name)
     for name in problem.terms:
         term = terms.get(name, problem.terms[name])
+        if term.kind in CONSTRAINTS:
+            raise ArgumentError(
+                f"solve_constrained holds residual terms named in its arguments, and {name!r} is registered as "
+                f"{term.kind}; solve the problem with SequentialQP, or register the term as a residual"
+            )
         if term.kind == "scalar":
             out.scalar(name, term.fn, weight=term.weight, reads=term.reads)
         else:
