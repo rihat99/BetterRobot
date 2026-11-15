@@ -74,7 +74,8 @@ def kinematic_state(model: Model, *, q: str = "q") -> TermFn:
 
 def frame_pose(model: Model, *, frame: int | str, target: str, state: str = "state", q: str = "q") -> TermFn:
     """Pose error of ``frame`` against data ``target: (B, 7)``. Residual ``(B, 6)``, ``[linear, angular]``: the
-    ``se3.log`` of ``target⁻¹ ∘ pose``."""
+    ``se3.log`` of ``target⁻¹ ∘ pose``. At a rotation error of exactly pi the log's axis sign is a cut: either sign
+    is a valid error, and which one comes out depends on rounding."""
     frame_id = model.frame_id(frame)
 
     # The solver calls these on every iteration with inputs ik_problem (or the caller) checked once: raw kernels (principle 2.8).
