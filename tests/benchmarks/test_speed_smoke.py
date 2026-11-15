@@ -17,8 +17,8 @@ SPEED = REPO_ROOT / "benchmarks" / "speed.py"
 
 def test_speed_run_records_rows_and_context_and_table_compares_them(tmp_path: Path) -> None:
     out = tmp_path / "run.json"
-    command = [sys.executable, str(SPEED), "run", "--functions", "forward_kinematics,solve_ik", "--robots", "panda"]
-    command += ["--batches", "64", "--modes", "eager", "--repeats", "3", "--out", str(out)]
+    command = [sys.executable, str(SPEED), "run", "--functions", "forward_kinematics,solve_ik", "--robots", "panda7"]
+    command += ["--batches", "64", "--modes", "eager", "--grad", "--repeats", "3", "--out", str(out)]
     env = {**os.environ, "BETTER_ROBOT_INTERNAL_CHECKS": "0"}
     for name in ("MALLOC_MMAP_THRESHOLD_", "MALLOC_TRIM_THRESHOLD_"):  # the run sets them itself
         env.pop(name, None)
@@ -27,15 +27,19 @@ def test_speed_run_records_rows_and_context_and_table_compares_them(tmp_path: Pa
     )
     assert completed.returncode == 0, completed.stdout[-2000:] + completed.stderr[-2000:]
     result = json.loads(out.read_text())
-    meta, (fk, ik) = result["meta"], result["rows"]
-    assert {"commit", "src_tree", "torch", "host", "device_name", "threads", "affinity", "loadavg_end"} <= meta.keys()
+    meta, (fk, fk_grad, ik) = result["meta"], result["rows"]
+    context = {"commit", "src_root", "src_tree", "torch", "host", "device_name", "affinity", "siblings_busy_end"}
+    assert context <= meta.keys()
     assert all(meta["malloc_env"].values()), "the run re-executes itself with the allocator thresholds fixed"
     schema = {"library", "function", "robot", "device", "dtype", "batch", "mode", "seconds_per_call"}
-    assert schema | {"seconds_spread", "samples", "page_faults"} <= fk.keys()
-    assert (fk["function"], ik["function"], fk["batch"]) == ("forward_kinematics", "solve_ik", 64)
-    assert 0.0 <= ik["success_rate"] <= 1.0 and ik["iterations"] > 0
+    assert schema | {"seconds_spread", "samples", "page_faults", "grad", "nv"} <= fk.keys()
+    assert (fk["function"], fk_grad["function"], ik["function"]) == ("forward_kinematics",) * 2 + ("solve_ik",)
+    assert (fk["grad"], fk_grad["grad"], fk["nv"], fk["samples"] >= 3) == (False, True, 7, True)
+    assert ik["iterations"] > 0 and ik["success_targets"] == 1024, "a batch below the pool reports the pool's success"
 
     table = [sys.executable, str(SPEED), "table", str(out), "--before", str(out)]
     completed = subprocess.run(table, cwd=REPO_ROOT, capture_output=True, text=True, timeout=60, check=True)
-    lines = completed.stdout.splitlines()
-    assert len(lines) == 4 and all(" | 1x | " in line for line in lines[2:]), completed.stdout
+    rows = [
+        line for line in completed.stdout.splitlines() if line.startswith("| forward") or line.startswith("| solve")
+    ]
+    assert len(rows) == 3 and all(" | 1x~ | " in line for line in rows), completed.stdout
