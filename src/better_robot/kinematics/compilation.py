@@ -33,8 +33,9 @@ import dataclasses
 import enum
 import functools
 import threading
+import weakref
 from collections.abc import Callable, Hashable
-from typing import Any, Literal, ParamSpec, TypeVar
+from typing import Any, Literal, ParamSpec, TypeVar, final
 
 import torch
 from torch.utils import _pytree
@@ -47,12 +48,19 @@ _R = TypeVar("_R")
 _MODES = ("default", "reduce-overhead")
 # Values a key holds as they are; an object of another type adds only its type (`_signature`).
 _VALUES = (str, int, float, complex, bool, type(None), torch.dtype, torch.device, enum.Enum)
-_TRACING = threading.local()  # ``active`` while `compiled` runs a graph in this thread
+
+
+@final
+class _Tracing(threading.local):
+    active = False  # true while `compiled` runs a graph in this thread
+
+
+_TRACING = _Tracing()
 
 
 @torch.compiler.assume_constant_result  # read once while tracing, then a constant of the graph, without a guard
 def _entry_point_active() -> bool:
-    return getattr(_TRACING, "active", False)
+    return _TRACING.active
 
 
 def fused_forms() -> bool:
@@ -77,13 +85,14 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
     ``fn`` is a function of tensors that calls the library, such as
     ``lambda q: forward_kinematics(model, q).joint_transforms``; a graph break in it raises. Calls are grouped by
     key: the grad mode and inference mode, and for each argument, also inside tuples, lists, dicts and dataclasses,
-    a tensor's dtype, device, ``requires_grad`` and number of axes; a model's line (the model it was copied from) and
-    whether it has plans and memoised values yet; a string, number, dtype, device or enum itself (a number in a
-    dataclass, such as a solver state's iteration, only its type); of another object only its type, so a new problem
-    or function of the same kind shares the key and torch's guards tell them apart. The
-    first call of a key runs ``fn`` eagerly and returns its result, which builds the plans and memoised values; the
-    second compiles (seconds); later calls run the graph. A side effect of ``fn`` runs once per call. The returned
-    function keeps its own graphs: build it once, not once per call or per model.
+    a tensor's dtype, device, ``requires_grad`` and number of axes; a model's name and its tensors'; a string,
+    number, dtype, device or enum itself (a number in a dataclass, such as a solver state's iteration, only its
+    type); of another object only its type, so a new problem or function of the same kind shares the key and torch's
+    guards tell them apart. The first call of a key runs ``fn`` eagerly and returns its result, which builds the
+    plans and memoised values; the second compiles (seconds); later calls run the graph. A model argument new to a
+    key runs eagerly once too, so a graph never builds plans: a model made anew for every call runs eagerly every
+    time. A side effect of ``fn`` runs once per call. The returned function keeps its own graphs: build it once, not
+    once per call.
 
     Each key compiles at most 8 graphs, torch's limit, and a ninth raises. Batch sizes take three (the first size,
     one graph for every later size, and batch 1). A value ``fn`` reads from outside its arguments (a closure or
@@ -100,6 +109,7 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
     if mode not in _MODES:
         raise ArgumentError(f"mode must be one of {_MODES}, got {mode!r}")
     graphs: dict[Hashable, Callable[_P, _R]] = {}  # each key's own torch.compile, made by its eager first call
+    warmed: dict[Hashable, weakref.WeakSet[Model]] = {}  # the model arguments each key's eager calls warmed
     ready: dict[Hashable, Callable[_P, _R]] = {}  # (key, shapes) that ran its graph once: no compile ahead
     lock = threading.Lock()
 
@@ -117,23 +127,27 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
     @functools.wraps(fn)
     def call(*args: _P.args, **kwargs: _P.kwargs) -> _R:
         shapes: list[torch.Size] = []
-        key = (torch.is_grad_enabled(), torch.is_inference_mode_enabled(), _signature(args, shapes))
+        models: list[Model] = []
+        key = (torch.is_grad_enabled(), torch.is_inference_mode_enabled(), _signature(args, shapes, models))
         if kwargs:
-            key += (_signature(kwargs, shapes),)
+            key += (_signature(kwargs, shapes, models),)
         seen = (key, *shapes)
         graph = ready.get(seen)
-        if graph is not None:
+        if graph is not None and (not models or warmed[key].issuperset(models)):
             return run(graph, args, kwargs)
         with lock:
-            if key not in graphs:
+            if key not in graphs or not warmed[key].issuperset(models):
                 if torch.is_inference_mode_enabled():  # memoise under the no-grad key, the one a compiled call reads
                     with torch.inference_mode(False), torch.no_grad():
                         result = fn(*args, **kwargs)
                 else:
                     result = fn(*args, **kwargs)
-                graphs[key] = torch.compile(
-                    fn, fullgraph=True, mode=None if mode == "default" else mode, isolate_recompiles=True
-                )
+                if key not in graphs:
+                    graphs[key] = torch.compile(
+                        fn, fullgraph=True, mode=None if mode == "default" else mode, isolate_recompiles=True
+                    )
+                    warmed[key] = weakref.WeakSet()
+                warmed[key].update(models)
                 return result
             result = run(graphs[key], args, kwargs)
             ready[seen] = graphs[key]
@@ -142,8 +156,9 @@ def compiled(fn: Callable[_P, _R], *, mode: Literal["default", "reduce-overhead"
     return call
 
 
-def _signature(value: Any, shapes: list[torch.Size], *, in_dataclass: bool = False) -> Hashable:
-    """What of ``value`` selects the graphs of `compiled`'s key; appends the shape of every tensor to ``shapes``.
+def _signature(value: Any, shapes: list[torch.Size], models: list[Model], *, in_dataclass: bool = False) -> Hashable:
+    """What of ``value`` selects the graphs of `compiled`'s key; appends the shape of every tensor to ``shapes`` and
+    every model to ``models``.
 
     A number in a dataclass field, such as a solver state's iteration, adds only its type: torch makes a number that
     changes dynamic after one recompile, while a key per value would compile at every step.
@@ -152,20 +167,24 @@ def _signature(value: Any, shapes: list[torch.Size], *, in_dataclass: bool = Fal
         shapes.append(value.shape)
         return (value.dtype, value.device, value.requires_grad, value.ndim)
     if isinstance(value, (tuple, list)):
-        return (type(value), *[_signature(item, shapes, in_dataclass=in_dataclass) for item in value])
+        return (type(value), *[_signature(item, shapes, models, in_dataclass=in_dataclass) for item in value])
     if isinstance(value, dict):
         return (
             type(value),
-            *[(name, _signature(item, shapes, in_dataclass=in_dataclass)) for name, item in value.items()],
+            *[(name, _signature(item, shapes, models, in_dataclass=in_dataclass)) for name, item in value.items()],
         )
     if isinstance(value, Model):
-        tensors = tuple([_signature(tensor, shapes) for tensor in _pytree.tree_leaves(value)])
-        return (id(value._plan_owner or value), bool(value._plans), bool(value._memo), tensors)  # cold or warm
+        models.append(value)
+        return (Model, value.name, *[_signature(tensor, shapes, models) for tensor in _pytree.tree_leaves(value)])
     if _is_instance(value):
         fields = dataclasses.fields(value)
         return (
             type(value),
-            *[_signature(getattr(value, field.name), shapes, in_dataclass=True) for field in fields if field.init],
+            *[
+                _signature(getattr(value, field.name), shapes, models, in_dataclass=True)
+                for field in fields
+                if field.init
+            ],
         )
     number = isinstance(value, (int, float, complex)) and not isinstance(value, bool)
     return (type(value), value) if isinstance(value, _VALUES) and not (in_dataclass and number) else type(value)
