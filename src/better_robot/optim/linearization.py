@@ -198,7 +198,7 @@ def _rows(problem: Problem, terms: list[Term], evaluation: Evaluation, delta: to
             block = block * (scale.unsqueeze(-1) if isinstance(scale, torch.Tensor) else scale)
         values.append(flat), blocks.append(block), lowers.append(lower), uppers.append(upper)
     traced = [value for value, block in zip(values, blocks) if block is None]
-    if traced:
+    if traced and delta is not None:
         stacked = torch.cat(traced, dim=1)
         seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
         seeds = seeds.unsqueeze(1).expand(-1, batch, -1)

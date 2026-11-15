@@ -101,7 +101,7 @@ def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, tor
     }
 
 
-def _selected_normal[Fields: (Normal, BandedNormal, ArrowNormal, Rows)](
+def _selected_normal[Fields: Normal | BandedNormal | ArrowNormal | Rows](
     mask: torch.Tensor, new: Fields, old: Fields
 ) -> Fields:
     """Normal equations, or constraint rows: ``new`` where ``mask: (B,)`` is true, else ``old``; the band of an arrow
@@ -432,7 +432,7 @@ class SequentialQP(Solver):
                 "violation": torch.where(report, violation_new, reported),
                 "terms": _selected_terms(report, terms_new, state.extra["terms"]),
                 "normal": _selected_normal(accept, normal_new, normal),
-                "rows": None if rows is None else _selected_normal(accept, rows_new, rows),
+                "rows": None if rows is None or rows_new is None else _selected_normal(accept, rows_new, rows),
                 "qp": solution,
                 "iterate": (_select(accept, candidate, point), torch.where(accept, loss_new, point_loss)),
             },
