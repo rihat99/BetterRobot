@@ -62,21 +62,24 @@ def from_matrix_raw(R: torch.Tensor) -> torch.Tensor:
     """`from_matrix` without input checks, for checked inputs: ``(..., 3, 3) → (..., 4)``.
 
     Shepperd 1978: every row of ``4 q qᵀ`` is linear in ``R``, and row ``k`` is ``4 q_k q``. The row of ``qw`` when
-    ``trace > 0``, else of the component of the largest diagonal entry, divided by its norm (at least 1) is ``q``
-    with that component positive, free of cancellation as ``qw → 0``; one gather, differentiable.
+    ``trace > 0``, else of the component of the largest diagonal entry (the last of equal ones), divided by its norm
+    (at least 1) is ``q`` with that component positive, free of cancellation as ``qw → 0``; one gather,
+    differentiable.
     """
     diagonal = R.diagonal(dim1=-2, dim2=-1)  # (..., 3)
     trace = diagonal.sum(-1, keepdim=True)
     eye = torch.eye(3, dtype=R.dtype, device=R.device)
     # 4 q_xyz q_xyzᵀ = R + Rᵀ + (1 - trace) I; 4 qw q_xyz = vee(R - Rᵀ); 4 qw² = 1 + trace.
-    block = R + R.mT + (1.0 - trace).unsqueeze(-1) * eye
-    skew = R - R.mT
-    axial = torch.stack([skew[..., 2, 1], skew[..., 0, 2], skew[..., 1, 0]], dim=-1)
+    transpose = R.mT
+    block = R + transpose + (1.0 - trace).unsqueeze(-1) * eye
+    skew = (R - transpose).flatten(-2)  # (..., 9); entries (2, 1), (0, 2), (1, 0) are 7, 2, 3
+    axial = torch.stack([skew[..., 7], skew[..., 2], skew[..., 3]], dim=-1)
     rows = torch.cat(
         [torch.cat([block, axial.unsqueeze(-1)], dim=-1), torch.cat([axial, 1.0 + trace], dim=-1).unsqueeze(-2)],
         dim=-2,
     )  # (..., 4, 4) = 4 q qᵀ
-    index = torch.where(trace > 0, 3, diagonal.argmax(-1, keepdim=True))  # (..., 1)
+    # argmax returns the first of equal entries; flipped, the last, which the sign rule above asks for.
+    index = torch.where(trace > 0, 3, 2 - diagonal.flip(-1).argmax(-1, keepdim=True))  # (..., 1)
     row = rows.gather(-2, index.unsqueeze(-1).expand(*index.shape, 4)).squeeze(-2)
     return row / row.norm(dim=-1, keepdim=True)
 
