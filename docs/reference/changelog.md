@@ -89,8 +89,7 @@ that 0.3.0 renames or removes, one table row each.
   calls the library, one graph from the first call; under `"reduce-overhead"` (CUDA graphs) each result is the
   caller's own (record [0053](../contracts/decisions/0053-compiled-entry-point.md)). A compiled call reads the
   model's memoised values instead of deriving them again, and small batched products compile to fused kernels:
-  compiled FK and inverse dynamics at batch 4096 on one CPU core run several times faster than eager (numbers in
-  the record).
+  at batch 4096 on one CPU core the compiled FK runs 5 times faster than eager and inverse dynamics 3 to 4 times.
 
 ### Changed
 - `Model` is one flat frozen record: the fields of `ModelStructure` and `ModelValues` live on it, it compares by

@@ -52,11 +52,17 @@ step = compiled(lambda q, v, tau: forward_dynamics(model, forward_kinematics(mod
 ```
 
 ## Consequences
-On one CPU core at batch 4096 the compiled Panda FK runs in 0.93 ms (eager 4.8, 0.3.0 eager 6.6) and the G1's in
-4.9 ms (18.9, 24.6); inverse dynamics in 7.0 and 29.0 ms (eager 27 and 93, 0.3.0 eager 28.6 and 101). Eager results
-and speed are unchanged. A compiled call agrees with eager to rounding. The first call costs one eager call plus
-the compile (seconds per graph). A result under `"reduce-overhead"` costs one copy per output tensor. A call under a
-grad mode not seen before runs eagerly once more and compiles a graph for that mode.
+On one CPU core (float32, torch 2.13) at batch 4096 the compiled Panda FK runs in 0.92 ms against 4.8 eager, 6.5
+eager before this work (commit 3654884) and 5.0 for `torch.compile` of the same call without the changes above; the
+G1's in 4.9 ms (18.7, 25.6, 17.7). Inverse dynamics: Panda 6.7 ms (26.5, 28.7, 13.2), G1 28.8 ms (93.5, 100.8, 47.7).
+At batch 1 every one of the six functions runs 2.9 to 5 times faster than eager (Panda FK 0.041 ms against 0.12).
+The mass matrix and forward dynamics gain least at batch 4096 (1.1 to 1.8 times): their composite inertias are
+memory-bound. On CUDA (RTX PRO 6000) under `"reduce-overhead"` a call costs 0.12 to 0.28 ms from batch 1 to 1024,
+3 to 11 times less than eager; the clone costs about 0.03 ms of that at batch 1. A compiled result differs from
+eager by at most 1e-6 of its largest entry (1.2e-4 for float32 forward dynamics, whose mass matrix is ill
+conditioned). Eager code is unchanged but for `small_matmul`'s branch (0.17 us per product; eager calls measured
+0.97 to 1.02 of before). The first call costs one eager call plus the compile: 2 to 16 s per graph on one core. A
+call under a grad mode not seen before runs eagerly once more and compiles a graph for that mode.
 
 ## Alternatives
 - A `compile=` keyword on each public function: every function grows a keyword and its own cache of graphs, and a
@@ -69,6 +75,10 @@ grad mode not seen before runs eagerly once more and compiles a graph for that m
   copy, but a result kept across calls is silently replaced. Rejected.
 - `dynamic=True` from the first call: one graph for every size, 6 to 21 % slower kernels. Rejected for torch's
   default policy.
+- Inductor's `cpp_wrapper` option, which replaces the Python wrapper of a compiled graph by C++: on CUDA it made
+  the default mode about a fifth faster at batches 1 and 1024 (Panda FK 0.115 to 0.092 ms, RNEA 0.28 to 0.23) and on
+  CPU at batch 1, but cost up to 9 s more compile, did not combine with CUDA graphs in our measurement (the same time
+  with `triton.cudagraphs` on), and was not checked with autograd. Not taken; `mode` stays the one choice.
 - A home other than `kinematics`: see the open question.
 
 ## Compatibility
