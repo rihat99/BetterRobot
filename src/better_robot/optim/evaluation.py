@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .problem import Problem, Term
 
 Values = Mapping[str, torch.Tensor]
+CONSTRAINTS = ("equality", "inequality")  #: the term kinds that are rows of a step, not part of the loss
 
 
 def checked_values(problem: Problem, x: Values | None) -> Values:
@@ -108,7 +109,7 @@ def term_output(term: Term, evaluation: Evaluation, info: dict[str, dict[str, An
 def weighted(
     problem: Problem, term: Term, evaluation: Evaluation, info: dict[str, dict[str, Any]] | None = None
 ) -> torch.Tensor:
-    """Scalar term times its weight, or residual times the square root of its weight."""
+    """Residual times the square root of its weight; a scalar or a constraint term times its weight."""
     value = term_output(term, evaluation, info)
     weight = weight_of(problem, term)
     if isinstance(weight, torch.Tensor) and weight.ndim not in (0, value.ndim - 1, value.ndim):
@@ -116,7 +117,7 @@ def weighted(
             f"weight of {term.name!r} has shape {tuple(weight.shape)} but the term returns "
             f"{tuple(value.shape)}; give the weight that shape, with or without the batch axis"
         )
-    if term.kind == "scalar":
+    if term.kind != "residual":
         return value * weight
     return value * (weight.sqrt() if isinstance(weight, torch.Tensor) else weight**0.5)
 
@@ -138,11 +139,13 @@ def irls(term: Term, weighted_value: torch.Tensor) -> torch.Tensor | float:
 def evaluate(
     problem: Problem, x: Values | None = None
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor], dict[str, dict[str, Any]]]:
-    """Total loss ``(B,)``, the loss ``{name: (B,)}`` of every active term and the terms' ``info``."""
+    """Total loss ``(B,)``, the loss ``{name: (B,)}`` of every active cost term and the terms' ``info``."""
     evaluation = Evaluation(problem, checked_values(problem, x))
     terms: dict[str, torch.Tensor] = {}
     info: dict[str, dict[str, Any]] = {}
     for term in active_terms(problem):
+        if term.kind in CONSTRAINTS:
+            continue
         value = weighted(problem, term, evaluation, info)
         terms[term.name] = value if term.kind == "scalar" else residual_loss(term, value)
     return sum(terms.values(), start=zero_loss(problem)), terms, info
@@ -155,6 +158,7 @@ def residuals(problem: Problem, x: Values | None = None) -> dict[str, torch.Tens
 
 
 __all__ = [
+    "CONSTRAINTS",
     "Evaluation",
     "active_terms",
     "checked_values",

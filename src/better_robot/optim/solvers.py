@@ -16,9 +16,11 @@ from typing import Any, ClassVar, final, override
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
+from .evaluation import CONSTRAINTS, active_terms
 from .linear import ArrowNormal, BandedNormal, Normal
-from .linearization import linearize
+from .linearization import Rows, linearize, linearize_rows
 from .problem import Problem
+from .qp import solve_qp
 
 
 @final
@@ -29,18 +31,22 @@ class State:
     After a ``step``, ``extra`` holds the diagnostic keys of ``DIAGNOSTICS`` that the solver
     computes, each ``(B,)``: ``grad_norm`` (largest gradient entry before the step), ``step_norm``
     (largest entry of the step taken, 0 where none was taken), ``accepted`` (bool, the step
-    moved the variables) and ``damping`` (LM only, damping for the next step). LM, Gauss-Newton
-    and L-BFGS write the first three; ``TorchOptim`` writes none. ``run`` stacks them into
-    ``Result.diagnostics``. LM's and Gauss-Newton's ``init`` writes them too, for no step (``grad_norm`` at
-    ``x``, ``step_norm`` 0, ``accepted`` false): a first state has the keys of a stepped one, so a compiled step
-    serves both with one key.
+    moved the variables), ``damping`` (LM and ``SequentialQP``, damping for the next step) and ``violation``
+    (``SequentialQP`` only: the largest distance of a constraint term's output from its bounds at ``x``, in that
+    term's unit, 0 where every constraint holds). LM, Gauss-Newton and L-BFGS write the first three;
+    ``TorchOptim`` writes none. ``run`` stacks them into
+    ``Result.diagnostics``. The ``init`` of LM, Gauss-Newton and ``SequentialQP`` writes them too, for no step
+    (``grad_norm`` at ``x``, ``step_norm`` 0, ``accepted`` false): a first state has the keys of a stepped one, so a
+    compiled step serves both with one key.
     ``Solver.warm_keys`` names the ``extra`` entries a warm start keeps.
 
     Every solver also writes ``terms``, ``{name: (B,)}``: the detached loss of each active term from
     the evaluation that ``loss`` comes from, so logging needs no second forward. ``TorchOptim`` adds
     ``info``, the ``{name: info}`` dicts of terms returning ``(value, info)`` (see ``Problem.evaluate``).
-    LM and Gauss-Newton keep ``normal``, the normal equations at ``x``: a step linearizes once, at its candidate,
-    and that serves the next step where the candidate is taken.
+    LM, Gauss-Newton and ``SequentialQP`` keep ``normal``, the normal equations at ``x``: a step linearizes once,
+    at its candidate, and that serves the next step where the candidate is taken. ``SequentialQP`` also keeps
+    ``rows`` (the constraint terms linearized at ``x``, ``None`` without one) and ``qp``, the ``QPSolution`` of its
+    last quadratic program, which starts the next one.
     ``solver`` is the class of the solver that made the state; a warm start needs a solver of that class.
     A state belongs to the problem ``init`` made it for: ``step`` it with that problem only. A loop that changes the
     problem's data (a new target each tick) calls ``init`` again, or ``run(..., state=)``, which does; stepping the old
@@ -56,7 +62,7 @@ class State:
     extra: dict[str, Any] = field(default_factory=dict, repr=False)  #: solver-owned (damping, moments, ...).
 
 
-DIAGNOSTICS = ("grad_norm", "step_norm", "accepted", "damping")
+DIAGNOSTICS = ("grad_norm", "step_norm", "accepted", "damping", "violation")
 
 
 class Solver(ABC):
@@ -93,10 +99,11 @@ def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, tor
     }
 
 
-def _selected_normal(
-    mask: torch.Tensor, new: Normal | BandedNormal | ArrowNormal, old: Normal | BandedNormal | ArrowNormal
-) -> Normal | BandedNormal | ArrowNormal:
-    """Normal equations: ``new`` where ``mask: (B,)`` is true, else ``old``; the band of an arrow too, one layout."""
+def _selected_normal[Fields: (Normal, BandedNormal, ArrowNormal, Rows)](
+    mask: torch.Tensor, new: Fields, old: Fields
+) -> Fields:
+    """Normal equations, or constraint rows: ``new`` where ``mask: (B,)`` is true, else ``old``; the band of an arrow
+    too, one layout."""
     changes: dict[str, Any] = {}
     for item in fields(new):
         value = getattr(new, item.name)
@@ -113,6 +120,16 @@ def _selected_terms(
 ) -> dict[str, torch.Tensor]:
     """Per-term losses ``{name: (B,)}``: ``new`` where ``mask: (B,)`` is true, else ``old``."""
     return {name: torch.where(mask, value, old[name]) for name, value in new.items()}
+
+
+def _cost_only(problem: Problem, solver: Solver) -> None:
+    """Refuse a problem with active constraint terms (``ArgumentError``): ``solver`` minimizes the loss alone."""
+    held = [term.name for term in active_terms(problem) if term.kind in CONSTRAINTS]
+    if held:
+        raise ArgumentError(
+            f"{type(solver).__name__} minimizes the loss and holds no constraint term, and {held} are active; solve "
+            "with SequentialQP, or switch them off with weights"
+        )
 
 
 def _tolerances(
@@ -155,6 +172,7 @@ class LevenbergMarquardt(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
+        _cost_only(problem, self)
         normal, loss, terms = linearize(problem, x)
         extra: dict[str, Any] = {"damping": torch.full_like(loss, self.damping), "growth": torch.full_like(loss, 2.0)}
         extra.update(_no_step(normal.g, problem.step_bounds(x), loss), terms=terms, normal=normal)
@@ -215,6 +233,7 @@ class GaussNewton(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
+        _cost_only(problem, self)
         normal, loss, terms = linearize(problem, x)
         return State(
             x=dict(x),
@@ -254,6 +273,156 @@ class GaussNewton(Solver):
                 "normal": _selected_normal(move, normal_new, state.extra["normal"]),
             },
         )
+
+
+@final
+class SequentialQP(Solver):
+    """Sequential quadratic programming: Levenberg-Marquardt whose step is a quadratic program with the problem's
+    constraint terms and bounds as rows, solved by `solve_qp`.
+
+    Each step minimizes the damped Gauss-Newton model of the loss subject to the constraint terms linearized at
+    ``x``: a term held to ``lower <= value <= upper`` gives the rows ``gain · (lower - value) <= J · delta <=
+    gain · (upper - value)``, so a step uses at most ``gain`` of a row's distance to its bound and repairs ``gain``
+    of a violation (1 is the plain linearization, smaller keeps a reserve for the curvature the rows do not see);
+    the problem's bounds are a box on the step. The quadratic program starts from the solution of the last one
+    (``State.extra["qp"]``, also kept by a warm start), so the row count must stay fixed between steps.
+
+    A step is taken where it keeps every constraint term within ``tolerance`` of its bounds (in the term's own
+    unit) and lowers the loss, or where it brings a point outside ``tolerance`` back inside, or closer: a point
+    within ``tolerance`` never leaves it, so a solve started there ends there after any number of steps. The damping
+    follows LM's rule on the loss. A problem is done on LM's conditions (``gradient_tolerance`` bounds the largest
+    entry of the gradient of the loss plus the rows' multipliers) once it is within ``tolerance``, or when its
+    damping has reached the maximum. ``State.extra["violation"]`` and the ``violation`` diagnostic report the
+    largest distance from the bounds per problem.
+
+    The normal equations must be dense (``Problem(dense=True)`` for a ``time=`` problem), and the problem needs a
+    constraint term or bounds: without either, use `LevenbergMarquardt`.
+    """
+
+    warm_keys = ("damping", "growth", "qp")
+
+    def __init__(
+        self,
+        *,
+        damping: float = 1e-3,
+        gain: float = 0.5,
+        tolerance: float = 1e-4,
+        gradient_tolerance: float | None = None,
+        loss_tolerance: float | None = None,
+        step_tolerance: float | None = None,
+    ) -> None:
+        if damping < 0:
+            raise ArgumentError(f"damping must be at least 0, got {damping}")
+        if not 0 < gain <= 1:
+            raise ArgumentError(f"gain must be in (0, 1], got {gain}")
+        if tolerance < 0:
+            raise ArgumentError(f"tolerance must be at least 0, got {tolerance}")
+        self.damping, self.gain, self.tolerance = damping, gain, tolerance
+        self.gradient_tolerance, self.loss_tolerance, self.step_tolerance = (
+            gradient_tolerance,
+            loss_tolerance,
+            step_tolerance,
+        )
+
+    def _program(
+        self, problem: Problem, x: dict[str, torch.Tensor], rows: Rows | None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Rows ``(B, M, N)`` and bounds ``(B, M), (B, M)`` of the step from ``x``: the constraint terms at the
+        gain, then the box of the problem's bounds."""
+        matrices, lowers, uppers = [], [], []
+        if rows is not None:
+            matrices.append(rows.jacobian)
+            lowers.append(self.gain * (rows.lower - rows.value))
+            uppers.append(self.gain * (rows.upper - rows.value))
+        bounds = problem.step_bounds(x)
+        if bounds is not None:
+            identity = torch.eye(bounds[0].shape[-1], dtype=bounds[0].dtype, device=bounds[0].device)
+            matrices.append(identity.expand(bounds[0].shape[0], -1, -1))
+            lowers.append(bounds[0])
+            uppers.append(bounds[1])
+        return torch.cat(matrices, dim=1), torch.cat(lowers, dim=1), torch.cat(uppers, dim=1)
+
+    @override
+    def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
+        normal, loss, terms, rows = linearize_rows(problem, x)
+        if not isinstance(normal, Normal):
+            raise ArgumentError("SequentialQP takes dense normal equations; build the problem with dense=True")
+        if rows is None and not problem.bounds:
+            raise ArgumentError(
+                "SequentialQP holds constraint terms and bounds, and the problem has neither; use LevenbergMarquardt"
+            )
+        damping = torch.full_like(loss, self.damping)
+        matrix, lower, upper = self._program(problem, x, rows)
+        # The first program is solved here, cold: a first state then has every key of a stepped one.
+        solution = solve_qp(_damped(normal, damping), normal.g, rows=matrix, lower=lower, upper=upper)
+        extra: dict[str, Any] = {
+            "damping": damping,
+            "growth": torch.full_like(loss, 2.0),
+            "grad_norm": (normal.g + (solution.dual.unsqueeze(-2) @ matrix).squeeze(-2)).abs().amax(-1),
+            "step_norm": torch.zeros_like(loss),
+            "accepted": torch.zeros_like(loss, dtype=torch.bool),
+            "violation": torch.zeros_like(loss) if rows is None else rows.violation,
+            "terms": terms,
+            "normal": normal,
+            "rows": rows,
+            "qp": solution,
+        }
+        return State(
+            x=dict(x), loss=loss, done=torch.zeros_like(loss, dtype=torch.bool), solver=type(self), extra=extra
+        )
+
+    @override
+    def step(self, problem: Problem, state: State) -> State:
+        damping, growth, normal, rows = (state.extra[key] for key in ("damping", "growth", "normal", "rows"))
+        violation = state.extra["violation"]
+        matrix, lower, upper = self._program(problem, state.x, rows)
+        solution = solve_qp(
+            _damped(normal, damping), normal.g, rows=matrix, lower=lower, upper=upper, warm=state.extra["qp"]
+        )
+        delta = solution.x
+        with torch.no_grad():
+            candidate = problem.retract(state.x, delta)
+        normal_new, loss_new, terms_new, rows_new = linearize_rows(problem, candidate)
+        violation_new = torch.zeros_like(loss_new) if rows_new is None else rows_new.violation
+        decrease = state.loss - loss_new
+        inside = violation <= self.tolerance
+        # Inside the tolerance a step stays inside and lowers the loss; outside, it comes back inside or closer.
+        accept = torch.where(violation_new <= self.tolerance, (decrease > 0) | ~inside, violation_new < violation)
+        accept = accept & torch.isfinite(loss_new) & ~state.done
+        ratio = decrease / normal.predicted_decrease(delta).clamp_min(1e-30)
+        shrink = (1.0 - (2.0 * ratio - 1.0) ** 3).clamp(min=1.0 / 3.0, max=1.0)
+        new_damping = torch.where(accept, damping * shrink, damping * growth).clamp(1e-12, 1e12)
+        gradient_tolerance, loss_tolerance, step_tolerance = _tolerances(
+            state.loss.dtype, self.gradient_tolerance, self.loss_tolerance, self.step_tolerance
+        )
+        grad_norm = (normal.g + (solution.dual.unsqueeze(-2) @ matrix).squeeze(-2)).abs().amax(-1)
+        step_norm = delta.abs().amax(-1)
+        small_change = accept & ((decrease <= loss_tolerance * state.loss.abs()) | (step_norm < step_tolerance))
+        settled = inside & ((grad_norm < gradient_tolerance) | small_change)
+        return State(
+            x=_select(accept, candidate, state.x),
+            loss=torch.where(accept, loss_new, state.loss),
+            done=state.done | settled | (new_damping >= 1e12),
+            solver=type(self),
+            iteration=state.iteration + 1,
+            extra={
+                "damping": new_damping,
+                "growth": torch.where(accept, torch.full_like(growth, 2.0), growth * 2.0),
+                "grad_norm": grad_norm,
+                "step_norm": torch.where(accept, step_norm, torch.zeros_like(step_norm)),
+                "accepted": accept,
+                "violation": torch.where(accept, violation_new, violation),
+                "terms": _selected_terms(accept, terms_new, state.extra["terms"]),
+                "normal": _selected_normal(accept, normal_new, normal),
+                "rows": None if rows is None else _selected_normal(accept, rows_new, rows),
+                "qp": solution,
+            },
+        )
+
+
+def _damped(normal: Normal, damping: torch.Tensor) -> torch.Tensor:
+    """``H + damping · diag(H)``, ``(B, N, N)``: the matrix `Normal.solve` factorizes, for `solve_qp`."""
+    return normal.H + torch.diag_embed(damping.unsqueeze(-1) * normal.H.diagonal(dim1=-2, dim2=-1))
 
 
 def _no_step(
@@ -320,6 +489,7 @@ class LBFGS(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
+        _cost_only(problem, self)
         loss, g, terms = problem.gradient(x)
         memory = g.new_zeros(g.shape[0], self.history, g.shape[1])
         extra = {"g": g, "s": memory, "y": memory.clone(), "rho": g.new_zeros(g.shape[0], self.history), "terms": terms}
@@ -426,6 +596,7 @@ class TorchOptim(Solver):
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
+        _cost_only(problem, self)
         params = {name: value.detach().clone().requires_grad_(True) for name, value in x.items()}
         optimizer = self.factory(list(params.values()))
         loss = next(iter(x.values())).new_full((next(iter(x.values())).shape[0],), float("inf"))
@@ -478,4 +649,4 @@ class TorchOptim(Solver):
             )
 
 
-__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "Solver", "State", "TorchOptim"]
+__all__ = ["LBFGS", "GaussNewton", "LevenbergMarquardt", "SequentialQP", "Solver", "State", "TorchOptim"]
