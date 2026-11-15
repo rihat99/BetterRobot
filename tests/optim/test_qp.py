@@ -251,6 +251,15 @@ def test_a_failed_element_is_flagged_and_leaves_the_others_alone() -> None:
         solve_qp(H, g, rows=rows[:, :0], lower=lower[:, :0], upper=upper[:, :0])
     with pytest.raises(ShapeError, match=r"hessian \(B\.\.\., N, N\)"):
         solve_qp(H, g, rows=rows, lower=lower, upper=upper[:, :-1])
+    # A warm start of another layout is refused: one row fewer, and the same number of entries in another shape.
+    with pytest.raises(ShapeError, match=r"dual \(3, 5\).*got \(3, 4\), \(3, 6\), \(3,\)"):
+        solve_qp(H, g, rows=rows[:, :5], lower=lower[:, :5], upper=upper[:, :5], warm=good)
+    reshaped = QPSolution(
+        good.x.reshape(2, 6), good.dual.reshape(2, 9), primal_residual=good.primal_residual,
+        dual_residual=good.dual_residual, penalty=good.penalty[:2],
+    )  # fmt: skip
+    with pytest.raises(ShapeError, match="warm start of the same problem layout"):
+        solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=reshaped)
 
 
 def test_batch_axes_dtype_and_gradient() -> None:

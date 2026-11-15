@@ -180,6 +180,12 @@ def solve_qp(
         raise ShapeError(
             "solve_qp needs at least one row; without rows the minimiser is Normal(hessian, gradient).solve()"
         )
+    if warm is not None and (warm.x.shape, warm.dual.shape, warm.penalty.shape) != (gradient.shape, lower.shape, batch):
+        raise ShapeError(
+            f"solve_qp takes a warm start of the same problem layout: x {tuple(gradient.shape)}, dual "
+            f"{tuple(lower.shape)}, penalty {tuple(batch)}; got {tuple(warm.x.shape)}, {tuple(warm.dual.shape)}, "
+            f"{tuple(warm.penalty.shape)}"
+        )
     matrix = hessian.detach().double().reshape(-1, size, size)
     diagonal = matrix.diagonal(dim1=-2, dim2=-1)
     scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
