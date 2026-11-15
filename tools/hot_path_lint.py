@@ -10,8 +10,8 @@ idiom:
 
 * ``.item()`` / ``.cpu()`` / ``.tolist()`` / ``.numpy()`` — force a CUDA-host sync.
 * ``float(tensor)`` / ``bool(tensor)`` / ``int(tensor)`` — force a CUDA-host sync.
-* the implicit truth of a tensor in an ``if`` or ``while`` test (``if x.abs().max() > tol``, ``if mask.any()``) and
-  ``torch.equal(...)`` — force a CUDA-host sync.
+* the implicit truth of a tensor in an ``if`` or ``while`` test or a comprehension's ``if`` (``if x.abs().max() > tol``,
+  ``if mask.any()``) and ``torch.equal(...)`` — force a CUDA-host sync.
 * ``tensor[...] = <Python number>`` — torch wraps the number in a CPU tensor and reads it back with ``.item()`` on
   CUDA; fill with ``.fill_(c)``, ``new_full`` or ``index_fill_``, which take the number as an argument.
 * ``tensor.new_tensor(...)`` — allocates a tensor on every call.
@@ -536,14 +536,17 @@ def find_violations(file: Path, src: str) -> list[str]:  # noqa: PLR0912 - expli
                     "read back with .item() on CUDA; use .fill_, new_full or index_fill_, or mark with "
                     "`# bench-ok: <reason>` to allow"
                 )
-        if isinstance(node, (ast.If, ast.While)):
+        tests = [(node.test, node.lineno, type(node).__name__.lower())] if isinstance(node, (ast.If, ast.While)) else []
+        if isinstance(node, ast.comprehension):  # ``[k for k in ks if x[k].any()]`` branches like an ``if``
+            tests = [(test, test.lineno, "comprehension if") for test in node.ifs]
+        for test, lineno, kind in tests:
             scope = _scope_for(parents, tree)
-            line = lines[node.lineno - 1] if node.lineno - 1 < len(lines) else ""
-            if _tests_tensor_truth(
-                node.test, tensor_names[scope], tensor_attributes[scope], tensor_returns
-            ) and not _exempt(line):
+            line = lines[lineno - 1] if lineno - 1 < len(lines) else ""
+            if _tests_tensor_truth(test, tensor_names[scope], tensor_attributes[scope], tensor_returns) and not _exempt(
+                line
+            ):
                 violations.append(
-                    f"{file.name}:{node.lineno}: implicit bool(tensor) in `{type(node).__name__.lower()}` test — "
+                    f"{file.name}:{lineno}: implicit bool(tensor) in `{kind}` test — "
                     "forces device sync; mark with `# bench-ok: <reason>` to allow"
                 )
         if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):

@@ -62,6 +62,11 @@ def test_no_forbidden_hot_path_patterns(file: Path) -> None:
             "implicit bool(tensor) in `while` test",
         ),
         (
+            "implicit_truth_in_a_comprehension",
+            "import torch\ndef hot(x: torch.Tensor):\n    return [k for k in range(4) if x[k].any()]\n",
+            "implicit bool(tensor) in `comprehension if` test",
+        ),
+        (
             "tolist",
             "import torch\ndef hot(x: torch.Tensor):\n    if x.tolist()[0] > 0:\n        return x\n",
             ".tolist()",
