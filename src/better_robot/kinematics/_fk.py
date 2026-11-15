@@ -23,6 +23,8 @@ that each differentiable call owns its graph.
 
 from __future__ import annotations
 
+from typing import Literal, overload
+
 import torch
 
 from ..lie import se3
@@ -30,15 +32,20 @@ from ..model.model import Model
 from ._plans import fk_plan
 
 
-def placement_matrices(model: Model) -> tuple[torch.Tensor | tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-    """The joint placements as the FK kernel reads them (`_joint_map`) and the frame placements ``(I..., nframes, 4, 4)``.
+@overload
+def placement_matrices(model: Model, part: Literal["joints"]) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]: ...
+@overload
+def placement_matrices(model: Model, part: Literal["frames"]) -> torch.Tensor: ...
+def placement_matrices(model: Model, part: str) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """The joint placements as the FK kernel reads them (`_joint_map`), or the frame placements
+    ``(I..., nframes, 4, 4)``.
 
     Memoised on the model by grad or inference mode (records 0040, 0052); placements that carry a graph are converted
     per call.
     """
-    joints = model._value("joint_matrices", _joint_map)
-    frames = model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))
-    return joints, frames
+    if part == "frames":
+        return model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))
+    return model._value("joint_matrices", _joint_map)
 
 
 def _joint_map(model: Model) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
@@ -117,7 +124,7 @@ def world_frames(model: Model, joints: torch.Tensor) -> torch.Tensor:
 
     ``B...`` already holds the model's value batch ``I...``, so batched frame placements broadcast.
     """
-    frames = placement_matrices(model)[1]
+    frames = placement_matrices(model, "frames")
     parents = joints.index_select(-3, fk_plan(model, dtype=joints.dtype, device=joints.device).frame_parents)
     # einsum is several times faster than a broadcast matmul on CPU when one side has no batch axis.
     return torch.einsum("...fab,fbc->...fac", parents, frames) if frames.ndim == 3 else parents @ frames

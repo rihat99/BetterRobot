@@ -112,7 +112,8 @@ def test_values_with_a_graph_are_never_memoised() -> None:
     model = load(panda_urdf(), dtype=torch.float64)
     placements = model.joint_placements.clone().requires_grad_()
     model = model.with_values(joint_placements=placements)
-    first, second = (placement_matrices(model)[0][0] for _ in range(2))  # the placements folded into the FK weight
+    # the placements folded into the FK weight
+    first, second = (placement_matrices(model, "joints")[0] for _ in range(2))
     assert first.requires_grad and first is not second and _model_modes(model, "joint_matrices") == set()
     forward_kinematics(model, model.q_neutral).frame_poses.sum().backward()
     assert placements.grad is not None
@@ -157,14 +158,16 @@ def test_inference_mode_values_are_served_only_under_inference_mode() -> None:
     model = load(panda_urdf(), dtype=torch.float64)
     q = model.q_neutral
     with torch.inference_mode(), torch.enable_grad():
-        forward_kinematics(model, q)
-        weight = placement_matrices(model)[0][0]
-        assert weight.is_inference() and placement_matrices(model)[0][0] is weight, "inference mode reuses its value"
+        forward_kinematics(model, q).frame_transforms
+        weight = placement_matrices(model, "joints")[0]
+        assert weight.is_inference() and placement_matrices(model, "joints")[0] is weight, (
+            "inference mode reuses its value"
+        )
     assert _model_modes(model, "joint_matrices") == _model_modes(model, "frame_matrices") == {"inference"}
     q = q.clone().requires_grad_()
     forward_kinematics(model, q).frame_translations.sum().backward()
     assert q.grad is not None and _model_modes(model, "joint_matrices") == {"inference", True}
-    assert not placement_matrices(model)[0][0].is_inference()
+    assert not placement_matrices(model, "joints")[0].is_inference()
 
 
 def test_state_memo_keeps_inference_mode_values_apart() -> None:

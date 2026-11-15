@@ -203,7 +203,7 @@ def forward_kinematics(model: Model, q: torch.Tensor, *, check_quaternion_norm: 
     check_tensor("q", q, shape=(model.nq,), dtype=model.dtype, device=model.device)
     batch = batch_shape(model, "q", q, (model.nq,))
     q = expand_batch("q", q, batch, (model.nq,))
-    joint_map = placement_matrices(model)[0]
+    joint_map = placement_matrices(model, "joints")
     count = math.prod(batch)  # explicit: a model without coordinates has zero-width q
     nj = model.njoints
     # Unbatched placements are folded into the kernel's map; batched ones are flattened with q.
