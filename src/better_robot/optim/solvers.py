@@ -47,8 +47,9 @@ class State:
     at its candidate, and that serves the next step where the candidate is taken. ``SequentialQP`` steps an iterate
     that ``x`` follows only while it is within the solver's tolerance of the constraints: it keeps ``iterate`` (the
     iterate's variables and its loss), ``normal`` and ``rows`` there (the constraint terms linearized, ``None``
-    without one), and ``qp``, the ``QPSolution`` of its last quadratic program, which starts the next one; its
-    ``accepted`` and ``step_norm`` are the iterate's.
+    without one), ``radius`` (the bound on the largest entry of its next step, infinite until a refused step sets
+    it) and ``qp``, the ``QPSolution`` of its last quadratic program, which starts the next one; its ``accepted``
+    and ``step_norm`` are the iterate's.
     ``solver`` is the class of the solver that made the state; a warm start needs a solver of that class.
     A state belongs to the problem ``init`` made it for: ``step`` it with that problem only. A loop that changes the
     problem's data (a new target each tick) calls ``init`` again, or ``run(..., state=)``, which does; stepping the old

@@ -41,8 +41,8 @@ robot terms live in `better_robot.terms`. Each invariant names its enforcer; `[r
   `tests/contract/test_hot_path_lint.py`.
 - An `equality` or `inequality` term is a row of `SequentialQP`'s step, never part of `loss`; every other solver,
   `solve_constrained` and `solve_layer` refuse an active one. `State.x` is its last iterate within `tolerance`;
-  the iterate, `normal` and `rows` are in `State.extra`. Merit penalty, Nielsen factor and stop rule are measured
-  choices (record 0055); the row count stays fixed between steps. `tests/optim/test_constraints.py`.
+  the iterate, `normal` and `rows` are in `State.extra`. Merit price, Nielsen factor, step radius and stop
+  rule are measured choices (record 0055); the row count stays fixed between steps. `tests/optim/test_constraints.py`.
 - Every class here is abstract or `@final`. `tests/contract/test_abstract_or_final.py`.
 - Every entry that takes `x` (`run`, hence `solve`; the `Problem` evaluation methods; `check_jacobian`) checks it
   once with `evaluation.checked_values`: one `(B, *event)` tensor per variable, so `x` never overrides data.
