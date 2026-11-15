@@ -26,8 +26,10 @@ warms up twice. Wall time is the median over at most ``--repeats`` samples (each
 is recorded as ``error``; the larger batches of that function and mode are then recorded as ``skipped``, as are
 those after a call above ``--max-call-s`` or a compile above ``--max-compile-s``.
 
-The run re-executes itself with glibc's allocator thresholds fixed (``FIXED_MALLOC``; see the benchmark guide):
-otherwise a large-batch time can double from page faults alone, depending on what the process freed before.
+The run re-executes itself with glibc's allocator thresholds fixed (``FIXED_MALLOC``; see the benchmark guide),
+otherwise a large-batch time can double from page faults alone, depending on what the process freed before; and with
+an empty inductor and Triton cache of its own (``FRESH_CACHE``, removed at the end), so ``compile_seconds`` does not
+depend on what earlier processes compiled.
 
 Row schema, shared by every row of a run and of a reference JSON (``{"meta": {...}, "rows": [...]}``):
 
@@ -62,9 +64,11 @@ import os
 import platform
 import resource
 import shlex
+import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Callable
 from functools import partial
@@ -90,6 +94,7 @@ SAMPLE_S = 0.01
 ROW_BUDGET_S = 1.0
 IK_POSITION_M, IK_ROTATION_RAD = 1e-3, 1e-2
 FIXED_MALLOC = {"MALLOC_MMAP_THRESHOLD_": "134217728", "MALLOC_TRIM_THRESHOLD_": "268435456"}
+FRESH_CACHE = "BETTER_ROBOT_SPEED_CACHE"  # set by the re-execution: the run's own compile cache directory
 MODES: dict[str, Callable[[Callable[..., Any]], Callable[..., Any]]] = {
     "eager": lambda fn: fn,
     "compile": torch.compile,
@@ -429,8 +434,10 @@ def print_row(row: dict[str, Any]) -> None:
 
 def run(args: argparse.Namespace) -> None:
     """Measure the rows and write the JSON (module docstring)."""
-    if any(os.environ.get(name) != value for name, value in FIXED_MALLOC.items()):
-        os.execve(sys.executable, [sys.executable, *sys.argv], {**os.environ, **FIXED_MALLOC})
+    if FRESH_CACHE not in os.environ:
+        cache = tempfile.mkdtemp(prefix="speed-compile-cache-")
+        caches = {FRESH_CACHE: cache, "TORCHINDUCTOR_CACHE_DIR": cache, "TRITON_CACHE_DIR": f"{cache}/triton"}
+        os.execve(sys.executable, [sys.executable, *sys.argv], {**os.environ, **FIXED_MALLOC, **caches})
     if os.environ.get("BETTER_ROBOT_INTERNAL_CHECKS") == "1":
         sys.exit("BETTER_ROBOT_INTERNAL_CHECKS=1 adds host syncs and operators: unset it to benchmark")
     torch.set_num_threads(args.threads)  # noqa: TID251 - a benchmark pins its threads so rows compare; C-DEP-3 binds the library
@@ -476,6 +483,7 @@ def run(args: argparse.Namespace) -> None:
     meta["total_s"] = round(time.perf_counter() - started, 1)
     save()
     print(f"wrote {out} ({meta['total_s']} s)")
+    shutil.rmtree(os.environ[FRESH_CACHE])  # the compile cache this run created; a crash leaves it in the temp dir
 
 
 def per_sample_us(row: dict[str, Any]) -> float | None:
