@@ -191,9 +191,15 @@ def test_only_sequential_qp_takes_constraint_terms() -> None:
         optim.solve_constrained(problem, optim.LevenbergMarquardt(), inequalities=["wall"])
     with pytest.raises(exceptions.ArgumentError, match="residual terms only"):
         optim.solve_layer(problem, optim.SequentialQP())
+    off = problem.with_(weights={"ball": 0.0})
+    held = optim.solve_constrained(off, optim.LevenbergMarquardt(), inequalities=["wall"])
+    assert float((held.x["x"][:, 0] - 0.2).max()) < 1e-4 and float((held.x["x"] ** 2).sum(-1).max()) > 1.0
+    optim.solve_layer(off, optim.LevenbergMarquardt())
     with pytest.raises(exceptions.ArgumentError, match="neither"):
         optim.solve(_fit()[0], optim.SequentialQP(), iterations=1)
     with pytest.raises(exceptions.ArgumentError, match="lower"):
         _fit()[0].inequality("open", lambda x: x)
     with pytest.raises(exceptions.ArgumentError, match="gain"):
         optim.SequentialQP(gain=0.0)
+    with pytest.raises(exceptions.ArgumentError, match="tolerance"):
+        optim.SequentialQP(tolerance=0.0)

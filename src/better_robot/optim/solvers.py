@@ -329,8 +329,8 @@ class SequentialQP(Solver):
             raise ArgumentError(f"damping must be at least 0, got {damping}")
         if not 0 < gain <= 1:
             raise ArgumentError(f"gain must be in (0, 1], got {gain}")
-        if tolerance < 0:
-            raise ArgumentError(f"tolerance must be at least 0, got {tolerance}")
+        if tolerance <= 0:
+            raise ArgumentError(f"tolerance must be above 0, got {tolerance}")
         self.damping, self.gain, self.tolerance = damping, gain, tolerance
         self.gradient_tolerance, self.step_tolerance = gradient_tolerance, step_tolerance
 
