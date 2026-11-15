@@ -127,8 +127,8 @@ def test_rows_in_conflict_give_the_elastic_minimiser_in_the_rows_units() -> None
     assert scaled.primal_residual.item() == pytest.approx(2.0, abs=1e-8)
 
 
-def test_a_row_gives_way_at_the_weight() -> None:
-    """A box whose multipliers would be -1.5 and 2, stopped at 1 (a third of the largest gradient entry, 3)."""
+def test_a_row_gives_way_at_the_cap() -> None:
+    """A box whose multipliers would be -1.5 and 2, stopped at the cap 1: a weight of 1/3 times the largest entry of g, 3."""
     g = torch.tensor([[2.0, -0.05, -3.0]], dtype=torch.float64)
     eye = torch.eye(3, dtype=torch.float64)[None]
     low, high = torch.full((1, 3), -0.5, dtype=torch.float64), torch.full((1, 3), 1.0, dtype=torch.float64)
@@ -186,17 +186,18 @@ def _conflict(kind: str, call: int, *, conflict: bool, batch: int = 48, size: in
 
 
 @pytest.mark.parametrize(("kind", "stretch"), [("drift", 100), ("turn", 100), ("fixed", 50)])
-def test_a_long_stretch_of_rows_in_conflict_neither_winds_up_nor_hides_a_wrong_step(kind: str, stretch: int) -> None:
-    """Warm calls through rows in conflict keep a bounded step; once the rows can hold, ten calls are exact again.
+def test_a_long_stretch_of_rows_in_conflict_stays_bounded_and_lets_go(kind: str, stretch: int) -> None:
+    """Warm calls through rows in conflict keep a bounded step; ten calls after the rows can hold, every step is right.
 
-    With hard rows the multipliers and the carried penalty grew through the stretch: steps of 47 against a box of
+    No step wrong by more than 1e-3 is flagged exact on the way. With hard rows the multipliers and the carried penalty grew through the stretch: steps of 47 against a box of
     0.3, and afterwards wrong steps that reported both residuals under 1e-4 (review of record 0054).
     """
     solution = None
     for call in range(stretch):
         H, g, rows, lower, upper = _conflict(kind, call, conflict=True)
         solution = solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=solution)
-        # The elastic minimisers of these problems reach 1.8: one box row gives way where both rows can then hold.
+        # An elastic minimiser may leave the box (by up to 1.76 in the second review of record 0054): one box row
+        # gives way where both rows can then hold.
         assert solution.x.abs().max().item() < 2.0
         assert (solution.dual.abs() <= _cap(H, g) * (1 + 1e-12)).all()
     for call in range(stretch, stretch + 10):
@@ -206,6 +207,7 @@ def test_a_long_stretch_of_rows_in_conflict_neither_winds_up_nor_hides_a_wrong_s
         reference = _repeat(problem, 25, iterations=100)
         assert reference.primal_residual.max().item() < 1e-8 and reference.dual_residual.max().item() < 1e-7
         wrong = (solution.x - reference.x).abs().amax(-1) > 1e-3
+        assert not (wrong & solution.exact).any()
         assert not (wrong & (solution.primal_residual < 1e-4) & (solution.dual_residual < 1e-4)).any()
     assert not wrong.any()
 
