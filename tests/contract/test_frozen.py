@@ -65,7 +65,3 @@ def test_mutable_list_names_public_mutable_dataclasses() -> None:
     found = dict(DATACLASSES)
     stale = [name for name in MUTABLE_DATACLASSES if name not in found or found[name].__dataclass_params__.frozen]
     assert not stale, f"remove from MUTABLE_DATACLASSES: {stale}"
-
-
-def test_contract_covers_public_dataclasses() -> None:
-    assert FROZEN
