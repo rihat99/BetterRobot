@@ -138,8 +138,8 @@ clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of thr
 `style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
 looked up under `root`, the description file or its folder, and under each folder above it, so `root=` is the path
 you loaded. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
-the collision shapes of the geometry; `frames=True` draws a triad at every moving joint and `frames=[names]` at
-those frames.
+the collision shapes of the geometry; `frames=True` draws a triad at every moving joint and `frames=[...]` at
+the frames listed, by id or name.
 
 ```python
 import torch

@@ -246,7 +246,7 @@ def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> Non
     robot = Viewer(server=server, ground=False).add(RobotVisual(model, frames=True))
     axes = "/panda/panda/frames/axes"
     assert len(server.scene.nodes[axes].props["batched_positions"]) == 9  # seven arm joints and two fingers
-    robot.set_frames(["panda_hand", "panda_link3"])
+    robot.set_frames(["panda_hand", model.frame_id("panda_link3")])  # by name or by id
     assert len(server.scene.nodes[axes].props["batched_positions"]) == 2 and not server.scene.nodes[axes].removed
     robot.set_frames(False)
     assert not server.scene.nodes["/panda/panda/frames"].visible and not server.scene.nodes[axes].removed

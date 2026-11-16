@@ -27,7 +27,7 @@ import numpy as np
 import torch
 
 from ..collision import RobotSpheres
-from ..exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
+from ..exceptions import ArgumentError, ModelError, ShapeError
 from ..kinematics import forward_kinematics
 from ..lie import se3
 from ..model.geometry import Box, Cylinder, Geometry, Mesh, Sphere
@@ -139,9 +139,9 @@ class RobotVisual(Layer):
     or its folder, and under each folder above it) or the ``skin``; ``"minimal"`` and ``"maximal"`` draw the
     skeleton of the recipes ``minimal`` and ``maximal``. ``style=None`` is ``"meshes"`` when there is something to
     show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without them the collision
-    shapes of ``geometry``; ``frames`` draws a triad per moving joint (``True``) or per named frame. Every part is
-    built the first time it is shown; ``set_style``, ``set_collision`` and ``set_frames`` switch them while the
-    viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer.
+    shapes of ``geometry``; ``frames`` draws a triad per moving joint (``True``) or per frame given, by id or name.
+    Every part is built the first time it is shown; ``set_style``, ``set_collision`` and ``set_frames`` switch them
+    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer.
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the theme's next
     hue, one per robot. ``name`` defaults to the model's name.
@@ -162,7 +162,7 @@ class RobotVisual(Layer):
         maximal: SkeletonRecipe = MAXIMAL,
         hue: RGB | None = None,
         collision: bool = False,
-        frames: bool | Sequence[str] = False,
+        frames: bool | Sequence[int | str] = False,
         tags: Sequence[str] = (),
     ) -> None:
         self.model, self.geometry, self.spheres, self.skin = model, geometry, spheres, skin
@@ -183,8 +183,8 @@ class RobotVisual(Layer):
             geometry is not None and any(attached.collision for attached in geometry.shapes)
         )
         self._collision = False
-        self._frames: bool | tuple[str, ...] = False  # what is shown now
-        self._triads: bool | tuple[str, ...] = False  # the last set shown: what the frames part draws once built
+        self._frames: bool | tuple[int, ...] = False  # what is shown now: every moving joint, or frame ids
+        self._triads: bool | tuple[int, ...] = False  # the last set shown: what the frames part draws once built
         self._hue, self._index = hue, None
         self._theme: Theme = LIGHT  # until the viewer applies its own
         self._scene: Any = None
@@ -292,7 +292,7 @@ class RobotVisual(Layer):
         if part == "frames" and self._frames is True:
             layer.poses[...] = self._poses[:, self._moving()]
         elif part == "frames":
-            ids = [model.frame_names.index(name) for name in self._frames or ()]
+            ids = list(self._frames or ())
             parents = [model.frame_parent_joint_ids[f] for f in ids]
             layer.poses[...] = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses)).numpy()
         elif self.spheres is not None:
@@ -345,12 +345,9 @@ class RobotVisual(Layer):
         self._collision = visible
         self._apply()
 
-    def set_frames(self, frames: bool | Sequence[str]) -> None:  # noqa: FBT001 - the switch is the main operand
-        """Draw a triad per moving joint (``True``), per frame named in ``frames``, or none (``False``)."""
-        chosen = frames if isinstance(frames, bool) else tuple(frames)
-        for name in () if isinstance(chosen, bool) else chosen:
-            if name not in self.model.frame_names:
-                raise UnknownNameError("frame", name, valid=self.model.frame_names)
+    def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
+        """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
+        chosen = frames if isinstance(frames, bool) else tuple(self.model.frame_id(frame) for frame in frames)
         if chosen and chosen != self._triads:  # another set of frames is another node
             self._drop("frames")
             self._triads = chosen
