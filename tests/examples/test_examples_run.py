@@ -1,7 +1,7 @@
 """Every example runs to completion on CPU without a browser: the viewer examples and example 07 with ``--check``
-build their scene on the stand-in server (``better_robot.testing.FakeServer``), and example 07 also runs
-``--no-viewer``. The avoidance demos that take ``--robot`` also run their scripted path on the G1, and each
-avoidance demo's ``rows`` readout keeps its bound while its ``off`` readout breaks it."""
+build their scene on the stand-in server (``better_robot.testing.FakeServer``; example 07's ``--check`` runs the
+model and kinematics its ``--no-viewer`` runs, then the scene). The avoidance demos that take ``--robot`` also run their scripted path on the
+G1, and each avoidance demo's ``rows`` readout keeps its bound while its ``off`` readout breaks it."""
 
 from __future__ import annotations
 
@@ -16,11 +16,7 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _RUNS = [
     *((f"examples/{path.name}", []) for path in sorted((_ROOT / "examples").glob("0*.py")) if path.name[:3] != "07_"),
-    *(
-        (f"examples/{path.name}", [flag])
-        for path in (_ROOT / "examples").glob("07_*.py")
-        for flag in ("--no-viewer", "--check")
-    ),
+    *((f"examples/{path.name}", ["--check"]) for path in (_ROOT / "examples").glob("07_*.py")),
     *((f"examples/viewer/{path.name}", ["--check"]) for path in sorted((_ROOT / "examples" / "viewer").glob("0*.py"))),
     *(
         (f"examples/viewer/{name}", ["--robot", "g1", "--check"])
