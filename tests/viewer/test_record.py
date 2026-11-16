@@ -46,9 +46,9 @@ class FakePage:
     def __exit__(self, *exc: object) -> None:
         pass
 
-    def record(self, steps: list[int], *, still: bool, fps: float, bitrate: float) -> bytes:
-        FakePage.calls[-1].update(steps=steps, still=still, fps=fps, bitrate=bitrate)
-        return b"frames"
+    def record(self, steps: list[int], *, codecs: list[str], fps: float, bitrate: float) -> tuple[bytes, str]:
+        FakePage.calls[-1].update(steps=steps, codecs=codecs, fps=fps, bitrate=bitrate)
+        return b"frames", (codecs or ["png"])[0]
 
 
 def _viewer(nsteps: int = 3) -> Viewer:
@@ -73,15 +73,23 @@ def test_record_refuses_bad_paths_steps_sizes_and_cameras_before_a_browser_start
             viewer.record(**kwargs)
 
 
-def test_mp4_needs_ffmpeg_and_a_bare_path_falls_back_to_webm(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_mp4_needs_ffmpeg_and_copies_the_pages_h264_stream(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv("BETTER_ROBOT_FFMPEG", raising=False)
     monkeypatch.setattr(shutil, "which", lambda name: None)
     monkeypatch.setattr(recorder, "_Page", FakePage)
+    FakePage.calls = []
     viewer = _viewer()
     with pytest.raises(OptionalDependencyError, match=r"ffmpeg .*record to \.webm"):
         viewer.record(tmp_path / "clip.mp4", camera=_CAMERA)
     assert viewer.record(tmp_path / "clip", camera=_CAMERA) == tmp_path / "clip.webm"
     assert (tmp_path / "clip.webm").read_bytes() == b"frames"
+    monkeypatch.setenv("BETTER_ROBOT_FFMPEG", "/opt/ffmpeg")
+    commands = []
+    monkeypatch.setattr(subprocess, "run", lambda command, **kwargs: commands.append((command, kwargs["input"])))
+    assert viewer.record(tmp_path / "clip", camera=_CAMERA, fps=25.0) == tmp_path / "clip.mp4"
+    ((command, data),) = commands
+    assert FakePage.calls[-1]["codecs"][0].startswith("avc1") and data == b"frames"
+    assert command[command.index("-r") + 1] == "25" and command[command.index("-c") + 1] == "copy"
 
 
 def test_record_pauses_playback_and_restores_the_step(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -99,7 +107,8 @@ def test_record_pauses_playback_and_restores_the_step(monkeypatch: pytest.Monkey
     clip, still = FakePage.calls
     assert not clip["playing"] and clip["steps"] == [0, 1, 2, 3, 4] and clip["size"] == (640, 360)
     assert clip["fps"] == viewer.timeline.fps and clip["bitrate"] == pytest.approx(8e6 / 9)
-    assert still["steps"] == [viewer.timeline.step] and still["still"] and still["fov"] == math.radians(30.0)
+    assert clip["codecs"] == ["vp09.00.51.08", "vp8"]
+    assert still["steps"] == [viewer.timeline.step] and still["codecs"] == [] and still["fov"] == math.radians(30.0)
 
 
 def test_gpu_index_maps_to_its_pci_bus_and_the_browser_is_found_on_it(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -178,7 +187,7 @@ def test_the_viser_client_still_has_what_the_recorder_drives_and_a_clip_shows_ea
     try:
         with recorder._Page(viewer, (320, 180), _CAMERA, math.radians(40.0), None) as page:
             missing = page.eval(recorder.PROBE)
-            clip = page.record(list(range(6)), still=False, fps=10.0, bitrate=1e6)
+            clip, _ = page.record(list(range(6)), codecs=list(recorder._CODECS), fps=10.0, bitrate=1e6)
             decoded = page.eval(f"{_DECODE}({json.dumps(base64.b64encode(clip).decode())}, 6, 10)")
     finally:
         viewer.server.stop()

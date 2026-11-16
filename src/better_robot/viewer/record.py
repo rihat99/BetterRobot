@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 _CHROME_NAMES = ("chromium", "google-chrome", "chrome-headless-shell")
 _MARKER = "/__record_marker"  # a hidden node whose position tells the page that a frame's messages have arrived
 _CODECS = {"vp09.00.51.08": "V_VP9", "vp8": "V_VP8"}  # WebCodecs codec -> WebM codec id, in order of preference
+_H264 = "avc1.640034"  # High profile, level 5.2: up to 3840 x 2160 at 60 fps; an .mp4 takes its stream as it is
 
 # The client internals the recorder drives; the guarded test runs this probe against the pinned viser.
 PROBE = r"""
@@ -128,7 +129,7 @@ _RECORDER = r"""
   };
   rec.start = async (codecs, width, height, bitrate, fps) => {
     for (const codec of codecs) {
-      const config = { codec, width, height, bitrate, framerate: fps, latencyMode: 'quality' };
+      const config = { codec, width, height, bitrate, framerate: fps, latencyMode: 'quality', avc: { format: 'annexb' } };
       if (!(await VideoEncoder.isConfigSupported(config)).supported) continue;
       rec.fps = fps; rec.gop = Math.max(1, Math.round(2 * fps));
       rec.encoder = new VideoEncoder({
@@ -193,6 +194,7 @@ def record(
     if width < 2 or height < 2 or suffix != ".png" and (width % 2 or height % 2):
         raise ArgumentError(f"size must be (width, height) with both even for a video, got {size}")
     ffmpeg = _ffmpeg(required=True) if suffix == ".mp4" else None
+    codecs = [] if suffix == ".png" else [_H264, *_CODECS] if ffmpeg else list(_CODECS)
     position, look_at = viewer.aim(steps=steps, fov=fov) if camera is None else camera
     position, look_at = np.asarray(position, dtype=np.float64), np.asarray(look_at, dtype=np.float64)
     if position.shape not in ((3,), (len(steps), 3)) or look_at.shape != position.shape:
@@ -201,11 +203,12 @@ def record(
             f"{look_at.shape}"
         )
     bits = 8e6 * width * height / (1920 * 1080) if bitrate is None else float(bitrate)
+    fps = float(fps or viewer.timeline.fps)
     shown, playing = viewer.timeline.step, viewer.timeline.playing
     viewer.timeline.pause()  # outside the lock: the playback thread takes it to push a step
     try:
         with viewer.lock, _Page(viewer, size, (position, look_at), fov, gpu) as page:
-            data = page.record(steps, still=suffix == ".png", fps=float(fps or viewer.timeline.fps), bitrate=bits)
+            data, codec = page.record(steps, codecs=codecs, fps=fps, bitrate=bits)
     finally:
         viewer.show(shown)
         if playing:
@@ -213,10 +216,25 @@ def record(
     if ffmpeg is None:
         path.write_bytes(data)
         return path
-    command = [ffmpeg, "-y", "-loglevel", "error", "-f", "webm", "-i", "pipe:0", "-c:v", "libx264", "-preset", "fast"]
-    subprocess.run(
-        [*command, "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(path)], input=data, check=True
-    )
+    if codec == _H264:  # only the container changes; -r stamps the frames, the stream's own timing is the encoder's
+        convert = ["-f", "h264", "-r", f"{fps:g}", "-i", "pipe:0", "-c", "copy"]
+    else:  # a browser without an H.264 encoder: transcode its WebM, which takes longer than the rendering
+        convert = [
+            "-f",
+            "webm",
+            "-i",
+            "pipe:0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "18",
+            "-pix_fmt",
+            "yuv420p",
+        ]
+    command = [ffmpeg, "-y", "-loglevel", "error", *convert, "-movflags", "+faststart", str(path)]
+    subprocess.run(command, input=data, check=True)
     return path
 
 
@@ -351,8 +369,10 @@ class _Page:
         if (width, height) != self.size:
             raise ArgumentError(f"size {self.size} is above this renderer's limit of {limit} pixels ({renderer})")
 
-    def record(self, steps: Sequence[int], *, still: bool, fps: float, bitrate: float) -> bytes:
-        """A PNG of ``steps[0]`` (``still``), or a WebM of ``steps`` at ``fps`` and ``bitrate`` bits per second."""
+    def record(self, steps: Sequence[int], *, codecs: Sequence[str], fps: float, bitrate: float) -> tuple[bytes, str]:
+        """``(data, codec)``: a video of ``steps`` at ``fps`` and ``bitrate`` bits per second in the first of ``codecs``
+        the browser encodes (H.264 as its raw stream, VP9 or VP8 as a WebM), or with no ``codecs`` a PNG of
+        ``steps[0]`` (codec ``"png"``)."""
         server, (position, look_at) = self.viewer.server, self.camera
         marker = server.scene.add_frame(_MARKER, show_axes=False, visible=False)
 
@@ -366,14 +386,12 @@ class _Page:
 
         try:
             self.call("settle", -1, push(0, -1))
-            if still:
-                return base64.b64decode(self.call("png"))
+            if not codecs:
+                return base64.b64decode(self.call("png")), "png"
             width, height = self.size
-            codec = self.call("start", list(_CODECS), width, height, round(bitrate), fps)
+            codec = self.call("start", list(codecs), width, height, round(bitrate), fps)
             if codec is None:
-                raise ArgumentError(
-                    f"this browser encodes no VP9 or VP8 video of {width}x{height}; record a smaller size"
-                )
+                raise ArgumentError(f"this browser encodes none of {list(codecs)} at {width}x{height}; record smaller")
             chunks = []
             for index in range(len(steps)):
                 chunks += self.call("frame", index, push(index, index + 1))
@@ -381,7 +399,9 @@ class _Page:
         finally:
             marker.remove()
         chunks = [(int(time), bool(key), base64.b64decode(data)) for time, key, data in chunks]
-        return _webm(chunks, codec=_CODECS[codec], width=width, height=height, fps=fps)
+        if codec == _H264:
+            return b"".join(data for _, _, data in chunks), codec
+        return _webm(chunks, codec=_CODECS[codec], width=width, height=height, fps=fps), codec
 
     def call(self, method: str, *args: Any) -> Any:
         """Await ``window.__brRecorder.<method>(*args)`` in the page and return its JSON value."""
