@@ -110,9 +110,10 @@ that 0.3.0 renames or removes, one table row each.
   `hinge=False` gives the plain `threshold - w`, the row of an inequality term.
 - `terms.joint_limits(..., margin=)` starts its penalty `margin` inside the limits (a number or `(nq,)`; Euclidean
   coordinates only, at most half a joint's range);
-  `terms.self_clearance(..., closest=k)` keeps the `k` nearest sphere pairs of each configuration and
+  `terms.self_clearance(..., closest=k)` keeps the `k` sphere pairs with the least room in each configuration and
   `terms.sphere_clearance(..., closest=k)` the `k` smallest sphere-obstacle distances; both clearance terms take
-  `q=`, the variable their Jacobian is for.
+  `q=`, the variable their Jacobian is for. `terms.self_clearance(margin=)` is a number or `(P,)`, one margin per
+  pair, for pairs that sit closer than the common margin in the rest pose.
 - `kinematics.compiled(fn, *, mode="default" | "reduce-overhead")`: an opt-in `torch.compile` of a function that
   calls the library, one graph family per grad mode and argument kind, each compiled on its second call; under
   `"reduce-overhead"` (CUDA graphs) each result is the caller's own (record

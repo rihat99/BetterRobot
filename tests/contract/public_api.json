@@ -500,7 +500,7 @@
   "better_robot.terms.manipulability": "function(model: 'Model', *, frame: 'int | str', threshold: 'float', hinge: 'bool' = True, state: 'str' = 'state', q: 'str' = 'q') -> 'TermFn'",
   "better_robot.terms.random_start": "function(model: 'Model', q0: 'torch.Tensor', *, generator: 'torch.Generator') -> 'torch.Tensor'",
   "better_robot.terms.rest": "function(model: 'Model', q_rest: 'torch.Tensor', *, q: 'str' = 'q') -> 'TermFn'",
-  "better_robot.terms.self_clearance": "function(spheres: 'RobotSpheres', *, pairs: 'torch.Tensor', margin: 'float', hinge: 'bool' = True, closest: 'int | None' = None, state: 'str' = 'state', q: 'str' = 'q') -> 'TermFn'",
+  "better_robot.terms.self_clearance": "function(spheres: 'RobotSpheres', *, pairs: 'torch.Tensor', margin: 'float | torch.Tensor', hinge: 'bool' = True, closest: 'int | None' = None, state: 'str' = 'state', q: 'str' = 'q') -> 'TermFn'",
   "better_robot.terms.solve_ik": "function(model: 'Model', targets: 'Mapping[str, torch.Tensor]', *, q0: 'torch.Tensor', solver: 'Solver | None' = None, iterations: 'int' = 50, seeds: 'int' = 1, generator: 'torch.Generator | None' = None, step: 'Callable[[Problem, State], State] | None' = None) -> 'Result'",
   "better_robot.terms.sphere_clearance": "function(spheres: 'RobotSpheres', distance_fn: 'Callable[[torch.Tensor, torch.Tensor], torch.Tensor]', *, margin: 'float', hinge: 'bool' = True, closest: 'int | None' = None, state: 'str' = 'state', q: 'str' = 'q') -> 'TermFn'",
   "better_robot.terms.velocity_limit": "function(model: 'Model', *, dt: 'float', fraction: 'float' = 1.0, q: 'str' = 'q') -> 'TermFn'",

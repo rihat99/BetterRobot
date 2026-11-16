@@ -233,7 +233,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **signed distance, distance** | The distance between two shapes, negative when they overlap. |
 | **signed distance field, SDF** | A voxel grid of signed distances to an obstacle (`collision.sphere_sdf`). |
 | **clearance, margin, hinge** | The residual `margin - distance` between shapes: positive when they are closer than `margin`. With `hinge=True` it is zero for a clear configuration, `gap² / (2 margin)` for a gap `margin - distance` below `margin`, then `gap - margin / 2`: a hinge whose slope has no jump (`terms.self_clearance`, `terms.sphere_clearance`). `terms.joint_limits(margin=)` uses the same hinge from `margin` inside the limits. |
-| **closest** | `terms.self_clearance(closest=k)` keeps the `k` nearest sphere pairs of each configuration, `terms.sphere_clearance(closest=k)` the `k` smallest sphere-obstacle distances: a fixed number of rows. |
+| **closest** | `terms.self_clearance(closest=k)` keeps the `k` sphere pairs with the least room (distance less margin) in each configuration, `terms.sphere_clearance(closest=k)` the `k` smallest sphere-obstacle distances: a fixed number of rows. |
 | **capsule** | A cylinder with a hemisphere on each end: a segment from `start` to `end` with a `radius`. |
 | **half-space** | The solid on one side of a plane, `{x : normal . x <= offset}`. |
 | **semi-axes** | The three half-lengths of an ellipsoid along its axes (`spatial.inertia_of_ellipsoid`). |
