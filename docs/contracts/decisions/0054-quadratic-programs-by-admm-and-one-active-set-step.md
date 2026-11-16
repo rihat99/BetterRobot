@@ -101,6 +101,9 @@ warm calls bring it to 3.0, 0.61 and 0.30 after 2, 3 and 5 calls. On problems sh
 6 by 7 Jacobian, damping 1e-4) one cold call reaches 0.38 (12 of 512 problems beyond the box), 0.39 with two rows
 in conflict (31 of 512), and the second warm call 0.30. `primal_residual` reports every such step (at least 0.01).
 
+A warm call started at an elastic minimiser stays there: it moved by under 1e-9 on problems of 7 variables and by
+1.7e-6 on problems shaped like inverse kinematics at damping 1e-6.
+
 Small residuals do not place a step near the minimiser. On problems shaped like inverse kinematics at damping 1e-4,
 one problem of 512 sits 1.3e-2 to 1.6e-2 from the minimiser with a primal residual of 0 and a dual residual of
 4.5e-5 to 4.9e-5, after one cold call of 20 or 100 iterations and after 2, 5 and 10 warm calls; on a drifting
@@ -154,8 +157,8 @@ both hold, wrong at call 5 / 10 / 20 / 40 / 60 / 100 / 200:
 | two targets 0.2 apart | 256 / 227 / 53 / 7 / 2 / 0 / 0 | 255 / 255 / 255 / 226 / 139 / 64 / 26 |
 | a combination off by 0.1 | 255 / 255 / 237 / 132 / 64 / 17 / 3 | 255 at calls 5 to 60, 251, 145 |
 
-A wrong problem there has a dual residual of 1e-11 to 1e-10 (medians) and a positive primal residual, as the
-minimiser does; `exact` is unset on every wrong problem at every call.
+A wrong problem there, up to 9e-2 from the elastic minimiser, has a dual residual of 1e-11 to 1e-10 (medians) and a
+positive primal residual, as the minimiser does; `exact` is unset on every wrong problem at every call.
 
 The cap. Each variant below ran on the same tables: problems shaped like inverse kinematics with the objective
 scaled by 1, 1000 and 3000 (feasible, near-opposed rows down to a wedge of 0.03), twelve cases of rows that ask for

@@ -290,16 +290,12 @@ class SequentialQP(Solver):
     the problem's bounds are a box on the step. The quadratic program starts from the solution of the last one
     (``State.extra["qp"]``, also kept by a warm start), so the row count must stay fixed between steps.
 
-    A step is taken where it lowers the merit: the loss plus the constraint terms' summed violation times a price,
-    the largest multiplier of the step's program, capped by the larger of two prices that redundant rows do not
-    inflate (the multipliers' pull along one row, and the loss the step gives up per unit of violation it repairs).
-    The damping follows the ratio of that decrease to the one the program predicted, by Nielsen's rule: a good
-    ratio lowers it, a poor one raises it, also on a step that is taken. That is what stands in for the curvature
-    of the constraint terms, which the rows do not carry: along a curved constraint that presses on the solution,
-    the damping settles where the steps stop overshooting. The damping cannot shorten a step that a row forces, so
-    the step is also scaled back to a radius on its largest entry. There is none at first. A refused step leaves
-    its length as the radius once the damping has reached 1, and a quarter of its length where it had been scaled
-    back or was no shorter than the radius; a step that is taken doubles the radius.
+    A step is taken where it lowers the merit: the loss plus the constraint terms' summed violation times a price
+    (the step's largest multiplier, capped by two prices that redundant rows do not inflate). The damping follows the
+    ratio of that decrease to the one the program predicted by Nielsen's rule, also on a step that is taken: it
+    stands in for the curvature of the constraint terms, which the rows do not carry. The step is also scaled back
+    to a radius on its largest entry, which a taken step doubles and a refused one shrinks once the damping has
+    reached 1; there is none at first.
 
     The iterate may leave a curved constraint by what its rows do not see, and later steps bring it back.
     ``State.x`` is the last iterate that was within ``tolerance`` of every bound (in the terms' own units) or,
@@ -480,15 +476,14 @@ def track(
     `solve_qp`, and the program's step may not be its exact solution (``solution.exact`` unset). Two things keep
     such a step on the rows. The program holds each constraint row with a reserve: a tenth of what a step as long
     as the last program's (``warm.x``; none on a first call) can change that row by, never more than half the
-    row's own width. A point that moves along a row keeps that reserve over ``gain`` short of it (a Panda hand
-    whose target slides under a table rides 0.4 mm above the margin at 5 mrad per call, 1.0 mm at 25 mrad); one
-    that comes to rest closes in on the row itself. And the step taken is the program's clamped to the box, moved the
-    least distance that puts it back on the rows it leaves (among the coordinates the box leaves free), then scaled
-    back until it leaves no row by more than 1e-6 in that row's unit and takes no violated row further out. So
+    row's own width. A point that moves along a row keeps that reserve over ``gain`` short of it; one that comes to
+    rest closes in on the row itself. And the step taken is the program's clamped to the box, moved the least
+    distance that puts it back on the rows it leaves (among the coordinates the box leaves free), then scaled back
+    until it leaves no row by more than 1e-6 in that row's unit and takes no violated row further out. So
     ``solution.x`` is the program's step and the new point carries the step taken. The scale-back shortens a step
     to nothing where the rows leave it no direction: rows in conflict, or a program still far from solved; the next
     calls go on solving it from ``warm``. ``iterations`` goes to `solve_qp`: more per call make more of its steps
-    exact where many rows press at once (a G1 with five behaviours as rows).
+    exact where many rows press at once.
     The targets move between calls through ``problem.with_(data=...)``; the rows must keep their count (``closest=``)
     so that ``warm`` fits. The problem needs dense normal equations. One evaluation, one `solve_qp` and one
     retraction per call, with no read back to the host.
