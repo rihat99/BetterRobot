@@ -82,6 +82,11 @@ that 0.3.0 renames or removes, one table row each.
 - `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
   frustum's edges from the intrinsics `K` of a `(W, H)` image, an off-centre principal point included, and the image
   on its cut; viser's own frustum has no principal point. It frames `Viewer.aim` too (`bounds`).
+- Colours: every layer draws the sRGB colour it is given. The skeleton, `SpheresLayer`, `ArrowsLayer`, `LinesLayer`
+  and `CameraLayer` drew about 100 levels paler than a `MeshLayer` of the same colour, because viser reads their
+  colours as linear values. With the true colours `Theme.hues` are lighter mid-tones (green `(116, 190, 140)`, was
+  `(82, 160, 104)`) and `Theme.shade` mixes less: `joint` 10 % and `face` 32 % towards black (were 22 % and 58 %),
+  `stick` 10 % towards white (was 25 %).
 - `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
   `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
 
