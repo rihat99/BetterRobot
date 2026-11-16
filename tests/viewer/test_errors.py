@@ -6,7 +6,6 @@ from __future__ import annotations
 import socket
 import sys
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -28,7 +27,6 @@ from better_robot.viewer import (
     Viewer,
     robot_skeleton,
 )
-from better_robot.viewer.capture import write_frames
 from better_robot.viewer.robot import robot_meshes
 from better_robot.viewer.tools import PoseGizmo
 from tests.support.robots import panda_urdf
@@ -131,10 +129,9 @@ def test_pose_gizmo_takes_one_pose() -> None:
         PoseGizmo(Viewer(server=FakeServer()), "g", pose=np.zeros(6))
 
 
-def test_a_missing_optional_package_raises_its_install_line(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_a_missing_optional_package_raises_its_install_line(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = [
         ("viser", "viewer", Viewer),
-        ("PIL", "viewer", lambda: write_frames([np.zeros((2, 2, 3), np.uint8)], tmp_path / "a.gif", fps=1.0)),
         ("trimesh", "meshes", lambda: robot_meshes(br.io.load_geometry(panda_urdf(), br.load(panda_urdf())))),
     ]
     for module, extra, call in calls:

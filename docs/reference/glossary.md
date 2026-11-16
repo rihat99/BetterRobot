@@ -268,6 +268,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **skinning, skin, skinned mesh** | Linear blend skinning: each vertex of a skinned mesh moves with a weighted blend of bone poses (`SkinnedMeshLayer.skin(step)`). |
 | **bind pose** | The pose in which a skinned mesh's vertices are given (`SkinnedMeshLayer(bind_poses=)`). |
 | **trimesh** | The mesh library; `MeshSpec.trimesh` holds one of its meshes, with textures or vertex colours. |
+| **bitrate** | Bits per second of an encoded video; `Viewer.record(bitrate=)` trades file size for detail. |
 
 ## Testing
 
