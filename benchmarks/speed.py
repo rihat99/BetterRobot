@@ -50,6 +50,9 @@ IK, aligned with the frax reference run as far as the two algorithms allow:
 - compiled solves: a library with ``solve_ik(step=)`` compiles its LM step once per row with ``kinematics.compiled``
   and passes it (adapter ``solve_ik(step=)``); an older one compiles the whole solve with ``torch.compile``, which
   breaks the graph at every early-stop read.
+- ``track``: one ``optim.track`` call of the ``ik_step`` problem (the joint limits are its box), warm started from
+  the call before (a control loop's steady state; frax's ``ik_step`` is the same tick, cold);
+  ``track_constrained``: the same with the clearance rows of ``ik_step_constrained``.
 
 What still differs: LM with hard bounds against frax's QP with a posture task and limit rows; the frames (``panda_hand``,
 G1's ``rubber_hand`` and ``ankle_roll`` links against frax's end-effector, hand and foot offsets); frax's G1 URDF
@@ -211,7 +214,16 @@ KINEMATICS: dict[str, Callable[..., torch.Tensor | tuple]] = {
     ),
     "center_of_mass": lambda model, frame, q, v, a: br.center_of_mass(model, br.forward_kinematics(model, q)),
 }
-FUNCTIONS = (*KINEMATICS, "ik_step", "solve_ik", "solve_ik_multistart", "ik_step_constrained", "solve_ik_constrained")
+FUNCTIONS = (
+    *KINEMATICS,
+    "ik_step",
+    "solve_ik",
+    "solve_ik_multistart",
+    "ik_step_constrained",
+    "solve_ik_constrained",
+    "track",
+    "track_constrained",
+)
 # sphere file, obstacle (x, y, z, radius) and the number of closest self pairs of the constrained IK rows
 CLEARANCE = {
     "panda": ("panda.json", (0.45, 0.25, 0.45, 0.10), 8),
@@ -295,6 +307,15 @@ def ik_case(
     constrained = function.endswith("_constrained")
     solver = SequentialQP() if constrained else LevenbergMarquardt()
     add, worst = clearance_rows(robot, model, start) if constrained else (lambda problem: None, None)
+    if function.startswith("track"):
+        problem = br.terms.ik_problem(model, dict(zip(frames, poses, strict=True)), q0=q0)
+        add(problem)
+
+        def tick(q: torch.Tensor, warm: br.optim.QPSolution) -> tuple:
+            x, solution = br.optim.track(problem, {"q": q}, warm=warm)
+            return x["q"], solution.x, solution.dual
+
+        return tick, (q0, br.optim.track(problem, {"q": q0})[1]), lambda output: {"iterations": 1}
     if function in ("ik_step", "ik_step_constrained"):
         problem = br.terms.ik_problem(model, dict(zip(frames, poses, strict=True)), q0=q0)
         add(problem)
