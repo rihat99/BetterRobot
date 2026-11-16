@@ -42,8 +42,8 @@ from ..model import (
     Sphere,
 )
 
-#: An sRGB colour, each channel in ``0..255``.
-RGB = tuple[int, int, int]
+#: A colour as the viewer takes it everywhere: red, green and blue in ``[0, 1]``.
+RGB = tuple[float, float, float]
 
 _TWIST = float(np.cos(np.radians(35.0)))  # a joint axis within 35 degrees of its limb twists the limb
 _HALF = 0.8  # half length of a drum over its radius
@@ -230,15 +230,16 @@ class Skeleton:
         return se3.act(poses[..., self.line_body, None, :], local).numpy()
 
     def colors(self, hue: RGB, shade: Callable[[RGB, str], RGB]) -> dict[str, np.ndarray]:
-        """Colours ``(N, 3) uint8`` of every block: ``shade(hue, role)`` per part, tinted by side, or its override.
+        """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``shade(hue, role)`` per part, tinted by side, or its
+        override.
 
         ``shade`` is ``Theme.shade``. A left block takes the hue 35 % towards white, a right one 25 % towards black.
         """
-        left, right = _mix(hue, (255, 255, 255), 0.35), _mix(hue, (0, 0, 0), 0.25)
+        left, right = _mix(hue, (1.0, 1.0, 1.0), 0.35), _mix(hue, (0.0, 0.0, 0.0), 0.25)
         colors = {}
         for name in ("cylinders", "balls", "boxes"):
             blocks: Blocks = getattr(self, name)
-            rows = np.zeros((len(blocks), 3), dtype=np.uint8)
+            rows = np.zeros((len(blocks), 3), dtype=np.float32)
             for i, (part, side, own) in enumerate(zip(blocks.part, blocks.side, blocks.color, strict=True)):
                 role = _ROLE[part]
                 base = own if own is not None else left if side > 0 else right if side < 0 else hue
@@ -316,7 +317,7 @@ def _from_z(direction: np.ndarray) -> np.ndarray:
 
 
 def _mix(color: RGB, other: RGB, share: float) -> RGB:
-    red, green, blue = (round(a + (b - a) * share) for a, b in zip(color, other, strict=True))
+    red, green, blue = (a + (b - a) * share for a, b in zip(color, other, strict=True))
     return red, green, blue
 
 

@@ -217,3 +217,34 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
     model, _ = _mixed()
     with pytest.raises(UnknownNameError, match="knee"):
         build_skeleton(model, SkeletonRecipe(joint_size={"knee": 2.0}))
+
+
+def test_colors_shade_each_part_and_tint_the_sides() -> None:
+    model, spheres = _g1()
+    hue = (0.2, 0.6, 0.4)
+    roles = {"joint": 0.0, "face": -0.5, "body": 0.5, "stick": 1.0}  # towards black below 0, towards white above
+
+    def shade(color: tuple[float, float, float], role: str) -> tuple[float, float, float]:
+        mix, target = abs(roles[role]), float(roles[role] > 0.0)
+        red, green, blue = (channel + mix * (target - channel) for channel in color)
+        return red, green, blue
+
+    plain = build_skeleton(model, MAXIMAL, spheres=spheres)
+    colors = plain.colors(hue, shade)
+    parts = np.array(plain.cylinders.part)
+    np.testing.assert_allclose(colors["cylinders"][parts == "drum"], np.broadcast_to(hue, (29, 3)), atol=1e-6)
+    np.testing.assert_allclose(colors["cylinders"][parts == "face"][0], shade(hue, "face"), atol=1e-6)
+    np.testing.assert_allclose(colors["boxes"][np.array(plain.boxes.part) == "hull"][0], shade(hue, "body"), atol=1e-6)
+    red = (1.0, 0.0, 0.0)
+    recipe = SkeletonRecipe(sides=True, color={"left_knee_joint": red})
+    sided = build_skeleton(model, recipe, spheres=spheres)
+    drums = {
+        model.joint_names[owner]: color
+        for owner, part, color in zip(
+            sided.cylinders.owner, sided.cylinders.part, sided.colors(hue, shade)["cylinders"]
+        )
+        if part == "drum"
+    }
+    np.testing.assert_allclose(drums["left_knee_joint"], red, atol=1e-6)  # a recipe colour wins over hue and side
+    assert drums["left_elbow_joint"].sum() > drums["waist_yaw_joint"].sum() > drums["right_elbow_joint"].sum()
+    np.testing.assert_allclose(drums["waist_yaw_joint"], hue, atol=1e-6)
