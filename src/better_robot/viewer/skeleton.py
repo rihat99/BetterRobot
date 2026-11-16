@@ -348,6 +348,7 @@ def _gaps(centers: np.ndarray, rotation: np.ndarray, half: np.ndarray, others: S
 # ------------------------------------------------------------------------------------------------ the tree and its sizes
 
 
+@final
 @dataclass(frozen=True)
 class _Tree:
     """What every stage of the layout reads: the joint tree, the neutral poses and the sizes.
@@ -535,6 +536,7 @@ def _fit(
 # ------------------------------------------------------------------------------------------------ hulls and end blocks
 
 
+@final
 @dataclass(frozen=True)
 class _Cloud:
     """Geometry of one frame: ``points (n, 3)`` in the frame at ``rotation``, ``origin`` (world, at neutral)."""
@@ -547,6 +549,7 @@ class _Cloud:
     radii: np.ndarray | None  # per point for a sphere set; None when the points lie on the surface
 
 
+@final
 @dataclass(frozen=True)
 class _Hull:
     """One hull or end block: a box, or a ball of radius ``half[0]``, rigid in joint ``body``; world, at neutral."""
@@ -745,6 +748,7 @@ def _end(
 # ------------------------------------------------------------------------------------------------ the blocks being built
 
 
+@final
 class _Rows:
     """The blocks of a skeleton while it is built: world placements at neutral, packed into joint frames at the end."""
 
