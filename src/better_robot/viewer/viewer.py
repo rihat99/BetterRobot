@@ -15,6 +15,7 @@ from ..exceptions import ArgumentError, ShapeError, UnknownNameError
 from ._extras import needs_extra
 from .layer import Layer, as_tags
 from .layers.ground import GroundLayer
+from .layers.image import ImagePanel
 from .layers.plot import PlotPanel
 from .sidebar import Sidebar
 from .theme import LIGHT, Theme
@@ -40,6 +41,11 @@ def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
     if np.any(np.diff(times) < 0):
         raise ArgumentError("times must be non-decreasing")
     return times
+
+
+def _label(tag: str) -> str:
+    """A tag as its Layers checkbox reads, in sentence case: ``"left_arm"`` -> ``"Left arm"``."""
+    return tag[:1].upper() + tag[1:].replace("_", " ")
 
 
 @final
@@ -239,12 +245,16 @@ class Viewer:
         """Build the Timeline section once the timeline has more than one step."""
         if self.timeline.nsteps > 1 and not self._timeline_built:
             self._timeline_built = True
-            with self.sidebar.section("Timeline"):
-                self.timeline.build_gui(self.server.gui)
+            self.timeline.build_gui(self.sidebar)
 
     def _sync_layers_section(self) -> None:
-        """One Layers checkbox per tag (the ground's excluded) while there are two or more tags, none otherwise."""
-        tags = [tag for tag in self.tags if tag != "ground"]
+        """One Layers checkbox per tag while there are two or more, none otherwise; the ground and tags that hold only
+        sidebar panels (charts, images) are not listed. A checkbox reads its tag in sentence case."""
+        tags = [
+            tag
+            for tag in self.tags
+            if tag != "ground" and not all(isinstance(layer, PlotPanel | ImagePanel) for layer in self._tagged(tag))
+        ]
         if len(tags) < 2:
             if self._boxes:
                 self._boxes.clear()
@@ -252,12 +262,12 @@ class Viewer:
             return
         for tag in [tag for tag in self._boxes if tag not in tags]:
             del self._boxes[tag]
-            self.sidebar.remove("Layers", tag)
+            self.sidebar.remove("Layers", _label(tag))
         for tag in tags:
             if tag not in self._boxes:
                 self._boxes[tag] = self.sidebar.checkbox(
                     "Layers",
-                    tag,
+                    _label(tag),
                     value=any(layer.visible for layer in self._tagged(tag)),
                     on_change=lambda visible, tag=tag: self.set_visible(tag, visible),
                 )

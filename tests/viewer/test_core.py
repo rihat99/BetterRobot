@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any
 
@@ -15,6 +16,7 @@ from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, Po
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.layers.skinned import SkinnedMeshLayer
+from better_robot.viewer.sidebar import Sidebar
 from better_robot.viewer.theme import DARK, LIGHT, Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
@@ -60,7 +62,7 @@ def test_hidden_layers_are_skipped_and_catch_up_when_shown_again() -> None:
     layer = _skeleton(10)
     viewer.add([layer])
     viewer.add(PointsLayer("cloud", np.zeros((1, 3))))  # a second tag brings the Layers checkboxes
-    checkbox = server.gui.control("skel")
+    checkbox = server.gui.control("Skel")
     checkbox.value = False
     checkbox.fire()
     assert server.scene.nodes["/skel/skel/joints"].visible is False
@@ -102,8 +104,9 @@ def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
     timeline = Timeline(5, fps=100.0)
     seen: list[int] = []
     timeline.on_step(seen.append)
-    gui = FakeServer().gui
-    timeline.build_gui(gui)
+    server = FakeServer()
+    gui = server.gui
+    timeline.build_gui(Sidebar(server, threading.RLock()))
     slider = gui.control("Step")
     timeline.step = 99
     assert timeline.step == 4 and slider.value == 4
@@ -130,7 +133,26 @@ def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
     timeline.pause()
     assert not timeline.playing
     assert any(step < timeline.step or step == 0 for step in seen[-8:])
-    assert gui.control("Play").label == "Play"
+    assert gui.control("Play").value is False
+
+
+def test_timeline_controls_run_under_the_viewer_lock_without_waiting_for_playback() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    viewer.add(_skeleton(1000))
+    play, speed = server.gui.control("Play"), server.gui.control("Speed")
+    assert [c.name for c in server.gui.controls if c.kind != "GuiFolderHandle"][:4] == ["Play", "Step", "Speed", "Loop"]
+    play.value = True
+    play.fire()  # under the lock, as every sidebar callback
+    time.sleep(0.1)
+    speed.value = "2\u00d7"
+    speed.fire()
+    assert viewer.timeline.playing and viewer.timeline.speed == 2.0  # no restart: the thread reads it
+    with viewer.lock:  # the playback thread waits for this lock: unticking Play must not wait for the thread
+        play.value = False
+        play.fire()
+    assert not viewer.timeline.playing
+    viewer.timeline.pause()  # outside the lock it waits for the thread to end
 
 
 def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
@@ -439,7 +461,7 @@ def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_se
         return {
             c.name: c
             for c in server.gui.controls
-            if c.kind == "GuiCheckboxHandle" and c.name != "Loop" and not c.removed
+            if c.kind == "GuiCheckboxHandle" and c.name not in ("Play", "Loop") and not c.removed
         }
 
     skel = _skeleton(10, "skel")
@@ -447,19 +469,20 @@ def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_se
     assert boxes() == {} and "Layers" not in [c.name for c in server.gui.controls]  # one tag: nothing to toggle
     arm, hand = _skeleton(10, "arm"), PointsLayer("hand", np.zeros((1, 3)))
     viewer.add([arm, hand], tags="robot")
-    assert list(boxes()) == ["skel", "robot"]
+    viewer.add_plot("torque", np.zeros((10, 2)))  # a chart in the sidebar has nothing to hide in the scene
+    assert list(boxes()) == ["Skel", "Robot"]
     assert [control.name for control in server.gui.controls].count("Layers") == 1
     viewer.set_visible(arm, False)
-    assert arm.visible is False and boxes()["robot"].value is True  # the hand still shows
+    assert arm.visible is False and boxes()["Robot"].value is True  # the hand still shows
     viewer.set_visible(hand, False)
-    assert boxes()["robot"].value is False
-    boxes()["skel"].value = False
-    boxes()["skel"].fire()
+    assert boxes()["Robot"].value is False
+    boxes()["Skel"].value = False
+    boxes()["Skel"].fire()
     assert skel.visible is False
 
     viewer.show(4)
-    boxes()["robot"].value = True
-    boxes()["robot"].fire()
+    boxes()["Robot"].value = True
+    boxes()["Robot"].fire()
     assert arm.visible and hand.visible and viewer._entry(arm).step == 4
     folder = server.gui.control("Layers")
     viewer.remove("robot")
