@@ -610,14 +610,17 @@ class _Box(Layer):
 
 
 def _inside_view(points: np.ndarray, position: np.ndarray, look_at: np.ndarray, fov: float) -> bool:
-    """Whether every point lies inside the cone of half-angle ``fov / 2`` around the line of sight."""
+    """Whether every point lies inside a 16:9 view of vertical field of view ``fov``, upright along +z."""
     sight = (look_at - position) / np.linalg.norm(look_at - position)
+    right = np.cross(sight, [0.0, 0.0, 1.0])
+    right /= np.linalg.norm(right)
     rays = points - position
-    cosines = rays @ sight / np.linalg.norm(rays, axis=-1)
-    return bool((cosines >= np.cos(fov / 2)).all())
+    depth = rays @ sight
+    tall, wide = np.abs(rays @ np.cross(right, sight)) / depth, np.abs(rays @ right) / depth
+    return bool((depth > 0).all() and (tall <= np.tan(fov / 2)).all() and (wide <= np.tan(fov / 2) * 16 / 9).all())
 
 
-def test_aim_frames_the_bounding_sphere_of_the_visible_layers_in_new_and_connected_browsers() -> None:
+def test_aim_frames_the_box_of_the_visible_layers_in_new_and_connected_browsers() -> None:
     server = FakeServer()
     server.clients[0] = FakeClient()
     viewer = Viewer(server=server)  # the ground has no bounds: never framed
@@ -635,8 +638,15 @@ def test_aim_frames_the_bounding_sphere_of_the_visible_layers_in_new_and_connect
         np.testing.assert_allclose(camera.look_at, look_at)
         assert camera.writes.index("position") < camera.writes.index("look_at")
     np.testing.assert_allclose(look_at, [0.0, 2.0, 0.5])  # the box of step 0, moved by the tag's offset
-    # The sphere around that box (radius 0.5) fills the field of view with a 15 % margin.
-    np.testing.assert_allclose(np.linalg.norm(position - look_at), 0.5 / np.sin(fov / 2) * 1.15)
+    # That box spans 80 % of a 16:9 view: its corners reach the bound on one screen axis and stay inside the other.
+    view = (look_at - position) / np.linalg.norm(look_at - position)
+    right = np.cross(view, viewer.theme.up_vector)
+    right /= np.linalg.norm(right)
+    corners = np.array([[x, y, z] for x in (0.0, 0.0) for y in (2.0, 2.0) for z in (0.0, 1.0)]) - position
+    depth = corners @ view
+    tall = np.abs(corners @ np.cross(right, view)) / depth / np.tan(fov / 2)
+    wide = np.abs(corners @ right) / depth / (np.tan(fov / 2) * 16 / 9)
+    np.testing.assert_allclose(max(tall.max(), wide.max()), 0.8)
     up = viewer.theme.up_vector
     assert np.dot(position - look_at, up) > 0.0  # seen from above
     position, look_at = viewer.aim()  # the whole clip: the last step is in view too

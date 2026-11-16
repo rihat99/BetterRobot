@@ -87,9 +87,9 @@ callback, so one control drives every layer that asked for it, and it goes when 
 callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps. A callback that raises a
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
-Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the bounding sphere of
-the visible layers' `Layer.bounds` over the clip (at most 32 steps are read), seen from a 3/4 view at the distance
-where the sphere fills the field of view. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself.
+Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the box of the visible
+layers' `Layer.bounds` over the clip (at most 32 steps are read), seen from a 3/4 view at the distance where the box
+spans four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself.
 
 ## One timeline drives every layer
 

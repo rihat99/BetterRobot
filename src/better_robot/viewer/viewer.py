@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 _EMPTY_SCENE: tuple[np.ndarray, np.ndarray] = (np.array([-1.0, -1.0, 0.0]), np.array([1.0, 1.0, 1.0]))
 _FOV = math.radians(40.0)  # the vertical field of view of the browsers' camera
 _AIM_STEPS = 32  # at most this many evenly spaced steps are framed by ``aim``
-_AIM_MARGIN = 1.15  # distance over the one that just fits the bounding sphere into the field of view
+_AIM_FILL = 0.8  # share of a 16:9 view's height (or width) the framed box spans
+_AIM_ASPECT = 16.0 / 9.0
 
 
 def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
@@ -421,10 +422,11 @@ class Viewer:
         """Point the connected browsers and every new one (viser's initial camera, also "Reset View") at the visible
         layers, and stop aiming by itself after each ``add``.
 
-        The view is the bounding sphere of the visible layers' ``Layer.bounds`` over ``steps`` (default: every step;
-        at most 32 evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and
-        ``elevation`` (radians) about the theme's ``up`` axis at the distance where the sphere fills the vertical
-        field of view ``fov`` with a margin; the browsers take ``fov``. Returns ``(position, look_at)``.
+        The view is the box of the visible layers' ``Layer.bounds`` over ``steps`` (default: every step; at most 32
+        evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and ``elevation``
+        (radians) about the theme's ``up`` axis at the distance where the box spans 80 % of a 16:9 view's height or
+        width, whichever is reached first, in the vertical field of view ``fov``; the browsers take ``fov``. Returns
+        ``(position, look_at)``.
         """
         with self.lock:
             self._aimed = True
@@ -443,14 +445,22 @@ class Viewer:
         lo, hi = (
             (np.min([b[0] for b in boxes], axis=0), np.max([b[1] for b in boxes], axis=0)) if boxes else _EMPTY_SCENE
         )
-        center, radius = (lo + hi) / 2.0, max(float(np.linalg.norm(hi - lo)) / 2.0, 1e-3)
+        center = (lo + hi) / 2.0
         up = np.asarray(self.theme.up_vector)
         side = np.cross(np.array([0.0, 0.0, 1.0]) if abs(up[2]) < 0.9 else np.array([1.0, 0.0, 0.0]), up)
         side /= np.linalg.norm(side)
         forward = np.cross(up, side)
         direction = math.cos(elevation) * (math.cos(azimuth) * side + math.sin(azimuth) * forward)
         direction = direction + math.sin(elevation) * up
-        distance = radius / math.sin(fov / 2.0) * _AIM_MARGIN
+        right = np.cross(up, direction)
+        right /= np.linalg.norm(right)
+        screen_up = np.cross(direction, right)
+        # The nearest distance at which every corner of the box projects inside the filled part of a 16:9 view.
+        corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+        offsets = corners - center
+        tan_y = _AIM_FILL * math.tan(fov / 2.0)
+        reach = np.maximum(np.abs(offsets @ screen_up) / tan_y, np.abs(offsets @ right) / (tan_y * _AIM_ASPECT))
+        distance = max(float(np.max(offsets @ direction + reach)), 1e-3)
         return center + distance * direction, center
 
     def _boxes_at(self, step: int) -> list[tuple[np.ndarray, np.ndarray]]:
