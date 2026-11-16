@@ -81,3 +81,25 @@ def test_more_iterations_per_call_make_more_programs_exact() -> None:
     assert int(few.exact.sum()) <= 4
     assert int(many.exact.sum()) >= 16
     assert float(many.primal_residual.max()) < 0.5 * float(few.primal_residual.max())
+
+
+def test_the_program_starts_from_the_last_solution() -> None:
+    """The design rests on the warm start: after 30 calls of 20 iterations the programs of a loop that passes each
+    solution on are exact on all 64 points, those of a loop whose every call starts cold on 2."""
+    problem = _walled()
+    x, warm, cold = dict(problem.variables), None, dict(problem.variables)
+    for _ in range(30):
+        x, warm = optim.track(problem, x, warm=warm, step=0.5)
+        cold, alone = optim.track(problem, cold, step=0.5)
+    assert int(warm.exact.sum()) >= 56
+    assert int(alone.exact.sum()) <= 8
+
+
+def test_the_damping_shortens_a_free_step() -> None:
+    """With no row or bound in the way, a step is the Gauss-Newton step over ``1 + damping`` (``H`` is the identity
+    here): half of it at ``damping=1``, so the damping reaches the program."""
+    target = torch.tensor([[2.0, -1.0], [0.5, 3.0]], dtype=torch.float64)
+    problem = optim.Problem({"x": torch.zeros(2, 2, dtype=torch.float64)}, data={"target": target})
+    problem.residual("chase", lambda x, target: x - target)
+    new, _ = optim.track(problem, dict(problem.variables), step=10.0, damping=1.0)
+    torch.testing.assert_close(new["x"], target / 2, rtol=0, atol=1e-6)
