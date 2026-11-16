@@ -10,7 +10,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from better_robot.viewer.layers import ArrowsLayer, FramesLayer, PointsLayer, SkeletonLayer
+from better_robot.viewer.layers import ArrowsLayer, FramesLayer, PointsLayer
+from better_robot.viewer.layers.mesh import SpheresLayer
 from better_robot.viewer.layer import Layer
 from better_robot.viewer.tools import PoseGizmo
 from better_robot.viewer.viewer import Viewer
@@ -27,11 +28,10 @@ def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None
     try:
         rng = np.random.default_rng(0)
         joints = rng.normal(size=(50, 24, 3)).astype(np.float32)
-        parent_ids = np.concatenate([[-1], np.arange(23)])
         poses = np.zeros((50, 24, 7), dtype=np.float32)
         poses[..., :3] = joints
         poses[..., 6] = 1.0
-        viewer.add([SkeletonLayer("skeleton", joints, parent_ids=parent_ids)])
+        viewer.add([SpheresLayer("skeleton", joints, radii=np.full(24, 0.03))])
         viewer.add([ArrowsLayer("forces", joints[:, :4], vectors=rng.normal(size=(50, 4, 3)) * 0.2)])
         viewer.add([FramesLayer("frames", poses)])
         viewer.add([PointsLayer("cloud", rng.normal(size=(50, 1000, 3)))], tags="scan")

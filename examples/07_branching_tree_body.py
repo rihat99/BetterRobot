@@ -1,6 +1,6 @@
 """Display a branching tree built with ``ModelBuilder`` as a skeleton.
 
-The viewer works on a robot built in Python, with no URDF and no geometry: ``robot_skeleton`` draws the joints
+The viewer works on a robot built in Python, with no URDF and no geometry: ``RobotVisual`` draws the joints
 and the bones between them.
 
 Usage:
@@ -48,7 +48,7 @@ def main() -> None:
 
     if not args.no_viewer:
         viewer = br.Viewer(port=8081, server=br.testing.FakeServer() if args.check else None)
-        viewer.add([br.viewer.robot_skeleton(model, state.joint_poses.numpy())])  # no meshes for a programmatic body
+        viewer.add(br.viewer.RobotVisual(model))  # no meshes for a programmatic body: the skeleton
         viewer.show()
         if args.check:
             print(f"{len(viewer.layers)} layers built on the stand-in server")

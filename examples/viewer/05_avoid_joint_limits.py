@@ -27,9 +27,10 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer, forward_kinematics, lie, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
+URDF = panda_description.URDF_PATH
 FRAME, READY = "panda_hand", [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
 STEP, TURN, TICKS = 0.02, 4.5, 800  # rad per tick (the box needs no small step), rad, ticks of the scripted path
 FORMS = ("rows", "cost", "off")  # the GUI's choices: the limits as the box, as a cost term, or no limits
@@ -53,7 +54,7 @@ def main() -> None:
     parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
     args = parser.parse_args()
 
-    model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    model = br.load(URDF, dtype=torch.float64)
     q0 = model.q_neutral.clone()[None]  # (1, nq)
     q0[0, :7] = torch.tensor(READY)
     start = forward_kinematics(model, q0).frame_poses[:, model.frame_id(FRAME)]  # (1, 7)
@@ -73,29 +74,27 @@ def main() -> None:
         """One ``track`` step toward ``target (1, 7)``."""
         return optim.track(problems[form].with_(data={f"target/{FRAME}": target}), x, warm=warm, step=STEP)
 
-    def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Joint poses ``(T, J, 7)``, the arm's joint positions ``(T, 7, 3)`` and how far each joint is inside its
-        range ``(T, 7)`` (negative past a limit) of ``q (T, nq)``."""
+    def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
+        """The arm's joint positions ``(T, 7, 3)`` and how far each joint is inside its range ``(T, 7)`` (negative
+        past a limit) of ``q (T, nq)``."""
         poses = forward_kinematics(model, q).joint_poses
-        return poses.numpy(), poses[:, 1:8, :3].numpy(), torch.minimum(q - lower, upper - q)[:, :7].numpy()
+        return poses[:, 1:8, :3].numpy(), torch.minimum(q - lower, upper - q)[:, :7].numpy()
 
-    meshes = robot_meshes(
-        br.io.load_geometry(panda_description.URDF_PATH, model), root=Path(panda_description.REPOSITORY_PATH)
-    )
+    geometry = br.io.load_geometry(URDF, model)
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)`` and a marker on each joint at (amber) or past (red) its limit, under ``group``."""
-        poses, joints, inside = look(q)
+        joints, inside = look(q)
         radii = np.full(7, 0.07)
         layers = [
-            RigidMeshLayer("robot", meshes, body_poses=poses),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=URDF),
             SpheresLayer("at the limit", joints, radii=radii, colors=AMBER, opacity=0.8),
             SpheresLayer("past the limit", joints, radii=radii, colors=RED, opacity=0.8),
         ]
         viewer.add(layers[:1], tags=group, offset=offset)
-        viewer.add(layers[1:2], tags=group, offset=offset, valid=np.abs(inside) <= 1e-3)
-        viewer.add(layers[2:], tags=group, offset=offset, valid=inside < -1e-3)
+        viewer.add(layers[1:2], tags=(group, "markers"), offset=offset, valid=np.abs(inside) <= 1e-3)
+        viewer.add(layers[2:], tags=(group, "markers"), offset=offset, valid=inside < -1e-3)
         return layers
 
     if not (args.check or args.record):
@@ -106,7 +105,7 @@ def main() -> None:
     path = torch.cat([start[:, :3].expand(TICKS, 3), lie.so3.compose(start[:, 3:], turns)], dim=-1)  # (TICKS, 7)
     for side, form in enumerate(("off", "rows")):
         q, seconds = run(tick, form, dict(problems[form].variables), path)
-        inside = look(q)[2]
+        inside = look(q)[1]
         print(
             f"limits {form:4s}: deepest joint {max(0.0, -inside.min()):.5f} rad past its limit "
             f"(panda_joint{int(inside.min(0).argmin()) + 1}), tick {1e3 * seconds:.1f} ms (median)"
@@ -131,11 +130,11 @@ def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: di
             warm, last = None, form.value
         x, warm = tick(form.value, torch.from_numpy(gizmo.pose).to(start)[None], x, warm)
         seconds = time.perf_counter() - began
-        poses, joints, inside = look(x["q"])
-        robot[0].body_poses[:] = poses
+        joints, inside = look(x["q"])
+        robot[0].update(x["q"])
         robot[1].centers[:] = robot[2].centers[:] = joints
         robot[1].valid[:], robot[2].valid[:] = np.abs(inside) <= 1e-3, inside < -1e-3
-        viewer.show()
+        viewer.redraw("markers")
         joint = int(inside[0].argmin())
         readout.content = (
             f"panda_joint{joint + 1} is closest: **{inside[0, joint]:+.3f} rad** inside its range  \n"

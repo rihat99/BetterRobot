@@ -155,10 +155,11 @@ BUILDERS: dict[str, Callable[[], object]] = {
     "better_robot.optim.Tukey": optim.Tukey,
     "better_robot.terms.RobotManifold": lambda: terms.RobotManifold(_panda()),
     "better_robot.viewer.ArrowsLayer": lambda: viewer.ArrowsLayer(name="arrows", origins=POINTS, vectors=POINTS),
-    "better_robot.viewer.CameraLayer": lambda: viewer.CameraLayer("camera", POSES, fov=1.0, aspect=1.5),
+    "better_robot.viewer.CameraLayer": lambda: viewer.CameraLayer("camera", POSES, intrinsics=np.eye(3), size=(4, 3)),
     "better_robot.viewer.FramesLayer": lambda: viewer.FramesLayer("frames", POSES),
     "better_robot.viewer.GroundLayer": viewer.GroundLayer,
     "better_robot.viewer.ImagePanel": lambda: viewer.ImagePanel("image", np.zeros((2, 4, 4, 3), dtype=np.uint8)),
+    "better_robot.viewer.LinesLayer": lambda: viewer.LinesLayer("lines", np.zeros((2, 2, 3))),
     "better_robot.viewer.MeshLayer": lambda: viewer.MeshLayer(name="mesh", vertices=np.zeros((3, 3)), faces=FACES),
     "better_robot.viewer.MeshSpec": _mesh_spec,
     "better_robot.viewer.PlotPanel": lambda: viewer.PlotPanel("plot", np.zeros((10, 2))),
@@ -166,9 +167,9 @@ BUILDERS: dict[str, Callable[[], object]] = {
     "better_robot.viewer.RigidMeshLayer": lambda: viewer.RigidMeshLayer(
         name="rigid", meshes=[_mesh_spec()], body_poses=POSES[None, :1]
     ),
-    "better_robot.viewer.SkeletonLayer": lambda: viewer.SkeletonLayer(
-        name="skeleton", joints=np.zeros((3, 3)), parent_ids=[-1, 0, 1]
-    ),
+    "better_robot.viewer.RobotVisual": lambda: viewer.RobotVisual(_panda()),
+    "better_robot.viewer.SkeletonRecipe": viewer.SkeletonRecipe,
+    "better_robot.viewer.Skin": lambda: viewer.Skin(np.zeros((3, 3)), FACES, weights=np.ones((3, 1))),
     "better_robot.viewer.SkinnedMeshLayer": lambda: viewer.SkinnedMeshLayer(
         name="skin",
         vertices=np.zeros((3, 3)),

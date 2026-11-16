@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 import viser
 
+import better_robot as br
 from better_robot.testing import FakeServer
 from better_robot.exceptions import ArgumentError
 from better_robot.testing.fake_server import FakeClient, FakeGui, FakeHandle, FakeScene
@@ -22,17 +23,20 @@ from better_robot.viewer import (
     CameraLayer,
     FramesLayer,
     ImagePanel,
+    LinesLayer,
     MeshLayer,
     MeshSpec,
     PlotPanel,
     PointsLayer,
     RigidMeshLayer,
-    SkeletonLayer,
+    RobotVisual,
+    SkeletonRecipe,
     SkinnedMeshLayer,
     SpheresLayer,
     Viewer,
 )
 from better_robot.viewer.tools import PoseGizmo
+from tests.support.robots import panda_urdf
 
 #: Methods that play the test or the browser, not viser: ``control`` finds a control, ``fire`` sends an event.
 STAND_IN_ONLY = {"control", "fire"}
@@ -98,6 +102,8 @@ def _drive_the_sidebar(viewer: Viewer) -> None:
     style.value = "maximal"
     style.fire(SimpleNamespace(client=server.clients[0]))  # refused: back to "meshes", a notification shown
     assert style.value == "meshes" and server.clients[0].notifications[0]["color"] == "red"
+    robot = RobotVisual(br.load(panda_urdf()), maximal=SkeletonRecipe(limits=True), frames=True)
+    viewer.add(robot).set_style("minimal")  # a robot joins the Robot section made above; both its skeletons are built
     sidebar.remove("Robot")
     viewer.layers[1].redraw()
     viewer.set_theme(DARK)
@@ -149,9 +155,6 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
         PointsLayer("points", points),
         MeshLayer("mesh", points, faces=faces, opacity=0.5),
         RigidMeshLayer("rigid", [spec], body_poses=poses),
-        SkeletonLayer(
-            "skeleton", points[:, :4], parent_ids=[-1, 0, 1, 2], kinds=["revolute"] * 4, axes=poses[0, :, :3] + 1.0
-        ),
         FramesLayer("frames", poses),
         ArrowsLayer("arrows", points[:, :3], vectors=points[:, 3:6]),
         ArrowsLayer("solid", points[:, :3], vectors=points[:, 3:6], shaft_radius=0.01),
@@ -159,15 +162,19 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
         SkinnedMeshLayer(
             "skinned", points[0], faces=faces, weights=rng.uniform(size=(8, 4)), bind_poses=poses[0], bone_poses=poses
         ),
-        CameraLayer("camera", poses[:, 0], fov=1.0, aspect=1.5, image=np.zeros((3, 4, 4, 3), np.uint8)),
+        CameraLayer("camera", poses[:, 0], intrinsics=np.eye(3), size=(4, 4), image=np.zeros((3, 4, 4, 3), np.uint8)),
         ImagePanel("image", np.zeros((3, 4, 4, 3), np.uint8)),
         PlotPanel("plot", rng.normal(size=(3, 2))),
+        LinesLayer("lines", points.reshape(3, 4, 2, 3)),
+        MeshLayer("painted", points[0], faces=faces, colors=rng.uniform(size=(8, 3))),
+        MeshLayer("bands", points, faces=faces, colors=np.eye(3)[np.arange(8) % 2]),
+        PointsLayer("ragged", [points[0], points[1, :2], points[2, :0]]),
     ]
     viewer.add(layers)
     viewer.add([SpheresLayer("valid", points[:, :3], radii=np.full(3, 0.1))], tags="v", valid=np.ones((3, 3), bool))
     for step in range(3):
         viewer.show(step)
-    for layer in (layers[1], layers[2], layers[7], layers[8]):
+    for layer in (layers[1], layers[2], layers[6], layers[7]):
         layer.set_opacity(0.3)
     for layer in layers:
         viewer.set_visible(layer, False)

@@ -7,7 +7,6 @@ from typing import Any, final, override
 import numpy as np
 
 from ...exceptions import ShapeError
-from .._lie import to_wxyz
 from ..layer import Bounds, Layer, as_frames, box
 
 
@@ -33,7 +32,7 @@ class FramesLayer(Layer):
         self._axes = self._track(
             scene.add_batched_axes(
                 f"{root}/axes",
-                batched_wxyzs=to_wxyz(self.poses[0, :, 3:]),
+                batched_wxyzs=self.poses[0][:, [6, 3, 4, 5]],  # viser's scalar-first quaternions
                 batched_positions=self.poses[0, :, :3],
                 axes_length=self.axes_length,
                 axes_radius=self.axes_radius,
@@ -49,4 +48,4 @@ class FramesLayer(Layer):
         if self._axes is None:
             return
         self._axes.batched_positions = self.poses[step, :, :3]
-        self._axes.batched_wxyzs = to_wxyz(self.poses[step, :, 3:])
+        self._axes.batched_wxyzs = self.poses[step][:, [6, 3, 4, 5]]

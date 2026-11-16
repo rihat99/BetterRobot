@@ -1,4 +1,4 @@
-"""``ArrowsLayer``: forces, contacts or axes as line or solid shafts with batched cone heads."""
+"""``ArrowsLayer``: forces, contacts or axes as viser's solid arrows."""
 
 from __future__ import annotations
 
@@ -7,31 +7,19 @@ from typing import Any, final, override
 import numpy as np
 
 from ...exceptions import ShapeError
-from .._lie import from_z, to_wxyz
-from .._primitives import unit_cone, unit_cylinder
-from ..layer import Bounds, as_frames, box
+from ..layer import Bounds, Layer, as_frames, box
 from ..theme import RGB, rgb_uint8
-from ..layer import Layer
 
 
 @final
 class ArrowsLayer(Layer):
-    """Arrows from ``origins (T, N, 3)`` along ``vectors (T, N, 3) * scale``.
+    """Arrows from ``origins (T, N, 3)`` along ``vectors (T, N, 3) * scale``, drawn by viser's ``add_arrows``.
 
-    An arrow is drawn only when its scaled length exceeds ``min_length`` (metres): shorter ones, exact
-    zeros included, draw nothing in either mode (no dot, no lone head), so N stays fixed across frames.
-    Use zero vectors for inactive contacts (a ``(T, N)`` ``valid`` in ``Viewer.add`` does the same).
-    ``colors`` is one RGB, ``(N, 3)``, or ``(T, N, 3)`` per step.
-
-    By default a shaft is a screen-space line ``line_width`` pixels wide and the cone head shrinks on
-    vectors shorter than ``head_size``. With ``shaft_radius`` (metres) the arrow is solid: a cylinder
-    shaft and a cone head of length ``head_size`` and radius ``head_radius`` (default
-    ``head_size / 2``), the shaft filling the rest of the vector. A head takes at most
-    ``HEAD_FRACTION`` of its vector: a shorter solid arrow is the long one scaled down (head and shaft
-    thinner too), so it still reads as an arrow, never as a lone head.
+    A cylinder shaft of ``shaft_radius`` and a cone head of ``head_radius`` and ``head_length`` (metres, the same for
+    every arrow); an arrow shorter than ``head_length`` is all head. An arrow is drawn only when its scaled length
+    exceeds ``min_length`` and a ``(T, N)`` ``valid`` of ``Viewer.add`` keeps it: the others are left out of the step
+    (use zero vectors for inactive contacts). ``colors`` is one RGB, ``(N, 3)``, or ``(T, N, 3)`` per step.
     """
-
-    HEAD_FRACTION = 0.35
 
     def __init__(
         self,
@@ -41,10 +29,9 @@ class ArrowsLayer(Layer):
         vectors: np.ndarray,
         scale: float = 1.0,
         colors: np.ndarray | RGB = (0.90, 0.25, 0.20),
-        head_size: float = 0.03,
-        line_width: float = 3.0,
-        shaft_radius: float | None = None,
-        head_radius: float | None = None,
+        shaft_radius: float = 0.006,
+        head_radius: float = 0.016,
+        head_length: float = 0.04,
         min_length: float = 1e-6,
     ) -> None:
         self.origins = as_frames(origins, 2, name="origins", width=3)
@@ -54,82 +41,33 @@ class ArrowsLayer(Layer):
                 f"origins and vectors must have the same shape, got {self.origins.shape} and {self.vectors.shape}"
             )
         super().__init__(name, self.origins.shape[0])
-        self.head_size = head_size
-        self.line_width = line_width
-        self.shaft_radius = shaft_radius
-        self.head_radius = head_size * 0.5 if head_radius is None else head_radius
+        self.shaft_radius, self.head_radius, self.head_length = shaft_radius, head_radius, head_length
         self.min_length = min_length
         n_arrows = self._elements = self.origins.shape[1]
         colors = np.asarray(colors, dtype=np.float32)
         self._colors = rgb_uint8(colors, (n_arrows,)) if colors.ndim <= 2 else rgb_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.origins.shape:
             raise ShapeError(f"per-step colors must be (T, N, 3) = {self.origins.shape}, got {self._colors.shape}")
-        self._shafts: Any = None
-        self._heads: Any = None
+        self._arrows: Any = None
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        colors = self._colors if self._colors.ndim == 2 else self._colors[0]
-        if self.shaft_radius is None:
-            self._shafts = self._track(
-                scene.add_line_segments(
-                    f"{root}/shafts",
-                    self._segments(0),
-                    colors=np.repeat(colors[:, None], 2, axis=1),
-                    line_width=self.line_width,
-                )
-            )
-        else:
-            vertices, faces = unit_cylinder()
-            positions, wxyzs, scales = self._shaft_transforms(0)
-            self._shafts = self._track(
-                scene.add_batched_meshes_simple(
-                    f"{root}/shafts",
-                    vertices,
-                    faces,
-                    batched_wxyzs=wxyzs,
-                    batched_positions=positions,
-                    batched_scales=scales,
-                    batched_colors=colors,
-                    lod="off",
-                    cast_shadow=False,
-                )
-            )
-        vertices, faces = unit_cone()
-        positions, wxyzs, scales = self._head_transforms(0)
-        self._heads = self._track(
-            scene.add_batched_meshes_simple(
-                f"{root}/heads",
-                vertices,
-                faces,
-                batched_wxyzs=wxyzs,
-                batched_positions=positions,
-                batched_scales=scales,
-                batched_colors=colors,
-                lod="off",
-                cast_shadow=False,
+        points, colors = self._shown(0)
+        self._arrows = self._track(
+            scene.add_arrows(
+                f"{root}/arrows",
+                points,
+                colors,
+                shaft_radius=self.shaft_radius,
+                head_radius=self.head_radius,
+                head_length=self.head_length,
             )
         )
 
     @override
     def set_step(self, step: int) -> None:
-        if self.shaft_radius is None:
-            self._shafts.points = self._segments(step)
-        else:
-            positions, wxyzs, scales = self._shaft_transforms(step)
-            self._shafts.batched_positions = positions
-            self._shafts.batched_wxyzs = wxyzs
-            self._shafts.batched_scales = scales
-        positions, wxyzs, scales = self._head_transforms(step)
-        self._heads.batched_positions = positions
-        self._heads.batched_wxyzs = wxyzs
-        self._heads.batched_scales = scales
-        if self._colors.ndim == 3:
-            if self.shaft_radius is None:
-                self._shafts.colors = np.repeat(self._colors[step][:, None], 2, axis=1)
-            else:
-                self._shafts.batched_colors = self._colors[step]
-            self._heads.batched_colors = self._colors[step]
+        # The count of arrows shown changes from step to step, so the colours go with the points.
+        self._arrows.points, self._arrows.colors = self._shown(step)
 
     @override
     def bounds(self, step: int) -> Bounds | None:
@@ -138,46 +76,12 @@ class ArrowsLayer(Layer):
             origins, tips = origins[self.valid[step]], tips[self.valid[step]]
         return box(np.concatenate([origins, tips]))
 
-    def _vectors(self, step: int) -> np.ndarray:
-        """Vectors ``(N, 3)`` drawn at ``step``: zero where a ``(T, N)`` ``valid`` marks the arrow invalid or the
-        vector is not longer than ``min_length``."""
-        vectors = self.vectors[step]
+    def _shown(self, step: int) -> tuple[np.ndarray, np.ndarray]:
+        """The arrows drawn at ``step``: ``points (M, 2, 3)`` (tail, tip) and ``colors (M, 3)`` uint8, without the
+        ones not longer than ``min_length`` and the ones a ``(T, N)`` ``valid`` marks invalid."""
+        origins, vectors = self.origins[step], self.vectors[step]
         shown = np.linalg.norm(vectors, axis=-1) > self.min_length
         if self.valid is not None and self.valid.ndim == 2:
             shown &= self.valid[step]
-        return vectors * shown[:, None]
-
-    def _segments(self, step: int) -> np.ndarray:
-        tips = self.origins[step] + self._vectors(step)
-        return np.stack([self.origins[step], tips], axis=1)
-
-    def _head_transforms(self, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        vector = self._vectors(step)
-        length = np.linalg.norm(vector, axis=-1)
-        unit = vector / np.maximum(length, 1e-9)[:, None]
-        if self.shaft_radius is None:
-            head = np.minimum(self.head_size, length)
-            radius = head * 0.5
-        else:
-            shrink = self._shrink(length)
-            head = (self.head_size * shrink).astype(np.float32)
-            radius = (self.head_radius * shrink).astype(np.float32)
-        base = self.origins[step] + vector - unit * head[:, None]
-        scales = np.stack([radius, radius, head], axis=-1)
-        return base, to_wxyz(from_z(vector)), scales
-
-    def _shrink(self, length: np.ndarray) -> np.ndarray:
-        """Solid arrows: the scale ``(N,)`` of each arrow's head and thickness, 1 down to ``head_size /
-        HEAD_FRACTION`` and proportional to ``length`` below (0 hides a zero vector)."""
-        return np.minimum(1.0, length * self.HEAD_FRACTION / self.head_size)
-
-    def _shaft_transforms(self, step: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Solid shafts: unit cylinders from each origin to its head's base."""
-        vector = self._vectors(step)
-        length = np.linalg.norm(vector, axis=-1)
-        shrink = self._shrink(length)
-        shaft = np.maximum(length - self.head_size * shrink, 0.0)
-        radius = np.where(shaft > 0.0, self.shaft_radius * shrink, 0.0).astype(np.float32)
-        unit = vector / np.maximum(length, 1e-9)[:, None]
-        centre = self.origins[step] + unit * (shaft * 0.5)[:, None]
-        return centre, to_wxyz(from_z(vector)), np.stack([radius, radius, shaft], axis=-1).astype(np.float32)
+        colors = self._colors if self._colors.ndim == 2 else self._colors[step]
+        return np.stack([origins[shown], origins[shown] + vectors[shown]], axis=1), colors[shown]

@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Any, final, override
 
 import numpy as np
+import torch
 
 from ...exceptions import ShapeError
-from .._lie import act, inverse, to_wxyz
+from ...lie import so3
 from ..layer import Bounds, Layer, as_frames, as_triangles, box
 from ..theme import RGB, rgb_uint8
 from .camera import CameraLayer
@@ -66,7 +67,7 @@ class SkinnedMeshLayer(Layer):
                 f"{root}/mesh",
                 self.vertices,
                 self.faces,
-                bone_wxyzs=to_wxyz(bind[:, 3:]),
+                bone_wxyzs=bind[:, [6, 3, 4, 5]],  # viser's scalar-first quaternions
                 bone_positions=bind[:, :3],
                 skin_weights=np.pad(self.weights, ((0, 0), (0, pad))),
                 color=rgb_uint8(self.color),
@@ -77,7 +78,7 @@ class SkinnedMeshLayer(Layer):
     @override
     def set_step(self, step: int) -> None:
         poses = self.bone_poses[step]
-        wxyz = to_wxyz(poses[:, 3:])
+        wxyz = poses[:, [6, 3, 4, 5]]
         for handle, rotation, pose in zip(self._mesh.bones, wxyz, poses):  # padded bones stay at the origin
             handle.wxyz = rotation
             handle.position = pose[:3]
@@ -92,10 +93,10 @@ class SkinnedMeshLayer(Layer):
 
     def skin(self, step: int) -> np.ndarray:
         """Posed vertices ``(V, 3)`` of ``step`` by linear blend skinning (CPU, numpy)."""
-        bind, posed = self.bind_poses, self.bone_poses[step]
-        local = self.vertices[:, None] - bind[None, :, :3]  # (V, J, 3)
-        local = act(inverse(bind[None, :, 3:]), local)
-        world = act(posed[None, :, 3:], local) + posed[None, :, :3]
+        bind, posed = torch.from_numpy(self.bind_poses), torch.from_numpy(self.bone_poses[step])
+        local = torch.from_numpy(self.vertices)[:, None] - bind[None, :, :3]  # (V, J, 3)
+        local = so3.act(so3.inverse(bind[None, :, 3:]), local)
+        world = (so3.act(posed[None, :, 3:], local) + posed[None, :, :3]).numpy()
         return np.einsum("vj,vjk->vk", self.weights, world).astype(np.float32)
 
 

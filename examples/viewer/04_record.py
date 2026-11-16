@@ -19,7 +19,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer
 from better_robot.testing import FakeServer
-from better_robot.viewer import RigidMeshLayer, robot_meshes
+from better_robot.viewer import RobotVisual
 
 
 def main() -> None:
@@ -35,11 +35,8 @@ def main() -> None:
     half = (model.upper_position_limit - model.lower_position_limit) / 2
     q = middle + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)  # (T, nq)
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-    meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-    poses = br.forward_kinematics(model, q).joint_poses.numpy()  # (T, njoints, 7)
-
     viewer = Viewer(fps=30.0, server=FakeServer() if args.check else None)
-    viewer.add(RigidMeshLayer("panda", meshes, body_poses=poses))
+    viewer.add(RobotVisual(model, q, geometry=geometry, root=panda_description.URDF_PATH, frames=["panda_hand"]))
     if args.check:
         print(f"{viewer.timeline.nsteps} steps")
         return

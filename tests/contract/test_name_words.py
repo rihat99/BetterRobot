@@ -39,12 +39,13 @@ def test_public_quantities_are_in_si_units() -> None:
 
 
 def test_frame_means_a_robot_frame_in_the_viewer() -> None:
-    """C-NAME-4: the viewer's time index is ``step``; ``frame`` appears only in ``FramesLayer``, which draws frames."""
+    """C-NAME-4: the viewer's time index is ``step``; ``frame`` appears only in ``FramesLayer`` and in
+    ``RobotVisual``'s ``frames``, which draw a robot's frames."""
     found = [
         f"{name}: {word}"
         for name, word in _words()
         if name.startswith("better_robot.viewer.")
         and "frame" in word.lower()
-        and not name.startswith("better_robot.viewer.FramesLayer")
+        and not name.startswith(("better_robot.viewer.FramesLayer", "better_robot.viewer.RobotVisual"))
     ]
     assert not found, found

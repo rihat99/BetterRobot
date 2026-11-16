@@ -29,7 +29,7 @@ from robot_descriptions import g1_description, panda_description
 import better_robot as br
 from better_robot import Viewer, collision, forward_kinematics, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import MeshSpec, RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
@@ -47,9 +47,9 @@ FORMS = ("rows", "cost", "off")  # the GUI's choices: the obstacle as rows, as a
 RED, GREY = (0.9, 0.1, 0.1), (0.45, 0.45, 0.5)
 
 
-def load(robot: str) -> tuple[br.Model, torch.Tensor, list[MeshSpec]]:
+def load(robot: str) -> tuple[br.Model, torch.Tensor, br.Geometry]:
     """The model of ``robot`` (the G1 on a free base), its start ``q0 (1, nq)`` (Panda ready, G1 standing on z = 0)
-    and its display meshes."""
+    and its geometry."""
     description, g1 = ROBOTS[robot][0], robot == "g1"
     model = br.load(description.URDF_PATH, root_joint=br.JointFreeFlyer() if g1 else None, dtype=torch.float64)
     q0 = model.q_neutral.clone()[None]
@@ -57,9 +57,7 @@ def load(robot: str) -> tuple[br.Model, torch.Tensor, list[MeshSpec]]:
         q0[0, 2] = 0.793
     else:
         q0[0, :7] = torch.tensor(READY)
-    geometry = br.io.load_geometry(description.URDF_PATH, model)
-    root = Path(description.URDF_PATH).parent if g1 else Path(description.REPOSITORY_PATH)
-    return model, q0, robot_meshes(geometry, root=root)
+    return model, q0, br.io.load_geometry(description.URDF_PATH, model)
 
 
 def run(tick: Callable, form: str, x: dict, sweep: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, float]:
@@ -81,8 +79,8 @@ def main() -> None:
     parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
     args = parser.parse_args()
 
-    model, q0, meshes = load(args.robot)
-    _, frames, step, closest = ROBOTS[args.robot]
+    model, q0, geometry = load(args.robot)
+    description, frames, step, closest = ROBOTS[args.robot]
     spheres, _ = collision.load_spheres(collision.SPHERE_SETS / f"{args.robot}.json", model)
     start = forward_kinematics(model, q0).frame_poses[:, [model.frame_id(f) for f in frames]]  # (1, F, 7)
     hand = start[0, 0, :3]
@@ -103,13 +101,12 @@ def main() -> None:
         problem = problems[form].with_(data={f"target/{frames[0]}": target})
         return optim.track(problem, x, warm=warm, gain=GAIN, step=step)
 
-    def look(q: torch.Tensor, centers: torch.Tensor) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Joint poses ``(T, J, 7)``, sphere centres ``(T, S, 3)`` and clearances ``(T, S)`` of ``q (T, nq)`` to the
-        obstacle of radius ``RADIUS`` at ``centers (T, 3)``."""
-        state = forward_kinematics(model, q)
-        robot = spheres.centers(state)
+    def look(q: torch.Tensor, centers: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
+        """Sphere centres ``(T, S, 3)`` and clearances ``(T, S)`` of ``q (T, nq)`` to the obstacle of radius
+        ``RADIUS`` at ``centers (T, 3)``."""
+        robot = spheres.centers(forward_kinematics(model, q))
         clearance = (robot - centers[:, None]).norm(dim=-1) - spheres.radii - RADIUS
-        return state.joint_poses.numpy(), robot.numpy(), clearance.numpy()
+        return robot.numpy(), clearance.numpy()
 
     radii = spheres.radii.numpy()
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
@@ -119,15 +116,16 @@ def main() -> None:
     ) -> list:
         """The robot at ``q (T, nq)``, its spheres, the ones inside the margin (red) and the obstacle at ``centers
         (T, 3)``, under ``group``."""
-        poses, robot, clearance = look(q, centers)
+        robot, clearance = look(q, centers)
         layers = [
-            RigidMeshLayer("robot", meshes, body_poses=poses),
-            SpheresLayer("spheres", robot, radii=radii, opacity=0.15),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH),
             SpheresLayer("obstacle", centers[:, None].numpy(), radii=np.array([RADIUS]), colors=GREY, opacity=0.9),
+            SpheresLayer("spheres", robot, radii=radii, opacity=0.15),
             SpheresLayer("inside the margin", robot, radii=radii, colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:3], tags=group, offset=offset)
-        viewer.add(layers[3:], tags=group, offset=offset, valid=clearance < MARGIN - 1e-3)
+        viewer.add(layers[:2], tags=group, offset=offset)
+        viewer.add(layers[2:3], tags=(group, "spheres"), offset=offset)  # the Layers section switches the tag
+        viewer.add(layers[3:], tags=(group, "spheres"), offset=offset, valid=clearance < MARGIN - 1e-3)
         return layers
 
     if not (args.check or args.record):
@@ -143,7 +141,7 @@ def main() -> None:
         q, seconds = run(tick, form, dict(problems[form].variables), sweep, start[:, 0])
         gave_way = (forward_kinematics(model, q).frame_poses[:, model.frame_id(frames[0]), :3] - hand).norm(dim=-1)
         print(
-            f"obstacle {form:4s}: closest sphere {1e3 * float(look(q, sweep)[2].min()):+8.3f} mm from it "
+            f"obstacle {form:4s}: closest sphere {1e3 * float(look(q, sweep)[1].min()):+8.3f} mm from it "
             f"(margin {1e3 * MARGIN:.0f}), the hand gave way up to {1e3 * float(gave_way.max()):.0f} mm, "
             f"tick {1e3 * seconds:.1f} ms (median)"
         )
@@ -171,12 +169,13 @@ def follow(
         center = torch.from_numpy(mover.pose[:3]).to(start)
         x, warm = tick(form.value, torch.from_numpy(gizmo.pose).to(start)[None], center, x, warm)
         seconds = time.perf_counter() - began
-        poses, centers, clearance = look(x["q"], center[None])
-        robot[0].body_poses[:] = poses
-        robot[1].centers[:] = robot[3].centers[:] = centers
-        robot[2].centers[:] = center.numpy()
+        centers, clearance = look(x["q"], center[None])
+        robot[0].update(x["q"])
+        robot[1].centers[:] = center.numpy()
+        robot[2].centers[:] = robot[3].centers[:] = centers
         robot[3].valid[:] = clearance < MARGIN - 1e-3
-        viewer.show()
+        robot[1].redraw()
+        viewer.redraw("spheres")
         readout.content = (
             f"closest sphere **{1e3 * clearance.min():.1f} mm** from the obstacle (margin {1e3 * MARGIN:.0f})  \n"
             f"tick {1e3 * seconds:.1f} ms"

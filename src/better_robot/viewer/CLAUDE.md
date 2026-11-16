@@ -15,10 +15,18 @@ The design is `docs/concepts/viewer.md`; read it first.
   a `(T, N)` one in `set_step`. Tools register scene-pointer callbacks only through `Viewer.on_pointer` /
   `clear_pointer` (one callback at a time, a second registration raises; on viser's `scene.on_click` /
   `on_rect_select`).
-- `_lie.py` runs every quaternion operation through `better_robot.lie` on numpy arrays: no numpy copy of `lie`.
+- Quaternion work calls `better_robot.lie` on `torch.from_numpy` views: no numpy copy of `lie`. viser takes
+  scalar-first `wxyz`: `poses[step][:, [6, 3, 4, 5]]`, never `poses[step, :, [6, 3, 4, 5]]` (numpy moves the list
+  axis first when a scalar index sits beside it).
 - The viewer's outside imports are torch, numpy, viser, pillow and trimesh, nothing else (no BetterHuman, no
   pyrender or imageio: `tests/contract/test_optional_imports.py`); viser is imported in `viewer.py` and trimesh in
-  `robot.py`, each inside the function that needs it.
+  `robot.py` and the mesh layers, each inside the function that needs it.
 - Default host is `127.0.0.1`; tests use the stand-in `better_robot.testing.FakeServer`, plus one loopback smoke test.
 - A layer that should frame the camera of `Viewer.record` and `Viewer.aim` implements `bounds(step)` (a world box
   `(lo (3,), hi (3,))`, cheap: no per-vertex work); the default `None` keeps it out of the fit.
+- Sidebar callbacks run under `viewer.lock`, and the playback thread takes that lock to push a step: a callback must
+  never wait for the thread (`Timeline.pause` joins it); the Timeline's own controls stop it with `_halt`.
+- `Theme.apply` switches viser's environment map off: any map washes solid colours to pastel. Meshes share the rig.
+- viser draws a plain mesh's `color` as sRGB but per-vertex and per-instance colours (points, lines, arrows, batched
+  meshes) as linear, so they look paler; glTF vertex colours are linear too, so `MeshLayer` linearises its GLB's, and
+  a GLB without a material is a black metal under this rig.

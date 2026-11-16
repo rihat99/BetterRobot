@@ -10,7 +10,8 @@ import pytest
 from better_robot.exceptions import ModelError
 from better_robot.io import ModelBuilder, build_model, load, load_geometry
 from better_robot.io.parser_urdf import parse_urdf
-from better_robot.viewer import robot_meshes
+from better_robot.testing import FakeServer
+from better_robot.viewer import RobotVisual, Viewer
 
 from tests.support.robots import panda_urdf
 
@@ -69,7 +70,9 @@ def test_unreadable_mesh_names_body_and_uri(tmp_path: Path) -> None:
     path = _write(tmp_path, f'<robot name="r"><link name="base">{visual}</link></robot>')
     model = load(path)
     with pytest.raises(ModelError, match=re.escape(f"body {model.body_id('base')}: mesh 'missing.stl' is not a file")):
-        robot_meshes(load_geometry(path, model), root=path.parent)
+        Viewer(server=FakeServer(), ground=False).add(
+            RobotVisual(model, geometry=load_geometry(path, model), root=path)
+        )
 
 
 def test_a_two_component_axis_names_file_and_joint(tmp_path: Path) -> None:

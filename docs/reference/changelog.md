@@ -17,7 +17,7 @@ that 0.3.0 renames or removes, one table row each.
   `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
   are two.
 - `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, which `Viewer.aim` and `Viewer.record` frame
-  (the bounding sphere over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
+  (over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
   the camera after each `add`.
 - `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
   `Layer.viewer` is the viewer the layer was added to.
@@ -25,10 +25,28 @@ that 0.3.0 renames or removes, one table row each.
   theme to the page and to every layer; `Viewer(ground=True)` adds the ground grid under the tag `ground`.
 - `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
   fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role)`, `accent`, `collision` and `text`, all colours RGB
-  in `[0, 1]`. `Theme.apply` switches viser's default lights off for an ambient, a hemisphere, a key light that
-  casts shadows and a fill light.
+  in `[0, 1]`, and `collision_opacity`. `Theme.apply` switches viser's default lights and environment map off for
+  an ambient, a hemisphere, a key light that casts shadows and a fill light, one rig for meshes and solid colours.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications.
+- `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, maximal, hue, collision,
+  frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws the style
+  `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"` or `"maximal"` (skeletons), with a
+  collision overlay (the sphere set, else the collision shapes) and frame triads. Each part is built the first time
+  it is shown; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
+  viewer runs, and `update(q)` shows new configurations. Every robot takes the theme's next hue (record 0058).
+- `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, bones, body hulls and end
+  blocks; glyphs that share a point slide apart along their own axes, then shrink) and `viewer.MINIMAL` (one ball
+  per cluster of close joints, sticks between): `glyphs`, `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`,
+  `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is three batched nodes.
+- `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
+- `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
+  one colour, one per segment or one per step, in `Theme.text` unless given.
+- `MeshLayer(colors=(V, 3))`: one colour per vertex. A static mesh is one GLB node that blends them across each face;
+  a deforming one is one node per distinct colour (at most 64), each face in its first vertex's colour.
+- `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
+  one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
+- `testing.FakeServer.scene.add_glb`.
 
 ### Changed
 - `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
@@ -52,6 +70,20 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.record` finds ffmpeg through `$BETTER_ROBOT_FFMPEG` (was `$FFMPEG`) or the `PATH`.
 - The `viewer` extra pins `viser>=1.0.30,<1.1`: `Viewer.record` drives the client of viser 1.0, and a test names
   the viser version when the internals it uses change.
+- `GroundLayer(size=None)` (was `10.0`): the default grid has no edges and fades out with the distance from the
+  camera; shadows fall on it at `Theme.shadow`. A number keeps a square grid of that width.
+- `Timeline.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API): a Play box, the Step slider, a
+  Speed dropdown (0.25x to 2x, taken while playing, no restart) and Loop, run under `Viewer.lock`. A step set while
+  playing becomes where playback goes on.
+- The Layers section does not list tags that hold only sidebar panels (`PlotPanel`, `ImagePanel`) and labels its
+  checkboxes in sentence case; a `PlotPanel`'s time axis shows seconds instead of a date.
+- `Viewer.aim` and `Viewer.record` frame the box of the bounds so that it spans 80 % of a 16:9 view (was the
+  bounding sphere with a 15 % margin, which left the robot a fifth of the height).
+- `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
+  frustum's edges from the intrinsics `K` of a `(W, H)` image, an off-centre principal point included, and the image
+  on its cut; viser's own frustum has no principal point. It frames `Viewer.aim` too (`bounds`).
+- `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
+  `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
 
 ### Removed
 - `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
@@ -68,6 +100,14 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.record` to `.gif`, to numbered `.png` frames and to a directory of frames: use `Viewer.record` to an
   `.mp4` or a `.webm`, or to one `.png` still per call.
 - `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.
+- `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer`: use `viewer.RobotVisual`, which draws
+  the meshes and both skeletons of a model and runs the forward kinematics itself. Colouring joints by torque
+  (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
+- `Theme.joint`, `Theme.link`, `Theme.torque_ramp` and `Theme.over_limit`: use `Theme.hue` and `Theme.shade`; a
+  skeleton takes its robot's hue and the shades of it.
+- `ArrowsLayer(head_size=, line_width=)` and `ArrowsLayer.HEAD_FRACTION`: use `head_length=`; every arrow is solid,
+  and a short one is no longer scaled down whole.
+- `CameraLayer(fov=, aspect=)`: use `CameraLayer(intrinsics=, size=)`.
 
 ## v0.3.0 (2026-11-10)
 

@@ -2,23 +2,31 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING, final, override
 
 import numpy as np
+import torch
 
 from ...exceptions import ArgumentError
-from .._lie import from_z, to_wxyz
+from ...lie import so3
 from ..theme import LIGHT, RGB, rgb_uint8
 from ..layer import Layer
 
 if TYPE_CHECKING:
     from ..theme import Theme
 
+#: The grid without edges fades out over this distance from the camera, in metres, at this strength.
+_FADE_DISTANCE, _FADE_STRENGTH = 15.0, 1.5
+
 
 @final
 class GroundLayer(Layer):
-    """Grid ``size`` wide in the ``plane`` at ``height`` along its normal, ``cell_size`` cells, a line every ``section_size``.
+    """Grid in the ``plane`` at ``height`` along its normal, ``cell_size`` cells, a line every ``section_size``.
+
+    ``size=None`` (the default) draws a grid without edges that fades out with the distance from the camera; a
+    number draws a square ``size`` metres wide. Shadows fall on it at the theme's ``shadow`` opacity.
 
     ``plane=None`` (the default) follows the viewer's theme: ``"xy"`` for a z-up theme, ``"xz"`` for y-up,
     ``"yz"`` for x-up. Pass it explicitly to override, or when the layer is rendered without a ``Viewer``.
@@ -32,7 +40,7 @@ class GroundLayer(Layer):
         self,
         name: str = "ground",
         *,
-        size: float = 10.0,
+        size: float | None = None,
         height: float = 0.0,
         cell_size: float = 0.25,
         section_size: float = 1.0,
@@ -61,6 +69,7 @@ class GroundLayer(Layer):
         self.section_color = section_color
         self.fill_color = fill_color
         self._colors = (cell_color or LIGHT.grid[0], section_color or LIGHT.grid[1])  # (cell, section) drawn
+        self._shadow = LIGHT.shadow
         self._grid: Any = None
 
     @override
@@ -68,9 +77,11 @@ class GroundLayer(Layer):
         if self.plane is None:
             self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
         self._colors = (self.cell_color or theme.grid[0], self.section_color or theme.grid[1])
+        self._shadow = theme.shadow
         if self._grid is not None:
             self._grid.cell_color = _uint8(self._colors[0])
             self._grid.section_color = _uint8(self._colors[1])
+            self._grid.shadow_opacity = theme.shadow
 
     @override
     def build(self, scene: Any, root: str) -> None:
@@ -82,13 +93,24 @@ class GroundLayer(Layer):
             plane = "xy"  # the grid's own normal is +z; rotate it onto ``normal``
             axis = np.asarray(self.normal, dtype=np.float64).reshape(3)
             axis = axis / np.linalg.norm(axis)
-            wxyz = to_wxyz(from_z(axis))
+            turn = np.cross((0.0, 0.0, 1.0), axis)  # the shortest turn of +z onto the normal; a half turn about x
+            sine = float(np.linalg.norm(turn))
+            unit = turn / sine if sine > 1e-9 else np.array([1.0, 0.0, 0.0])
+            xyzw = so3.from_axis_angle(
+                torch.from_numpy(unit), torch.tensor(math.atan2(sine, axis[2]), dtype=torch.float64)
+            ).numpy()
+            wxyz = xyzw[[3, 0, 1, 2]]
         origin = np.zeros(3) if self.origin is None else np.asarray(self.origin, dtype=np.float64).reshape(3)
         self._grid = self._track(
             scene.add_grid(
                 f"{root}/grid",
-                width=self.size,
-                height=self.size,
+                # viser scales the plane of a grid without edges by ``1 + fade_distance``: it needs a real size too
+                width=self.size or _FADE_DISTANCE,
+                height=self.size or _FADE_DISTANCE,
+                infinite_grid=self.size is None,
+                fade_distance=_FADE_DISTANCE,
+                fade_strength=_FADE_STRENGTH,
+                shadow_opacity=self._shadow,
                 plane=plane,
                 cell_size=self.cell_size,
                 section_size=self.section_size,

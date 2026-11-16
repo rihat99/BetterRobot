@@ -75,3 +75,4 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0055](0055-constraint-terms-and-sequential-qp.md) | Constraint terms are kinds on `Problem`, held by one solver, `SequentialQP` | Proposed (integrator, awaiting owner) |
 | [0056](0056-sequential-qp-reports-its-last-point-within-tolerance.md) | `SequentialQP` reports its last point within the tolerance, not its iterate | Proposed (integrator, awaiting owner) |
 | [0057](0057-differential-ik-is-one-track-call-per-tick.md) | Differential inverse kinematics is one call of `optim.track` per tick | Proposed (integrator, awaiting owner) |
+| [0058](0058-a-robot-is-one-layer-with-a-skeleton-recipe.md) | A robot is one layer, `RobotVisual`, and its skeleton is laid out by a `SkeletonRecipe` | Proposed (integrator, awaiting owner) |
