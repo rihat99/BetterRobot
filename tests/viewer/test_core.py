@@ -365,6 +365,16 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     assert eager_image.removed and lazy_image.removed
 
 
+def test_theme_shades_run_from_dark_drum_faces_to_pale_sticks_with_bodies_in_the_hue() -> None:
+    theme = Theme()
+    hue = theme.hue(0)
+    brightness = {role: sum(theme.shade(hue, role)) for role in ("face", "joint", "body", "stick")}
+    assert brightness["face"] < brightness["joint"] < brightness["body"] < brightness["stick"]
+    assert theme.shade(hue, "body") == hue
+    with pytest.raises(ArgumentError, match="role must be one of"):
+        theme.shade(hue, "bone")  # pyright: ignore[reportArgumentType]
+
+
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
     viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"), ground=False)
     ground, explicit = GroundLayer(), GroundLayer("explicit", plane="xy")

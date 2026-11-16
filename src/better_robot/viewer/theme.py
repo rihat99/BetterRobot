@@ -12,7 +12,7 @@ from ..exceptions import ArgumentError, ShapeError
 RGB = tuple[float, float, float]
 _UP_AXES = ("+x", "-x", "+y", "-y", "+z", "-z")  # what viser's set_up_direction takes as a word
 #: How far ``shade`` mixes a hue towards black (negative) or white (positive) per role.
-_SHADE_MIX = {"joint": 0.0, "face": -0.45, "body": 0.30, "stick": 0.50}
+_SHADE_MIX = {"joint": -0.22, "face": -0.58, "body": 0.0, "stick": 0.25}
 #: Directions the key and fill lights shine from, for a z-up scene; ``apply`` turns them to the theme's ``up``.
 _KEY_LIGHT = (-2.0, -3.0, 4.0)
 _FILL_LIGHT = (3.0, -1.5, 1.0)
@@ -111,8 +111,8 @@ class Theme:
         return self.hues[index % len(self.hues)]
 
     def shade(self, hue: RGB, role: Literal["joint", "face", "body", "stick"]) -> RGB:
-        """``hue`` as a part of ``role`` draws it: ``joint`` the hue itself, ``face`` 45 % towards black (drum faces),
-        ``body`` 30 % towards white (bones, hulls), ``stick`` 50 % towards white (thin bones)."""
+        """``hue`` as a part of ``role`` draws it: ``joint`` 22 % towards black, ``face`` 58 % towards black (drum
+        faces), ``body`` the hue itself (bones, hulls), ``stick`` 25 % towards white (thin bones)."""
         if role not in _SHADE_MIX:
             raise ArgumentError(f"role must be one of {list(_SHADE_MIX)}, got {role!r}")
         mix = _SHADE_MIX[role]
