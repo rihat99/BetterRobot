@@ -14,7 +14,7 @@ from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
-from better_robot.viewer.theme import Theme, rgb_uint8
+from better_robot.viewer.theme import Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
 from better_robot import collision
@@ -310,7 +310,7 @@ def test_robot_visual_follows_a_theme_with_other_hues_and_another_overlay_colour
     after = server.scene.nodes[f"{path}/maximal/cylinders"].batched_colors
     assert not np.array_equal(before, after) and (after[:, 0] >= after[:, 2]).all()  # shades of red
     spheres = server.scene.nodes[f"{path}/collision/spheres"]
-    assert not spheres.removed and (spheres.props["batched_colors"] == rgb_uint8(blue)).all()
+    assert not spheres.removed and (spheres.props["batched_colors"] == linear_uint8(blue)).all()
     assert robot.style == "maximal"
 
 

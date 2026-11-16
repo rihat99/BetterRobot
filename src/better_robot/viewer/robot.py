@@ -39,7 +39,7 @@ from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
 from .sidebar import Sidebar
 from .skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder
-from .theme import LIGHT, RGB, Theme, rgb_uint8
+from .theme import LIGHT, RGB, Theme, linear_uint8
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -91,12 +91,12 @@ class _Blocks(Layer):
                     scene.add_batched_meshes_simple(
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
-                        batched_colors=rgb_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
+                        batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
                     )
                 )  # fmt: skip
         if len(self.skeleton.line_body):
             points = self.skeleton.lines(self.poses[0])
-            color = rgb_uint8(self.theme.shade(self.hue, "face"))
+            color = linear_uint8(self.theme.shade(self.hue, "face"))
             self._lines = self._track(scene.add_line_segments(f"{root}/limits", points, color, line_width=2.5))
 
     @override
@@ -115,9 +115,9 @@ class _Blocks(Layer):
         self.hue, self.theme = hue, theme
         colors = self.skeleton.colors(hue, theme.shade)
         for mesh, node in self._nodes.items():
-            node.batched_colors = rgb_uint8(colors[mesh])
+            node.batched_colors = linear_uint8(colors[mesh])
         if self._lines is not None:
-            self._lines.colors = rgb_uint8(theme.shade(hue, "face"))
+            self._lines.colors = linear_uint8(theme.shade(hue, "face"))
 
 
 @final

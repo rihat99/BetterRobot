@@ -36,6 +36,16 @@ def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarra
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
 
+def linear_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
+    """``rgb_uint8`` for the calls of viser that read a colour as linear: the per-instance colours of batched meshes
+    and arrows, the per-vertex ones of line segments and of a glTF. The sRGB curve is undone here, so that the colour
+    drawn is the one given, as for a plain mesh's ``color``; a point cloud is drawn as given and takes ``rgb_uint8``.
+    In 8 bits the darkest values land up to 6 levels off (sRGB 8 is drawn as 13)."""
+    srgb = rgb_uint8(color, shape) / 255.0
+    linear = np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
+    return (linear * 255.0 + 0.5).astype(np.uint8)
+
+
 def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:
     """Piecewise-linear colours ``(..., 3)`` through evenly spaced ``stops`` (at least two) for ``values`` in
     ``[0, 1]`` (clamped); two stops are a plain blend from the first to the second."""

@@ -24,7 +24,17 @@ from PIL import Image
 
 from better_robot.exceptions import ArgumentError, OptionalDependencyError
 from better_robot.testing import FakeServer
-from better_robot.viewer import DARK, LIGHT, PointsLayer, SpheresLayer, Theme, Viewer
+from better_robot.viewer import (
+    DARK,
+    LIGHT,
+    ArrowsLayer,
+    LinesLayer,
+    MeshLayer,
+    PointsLayer,
+    SpheresLayer,
+    Theme,
+    Viewer,
+)
 from better_robot.viewer import record as recorder
 from better_robot.viewer.theme import rgb_uint8
 
@@ -211,3 +221,66 @@ def test_a_still_has_the_exact_size_the_step_and_the_light_backdrop(tmp_path: Pa
     assert image.shape == (181, 321, 3)
     assert _step_of(image[90, 160].tolist()) == 4
     np.testing.assert_array_equal(image[2, 2], _backdrop_top(LIGHT))
+
+
+@pytest.mark.slow
+def test_every_primitive_draws_the_srgb_colour_it_was_given(tmp_path: Path) -> None:
+    """One patch per viser call that carries a colour, all given the same colour, seen along ``y`` from 40 m.
+
+    viser draws a plain mesh's ``color`` as sRGB: it is the reference under the same light for the calls that read
+    linear values (batched meshes, arrows, glTF vertex colours; 6 levels). The unlit ones are held to the colour
+    itself: a point within 8 levels, a line within 12, because the page's filmic tone mapping bends it. A colour sent
+    without ``theme.linear_uint8`` is off by about 100 levels here.
+    """
+    import trimesh  # noqa: PLC0415 - viser's own dependency
+
+    color = (0.2, 0.45, 0.85)
+    with socket.socket() as sock:  # a free port
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    viewer = Viewer(port=port, ground=False)
+    quad = np.array([[-0.3, 0, -0.3], [0.3, 0, -0.3], [0.3, 0, 0.3], [-0.3, 0, 0.3]], dtype=np.float32)
+    faces = np.array([[0, 1, 2], [0, 2, 3]])
+    ball = trimesh.creation.icosphere(subdivisions=4, radius=0.3)
+    names = ["quad", "glb", "ball", "sphere", "arrow", "line", "point"]
+    at = {name: np.array([0.8 * k, 0.0, 0.0], dtype=np.float32) for k, name in enumerate(names)}
+    viewer.add(
+        [
+            MeshLayer("quad", quad + at["quad"], faces=faces, color=color),
+            MeshLayer("glb", quad + at["glb"], faces=faces, colors=np.tile(color, (4, 1))),
+            MeshLayer("ball", ball.vertices.astype(np.float32) + at["ball"], faces=ball.faces, color=color),
+            SpheresLayer("sphere", at["sphere"][None], radii=np.array([0.3]), colors=color, opacity=1.0),
+            ArrowsLayer(
+                "arrow",
+                at["arrow"][None] - (0.0, 0.0, 0.4),
+                vectors=np.array([[0.0, 0.0, 0.8]]),
+                colors=color,
+                shaft_radius=0.2,
+                head_radius=0.3,
+                head_length=0.2,
+            ),
+            LinesLayer(
+                "line", np.stack([at["line"] - (0.3, 0, 0), at["line"] + (0.3, 0, 0)])[None], colors=color, width=40.0
+            ),
+            PointsLayer("point", at["point"][None], colors=color, point_size=0.5, point_shape="square"),
+        ]
+    )
+    width, height, fov = 800, 250, math.radians(2.6)
+    try:
+        path = viewer.record(
+            tmp_path / "patches.png", size=(width, height), camera=((2.4, -40.0, 0.0), (2.4, 0.0, 0.0)), fov=fov
+        )
+    finally:
+        viewer.server.stop()
+    image = np.asarray(Image.open(path).convert("RGB")).astype(int)
+    per_metre = height / (2.0 * 40.0 * math.tan(fov / 2.0))
+    drawn = {}
+    for name, place in at.items():
+        column, row = round(width / 2 + (place[0] - 2.4) * per_metre), height // 2
+        drawn[name] = np.median(image[row - 2 : row + 3, column - 2 : column + 3].reshape(-1, 3), axis=0)
+    given = rgb_uint8(color)
+    np.testing.assert_allclose(drawn["glb"], drawn["quad"], atol=6)
+    np.testing.assert_allclose(drawn["sphere"], drawn["ball"], atol=6)
+    np.testing.assert_allclose(drawn["arrow"], drawn["ball"], atol=6)
+    np.testing.assert_allclose(drawn["point"], given, atol=8)
+    np.testing.assert_allclose(drawn["line"], given, atol=12)

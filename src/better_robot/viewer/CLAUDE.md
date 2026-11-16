@@ -27,6 +27,7 @@ The design is `docs/concepts/viewer.md`; read it first.
 - Sidebar callbacks run under `viewer.lock`, and the playback thread takes that lock to push a step: a callback must
   never wait for the thread (`Timeline.pause` joins it); the Timeline's own controls stop it with `_halt`.
 - `Theme.apply` switches viser's environment map off: any map washes solid colours to pastel. Meshes share the rig.
-- viser draws a plain mesh's `color` as sRGB but per-vertex and per-instance colours (points, lines, arrows, batched
-  meshes) as linear, so they look paler; glTF vertex colours are linear too, so `MeshLayer` linearises its GLB's, and
-  a GLB without a material is a black metal under this rig.
+- viser draws a plain mesh's `color` and a point cloud's colours as sRGB, but the colours of batched meshes, arrows,
+  line segments and a glTF's vertices as linear, which looks pale: send those through `theme.linear_uint8`, the
+  others through `theme.rgb_uint8` (`tests/viewer/test_record.py` reads the pixels). Lines are unlit, yet the page's
+  filmic tone mapping still bends them by up to 12 levels. A GLB without a material is a black metal under this rig.
