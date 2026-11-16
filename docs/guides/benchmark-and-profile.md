@@ -80,21 +80,21 @@ for row in thresholds["rows"]:
     print(f"{row['row']:22}", *(f"{'-' if row[name] is None else row[name]:>12}" for name in counters))
 ```
 ```output
-1ed9049 benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-2.13.0.json
+1246c51 benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-2.13.0.json
 row                    graph_breaks   recompiles          ops   host_syncs
-fk_joints/panda/B1                0            1           46            0
-fk_joints/panda/B1024             0            2           46            0
-jacobian/panda/B1                 0            1           69            0
-rnea/panda/B1                     0            1          172            0
-crba/panda/B1                     0            1          136            0
-aba/panda/B1                      0            1          240            0
-fk_joints/g1/B1                   0            1           67            0
-fk_joints/g1/B1024                0            2           67            0
-jacobian/g1/B1                    0            1           89            0
-rnea/g1/B1                        0            1          188            0
-crba/g1/B1                        0            1          154            0
-aba/g1/B1                         0            1          255            0
-ik/panda/B64                      5           12        30446            0
+fk_joints/panda/B1                0            1           40            0
+fk_joints/panda/B1024             0            2           40            0
+jacobian/panda/B1                 0            1           65            0
+rnea/panda/B1                     0            1          165            0
+crba/panda/B1                     0            1          130            0
+aba/panda/B1                      0            1          238            0
+fk_joints/g1/B1                   0            1           60            0
+fk_joints/g1/B1024                0            2           60            0
+jacobian/g1/B1                    0            1           84            0
+rnea/g1/B1                        0            1          180            0
+crba/g1/B1                        0            1          147            0
+aba/g1/B1                         0            1          252            0
+ik/panda/B64                      5           11        30373            0
 ik_constrained/panda/B64            3           11        31393            0
 track/panda/B64                   0            3        29344            0
 qp/n7m30/B1                       0            1          561            0
