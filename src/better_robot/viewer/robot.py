@@ -458,10 +458,10 @@ def _shape_spec(body: int, shape: Any, root: Path | None, color: RGB, *, own_col
         if not isinstance(mesh, trimesh.Trimesh) or mesh.faces.shape[0] == 0:
             raise ModelError(f"body {body}: mesh {shape.uri!r} has no faces")
         mesh.apply_scale(shape.scale)
-        kind = getattr(mesh.visual, "kind", None)  # a texture or several vertex or face colours: it keeps its look
+        visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look
+        kind = None if visual is None else visual.kind
         varied = kind == "texture" or (
-            kind in ("vertex", "face")
-            and len(np.unique(np.asarray(getattr(mesh.visual, f"{kind}_colors")), axis=0)) > 1
+            kind in ("vertex", "face") and len(np.unique(np.asarray(getattr(visual, f"{kind}_colors")), axis=0)) > 1
         )
         source = mesh if own_colors and varied else None
     elif isinstance(shape, Box):
