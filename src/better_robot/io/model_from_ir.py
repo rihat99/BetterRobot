@@ -353,8 +353,9 @@ def _frames(ir: IRModel, topology: _Topology, dtype: torch.dtype) -> _Frames:
     )
 
 
-def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduction:  # noqa: PLR0912, PLR0915 - one build-time policy boundary
-    """Resolve every mimic chain to its public root, drop the targets from the public layout, reduce the limits."""
+def _mimic_chains(topology: _Topology) -> tuple[set[int], list[tuple[int, float, float]]]:
+    """The mimic targets, and each joint's chain resolved to its public root: ``(root, scale, offset)`` with
+    ``q = scale · q_root + offset`` (the joint itself, 1 and 0 for a joint that mimics none)."""
     joint_names = topology.joint_names
     joint_of_name = {joint.name: index for index, joint in enumerate(topology.ir_joints) if joint is not None}
     njoints = len(topology.joints)
@@ -386,11 +387,6 @@ def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduc
                     "scalar Euclidean revolute, prismatic, or helical joints (nq=nv=1)"
                 )
 
-    public = _layout(
-        tuple(0 if index in targets else width for index, width in enumerate(layout.nqs)),
-        tuple(0 if index in targets else width for index, width in enumerate(layout.nvs)),
-    )
-
     state = [0] * njoints
     resolved: list[tuple[int, float, float] | None] = [None] * njoints
 
@@ -411,8 +407,19 @@ def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduc
         state[index] = 2
         return result
 
-    chains = [resolve(index) for index in range(njoints)]
+    return targets, [resolve(index) for index in range(njoints)]
 
+
+def _mimic_limits(
+    layout: _Layout,
+    public: _Layout,
+    limits: _Limits,
+    targets: set[int],
+    chains: list[tuple[int, float, float]],
+    joint_names: tuple[str, ...],
+) -> _Limits:
+    """The limits over the public coordinates: each public joint's own, narrowed (positions, velocity) or summed
+    (effort, armature, damping) by the targets that follow it."""
     lower = limits.lower.new_empty((public.nq,))
     upper = limits.upper.new_empty((public.nq,))
     velocity = limits.velocity.new_empty((public.nv,))
@@ -432,7 +439,7 @@ def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduc
         damping[public_v : public_v + nv_joint] = limits.damping[full_v : full_v + nv_joint]
 
     for target in targets:
-        root, scale, offset = resolve(target)
+        root, scale, offset = chains[target]
         full_q, full_v = layout.idx_qs[target], layout.idx_vs[target]
         public_q, public_v = public.idx_qs[root], public.idx_vs[root]
         target_lower = float(limits.lower[full_q])
@@ -459,12 +466,22 @@ def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduc
         armature[public_v] = armature[public_v] + scale**2 * limits.armature[full_v]
         damping[public_v] = damping[public_v] + scale**2 * limits.damping[full_v]
 
+    return _Limits(lower=lower, upper=upper, velocity=velocity, effort=effort, armature=armature, damping=damping)
+
+
+def _mimic(topology: _Topology, layout: _Layout, limits: _Limits) -> _MimicReduction:
+    """Resolve every mimic chain to its public root, drop the targets from the public layout, reduce the limits."""
+    targets, chains = _mimic_chains(topology)
+    public = _layout(
+        tuple(0 if index in targets else width for index, width in enumerate(layout.nqs)),
+        tuple(0 if index in targets else width for index, width in enumerate(layout.nvs)),
+    )
     return _MimicReduction(
         layout=public,
         source_ids=tuple(root for root, _, _ in chains),
         multipliers=tuple(scale for _, scale, _ in chains),
         offsets=tuple(offset for _, _, offset in chains),
-        limits=_Limits(lower=lower, upper=upper, velocity=velocity, effort=effort, armature=armature, damping=damping),
+        limits=_mimic_limits(layout, public, limits, targets, chains, topology.joint_names),
     )
 
 
