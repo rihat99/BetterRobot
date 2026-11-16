@@ -170,7 +170,7 @@ maximal ('meshes', 'minimal', 'maximal') ('minimal', 'maximal')
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
 that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
-shared by every robot in the viewer. `update(q)` shows new configurations of the same number of steps, for a live
+shared by every robot in the viewer, so a switch from code does not move them. `update(q)` shows new configurations of the same number of steps, for a live
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the theme's next
 hue, in the order the robots are added, unless `hue=` names one. The name defaults to the model's, so two robots of
 one model need a `name=` each.
@@ -215,8 +215,10 @@ kind auto True
 ```
 
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
-limit arcs; with the sphere overlay and the frames a robot is six nodes, and a step writes positions and rotations
-to each node on screen.
+limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, and a step writes
+positions and rotations to each node on screen (the sticks of a minimal skeleton also their lengths). `bounds` is
+the box of the joints and of the maximal skeleton's blocks in every style, so `Viewer.aim` frames a robot the same
+way whatever it is drawn as.
 
 ### A skinned surface
 

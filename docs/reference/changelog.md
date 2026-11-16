@@ -34,7 +34,7 @@ that 0.3.0 renames or removes, one table row each.
   `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"` or `"maximal"` (skeletons), with a
   collision overlay (the sphere set, else the collision shapes) and frame triads. Each part is built the first time
   it is shown; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
-  viewer runs, and `update(q)` shows new configurations. Every robot takes the theme's next hue.
+  viewer runs, and `update(q)` shows new configurations. Every robot takes the theme's next hue (record 0058).
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, bones, body hulls and end
   blocks; glyphs that share a point slide apart along their own axes, then shrink) and `viewer.MINIMAL` (one ball
   per cluster of close joints, sticks between): `glyphs`, `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`,
