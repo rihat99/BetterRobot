@@ -653,7 +653,8 @@ def _hulls(
         if recipe.hulls != "none" and (root or kids >= 2 or (kids == 1 and recipe.hulls == "all")):
             hulls += _trunk(tree, recipe, g, wanted, inertia=not clouds.get(g))
         elif recipe.hulls != "none" and kids == 0:
-            hulls += _end(tree, recipe, g, wanted, reach[g], [glyphs[j] for j in (g, tree.group[g]) if j in glyphs])
+            near = (*(() if tree.kind[g] == "prismatic" else (g,)), tree.group[g])  # a sleeve stays behind its block
+            hulls += _end(tree, recipe, g, wanted, reach[g], [glyphs[j] for j in near if j in glyphs])
         else:
             hulls += _trunk(tree, recipe, g, forced, inertia=False)
     return hulls
@@ -712,9 +713,10 @@ def _end(
     block of the collision volume would be out of scale. Without geometry the block runs from the joint to twice
     the centre of mass, and there is none when that is shorter than half a joint radius: the glyph is the end.
 
-    The block then gives way to ``glyphs``, the leaf's glyph and the one before it: along the limb it starts where
+    The block then gives way to ``glyphs``, the leaf's drum and the glyph before it: along the limb it starts where
     a glyph that it would swallow stops, and stays at least half a joint radius thick. A foot becomes a plate under
-    its ankle drums instead of a block around them.
+    its ankle drums instead of a block around them. The sleeve of a prismatic leaf is not among them: the block
+    slides through it.
     """
     origin, rotation, name = tree.origin[group], tree.rotation[group], tree.model.body_names[group]
     pad = _END_PAD * radius
