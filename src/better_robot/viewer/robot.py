@@ -273,7 +273,7 @@ class RobotVisual(Layer):
         return [RigidMeshLayer(part, specs, body_poses=self._poses, opacity=opacity)]
 
     def _frame_count(self) -> int:
-        return len(self._moving()) if self._frames is True else len(self._frames or ())
+        return len(self._moving()) if self._triads is True else len(self._triads or ())
 
     def _moving(self) -> list[int]:
         return [j for j in range(1, self.model.njoints) if not isinstance(self.model.joints[j], JointFixed)]
@@ -281,12 +281,13 @@ class RobotVisual(Layer):
     def _derive(self, part: str, layer: Any) -> Any:
         """Fill the arrays of the ``frames`` or sphere ``collision`` layer from the joint poses."""
         model, poses = self.model, torch.from_numpy(self._poses)
-        if part == "frames" and self._frames is True:
-            layer.poses[...] = self._poses[:, self._moving()]
-        elif part == "frames":
-            ids = list(self._frames or ())
-            parents = [model.frame_parent_joint_ids[f] for f in ids]
-            layer.poses[...] = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses)).numpy()
+        if part == "frames":  # the set the node was built for, also while it is hidden
+            if self._triads is True:
+                layer.poses[...] = self._poses[:, self._moving()]
+            else:
+                ids = list(self._triads or ())
+                parents = [model.frame_parent_joint_ids[f] for f in ids]
+                layer.poses[...] = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses)).numpy()
         elif self.spheres is not None:
             ids = self.spheres.frame_ids.tolist()
             parents = [model.frame_parent_joint_ids[f] for f in ids]
@@ -457,7 +458,7 @@ def _shape_spec(body: int, shape: Any, root: Path | None, color: RGB, *, own_col
         if not isinstance(mesh, trimesh.Trimesh) or mesh.faces.shape[0] == 0:
             raise ModelError(f"body {body}: mesh {shape.uri!r} has no faces")
         mesh.apply_scale(shape.scale)
-        kind = mesh.visual.kind  # a texture or more than one vertex or face colour: the mesh keeps its own look
+        kind = getattr(mesh.visual, "kind", None)  # a texture or several vertex or face colours: it keeps its look
         varied = kind == "texture" or (
             kind in ("vertex", "face")
             and len(np.unique(np.asarray(getattr(mesh.visual, f"{kind}_colors")), axis=0)) > 1

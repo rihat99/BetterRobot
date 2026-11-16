@@ -256,6 +256,21 @@ def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> Non
         robot.set_frames(["panda_nose"])
 
 
+@pytest.mark.parametrize("frames", [True, ["panda_hand"]])
+def test_robot_visual_update_moves_its_frames_while_they_are_hidden(frames: bool | list[str]) -> None:
+    """Hidden triads follow ``update`` too, so they are in place when they are shown again."""
+    model = br.load(panda_urdf())
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(RobotVisual(model, frames=frames))
+    robot.set_frames(False)
+    q = model.random_configuration(generator=torch.Generator().manual_seed(0))
+    robot.update(q)
+    robot.set_frames(frames)
+    state = br.forward_kinematics(model, q)
+    first = state.joint_poses[2, :3] if frames is True else state.frame_pose_of("panda_hand")[:3]  # panda_joint1
+    np.testing.assert_allclose(server.scene.nodes["/panda/panda/frames/axes"].batched_positions[0], first, atol=1e-6)
+
+
 def test_robot_visual_bounds_are_the_box_of_the_robot_at_the_step() -> None:
     """``Viewer.aim`` fits this box to the view, so it holds the joints and stays within the sphere set's box."""
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())

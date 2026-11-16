@@ -68,8 +68,9 @@ _GLYPHS = {
     "free": (("boxes", "base", False, (1.5, 1.5, 1.5)),),
     "other": (("balls", "marker", False, (1.0, 1.0, 1.0)),),
 }  # fmt: skip
+_Shade = Literal["joint", "face", "body", "stick"]
 #: The shade each part of the skeleton takes from the robot's hue.
-_ROLE = {
+_ROLE: dict[str, _Shade] = {
     "drum": "joint", "sleeve": "joint", "ball": "joint",
     "face": "face", "rail": "face", "marker": "face", "base": "face",
     "bone": "body", "fill": "body", "hull": "body", "end": "body",
@@ -229,7 +230,7 @@ class Skeleton:
         local = torch.from_numpy(self.line_local).to(poses.dtype)
         return se3.act(poses[..., self.line_body, None, :], local).numpy()
 
-    def colors(self, hue: RGB, shade: Callable[[RGB, str], RGB]) -> dict[str, np.ndarray]:
+    def colors(self, hue: RGB, shade: Callable[[RGB, _Shade], RGB]) -> dict[str, np.ndarray]:
         """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``shade(hue, role)`` per part, tinted by side, or its
         override.
 
