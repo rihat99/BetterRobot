@@ -81,8 +81,7 @@ Enforcement: `tests/contract/test_versioning.py::test_src_emits_no_deprecation_w
   `step(problem, state) -> State`, both pure (a new `State` per step, no writes to the problem), listed in
   `__all__`.
 - Viewer layer: subclass `src/better_robot/viewer/layer.py::Layer`; implement `build(scene, root)` and `set_step(step)`;
-  override `build_gui`, `apply_theme`, `geometry` and `dispose` only when needed; set `listed = False` to keep it out
-  of the sidebar.
+  override `build_gui` (its sidebar controls), `apply_theme`, `bounds` and `dispose` only when needed.
 - Package: add its row to `ALLOWED` in `tests/contract/test_layer_dependencies.py` and the package to the diagram
   in `07`; this needs an ADR (`00-index`, "When to write an ADR").
 

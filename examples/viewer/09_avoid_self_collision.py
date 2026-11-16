@@ -30,7 +30,7 @@ from robot_descriptions import g1_description, panda_description
 import better_robot as br
 from better_robot import Viewer, collision, forward_kinematics, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import GroundLayer, MeshSpec, RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import MeshSpec, RigidMeshLayer, SpheresLayer, robot_meshes
 from better_robot.viewer.tools import PoseGizmo
 
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
@@ -111,7 +111,6 @@ def main() -> None:
         return state.joint_poses.numpy(), spheres.centers(state).numpy(), hits.numpy() > 0, clearance.numpy()
 
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
-    viewer.add([GroundLayer(size=4.0)])
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)``, its spheres and the ones of a pair inside its margin (red), under ``group``."""
@@ -122,8 +121,8 @@ def main() -> None:
             SpheresLayer("spheres", centers, radii=radii, opacity=0.15),
             SpheresLayer("inside the margin", centers, radii=radii, colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:2], group=group, offset=offset)
-        viewer.add(layers[2:], group=group, offset=offset, valid=red)
+        viewer.add(layers[:2], tags=group, offset=offset)
+        viewer.add(layers[2:], tags=group, offset=offset, valid=red)
         return layers
 
     if not (args.check or args.record):
@@ -141,7 +140,7 @@ def main() -> None:
         offset = (0.0, 1.2 * side - 0.6, 0.0)
         draw(form, q[::8], offset)  # every 8th tick: 100 Hz ticks at twice real time
         target = SpheresLayer("target", path[::8, None, :3].numpy(), radii=np.array([0.02]), colors=(0.1, 0.3, 0.9))
-        viewer.add([target], group=form, offset=offset)
+        viewer.add([target], tags=form, offset=offset)
     if args.record:
         camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
         print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")

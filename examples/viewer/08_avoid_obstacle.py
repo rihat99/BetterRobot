@@ -29,7 +29,7 @@ from robot_descriptions import g1_description, panda_description
 import better_robot as br
 from better_robot import Viewer, collision, forward_kinematics, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import GroundLayer, MeshSpec, RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import MeshSpec, RigidMeshLayer, SpheresLayer, robot_meshes
 from better_robot.viewer.tools import PoseGizmo
 
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
@@ -113,7 +113,6 @@ def main() -> None:
 
     radii = spheres.radii.numpy()
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
-    viewer.add([GroundLayer(size=4.0)])
 
     def draw(
         group: str, q: torch.Tensor, centers: torch.Tensor, offset: tuple[float, float, float] = (0, 0, 0)
@@ -127,8 +126,8 @@ def main() -> None:
             SpheresLayer("obstacle", centers[:, None].numpy(), radii=np.array([RADIUS]), colors=GREY, opacity=0.9),
             SpheresLayer("inside the margin", robot, radii=radii, colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:3], group=group, offset=offset)
-        viewer.add(layers[3:], group=group, offset=offset, valid=clearance < MARGIN - 1e-3)
+        viewer.add(layers[:3], tags=group, offset=offset)
+        viewer.add(layers[3:], tags=group, offset=offset, valid=clearance < MARGIN - 1e-3)
         return layers
 
     if not (args.check or args.record):

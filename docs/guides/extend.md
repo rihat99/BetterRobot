@@ -153,7 +153,7 @@ print(model.nq, model.joint_names)
 
 A layer subclasses `better_robot.viewer.Layer`. It holds its own `(T, ...)` arrays, creates scene nodes in
 `build(scene, root)` (register each handle with `_track` so visibility and disposal work), and writes one step in
-`set_step(step)`. Override `build_gui`, `apply_theme`, `world_points` and `dispose` only when needed. `_track`,
+`set_step(step)`. Override `build_gui`, `apply_theme`, `bounds` and `dispose` only when needed. `_track`,
 `_store_opacity` (check and keep an opacity) and `_fade` (a mesh layer's `set_opacity`) are the subclass hooks of
 `Layer`: the one place where a name with `_` is public ([Public surface](../contracts/public-surface.md)). See
 [Viewer](../concepts/viewer.md) for the built-in layers.

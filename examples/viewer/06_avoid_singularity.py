@@ -28,7 +28,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer, forward_kinematics, lie, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import GroundLayer, RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import RigidMeshLayer, SpheresLayer, robot_meshes
 from better_robot.viewer.tools import PoseGizmo
 
 FRAME, READY = "panda_hand", [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
@@ -78,7 +78,6 @@ def main() -> None:
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
-    viewer.add([GroundLayer(size=3.0)])
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)`` and its hand's marker, red below the threshold, under ``group``."""
@@ -88,8 +87,8 @@ def main() -> None:
             SpheresLayer("hand", point, radii=np.array([0.05]), colors=GREY, opacity=0.4),
             SpheresLayer("below the threshold", point, radii=np.array([0.05]), colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:2], group=group, offset=offset)
-        viewer.add(layers[2:], group=group, offset=offset, valid=w < THRESHOLD - 1e-4)
+        viewer.add(layers[:2], tags=group, offset=offset)
+        viewer.add(layers[2:], tags=group, offset=offset, valid=w < THRESHOLD - 1e-4)
         return layers
 
     if not (args.check or args.record):
@@ -108,7 +107,7 @@ def main() -> None:
         offset = (0.0, 1.0 * side - 0.5, 0.0)
         draw(form, q[::12], offset)  # every 12th tick: 100 Hz ticks at three times real time
         target = SpheresLayer("target", path[::12, None, :3].numpy(), radii=np.array([0.02]), colors=(0.1, 0.3, 0.9))
-        viewer.add([target], group=form, offset=offset)
+        viewer.add([target], tags=form, offset=offset)
     if args.record:
         camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
         print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")

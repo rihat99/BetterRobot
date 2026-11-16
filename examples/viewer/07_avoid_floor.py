@@ -104,7 +104,7 @@ def main() -> None:
         centers = spheres.centers(state)
         return state.joint_poses.numpy(), centers.numpy(), to_floor(centers, spheres.radii).numpy()
 
-    viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
+    viewer = Viewer(fps=25.0, ground=False, server=FakeServer() if args.check else None)
     viewer.add([GroundLayer(size=4.0, fill=0.5)])  # a solid floor: what sinks below it fades
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
@@ -116,8 +116,8 @@ def main() -> None:
             SpheresLayer("spheres", centers, radii=radii, opacity=0.15),
             SpheresLayer("inside the margin", centers, radii=radii, colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:2], group=group, offset=offset)
-        viewer.add(layers[2:], group=group, offset=offset, valid=clearance < MARGIN - 1e-3)
+        viewer.add(layers[:2], tags=group, offset=offset)
+        viewer.add(layers[2:], tags=group, offset=offset, valid=clearance < MARGIN - 1e-3)
         return layers
 
     if not (args.check or args.record):
@@ -135,7 +135,7 @@ def main() -> None:
         offset = (0.0, 1.2 * side - 0.6, 0.0)
         draw(form, q[::8], offset)  # every 8th tick: 100 Hz ticks at twice real time
         target = SpheresLayer("target", path[::8, None, :3].numpy(), radii=np.array([0.02]), colors=(0.1, 0.3, 0.9))
-        viewer.add([target], group=form, offset=offset)
+        viewer.add([target], tags=form, offset=offset)
     if args.record:
         camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
         print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")

@@ -1,8 +1,8 @@
 # Viewer
 
 The viewer shows robots, bodies and data clips in a browser, and records the same scene through a headless
-Chromium to `.webm`, `.gif` or PNG frames. After this page you will know its four ideas (layers, groups, one timeline, headless record)
-and which call to reach for: `show`, `play`, `save` or `record`.
+Chromium to `.webm`, `.gif` or PNG frames. After this page you will know its four ideas (layers, tags, one timeline, headless record)
+and which call to reach for: `show`, `serve`, `save` or `record`.
 
 It lives in `better_robot.viewer`, is built on [viser](https://viser.studio), and is the top of the import stack:
 nothing else in the library imports it. viser is imported only when you create a `Viewer`.
@@ -13,7 +13,7 @@ nothing else in the library imports it. viser is imported only when you create a
 
 A `Layer` is one named thing in the scene: a point cloud, a skeleton, rigid meshes, coordinate frames, arrows.
 You give it every frame up front as numpy arrays with a leading time axis `(T, ...)`. Static input counts as
-`T = 1`. The layer keeps the arrays **by reference**, so editing them in place and calling `viewer.show()` updates
+`T = 1`. The layer keeps the arrays **by reference**, so editing them in place and calling `layer.redraw()` updates
 the scene without rebuilding anything.
 
 ![The Viewer shows layers that each hold a whole clip; `record` screenshots the same scene through headless Chromium.](../figures/viewer_layers.svg)
@@ -21,12 +21,11 @@ the scene without rebuilding anything.
 ```python
 import numpy as np
 from better_robot import Viewer
-from better_robot.viewer import GroundLayer, PointsLayer
+from better_robot.viewer import PointsLayer
 
-viewer = Viewer()                        # viser server on http://127.0.0.1:8080
+viewer = Viewer()                        # viser server on http://127.0.0.1:8080, with a ground grid
 cloud = np.random.rand(100, 50, 3)       # T = 100 frames of 50 points
-points = PointsLayer("cloud", cloud)
-viewer.add([points, GroundLayer(size=3.0)])   # an iterable of layers; one layer is add([layer])
+points = viewer.add(PointsLayer("cloud", cloud))   # one layer, or an iterable of layers
 print(viewer.url, viewer.timeline.nsteps)
 ```
 ```output
@@ -53,36 +52,52 @@ centres), and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint
 0 hides that marker or bone. Given joint `kinds`, a bone with an axis marker at either end bends at right angles
 (see the robot skeleton below); bones between axis-less joints, such as every bone of a positions-only skeleton,
 are straight. A new layer type subclasses `Layer` and implements
-`build` (create scene nodes once), `set_step` (move them to step `k`) and optionally `world_points` (positions
-that `record`'s camera fits).
+`build` (create scene nodes once), `set_step` (move them to step `k`) and optionally `bounds` (the box
+`aim` frames), `apply_theme` and `build_gui` (its controls in the sidebar).
 
-## A group is the unit you toggle and remove
+## A tag is the unit you toggle, move and remove
 
-`viewer.add(layers, group="...")` puts each layer under the scene node `/<group>/<layer.name>`. The default group is
-`"scene"`. Each group gets a GUI folder with one visibility checkbox per layer, and `remove_group` tears the whole
-group down and shrinks the timeline to the longest remaining layer, so a clip browser can swap one clip's group for
-the next. Layer names must be unique inside a group, and a group name that `set_offset` or `remove_group` does not
-know raises `UnknownNameError`.
+Every layer carries tags, by default its own name; `viewer.add(layers, tags="...")` gives every layer of the call
+those tags instead. A layer lives under the scene node `/<first tag>/<layer.name>`. `remove`, `set_visible` and
+`redraw` take a layer or a tag (every layer carrying it), and once there are two tags the sidebar's Layers section
+has one checkbox per tag (the ground's tag `ground` is not listed). `remove` shrinks the timeline to the longest
+remaining layer, so a clip browser can remove one clip's tag before adding the next. Layer names must be unique
+under a first tag, and a tag that `set_offset` or `remove` does not know raises `UnknownNameError`.
 
 A layer is changed through its own methods, never its fields: `viewer.set_visible(layer, False)` hides it,
 `layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`; a
 layer without surfaces raises `ArgumentError`), and `viewer.replace(old, new)` swaps the data a layer draws, such
-as a body switched in a studio: `new` takes `old`'s group, GUI row and visibility, and the current step is pushed.
+as a body switched in a studio: `new` takes `old`'s tags, place, sidebar controls and visibility, the current step is
+pushed and the camera stays.
 
 ```python
-viewer.add([PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3))], group="debug")
-viewer.remove_group("debug")
+viewer.add(PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3)), tags="debug")
+viewer.remove("debug")
 ```
 
-`add(..., offset=(x, y, z))` moves the whole group, in the browser and in `record`, which is how you put two
-clips side by side; `set_offset(group, (x, y, z))` moves it again later, such as from a spacing slider.
+`add(..., offset=(x, y, z))` moves the layers' first tags, in the browser and in `record`, which is how you put two
+clips side by side; `set_offset(tag, (x, y, z))` moves a tag again later, such as from a spacing slider.
+
+## The sidebar, the camera and the theme
+
+`viewer.sidebar` holds the controls in sections with a fixed order: Timeline, Robot, Layers, Plots, then the sections
+an application creates, Info last. `sidebar.checkbox`, `dropdown`, `slider` and `button` take a section and a label
+and return viser's control; asking again for the same section and label returns the same control and adds the
+callback, so one control drives every layer that asked for it, and it goes when the last of them is removed. Every
+callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps. A callback that raises a
+`BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
+
+Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the bounding sphere of
+the visible layers' `Layer.bounds` over the clip (at most 32 steps are read), seen from a 3/4 view at the distance
+where the sphere fills the field of view. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself.
 
 ## One timeline drives every layer
 
 The `Viewer` owns one `Timeline` of integer steps at `fps`. Its length follows the longest layer; a layer
 shorter than the timeline holds its last step. `show(k)` is the only place steps reach the layers: every visible
 layer gets its sample for step `k` inside one atomic server update, and layers already on that sample are skipped.
-`show()` with no argument re-pushes the current step, which is what you call after editing arrays in place.
+`show()` with no argument re-pushes the current step to every layer; `layer.redraw()` re-pushes one layer, which is
+what you call after editing its arrays in place.
 
 A layer recorded at another rate passes its sample times in seconds: `viewer.add([layer], times=t)` with `t` of
 shape `(T,)`, non-decreasing. Step `k` then shows the latest sample at or before `k / fps`, so a 10 Hz layer and a
@@ -108,12 +123,12 @@ The other three calls consume the timeline:
 
 | Call | What it does | Needs a browser |
 |---|---|---|
-| `play()` | plays by wall clock at `fps` and blocks until Ctrl-C; `play(block=False)` returns | yes, to watch |
+| `serve()` | plays by wall clock at `fps` and blocks until Ctrl-C | yes, to watch |
 | `save(path)` | writes a `.viser` recording for viser's static web client | no |
 | `record(path)` | screenshots the scene in a headless Chromium to `.webm`, `.gif` or `.png` frames | no |
 
 ```python { .no-run data-reason="blocks until Ctrl-C" }
-viewer.play()  # blocks until Ctrl-C
+viewer.serve()  # plays and blocks until Ctrl-C
 ```
 
 ## A robot becomes layers with one kinematics pass
@@ -143,10 +158,10 @@ poses = state.joint_poses.numpy()                                        # (30, 
 
 meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
 hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], group="panda")
+viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], tags="panda")
 
 ghost = robot_skeleton(model, poses, name="ghost")
-viewer.add([ghost], group="ghost", offset=(0.0, 1.0, 0.0))
+viewer.add([ghost], tags="ghost", offset=(0.0, 1.0, 0.0))
 backwards = br.forward_kinematics(model, q.flip(0)).joint_poses.numpy()   # same length, played backwards
 ghost.joints[:] = backwards[:, 1:, :3]
 ghost.rotations[:] = backwards[:, 1:, 3:]
@@ -184,7 +199,7 @@ from better_robot.viewer import robot_skeleton
 poses = br.forward_kinematics(model, q).joint_poses.numpy()   # (30, njoints, 7)
 tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
 fingers = {"panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
-viewer.add([robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers)], group="panda")
+viewer.add([robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers)], tags="panda")
 ```
 
 ## Tools: a gizmo and numpy picking
@@ -221,8 +236,10 @@ exactly what a browser would; `aim` points the live browsers at the view `record
 
 ## Themes and the up axis
 
-`Viewer(theme=...)` takes a `Theme`: GUI and scene colours, lights and the `up` axis. `LIGHT` (the default) and
-`DARK` are built in. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
+`Viewer(theme=...)` takes a `Theme`, the one source of colours: the backdrop gradient, the grid, the shadow on the
+ground, the light rig (ambient, hemisphere, a key light that casts shadows, a fill), the robots' hues (`theme.hue(k)`
+for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the GUI accent and the up axis. `LIGHT`
+(the default) and `DARK` are built in; `viewer.set_theme(theme)` switches the page and every layer. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
 `plane` lies in the plane perpendicular to it (`"xz"` for `+y`). `GroundLayer(origin=p, normal=n, fill=0.3)`
 instead tilts the grid onto the plane through `p` with normal `n`, such as a fitted floor, over a translucent fill
@@ -249,13 +266,14 @@ forward the port over SSH to view it remotely.
 
 The convention for large per-step data is a callable `step -> array` evaluated only when that step is shown.
 Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames on demand); the other layers take eager
-`(T, ...)` arrays, because they need every sample up front for `nsteps` and for `world_points`.
+`(T, ...)` arrays, because they need every sample up front for `nsteps` and for `bounds`.
 
 ## Limits
 
 - One integer timeline per viewer. Per-layer `times` resample onto it; there is no continuous time axis.
 - viser is the only backend ([ADR 0004](../contracts/decisions/0004-viser-viewer.md)).
-- No GUI brick: `viewer.server.gui` is the sanctioned API for studio-style panels built on the viewer.
+- No GUI brick beyond the sidebar: `viewer.sidebar.gui` (viser's GUI API) inside `with viewer.sidebar.section(name):`
+  is the sanctioned API for studio-style panels built on the viewer.
 - `record` needs a headless Chromium (`BETTER_ROBOT_CHROME`); `save` does not.
 
 ## Where next

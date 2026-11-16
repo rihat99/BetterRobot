@@ -27,7 +27,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer, forward_kinematics, lie, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import GroundLayer, RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import RigidMeshLayer, SpheresLayer, robot_meshes
 from better_robot.viewer.tools import PoseGizmo
 
 FRAME, READY = "panda_hand", [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
@@ -83,7 +83,6 @@ def main() -> None:
         br.io.load_geometry(panda_description.URDF_PATH, model), root=Path(panda_description.REPOSITORY_PATH)
     )
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
-    viewer.add([GroundLayer(size=3.0)])
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)`` and a marker on each joint at (amber) or past (red) its limit, under ``group``."""
@@ -94,9 +93,9 @@ def main() -> None:
             SpheresLayer("at the limit", joints, radii=radii, colors=AMBER, opacity=0.8),
             SpheresLayer("past the limit", joints, radii=radii, colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:1], group=group, offset=offset)
-        viewer.add(layers[1:2], group=group, offset=offset, valid=np.abs(inside) <= 1e-3)
-        viewer.add(layers[2:], group=group, offset=offset, valid=inside < -1e-3)
+        viewer.add(layers[:1], tags=group, offset=offset)
+        viewer.add(layers[1:2], tags=group, offset=offset, valid=np.abs(inside) <= 1e-3)
+        viewer.add(layers[2:], tags=group, offset=offset, valid=inside < -1e-3)
         return layers
 
     if not (args.check or args.record):

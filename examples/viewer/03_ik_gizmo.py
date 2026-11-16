@@ -16,7 +16,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer, forward_kinematics, solve_ik
 from better_robot.testing import FakeServer
-from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, robot_meshes, robot_skeleton
+from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
 from better_robot.viewer.tools import PoseGizmo
 
 FRAME = "panda_hand"
@@ -35,7 +35,6 @@ def main() -> None:
     pose = start.frame_poses[0, hand]
 
     viewer = Viewer(server=FakeServer() if args.check else None)
-    viewer.add([GroundLayer()])
     meshes = RigidMeshLayer(
         "panda",
         robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH)),
@@ -43,7 +42,7 @@ def main() -> None:
     )
     skeleton = robot_skeleton(model, start.joint_poses.numpy())
     frames = FramesLayer("hand", start.frame_poses[:, [hand]].numpy())
-    viewer.add([meshes, skeleton, frames], group="panda")
+    viewer.add([meshes, skeleton, frames], tags="panda")
     # PoseGizmo calls ``follow`` on its own worker thread with only the newest pose, one call at a
     # time, so ``state`` has a single writer. A short warm-started solve keeps up with the mouse.
     state = {"q": q}
@@ -68,7 +67,7 @@ def main() -> None:
         print(f"target moved 10 cm, residual {float((reached[:3] - moved[:3]).norm()):.1e} m")
         return
     print(f"drag the gizmo (now at {gizmo.pose[:3]}) at {viewer.url}; Ctrl-C to exit")
-    viewer.server.sleep_forever()
+    viewer.serve()
 
 
 if __name__ == "__main__":
