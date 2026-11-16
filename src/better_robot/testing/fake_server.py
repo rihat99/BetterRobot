@@ -447,10 +447,9 @@ class FakeGui:
         return handle
 
     def add_folder(
-        self, label: str | None, *, order: float | None = None, expand_by_default: bool = True, visible: bool = True
+        self, label: str, *, order: float | None = None, expand_by_default: bool = True, visible: bool = True
     ) -> FakeHandle:
-        """viser's folder, a context manager for the controls inside it: a ``GuiFolderHandle``; ``label`` ``None``
-        is a folder without a header."""
+        """viser's folder, a context manager for the controls inside it: a ``GuiFolderHandle``."""
         return self._control("GuiFolderHandle", label, locals())
 
     def add_button(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:

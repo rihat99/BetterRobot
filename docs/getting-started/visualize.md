@@ -33,7 +33,8 @@ Any `(T, nq)` tensor works: the `result.x["q"][0]` of [the trajectory tutorial](
 
 `Viewer()` starts a local [viser](https://viser.studio) server on `127.0.0.1:8080`; open `viewer.url` in a
 browser. Forward kinematics runs once for the clip; `robot_meshes` turns the description's `Geometry` into the
-meshes of a `RigidMeshLayer` that follows the joint poses, and a `FramesLayer` draws frame axes:
+meshes of a `RigidMeshLayer` that follows the joint poses, and a `FramesLayer` draws frame axes. The viewer adds
+the ground grid itself (`Viewer(ground=False)` leaves it out), so it holds three layers:
 
 ```python
 viewer = Viewer()
@@ -46,7 +47,7 @@ viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), hand])   # an ite
 print(viewer.url, len(viewer.layers))
 ```
 ```output
-http://127.0.0.1:8080 2
+http://127.0.0.1:8080 3
 ```
 
 Forward kinematics runs once for the whole clip, not once per step.
