@@ -120,6 +120,7 @@ def self_clearance(
         raise ShapeError(f"margin must be a number or have shape ({pairs.shape[0]},), got {tuple(width.shape)}")
     frames = spheres.frame_ids.tolist()  # bench-ok: once per term; point_jacobian takes frame ids as ints
     band = _band(width.clamp_min(0.0))
+    shared = width.dim() == 0  # one margin for every pair
     keep = pairs.shape[0] if closest is None else min(closest, pairs.shape[0])
 
     def nearest(kinematics: KinematicState) -> tuple[torch.Tensor, torch.Tensor | None]:
@@ -128,7 +129,7 @@ def self_clearance(
         distance = self_distances(spheres, kinematics, pairs=pairs)
         if keep == pairs.shape[0]:
             return distance, None
-        if width.dim() == 0:  # one margin: the least room is the smallest distance, and no gap is computed twice
+        if shared:  # the least room is the smallest distance, and no gap is computed twice
             distance, index = distance.topk(keep, dim=-1, largest=False)
             return distance, index
         index = (width - distance).topk(keep, dim=-1).indices
@@ -136,11 +137,11 @@ def self_clearance(
 
     def gap(distance: torch.Tensor, index: torch.Tensor | None) -> torch.Tensor:
         """``margin - distance`` of the kept pairs."""
-        return (width if index is None or width.dim() == 0 else width[index]) - distance
+        return (width if index is None or shared else width[index]) - distance
 
     def banded(index: torch.Tensor | None) -> tuple[torch.Tensor, torch.Tensor]:
         """The hinge constants of the kept pairs."""
-        return band if index is None or width.dim() == 0 else (band[0][index], band[1][index])
+        return band if index is None or shared else (band[0][index], band[1][index])
 
     def residual(kinematics: KinematicState) -> torch.Tensor:
         distance, index = nearest(kinematics)

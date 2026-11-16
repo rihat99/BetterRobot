@@ -17,7 +17,7 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from .evaluation import CONSTRAINTS, active_terms
-from .linear import ArrowNormal, BandedNormal, Normal
+from .linear import ArrowNormal, BandedNormal, DenseSink, Normal
 from .linearization import Rows, linearize
 from .problem import Problem
 from .qp import QPSolution, solve_qp
@@ -500,7 +500,7 @@ def track(
     if isinstance(step, torch.Tensor):
         if step.shape not in ((), (problem.tangent_dim,)):
             raise ShapeError(f"step must be a number or have shape ({problem.tangent_dim},), got {tuple(step.shape)}")
-    elif step <= 0:
+    elif step <= 0:  # bench-ok: a Python number on this branch; a tensor's values are not scanned
         raise ArgumentError(f"step must be positive, got {step}")
     normal, _, _, rows = linearize(problem, x)
     if not isinstance(normal, Normal):
@@ -541,7 +541,10 @@ def _held(
         # The least change of delta that takes the excess off the rows it leaves, among the coordinates that the
         # box does not hold against it: scaling alone would give up the whole step for one row left by a hair.
         left = rows * (excess != 0).unsqueeze(-1)
-        back = Normal(H=left.mT @ left, g=(excess.unsqueeze(-2) @ left).squeeze(-2))
+        columns = torch.arange(left.shape[-1], device=left.device)[None]
+        sink = DenseSink(left, left.shape[0], left.shape[-1])
+        sink.add(columns, columns, (left.mT @ left).unsqueeze(1), shared=(False, False))
+        back = sink.finish((excess.unsqueeze(-2) @ left).squeeze(-2))
         delta = delta + back.restrict(box_low - delta, box_high - delta).solve()
         value = (rows @ delta.unsqueeze(-1)).squeeze(-1)
         low, high = low - _SLACK, high + _SLACK
