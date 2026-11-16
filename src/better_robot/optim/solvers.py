@@ -453,10 +453,10 @@ def track(
     problem: Problem,
     x: dict[str, torch.Tensor],
     *,
+    step: float | torch.Tensor,
     warm: QPSolution | None = None,
     gain: float = 0.5,
     damping: float = 1e-3,
-    step: float | torch.Tensor | None = None,
     iterations: int = 20,
 ) -> tuple[dict[str, torch.Tensor], QPSolution]:
     """One step of differential inverse kinematics: ``x`` moved toward the problem's targets under its constraint
@@ -470,10 +470,11 @@ def track(
     bounds give the box ``gain · (lower - x) <= delta <= gain · (upper - x)``. So a row's distance to its bound
     shrinks by at most ``1 - gain`` per call (a discrete barrier: exact for rows linear in ``x``, such as the bounds,
     and up to the curvature the rows do not see for the others), and a violation is repaired at the same rate.
-    ``step``, a number or ``(N,)``, bounds every entry of ``delta`` (a robot's velocity limits times the time step).
-    The retraction clamps to the bounds, as in every solver. The damping is added as a
-    multiple of the identity, so ``H + damping·I`` stays positive definite where the targets' Jacobian loses rank and
-    on coordinates no cost term reads; it shortens every step and moves no fixed point.
+    ``step``, a positive number or ``(N,)`` of them, bounds every entry of ``delta`` (a robot's velocity limits times
+    the time step); it has no default, because the curved rows hold only for small steps. The retraction clamps to
+    the bounds, as in every solver: a start outside them is back inside after one call, whatever ``step``. The
+    damping is added as a multiple of the identity, so ``H + damping·I`` stays positive definite where the targets'
+    Jacobian loses rank and on coordinates no cost term reads; it shortens every step and moves no fixed point.
 
     Unlike `SequentialQP` nothing is accepted or refused: the step is taken, with its rows elastic as in `solve_qp`.
     Where the program's step is not its exact solution (``solution.exact`` unset) it may leave a row: the step taken
@@ -482,15 +483,18 @@ def track(
     taken. ``iterations`` goes to `solve_qp`: more per call make more of its steps exact where many rows press at
     once (a G1 with five behaviours as rows).
     The targets move between calls through ``problem.with_(data=...)``; the rows must keep their count (``closest=``)
-    so that ``warm`` fits. The problem needs dense normal equations and a constraint term, bounds or ``step``. One
-    evaluation, one `solve_qp` and one retraction per call, with no read back to the host.
+    so that ``warm`` fits. The problem needs dense normal equations. One evaluation, one `solve_qp` and one
+    retraction per call, with no read back to the host.
     """
     if not 0 < gain <= 1:
         raise ArgumentError(f"gain must be in (0, 1], got {gain}")
     if damping < 0:
         raise ArgumentError(f"damping must be at least 0, got {damping}")
-    if isinstance(step, torch.Tensor) and step.shape not in ((), (problem.tangent_dim,)):
-        raise ShapeError(f"step must be a number or have shape ({problem.tangent_dim},), got {tuple(step.shape)}")
+    if isinstance(step, torch.Tensor):
+        if step.shape not in ((), (problem.tangent_dim,)):
+            raise ShapeError(f"step must be a number or have shape ({problem.tangent_dim},), got {tuple(step.shape)}")
+    elif step <= 0:
+        raise ArgumentError(f"step must be positive, got {step}")
     normal, _, _, rows = linearize(problem, x)
     if not isinstance(normal, Normal):
         raise ArgumentError("track takes dense normal equations; build the problem with dense=True")
@@ -515,8 +519,7 @@ def _held(
 ) -> torch.Tensor:
     """``delta: (B, N)`` clamped to the box rows (the rows after the first ``count``) and scaled back so that it
     leaves none of the first ``count`` rows by more than `_SLACK`, nor takes a violated one further out."""
-    if matrix.shape[1] > count:
-        delta = torch.clamp(delta, lower[:, count:], upper[:, count:])
+    delta = torch.clamp(delta, lower[:, count:], upper[:, count:])
     if count:
         value = (matrix[:, :count] @ delta.unsqueeze(-1)).squeeze(-1)
         low = lower[:, :count].clamp(max=0.0) - _SLACK

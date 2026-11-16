@@ -50,8 +50,8 @@ IK, aligned with the frax reference run as far as the two algorithms allow:
 - compiled solves: a library with ``solve_ik(step=)`` compiles its LM step once per row with ``kinematics.compiled``
   and passes it (adapter ``solve_ik(step=)``); an older one compiles the whole solve with ``torch.compile``, which
   breaks the graph at every early-stop read.
-- ``track``: one ``optim.track`` call of the ``ik_step`` problem (the joint limits are its box), warm started from
-  the call before (a control loop's steady state; frax's ``ik_step`` is the same tick, cold);
+- ``track``: one ``optim.track`` call of the ``ik_step`` problem (the joint limits are its box, steps of at most
+  5 mrad), warm started from the call before (a control loop's steady state; frax's ``ik_step`` is the same tick, cold);
   ``track_constrained``: the same with the clearance rows of ``ik_step_constrained``.
 
 What still differs: LM with hard bounds against frax's QP with a posture task and limit rows; the frames (``panda_hand``,
@@ -312,10 +312,10 @@ def ik_case(
         add(problem)
 
         def tick(q: torch.Tensor, warm: br.optim.QPSolution) -> tuple:
-            x, solution = br.optim.track(problem, {"q": q}, warm=warm)
+            x, solution = br.optim.track(problem, {"q": q}, warm=warm, step=0.005)
             return x["q"], solution.x, solution.dual
 
-        return tick, (q0, br.optim.track(problem, {"q": q0})[1]), lambda output: {"iterations": 1}
+        return tick, (q0, br.optim.track(problem, {"q": q0}, step=0.005)[1]), lambda output: {"iterations": 1}
     if function in ("ik_step", "ik_step_constrained"):
         problem = br.terms.ik_problem(model, dict(zip(frames, poses, strict=True)), q0=q0)
         add(problem)

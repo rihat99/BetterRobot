@@ -43,37 +43,41 @@ def test_a_linear_row_and_the_box_close_in_by_at_most_the_gain_per_call_and_hold
 
 
 def test_track_refuses_what_it_cannot_step() -> None:
-    """A gain outside (0, 1], a negative damping, a step limit of the wrong shape, a problem with nothing to hold, and
-    banded normal equations."""
+    """A gain outside (0, 1], a negative damping, a step limit that is not positive or has the wrong shape, and
+    banded normal equations; a problem with nothing but a step limit is stepped."""
     problem, _ = _chase()
     x = dict(problem.variables)
-    for options in ({"gain": 0.0}, {"gain": 1.5}, {"damping": -1.0}):
+    for options in ({"gain": 0.0}, {"gain": 1.5}, {"damping": -1.0}, {"step": 0.0}, {"step": -0.1}):
         with pytest.raises(exceptions.ArgumentError):
-            optim.track(problem, x, **options)
+            optim.track(problem, x, **{"step": 0.1} | options)
     with pytest.raises(exceptions.ShapeError):
         optim.track(problem, x, step=torch.ones(3, dtype=torch.float64))
     free = optim.Problem({"x": torch.zeros(4, 2)}, data={"target": torch.ones(4, 2)})
     free.residual("chase", lambda x, target: x - target)
-    with pytest.raises(exceptions.ArgumentError):
-        optim.track(free, dict(free.variables))
     assert optim.track(free, dict(free.variables), step=0.1)[0]["x"].shape == (4, 2)
     timed = optim.Problem({"x": torch.zeros(2, 5, 2)}, time=("x",), bounds={"x": (-torch.ones(2), torch.ones(2))})
     timed.residual("smooth", lambda x: x[:, 1:] - x[:, :-1], window=2)
     with pytest.raises(exceptions.ArgumentError):
-        optim.track(timed, dict(timed.variables))
+        optim.track(timed, dict(timed.variables), step=0.1)
 
 
-def test_more_iterations_per_call_make_more_programs_exact() -> None:
-    """``iterations`` reaches `solve_qp`: one cold call on 64 points held by 24 random rows that press at once is
-    exact on 1 of them at the default 20 iterations and on 32 at 200, with a smaller primal residual."""
+def _walled() -> optim.Problem:
+    """64 points in six dimensions that chase far targets under 24 random rows pressing at once."""
     generator = torch.Generator().manual_seed(0)
     walls = torch.randn(24, 6, generator=generator, dtype=torch.float64)
     target = 3 * torch.randn(64, 6, generator=generator, dtype=torch.float64)
     problem = optim.Problem({"x": torch.zeros(64, 6, dtype=torch.float64)}, data={"target": target})
     problem.residual("chase", lambda x, target: x - target)
     problem.inequality("walls", lambda x: x @ walls.T, upper=1.0)
-    few = optim.track(problem, dict(problem.variables))[1]
-    many = optim.track(problem, dict(problem.variables), iterations=200)[1]
+    return problem
+
+
+def test_more_iterations_per_call_make_more_programs_exact() -> None:
+    """``iterations`` reaches `solve_qp`: one cold call is exact on 1 of the 64 points at the default 20 iterations
+    and on 31 at 200, with a smaller primal residual."""
+    problem = _walled()
+    few = optim.track(problem, dict(problem.variables), step=10.0)[1]
+    many = optim.track(problem, dict(problem.variables), step=10.0, iterations=200)[1]
     assert int(few.exact.sum()) <= 4
     assert int(many.exact.sum()) >= 16
     assert float(many.primal_residual.max()) < 0.5 * float(few.primal_residual.max())

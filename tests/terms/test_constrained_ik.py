@@ -185,10 +185,11 @@ def test_each_behaviour_row_holds_while_track_follows_targets_through_the_forbid
 def test_a_tick_reads_nothing_back(tracking) -> None:
     """A control loop of ``track`` calls with the five behaviours copies no tensor value to the host."""
     problem, path, _ = tracking
-    x, warm = optim.track(problem, dict(problem.variables))
+    x, warm = optim.track(problem, dict(problem.variables), step=0.005)
     with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as profile:
         for tick in range(1, 4):
-            x, warm = optim.track(problem.with_(data={f"target/{FRAME}": path(tick)[0][FRAME]}), x, warm=warm)
+            moved = problem.with_(data={f"target/{FRAME}": path(tick)[0][FRAME]})
+            x, warm = optim.track(moved, x, warm=warm, step=0.005)
     assert sum(event.name in ("aten::_local_scalar_dense", "aten::nonzero") for event in profile.events()) == 0
 
 
@@ -197,9 +198,9 @@ def test_a_tick_reads_nothing_back(tracking) -> None:
 def test_a_compiled_tick_equals_the_eager_one(tracking, mode: str) -> None:
     """In both modes, over six ticks: the configuration and the whole quadratic program's solution."""
     problem, path, _ = tracking
-    tick = br.kinematics.compiled(lambda problem, x, warm: optim.track(problem, x, warm=warm), mode=mode)
+    tick = br.kinematics.compiled(lambda problem, x, warm: optim.track(problem, x, warm=warm, step=0.005), mode=mode)
     runs = []
-    for step in (tick, lambda problem, x, warm: optim.track(problem, x, warm=warm)):
+    for step in (tick, lambda problem, x, warm: optim.track(problem, x, warm=warm, step=0.005)):
         x, warm = dict(problem.variables), None
         for t in range(1, 7):
             x, warm = step(problem.with_(data={f"target/{FRAME}": path(t)[0][FRAME]}), x, warm)
