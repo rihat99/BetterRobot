@@ -125,6 +125,7 @@ nav:
       - guides/hard-constraints.md
       - guides/constrained-ik.md
       - guides/track-targets.md
+      - guides/avoidance-demos.md
       - guides/fit-a-clip.md
       - guides/differentiate.md
       - guides/benchmark-and-profile.md

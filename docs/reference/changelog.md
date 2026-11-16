@@ -105,6 +105,11 @@ that 0.3.0 renames or removes, one table row each.
   the package, and `read(page)` those of another page; `words`, `entry` and `spelling` check a name against them.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
 - [Release a version](../guides/release.md): the release checklist, from the public-API diff to the downstream pins.
+- `examples/viewer/05_avoid_joint_limits.py` to `09_avoid_self_collision.py`: the five behaviours of `optim.track`
+  (joint limits, singular poses, floor, obstacle, self-collision) live in the viewer, a dragged target tracked one
+  call per tick with a switch between the rows, a cost term and off; the floor, obstacle and self-collision demos
+  also run the G1 (`--robot g1`). Each records its scripted path (`--record`); the clips are in
+  [Try the avoidance demos](../guides/avoidance-demos.md).
 - `terms.manipulability(model, *, frame, threshold, hinge=True)`: a hinge on Yoshikawa's manipulability of a frame's
   position Jacobian that pushes away from singular configurations below `threshold`, with an analytic Jacobian;
   `hinge=False` gives the plain `threshold - w`, the row of an inequality term.
