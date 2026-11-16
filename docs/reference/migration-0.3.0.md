@@ -207,13 +207,25 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `viewer.skeleton_spec`, `viewer.spread_offsets` | `viewer.robot_skeleton` | helpers of `robot_skeleton` |
 | `robot_meshes(model, *, collision, default_color)` | `robot_meshes(geometry, *, root=None, collision=False, default_color)` | `geometry = io.load_geometry(path, model)` |
 | `Layer.times`, `Layer.root` | `Viewer.add(..., times=)` | the viewer keeps what each `add` set; `Layer.elements` is read-only |
-| `Viewer.add(layer, group)` | `Viewer.add(layers, *, group)` | an iterable of layers: one layer is `add([layer])` |
-| `Viewer.play(block=True)` | `Viewer.play(*, block=True)` | |
+| `Viewer.add(layer, group)`, `Viewer.add_plot(..., group=)` | `Viewer.add(layers, *, tags)`, `Viewer.add_plot(..., tags=)` | one layer or an iterable of layers, returned as given; a layer's first tag is its scene parent `/<tag>/<name>` |
+| `Viewer(*, host, port, fps, theme=None, server)` | `Viewer(*, host, port, fps, theme=LIGHT, ground=True, server)` | the viewer adds a `GroundLayer` under the tag `ground`; pass `ground=False` to add your own |
+| `Viewer.remove_group(group)`, `Viewer.set_offset(group, offset)`, `Viewer.set_visible(layer, visible)` | `Viewer.remove(target)`, `Viewer.set_offset(tag, offset)`, `Viewer.set_visible(target, visible)` | `remove` and `set_visible` take a layer or a tag |
+| `Viewer.play(block=True)` | `Viewer.serve()` | plays and serves the page until interrupted; `viewer.timeline.play()` plays without blocking |
+| `Viewer.rebuild(layer)` | `Layer.redraw`, `Viewer.replace` | `layer.redraw()` pushes the current step after an in-place edit; `replace(old, new)` swaps in a new layer |
+| `Viewer.aim(*, steps, azimuth, elevation)` | `Viewer.aim(*, steps, azimuth, elevation, fov)` | frames the bounding sphere of the layers' `Layer.bounds` over at most 32 steps; until it is called the viewer aims after each `add` |
+| `world_points` of `Layer` and every layer | `Layer.bounds` | the world box `(lo, hi)` of a step, which `Viewer.aim` and `Viewer.record` frame |
+| `Layer(name, nsteps)`, `Layer.listed`, `GroundLayer.listed` | `Layer(name, nsteps, *, tags=)` | the sidebar's Layers section has one checkbox per tag once there are two; the ground is never listed |
+| `Layer.build_gui(gui)`, `PlotPanel.build_gui`, `ImagePanel.build_gui` | `Layer.build_gui(sidebar)`, `Sidebar` | a layer adds its controls through the viewer's `Sidebar`; viser's GUI API is `sidebar.gui` |
+| `GroundLayer(..., cell_color=, section_color=)` | `GroundLayer(..., cell_color=None, section_color=None)` | the grid takes `Theme.grid` unless given |
+| `Theme.brand_color` | `Theme.accent` | the colour of the GUI and the tools |
+| `Theme.grid_cell`, `Theme.grid_section` | `Theme.grid` | a (cell, section) pair |
+| `Theme.robot`, `Theme.human` | `Theme.hue` | a robot or body takes `theme.hue(index)`, its parts `theme.shade(hue, role)` |
+| `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target`, `Theme.control_width` | — | no layer read the colours, and an application passes its own; the sidebar keeps viser's medium width |
 | `Timeline(nsteps=1, fps=30.0, loop=True)` | `Timeline(nsteps, *, fps=30.0, loop=True)` | |
 | `SkeletonLayer(name, joints, parents, ...)` | `SkeletonLayer(name, joints, *, parent_ids, ...)` | renamed and keyword-only |
 | `ArrowsLayer(name, origins, vectors, ...)`, `MeshLayer(name, vertices, faces, ...)`, `SpheresLayer(name, centers, radii, ...)` | `vectors=`, `faces=`, `radii=` | keyword-only after the second argument |
 | `RigidMeshLayer(name, meshes, body_poses, ...)`, `SkinnedMeshLayer(name, vertices, faces, weights, bind_poses, bone_poses, ...)` | `body_poses=`, `faces=`, `weights=`, `bind_poses=`, `bone_poses=` | keyword-only |
-| `MeshSpec(vertices, faces, body, origin, color, trimesh)`, `Theme(dark, brand_color, ...)` | `body=`, `origin=`, `dark=`, `brand_color=` | keyword-only fields |
+| `MeshSpec(vertices, faces, body, origin, color, trimesh)`, `Theme(dark, brand_color, ...)` | `body=`, `origin=`, `dark=`, `accent=` | keyword-only fields |
 | `PoseGizmo(viewer, name, pose, **options)` (in `viewer.tools`) | `pose=`, `on_change=`, `scale=`, `depth_test=` | named options only; `pose` is `(7,)` |
 | `CameraFrustum`, `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` (in `viewer.tools`) | `fov=`, `vertices=`, `direction=`, `radius=`, `rect_min=` | keyword-only after the first two arguments |
 | click callback event with `screen_pos ((x, y),)` and `event_type` | viser's click event | `Viewer.on_pointer("click", ...)` passes it: `screen_pos` is `(x, y)`, no `event_type` |
