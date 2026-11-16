@@ -14,11 +14,11 @@ stays autograd- and ``torch.func``-safe (jacrev and jacfwd); no host syncs; the 
 under ``torch.compile(fullgraph=True)`` (``tests/kinematics/test_fk_compile.py``).
 
 The ``(njoints, 7)`` and ``(nframes, 7)`` placements are converted to ``4x4`` matrices by `joint_map` and
-`world_frames` and memoised on the model by grad mode (record 0040): converting per call cost 0.17 ms, 44 % of a batch-1 Panda FK
-call on CPU (0.19 -> 0.39 ms; one thread, float32, torch 2.13, AMD EPYC 9654) and under 1.2 % at batch 4096. The
-memo holds unbatched joint placements already folded into the feature map: the fold costs two products independent
-of the batch size, which were 29 % of a batch-1 G1 FK call. Placements that carry a graph are converted per call so
-that each differentiable call owns its graph.
+`world_frames` and memoised on the model by grad mode (record 0040): converting per call cost 0.17 ms, 44 % of a
+batch-1 Panda FK call on CPU (0.19 -> 0.39 ms; one thread, float32, torch 2.13, AMD EPYC 9654) and under 1.2 % at
+batch 4096. The memo holds unbatched joint placements already folded into the feature map: the fold costs two
+products independent of the batch size, which were 29 % of a batch-1 G1 FK call. Placements that carry a graph are
+converted per call so that each differentiable call owns its graph.
 """
 
 from __future__ import annotations
