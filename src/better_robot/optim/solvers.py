@@ -469,12 +469,16 @@ def track(
     bounds give the box ``gain · (lower - x) <= delta <= gain · (upper - x)``. So a row's distance to its bound
     shrinks by at most ``1 - gain`` per call (a discrete barrier: exact for rows linear in ``x``, such as the bounds,
     and up to the curvature the rows do not see for the others), and a violation is repaired at the same rate.
-    ``step``, a number or ``(N,)``, bounds every entry of ``delta`` (a robot's velocity limits times the time step);
-    a coordinate beyond its bound by more than ``step / gain`` goes back at ``step``. The damping is added as a
+    ``step``, a number or ``(N,)``, bounds every entry of ``delta`` (a robot's velocity limits times the time step).
+    The retraction clamps to the bounds, as in every solver. The damping is added as a
     multiple of the identity, so ``H + damping·I`` stays positive definite where the targets' Jacobian loses rank and
     on coordinates no cost term reads; it shortens every step and moves no fixed point.
 
     Unlike `SequentialQP` nothing is accepted or refused: the step is taken, with its rows elastic as in `solve_qp`.
+    Where the program's step is not its exact solution (``solution.exact`` unset) it may leave a row: the step taken
+    is the program's clamped to the box and scaled back until it leaves no row by more than 1e-6 in that row's unit
+    and takes no violated row further out, so ``solution.x`` is the program's step and the new point carries the step
+    taken.
     The targets move between calls through ``problem.with_(data=...)``; the rows must keep their count (``closest=``)
     so that ``warm`` fits. The problem needs dense normal equations and a constraint term, bounds or ``step``. One
     evaluation, one `solve_qp` and one retraction per call, with no read back to the host.
@@ -493,8 +497,28 @@ def track(
     solution = solve_qp(
         normal.H + torch.diag_embed(diagonal), normal.g, rows=matrix, lower=lower, upper=upper, warm=warm
     )
+    delta = _held(solution.x, matrix, lower, upper, 0 if rows is None else rows.value.shape[1])
     with torch.no_grad():
-        return problem.retract(x, solution.x), solution
+        return problem.retract(x, delta), solution
+
+
+def _held(
+    delta: torch.Tensor, matrix: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor, count: int
+) -> torch.Tensor:
+    """``delta: (B, N)`` clamped to the box rows (the rows after the first ``count``) and scaled back so that it
+    leaves none of the first ``count`` rows by more than `_SLACK`, nor takes a violated one further out."""
+    if matrix.shape[1] > count:
+        delta = torch.clamp(delta, lower[:, count:], upper[:, count:])
+    if count:
+        value = (matrix[:, :count] @ delta.unsqueeze(-1)).squeeze(-1)
+        low = lower[:, :count].clamp(max=0.0) - _SLACK
+        high = upper[:, :count].clamp(min=0.0) + _SLACK
+        ratio = torch.where(value > high, high / value, torch.where(value < low, low / value, 1.0))
+        delta = delta * ratio.amin(-1, keepdim=True)
+    return delta
+
+
+_SLACK = 1e-6  # how far the step of `track` may leave a row that held at its start, in the row's unit
 
 
 def _program(
@@ -521,7 +545,7 @@ def _program(
         low, high = box * bounds[0], box * bounds[1]
         if step is not None:
             limit = torch.as_tensor(step, dtype=low.dtype, device=low.device)
-            # both sides inside ±step: a coordinate beyond its bound by more than step / box goes back at step
+            # both sides inside ±step, so a box that ``step`` cannot reach still has lower <= upper
             low, high = torch.clamp(low, -limit, limit), torch.clamp(high, -limit, limit)
         identity = torch.eye(low.shape[-1], dtype=low.dtype, device=low.device)
         matrices.append(identity.expand(low.shape[0], -1, -1))

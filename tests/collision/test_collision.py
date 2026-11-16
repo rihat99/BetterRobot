@@ -185,7 +185,7 @@ def test_terms_pass_check_jacobian(panda):
 def test_clearance_jacobians_cover_every_shape_and_the_closest_pairs(panda):
     """The analytic clearance Jacobians (a pullback of ``distance_fn`` times ``point_jacobian``) equal autodiff for
     every shipped shape, ``K`` obstacles per sphere and the unhinged inequality; ``closest=k`` keeps the k nearest
-    pairs, rows and Jacobian alike."""
+    pairs, or sphere-obstacle distances, rows and Jacobian alike."""
     spheres = _spheres(panda)
     center, size = torch.tensor([0.3, 0.0, 0.5], dtype=DT), torch.tensor(0.1, dtype=DT)
     rotation, grid = torch.linalg.qr(_randn(3, 3, seed=12))[0], 0.2 * _randn(10, 10, 10, seed=13)
@@ -210,9 +210,12 @@ def test_clearance_jacobians_cover_every_shape_and_the_closest_pairs(panda):
     pairs = collision.self_collision_pairs(panda, spheres)
     problem.residual("self", terms.self_clearance(spheres, pairs=pairs, margin=0.3))
     problem.residual("closest", terms.self_clearance(spheres, pairs=pairs, margin=0.3, closest=2))
+    walls = terms.sphere_clearance(spheres, shapes["walls"], margin=0.1, hinge=False, closest=3)
+    problem.residual("walls/closest", walls)
     residuals = problem.residuals()
     assert residuals["walls"].shape == (16, 8) and residuals["closest"].shape == (16, 2)
     torch.testing.assert_close(residuals["closest"], residuals["self"].topk(2).values, rtol=0, atol=0)
+    torch.testing.assert_close(residuals["walls/closest"], residuals["walls/inequality"].topk(3).values, rtol=0, atol=0)
     assert all(bool((value > 0).any()) for value in residuals.values())
     errors = optim.check_jacobian(problem)
     assert max(errors.values()) < 1e-12, errors

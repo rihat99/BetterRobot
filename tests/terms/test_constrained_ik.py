@@ -101,3 +101,110 @@ def test_a_compiled_step_equals_the_eager_one(scene, mode: str) -> None:
         torch.testing.assert_close(
             found[name], tensor, rtol=1e-9, atol=1e-9, msg=lambda text, name=name: f"{name}: {text}"
         )
+
+
+@pytest.fixture(scope="module")
+def tracking():
+    """``(problem, path, worst)``: 24 Panda targets whose paths from the ready pose cross a joint limit, a floor 5 cm
+    up, the obstacle sphere, the arm itself or a singular pose (each crossed by some), and the five behaviours as rows
+    of ``optim.track``; ``path(t)`` is ``{frame: poses (24, 7)}`` and its configurations at tick ``t`` of 100;
+    ``worst(q)`` is ``{behaviour: (24,) largest violation over every row}``."""
+    panda = br.load(panda_urdf(), dtype=torch.float64)
+    spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
+    pairs = collision.self_collision_pairs(panda, spheres, ignore=ignore)
+    start = torch.tensor(READY, dtype=torch.float64)
+    pairs = pairs[collision.self_distances(spheres, forward_kinematics(panda, start), pairs=pairs) > MARGIN + 0.01]
+    obstacle = torch.tensor(OBSTACLE, dtype=torch.float64)
+    base = torch.tensor(
+        [int(f) in {panda.frame_id("panda_link0"), panda.frame_id("panda_link1")} for f in spheres.frame_ids]
+    )
+    up = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64)
+
+    def to_floor(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:  # the base spheres never reach it
+        return collision.sphere_halfspace(centers, radii, normal=up, offset=0.05) + base
+
+    def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
+        return (centers - obstacle[:3]).norm(dim=-1) - radii - obstacle[3]
+
+    rows = {
+        "floor": terms.sphere_clearance(spheres, to_floor, margin=MARGIN, hinge=False, closest=8),
+        "obstacle": terms.sphere_clearance(spheres, to_obstacle, margin=MARGIN, hinge=False, closest=8),
+        "self": terms.self_clearance(spheres, pairs=pairs, margin=MARGIN, hinge=False, closest=8),
+        "singular": terms.manipulability(panda, frame=FRAME, threshold=0.03, hinge=False),
+    }
+
+    def worst(q: torch.Tensor) -> dict[str, torch.Tensor]:
+        state = forward_kinematics(panda, q)
+        out = {"limits": torch.maximum(panda.lower_position_limit - q, q - panda.upper_position_limit).amax(-1)}
+        out["floor"] = (MARGIN - to_floor(spheres.centers(state), spheres.radii)).amax(-1)
+        out["obstacle"] = (MARGIN - to_obstacle(spheres.centers(state), spheres.radii)).amax(-1)
+        out["self"] = (MARGIN - collision.self_distances(spheres, state, pairs=pairs)).amax(-1)
+        out["singular"] = rows["singular"].fn(state)[:, 0]
+        return {name: value.clamp_min(0.0) for name, value in out.items()}
+
+    mid = (panda.lower_position_limit + panda.upper_position_limit) / 2
+    draws = terms.random_start(panda, start.expand(512, -1), generator=torch.Generator().manual_seed(3))
+    goal = mid + 1.2 * (draws - mid)  # some beyond a limit
+    crossed = torch.stack(
+        [torch.stack(list(worst(start + s * (goal - start)).values())) for s in (0.25, 0.5, 0.75, 1.0)]
+    )
+    crossed = crossed.amax(0) > 0  # (5, 512)
+    keep = torch.cat([torch.nonzero(crossed[b]).flatten()[:5] for b in range(5)])[:24]
+    goal = goal[keep]
+    hand = panda.frame_id(FRAME)
+
+    def path(tick: int) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
+        share = min(tick / 80, 1.0)
+        q = start + (3 - 2 * share) * share * share * (goal - start)
+        return {FRAME: forward_kinematics(panda, q).frame_poses[:, hand]}, q
+
+    problem = terms.ik_problem(panda, path(0)[0], q0=start.expand(24, -1).contiguous())
+    for name, row in rows.items():
+        problem.inequality(name, row, upper=0.0)
+    return problem, path, worst
+
+
+def test_each_behaviour_row_holds_while_track_follows_targets_through_the_forbidden_regions(tracking) -> None:
+    """Steps of at most 5 mrad keep every row of the five behaviours within 1e-4 over the whole trajectory (the
+    measured region), while the targets' own configurations break each behaviour; most clear targets are reached."""
+    problem, path, worst = tracking
+    x, warm, seen, broken = dict(problem.variables), None, {}, {}
+    for tick in range(1, 101):
+        poses, q_target = path(tick)
+        moved = problem.with_(data={f"target/{FRAME}": poses[FRAME]})
+        x, warm = optim.track(moved, x, warm=warm, step=0.005)
+        for name, value in worst(x["q"]).items():
+            seen[name] = max(seen.get(name, 0.0), float(value.max()))
+        for name, value in worst(q_target).items():
+            broken[name] = broken.get(name, 0) + int((value > 1e-3).sum())
+    assert all(count > 0 for count in broken.values()), broken
+    assert max(seen.values()) <= 1e-4, seen
+
+
+def test_a_tick_reads_nothing_back(tracking) -> None:
+    """A control loop of ``track`` calls with the five behaviours copies no tensor value to the host."""
+    problem, path, _ = tracking
+    x, warm = optim.track(problem, dict(problem.variables))
+    with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as profile:
+        for tick in range(1, 4):
+            x, warm = optim.track(problem.with_(data={f"target/{FRAME}": path(tick)[0][FRAME]}), x, warm=warm)
+    assert sum(event.name in ("aten::_local_scalar_dense", "aten::nonzero") for event in profile.events()) == 0
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("mode", ["default", "reduce-overhead"])
+def test_a_compiled_tick_equals_the_eager_one(tracking, mode: str) -> None:
+    """In both modes, over six ticks: the configuration and the whole quadratic program's solution."""
+    problem, path, _ = tracking
+    tick = br.kinematics.compiled(lambda problem, x, warm: optim.track(problem, x, warm=warm), mode=mode)
+    runs = []
+    for step in (tick, lambda problem, x, warm: optim.track(problem, x, warm=warm)):
+        x, warm = dict(problem.variables), None
+        for t in range(1, 7):
+            x, warm = step(problem.with_(data={f"target/{FRAME}": path(t)[0][FRAME]}), x, warm)
+        runs.append(_tensors((x, warm)))
+    assert runs[0].keys() == runs[1].keys() and "state.1.dual" in runs[0]
+    for name, tensor in runs[1].items():
+        torch.testing.assert_close(
+            runs[0][name], tensor, rtol=1e-9, atol=1e-9, msg=lambda text, name=name: f"{name}: {text}"
+        )
