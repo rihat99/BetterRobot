@@ -1,8 +1,8 @@
-"""Tests for src/better_robot/model/topology.py."""
+"""Tests for the tree tables of src/better_robot/kinematics/tree.py."""
 
 import pytest
 
-from better_robot.model.topology import build_subtrees, build_supports
+from better_robot.kinematics.tree import build_subtrees, build_supports
 
 # Simple chain: 0 → 1 → 2 → 3
 CHAIN = (-1, 0, 1, 2)

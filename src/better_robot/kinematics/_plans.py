@@ -15,7 +15,7 @@ import torch
 from ..lie.tangents import hat_so3_raw
 from ..model.joints import JointFreeFlyer, JointPrismatic, JointRevolute, JointRevoluteUnbounded, JointSpherical
 from ..model.model import Model
-from ..model.topology import build_supports
+from .tree import build_supports
 
 #: kind -> offset of ``[qx, qy, qz, qw]`` inside the joint's configuration block.
 _QUATERNION = {JointSpherical: 0, JointFreeFlyer: 3}
