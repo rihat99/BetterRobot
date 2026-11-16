@@ -457,6 +457,7 @@ def track(
     gain: float = 0.5,
     damping: float = 1e-3,
     step: float | torch.Tensor | None = None,
+    iterations: int = 20,
 ) -> tuple[dict[str, torch.Tensor], QPSolution]:
     """One step of differential inverse kinematics: ``x`` moved toward the problem's targets under its constraint
     terms and bounds, by one quadratic program. Returns the new point and the program's solution; pass that back as
@@ -478,7 +479,8 @@ def track(
     Where the program's step is not its exact solution (``solution.exact`` unset) it may leave a row: the step taken
     is the program's clamped to the box and scaled back until it leaves no row by more than 1e-6 in that row's unit
     and takes no violated row further out, so ``solution.x`` is the program's step and the new point carries the step
-    taken.
+    taken. ``iterations`` goes to `solve_qp`: more per call make more of its steps exact where many rows press at
+    once (a G1 with five behaviours as rows).
     The targets move between calls through ``problem.with_(data=...)``; the rows must keep their count (``closest=``)
     so that ``warm`` fits. The problem needs dense normal equations and a constraint term, bounds or ``step``. One
     evaluation, one `solve_qp` and one retraction per call, with no read back to the host.
@@ -495,7 +497,13 @@ def track(
     matrix, lower, upper = _program(problem, x, rows, gain, gain, step)
     diagonal = torch.full_like(normal.g, damping)
     solution = solve_qp(
-        normal.H + torch.diag_embed(diagonal), normal.g, rows=matrix, lower=lower, upper=upper, warm=warm
+        normal.H + torch.diag_embed(diagonal),
+        normal.g,
+        rows=matrix,
+        lower=lower,
+        upper=upper,
+        iterations=iterations,
+        warm=warm,
     )
     delta = _held(solution.x, matrix, lower, upper, 0 if rows is None else rows.value.shape[1])
     with torch.no_grad():

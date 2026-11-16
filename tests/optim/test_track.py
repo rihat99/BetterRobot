@@ -61,3 +61,19 @@ def test_track_refuses_what_it_cannot_step() -> None:
     timed.residual("smooth", lambda x: x[:, 1:] - x[:, :-1], window=2)
     with pytest.raises(exceptions.ArgumentError):
         optim.track(timed, dict(timed.variables))
+
+
+def test_more_iterations_per_call_make_more_programs_exact() -> None:
+    """``iterations`` reaches `solve_qp`: one cold call on 64 points held by 24 random rows that press at once is
+    exact on 1 of them at the default 20 iterations and on 32 at 200, with a smaller primal residual."""
+    generator = torch.Generator().manual_seed(0)
+    walls = torch.randn(24, 6, generator=generator, dtype=torch.float64)
+    target = 3 * torch.randn(64, 6, generator=generator, dtype=torch.float64)
+    problem = optim.Problem({"x": torch.zeros(64, 6, dtype=torch.float64)}, data={"target": target})
+    problem.residual("chase", lambda x, target: x - target)
+    problem.inequality("walls", lambda x: x @ walls.T, upper=1.0)
+    few = optim.track(problem, dict(problem.variables))[1]
+    many = optim.track(problem, dict(problem.variables), iterations=200)[1]
+    assert int(few.exact.sum()) <= 4
+    assert int(many.exact.sum()) >= 16
+    assert float(many.primal_residual.max()) < 0.5 * float(few.primal_residual.max())

@@ -14,8 +14,9 @@ Everything the tick needs is already on a `Problem`: the cost terms give the Gau
 terms the rows, `bounds` the box, the manifolds the retraction. Nothing in it is about robots.
 
 ## Decision
-1. **One function in `optim`.** `optim.track(problem, x, *, warm=None, gain=0.5, damping=1e-3, step=None) ->
-   (x, QPSolution)`: one `linearize` at `x`, one `solve_qp` started from `warm`, one `retract`. The new point and the
+1. **One function in `optim`.** `optim.track(problem, x, *, warm=None, gain=0.5, damping=1e-3, step=None,
+   iterations=20) -> (x, QPSolution)`: one `linearize` at `x`, one `solve_qp` of `iterations` started from `warm`,
+   one `retract`. The new point and the
    program's solution are the whole state a loop carries; the targets move between calls through
    `problem.with_(data=)` and the rows keep their count (`closest=`), so the warm start fits.
 2. **The program.** Minimize `½ δᵀ(H + damping·I) δ + gᵀδ`, the Gauss-Newton model of the cost terms with an
@@ -70,6 +71,8 @@ the tick, float64 unless said, CPU. Largest violation over every tick and task (
   self-collision rows; the scale-back keeps those within the table. On the G1 (64 tasks, self-collision alone / all
   five): 60 iterations took 6.3 mrad from 9.9e-5 / 1.01e-4 to 2.6e-5 / 6.8e-5 and did not help at 25 mrad (2.2e-4 /
   4.7e-4 became 3.3e-4 / 6.7e-4: the curvature dominates); `closest=128` instead of 64 gave 3.0e-5 / 1.15e-4.
+  On the 256 tasks with all five at 6.3 mrad, `iterations=60` gave 1.0e-4 (1 task just over) and `iterations=100`
+  8.8e-5 (none), exact on 59 % and 68 % of ticks against 44 % at 20; hence `track(iterations=)`.
 - A moving obstacle: the rows see it where the tick starts, so one closing in by `v` per tick ends a tick up to
   `v / gain` inside the margin (measured 2.6 mm at 1.3 mm per tick); padding its radius by `v / gain` holds it
   within 1e-4. Moved in place, it compiles nothing new (`tests/terms/test_constrained_ik.py`).
@@ -95,7 +98,7 @@ before (its box at `box=1`, the counter row `ik_constrained/panda/B64` keeps its
 
 ## Enforcement
 `tests/optim/test_track.py` (a linear row and the box close in by at most the gain per call and hold, step bound,
-refusals), `tests/terms/test_constrained_ik.py` (each behaviour's row within 1e-4 over 100 ticks of 5 mrad on a
+refusals, `iterations` reaches `solve_qp`), `tests/terms/test_constrained_ik.py` (each behaviour's row within 1e-4 over 100 ticks of 5 mrad on a
 Panda whose targets break every behaviour; no host read per tick; compiled tick equals eager in both modes; an
 obstacle moved in place compiles nothing new and is held to `v / gain`), `tests/terms/test_robot_terms.py` and
 `tests/collision/test_collision.py` (the new row forms against the hinge forms and `check_jacobian`), the counter
@@ -103,7 +106,5 @@ row `track/panda/B64` of `benchmarks/run.py`.
 
 ## Open questions
 - One `gain` for every row. frax gives each constraint its own; no scene here needed it.
-- `track` has no `iterations=` for its `solve_qp` call; the G1 with every behaviour at 6.3 mrad is the one case
-  where more (60) helped.
 - An obstacle's velocity as a term of its row (`J δ >= -gain (d - margin) + v`) would remove the lag of a moving
   obstacle without padding; it needs the velocity as data.
