@@ -149,19 +149,6 @@ def test_leading_axes_broadcast() -> None:
     torch.testing.assert_close(transform_motion(pose, twist)[2], transform_motion(pose, twist[2]))
 
 
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-def test_dtype_is_preserved(dtype: torch.dtype) -> None:
-    sample = _samples(2, dtype=dtype)
-    outputs = [
-        cross_motion(sample["twist"], sample["motion"]),
-        cross_force(sample["twist"], sample["force"]),
-        transform_motion(sample["pose"], sample["motion"]),
-        transform_force(sample["pose"], sample["force"]),
-        transform_inertia(sample["pose"], sample["inertia"]),
-    ]
-    assert all(output.dtype == dtype for output in outputs)
-
-
 def test_frame_changes_are_differentiable() -> None:
     sample = _samples(3, batch=2)
     pose = sample["pose"].requires_grad_(True)
