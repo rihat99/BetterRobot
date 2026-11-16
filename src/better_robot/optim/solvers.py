@@ -102,7 +102,7 @@ def _select(mask: torch.Tensor, new: dict[str, torch.Tensor], old: dict[str, tor
     }
 
 
-def _selected_normal[Fields: Normal | BandedNormal | ArrowNormal | Rows](
+def _selected_fields[Fields: Normal | BandedNormal | ArrowNormal | Rows](
     mask: torch.Tensor, new: Fields, old: Fields
 ) -> Fields:
     """Normal equations, or constraint rows: ``new`` where ``mask: (B,)`` is true, else ``old``; the band of an arrow
@@ -114,7 +114,7 @@ def _selected_normal[Fields: Normal | BandedNormal | ArrowNormal | Rows](
             keep = mask.reshape(-1, *([1] * (value.ndim - 1)))
             changes[item.name] = torch.where(keep, value, getattr(old, item.name))
         elif isinstance(value, BandedNormal):
-            changes[item.name] = _selected_normal(mask, value, getattr(old, item.name))
+            changes[item.name] = _selected_fields(mask, value, getattr(old, item.name))
     return replace(new, **changes)
 
 
@@ -218,7 +218,7 @@ class LevenbergMarquardt(Solver):
                 "step_norm": torch.where(accept, step_norm, torch.zeros_like(step_norm)),
                 "accepted": accept,
                 "terms": _selected_terms(accept, terms_new, state.extra["terms"]),
-                "normal": _selected_normal(accept, normal_new, state.extra["normal"]),
+                "normal": _selected_fields(accept, normal_new, state.extra["normal"]),
             },
         )
 
@@ -262,7 +262,6 @@ class GaussNewton(Solver):
         )
         grad_norm, step_norm = normal.g.abs().amax(-1), delta.abs().amax(-1)
         done = state.done | (grad_norm < gradient_tolerance) | (step_norm < step_tolerance)
-        extra = {"grad_norm": grad_norm, "step_norm": torch.where(move, step_norm, torch.zeros_like(step_norm))}
         return State(
             x=_select(move, candidate, state.x),
             loss=torch.where(move, loss_new, state.loss),
@@ -270,10 +269,11 @@ class GaussNewton(Solver):
             solver=type(self),
             iteration=state.iteration + 1,
             extra={
-                **extra,
+                "grad_norm": grad_norm,
+                "step_norm": torch.where(move, step_norm, torch.zeros_like(step_norm)),
                 "accepted": move,
                 "terms": _selected_terms(move, terms_new, state.extra["terms"]),
-                "normal": _selected_normal(move, normal_new, state.extra["normal"]),
+                "normal": _selected_fields(move, normal_new, state.extra["normal"]),
             },
         )
 
@@ -437,8 +437,8 @@ class SequentialQP(Solver):
                 "accepted": accept,
                 "violation": torch.where(report, violation_new, reported),
                 "terms": _selected_terms(report, terms_new, state.extra["terms"]),
-                "normal": _selected_normal(accept, normal_new, normal),
-                "rows": None if rows is None or rows_new is None else _selected_normal(accept, rows_new, rows),
+                "normal": _selected_fields(accept, normal_new, normal),
+                "rows": None if rows is None or rows_new is None else _selected_fields(accept, rows_new, rows),
                 "qp": solution,
                 "iterate": (_select(accept, candidate, point), torch.where(accept, loss_new, point_loss)),
             },
@@ -640,6 +640,8 @@ class LBFGS(Solver):
     gradient entry (``None`` takes the dtype default, as for LM).
     """
 
+    warm_keys = ("s", "y", "rho")
+
     def __init__(
         self,
         *,
@@ -653,8 +655,6 @@ class LBFGS(Solver):
             raise ArgumentError(f"line_search must be at least 1, got {line_search}")
         self.history, self.line_search, self.armijo = history, line_search, armijo
         self.gradient_tolerance, self.stop_search = gradient_tolerance, stop_search
-
-    warm_keys = ("s", "y", "rho")
 
     @override
     def init(self, problem: Problem, x: dict[str, torch.Tensor]) -> State:
