@@ -34,11 +34,29 @@ def _pages() -> list[Path]:
     return sorted(DOCS.rglob("*.md"))
 
 
-@pytest.mark.parametrize("page", [*_pages(), REPO / "README.md"], ids=lambda p: p.relative_to(REPO).as_posix())
-def test_page_fences_run_and_print_their_output_fences(page: Path) -> None:
-    """Every fence runs once, CPU only, seeded, with a fake viser server; every output fence is compared in full."""
+def _check_page(page: Path) -> None:
     compared = check_page(page, root=REPO, folder_reasons=FOLDER_REASONS)
     assert compared == len(OUTPUT_FENCE.findall(page.read_text())), f"{page.name}: an output fence went unchecked"
+
+
+def _opted_out(page: Path) -> bool:
+    return page.relative_to(REPO).as_posix().startswith(tuple(FOLDER_REASONS))
+
+
+@pytest.mark.parametrize(
+    "page",
+    [*(page for page in _pages() if not _opted_out(page)), REPO / "README.md"],
+    ids=lambda p: p.relative_to(REPO).as_posix(),
+)
+def test_page_fences_run_and_print_their_output_fences(page: Path) -> None:
+    """Every fence runs once, CPU only, seeded, with a fake viser server; every output fence is compared in full."""
+    _check_page(page)
+
+
+def test_pages_of_an_opted_out_folder_pass_the_same_check() -> None:
+    """The fences of a ``FOLDER_REASONS`` folder opt out together, so its pages run nothing: one test checks them all."""
+    failed = failures(lambda page: _check_page(REPO / page), [p.relative_to(REPO) for p in _pages() if _opted_out(p)])
+    assert not failed, "\n".join(failed)
 
 
 def _output_fences(page: Path) -> list[tuple[int, str, str]]:
