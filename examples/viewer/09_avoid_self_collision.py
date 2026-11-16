@@ -135,7 +135,7 @@ def main() -> None:
     for side, form in enumerate(("off", "rows")):
         q, seconds = run(tick, form, dict(problems[form].variables), path)
         print(
-            f"self {form:4s}: deepest pair {1e3 * look(q)[3].min():+6.1f} mm outside its margin ({len(pairs)} pairs, "
+            f"self {form:4s}: deepest pair {1e3 * look(q)[3].min():+8.3f} mm outside its margin ({len(pairs)} pairs, "
             f"margins {1e3 * margin.min():.2f} to {1e3 * MARGIN:.0f} mm), tick {1e3 * seconds:.1f} ms (median)"
         )
         offset = (0.0, 1.2 * side - 0.6, 0.0)

@@ -129,7 +129,7 @@ def main() -> None:
     for side, form in enumerate(("off", "rows")):
         q, seconds = run(tick, form, dict(problems[form].variables), path)
         print(
-            f"floor {form:4s}: lowest sphere {1e3 * look(q)[2].min():+6.1f} mm above the floor "
+            f"floor {form:4s}: lowest sphere {1e3 * look(q)[2].min():+8.3f} mm above the floor "
             f"(margin {1e3 * MARGIN:.0f}), tick {1e3 * seconds:.1f} ms (median)"
         )
         offset = (0.0, 1.2 * side - 0.6, 0.0)
