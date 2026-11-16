@@ -53,35 +53,46 @@ for pose in stream:
 ## Consequences
 Measured with 256 tracking tasks per scene, 75 % of them on paths that cross the scene's region, the path taking
 2 s and held for 1 s, tick 0.01 s (300 ticks) or 0.0025 s (1200 ticks), step = min(velocity limit, 2.5 rad/s) times
-the tick, float64 unless said, CPU. Largest violation over every tick and task (all sphere pairs, not the closest
-`k`); "cost" registers each behaviour as its hinge at weight 1e3, "free" leaves it out.
+the tick, float64, CPU. Every scene keeps the joint-limit box, as `ik_problem` builds it. Largest violation over
+every tick and task, over every sphere pair (the G1's 60 pairs closer than 2 cm when standing with margins of their
+own, as decision 4 says; `closest` 8 on the Panda and 64 on the G1). "cost" registers each behaviour as its hinge at
+weight 1e3, "padded" the same hinge with every margin and threshold 0.01 larger, "free" leaves it out.
 
-| Scene | Panda rows, 25 mrad | Panda rows, 6.3 mrad | Panda cost / free, 25 mrad | G1 rows, 25 mrad | G1 rows, 6.3 mrad | G1 cost / free, 25 mrad |
+| Scene | Panda rows, 25 mrad | Panda rows, 6.3 mrad | Panda cost / padded / free, 25 mrad | G1 rows, 25 mrad | G1 rows, 6.3 mrad | G1 cost / padded / free, 25 mrad |
 |---|---|---|---|---|---|---|
-| joint limits | 0 | 0 | 2.5e-2 / 2.1 | 0 | 0 | 2.5e-2 / 2.9 |
-| floor | 3.1e-4 | 2.9e-5 | 8.6e-3 / 0.42 | 2.6e-6 | 5.5e-6 | 2.8e-3 / 3.2e-2 |
-| obstacle | 5.0e-4 | 4.0e-5 | 1.3e-2 / 0.18 | 9.0e-4 | 5.8e-5 | 5.9e-2 / 0.19 |
-| self-collision | 2.3e-4 | 6.4e-5 | 9.4e-3 / 0.21 | 4.1e-4 | 9.9e-5 | 2.8e-2 / 0.20 |
-| singularity | 9.2e-5 | 6.9e-5 | 1.3e-2 / 2.9e-2 | 1.2e-4 | 7.7e-5 | 7.2e-3 / 1.7e-2 |
-| all five | 3.9e-4 | 7.5e-5 | 2.4e-2 / 0.61 | 5.9e-4 | 2.9e-4 | 3.5e-2 / 3.0 |
+| joint limits | 0 | 0 | 2.5e-2 / 1.7e-2 / 2.1 | 0 | 0 | 2.5e-2 / 1.5e-2 / 2.9 |
+| floor | 1.9e-5 | 0 | 8.6e-3 / 7.1e-4 / 0.42 | 0 | 0 | 2.8e-3 / 0 / 3.2e-2 |
+| obstacle | 0 | 0 | 1.3e-2 / 3.1e-4 / 0.18 | 0 | 0 | 5.9e-2 / 1.9e-2 / 0.19 |
+| self-collision | 5.1e-3 | 3.3e-5 | 9.4e-3 / 4.6e-3 / 0.21 | 1.2e-2 | 1.5e-4 | 2.8e-2 / 1.1e-2 / 0.20 |
+| singularity | 3.2e-5 | 2.7e-5 | 1.3e-2 / 9.2e-3 / 2.9e-2 | 5.3e-5 | 8.8e-5 | 7.2e-3 / 9.7e-4 / 1.7e-2 |
+| all five | 4.4e-5 | 7.5e-5 | 2.4e-2 / 1.4e-2 / 0.61 | 1.5e-2 | 4.2e-4 | 3.1e-2 / 2.3e-2 / 3.0 |
 
 - The joint-limit box holds exactly (to rounding in float32, 6e-8). Curved rows are left by what their
-  linearization misses, which grows with the square of the step: within 1e-4 takes about 6.3 mrad per tick on the
-  Panda (float32 too: at most 1.0e-4). At that step the G1 holds each behaviour alone within 1e-4 (float32: 8.9e-5)
-  and is just over with all five at once: 2.9e-4, 3 of 256 tasks over 1e-4 (float32: 3.0e-4, 5 tasks).
-- Tracking where the target is clear: median error 0.02 to 0.07 mm at 25 mrad in every form; targets the rows hold
-  off from end farther (Panda all five: 5 of 146 clear final targets missed by over 1 cm, free 0).
-- Largest joint acceleration is about the step over the tick squared in every form, rows or not (the velocity
-  bound saturates and reverses).
-- `solve_qp` at its 20 iterations returns an inexact step on 2 to 7 % of Panda ticks and 30 to 60 % of G1 ticks with
-  self-collision rows; the scale-back keeps those within the table. On the G1 (64 tasks, self-collision alone / all
-  five): 60 iterations took 6.3 mrad from 9.9e-5 / 1.01e-4 to 2.6e-5 / 6.8e-5 and did not help at 25 mrad (2.2e-4 /
-  4.7e-4 became 3.3e-4 / 6.7e-4: the curvature dominates); `closest=128` instead of 64 gave 3.0e-5 / 1.15e-4.
-  On the 256 tasks with all five at 6.3 mrad, `iterations=60` gave 1.0e-4 (1 task just over) and `iterations=100`
-  8.8e-5 (none), exact on 59 % and 68 % of ticks against 44 % at 20; hence `track(iterations=)`.
+  linearization misses, which grows with the square of the step, and by rows that `closest` leaves out: the Panda's
+  self-collision rows at 25 mrad left 5.1e-3 on 3 tasks with 8 pairs and 4.9e-5 with 16. At about 6.3 mrad per
+  tick the Panda holds all five within 1e-4 (float32: 4.2e-5). The G1 with every pair does not: its programs are
+  exact on 29 to 40 % of the ticks at 20 iterations; at `iterations=100` its self-collision rows reach 2e-5 to 4e-4
+  and all five 7e-5 to 4e-4 on three other sets of 256 targets (up to 7 tasks over 1e-4). With the 74 near pairs
+  left out, as an earlier evaluation did, the same 100 iterations held 1.5e-5 to 2.8e-5: the near pairs, a
+  millimetre from their own margins when standing, are what the G1's program finds hard.
+- The reserve has a visible cost: a point that moves along a row rides short of it, a Panda hand whose target
+  slides under a table by 0.38 mm at 5 mrad per tick (median) and 1.0 mm at 25 mrad; it settles on the row when
+  the target stops.
+- The robot waits where the rows leave the step no direction. A start 30 mm inside an obstacle's margin clears in
+  12 calls at 6.3 mrad and gain 0.5 (before the reserve and the move back, 136). On 64 G1 targets that hold every
+  row (the near pairs left out), 400 calls of 6.3 mrad reached 22 with self-collision rows and 20 with all five,
+  against 42 with the joint limits alone and 29 with no scale-back at all (which leaves the rows by 1e-3); a task
+  far from its target stood still on 2.1 % and 5.6 % of the calls. With every pair, 4 of 27 such targets were
+  reached against 16 (18 % of the calls standing still; 7 and 5 % at `iterations=100`). Rows in conflict, such as
+  a sphere pressing the hand onto the floor, hold the robot until the obstacle moves.
+- Tracking where the target holds every row: median error 0.01 to 0.17 mm in every form; the 95th percentile
+  reaches 13 cm where rows on the way hold the arm back. The 99th percentile of the largest joint acceleration
+  sits at or near the step box's cap, `2 step / tick²`, with rows (500 rad/s² at 25 mrad); with no behaviour the
+  Panda's is 290 to 375.
 - A moving obstacle: the rows see it where the tick starts, so one closing in by `v` per tick ends a tick up to
-  `v / gain` inside the margin (measured 2.6 mm at 1.3 mm per tick); padding its radius by `v / gain` holds it
-  within 1e-4. Moved in place, it compiles nothing new (`tests/terms/test_constrained_ik.py`).
+  `v / gain` inside the margin, for `gain` up to 0.5 (measured 1.8 mm at 1 mm per tick); padding its radius by
+  `v / gain` holds it within 1e-4. Moved in place or rebound, it compiles nothing new
+  (`tests/terms/test_constrained_ik.py`).
 - Damping 1e-4, 1e-3, 1e-2: median tracking error 0.02, 0.04, 0.3 mm (Panda, B=64, all five).
 
 ## Alternatives
@@ -93,7 +104,8 @@ the tick, float64 unless said, CPU. Largest violation over every tick and task (
 - Marquardt damping (the diagonal of `H`): it leaves joints that no target sees, and a rank-deficient `H`,
   unregularized.
 - More `solve_qp` calls per tick on the same program: no gain over the iterations of one call.
-- Hinge cost forms only (record 0051): 1e-2 to 6e-2 violations at the same steps (table).
+- Hinge cost forms only (record 0051): 3e-3 to 6e-2 violations at the same steps, up to 2.3e-2 with the hinge
+  started 1 cm early (table).
 - A data name on `sphere_clearance` for the obstacle centre (frax's `ref`): a new parameter and a new
   `distance_fn` signature for what an in-place tensor already does.
 
@@ -111,6 +123,11 @@ obstacle moved in place compiles nothing new and is held to `v / gain`), `tests/
 row `track/panda/B64` of `benchmarks/run.py`.
 
 ## Open questions
+- The reserve keeps a moving point short of its row (0.4 mm at 5 mrad per tick): is riding short acceptable, or
+  should the reserve shrink with the distance the row has left?
+- The G1 with every self pair: all five behaviours stay over 1e-4 on a few tasks even at `iterations=100`, and the
+  robot stands still often near its torso. A standing pose with the arms further out, or a sphere set whose
+  torso and arm spheres do not nearly touch, would leave the near pairs room.
 - One `gain` for every row. frax gives each constraint its own; no scene here needed it.
 - An obstacle's velocity as a term of its row (`J δ >= -gain (d - margin) + v`) would remove the lag of a moving
   obstacle without padding; it needs the velocity as data.

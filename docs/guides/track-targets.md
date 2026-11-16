@@ -136,21 +136,29 @@ the hand stayed up to 151 mm from targets inside the table or the sphere
 A row's value can shrink toward its bound by at most `gain` of the distance left per call (`gain=0.5`): a discrete
 barrier, exact for rows linear in the configuration, such as the joint limits. A clearance or the manipulability
 is curved; its linearization misses a part that grows with the square of the step, so the robot can end a tick a
-little past the margin. Largest violation over 300 ticks of 256 targets whose paths cross each region (float64; the
-joint-limit box held exactly in every run, to rounding in float32):
+little past the margin. Largest violation over 300 ticks of 256 targets whose paths cross each region (float64; every behaviour with the
+joint-limit box, which held exactly in every run, to rounding in float32; every sphere pair, the G1's with margins of
+their own as above; `closest` 8 on the Panda, 64 for the G1's pairs):
 
 | Step per tick | Panda, all five | Panda, worst single behaviour | G1, all five | G1, worst single behaviour |
 |---|---|---|---|---|
-| 25 mrad | 3.9e-4 | 5.0e-4 (obstacle) | 5.9e-4 | 9.0e-4 (obstacle) |
-| 6.3 mrad | 7.5e-5 | 6.9e-5 (singular) | 2.9e-4 | 9.9e-5 (self-collision) |
+| 25 mrad | 4.4e-5 | 5.1e-3 (self-collision; 4.9e-5 with `closest=16`) | 1.5e-2 | 1.2e-2 (self-collision) |
+| 6.3 mrad | 7.5e-5 | 3.3e-5 (self-collision) | 4.2e-4 | 1.5e-4 (self-collision) |
 
-Within 1e-4 m (or 1e-4 of manipulability) takes steps of about 6.3 mrad per tick: the Panda then holds all five
-behaviours, the G1 each one alone; the G1 with all five at once is just over (3 of 256 tasks, the same in float32
-with 5). There more `solve_qp` iterations per call close the gap, since its programs are exact on only 44 % of the
-ticks at the default 20: `track(..., iterations=60)` leaves 1.0e-4 (1 task just over, 59 % exact) and
-`iterations=100` 8.8e-5 (none over, 68 % exact), at a price: a compiled G1 tick with clearance rows takes 3.0 ms
-instead of 1.75 ms on one CPU core. A weighted hinge cost in place of the rows leaves 1e-2 to 6e-2, and no
-behaviour at all 0.2 to 3. Without `step`, a far target gives a long step and the curvature has its way.
+Within 1e-4 m (or 1e-4 of manipulability) takes steps of about 6.3 mrad per tick and enough `closest`: the Panda
+then holds all five behaviours (float32: 4.2e-5). The G1 does not quite, once all of its 3890 sphere pairs are rows:
+its programs are exact on only 29 to 40 % of the ticks at the default 20 `solve_qp` iterations, and 100 per call
+(`track(..., iterations=100)`) bring its self-collision rows to 2e-5 to 4e-4 and all five to 7e-5 to 4e-4 on three
+sets of targets (up to 7 of 256 tasks over 1e-4), at a price: a compiled G1 tick with clearance rows takes 3.0 ms
+instead of 1.75 ms on one CPU core. The numbers depend on the targets: another set left the G1's obstacle row at
+1.6e-4 instead of 2.6e-5, and targets that move faster at 25 mrad left the Panda's rows up to 2.8e-3.
+
+A weighted hinge cost in place of the rows leaves 3e-3 to 6e-2, the same hinge started 1 cm before the margin up to
+2.3e-2, and no behaviour at all 0.02 to 3. Rows cost smoothness: they hold the step on the bound of its box more
+often, so the 99th percentile of each task's largest joint acceleration is at or near the cap of `2 step / tick²`
+(500 rad/s² at 25 mrad per 0.01 s, 2000 at 6.3 mrad per 2.5 ms), against 290 to 375 rad/s² with no behaviour on the
+Panda. Where the target holds every row the hand follows it within 0.01 to 0.17 mm (median), but the 95th percentile
+reaches 13 cm where rows on the way hold the arm back.
 
 ## A moving obstacle
 
@@ -234,6 +242,10 @@ The scale-back is what can stop the robot. It gives the whole step up where the 
   links so that every way out takes one of them further in: the robot waits until the obstacle moves;
 - a program still far from solved: the next calls go on solving it from `warm=`, and more `iterations` per call
   shorten the wait (the table above).
+
+On the G1, whose arms start a millimetre from their own margins against the torso, this shows: of 27 targets that
+hold every row, 4 were reached with the self-collision rows against 16 with the joint limits alone, with 18 % of
+the ticks of a task far from its target spent standing still (7 reached and 5 % at `iterations=100`).
 
 A target's Jacobian that loses rank is not such a case: the damping keeps the program positive definite there.
 
