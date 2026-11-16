@@ -157,7 +157,9 @@ radius padded 0 mm: 2.00 mm inside the margin; the hand gave way 125 mm
 radius padded 2 mm: 0.00 mm inside the margin; the hand gave way 128 mm
 ```
 
-Move the tensor with `copy_`, never by binding a new one: a compiled tick reads the tensor it was traced with.
+Move the tensor in place (`copy_`, as here): the problem keeps its function, and a compiled tick keeps its graph
+(measured: no graph after the first ones over 600 ticks with a new target each on CPU, and over 420 ticks of CUDA
+graphs).
 
 ## A twist target
 
