@@ -1,4 +1,5 @@
-"""Tests for forward kinematics — correctness and shape checks.
+"""Tests for forward kinematics — the dtypes and state shapes it refuses (its values:
+``tests/kinematics/test_fk_contracts.py`` and Pinocchio parity).
 
 See ``docs/concepts/kinematics-and-jacobians.md``.
 """
@@ -54,69 +55,6 @@ def test_fk_rejects_unsupported_low_precision(arm, dtype):
 def test_fk_rejects_model_query_dtype_mismatch(arm):
     with pytest.raises(DtypeMismatchError, match="model.dtype"):
         forward_kinematics(arm, arm.q_neutral.to(torch.float64))
-
-
-# ── correctness at neutral ────────────────────────────────────────────────────
-
-
-def test_universe_joint_is_identity(arm):
-    q = arm.q_neutral
-    result = forward_kinematics(arm, q)
-    T0 = result.joint_poses[0]
-    assert T0[:3].norm() < 1e-6, "universe translation should be zero"
-    assert abs(float(T0[6]) - 1.0) < 1e-6, "universe quaternion w should be 1"
-
-
-def test_joint1_at_neutral(arm):
-    """Root joint (fixed) at neutral has identity pose."""
-    q = arm.q_neutral
-    result = forward_kinematics(arm, q)
-    T1 = result.joint_poses[1]
-    # root_joint is fixed, joint_placements[1] is identity
-    assert T1[:3].norm() < 1e-5
-
-
-def test_joint2_translation_at_neutral(arm):
-    """Joint 2 (j1 revolute) should be at z=0.1 at neutral (q=0)."""
-    q = arm.q_neutral
-    result = forward_kinematics(arm, q)
-    T2 = result.joint_poses[2]
-    assert abs(float(T2[2]) - 0.1) < 1e-5, f"Expected z=0.1, got {float(T2[2])}"
-
-
-def test_revolute_z_rotation(arm):
-    """Rotating joint 2 by π/2 around Z should change X→Y direction."""
-    q = arm.q_neutral.clone()
-    q[0] = math.pi / 2  # rotate j1 by 90 degrees
-    result = forward_kinematics(arm, q)
-    T2 = result.joint_poses[2]
-    # Rotation part: qz should be ~sin(π/4), qw should be ~cos(π/4)
-    qz = float(T2[5])
-    qw = float(T2[6])
-    assert abs(qz - math.sin(math.pi / 4)) < 1e-5, f"Expected qz≈{math.sin(math.pi / 4)}, got {qz}"
-    assert abs(qw - math.cos(math.pi / 4)) < 1e-5
-
-
-# ── frame placements ─────────────────────────────────────────────────────────
-
-
-def test_body_frame_is_at_joint(arm):
-    """universe frame should be at identity."""
-    q = arm.q_neutral
-    state = forward_kinematics(arm, q)
-    f_id = arm.frame_id("universe")
-    T_f = state.frame_poses[f_id]
-    assert T_f[:3].norm() < 1e-6
-
-
-# ── panda smoke test ─────────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="module")
-def panda_model():
-    from better_robot.io import load  # noqa: PLC0415
-
-    return load(panda_urdf())
 
 
 def test_a_hand_built_state_with_the_wrong_shapes_fails_at_construction() -> None:
