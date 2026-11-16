@@ -60,7 +60,8 @@ are straight. A new layer type subclasses `Layer` and implements
 Every layer carries tags, by default its own name; `viewer.add(layers, tags="...")` gives every layer of the call
 those tags instead. A layer lives under the scene node `/<first tag>/<layer.name>`. `remove`, `set_visible` and
 `redraw` take a layer or a tag (every layer carrying it), and once there are two tags the sidebar's Layers section
-has one checkbox per tag (the ground's tag `ground` is not listed). `remove` shrinks the timeline to the longest
+has one checkbox per tag, labelled in sentence case (the ground's tag `ground` and tags that hold only sidebar
+charts or images are not listed). `remove` shrinks the timeline to the longest
 remaining layer, so a clip browser can remove one clip's tag before adding the next. Layer names must be unique
 under a first tag, and a tag that `set_offset` or `remove` does not know raises `UnknownNameError`.
 
@@ -81,7 +82,8 @@ clips side by side; `set_offset(tag, (x, y, z))` moves a tag again later, such a
 ## The sidebar, the camera and the theme
 
 `viewer.sidebar` holds the controls in sections with a fixed order: Timeline, Robot, Layers, Plots, then the sections
-an application creates, Info last. `sidebar.checkbox`, `dropdown`, `slider` and `button` take a section and a label
+an application creates, Info last. The Timeline section, shown once the timeline has more than one step, holds a
+Play box, the Step slider, a Speed choice (0.25x to 2x, taken while playing) and Loop. `sidebar.checkbox`, `dropdown`, `slider` and `button` take a section and a label
 and return viser's control; asking again for the same section and label returns the same control and adds the
 callback, so one control drives every layer that asked for it, and it goes when the last of them is removed. Every
 callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps. A callback that raises a
@@ -237,11 +239,13 @@ exactly what a browser would; `aim` points the live browsers at the view `record
 ## Themes and the up axis
 
 `Viewer(theme=...)` takes a `Theme`, the one source of colours: the backdrop gradient, the grid, the shadow on the
-ground, the light rig (ambient, hemisphere, a key light that casts shadows, a fill), the robots' hues (`theme.hue(k)`
+ground, the light rig (ambient, hemisphere, a key light that casts shadows, a fill; no environment map, so meshes and solid
+colours share one rig), the collision overlay's colour and opacity, the robots' hues (`theme.hue(k)`
 for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the GUI accent and the up axis. `LIGHT`
 (the default) and `DARK` are built in; `viewer.set_theme(theme)` switches the page and every layer. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
-`plane` lies in the plane perpendicular to it (`"xz"` for `+y`). `GroundLayer(origin=p, normal=n, fill=0.3)`
+`plane` lies in the plane perpendicular to it (`"xz"` for `+y`). The default grid has no edges and fades out with
+the distance from the camera; `GroundLayer(size=4.0)` draws a square 4 m wide. `GroundLayer(origin=p, normal=n, fill=0.3)`
 instead tilts the grid onto the plane through `p` with normal `n`, such as a fitted floor, over a translucent fill
 (`fill` is its opacity; 0, the default, draws lines only).
 

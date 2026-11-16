@@ -17,7 +17,7 @@ that 0.3.0 renames or removes, one table row each.
   `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
   are two.
 - `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, which `Viewer.aim` and `Viewer.record` frame
-  (the bounding sphere over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
+  (over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
   the camera after each `add`.
 - `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
   `Layer.viewer` is the viewer the layer was added to.
@@ -25,8 +25,8 @@ that 0.3.0 renames or removes, one table row each.
   theme to the page and to every layer; `Viewer(ground=True)` adds the ground grid under the tag `ground`.
 - `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
   fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role)`, `accent`, `collision` and `text`, all colours RGB
-  in `[0, 1]`. `Theme.apply` switches viser's default lights off for an ambient, a hemisphere, a key light that
-  casts shadows and a fill light.
+  in `[0, 1]`, and `collision_opacity`. `Theme.apply` switches viser's default lights and environment map off for
+  an ambient, a hemisphere, a key light that casts shadows and a fill light, one rig for meshes and solid colours.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications.
 
@@ -39,6 +39,15 @@ that 0.3.0 renames or removes, one table row each.
   the sidebar's Plots and Images sections.
 - `GroundLayer(cell_color=None, section_color=None)`: the grid takes `Theme.grid` unless given and follows
   `Viewer.set_theme`.
+- `GroundLayer(size=None)` (was `10.0`): the default grid has no edges and fades out with the distance from the
+  camera; shadows fall on it at `Theme.shadow`. A number keeps a square grid of that width.
+- `Timeline.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API): a Play box, the Step slider, a
+  Speed dropdown (0.25x to 2x, taken while playing, no restart) and Loop, run under `Viewer.lock`. A step set while
+  playing becomes where playback goes on.
+- The Layers section does not list tags that hold only sidebar panels (`PlotPanel`, `ImagePanel`) and labels its
+  checkboxes in sentence case; a `PlotPanel`'s time axis shows seconds instead of a date.
+- `Viewer.aim` and `Viewer.record` frame the box of the bounds so that it spans 80 % of a 16:9 view (was the
+  bounding sphere with a 15 % margin, which left the robot a fifth of the height).
 
 ### Removed
 - `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
