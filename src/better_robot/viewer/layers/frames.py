@@ -8,8 +8,7 @@ import numpy as np
 
 from ...exceptions import ShapeError
 from .._lie import to_wxyz
-from ..layer import as_frames
-from ..layer import Layer
+from ..layer import Bounds, Layer, as_frames, box
 
 
 @final
@@ -41,9 +40,9 @@ class FramesLayer(Layer):
             )
         )
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
-        return self.poses[step, :, :3]
+    @override
+    def bounds(self, step: int) -> Bounds | None:
+        return box(self.poses[step, :, :3])
 
     @override
     def set_step(self, step: int) -> None:

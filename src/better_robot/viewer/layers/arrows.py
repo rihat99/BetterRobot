@@ -9,7 +9,7 @@ import numpy as np
 from ...exceptions import ShapeError
 from .._lie import from_z, to_wxyz
 from .._primitives import unit_cone, unit_cylinder
-from ..layer import as_frames
+from ..layer import Bounds, as_frames, box
 from ..theme import RGB, rgb_uint8
 from ..layer import Layer
 
@@ -131,12 +131,12 @@ class ArrowsLayer(Layer):
                 self._shafts.batched_colors = self._colors[step]
             self._heads.batched_colors = self._colors[step]
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+    @override
+    def bounds(self, step: int) -> Bounds | None:
         origins, tips = self.origins[step], self.origins[step] + self.vectors[step]
         if self.valid is not None and self.valid.ndim == 2:
             origins, tips = origins[self.valid[step]], tips[self.valid[step]]
-        return np.concatenate([origins, tips])
+        return box(np.concatenate([origins, tips]))
 
     def _vectors(self, step: int) -> np.ndarray:
         """Vectors ``(N, 3)`` drawn at ``step``: zero where a ``(T, N)`` ``valid`` marks the arrow invalid or the

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING, override
 
 import numpy as np
@@ -10,7 +11,11 @@ import numpy as np
 from ..exceptions import ArgumentError, ShapeError
 
 if TYPE_CHECKING:
+    from .sidebar import Sidebar
     from .theme import Theme
+    from .viewer import Viewer
+
+Bounds = tuple[np.ndarray, np.ndarray]
 
 
 def as_frames(
@@ -30,6 +35,19 @@ def as_frames(
     return np.ascontiguousarray(out)
 
 
+def as_tags(tags: str | Sequence[str]) -> tuple[str, ...]:
+    """``tags`` as a tuple of names; a string is one tag."""
+    return (tags,) if isinstance(tags, str) else tuple(tags)
+
+
+def box(points: np.ndarray) -> Bounds | None:
+    """World box ``(lo (3,), hi (3,))`` of ``points (..., 3)``; ``None`` when there is no point."""
+    flat = np.asarray(points, dtype=np.float64).reshape(-1, 3)
+    if not len(flat):
+        return None
+    return flat.min(axis=0), flat.max(axis=0)
+
+
 def as_triangles(faces: np.ndarray) -> np.ndarray:
     """``faces`` as contiguous uint32 ``(F, 3)`` vertex indices of triangles; another shape raises ``ShapeError``."""
     out = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
@@ -47,26 +65,28 @@ class Layer(ABC):
     ``set_visible`` and ``dispose``; ``visible`` and ``set_visible`` are the one way to read and switch a layer, and
     an override of ``set_visible`` or ``dispose`` calls the base method.
 
-    Subclasses implement ``build`` and ``set_step``; ``build_gui``, ``world_points`` and, for a layer that draws
-    surfaces, ``set_opacity`` are optional.
-    ``listed = False`` keeps a layer out of the sidebar's Layers folder. ``scene`` and ``gui`` are viser's
-    ``SceneApi`` and ``GuiApi`` or the stand-ins of ``testing.FakeServer``, typed ``Any`` because only ``viewer.py``
-    imports viser.
+    ``tags`` name the groups the layer belongs to (default: its name); the first is its scene parent
+    ``/<tag>/<name>``, and ``Viewer.remove``, ``set_visible`` and ``set_offset`` address every layer of a tag.
+    Subclasses implement ``build`` and ``set_step``; ``build_gui``, ``apply_theme``, ``bounds`` and, for a layer that
+    draws surfaces, ``set_opacity`` are optional. ``scene`` is viser's ``SceneApi`` or the stand-in of
+    ``testing.FakeServer``, typed ``Any`` because only ``viewer.py`` imports viser.
     """
 
-    listed: bool = True
     #: Per-sample validity, set by ``Viewer.add(valid=...)``: ``(nsteps,)`` bool hides the whole layer on invalid
     #: samples, ``(nsteps, N)`` hides single elements; ``None`` = always shown.
     valid: np.ndarray | None = None
+    #: The viewer the layer is in, set by ``Viewer.add`` and cleared by ``Viewer.remove``; ``redraw`` goes through it.
+    viewer: Viewer | None = None
     _elements: int | None = None  # set by a layer that hides single elements; read through ``elements``
     #: Opacity in ``(0, 1]`` (1 is opaque) of the surfaces a mesh layer draws; ``set_opacity`` changes it.
     opacity: float = 1.0
 
-    def __init__(self, name: str, nsteps: int = 1) -> None:
+    def __init__(self, name: str, nsteps: int = 1, *, tags: str | Sequence[str] = ()) -> None:
         if nsteps < 1:
             raise ArgumentError(f"layer {name!r}: nsteps must be at least 1, got {nsteps}")
         self.name = name
         self.nsteps = nsteps
+        self.tags = as_tags(tags) or (name,)
         self._handles: list[Any] = []
         self._visible = True
 
@@ -86,24 +106,36 @@ class Layer(ABC):
 
     @abstractmethod
     def build(self, scene: Any, root: str) -> None:
-        """Create the scene nodes under ``root`` (a viser scene path such as ``/scene/robot``)."""
+        """Create the scene nodes under ``root`` (a viser scene path such as ``/panda/robot``)."""
 
     @abstractmethod
     def set_step(self, step: int) -> None:
         """Write step ``step`` (already clamped to ``nsteps - 1``) into the existing handles."""
 
-    def build_gui(self, gui: Any) -> None:
-        """Add per-layer controls to an open GUI folder; nothing by default."""
+    def build_gui(self, sidebar: Sidebar) -> None:
+        """Add the layer's controls to the viewer's ``Sidebar``; nothing by default.
+
+        Controls are shared by ``(section, label)``: two layers asking for the same one drive it together, and a
+        control goes when the last layer that asked for it is removed.
+        """
 
     def apply_theme(self, theme: Theme) -> None:
-        """Adopt defaults from the viewer's ``Theme`` before ``build``; nothing by default."""
+        """Adopt the viewer's ``Theme``: called before ``build`` and again on ``Viewer.set_theme``; nothing by default."""
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` of what the layer draws at ``step``, used to fit ``Viewer.record``'s camera.
+    def bounds(self, step: int) -> Bounds | None:
+        """World box ``(lo (3,), hi (3,))`` of what the layer draws at ``step``, which ``Viewer.aim`` frames.
 
-        ``None`` (the default) keeps the layer out of the fit, as for the ground grid.
+        ``None`` (the default) keeps the layer out of the framing, as for the ground grid.
         """
         return None
+
+    def redraw(self) -> None:
+        """Push the layer's current step to the scene again, after its arrays changed (a live update).
+
+        Does nothing before the layer is added to a viewer or while it is hidden.
+        """
+        if self.viewer is not None:
+            self.viewer.redraw(self)
 
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Show or hide every tracked handle."""

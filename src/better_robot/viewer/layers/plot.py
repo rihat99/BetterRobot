@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, final, override
+from typing import Any, TYPE_CHECKING, final, override
 
 import numpy as np
 
 from ...exceptions import ShapeError
-from ..layer import as_frames
-from ..layer import Layer
+from ..layer import Layer, as_frames
+
+if TYPE_CHECKING:
+    from ..sidebar import Sidebar
 
 _PALETTE = (
     "#1f77b4",
@@ -45,9 +47,11 @@ class PlotPanel(Layer):
         pass
 
     @override
-    def build_gui(self, gui: Any) -> None:
+    def build_gui(self, sidebar: Sidebar) -> None:
         data = (self.time, *(self.series[:, k].astype(np.float64) for k in range(self.series.shape[1])))
-        self._plot = self._track(gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False}))
+        with sidebar.section("Plots"):
+            plot = sidebar.gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False})
+        self._plot = self._track(plot)
 
     @override
     def set_step(self, step: int) -> None:

@@ -8,9 +8,8 @@ import numpy as np
 
 from ...exceptions import ShapeError
 from .._lie import act, inverse, to_wxyz
-from ..layer import as_frames, as_triangles
+from ..layer import Bounds, Layer, as_frames, as_triangles, box
 from ..theme import RGB, rgb_uint8
-from ..layer import Layer
 from .camera import CameraLayer
 
 __all__ = ["CameraLayer", "SkinnedMeshLayer"]
@@ -87,9 +86,9 @@ class SkinnedMeshLayer(Layer):
         """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
         self._fade(opacity)
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
-        return self.skin(step)
+    @override
+    def bounds(self, step: int) -> Bounds | None:
+        return box(self.skin(step))
 
     def skin(self, step: int) -> np.ndarray:
         """Posed vertices ``(V, 3)`` of ``step`` by linear blend skinning (CPU, numpy)."""

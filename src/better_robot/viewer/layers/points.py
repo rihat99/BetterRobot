@@ -6,9 +6,8 @@ from typing import Any, final, override
 
 import numpy as np
 
-from ..layer import as_frames
+from ..layer import Bounds, Layer, as_frames, box
 from ..theme import RGB, rgb_uint8
-from ..layer import Layer
 
 
 @final
@@ -49,9 +48,9 @@ class PointsLayer(Layer):
             )
         )
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
-        return self.points[step]
+    @override
+    def bounds(self, step: int) -> Bounds | None:
+        return box(self.points[step])
 
     @override
     def set_step(self, step: int) -> None:
