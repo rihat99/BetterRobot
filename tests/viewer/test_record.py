@@ -10,6 +10,7 @@ import base64
 import io
 import json
 import math
+import os
 import shutil
 import socket
 import subprocess
@@ -101,15 +102,21 @@ def test_record_pauses_playback_and_restores_the_step(monkeypatch: pytest.Monkey
     assert still["steps"] == [viewer.timeline.step] and still["still"] and still["fov"] == math.radians(30.0)
 
 
-def test_gpu_index_maps_to_its_pci_bus_for_dri_prime(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_gpu_index_maps_to_its_pci_bus_and_the_browser_is_found_on_it(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(recorder, "glob", lambda pattern: ["VkLayer_MESA_device_select.json"])
     monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/nvidia-smi")
-    answers = {"4": SimpleNamespace(returncode=0, stdout="00000000:A5:00.0\n", stderr="")}
+    # The process list: this test's process (a child of its parent, the stand-in browser) on GPU 4 only.
+    listing = f"GPU 00000000:25:00.0\n    Process ID : 1\nGPU 00000000:A5:00.0\n    Process ID : {os.getpid()}\n"
+    answers = {
+        "4": SimpleNamespace(returncode=0, stdout="00000000:A5:00.0\n", stderr=""),
+        "PIDS": SimpleNamespace(returncode=0, stdout=listing, stderr=""),
+    }
     missing = SimpleNamespace(returncode=6, stdout="No devices were found", stderr="")
     monkeypatch.setattr(subprocess, "run", lambda command, **kwargs: answers.get(command[-1], missing))
     assert recorder._dri_prime(4) == "pci-0000_a5_00_0"
     with pytest.raises(ArgumentError, match="gpu=9 is not reachable: No devices were found; pass gpu=None"):
         recorder._dri_prime(9)
+    assert recorder._gpus_of(os.getppid()) == {"pci-0000_a5_00_0"}
 
 
 def test_a_missing_chromium_reports_how_to_install(monkeypatch: pytest.MonkeyPatch) -> None:

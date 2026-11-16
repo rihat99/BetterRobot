@@ -21,6 +21,7 @@ import base64
 import json
 import math
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -260,6 +261,7 @@ class _Page:
         self._buffer = b""
         self._id = 0
         self._session = ""
+        self._prime = ""  # DRI_PRIME of the requested GPU
 
     def __enter__(self) -> _Page:
         """Launch Chromium on the page and prepare it; ``OptionalDependencyError`` or ``ArgumentError`` if it cannot."""
@@ -274,7 +276,7 @@ class _Page:
         if self.gpu is None:
             flags = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
         else:
-            environment["DRI_PRIME"] = _dri_prime(self.gpu)
+            environment["DRI_PRIME"] = self._prime = _dri_prime(self.gpu)
             flags = ["--use-angle=vulkan", "--enable-features=Vulkan", "--ignore-gpu-blocklist", "--enable-gpu"]
         command = [
             _chrome(),
@@ -340,6 +342,12 @@ class _Page:
         width, height, limit, renderer = self.call("pin", *self.size)
         if self.gpu is not None and "NVIDIA" not in renderer:
             raise ArgumentError(f"gpu={self.gpu} is not reachable: Chromium renders on {renderer!r}; pass gpu=None")
+        # NVIDIA's Vulkan driver keeps a few MiB on the first GPU of any Vulkan program; the rendering GPU must be listed.
+        held = _gpus_of(self._process.pid) if self.gpu is not None and self._process is not None else set()
+        if held and self._prime not in held:
+            raise ArgumentError(
+                f"gpu={self.gpu} is not reachable: Chromium holds {sorted(held)} instead; pass gpu=None"
+            )
         if (width, height) != self.size:
             raise ArgumentError(f"size {self.size} is above this renderer's limit of {limit} pixels ({renderer})")
 
@@ -430,9 +438,33 @@ def _dri_prime(gpu: int) -> str:
     if run is None or run.returncode != 0:
         reason = "nvidia-smi is not on PATH" if run is None else (run.stdout.strip() or run.stderr.strip())
         raise ArgumentError(f"gpu={gpu} is not reachable: {reason}; pass gpu=None")
-    domain, bus, device_function = run.stdout.strip().lower().split(":")  # e.g. 00000000:a5:00.0
-    device, function = device_function.split(".")
-    return f"pci-{int(domain, 16):04x}_{bus}_{device}_{function}"
+    return _prime(run.stdout.strip())
+
+
+def _prime(bus: str) -> str:
+    """``DRI_PRIME``'s spelling of the PCI bus ``bus`` as ``nvidia-smi`` prints it (``00000000:A5:00.0``)."""
+    domain, number, device_function = bus.lower().split(":")
+    return f"pci-{int(domain, 16):04x}_{number}_{device_function.replace('.', '_')}"
+
+
+def _gpus_of(browser: int) -> set[str]:
+    """GPUs (as ``DRI_PRIME`` spells them) on which ``nvidia-smi`` lists a descendant of process ``browser``; empty
+    when it lists none of them (as inside a container)."""
+    listing = subprocess.run(["nvidia-smi", "-q", "-d", "PIDS"], capture_output=True, text=True, check=False).stdout
+    found, bus = set(), ""
+    for line in listing.splitlines():
+        if line.startswith("GPU "):
+            bus = line.split()[1]
+        elif match := re.search(r"Process ID\s+:\s+(\d+)", line):
+            pid = int(match.group(1))
+            while pid > 1 and pid != browser:  # up the parents: Chromium's GPU process is a grandchild
+                try:
+                    pid = int(Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[1])
+                except OSError:
+                    break
+            if pid == browser:
+                found.add(_prime(bus))
+    return found
 
 
 def _webm(chunks: Sequence[tuple[int, bool, bytes]], *, codec: str, width: int, height: int, fps: float) -> bytes:
