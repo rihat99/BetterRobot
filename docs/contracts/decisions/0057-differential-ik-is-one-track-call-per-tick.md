@@ -49,26 +49,26 @@ Measured with 256 tracking tasks per scene, 75 % of them on paths that cross the
 the tick, float64 unless said, CPU. Largest violation over every tick and task (all sphere pairs, not the closest
 `k`); "cost" registers each behaviour as its hinge at weight 1e3, "free" leaves it out.
 
-| Scene | Panda rows, 25 mrad | Panda rows, 6.5 mrad | Panda cost / free, 25 mrad | G1 rows, 25 mrad | G1 rows, 6.5 mrad | G1 cost / free, 25 mrad |
+| Scene | Panda rows, 25 mrad | Panda rows, 6.3 mrad | Panda cost / free, 25 mrad | G1 rows, 25 mrad | G1 rows, 6.3 mrad | G1 cost / free, 25 mrad |
 |---|---|---|---|---|---|---|
 | joint limits | 0 | 0 | 2.5e-2 / 2.1 | 0 | 0 | 2.5e-2 / 2.9 |
-| floor | 3.1e-4 | 2.9e-5 | 8.6e-3 / 0.42 | 2.6e-6 | G1F | 2.8e-3 / 3.2e-2 |
-| obstacle | 5.0e-4 | 4.0e-5 | 1.3e-2 / 0.18 | 9.0e-4 | G1O | 5.9e-2 / 0.19 |
-| self-collision | 2.3e-4 | 6.4e-5 | 9.4e-3 / 0.21 | 4.1e-4 | G1S | 2.8e-2 / 0.20 |
-| singularity | 9.2e-5 | 6.9e-5 | 1.3e-2 / 2.9e-2 | 1.2e-4 | G1M | 7.2e-3 / 1.7e-2 |
-| all five | 3.9e-4 | 7.5e-5 | 2.4e-2 / 0.61 | 5.9e-4 | G1A | 3.5e-2 / 3.0 |
+| floor | 3.1e-4 | 2.9e-5 | 8.6e-3 / 0.42 | 2.6e-6 | 5.5e-6 | 2.8e-3 / 3.2e-2 |
+| obstacle | 5.0e-4 | 4.0e-5 | 1.3e-2 / 0.18 | 9.0e-4 | 5.8e-5 | 5.9e-2 / 0.19 |
+| self-collision | 2.3e-4 | 6.4e-5 | 9.4e-3 / 0.21 | 4.1e-4 | 9.9e-5 | 2.8e-2 / 0.20 |
+| singularity | 9.2e-5 | 6.9e-5 | 1.3e-2 / 2.9e-2 | 1.2e-4 | 7.7e-5 | 7.2e-3 / 1.7e-2 |
+| all five | 3.9e-4 | 7.5e-5 | 2.4e-2 / 0.61 | 5.9e-4 | 2.9e-4 | 3.5e-2 / 3.0 |
 
 - The joint-limit box holds exactly (to rounding in float32, 6e-8). Curved rows are left by what their
-  linearization misses, which grows with the square of the step: within 1e-4 takes about 6.5 mrad per tick on the
-  Panda (float32 too: at most 1.0e-4) and leaves the G1 just over with all five (G1A). In float32 at 6.5 mrad the G1
-  holds each behaviour alone within 8.9e-5 and all five within 3.0e-4.
+  linearization misses, which grows with the square of the step: within 1e-4 takes about 6.3 mrad per tick on the
+  Panda (float32 too: at most 1.0e-4). At that step the G1 holds each behaviour alone within 1e-4 (float32: 8.9e-5)
+  and is just over with all five at once: 2.9e-4, 3 of 256 tasks over 1e-4 (float32: 3.0e-4, 5 tasks).
 - Tracking where the target is clear: median error 0.02 to 0.07 mm at 25 mrad in every form; targets the rows hold
   off from end farther (Panda all five: 5 of 146 clear final targets missed by over 1 cm, free 0).
 - Largest joint acceleration is about the step over the tick squared in every form, rows or not (the velocity
   bound saturates and reverses).
 - `solve_qp` at its 20 iterations returns an inexact step on 2 to 7 % of Panda ticks and 30 to 60 % of G1 ticks with
   self-collision rows; the scale-back keeps those within the table. On the G1 (64 tasks, self-collision alone / all
-  five): 60 iterations took 6.5 mrad from 9.9e-5 / 1.01e-4 to 2.6e-5 / 6.8e-5 and did not help at 25 mrad (2.2e-4 /
+  five): 60 iterations took 6.3 mrad from 9.9e-5 / 1.01e-4 to 2.6e-5 / 6.8e-5 and did not help at 25 mrad (2.2e-4 /
   4.7e-4 became 3.3e-4 / 6.7e-4: the curvature dominates); `closest=128` instead of 64 gave 3.0e-5 / 1.15e-4.
 - A moving obstacle: the rows see it where the tick starts, so one closing in by `v` per tick ends a tick up to
   `v / gain` inside the margin (measured 2.6 mm at 1.3 mm per tick); padding its radius by `v / gain` holds it
@@ -103,7 +103,7 @@ row `track/panda/B64` of `benchmarks/run.py`.
 
 ## Open questions
 - One `gain` for every row. frax gives each constraint its own; no scene here needed it.
-- `track` has no `iterations=` for its `solve_qp` call; the G1 with every behaviour at 6.5 mrad is the one case
+- `track` has no `iterations=` for its `solve_qp` call; the G1 with every behaviour at 6.3 mrad is the one case
   where more (60) helped.
 - An obstacle's velocity as a term of its row (`J δ >= -gain (d - margin) + v`) would remove the lag of a moving
   obstacle without padding; it needs the velocity as data.

@@ -122,15 +122,15 @@ is curved; its linearization misses a part that grows with the square of the ste
 little past the margin. Largest violation over 300 ticks of 256 targets whose paths cross each region (float64; the
 joint-limit box held exactly in every run, to rounding in float32):
 
-| Step per tick | Panda, all five | Panda, worst single row | G1, all five | G1, worst single row |
+| Step per tick | Panda, all five | Panda, worst single behaviour | G1, all five | G1, worst single behaviour |
 |---|---|---|---|---|
 | 25 mrad | 3.9e-4 | 5.0e-4 (obstacle) | 5.9e-4 | 9.0e-4 (obstacle) |
-| 13 mrad | 1.0e-4 | | 1.4e-4 | |
-| 6.5 mrad | 7.5e-5 | 6.9e-5 (singular) | | |
+| 6.3 mrad | 7.5e-5 | 6.9e-5 (singular) | 2.9e-4 | 9.9e-5 (self-collision) |
 
-Within 1e-4 m (or 1e-4 of manipulability) takes steps of about 6.5 mrad per tick on the Panda; on the G1 that
-step leaves one target in 64 just over (1.0e-4). A weighted hinge cost in place of the rows leaves 1e-2 to 6e-2,
-and no behaviour at all 0.2 to 3. Without `step`, a far target gives a long step and the curvature has its way.
+Within 1e-4 m (or 1e-4 of manipulability) takes steps of about 6.3 mrad per tick: the Panda then holds all five
+behaviours, the G1 each one alone; the G1 with all five at once is just over (3 of 256 tasks, the same in float32
+with 5). A weighted hinge cost in place of the rows leaves 1e-2 to 6e-2, and no behaviour at all 0.2 to 3. Without
+`step`, a far target gives a long step and the curvature has its way.
 
 ## A moving obstacle
 
