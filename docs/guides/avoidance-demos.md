@@ -57,6 +57,8 @@ and the elbow, which the scripted path reaches on its way out.
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_floor_panda.png" width="960"><source src="../../clips/avoid_floor_panda.webm" type="video/webm"></video><figcaption>The target goes 65 cm down, 25 cm out and back. Without the floor (left) the hand goes 160 mm into it; with the rows (right) every sphere stays 20 mm above.</figcaption></figure>
 
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_floor_g1.png" width="960"><source src="../../clips/avoid_floor_g1.webm" type="video/webm"></video><figcaption>The G1's left-hand target goes 1.05 m down and 30 cm forward, below the floor, and back, while the other hand and both feet hold their poses. Without the rows (left) the spheres at its ankles go 25 mm into the floor as it crouches (red); with them (right) every sphere stays 20 mm above.</figcaption></figure>
+
 Every sphere of the robot's set is a row, `terms.sphere_clearance(spheres, to_floor, margin=0.02, hinge=False,
 closest=8)` (the G1: `closest=None`, every sphere), with `to_floor` from `collision.sphere_halfspace`. The spheres
 that stand on the floor by design, the Panda's base links and the G1's feet, get 1 m added to their distance, so
@@ -67,6 +69,8 @@ start poses, so it bends at the hips and knees to reach down.
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_obstacle_panda.png" width="960"><source src="../../clips/avoid_obstacle_panda.webm" type="video/webm"></video><figcaption>The hand holds its pose while a ball of 6 cm radius sweeps through it at 1 mm per tick. Without the rows (left) it passes through the hand; with them (right) the arm gives way up to 115 mm and keeps 20 mm away.</figcaption></figure>
 
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_obstacle_g1.png" width="960"><source src="../../clips/avoid_obstacle_g1.webm" type="video/webm"></video><figcaption>The G1's hands hold their poses while the same ball sweeps sideways through them. Without the rows (left) it passes through the hands; with them (right) the left hand gives way up to 136 mm and every sphere keeps 21 mm away.</figcaption></figure>
+
 The obstacle `[x, y, z, radius]` lives in a tensor that the distance function reads, and the demo moves it in place
 (`obstacle.copy_(...)`) before each tick, from a second transform handle named "obstacle". The rows see the
 obstacle where the tick starts, so one that closes in by `v` per tick would end it `v / gain` inside the margin: the
@@ -75,6 +79,8 @@ demo pads the radius by the handle's move over the gain each tick, and the reado
 ## Self-collision
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_self_collision_panda.png" width="960"><source src="../../clips/avoid_self_collision_panda.webm" type="video/webm"></video><figcaption>The target goes down and back toward the robot's base. Without the rows (left) the arm folds into itself and two of its spheres overlap by 25 mm (red); with them (right) every pair stays 20 mm apart.</figcaption></figure>
+
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_self_collision_g1.png" width="960"><source src="../../clips/avoid_self_collision_g1.webm" type="video/webm"></video><figcaption>The G1's left-hand target goes through its torso toward the right side and back. Without the rows (left) the arm passes through the torso (red: pairs inside their margins, the deepest by 140 mm); with them (right) it stops at the torso, every pair within 0.1 mm of its margin.</figcaption></figure>
 
 The pairs are `collision.self_collision_pairs(model, spheres, ignore=ignore)` with the ignore list of the sphere
 file (`collision.load_spheres`): every one of them. Each keeps a margin of 20 mm, or its distance at the start less
@@ -127,7 +133,7 @@ The scripted runs print, per form (CPU, float64, one thread; the tick is one `tr
 | obstacle (Panda) | 90 mm inside | 21.2 mm away | 3.4 ms |
 | obstacle (G1) | 94 mm inside | 21.3 mm away | 7.4 ms |
 | self-collision (Panda) | a pair 45 mm inside its margin (25 mm into each other) | every pair outside its margin | 3.3 ms |
-| self-collision (G1) | a pair 140 mm inside its margin | every pair within 0.04 mm of its margin | 7.4 ms |
+| self-collision (G1) | a pair 140 mm inside its margin | every pair within 0.06 mm of its margin | 7.4 ms |
 
 ## Limits
 
