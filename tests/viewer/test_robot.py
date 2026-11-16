@@ -303,3 +303,10 @@ def test_two_robots_of_one_model_need_a_name_each() -> None:
         viewer.add(RobotVisual(model))
     viewer.add(RobotVisual(model, name="second"))
     assert [layer.name for layer in viewer.layers] == ["panda", "second"]
+
+
+def test_robot_visual_minimal_writes_lengths_to_the_stick_node_only() -> None:
+    _, server, viewer = _g1_visual(style="minimal")
+    server.scene.log.clear()
+    viewer.show(0)
+    assert [name.rsplit("/", 1)[-1] for name, event in server.scene.log if event == "batched_scales"] == ["cylinders"]

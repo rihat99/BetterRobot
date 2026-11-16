@@ -116,7 +116,7 @@ class _Blocks(Layer):
             if mesh in self._nodes:
                 self._nodes[mesh].batched_positions = world[:, :3]
                 self._nodes[mesh].batched_wxyzs = to_wxyz(world[:, 3:])
-                if (getattr(self.skeleton, mesh).anchors[:, 0] >= 0).any():  # sticks change length with the pose
+                if mesh == "cylinders" and (self.skeleton.cylinders.anchors[:, 0] >= 0).any():  # sticks stretch
                     self._nodes[mesh].batched_scales = scale.astype(np.float32)
         if self._lines is not None:
             self._lines.points = self.skeleton.lines(self.poses[step])
