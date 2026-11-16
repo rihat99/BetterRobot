@@ -10,9 +10,8 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.lie.se3 import from_translation
+from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
-from better_robot.viewer import _lie
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
 from better_robot.viewer.theme import Theme, rgb_uint8
@@ -43,7 +42,7 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
     layer = RigidMeshLayer("meshes", specs, body_poses=body_poses)
     layer.build(scene, "/r/meshes")
     layer.set_step(3)
-    expected = _lie.compose(body_poses[3, 2], origin)
+    expected = compose(torch.from_numpy(body_poses[3, 2]), torch.from_numpy(origin)).numpy()
     node = scene.nodes["/r/meshes/mesh_0"]
     np.testing.assert_allclose(node.position, expected[:3], atol=1e-6)
     np.testing.assert_allclose(node.wxyz, expected[[6, 3, 4, 5]], atol=1e-6)
@@ -78,7 +77,7 @@ def test_panda_visual_follows_forward_kinematics() -> None:
     hand = model.body_id("panda_hand")
     index = next(i for i, attached in enumerate(shapes) if attached.body == hand)
     origin = np.asarray(shapes[index].shape.placement, dtype=np.float32)
-    expected = _lie.compose(state.joint_poses[4, hand].numpy().astype(np.float32), origin)
+    expected = compose(state.joint_poses[4, hand].float(), torch.from_numpy(origin)).numpy()
     np.testing.assert_allclose(nodes[f"/panda/panda/collision/mesh_{index}"].position, expected[:3], atol=1e-5)
     frame = state.frame_poses[4, model.frame_id("panda_hand")].numpy()
     np.testing.assert_allclose(nodes["/panda/panda/frames/axes"].batched_positions[0], frame[:3], atol=1e-5)

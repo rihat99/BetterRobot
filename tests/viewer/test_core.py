@@ -8,10 +8,10 @@ from typing import Any
 
 import numpy as np
 import pytest
+import torch
 
-from better_robot.viewer._lie import act, from_z, to_wxyz
+from better_robot.lie import so3
 from better_robot.viewer.layer import Layer
-from better_robot.viewer._primitives import unit_cone, unit_cylinder, unit_sphere
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
@@ -43,11 +43,11 @@ def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block()
     assert server.atomic_blocks == blocks + 1
     assert viewer.timeline.step == 3
     pushed = {node for node, event in server.scene.log if event != "add"}
-    assert pushed == {"/skel/skel/spheres", "/forces/f/shafts", "/forces/f/heads"}
+    assert pushed == {"/skel/skel/spheres", "/forces/f/arrows"}
     # The arrows layer has 5 frames: frame 7 clamps to its last frame and the static grid is never touched.
     server.scene.log.clear()
     viewer.timeline.step = 7
-    assert ("/forces/f/shafts", "points") in server.scene.log
+    assert ("/forces/f/arrows", "points") in server.scene.log
     assert not any(node.startswith("/ground") for node, _ in server.scene.log)
     server.scene.log.clear()
     viewer.timeline.step = 8  # arrows already show their last frame: skipped
@@ -185,17 +185,15 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
 def test_arrows_hide_zero_vectors() -> None:
     scene = FakeServer().scene
     arrows = ArrowsLayer(
-        "a", np.zeros((1, 2, 3)), vectors=[[[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], scale=2.0, head_size=0.1
+        "a", np.zeros((1, 2, 3)), vectors=[[[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], scale=2.0, head_length=0.1
     )
     arrows.build(scene, "/g/a")
-    heads = scene.nodes["/g/a/heads"]
-    np.testing.assert_allclose(heads.props["batched_scales"][0], [0.05, 0.05, 0.1])
-    np.testing.assert_allclose(heads.props["batched_positions"][0], [0.0, 0.0, 1.9])
-    np.testing.assert_allclose(heads.props["batched_scales"][1], 0.0)
-    np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["points"][0, 1], [0.0, 0.0, 2.0])
+    drawn = scene.nodes["/g/a/arrows"].props  # viser's arrows (tail, tip): the zero vector is left out
+    np.testing.assert_allclose(drawn["points"], [[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0]]])
+    assert drawn["head_length"] == 0.1 and drawn["colors"].shape == (1, 3)
 
 
-def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_and_invalid_vectors() -> None:
+def test_arrows_are_viser_arrows_of_the_shown_vectors_with_their_per_step_colours() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     vectors = np.array([[[0.0, 0.0, 2.0], [0.05, 0.0, 0.0], [0.0, 0.0, 0.0]]] * 2)
@@ -210,55 +208,38 @@ def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_an
                 np.zeros((2, 3, 3)),
                 vectors=vectors,
                 colors=colours,
-                head_size=0.1,
                 shaft_radius=0.02,
                 head_radius=0.04,
+                head_length=0.1,
             )
         ],
         valid=keep,
     )
-    shafts, heads = server.scene.nodes["/f/f/shafts"], server.scene.nodes["/f/f/heads"]
-    assert shafts.kind == "BatchedMeshHandle"
-    viewer.show(0)
-    # Long arrow: shaft up to the head's base, head of full size. Short arrow (0.05 m, under head_size / 0.35): the
-    # long one scaled by 0.05 * 0.35 / 0.1 = 0.175, head 35 % of it, so still a shaft and a head.
-    np.testing.assert_allclose(shafts.batched_positions[:2], [[0.0, 0.0, 0.95], [0.01625, 0.0, 0.0]], atol=1e-6)
-    np.testing.assert_allclose(shafts.batched_scales[:2], [[0.02, 0.02, 1.9], [0.0035, 0.0035, 0.0325]], atol=1e-6)
-    np.testing.assert_allclose(heads.batched_positions[:2], [[0.0, 0.0, 1.9], [0.0325, 0.0, 0.0]], atol=1e-6)
-    np.testing.assert_allclose(heads.batched_scales[:2], [[0.04, 0.04, 0.1], [0.007, 0.007, 0.0175]], atol=1e-6)
-    np.testing.assert_allclose(heads.batched_scales[2], 0.0)
-    np.testing.assert_allclose(shafts.batched_scales[2], 0.0)
-    viewer.show(1)  # the long arrow is invalid here; per-step colours reach the shafts too
-    np.testing.assert_allclose(shafts.batched_scales[0], 0.0)
-    np.testing.assert_allclose(heads.batched_scales[0], 0.0)
-    np.testing.assert_array_equal(shafts.batched_colors, np.full((3, 3), [0, 0, 255]))
+    arrows = server.scene.nodes["/f/f/arrows"]
+    assert arrows.kind == "ArrowsHandle"
+    assert (arrows.props["shaft_radius"], arrows.props["head_radius"], arrows.props["head_length"]) == (0.02, 0.04, 0.1)
+    viewer.show(0)  # the zero vector is left out; the short one stays
+    np.testing.assert_allclose(arrows.points, [[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0]], [[0.0, 0.0, 0.0], [0.05, 0.0, 0.0]]])
+    np.testing.assert_array_equal(arrows.colors, np.zeros((2, 3)))
+    viewer.show(1)  # the long arrow is invalid here; the colours follow the arrows shown
+    np.testing.assert_allclose(arrows.points, [[[0.0, 0.0, 0.0], [0.05, 0.0, 0.0]]])
+    np.testing.assert_array_equal(arrows.colors, [[0, 0, 255]])
 
 
-@pytest.mark.parametrize("shaft_radius", [None, 0.01], ids=["line", "solid"])
-def test_arrows_draw_nothing_up_to_min_length(shaft_radius: float | None) -> None:
-    """Zero and float-noise vectors (default ``min_length``), or ones up to a given ``min_length``, draw no head and no
-    shaft: no dot from a line's round caps, no lone solid head."""
+def test_arrows_draw_nothing_up_to_min_length() -> None:
+    """Zero and float-noise vectors (default ``min_length``), or ones up to a given ``min_length``, are left out: no
+    lone head."""
     server = FakeServer()
     viewer = Viewer(server=server)
     lengths = np.array([0.0, 1e-7, 5e-3, 0.5], dtype=np.float32)
     vectors = np.zeros((1, 4, 3), dtype=np.float32)
     vectors[..., 2] = lengths
     for name, min_length in (("default", {}), ("coarse", {"min_length": 0.01})):
-        viewer.add(
-            [
-                ArrowsLayer(
-                    name, np.ones((1, 4, 3)), vectors=vectors, head_size=0.03, shaft_radius=shaft_radius, **min_length
-                )
-            ]
-        )
+        viewer.add([ArrowsLayer(name, np.ones((1, 4, 3)), vectors=vectors, **min_length)])
     viewer.show(0)
-    for name, shown in (("default", [False, False, True, True]), ("coarse", [False, False, False, True])):
-        heads, shafts = server.scene.nodes[f"/{name}/{name}/heads"], server.scene.nodes[f"/{name}/{name}/shafts"]
-        np.testing.assert_array_equal(heads.batched_scales.any(axis=-1), shown)
-        if shaft_radius is None:  # a hidden line is a zero-length segment
-            np.testing.assert_array_equal((shafts.points[:, 1] != shafts.points[:, 0]).any(axis=-1), shown)
-        else:  # a short solid arrow keeps its shaft
-            np.testing.assert_array_equal(shafts.batched_scales.any(axis=-1), shown)
+    for name, shown in (("default", [5e-3, 0.5]), ("coarse", [0.5])):
+        points = server.scene.nodes[f"/{name}/{name}/arrows"].points
+        np.testing.assert_allclose(points[:, 1, 2] - points[:, 0, 2], shown, atol=1e-6)  # float32 tips
 
 
 def test_spheres_and_arrows_take_per_step_colours() -> None:
@@ -268,12 +249,10 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     colours[1, 0] = (1.0, 0.0, 0.0)  # contact 0 turns red at step 1
     viewer.add([SpheresLayer("contacts", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=colours)])
     viewer.add([ArrowsLayer("forces", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=colours)])
-    spheres, heads = server.scene.nodes["/contacts/contacts/spheres"], server.scene.nodes["/forces/forces/heads"]
-    shafts = server.scene.nodes["/forces/forces/shafts"]
+    spheres, arrows = server.scene.nodes["/contacts/contacts/spheres"], server.scene.nodes["/forces/forces/arrows"]
     viewer.show(1)
     np.testing.assert_array_equal(spheres.batched_colors, [[255, 0, 0], [0, 0, 0]])
-    np.testing.assert_array_equal(heads.batched_colors, [[255, 0, 0], [0, 0, 0]])
-    np.testing.assert_array_equal(shafts.colors[0], [[255, 0, 0], [255, 0, 0]])
+    np.testing.assert_array_equal(arrows.colors, [[255, 0, 0], [0, 0, 0]])
     viewer.show(2)
     assert not spheres.batched_colors.any()
     static = SpheresLayer("static", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=(0.0, 1.0, 0.0))
@@ -281,23 +260,6 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     assert static._colors.shape == (2, 3)  # one colour stays static: never rewritten per step
     with pytest.raises(ShapeError, match="per-step colors"):
         ArrowsLayer("bad", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
-
-
-def test_quaternion_z_to_direction_and_closed_unit_meshes() -> None:
-    directions = np.random.default_rng(1).normal(size=(50, 3))
-    directions[0] = [0.0, 0.0, -1.0]
-    directions[1] = 0.0
-    q = to_wxyz(from_z(directions))
-    w, x, y, z = q.T
-    rotated_z = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)
-    unit = directions / np.maximum(np.linalg.norm(directions, axis=-1, keepdims=True), 1e-9)
-    np.testing.assert_allclose(rotated_z[2:], unit[2:], atol=1e-5)
-    np.testing.assert_allclose(rotated_z[0], [0.0, 0.0, -1.0], atol=1e-6)
-    np.testing.assert_allclose(rotated_z[1], [0.0, 0.0, 1.0], atol=1e-6)
-    for vertices, faces in (unit_sphere(), unit_cylinder(), unit_cone()):
-        edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
-        _, counts = np.unique(edges, axis=0, return_counts=True)
-        assert (counts == 2).all() and faces.max() == len(vertices) - 1
 
 
 def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
@@ -371,7 +333,10 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
     GroundLayer(origin=(1.0, 2.0, 3.0), normal=(0.0, 1.0, 1.0), height=0.5, fill=0.4).build(scene, "/g/floor")
     grid = scene.nodes["/g/floor/grid"].props
     w, x, y, z = grid["wxyz"]
-    np.testing.assert_allclose(act(np.array([x, y, z, w]), np.array([0.0, 0.0, 1.0])), normal, atol=1e-6)
+    turned = so3.act(
+        torch.tensor([x, y, z, w], dtype=torch.float64), torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64)
+    )
+    np.testing.assert_allclose(turned.numpy(), normal, atol=1e-6)
     np.testing.assert_allclose(grid["position"], np.array([1.0, 2.0, 3.0]) + 0.5 * normal)
     assert grid["plane"] == "xy" and grid["plane_opacity"] == 0.4
     GroundLayer(plane="xz").build(scene, "/g/flat")

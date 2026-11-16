@@ -60,7 +60,7 @@ class Theme:
     ``shadow`` the opacity of shadows on the ground, ``lights`` the intensities (ambient, hemisphere, key, fill).
     ``hues`` are the robots' colours in the order robots are added (``hue(k)``), ``shade`` derives a part's colour
     from a hue, ``accent`` colours the GUI and the tools, ``collision`` and ``collision_opacity`` the collision
-    overlay, ``text`` labels.
+    overlay, ``text`` labels and the default ink of lines and camera frustums.
     ``apply(server)`` sends all of it to a viser server; ``Viewer.set_theme`` re-applies it with the layers.
     """
 

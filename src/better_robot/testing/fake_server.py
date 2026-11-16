@@ -232,6 +232,8 @@ class FakeScene:
         render_height: float,
         *,
         format: str = "auto",  # noqa: A002 - viser's parameter name
+        cast_shadow: bool = True,
+        receive_shadow: bool | float = True,
         wxyz: Any = _IDENTITY,
         position: Any = _ORIGIN,
         visible: bool = True,
@@ -333,6 +335,12 @@ class FakeScene:
         )
         handle.__dict__["bones"] = bones  # read-only on viser
         return handle
+
+    def add_glb(
+        self, name: str, glb_data: bytes, *, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True
+    ) -> FakeHandle:
+        """viser's binary glTF asset: a ``GlbHandle``."""
+        return self._node("GlbHandle", locals())
 
     def add_mesh_trimesh(
         self, name: str, mesh: Any, *, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True

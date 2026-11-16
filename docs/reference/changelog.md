@@ -40,6 +40,13 @@ that 0.3.0 renames or removes, one table row each.
   per cluster of close joints, sticks between): `glyphs`, `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`,
   `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is three batched nodes.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
+- `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
+  one colour, one per segment or one per step, in `Theme.text` unless given.
+- `MeshLayer(colors=(V, 3))`: one colour per vertex. A static mesh is one GLB node that blends them across each face;
+  a deforming one is one node per distinct colour (at most 64), each face in its first vertex's colour.
+- `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
+  one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
+- `testing.FakeServer.scene.add_glb`.
 
 ### Changed
 - `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
@@ -59,6 +66,11 @@ that 0.3.0 renames or removes, one table row each.
   checkboxes in sentence case; a `PlotPanel`'s time axis shows seconds instead of a date.
 - `Viewer.aim` and `Viewer.record` frame the box of the bounds so that it spans 80 % of a 16:9 view (was the
   bounding sphere with a 15 % margin, which left the robot a fifth of the height).
+- `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
+  frustum's edges from the intrinsics `K` of a `(W, H)` image, an off-centre principal point included, and the image
+  on its cut; viser's own frustum has no principal point. It frames `Viewer.aim` too (`bounds`).
+- `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
+  `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
 
 ### Removed
 - `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
@@ -77,6 +89,9 @@ that 0.3.0 renames or removes, one table row each.
   (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
 - `Theme.joint`, `Theme.link`, `Theme.torque_ramp` and `Theme.over_limit`: use `Theme.hue` and `Theme.shade`; a
   skeleton takes its robot's hue and the shades of it.
+- `ArrowsLayer(head_size=, line_width=)` and `ArrowsLayer.HEAD_FRACTION`: use `head_length=`; every arrow is solid,
+  and a short one is no longer scaled down whole.
+- `CameraLayer(fov=, aspect=)`: use `CameraLayer(intrinsics=, size=)`.
 
 ## v0.3.0 (2026-11-10)
 

@@ -66,6 +66,7 @@ NOT_BREAKING: dict[str, str] = {
     "better_robot.viewer.GroundLayer.apply_theme": _THEME,
     "better_robot.viewer.Viewer.add_plot": "`series` was annotated `Any`; both versions convert it with `as_frames`",
     "better_robot.viewer.Viewer.record": "`camera=` also takes arrays; sequences work as before",
+    "better_robot.viewer.PointsLayer": "`points` and `colors` also take a list of `(N_t, 3)` arrays; arrays work as before",
 }
 
 

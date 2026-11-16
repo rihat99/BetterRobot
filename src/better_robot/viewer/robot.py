@@ -29,11 +29,10 @@ import torch
 from ..collision import RobotSpheres
 from ..exceptions import ArgumentError, ModelError, ShapeError
 from ..kinematics import forward_kinematics
-from ..lie import se3
+from ..lie import se3, so3
 from ..model.geometry import Box, Cylinder, Geometry, Mesh, Sphere
 from ..model.joints import JointFixed
 from ._extras import needs_extra
-from ._lie import act, to_wxyz
 from .layer import Bounds, Layer
 from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
@@ -90,7 +89,7 @@ class _Blocks(Layer):
                 vertices, faces = meshes[mesh]
                 self._nodes[mesh] = self._track(
                     scene.add_batched_meshes_simple(
-                        f"{root}/{mesh}", vertices, faces, batched_wxyzs=to_wxyz(world[:, 3:]),
+                        f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
                         batched_colors=rgb_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
                     )
@@ -105,7 +104,7 @@ class _Blocks(Layer):
         for mesh, (world, scale) in self.skeleton.place(self.poses[step]).items():
             if mesh in self._nodes:
                 self._nodes[mesh].batched_positions = world[:, :3]
-                self._nodes[mesh].batched_wxyzs = to_wxyz(world[:, 3:])
+                self._nodes[mesh].batched_wxyzs = world[:, [6, 3, 4, 5]]
                 if mesh == "cylinders" and (self.skeleton.cylinders.anchors[:, 0] >= 0).any():  # sticks stretch
                     self._nodes[mesh].batched_scales = scale.astype(np.float32)
         if self._lines is not None:
@@ -403,7 +402,8 @@ class RobotVisual(Layer):
         lows, highs = [joints], [joints]
         for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
             half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
-            axes = np.abs(act(world[:, None, 3:], np.eye(3, dtype=world.dtype)))  # (N, 3, 3): each block's axes
+            rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
+            axes = np.abs(so3.act(rotations, eye).numpy())  # (N, 3, 3): each block's axes
             reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box
             lows.append(world[:, :3] - reach)
             highs.append(world[:, :3] + reach)
