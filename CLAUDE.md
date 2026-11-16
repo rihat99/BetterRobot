@@ -31,7 +31,7 @@ what each group of tests guards.
 - Nothing skips: the plugin `better_robot.testing.no_skips` turns every skip and xfail into a failure
   (`tests/contract/test_no_skips.py`). A test that needs a GPU carries the `cuda` marker, which only the release
   tier selects; a missing oracle, fixture or browser fails.
-- The full tier needs a headless Chromium for `tests/viewer/test_capture.py` (`chromium`, `google-chrome` or
+- The full tier needs a headless Chromium for `tests/viewer/test_record.py` (`chromium`, `google-chrome` or
   `chrome-headless-shell` on `PATH`, or `BETTER_ROBOT_CHROME` pointing at one) and the `robot_descriptions` cache,
   which the docs and example tests fill from the network on first use. Unit, contract and parity tests run offline
   on the tracked robots of `tests/fixtures/robots/` (record 0039).

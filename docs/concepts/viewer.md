@@ -1,7 +1,7 @@
 # Viewer
 
 The viewer shows robots, bodies and data clips in a browser, and records the same scene through a headless
-Chromium to `.webm`, `.gif` or PNG frames. After this page you will know its four ideas (layers, tags, one timeline, headless record)
+Chromium to an `.mp4` or `.webm` video or a `.png` still. After this page you will know its four ideas (layers, tags, one timeline, headless record)
 and which call to reach for: `show`, `serve`, `save` or `record`.
 
 It lives in `better_robot.viewer`, is built on [viser](https://viser.studio), and is the top of the import stack:
@@ -16,7 +16,7 @@ You give it every frame up front as numpy arrays with a leading time axis `(T, .
 `T = 1`. The layer keeps the arrays **by reference**, so editing them in place and calling `layer.redraw()` updates
 the scene without rebuilding anything.
 
-![The Viewer shows layers that each hold a whole clip; `record` screenshots the same scene through headless Chromium.](../figures/viewer_layers.svg)
+![The Viewer shows layers that each hold a whole clip; `record` draws the same scene in a headless Chromium.](../figures/viewer_layers.svg)
 
 ```python
 import numpy as np
@@ -125,7 +125,7 @@ The other three calls consume the timeline:
 |---|---|---|
 | `serve()` | plays by wall clock at `fps` and blocks until Ctrl-C | yes, to watch |
 | `save(path)` | writes a `.viser` recording for viser's static web client | no |
-| `record(path)` | screenshots the scene in a headless Chromium to `.webm`, `.gif` or `.png` frames | no |
+| `record(path)` | draws the scene in a headless Chromium into an `.mp4` or `.webm` video or a `.png` still | no |
 
 ```python { .no-run data-reason="blocks until Ctrl-C" }
 viewer.serve()  # plays and blocks until Ctrl-C
@@ -259,7 +259,7 @@ print(picked.shape)
 
 ## Recording replays the timeline headless
 
-`record(path)` steps the same timeline in a headless Chromium and screenshots each step, so a recording shows
+`record(path)` steps the same timeline in a headless Chromium and draws each step once, so a recording shows
 exactly what a browser would; `aim` points the live browsers at the view `record` would choose.
 [Record a video of a scene](../guides/record-a-video.md) gives the steps and the options.
 

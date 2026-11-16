@@ -57,6 +57,19 @@ that 0.3.0 renames or removes, one table row each.
   the sidebar's Plots and Images sections.
 - `GroundLayer(cell_color=None, section_color=None)`: the grid takes `Theme.grid` unless given and follows
   `Viewer.set_theme`.
+- `Viewer.record(path, *, size=(1920, 1080), fps=None, steps=None, camera=None, fov=radians(40), gpu=None,
+  bitrate=None) -> Path` draws each step once in a headless Chromium that runs viser's own client, with the canvas
+  pinned to `size` at a pixel ratio of 1, and encodes in the page: `.mp4` is H.264 that ffmpeg only puts in its
+  container, `.webm` is VP9 (VP8 where VP9 is refused) and needs no ffmpeg, `.png` is one still; a path without a
+  suffix takes `.mp4` when ffmpeg is found, else `.webm`, and the path written is returned. Frame `k` shows
+  `steps[k]` (a layer's colours and points too, which arrived one frame late), a camera may move per step, and the
+  background is the page's, so a dark theme records a dark clip. `gpu=<nvidia-smi index>` draws on that GPU
+  through Vulkan and raises `ArgumentError` when Chromium does not; `gpu=None` draws on the CPU (SwiftShader).
+  A 1920x1080 Panda clip of 300 frames takes 42 s on the CPU and 5 s on a GPU, where screenshots took 2.6 to 5 s
+  per frame (`docs/guides/record-a-video.md`).
+- `Viewer.record` finds ffmpeg through `$BETTER_ROBOT_FFMPEG` (was `$FFMPEG`) or the `PATH`.
+- The `viewer` extra pins `viser>=1.0.30,<1.1`: `Viewer.record` drives the client of viser 1.0, and a test names
+  the viser version when the internals it uses change.
 - `GroundLayer(size=None)` (was `10.0`): the default grid has no edges and fades out with the distance from the
   camera; shadows fall on it at `Theme.shadow`. A number keeps a square grid of that width.
 - `Timeline.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API): a Play box, the Step slider, a
@@ -84,6 +97,9 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme.robot` and `Theme.human`: use `Theme.hue(index)`.
 - `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` and `Theme.control_width`: no
   replacement; no layer read the colours, an application passes its own, and the sidebar keeps viser's medium width.
+- `Viewer.record` to `.gif`, to numbered `.png` frames and to a directory of frames: use `Viewer.record` to an
+  `.mp4` or a `.webm`, or to one `.png` still per call.
+- `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.
 - `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer`: use `viewer.RobotVisual`, which draws
   the meshes and both skeletons of a model and runs the forward kinematics itself. Colouring joints by torque
   (`robot_skeleton(tau=)`) and `end_points=` have no replacement.

@@ -50,8 +50,8 @@ turns every skip or xfail into a failure, whatever spells it, so a missing oracl
 robots are tracked under `tests/fixtures/robots/`, so the unit, contract and parity tests run offline. The full tier
 does not: the docs pages (`tests/docs/test_snippets.py`) and the examples (`tests/examples/test_examples_run.py`) load
 robots through `robot_descriptions`, which downloads each robot into `~/.cache` on first use and needs that cache from
-then on. One full-tier test,
-`tests/viewer/test_capture.py::test_record_screenshots_a_real_scene`, screenshots a real scene through a headless
+then on. Two full-tier tests,
+in `tests/viewer/test_record.py`, record a real scene through a headless
 Chromium: put `chromium`, `google-chrome` or `chrome-headless-shell` on `PATH`, or point `BETTER_ROBOT_CHROME` at
 one. On a machine without `libasound.so.2` Chromium exits at start; point `BETTER_ROBOT_CHROME` at a wrapper script
 that adds a copy of the library to `LD_LIBRARY_PATH` (for example extracted from the `libasound2` package) and

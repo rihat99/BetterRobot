@@ -276,6 +276,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **hull** | A rounded box that stands for a body in a skeleton: the root, a body where the tree branches, and as an end block the last body of a chain (`SkeletonRecipe(hulls=, body_hull=)`). |
 | **cluster** | Joints close enough to share one ball in the minimal skeleton (`SkeletonRecipe(cluster=)`, a fraction of the robot's size). |
 | **trimesh** | The mesh library; `MeshSpec.trimesh` holds one of its meshes, with textures or vertex colours. |
+| **bitrate** | Bits per second of an encoded video; `Viewer.record(bitrate=)` trades file size for detail. |
 
 ## Testing
 

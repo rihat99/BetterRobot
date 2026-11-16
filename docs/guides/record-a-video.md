@@ -1,8 +1,9 @@
 # Record a video of a scene
 
-`viewer.record(path)` turns the scene a `Viewer` shows into a `.webm` video, a `.gif` or PNG frames, without a
-window: a headless Chromium opens the scene, steps through it and screenshots each step. This guide builds a
-short clip of a Panda swinging one joint, records it, and points the live browsers at the same view.
+`viewer.record(path)` turns the scene a `Viewer` shows into an `.mp4` or `.webm` video, or one `.png` still,
+without a window: a headless Chromium runs viser's own client, draws each step once at the output size and
+encodes it in the page. This guide builds a short clip of a Panda swinging one joint, records it, and points the
+live browsers at the same view.
 
 ## Build the scene
 
@@ -28,32 +29,53 @@ print(viewer.timeline.nsteps)
 
 ## Record it
 
-`viewer.record(path)` opens the scene in a headless Chromium (`better_robot.viewer.capture`), shows each
-step and screenshots it. The output format follows the suffix: `.webm` (needs `ffmpeg`), `.gif`, `name.png`
-for numbered frames, or a directory of frames. Options are `steps`, `size` (width, height), `fps`, `gpu`
-and `camera`.
-
-```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_capture.py runs record" }
+```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_record.py runs record" }
 import tempfile
-from pathlib import Path
 
-out = Path(tempfile.mkdtemp()) / "panda.webm"
-viewer.record(out, size=(960, 540), steps=range(0, 60, 2))
-print(out.exists())
+out = viewer.record(Path(tempfile.mkdtemp()) / "panda.mp4")   # 1920 x 1080, every step, at the timeline's fps
+print(out.name)
 ```
 
-Without a `camera`, `record` takes the view of `aim` over the recorded steps (the bounding sphere of the visible
-layers' `Layer.bounds`), upright along the theme's `up` axis. Pass `camera=(position, look_at)` for a fixed view. The browser
-binary comes from `$BETTER_ROBOT_CHROME` or the `PATH`; the module docstring of `capture` explains the
-one-time setup.
+The suffix of the path picks the output:
+
+| Suffix | Output | Needs |
+|---|---|---|
+| `.mp4` | H.264, encoded in the page; ffmpeg only writes the container | ffmpeg: `$BETTER_ROBOT_FFMPEG` or on `PATH` |
+| `.webm` | VP9, or VP8 where the browser refuses VP9 | nothing |
+| `.png` | one still of the current step, or of the one step in `steps` | nothing |
+| none | `.mp4` when ffmpeg is found, else `.webm`; `record` returns the path it wrote | |
+
+A browser without an H.264 encoder records VP9 and ffmpeg transcodes it, which takes longer than the rendering.
+The options:
+
+- `size=(width, height)`: the pixels of the file, both even for a video, up to 3840 x 2160 and beyond to the
+  renderer's limit. The page draws at a pixel ratio of 1, so one canvas pixel is one pixel of the file.
+- `steps`: frame `k` of the file shows `steps[k]`; every step by default.
+- `fps`: the timeline's by default; `bitrate`: bits per second, 8 Mbit/s at 1920 x 1080 scaled by the pixel count.
+- `camera=(position, look_at)`: each `(3,)` for a fixed view or `(len(steps), 3)` for one that moves with the steps;
+  without it, the view `viewer.aim(steps=steps, fov=fov)` chooses (the bounding sphere of the visible layers'
+  `Layer.bounds`, upright along the theme's `up` axis). `fov` is the vertical field of view in radians.
+- `gpu`: the `nvidia-smi` index of the GPU to draw on, through Vulkan; `None`, the default, draws on the CPU
+  (SwiftShader, which ships with Chromium). A full-HD frame of a Panda takes about 130 ms on the CPU and 5 to 8 ms
+  on a GPU.
+
+The frames are what a browser shows of the scene, background included: a dark theme records a dark clip. Playback
+pauses while `record` runs, and the step shown before comes back after.
 
 `viewer.aim(steps=...)` points the live browsers with the same 3/4 view: the connected ones and every new one
-(viser's initial camera, which "Reset View" returns to). It fits the bounding box of what is visible at each step,
-so a clip of robot meshes frames in milliseconds. It frames the current step by default; pass `steps`, such as
-`range(0, viewer.timeline.nsteps, 10)`, to frame a whole clip, and `azimuth=`/`elevation=` to look from another
-side.
+(viser's initial camera, which "Reset View" returns to). It reads only the layers' boxes, at most 32 evenly spaced
+steps of the clip, so it takes milliseconds. It frames every step by default; pass `steps` to frame a part of the
+clip, and `azimuth=`/`elevation=` to look from another side.
+
+## Set up the browser
+
+The browser is `$BETTER_ROBOT_CHROME`, else `chromium`, `google-chrome` or `chrome-headless-shell` on the `PATH`;
+`npx playwright install chromium-headless-shell` downloads the last one. A server without `libasound.so.2` makes
+Chromium exit at start: put a copy of the library (from the `libasound2` package) on `LD_LIBRARY_PATH`. Drawing on
+a GPU needs `nvidia-smi` and Mesa's Vulkan device-select layer (`mesa-vulkan-drivers`), which puts the chosen GPU
+first; `record` raises, naming `gpu=None`, when Chromium does not draw there.
 
 ## Where next
 
-- [Viewer](../concepts/viewer.md): layers, groups and the one timeline that `record` steps through.
+- [Viewer](../concepts/viewer.md): layers, tags and the one timeline that `record` steps through.
 - [Visualize a robot](../getting-started/visualize.md): a first scene, shown live.

@@ -381,35 +381,31 @@ class Viewer:
         self,
         path: str | Path,
         *,
-        steps: Sequence[int] | None = None,
-        size: tuple[int, int] = (960, 540),
+        size: tuple[int, int] = (1920, 1080),
         fps: float | None = None,
-        gpu: bool = False,
+        steps: Sequence[int] | None = None,
         camera: tuple[np.ndarray | Sequence[float], np.ndarray | Sequence[float]] | None = None,
+        fov: float = math.radians(40.0),
+        gpu: int | None = None,
+        bitrate: float | None = None,
     ) -> Path:
-        """Screenshot the live scene in a headless Chromium for each step and write ``.webm``, ``.gif`` or PNGs.
+        """Render ``steps`` of the live scene in a headless Chromium into a video or a still; return the path written.
 
-        ``size`` is ``(width, height)``; ``steps`` defaults to every step. ``camera`` is ``(position, look_at)``;
-        without it the view of ``aim`` over the recorded steps is used, upright along the theme's ``up`` axis.
-        ``path`` ending in ``.png`` writes ``<stem>_000.png, ...``; without a suffix it is a directory of frames.
-        Needs a Chromium binary (``$BETTER_ROBOT_CHROME`` or on ``PATH``) and, for ``.webm``, ffmpeg (``$FFMPEG``
-        or on ``PATH``). Machines without ``libasound.so.2`` need it on ``LD_LIBRARY_PATH``; see
-        ``better_robot.viewer.capture``. Returns ``path``.
+        The suffix of ``path`` picks the output: ``.mp4`` (H.264, needs ``ffmpeg``: ``$BETTER_ROBOT_FFMPEG`` or on
+        ``PATH``), ``.webm`` (VP9, needs nothing), ``.png`` (one still); without a suffix ``.mp4`` when ``ffmpeg`` is
+        found, else ``.webm``. Frame ``k`` shows ``steps[k]`` (default: every step; for a still, the current step).
+        ``size`` is the output's ``(width, height)`` in pixels, both even for a video, up to the renderer's limit
+        (3840 x 2160 is fine); ``fps`` defaults to the timeline's. ``camera`` is ``(position, look_at)``, each ``(3,)``
+        or ``(len(steps), 3)`` to move per step; ``None`` is ``aim(steps=steps)``. ``fov`` is the vertical field of
+        view in radians. ``gpu`` is the ``nvidia-smi`` index of the GPU to render on, ``None`` the CPU; an unreachable
+        GPU raises. ``bitrate`` in bits per second defaults to 8 Mbit/s scaled by the pixel count over full HD. The
+        frames are what a browser shows of this scene, background included. Playback pauses while recording and the
+        step shown before comes back. Needs a Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see
+        ``better_robot.viewer.record``.
         """
-        from .capture import HeadlessClient, write_frames  # noqa: PLC0415 - browser path is opt-in
+        from .record import record  # noqa: PLC0415 - the browser path is opt-in
 
-        steps = list(range(self.timeline.nsteps)) if steps is None else list(steps)
-        if camera is None:
-            camera = self._framing(steps, math.radians(35.0), math.radians(25.0), _FOV)
-        width, height = size
-        frames = []
-        with HeadlessClient(self, size=size, gpu=gpu) as client:
-            client.render(height, width)  # the first render returns once the scene has reached the browser
-            client.set_camera(*camera, up=self.theme.up_vector)
-            for step in steps:
-                self.show(step)
-                frames.append(client.render(height, width))
-        return write_frames(frames, path, fps=fps or self.timeline.fps)
+        return record(self, path, size=size, fps=fps, steps=steps, camera=camera, fov=fov, gpu=gpu, bitrate=bitrate)
 
     def aim(
         self,

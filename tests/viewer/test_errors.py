@@ -6,7 +6,6 @@ from __future__ import annotations
 import socket
 import sys
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -27,7 +26,6 @@ from better_robot.viewer import (
     Theme,
     Viewer,
 )
-from better_robot.viewer.capture import write_frames
 from better_robot.viewer.tools import PoseGizmo
 from tests.support.robots import panda_urdf
 
@@ -118,10 +116,9 @@ def _panda_collision_overlay() -> None:
     Viewer(server=FakeServer(), ground=False).add(robot)  # the overlay's meshes are loaded when it is built
 
 
-def test_a_missing_optional_package_raises_its_install_line(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_a_missing_optional_package_raises_its_install_line(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = [
         ("viser", "viewer", Viewer),
-        ("PIL", "viewer", lambda: write_frames([np.zeros((2, 2, 3), np.uint8)], tmp_path / "a.gif", fps=1.0)),
         ("trimesh", "meshes", _panda_collision_overlay),
     ]
     for module, extra, call in calls:
