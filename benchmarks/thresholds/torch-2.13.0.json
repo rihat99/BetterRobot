@@ -156,10 +156,10 @@
   {
    "row": "track/panda/B64",
    "batch": 64,
-   "loadavg": "18.11 21.19 28.86 16/16930 1588746",
+   "loadavg": "191.07 173.60 112.44 195/17115 1769030",
    "success_fraction": 0.0,
-   "worst_violation_m": 0.01594281941652298,
-   "ops": 27426,
+   "worst_violation_m": 0.01577683538198471,
+   "ops": 29104,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 3
