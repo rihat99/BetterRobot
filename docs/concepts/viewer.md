@@ -32,26 +32,19 @@ print(viewer.url, viewer.timeline.nsteps)
 http://127.0.0.1:8080 100
 ```
 
-The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
-`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`. Each layer of data takes its name and
+The built-in layers are `RobotVisual` (a whole robot, below), `PointsLayer`, `FramesLayer`, `ArrowsLayer`,
+`GroundLayer`, `RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`. Each layer of data takes its name and
 its main array by position and every other argument by keyword, as in `SpheresLayer("contacts", centers, radii=radii)`.
 `viewer.add_plot` adds a
 `PlotPanel` of time series to the GUI, and `ImagePanel(name, images)` puts an image per step there, such as the input
-video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `PointsLayer`, `SkeletonLayer`,
+video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `PointsLayer`,
 `SpheresLayer` and `ArrowsLayer` take one colour, one per element `(N, 3)`, or one per step `(T, N, 3)`, such as a
 contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixels wide by default; with
 `shaft_radius=` (metres) its arrows are solid, a cylinder and a cone of length `head_size` and radius
 `head_radius`, so forces keep their thickness at any zoom; a head takes at most 35 % of its arrow, so a short solid
 arrow is the long one scaled down, never a lone head. An arrow of at most `min_length` metres (default
 `1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
-forces too small to read. `SkeletonLayer(name, joints, parent_ids=)` draws joints `(T, J, 3)` (or poses
-`(T, J, 7)`) as a stick figure, a bone from each joint to its parent (`parent_ids (J,)`, `-1` for a root); it takes a
-joint `radius` per joint `(J,)` or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
-length, `offsets (J, 3)` in each joint's frame that move a marker off its joint origin (bones then join the drawn
-centres), and a `bone_radius` per bone `(J,)`, entry `j` for the bone into joint `j` (thin finger bones); a radius of
-0 hides that marker or bone. Given joint `kinds`, a bone with an axis marker at either end bends at right angles
-(see the robot skeleton below); bones between axis-less joints, such as every bone of a positions-only skeleton,
-are straight. A new layer type subclasses `Layer` and implements
+forces too small to read. A new layer type subclasses `Layer` and implements
 `build` (create scene nodes once), `set_step` (move them to step `k`) and optionally `bounds` (the box
 `aim` frames), `apply_theme` and `build_gui` (its controls in the sidebar).
 
@@ -131,76 +124,103 @@ The other three calls consume the timeline:
 viewer.serve()  # plays and blocks until Ctrl-C
 ```
 
-## A robot becomes layers with one kinematics pass
+## A robot is one layer
 
-Forward kinematics runs once for the whole clip `q (T, nq)`; its joint poses `(T, njoints, 7)` feed every robot
-layer. `robot_meshes(geometry, root=)` turns the `Geometry` of a description (`io.load_geometry`) into the mesh
-specs of a `RigidMeshLayer` (the display shapes by default, `collision=True` for the collision shapes; mesh URIs
-are read under `root`), `robot_skeleton(model, joint_poses)` draws joints and bones, `FramesLayer` takes frame
-poses and `SpheresLayer` sphere centres. A layer keeps its arrays by reference: write new poses into them and call
-`viewer.show()` to redraw, for example after each solver step.
+`RobotVisual(model, q)` is a whole robot: it runs forward kinematics once over `q`, one configuration `(nq,)` or a
+clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of three styles.
+
+| Style | Draws | Needs |
+|---|---|---|
+| `"meshes"` | the display shapes of a `Geometry` (`io.load_geometry`), or a `Skin` | `geometry=` with display shapes, or `skin=` |
+| `"maximal"` | a skeleton with one glyph per joint, bones, body hulls and end blocks | nothing but the model |
+| `"minimal"` | a stick figure: one ball per cluster of close joints, sticks between | nothing but the model |
+
+`style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
+looked up under `root`, the description file or its folder, and under each folder above it, so `root=` is the path
+you loaded. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
+the collision shapes of the geometry; `frames=True` draws a triad at every moving joint and `frames=[names]` at
+those frames.
 
 ```python
-from pathlib import Path
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
-from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
+from better_robot.viewer import RobotVisual
 
-model = br.load(panda_description.URDF_PATH)
-geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
+URDF = panda_description.URDF_PATH
+model = br.load(URDF)
+geometry = br.io.load_geometry(URDF, model)
 phase = torch.linspace(0.0, 2 * torch.pi, 30)[:, None]
 mid = (model.lower_position_limit + model.upper_position_limit) / 2
 half = (model.upper_position_limit - model.lower_position_limit) / 2
 q = mid + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)   # q (30, nq)
-state = br.forward_kinematics(model, q)
-poses = state.joint_poses.numpy()                                        # (30, njoints, 7)
 
-meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], tags="panda")
-
-ghost = robot_skeleton(model, poses, name="ghost")
-viewer.add([ghost], tags="ghost", offset=(0.0, 1.0, 0.0))
-backwards = br.forward_kinematics(model, q.flip(0)).joint_poses.numpy()   # same length, played backwards
-ghost.joints[:] = backwards[:, 1:, :3]
-ghost.rotations[:] = backwards[:, 1:, 3:]
-viewer.show()
+robot = viewer.add(RobotVisual(model, q, geometry=geometry, root=URDF, frames=["panda_hand"]))
+ghost = viewer.add(RobotVisual(model, q, name="ghost", style="minimal"), offset=(0.0, 1.0, 0.0))
+ghost.update(q.flip(0))            # the same clip played backwards: one kinematics pass, then a redraw
+robot.set_style("maximal")         # built now, the first time it is shown; "meshes" stays in the scene, hidden
+print(robot.style, robot.styles, ghost.styles)
+```
+```output
+maximal ('meshes', 'minimal', 'maximal') ('minimal', 'maximal')
 ```
 
-`robot_skeleton` takes `tau (T, nv)` (the joint load colours and thickens the markers), a `theme` and the marker
-radii; `RigidMeshLayer` an `opacity` (`set_opacity` changes it live). The skeleton draws each revolute joint as a
-cylinder along its axis (radius 25 mm, length 60 mm) and each prismatic joint as a thin box along it, with the axes
-from each joint's `axis`. Joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart
-as in a textbook kinematic diagram: the skeleton slides each marker that would overlap another along its
-own axis (so it stays on the true axis line), once at `model.q_neutral` and for markers of the plain thickness, and
-the bones (8 mm) connect the drawn markers in chain order. A bone bends at right angles instead of running
-diagonally: it is up to three legs along the axes of its parent joint's frame, first along the parent's axis, last
-along the child's (so it enters a cylinder along its axis or across it, never at a slant), the rest between,
-joined by spheres; a leg under 1 cm folds into the longest. A bone over 15 cm from a joint with one child, such as a
-humanoid's thigh, stays straight, since a long bone's small offsets would otherwise draw a long jog. The routing is
-chosen once; each step the legs split the bone's current centre difference, so they always meet the child.
+Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
+that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
+`set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
+shared by every robot in the viewer. `update(q)` shows new configurations of the same number of steps, for a live
+solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the theme's next
+hue, in the order the robots are added, unless `hue=` names one. The name defaults to the model's, so two robots of
+one model need a `name=` each.
 
-When you already have the joint poses `(T, njoints, 7)` (`KinematicState.joint_poses`),
-`robot_skeleton(model, joint_poses, bone_radius=...)` builds the skeleton from them without another kinematics
-pass; a `bone_radius` of 0 hides a bone, such as the ones to massless sensor mounts
-(`model.body_inertias[1:, 0] == 0`). With `tau` `(T, nv)` each joint marker shows the joint's load
-`|tau| / effort_limit` in two ways: its colour runs through the theme's `torque_ramp` (navy, teal, green, yellow)
-up to the limit and turns `over_limit` (magenta) past it, and its cross-section grows from 0.8 to 1.5 times the
-default at the limit (its length stays, and no marker moves; the layout is spaced for the plain thickness, so a
-heavily loaded marker may touch its neighbour). Joints
-without a finite effort limit keep the plain look. `end_points` maps frames (names or ids) to a point in each
-frame; a bone runs from the frame's parent joint to that point, as thick as the bone into that joint, such as a
-hand past the last wrist joint out to where its contact forces act.
+### The skeleton
+
+The two skeleton styles are laid out by a `SkeletonRecipe`; `MAXIMAL` and `MINIMAL` are the presets and
+`RobotVisual(maximal=, minimal=)` takes your own. Sizes come from the robot: every radius is a fraction of the
+robot's size, so a hand and a humanoid read the same on screen. The layout is computed once, at `model.q_neutral`,
+and every block is rigid in one joint frame, so a step only moves blocks.
+
+`MAXIMAL` draws what the joints are:
+
+- a revolute joint is a drum along its axis, with dark end faces that show which way the axis points; a prismatic
+  joint is a sleeve with a rail sliding through it; a spherical joint is a ball; any other kind is a small ball,
+  and a free base is a cube;
+- joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart: each drum that would overlap
+  another slides along its own axis, so it stays on its true axis line, and only then shrinks;
+- a bone joins each joint to its parent, thinner than either glyph (`bones`, the ratio; 0 draws none);
+- a hull, a rounded box, stands for the root body and for every body where the tree branches, and an end block
+  for every body that ends a chain (hands, feet, fingers). Their sizes come from the sphere set when the visual
+  has one, else from the collision shapes of the geometry, else from the inertias. `hulls="all"` also boxes the
+  bodies with one child joint, `"none"` draws neither; `body_hull={frame: bool}` decides one body.
+
+`MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
+one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and
+sticks join the balls.
+
+Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
+`sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
+multiplier}` (0 hides a glyph) and `color={joint or frame: rgb}`.
 
 ```python
-from better_robot.viewer import robot_skeleton
+from better_robot.viewer import MAXIMAL, SkeletonRecipe
 
-poses = br.forward_kinematics(model, q).joint_poses.numpy()   # (30, njoints, 7)
-tau = 40.0 * torch.sin(phase + torch.arange(model.nv))              # (30, nv) N·m
-fingers = {"panda_hand": (0.0, 0.0, 0.1)}                       # a bone out to the fingertips
-viewer.add([robot_skeleton(model, poses, name="panda load", tau=tau, end_points=fingers)], tags="panda")
+recipe = SkeletonRecipe(limits=True, sides=True, joint_size={"panda_finger_joint2": 0.0})
+viewer.add(RobotVisual(model, q, name="limits", maximal=recipe), offset=(0.0, -1.0, 0.0))
+print(MAXIMAL.glyphs, MAXIMAL.hulls, recipe.limits)
 ```
+```output
+kind auto True
+```
+
+A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
+limit arcs; with the sphere overlay and the frames a robot is six nodes, and a step writes positions and rotations
+to each node on screen.
+
+### A skinned surface
+
+`Skin(vertices, faces, weights=, bind=)` is a surface that deforms with the joints: `vertices (V, 3)` in the world at
+the configuration `bind (nq,)` (`None` is `model.q_neutral`) and `weights (V, njoints)`. `RobotVisual(model, q,
+skin=skin)` shows it as the `"meshes"` style, skinned in the browser.
 
 ## Tools: a gizmo and numpy picking
 

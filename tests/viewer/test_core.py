@@ -11,7 +11,7 @@ import pytest
 from better_robot.viewer._lie import act, from_z, to_wxyz
 from better_robot.viewer.layer import Layer
 from better_robot.viewer._primitives import unit_cone, unit_cylinder, unit_sphere
-from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
+from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.layers.skinned import SkinnedMeshLayer
@@ -24,9 +24,9 @@ from better_robot.testing import FakeServer
 from better_robot.testing.fake_server import FakeClient
 
 
-def _skeleton(nsteps: int = 10, name: str = "skel") -> SkeletonLayer:
+def _skeleton(nsteps: int = 10, name: str = "skel") -> SpheresLayer:
     joints = np.random.default_rng(0).normal(size=(nsteps, 4, 3))
-    return SkeletonLayer(name, joints, parent_ids=[-1, 0, 1, 1])
+    return SpheresLayer(name, joints, radii=np.full(4, 0.05))
 
 
 def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block() -> None:
@@ -41,7 +41,7 @@ def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block()
     assert server.atomic_blocks == blocks + 1
     assert viewer.timeline.step == 3
     pushed = {node for node, event in server.scene.log if event != "add"}
-    assert pushed == {"/skel/skel/joints", "/skel/skel/bones", "/forces/f/shafts", "/forces/f/heads"}
+    assert pushed == {"/skel/skel/spheres", "/forces/f/shafts", "/forces/f/heads"}
     # The arrows layer has 5 frames: frame 7 clamps to its last frame and the static grid is never touched.
     server.scene.log.clear()
     viewer.timeline.step = 7
@@ -50,7 +50,7 @@ def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block()
     server.scene.log.clear()
     viewer.timeline.step = 8  # arrows already show their last frame: skipped
     assert not any(node.startswith("/forces") for node, _ in server.scene.log)
-    assert ("/skel/skel/joints", "batched_positions") in server.scene.log
+    assert ("/skel/skel/spheres", "batched_positions") in server.scene.log
     assert arrows.nsteps == 5 and viewer.timeline.nsteps == 10
 
 
@@ -63,13 +63,13 @@ def test_hidden_layers_are_skipped_and_catch_up_when_shown_again() -> None:
     checkbox = server.gui.control("skel")
     checkbox.value = False
     checkbox.fire()
-    assert server.scene.nodes["/skel/skel/joints"].visible is False
+    assert server.scene.nodes["/skel/skel/spheres"].visible is False
     server.scene.log.clear()
     viewer.timeline.step = 6
     assert not any(event != "add" for _, event in server.scene.log)
     viewer.set_visible(layer, True)
-    assert ("/skel/skel/joints", "batched_positions") in server.scene.log
-    np.testing.assert_array_equal(server.scene.nodes["/skel/skel/joints"].batched_positions, layer.joints[6])
+    assert ("/skel/skel/spheres", "batched_positions") in server.scene.log
+    np.testing.assert_array_equal(server.scene.nodes["/skel/skel/spheres"].batched_positions, layer.centers[6])
 
 
 def test_remove_a_tag_disposes_its_layers_and_the_tag_node() -> None:
@@ -80,8 +80,8 @@ def test_remove_a_tag_disposes_its_layers_and_the_tag_node() -> None:
     viewer.add([_skeleton(name="keep")])
     viewer.remove("ref")
     assert server.scene.nodes["/ref"].removed
-    assert server.scene.nodes["/ref/skel/joints"].removed and server.scene.nodes["/ref/pts/points"].removed
-    assert not server.scene.nodes["/keep/keep/joints"].removed
+    assert server.scene.nodes["/ref/skel/spheres"].removed and server.scene.nodes["/ref/pts/points"].removed
+    assert not server.scene.nodes["/keep/keep/spheres"].removed
     assert [layer.name for layer in viewer.layers] == ["keep"]
     with pytest.raises(ArgumentError, match="already has a layer"):
         viewer.add([_skeleton(name="keep")])
@@ -160,18 +160,8 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
     assert scene.nodes["/g/ground/grid"].props["position"] == (0.0, 0.0, 0.5)
 
 
-def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> None:
+def test_arrows_hide_zero_vectors() -> None:
     scene = FakeServer().scene
-    joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0], [1.0, 0.0, 2.0]]], dtype=np.float32)
-    skeleton = SkeletonLayer("s", joints, parent_ids=[-1, 0, 1], radius=0.1)
-    skeleton.build(scene, "/g/s")
-    bones = scene.nodes["/g/s/bones"]
-    np.testing.assert_allclose(bones.props["batched_positions"], [[0.0, 0.0, 1.0], [0.5, 0.0, 2.0]])
-    np.testing.assert_allclose(bones.props["batched_scales"], [[0.06, 0.06, 2.0], [0.06, 0.06, 1.0]], atol=1e-6)
-    np.testing.assert_allclose(bones.props["batched_wxyzs"][0], [1.0, 0.0, 0.0, 0.0])
-    half = np.sqrt(0.5)
-    np.testing.assert_allclose(bones.props["batched_wxyzs"][1], [half, 0.0, half, 0.0], atol=1e-6)
-
     arrows = ArrowsLayer(
         "a", np.zeros((1, 2, 3)), vectors=[[[0.0, 0.0, 1.0], [0.0, 0.0, 0.0]]], scale=2.0, head_size=0.1
     )
@@ -181,49 +171,6 @@ def test_skeleton_bones_join_parent_and_child_and_arrows_hide_zero_vectors() -> 
     np.testing.assert_allclose(heads.props["batched_positions"][0], [0.0, 0.0, 1.9])
     np.testing.assert_allclose(heads.props["batched_scales"][1], 0.0)
     np.testing.assert_allclose(scene.nodes["/g/a/shafts"].props["points"][0, 1], [0.0, 0.0, 2.0])
-
-
-def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
-    server = FakeServer()
-    viewer = Viewer(server=server)
-    joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 2.0]]] * 2, dtype=np.float32)
-    bones = np.array([0.0, 0.05, 0.0], dtype=np.float32)  # entry j: the bone into joint j; 0 hides it
-    radius = np.array([[0.1, 0.1, 0.1], [0.1, 0.2, 0.0]], dtype=np.float32)  # (T, J): sized per step
-    viewer.add([SkeletonLayer("s", joints, parent_ids=[-1, 0, 1], radius=radius, bone_radius=bones)])
-    viewer.add([SkeletonLayer("c", joints, parent_ids=[-1, 0, 1], radius=0.1, bone_radius=0.02)])
-    nodes = server.scene.nodes
-    viewer.show(0)
-    np.testing.assert_allclose(nodes["/s/s/bones"].batched_scales, [[0.05, 0.05, 1.0], [0.0, 0.0, 1.0]])
-    np.testing.assert_allclose(nodes["/c/c/bones"].batched_scales[:, :2], 0.02)
-    server.scene.log.clear()
-    viewer.show(1)
-    np.testing.assert_allclose(nodes["/s/s/joints"].batched_scales, [[0.1] * 3, [0.2] * 3, [0.0] * 3])
-    # A constant radius never rewrites the joint scales: per-step cost unchanged.
-    assert ("/c/c/joints", "batched_scales") not in server.scene.log
-    with pytest.raises(ShapeError, match="radius"):
-        SkeletonLayer("bad", joints, parent_ids=[-1, 0, 1], radius=np.ones((3, 3)))
-
-
-def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_whole() -> None:
-    server = FakeServer()
-    viewer = Viewer(server=server)
-    joints = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]]] * 2, dtype=np.float32)
-    thickness = np.array([[1.0, 1.0], [2.0, 3.0]], dtype=np.float32)  # (T, J): per step
-    viewer.add(
-        [
-            SkeletonLayer(
-                "s", joints, parent_ids=[-1, 0], kinds=["revolute", "spherical"], radius=0.1, thickness=thickness
-            )
-        ]
-    )
-    viewer.show(1)
-    nodes = server.scene.nodes
-    np.testing.assert_allclose(nodes["/s/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
-    np.testing.assert_allclose(nodes["/s/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
-    with pytest.raises(ShapeError, match="thickness"):
-        SkeletonLayer("bad", joints, parent_ids=[-1, 0], thickness=np.ones((3, 2)))
-    with pytest.raises(ShapeError, match="offsets"):
-        SkeletonLayer("bad", joints, parent_ids=[-1, 0], offsets=np.zeros(6))  # offsets are (joints, 3), never reshaped
 
 
 def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_and_invalid_vectors() -> None:
@@ -453,9 +400,9 @@ def test_replace_puts_the_new_layer_in_the_old_ones_place_and_visibility() -> No
     viewer.show(2)
     new = _skeleton(5, "body2")
     viewer.replace(old, new)
-    assert server.scene.nodes["/human/body"].removed and server.scene.nodes["/human/body/joints"].removed
+    assert server.scene.nodes["/human/body"].removed and server.scene.nodes["/human/body/spheres"].removed
     assert new.tags == ("human",) and [layer.name for layer in viewer.layers] == ["body2", "cloud"]
-    assert new.visible is False and server.scene.nodes["/human/body2/joints"].visible is False
+    assert new.visible is False and server.scene.nodes["/human/body2/spheres"].visible is False
     assert viewer.timeline.nsteps == 5  # fitted to the layers now present
     viewer.set_visible(new, True)
     assert viewer._entry(new).step == 2
@@ -495,9 +442,9 @@ def test_a_layer_that_fails_in_add_or_replace_leaves_the_viewer_as_it_was(fails_
     with pytest.raises(RuntimeError, match="broken"):
         viewer.replace(kept, _Broken("kept", fails_in=fails_in))
     assert viewer.layers == [kept] and viewer.timeline.nsteps == 4
-    assert not server.scene.nodes["/kept/kept/joints"].removed and viewer.tags == ["kept"]
+    assert not server.scene.nodes["/kept/kept/spheres"].removed and viewer.tags == ["kept"]
     viewer.show(2)
-    np.testing.assert_array_equal(server.scene.nodes["/kept/kept/joints"].batched_positions, kept.joints[2])
+    np.testing.assert_array_equal(server.scene.nodes["/kept/kept/spheres"].batched_positions, kept.centers[2])
 
 
 def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None:

@@ -78,7 +78,7 @@ _ROLE = {
 
 
 @final
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SkeletonRecipe:
     """How a robot's skeleton is drawn; ``MAXIMAL`` and ``MINIMAL`` are the two presets.
 

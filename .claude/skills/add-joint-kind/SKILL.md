@@ -21,8 +21,8 @@ A joint kind is a final frozen dataclass under the abstract `JointModel` (record
    `src/better_robot/io/builder.py` when the kind is common; the URDF or MJCF type that maps to it in
    `src/better_robot/io/parser_urdf.py` or `src/better_robot/io/parser_mjcf.py`; the kind in
    `_SUPPORTED_MIMIC_JOINTS` of `src/better_robot/io/model_from_ir.py` when it may be a mimic target.
-4. Viewer: its word in `_KIND_WORD` of `src/better_robot/viewer/robot.py` and its marker in `_MARKER` of
-   `src/better_robot/viewer/layers/skeleton.py`; without them the skeleton draws it as a sphere.
+4. Viewer: its glyph in `_GLYPHS` of `src/better_robot/viewer/skeleton.py`; without it the skeleton draws the
+   joint as a small ball.
 5. Tests: the kind in `KINDS` of `tests/model/test_joints.py` (runs `check_joint_model` in float32 and float64),
    in the per-kind cases of `tests/contract/test_coupling_standard.py` and `tests/io/test_build_model.py`, in
    `tests/io/test_builder_kinds.py` for a builder method, and a Pinocchio parity test under `tests/parity/pinocchio/`

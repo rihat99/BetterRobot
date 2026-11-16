@@ -2,7 +2,7 @@
 
 A shape record carries its own placement and colour; ``AttachedShape`` fixes it to a body of the model and says
 whether it is collision geometry; ``Geometry`` is the tuple of those. ``io.build_geometry`` and ``io.load_geometry``
-build one, ``viewer.robot_meshes`` reads one. Nothing here holds a tensor: a placement is a plain 7-tuple, so every
+build one, ``viewer.RobotVisual`` draws one. Nothing here holds a tensor: a placement is a plain 7-tuple, so every
 record is a hashable value and a consumer packs the tensors it needs.
 """
 

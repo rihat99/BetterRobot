@@ -29,6 +29,17 @@ that 0.3.0 renames or removes, one table row each.
   casts shadows and a fill light.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications.
+- `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, maximal, hue, collision,
+  frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws the style
+  `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"` or `"maximal"` (skeletons), with a
+  collision overlay (the sphere set, else the collision shapes) and frame triads. Each part is built the first time
+  it is shown; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
+  viewer runs, and `update(q)` shows new configurations. Every robot takes the theme's next hue.
+- `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, bones, body hulls and end
+  blocks; glyphs that share a point slide apart along their own axes, then shrink) and `viewer.MINIMAL` (one ball
+  per cluster of close joints, sticks between): `glyphs`, `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`,
+  `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is three batched nodes.
+- `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 
 ### Changed
 - `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
@@ -52,6 +63,11 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme.robot` and `Theme.human`: use `Theme.hue(index)`.
 - `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` and `Theme.control_width`: no
   replacement; no layer read the colours, an application passes its own, and the sidebar keeps viser's medium width.
+- `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer`: use `viewer.RobotVisual`, which draws
+  the meshes and both skeletons of a model and runs the forward kinematics itself. Colouring joints by torque
+  (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
+- `Theme.joint`, `Theme.link`, `Theme.torque_ramp` and `Theme.over_limit`: use `Theme.hue` and `Theme.shade`; a
+  skeleton takes its robot's hue and the shades of it.
 
 ## v0.3.0 (2026-11-10)
 

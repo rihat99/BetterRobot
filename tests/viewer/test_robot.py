@@ -10,16 +10,16 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.lie.se3 import compose, from_translation
+from better_robot.lie.se3 import from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer import _lie
-from better_robot.viewer.layers.frames import FramesLayer
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
-from better_robot.viewer.robot import RobotVisual, robot_meshes, robot_skeleton, spread_offsets
+from better_robot.viewer.robot import RobotVisual, Skin
+from better_robot.viewer.theme import Theme, rgb_uint8
 from better_robot.viewer.viewer import Viewer
 
 from better_robot import collision
-from better_robot.exceptions import ArgumentError, ShapeError
+from better_robot.exceptions import ArgumentError, ShapeError, UnknownNameError
 from better_robot.testing import FakeServer
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -57,431 +57,32 @@ def test_rigid_mesh_layer_moves_each_mesh_with_its_body() -> None:
     assert scene.nodes["/r/s/spheres"].props["batched_scales"].shape == (4,)
 
 
-def test_panda_layers_follow_forward_kinematics() -> None:
-    """The tracked Panda ships its collision meshes only, so the mesh layer draws those."""
+def test_panda_visual_follows_forward_kinematics() -> None:
+    """The tracked Panda ships its collision meshes only, so the overlay draws those, one node per shape."""
     model = br.load(panda_urdf())
     geometry = br.io.load_geometry(panda_urdf(), model)
     q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(5)])
-    tau = torch.randn(5, model.nv, generator=torch.Generator().manual_seed(5))
     state = br.forward_kinematics(model, q)
-    joint_poses = state.joint_poses.numpy().astype(np.float32)
-    meshes = robot_meshes(geometry, root=panda_urdf().parent, collision=True)
-    assert len(meshes) == 17  # nine STL meshes and eight finger boxes
-    hand_frame = model.frame_id("panda_hand")
-    layers = {
-        "robot collision": RigidMeshLayer("robot collision", meshes, body_poses=joint_poses, opacity=0.4),
-        "robot skeleton": robot_skeleton(model, joint_poses, name="robot skeleton", tau=tau),
-        "robot frames": FramesLayer("robot frames", state.frame_poses[:, [hand_frame]].numpy()),
-    }
-    hand = state.frame_poses[:, hand_frame].numpy()
-    np.testing.assert_allclose(layers["robot frames"].poses[:, 0], hand, atol=1e-6)
-    skeleton = layers["robot skeleton"]
-    np.testing.assert_allclose(skeleton.joints, state.joint_poses[:, 1:, :3].numpy(), atol=1e-6)
-    assert skeleton.parent_ids[0] == -1 and list(skeleton.parent_ids[1:]) == [p - 1 for p in model.parent_joint_ids[2:]]
-    assert skeleton.colors.shape == (5, model.njoints - 1, 3)
-
     server = FakeServer()
-    viewer = Viewer(server=server)
-    for layer in layers.values():
-        viewer.add([layer], tags="panda")
+    viewer = Viewer(server=server, ground=False)
+    robot = viewer.add(
+        RobotVisual(
+            model, q, geometry=geometry, root=panda_urdf(), style="maximal", collision=True, frames=["panda_hand"]
+        )
+    )
     viewer.show(4)
-    meshes = layers["robot collision"].meshes
-    hand_mesh = next(i for i, spec in enumerate(meshes) if spec.body == model.body_id("panda_hand"))
-    node = server.scene.nodes[f"/panda/robot collision/mesh_{hand_mesh}"]
-    expected = _lie.compose(state.joint_poses[4, model.body_id("panda_hand")].numpy(), meshes[hand_mesh].origin)
-    np.testing.assert_allclose(node.position, expected[:3], atol=1e-5)
-
-
-def test_in_place_pose_edits_reach_the_scene_on_show() -> None:
-    model = br.load(panda_urdf())
-    q0, q1 = (model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2))
-    poses_0, poses_1 = (br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32) for q in (q0, q1))
-    skeleton = robot_skeleton(model, poses_0, name="robot skeleton")
-    server = FakeServer()
-    viewer = Viewer(server=server)
-    viewer.add([skeleton])
-    node = "/robot skeleton/robot skeleton/joints_cylinder"  # Panda's revolute joints
-    before = server.scene.nodes[node].batched_positions.copy()
-    skeleton.joints[:] = poses_1[:, 1:, :3]
-    skeleton.rotations[:] = poses_1[:, 1:, 3:]
-    viewer.show()
-    after = server.scene.nodes[node].batched_positions
-    assert not np.allclose(before, after)
-    fresh_server = FakeServer()
-    Viewer(server=fresh_server).add([robot_skeleton(model, poses_1, name="robot skeleton")])
-    np.testing.assert_allclose(after, fresh_server.scene.nodes[node].batched_positions, atol=1e-6)
-
-
-def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
-    """Revolute joints become cylinders along their axis, fixed joints draw nothing, free-flyers get a triad."""
-    from better_robot.viewer import SkeletonLayer  # noqa: PLC0415
-
-    poses = np.zeros((1, 3, 7), dtype=np.float32)
-    poses[..., 6] = 1.0
-    layer = SkeletonLayer(
-        "s",
-        poses,
-        parent_ids=[-1, 0, 1],
-        kinds=["free_flyer", "revolute", "fixed"],
-        axes=[[0, 0, 1], [1, 0, 0], [0, 0, 1]],
-    )
-    server = FakeServer()
-    Viewer(server=server).add([layer])
-    assert {"/s/s/joints_axes", "/s/s/joints_cylinder"} <= set(server.scene.nodes)
-    assert "/s/s/joints" not in server.scene.nodes
-    wxyz = server.scene.nodes["/s/s/joints_cylinder"].batched_wxyzs[0]
-    np.testing.assert_allclose(np.abs(wxyz), [np.sqrt(0.5), 0.0, np.sqrt(0.5), 0.0], atol=1e-6)  # +z -> +x
-    np.testing.assert_allclose(layer.world_points(0), layer.joints[0])
-
-
-def _every_axis_kind_model(translation: float = 1.0) -> br.Model:
-    """A chain over rx, ry, rz, px, py, pz, an oblique revolute and prismatic, and a spherical joint (no axis),
-    every joint placement rotated (its translation drawn from N(0, ``translation``^2) per coordinate)."""
-    builder = br.ModelBuilder("axes")
-    parent = builder.add_body("base")
-    x, y, z = {"axis": (1.0, 0.0, 0.0)}, {"axis": (0.0, 1.0, 0.0)}, {"axis": (0.0, 0.0, 1.0)}
-    oblique = {"axis": torch.tensor([1.0, 2.0, 2.0]) / 3.0}
-    joints = [
-        ("add_revolute", x), ("add_revolute", y), ("add_revolute", z), ("add_revolute", oblique),
-        ("add_prismatic", x), ("add_prismatic", y), ("add_prismatic", z), ("add_prismatic", oblique),
-    ]  # fmt: skip
-    for index, (method, kwargs) in enumerate(joints):
-        child = builder.add_body(f"link{index}", mass=1.0)
-        origin = torch.from_numpy(_random_poses((), seed=index) * np.float32([translation] * 3 + [1.0] * 4))
-        getattr(builder, method)(f"joint{index}", parent=parent, child=child, origin=origin, **kwargs)
-        parent = child
-    builder.add_spherical("ball", parent=parent, child=builder.add_body("tip", mass=1.0))
-    return br.io.build_model(builder.finalize(), dtype=torch.float64)
-
-
-@pytest.mark.parametrize("robot", ["every_axis_kind", "g1"])
-def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -> None:
-    """Each revolute cylinder and prismatic box the skeleton sends lies along its joint's world axis, measured by
-    differentiating forward kinematics in that joint's coordinate (G1: rx / ry joints were drawn along z)."""
-    from better_robot.lie.se3 import inverse  # noqa: PLC0415
-    from better_robot.viewer import robot_skeleton  # noqa: PLC0415
-    from better_robot.viewer.robot import skeleton_spec  # noqa: PLC0415
-
-    if robot == "g1":
-        model = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
-    else:
-        model = _every_axis_kind_model()
-        kinds, axes = skeleton_spec(model)
-        np.testing.assert_array_equal(axes[kinds.index("spherical")], [0.0, 0.0, 1.0])  # no axis: +z
-    tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=torch.float64)
-    q = br.kinematics.integrate(model, model.q_neutral, tangent)
-    joint_poses = br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32)
-    layer = robot_skeleton(model, joint_poses)
-    server = FakeServer()
-    Viewer(server=server).add([layer])
-
-    checked = 0
-    for marker in ("cylinder", "box"):
-        if marker not in layer.groups:
-            continue
-        w, x, y, z = np.asarray(server.scene.nodes[f"/skeleton/skeleton/joints_{marker}"].batched_wxyzs, np.float64).T
-        drawn = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
-        for entry, joint in enumerate(layer.groups[marker] + 1):
-            step = torch.zeros(model.nv, dtype=torch.float64)
-            step[model.idx_vs[joint]] = 1e-6
-            plus = br.forward_kinematics(model, br.kinematics.integrate(model, q, step)).joint_poses[joint]
-            minus = br.forward_kinematics(model, br.kinematics.integrate(model, q, -step)).joint_poses[joint]
-            change = compose(plus, inverse(minus)).numpy()  # world-frame increment: [translation, quaternion xyzw]
-            true = change[3:6] if marker == "cylinder" else change[:3]
-            true /= np.linalg.norm(true)
-            angle = np.arctan2(np.linalg.norm(np.cross(drawn[entry], true)), drawn[entry] @ true)  # arccos: noisy at 0
-            assert angle < 1e-4, f"{model.joint_names[joint]}: drawn {drawn[entry]}, FK axis {true}"
-            checked += 1
-    assert checked == (8 if robot == "every_axis_kind" else 29)
-
-
-def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
-    from better_robot.viewer import robot_skeleton  # noqa: PLC0415
-
-    model = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer())
-    poses = _random_poses((2, model.njoints))
-    massless = (model.body_inertias[1:, 0] == 0).numpy()  # the G1's IMU / camera mounts
-    assert massless.any()
-    layer = robot_skeleton(model, poses, bone_radius=np.where(massless, 0.0, 0.01))
-    server = FakeServer()
-    Viewer(server=server).add([layer])
-    child = layer.parent_ids >= 0
-    scales = server.scene.nodes["/skeleton/skeleton/bones"].props["batched_scales"].reshape(child.sum(), -1, 3)
-    drawn = scales[..., 2] > 1e-6  # the legs a bone uses
-    np.testing.assert_allclose(scales[..., 0], np.where(drawn, np.where(massless, 0.0, 0.01)[child, None], 0.0))
-    corners = server.scene.nodes["/skeleton/skeleton/bone_corners"].props["batched_scales"].reshape(child.sum(), -1)
-    assert not corners[massless[child]].any()  # a hidden bone hides its corners too
-    assert robot_skeleton(model, poses).bone_radius == pytest.approx(0.008)
-
-
-def _g1() -> br.Model:
-    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
-
-
-def _drawn_markers(layer, server: FakeServer, marker: str) -> tuple[np.ndarray, np.ndarray]:  # noqa: ANN001
-    """Centres ``(N, 3)`` and unit axes ``(N, 3)`` of the ``marker`` instances the skeleton sent."""
-    node = server.scene.nodes[f"/{layer.name}/{layer.name}/joints_{marker}"]
-    w, x, y, z = np.asarray(node.batched_wxyzs, np.float64).T
-    axes = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
-    return np.asarray(node.batched_positions, np.float64), axes
-
-
-def _drawn_skeleton(model: br.Model, q: torch.Tensor, radius: float = 0.025, tau: np.ndarray | None = None) -> tuple:
-    """The skeleton of ``model`` at ``q (nq,)`` sent to a fake server: poses, layer, server, cylinder centres, axes."""
-    from better_robot.viewer import robot_skeleton  # noqa: PLC0415
-
-    poses = br.forward_kinematics(model, q[None]).joint_poses.numpy().astype(np.float32)
-    layer = robot_skeleton(model, poses, radius=radius, tau=tau)
-    server = FakeServer()
-    Viewer(server=server).add([layer])
-    return (poses, layer, server, *_drawn_markers(layer, server, "cylinder"))
-
-
-def test_spread_layout_slides_co_located_markers_along_their_own_axes() -> None:
-    """G1: the drawn cylinder of a co-located joint stays on the joint's axis line, at the neutral and a random pose."""
-
-    model = _g1()
-    offsets = spread_offsets(model, radius=0.02)
-    assert np.count_nonzero(np.linalg.norm(offsets, axis=-1)) >= 6  # waist, shoulders, wrists, ankles slide
-    tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
-    for q in (model.q_neutral, br.kinematics.integrate(model, model.q_neutral, tangent)):
-        poses, layer, _, centres, axes = _drawn_skeleton(model, q)
-        origins = poses[0, 1:, :3][layer.groups["cylinder"]]
-        off_axis = np.linalg.norm(np.cross(centres - origins, axes), axis=-1)
-        assert off_axis.max() < 1e-5  # the marker slid along its own axis only
-
-
-def test_spread_layout_draws_no_two_g1_cylinders_overlapping() -> None:
-    """G1 at the neutral pose with plain markers (the thickness the layout reserves): samples of each drawn
-    cylinder's volume lie in no other cylinder, no drawn bone leg has zero length, and the waist yaw is drawn off
-    the root."""
-    model = _g1()
-    radius = 0.025
-    poses, layer, server, centres, axes = _drawn_skeleton(model, model.q_neutral, radius)
-    scales = np.asarray(server.scene.nodes["/skeleton/skeleton/joints_cylinder"].props["batched_scales"], np.float64)
-    rho, half = scales[:, 0], scales[:, 2] / 2  # (N,) each drawn cylinder's radius and half-length
-    np.testing.assert_allclose(rho, radius, rtol=1e-6)
-    side = np.cross(axes, [[0.0, 0.0, 1.0]])
-    side[np.linalg.norm(side, axis=-1) < 1e-6] = (1.0, 0.0, 0.0)
-    side /= np.linalg.norm(side, axis=-1, keepdims=True)
-    other = np.cross(axes, side)
-    grid = np.stack(
-        np.meshgrid(
-            np.linspace(0, 1, 5), np.linspace(0, 2 * np.pi, 16, endpoint=False), np.linspace(-1, 1, 9), indexing="ij"
-        ),
-        -1,
-    ).reshape(-1, 3)
-    for i in range(len(centres)):
-        across_i, along_i = grid[:, :1] * rho[i], grid[:, 2:] * half[i]
-        samples = (
-            centres[i]
-            + across_i * np.cos(grid[:, 1:2]) * side[i]
-            + across_i * np.sin(grid[:, 1:2]) * other[i]
-            + along_i * axes[i]
-        )
-        for j in range(len(centres)):
-            if i == j:
-                continue
-            along = (samples - centres[j]) @ axes[j]
-            across = np.linalg.norm(samples - centres[j] - along[:, None] * axes[j], axis=-1)
-            inside = (np.abs(along) < half[j] - 1e-4) & (across < rho[j] - 1e-4)
-            names = [model.joint_names[k + 1] for k in layer.groups["cylinder"][[i, j]]]
-            assert not inside.any(), f"{names[0]} overlaps {names[1]}"
-
-    drawn = np.zeros((model.njoints - 1, 3))
-    drawn[layer.groups["cylinder"]] = centres
-    scales = np.asarray(server.scene.nodes["/skeleton/skeleton/bones"].batched_scales)
-    assert ((scales[:, 2] > 1e-6) | (scales[:, 0] == 0.0)).all()  # a zero-length leg is hidden
-    root, waist = (model.joint_names.index(name) - 1 for name in ("root_joint", "waist_yaw_joint"))
-    assert np.linalg.norm(drawn[waist] - poses[0, root + 1, :3]) > radius  # the waist yaw leaves the root
-
-
-@pytest.mark.parametrize("robot", ["tilted", "g1"])
-def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot: str) -> None:
-    """At a random pose each bone's legs, seen in its parent joint's frame, lie along one axis each (up to the parts
-    under 1 cm folded into the longest), turn at right angles, start on the parent's drawn centre and sum to the
-    drawn centre difference; bones without an axis marker at either end, and bones over 15 cm from a joint with one
-    child (the G1 thighs), stay straight. "tilted": every joint frame rotated, links of a few cm."""
-    from better_robot.viewer.layers.skeleton import marker_of  # noqa: PLC0415
-    from better_robot.viewer.robot import skeleton_spec  # noqa: PLC0415
-
-    model = _g1() if robot == "g1" else _every_axis_kind_model(translation=0.05)
-    tangent = torch.randn(model.nv, generator=torch.Generator().manual_seed(2), dtype=torch.float64)
-    poses, layer, server, *_ = _drawn_skeleton(model, br.kinematics.integrate(model, model.q_neutral, tangent))
-    child = np.nonzero(layer.parent_ids >= 0)[0]
-    parent = layer.parent_ids[child]
-    rotations = poses[0, 1:, 3:].astype(np.float64)
-    centres = poses[0, 1:, :3] + _lie.act(rotations, layer.offsets.astype(np.float64))
-    node = server.scene.nodes["/skeleton/skeleton/bones"]
-    w, x, y, z = np.asarray(node.batched_wxyzs, np.float64).T
-    direction = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
-    direction = direction.reshape(len(child), -1, 3)  # (B, L, 3) world, the cylinder's axis either way round
-    ends = [centres[parent]]
-    for middle in np.asarray(node.batched_positions, np.float64).reshape(direction.shape).transpose(1, 0, 2):
-        ends.append(2 * middle - ends[-1])  # each leg starts where the previous one ends
-    legs = np.diff(np.stack(ends, axis=1), axis=1)  # (B, L, 3) world
-    lengths = np.asarray(node.batched_scales, np.float64)[:, 2].reshape(direction.shape[:2])
-    np.testing.assert_allclose(np.linalg.norm(legs, axis=-1), lengths, atol=1e-5)
-    np.testing.assert_allclose(np.cross(legs, direction), 0.0, atol=1e-5)
-    np.testing.assert_allclose(legs.sum(1), centres[child] - centres[parent], atol=1e-5)
-
-    local = np.abs(_lie.act(_lie.inverse(rotations[parent, None]), legs))  # (B, L, 3) parent frame
-    drawn, dominant = local.max(-1) > 1e-6, local.argmax(-1)
-    folded = np.where(np.arange(3) == dominant[..., None], 0.0, local)  # (B, L, 3) the parts off the leg's axis
-    axial = np.array([marker_of(kind) in ("cylinder", "box") for kind in skeleton_spec(model)[0]])
-    length = np.linalg.norm(centres[child] - centres[parent], axis=-1)
-    one_child = np.bincount(parent, minlength=len(layer.parent_ids))[parent] == 1
-    straight = ~(axial[parent] | axial[child]) | ((length > 0.15) & one_child)
-    assert (drawn[straight].sum(1) <= 1).all()
-    assert (folded[~straight] < 0.01).all()
-    turn = drawn[:, 1:] & drawn[:, :-1]
-    assert (dominant[:, 1:] != dominant[:, :-1])[turn].all()
-    assert (drawn[~straight].sum(1) >= 2).sum() >= (20 if robot == "g1" else 4)
-    if robot == "g1":
-        thighs = np.isin(child, [model.joint_names.index(f"{side}_knee_joint") - 1 for side in ("left", "right")])
-        assert straight[thighs].all() and (folded[thighs].max(axis=(1, 2)) > 0.05).all()  # 7.8 cm off the yaw axis
-
-
-def test_spread_layout_draws_left_and_right_joints_as_mirror_images() -> None:
-
-    model = _g1()
-    offsets = spread_offsets(model, radius=0.02)
-    _, layer, _, centres, _ = _drawn_skeleton(model, model.q_neutral)
-    drawn = np.zeros((model.njoints - 1, 3))
-    drawn[layer.groups["cylinder"]] = centres
-    mirror = np.array([1.0, -1.0, 1.0])
-    for name in (name for name in model.joint_names if name.startswith("left_")):
-        k_left, k_right = (model.joint_names.index(n) - 1 for n in (name, name.replace("left_", "right_")))
-        if k_left in layer.groups["cylinder"]:
-            # The URDF's own left / right placements differ by up to 1e-5 m.
-            np.testing.assert_allclose(drawn[k_right], drawn[k_left] * mirror, atol=1e-4, err_msg=name)
-            np.testing.assert_allclose(np.linalg.norm(offsets[k_right]), np.linalg.norm(offsets[k_left]), atol=1e-7)
-
-
-def test_spread_layout_slides_joints_with_mirrored_axis_signs_as_mirror_images() -> None:
-    """Pitch joints at (0, +-0.1, -0.1), each with a co-located roll whose axis is +x on the left and -x on the right:
-    the rolls tie (their origins lie in the root's plane normal to x) and both slide to +x, as mirror images."""
-
-    builder = br.ModelBuilder("mirror")
-    for name in ("pelvis", "left_upper", "left_lower", "right_upper", "right_lower"):
-        builder.add_body(name, mass=1.0)
-    for side, sign in (("left", 1.0), ("right", -1.0)):
-        origin = torch.tensor([0.0, 0.1 * sign, -0.1, 0.0, 0.0, 0.0, 1.0])
-        builder.add_revolute(
-            f"{side}_pitch",
-            axis=(0.0, 1.0, 0.0),
-            parent="pelvis",
-            child=f"{side}_upper",
-            origin=origin,
-            effort_limit=10.0,
-        )
-        builder.add_revolute(
-            f"{side}_roll",
-            parent=f"{side}_upper",
-            child=f"{side}_lower",
-            axis=torch.tensor([sign, 0.0, 0.0]),
-            effort_limit=10.0,
-        )
-    model = br.io.build_model(builder.finalize(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
-    poses = br.forward_kinematics(model, model.q_neutral).joint_poses[1:].numpy()
-    drawn = dict(zip(model.joint_names[1:], poses[:, :3] + _lie.act(poses[:, 3:], spread_offsets(model))))
-    assert drawn["left_roll"][0] > 0.02  # slid off its pitch joint, to +x
-    np.testing.assert_allclose(drawn["right_roll"], drawn["left_roll"] * [1.0, -1.0, 1.0], atol=1e-6)
-
-
-def test_robot_skeleton_shows_the_joint_load_in_colour_and_thickness_at_a_fixed_instance_count() -> None:
-    from better_robot.viewer import LIGHT, robot_skeleton  # noqa: PLC0415
-    from better_robot.viewer.theme import colormap, rgb_uint8  # noqa: PLC0415
-
-    model = _g1()
-    limits = model.effort_limit.numpy()
-    half, over, idle = 3, 4, 5  # revolute joints (layer entries 2, 3, 4)
-    tau = np.zeros((2, model.nv))
-    tau[:, :6] = 1e6  # free-flyer "torques": no effort limit, plain look
-    tau[:, model.idx_vs[half]] = 0.5 * limits[model.idx_vs[half]]
-    tau[1, model.idx_vs[over]] = -2.0 * limits[model.idx_vs[over]]
-    poses = _random_poses((2, model.njoints))
-    entries = [half - 1, idle - 1, over - 1]
-
-    layer = robot_skeleton(model, poses, tau=tau)
-    middle = colormap(0.5, *LIGHT.torque_ramp)
-    expected = rgb_uint8(np.stack([middle, LIGHT.torque_ramp[0], LIGHT.torque_ramp[0]]))
-    np.testing.assert_array_equal(layer.colors[0, entries], expected)
-    np.testing.assert_array_equal(layer.colors[1, over - 1], rgb_uint8(LIGHT.over_limit))
-    np.testing.assert_array_equal(layer.colors[:, 0], rgb_uint8(np.tile(LIGHT.joint, (2, 1))))  # the free flyer
-    np.testing.assert_allclose(layer.thickness[0, entries], [1.15, 0.8, 0.8])
-    np.testing.assert_allclose(layer.thickness[1, over - 1], 1.5)  # past the limit: the maximum
-    np.testing.assert_allclose(layer.thickness[:, 0], 1.0)
-    with pytest.raises(ShapeError, match="frames"):
-        robot_skeleton(model, poses, tau=np.zeros((3, model.nv)))
-
-    # Per step only transforms, scales and colours change: the instance count of every node is fixed.
-    server = FakeServer()
-    viewer = Viewer(server=server)
-    viewer.add([layer])
-    counts = {
-        path: len(node.batched_positions)
-        for path, node in server.scene.nodes.items()
-        if path.startswith("/skeleton/skeleton/")
-    }
-    assert {"/skeleton/skeleton/bones", "/skeleton/skeleton/bone_corners"} <= set(counts)
-    viewer.show(1)
-    assert counts == {
-        path: len(node.batched_positions)
-        for path, node in server.scene.nodes.items()
-        if path.startswith("/skeleton/skeleton/")
-    }
-    cylinders = server.scene.nodes["/skeleton/skeleton/joints_cylinder"].batched_scales
-    index = list(layer.groups["cylinder"]).index(over - 1)
-    np.testing.assert_allclose(cylinders[index], np.array([1.0, 1.0, 2.4]) * 0.025 * [1.5, 1.5, 1.0], rtol=1e-6)
-
-
-def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point() -> None:
-    """An end point (a frame and a point in it) draws a bone from the drawn marker of the frame's parent joint to the
-    point, as thick as the bone into that joint, with no marker and no load of its own."""
-    from better_robot.lie.se3 import act  # noqa: PLC0415
-    from better_robot.viewer import LIGHT, robot_skeleton  # noqa: PLC0415
-    from better_robot.viewer.theme import rgb_uint8  # noqa: PLC0415
-
-    builder = br.ModelBuilder("arm")
-    base, upper, hand = (builder.add_body(name, mass=1.0) for name in ("base", "upper", "hand"))
-    origin = torch.from_numpy(_random_poses((), seed=1))
-    builder.add_revolute("shoulder", axis=(0.0, 1.0, 0.0), parent=base, child=upper, effort_limit=10.0)
-    builder.add_revolute("wrist", axis=(1.0, 0.0, 0.0), parent=upper, child=hand, origin=origin, effort_limit=10.0)
-    builder.add_frame("palm", parent=hand, placement=torch.from_numpy(_random_poses((), seed=2)))
-    model = br.io.build_model(builder.finalize(), dtype=torch.float64)
-    q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(2)])
-    state = br.forward_kinematics(model, q)
-    point = torch.tensor([0.05, -0.02, 0.1], dtype=torch.float64)
-    tau = np.full((2, model.nv), 20.0)  # past the limits
-    radii = np.arange(1, model.njoints) * 0.002  # entry j: the bone into joint j + 1
-
-    layer = robot_skeleton(
-        model,
-        state.joint_poses.numpy().astype(np.float32),
-        tau=tau,
-        bone_radius=radii,
-        end_points={"palm": point.tolist()},
-    )
-    wrist = model.joint_names.index("wrist") - 1
-    assert layer.parent_ids[-1] == wrist and len(layer.parent_ids) == model.njoints
-    expected = act(state.frame_poses[:, model.frame_id("palm")], point).numpy()  # (2, 3)
-    np.testing.assert_allclose(layer.joints[:, -1], expected, atol=1e-5)
-    np.testing.assert_array_equal(layer.colors[:, -1], rgb_uint8(np.tile(LIGHT.joint, (2, 1))))
-    np.testing.assert_allclose(layer.thickness[:, -1], 1.0)
-
-    server = FakeServer()
-    viewer = Viewer(server=server)
-    viewer.add([layer])
-    for step in range(2):
-        viewer.show(step)
-        cylinders = server.scene.nodes["/skeleton/skeleton/joints_cylinder"]
-        assert len(cylinders.batched_positions) == 2  # the end point has no marker
-        start = cylinders.batched_positions[list(layer.groups["cylinder"]).index(wrist)]
-        bones = server.scene.nodes["/skeleton/skeleton/bones"]
-        np.testing.assert_allclose(bones.batched_positions[-1], (start + expected[step]) / 2, atol=1e-5)
-        length = np.linalg.norm(expected[step] - start)
-        np.testing.assert_allclose(bones.batched_scales[-1], [radii[wrist], radii[wrist], length], rtol=1e-5)
+    nodes = server.scene.nodes
+    shapes = [attached for attached in geometry.shapes if attached.collision]
+    assert len(shapes) == 17  # nine STL meshes and eight finger boxes
+    assert sum(name.startswith("/panda/panda/collision/mesh_") for name in nodes) == 17
+    hand = model.body_id("panda_hand")
+    index = next(i for i, attached in enumerate(shapes) if attached.body == hand)
+    origin = np.asarray(shapes[index].shape.placement, dtype=np.float32)
+    expected = _lie.compose(state.joint_poses[4, hand].numpy().astype(np.float32), origin)
+    np.testing.assert_allclose(nodes[f"/panda/panda/collision/mesh_{index}"].position, expected[:3], atol=1e-5)
+    frame = state.frame_poses[4, model.frame_id("panda_hand")].numpy()
+    np.testing.assert_allclose(nodes["/panda/panda/frames/axes"].batched_positions[0], frame[:3], atol=1e-5)
+    assert robot.nsteps == 5 and robot.q.shape == (5, model.nq)
 
 
 @final
@@ -507,17 +108,19 @@ class _JointDrop(JointModel):
         return lower + (upper - lower) * torch.rand(1, generator=generator)
 
 
-def test_robot_skeleton_draws_a_joint_kind_from_outside_the_library_as_a_sphere() -> None:
-    """C-EXT-2: a kind outside the built-ins takes the generic path, a sphere (it raised a raw KeyError)."""
+def test_robot_visual_draws_a_joint_kind_from_outside_the_library_as_a_ball() -> None:
+    """C-EXT-2: a kind outside the built-ins takes the generic path, a marker ball, in both skeleton styles."""
     builder = br.ModelBuilder("drop")
     builder.add_body("base")
     builder.add_body("tip")
     builder.add_joint("drop", kind=_JointDrop(), parent="base", child="tip", lower=0.0, upper=0.5)
     model = br.io.build_model(builder.finalize())
-    poses = br.forward_kinematics(model, torch.tensor([[0.1], [0.2]])).joint_poses.numpy()
-    layer = robot_skeleton(model, poses)
-    Viewer(server=FakeServer()).add([layer])
-    assert list(layer.groups) == ["sphere"]
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(RobotVisual(model, torch.tensor([[0.1], [0.2]])))
+    assert robot.style == "maximal"
+    assert len(server.scene.nodes["/drop/drop/maximal/balls"].props["batched_positions"]) == 1
+    robot.set_style("minimal")
+    assert "/drop/drop/minimal/balls" in server.scene.nodes
 
 
 # ---------------------------------------------------------------------------------------------- the robot visual
@@ -617,3 +220,86 @@ def test_robot_visuals_take_one_hue_each_and_share_the_sidebar_controls() -> Non
     styles[0].value = "minimal"
     styles[0].fire(None)
     assert first.style == second.style == "minimal"
+
+
+def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:
+    model = br.load(panda_urdf())
+    generator = torch.Generator().manual_seed(0)
+    bind, q = (model.random_configuration(generator=generator) for _ in range(2))
+    poses = br.forward_kinematics(model, torch.stack([bind, q])).joint_poses.numpy()
+    hand = model.body_id("panda_hand")
+    vertices = poses[0, hand, :3] + 0.05 * np.eye(3, dtype=np.float32)  # a triangle that rides on the hand
+    weights = np.zeros((3, model.njoints), dtype=np.float32)
+    weights[:, hand] = 1.0
+    skin = Skin(vertices, np.array([[0, 1, 2]]), weights=weights, bind=bind.numpy())
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(RobotVisual(model, q, skin=skin))
+    assert robot.style == "meshes" and robot.styles == ("meshes", "minimal", "maximal")
+    mesh = server.scene.nodes["/panda/panda/meshes/mesh"]
+    np.testing.assert_allclose(mesh.props["bone_positions"], poses[0, :, :3], atol=1e-6)
+    np.testing.assert_allclose(mesh.bones[hand].position, poses[1, hand, :3], atol=1e-6)
+
+
+def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> None:
+    model = br.load(panda_urdf())
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(RobotVisual(model, frames=True))
+    axes = "/panda/panda/frames/axes"
+    assert len(server.scene.nodes[axes].props["batched_positions"]) == 9  # seven arm joints and two fingers
+    robot.set_frames(["panda_hand", "panda_link3"])
+    assert len(server.scene.nodes[axes].props["batched_positions"]) == 2 and not server.scene.nodes[axes].removed
+    robot.set_frames(False)
+    assert not server.scene.nodes["/panda/panda/frames"].visible and not server.scene.nodes[axes].removed
+    robot.set_frames(["panda_hand", "panda_link3"])  # the same set again: shown, not rebuilt
+    assert server.scene.nodes["/panda/panda/frames"].visible and not server.scene.nodes[axes].removed
+    with pytest.raises(UnknownNameError, match="panda_nose"):
+        robot.set_frames(["panda_nose"])
+
+
+def test_robot_visual_bounds_hold_the_joints_of_the_step() -> None:
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    q = model.q_neutral.repeat(2, 1)
+    q[1, :3] = torch.tensor([3.0, -2.0, 1.0])
+    robot = RobotVisual(model, q)
+    joints = br.forward_kinematics(model, q).joint_poses[:, 1:, :3].numpy()
+    for step in range(2):
+        low, high = robot.bounds(step)
+        assert (low <= joints[step].min(axis=0)).all() and (joints[step].max(axis=0) <= high).all()
+        assert ((high - low) - np.ptp(joints[step], axis=0) < 0.2).all()  # a pad of two glyph radii, not a guess
+
+
+def test_robot_visual_leaves_nothing_behind_when_removed_and_builds_again_when_added() -> None:
+    robot, server, viewer = _g1_visual(collision=True, frames=True)
+    robot.set_style("minimal")
+    built = [name for name in server.scene.nodes if name.startswith("/g1_29dof")]
+    viewer.remove(robot)
+    assert all(server.scene.nodes[name].removed for name in built)
+    viewer.add(robot)
+    live = sorted(name for name, node in _drawn(server).items() if not node.removed)  # type: ignore[attr-defined]
+    assert robot.style == "minimal" and live == [
+        f"/g1_29dof/g1_29dof/{node}"
+        for node in ("collision/spheres", "frames/axes", "minimal/balls", "minimal/boxes", "minimal/cylinders")
+    ]
+
+
+def test_robot_visual_follows_a_theme_with_other_hues_and_another_overlay_colour() -> None:
+    robot, server, viewer = _g1_visual(collision=True)
+    path = "/g1_29dof/g1_29dof"
+    before = server.scene.nodes[f"{path}/maximal/cylinders"].props["batched_colors"].copy()
+    red, blue = (0.8, 0.1, 0.1), (0.1, 0.2, 0.9)
+    viewer.set_theme(Theme(hues=(red,), collision=blue))
+    after = server.scene.nodes[f"{path}/maximal/cylinders"].batched_colors
+    assert not np.array_equal(before, after) and (after[:, 0] >= after[:, 2]).all()  # shades of red
+    spheres = server.scene.nodes[f"{path}/collision/spheres"]
+    assert not spheres.removed and (spheres.props["batched_colors"] == rgb_uint8(blue)).all()
+    assert robot.style == "maximal"
+
+
+def test_two_robots_of_one_model_need_a_name_each() -> None:
+    model = br.load(panda_urdf())
+    viewer = Viewer(server=FakeServer(), ground=False)
+    viewer.add(RobotVisual(model))
+    with pytest.raises(ArgumentError, match="already has a layer named 'panda'"):
+        viewer.add(RobotVisual(model))
+    viewer.add(RobotVisual(model, name="second"))
+    assert [layer.name for layer in viewer.layers] == ["panda", "second"]

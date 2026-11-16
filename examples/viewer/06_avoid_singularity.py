@@ -28,9 +28,10 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer, forward_kinematics, lie, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
+URDF = panda_description.URDF_PATH
 FRAME, READY = "panda_hand", [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
 THRESHOLD, STEP, TICKS = 0.03, 0.005, 1200  # manipulability (m³ for three position rows), rad per tick, ticks
 REACH, TILT = (0.75, 0.0, -0.3), 0.8  # the scripted target's far point from its start (m), its tilt there (rad)
@@ -55,7 +56,7 @@ def main() -> None:
     parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
     args = parser.parse_args()
 
-    model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
+    model = br.load(URDF, dtype=torch.float64)
     q0 = model.q_neutral.clone()[None]  # (1, nq)
     q0[0, :7] = torch.tensor(READY)
     hand = model.frame_id(FRAME)
@@ -69,26 +70,26 @@ def main() -> None:
         """One ``track`` step toward ``target (1, 7)``."""
         return optim.track(problems[form].with_(data={f"target/{FRAME}": target}), x, warm=warm, step=STEP)
 
-    def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Joint poses ``(T, J, 7)``, the hand's position ``(T, 1, 3)`` and manipulability ``(T, 1)`` of ``q (T, nq)``."""
+    def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
+        """The hand's position ``(T, 1, 3)`` and manipulability ``(T, 1)`` of ``q (T, nq)``."""
         state = forward_kinematics(model, q)
         w = THRESHOLD - singular.fn(state)
-        return state.joint_poses.numpy(), state.frame_poses[:, [hand], :3].numpy(), w.numpy()
+        return state.frame_poses[:, [hand], :3].numpy(), w.numpy()
 
-    geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-    meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
+    geometry = br.io.load_geometry(URDF, model)
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)`` and its hand's marker, red below the threshold, under ``group``."""
-        poses, point, w = look(q)
+        point, w = look(q)
         layers = [
-            RigidMeshLayer("robot", meshes, body_poses=poses),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=URDF),
             SpheresLayer("hand", point, radii=np.array([0.05]), colors=GREY, opacity=0.4),
             SpheresLayer("below the threshold", point, radii=np.array([0.05]), colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:2], tags=group, offset=offset)
-        viewer.add(layers[2:], tags=group, offset=offset, valid=w < THRESHOLD - 1e-4)
+        viewer.add(layers[:1], tags=group, offset=offset)
+        viewer.add(layers[1:2], tags=(group, "markers"), offset=offset)
+        viewer.add(layers[2:], tags=(group, "markers"), offset=offset, valid=w < THRESHOLD - 1e-4)
         return layers
 
     if not (args.check or args.record):
@@ -101,7 +102,7 @@ def main() -> None:
     for side, form in enumerate(("off", "rows")):
         q, seconds = run(tick, form, dict(problems[form].variables), path)
         print(
-            f"singular {form:4s}: lowest manipulability {float(look(q)[2].min()):.5f} (threshold {THRESHOLD}), "
+            f"singular {form:4s}: lowest manipulability {float(look(q)[1].min()):.5f} (threshold {THRESHOLD}), "
             f"tick {1e3 * seconds:.1f} ms (median)"
         )
         offset = (0.0, 1.0 * side - 0.5, 0.0)
@@ -127,11 +128,11 @@ def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: di
             warm, last = None, form.value
         x, warm = tick(form.value, torch.from_numpy(gizmo.pose).to(start)[None], x, warm)
         seconds = time.perf_counter() - began
-        poses, point, w = look(x["q"])
-        robot[0].body_poses[:] = poses
+        point, w = look(x["q"])
+        robot[0].update(x["q"])
         robot[1].centers[:] = robot[2].centers[:] = point
         robot[2].valid[:] = w < THRESHOLD - 1e-4
-        viewer.show()
+        viewer.redraw("markers")
         readout.content = (
             f"manipulability **{float(w[0, 0]):.4f}** (threshold {THRESHOLD})  \ntick {1e3 * seconds:.1f} ms"
         )
