@@ -1,6 +1,6 @@
 {
  "meta": {
-  "commit": "1ed9049",
+  "commit": "1246c51",
   "dirty": false,
   "command": "benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-2.13.0.json",
   "package_file": "src/better_robot/__init__.py",
@@ -10,24 +10,24 @@
   "device_name": "AMD EPYC 9654 96-Core Processor",
   "threads": 1,
   "affinity": [
-   257
+   84
   ],
   "dtype": "torch.float32",
   "malloc_env": {
    "MALLOC_MMAP_THRESHOLD_": null,
    "MALLOC_TRIM_THRESHOLD_": null
   },
-  "date": "2026-11-10T13:10:06",
-  "loadavg_start": "11.22 20.00 26.76 12/19161 3400491",
-  "loadavg_end": "9.16 18.21 25.83 200/19387 3402913",
-  "total_s": 46.9
+  "date": "2026-11-16T07:29:34",
+  "loadavg_start": "17.50 18.68 25.69 16/16177 1876635",
+  "loadavg_end": "17.49 20.16 24.83 15/16250 1881980",
+  "total_s": 251.6
  },
  "rows": [
   {
    "row": "fk_joints/panda/B1",
    "batch": 1,
-   "loadavg": "11.22 20.00 26.76 6/19172 3400527",
-   "ops": 46,
+   "loadavg": "17.54 18.66 25.65 17/16181 1876653",
+   "ops": 40,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -35,8 +35,8 @@
   {
    "row": "fk_joints/panda/B1024",
    "batch": 1024,
-   "loadavg": "11.22 20.00 26.76 10/19168 3400548",
-   "ops": 46,
+   "loadavg": "17.54 18.66 25.65 14/16190 1876676",
+   "ops": 40,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 2
@@ -44,8 +44,8 @@
   {
    "row": "jacobian/panda/B1",
    "batch": 1,
-   "loadavg": "11.22 20.00 26.76 8/19177 3400567",
-   "ops": 69,
+   "loadavg": "17.54 18.66 25.65 15/16197 1876693",
+   "ops": 65,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -53,8 +53,8 @@
   {
    "row": "rnea/panda/B1",
    "batch": 1,
-   "loadavg": "10.89 19.78 26.65 6/19187 3400615",
-   "ops": 172,
+   "loadavg": "17.54 18.66 25.65 16/16220 1876728",
+   "ops": 165,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -62,8 +62,8 @@
   {
    "row": "crba/panda/B1",
    "batch": 1,
-   "loadavg": "10.89 19.78 26.65 6/19433 3400905",
-   "ops": 136,
+   "loadavg": "17.49 18.64 25.60 16/16228 1876746",
+   "ops": 130,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -71,8 +71,8 @@
   {
    "row": "aba/panda/B1",
    "batch": 1,
-   "loadavg": "10.89 19.78 26.65 9/19413 3400921",
-   "ops": 240,
+   "loadavg": "17.49 18.64 25.60 16/16227 1876768",
+   "ops": 238,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -80,8 +80,8 @@
   {
    "row": "fk_joints/g1/B1",
    "batch": 1,
-   "loadavg": "10.49 19.55 26.54 14/19162 3401025",
-   "ops": 67,
+   "loadavg": "17.49 18.64 25.60 16/16225 1876801",
+   "ops": 60,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -89,8 +89,8 @@
   {
    "row": "fk_joints/g1/B1024",
    "batch": 1024,
-   "loadavg": "10.49 19.55 26.54 11/19162 3401034",
-   "ops": 67,
+   "loadavg": "17.37 18.59 25.55 16/16240 1876834",
+   "ops": 60,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 2
@@ -98,8 +98,8 @@
   {
    "row": "jacobian/g1/B1",
    "batch": 1,
-   "loadavg": "10.49 19.55 26.54 10/19157 3401049",
-   "ops": 89,
+   "loadavg": "17.37 18.59 25.55 17/16240 1876848",
+   "ops": 84,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -107,8 +107,8 @@
   {
    "row": "rnea/g1/B1",
    "batch": 1,
-   "loadavg": "10.37 19.38 26.44 8/19148 3401072",
-   "ops": 188,
+   "loadavg": "17.37 18.59 25.55 17/16236 1876867",
+   "ops": 180,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -116,8 +116,8 @@
   {
    "row": "crba/g1/B1",
    "batch": 1,
-   "loadavg": "10.37 19.38 26.44 8/19140 3401928",
-   "ops": 154,
+   "loadavg": "17.37 18.59 25.55 16/16221 1876908",
+   "ops": 147,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -125,8 +125,8 @@
   {
    "row": "aba/g1/B1",
    "batch": 1,
-   "loadavg": "10.37 19.38 26.44 8/19205 3402022",
-   "ops": 255,
+   "loadavg": "17.18 18.53 25.49 18/16220 1876925",
+   "ops": 252,
    "host_syncs": 0,
    "graph_breaks": 0,
    "recompiles": 1
@@ -134,18 +134,18 @@
   {
    "row": "ik/panda/B64",
    "batch": 64,
-   "loadavg": "10.02 19.15 26.33 7/19175 3402077",
+   "loadavg": "17.18 18.53 25.49 21/16221 1876961",
    "success_fraction": 0.921875,
    "worst_position_error_m": 0.0707888975739479,
-   "ops": 30446,
+   "ops": 30373,
    "host_syncs": 0,
    "graph_breaks": 5,
-   "recompiles": 12
+   "recompiles": 11
   },
   {
    "row": "ik_constrained/panda/B64",
    "batch": 64,
-   "loadavg": "12.04 11.09 12.97 11/18946 1478913",
+   "loadavg": "17.36 18.51 25.37 16/16227 1877210",
    "success_fraction": 0.46875,
    "worst_violation_m": 8.168444037437439e-05,
    "ops": 31393,
@@ -156,7 +156,7 @@
   {
    "row": "track/panda/B64",
    "batch": 64,
-   "loadavg": "157.96 158.51 140.87 136/17037 1792269",
+   "loadavg": "34.38 22.87 26.49 16/16203 1877935",
    "success_fraction": 0.0,
    "worst_violation_m": 0.01577683538198471,
    "ops": 29344,
@@ -167,7 +167,7 @@
   {
    "row": "qp/n7m30/B1",
    "batch": 1,
-   "loadavg": "62.19 62.60 68.00 19/19255 3964413",
+   "loadavg": "17.75 20.30 24.93 17/16197 1881761",
    "ops": 561,
    "host_syncs": 0,
    "graph_breaks": 0,
@@ -176,7 +176,7 @@
   {
    "row": "qp/n35m150/B1024",
    "batch": 1024,
-   "loadavg": "62.19 62.60 68.00 19/19258 3966383",
+   "loadavg": "17.45 20.20 24.87 17/16235 1881922",
    "ops": 561,
    "host_syncs": 0,
    "graph_breaks": 0,
