@@ -55,20 +55,21 @@ class MeshLayer(Layer):
     @override
     def build(self, scene: Any, root: str) -> None:
         self._nodes = []
-        if not self._parts:
-            import trimesh  # noqa: PLC0415 - viser's own dependency, loaded only for a coloured static mesh
+        if self.colors is not None and self.nsteps == 1:
+            from trimesh import Trimesh  # noqa: PLC0415 - viser's own dependency, loaded for a coloured static mesh
+            from trimesh.visual import TextureVisuals  # noqa: PLC0415
+            from trimesh.visual.material import PBRMaterial  # noqa: PLC0415
 
             # Without a material glTF's default is a metal, black without an environment map: give the matte one of
             # the plain meshes. glTF's vertex colours are linear, the plain meshes' sRGB; without normals the mesh is
             # drawn faceted.
-            matte = trimesh.visual.material.PBRMaterial(metallicFactor=0.0, roughnessFactor=1.0)
-            mesh = trimesh.Trimesh(
-                self.vertices[0], self.faces, visual=trimesh.visual.TextureVisuals(material=matte), process=False
-            )
+            visual = TextureVisuals(material=PBRMaterial(metallicFactor=0.0, roughnessFactor=1.0))
             linear = rgb_uint8(_srgb_to_linear(self.colors / 255.0))
-            mesh.visual.vertex_attributes["color"] = np.concatenate([linear, np.full_like(linear[:, :1], 255)], 1)
-            glb = mesh.export(file_type="glb", include_normals=not self.flat_shading)
-            self._track(scene.add_glb(f"{root}/mesh", glb))
+            visual.vertex_attributes["color"] = np.concatenate([linear, np.full_like(linear[:, :1], 255)], 1)
+            mesh = Trimesh(self.vertices[0], self.faces, visual=visual, process=False)
+            self._track(
+                scene.add_glb(f"{root}/mesh", mesh.export(file_type="glb", include_normals=not self.flat_shading))
+            )
             return
         for index, (colour, rows, faces) in enumerate(self._parts):
             node = scene.add_mesh_simple(
@@ -101,7 +102,7 @@ def _srgb_to_linear(color: np.ndarray) -> np.ndarray:
     return np.where(color <= 0.04045, color / 12.92, ((color + 0.055) / 1.055) ** 2.4)
 
 
-def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.ndarray, np.ndarray | slice, np.ndarray]]:
     """``faces (F, 3)`` grouped by the colour of their first vertex (``colors (V, 3)`` uint8): per colour, the colour,
     the vertex rows its faces use and those faces indexing the rows."""
     palette, which = np.unique(colors[faces[:, 0]], axis=0, return_inverse=True)
@@ -110,7 +111,7 @@ def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.nda
             f"a deforming MeshLayer takes at most {_MAX_COLOURS} distinct colors (one node each), got {len(palette)}; "
             "quantise the colours or show a static mesh"
         )
-    parts = []
+    parts: list[tuple[np.ndarray, np.ndarray | slice, np.ndarray]] = []
     for index, colour in enumerate(palette):
         rows, local = np.unique(faces[which.reshape(-1) == index], return_inverse=True)
         parts.append((colour, rows, local.reshape(-1, 3).astype(np.uint32)))

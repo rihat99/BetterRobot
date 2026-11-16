@@ -75,8 +75,8 @@ def _pad(
     """A ragged cloud as ``points (T, N, 3)``, colours (one RGB, or ``(T, N, 3)``) and ``counts (T,)``: each step is
     padded to the largest ``N`` by repeating its first point."""
     counts = np.array([len(step) for step in steps])
-    ragged_colors = isinstance(colors, (list, tuple)) and np.ndim(colors[0]) == 2
-    if ragged_colors and [len(step) for step in colors] != [len(step) for step in steps]:
+    ragged = [np.asarray(c) for c in colors] if isinstance(colors, (list, tuple)) and np.ndim(colors[0]) == 2 else None
+    if ragged is not None and [len(step) for step in ragged] != [len(step) for step in steps]:
         raise ShapeError("ragged colors must hold one (N_t, 3) array per step, as many rows as that step's points")
     columns = np.arange(max(1, int(counts.max(initial=0))))
     rows = np.where(columns < counts[:, None], columns, 0)  # (T, N): the row of the step each padded point copies
@@ -88,4 +88,4 @@ def _pad(
                 out[step] = np.asarray(array, dtype=np.float32).reshape(-1, 3)[rows[step]]
         return out
 
-    return padded(steps), padded(colors) if ragged_colors else np.asarray(colors, np.float32), counts
+    return padded(steps), padded(ragged) if ragged is not None else np.asarray(colors, np.float32), counts

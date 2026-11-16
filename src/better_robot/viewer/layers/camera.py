@@ -97,5 +97,5 @@ class CameraLayer(Layer):
     def set_step(self, step: int) -> None:
         self._frame.position = self.poses[step, :3]
         self._frame.wxyz = self.poses[step, [6, 3, 4, 5]]  # viser's scalar-first quaternion
-        if self._picture is not None and (callable(self._image) or self._image.ndim == 4):
+        if self._image is not None and (callable(self._image) or self._image.ndim == 4):
             self._picture.image = self.image_at(step)
