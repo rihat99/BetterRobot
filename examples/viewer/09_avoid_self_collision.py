@@ -34,13 +34,14 @@ from better_robot.viewer import GroundLayer, MeshSpec, RigidMeshLayer, SpheresLa
 from better_robot.viewer.tools import PoseGizmo
 
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
-ROBOTS = {  # description, IK frames (the first follows the target), step per tick, closest pairs as rows
-    "panda": (panda_description, ("panda_hand",), 0.005, 8),
+ROBOTS = {  # description, IK frames (the first follows the target), step per tick, closest pairs as rows, QP iterations
+    "panda": (panda_description, ("panda_hand",), 0.005, 8, 20),
     "g1": (
         g1_description,
         ("left_rubber_hand", "right_rubber_hand", "left_ankle_roll_link", "right_ankle_roll_link"),
         0.0063,
         64,
+        100,  # many pairs press at once: 20 iterations leave more steps inexact
     ),
 }
 PATH = {"panda": (-0.3, 0.15, -0.35), "g1": (-0.15, -0.35, 0.05)}  # the scripted target's far point, from its start
@@ -82,7 +83,7 @@ def main() -> None:
     args = parser.parse_args()
 
     model, q0, meshes = load(args.robot)
-    _, frames, step, closest = ROBOTS[args.robot]
+    _, frames, step, closest, iterations = ROBOTS[args.robot]
     spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / f"{args.robot}.json", model)
     pairs = collision.self_collision_pairs(model, spheres, ignore=ignore)  # (P, 2) sphere indices
     apart = collision.self_distances(spheres, forward_kinematics(model, q0), pairs=pairs)[0]  # (P,) at the start
@@ -96,7 +97,8 @@ def main() -> None:
 
     def tick(form: str, target: torch.Tensor, x: dict, warm: optim.QPSolution | None) -> tuple:
         """One ``track`` step toward ``target (1, 7)`` for the first frame; the others hold their start poses."""
-        return optim.track(problems[form].with_(data={f"target/{frames[0]}": target}), x, warm=warm, step=step)
+        problem = problems[form].with_(data={f"target/{frames[0]}": target})
+        return optim.track(problem, x, warm=warm, step=step, iterations=iterations)
 
     def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Joint poses ``(T, J, 7)``, sphere centres ``(T, S, 3)``, which spheres are in a pair inside its margin

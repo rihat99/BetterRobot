@@ -80,7 +80,7 @@ demo pads the radius by the handle's move over the gain each tick, and the reado
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_self_collision_panda.png" width="960"><source src="../../clips/avoid_self_collision_panda.webm" type="video/webm"></video><figcaption>The target goes down and back toward the robot's base. Without the rows (left) the arm folds into itself and two of its spheres overlap by 25 mm (red); with them (right) every pair stays 20 mm apart.</figcaption></figure>
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_self_collision_g1.png" width="960"><source src="../../clips/avoid_self_collision_g1.webm" type="video/webm"></video><figcaption>The G1's left-hand target goes through its torso toward the right side and back. Without the rows (left) the arm passes through the torso (red: pairs inside their margins, the deepest by 140 mm); with them (right) it stops at the torso, every pair within 0.1 mm of its margin.</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_self_collision_g1.png" width="960"><source src="../../clips/avoid_self_collision_g1.webm" type="video/webm"></video><figcaption>The G1's left-hand target goes through its torso toward the right side and back. Without the rows (left) the arm passes through the torso (red: pairs inside their margins, the deepest by 140 mm); with them (right) it stops at the torso, every pair within 0.01 mm of its margin.</figcaption></figure>
 
 The pairs are `collision.self_collision_pairs(model, spheres, ignore=ignore)` with the ignore list of the sphere
 file (`collision.load_spheres`): every one of them. Each keeps a margin of 20 mm, or its distance at the start less
@@ -108,18 +108,19 @@ print(f"{len(pairs)} pairs, {int((apart < 0.02).sum())} closer than 20 mm, the c
 3890 pairs, 58 closer than 20 mm, the closest 2.45 mm
 ```
 
-The rows are the 8 pairs closest to their margins each tick (the G1: 64). The readout shows the deepest pair's
+The rows are the 8 pairs closest to their margins each tick (the G1: 64, with `iterations=100`, since many pairs
+press at once). The readout shows the deepest pair's
 distance outside its own margin.
 
 ## Settings that matter
 
 | Setting | Demos | Why |
 |---|---|---|
-| `step` | 5 mrad per tick (Panda), 6.3 mrad (G1), 20 mrad for the joint limits | curved rows hold within 1e-4 m at these steps; at 25 mrad they leave up to about 1e-3 m |
+| `step` | 5 mrad per tick (Panda), 6.3 mrad (G1), 20 mrad for the joint limits | the Panda's curved rows hold within 1e-4 m at these steps; the G1's, with `iterations=100`, leave up to about 4e-4 m on some targets; at 25 mrad rows leave up to about 1e-3 m |
 | `gain` | 0.5 | the share of a row's distance one tick may use |
 | `margin` | 20 mm; per pair for self-collision, at most the pair's start distance less 1 mm | the clearance the rows keep; a start inside a margin would begin with violated rows |
 | `closest` | 8 (Panda), 64 (G1 self-collision) | rows per tick; the same count every tick, so the warm start fits |
-| `iterations` | 20 (the default) | one behaviour at a time; the G1 with several behaviours as rows at once needs about 100 |
+| `iterations` | 20 (the default); 100 for the G1's self-collision | QP iterations per tick: the G1 needs 100 whenever its self-collision rows are present, and with several behaviours as rows at once |
 | cost `weight` | 1e3 | the cost form's hinge; it leaves a few millimetres inside the margin |
 
 The scripted runs print, per form (CPU, float64, one thread; the tick is one `track` call):
@@ -133,7 +134,7 @@ The scripted runs print, per form (CPU, float64, one thread; the tick is one `tr
 | obstacle (Panda) | 90 mm inside | 21.2 mm away | 3.4 ms |
 | obstacle (G1) | 94 mm inside | 21.3 mm away | 7.4 ms |
 | self-collision (Panda) | a pair 45 mm inside its margin (25 mm into each other) | every pair outside its margin | 3.3 ms |
-| self-collision (G1) | a pair 140 mm inside its margin | every pair within 0.06 mm of its margin | 7.4 ms |
+| self-collision (G1) | a pair 140 mm inside its margin | every pair within 0.003 mm of its margin | 9.0 ms |
 
 ## Limits
 
