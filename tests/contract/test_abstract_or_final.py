@@ -16,6 +16,7 @@ import pytest
 import better_robot
 from better_robot.model import joints
 from better_robot.model.joints import JointModel
+from tests.support.cases import failures
 
 RATCHET = Path(__file__).resolve().parent / "ratchets" / "abstract_or_final.json"
 
@@ -35,10 +36,14 @@ def _undecided(cls: type) -> bool:
     return not (inspect.isabstract(cls) or getattr(cls, "__final__", False))
 
 
-@pytest.mark.parametrize(("qualname", "cls"), _classes(), ids=[qualname for qualname, _ in _classes()])
-def test_class_is_abstract_or_final(qualname: str, cls: type) -> None:
-    ratchet = json.loads(RATCHET.read_text())
-    assert not _undecided(cls) or qualname in ratchet, f"{qualname} is neither abstract nor @final"
+def test_every_class_is_abstract_or_final() -> None:
+    ratchet, classes = json.loads(RATCHET.read_text()), dict(_classes())
+
+    def check(qualname: str) -> None:
+        assert not _undecided(classes[qualname]) or qualname in ratchet, "neither abstract nor @final"
+
+    failed = failures(check, classes)
+    assert not failed, "\n".join(failed)
 
 
 def test_ratchet_names_only_undecided_classes() -> None:
