@@ -6,19 +6,25 @@ from dataclasses import KW_ONLY, dataclass
 from typing import Any, final, override
 
 import numpy as np
+import torch
 
 from ...exceptions import ArgumentError, ShapeError
-from .._lie import act, compose, to_wxyz
-from .._primitives import unit_sphere
+from ...lie import se3, so3
 from ..layer import Bounds, Layer, as_frames, as_triangles, box
 from ..theme import RGB, rgb_uint8
 
-_IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
+#: The most colours a deforming ``MeshLayer`` takes: one scene node per colour.
+_MAX_COLOURS = 64
 
 
 @final
 class MeshLayer(Layer):
-    """One triangle mesh: static ``vertices (V, 3)`` or deforming ``(T, V, 3)``, ``faces (F, 3)``."""
+    """One triangle mesh: static ``vertices (V, 3)`` or deforming ``(T, V, 3)``, ``faces (F, 3)``.
+
+    ``colors (V, 3)`` colours each vertex instead of the one ``color``. A static mesh sends them in one GLB node,
+    blended across each face and always opaque; a deforming one becomes one node per distinct colour, at most 64, each
+    face taking the colour of its first vertex.
+    """
 
     def __init__(
         self,
@@ -27,6 +33,7 @@ class MeshLayer(Layer):
         *,
         faces: np.ndarray,
         color: RGB = (0.80, 0.80, 0.80),
+        colors: np.ndarray | None = None,
         opacity: float = 1.0,
         flat_shading: bool = False,
     ) -> None:
@@ -34,22 +41,45 @@ class MeshLayer(Layer):
         super().__init__(name, self.vertices.shape[0])
         self.faces = as_triangles(faces)
         self.color = color
+        self.colors = None if colors is None else rgb_uint8(colors, (self.vertices.shape[1],))
         self._store_opacity(opacity)
         self.flat_shading = flat_shading
-        self._mesh: Any = None
+        # (colour, vertex rows, faces into those rows) of each node; none for a static coloured mesh (one GLB node).
+        self._parts: list[tuple[np.ndarray, np.ndarray | slice, np.ndarray]] = []
+        if self.colors is None:
+            self._parts = [(rgb_uint8(color), slice(None), self.faces)]
+        elif self.nsteps > 1:
+            self._parts = _split_by_colour(self.faces, self.colors)
+        self._nodes: list[tuple[Any, np.ndarray | slice]] = []
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        self._mesh = self._track(
-            scene.add_mesh_simple(
-                f"{root}/mesh",
-                self.vertices[0],
-                self.faces,
-                color=rgb_uint8(self.color),
+        self._nodes = []
+        if not self._parts:
+            import trimesh  # noqa: PLC0415 - viser's own dependency, loaded only for a coloured static mesh
+
+            # Without a material glTF's default is a metal, black without an environment map: give the matte one of
+            # the plain meshes. glTF's vertex colours are linear, the plain meshes' sRGB; without normals the mesh is
+            # drawn faceted.
+            matte = trimesh.visual.material.PBRMaterial(metallicFactor=0.0, roughnessFactor=1.0)
+            mesh = trimesh.Trimesh(
+                self.vertices[0], self.faces, visual=trimesh.visual.TextureVisuals(material=matte), process=False
+            )
+            linear = rgb_uint8(_srgb_to_linear(self.colors / 255.0))
+            mesh.visual.vertex_attributes["color"] = np.concatenate([linear, np.full_like(linear[:, :1], 255)], 1)
+            glb = mesh.export(file_type="glb", include_normals=not self.flat_shading)
+            self._track(scene.add_glb(f"{root}/mesh", glb))
+            return
+        for index, (colour, rows, faces) in enumerate(self._parts):
+            node = scene.add_mesh_simple(
+                f"{root}/mesh" if self.colors is None else f"{root}/mesh_{index}",
+                self.vertices[0][rows],
+                faces,
+                color=colour,
                 opacity=None if self.opacity >= 1.0 else self.opacity,
                 flat_shading=self.flat_shading,
             )
-        )
+            self._nodes.append((self._track(node), rows))
 
     @override
     def bounds(self, step: int) -> Bounds | None:
@@ -57,11 +87,34 @@ class MeshLayer(Layer):
 
     @override
     def set_step(self, step: int) -> None:
-        self._mesh.vertices = self.vertices[step]
+        for node, rows in self._nodes:
+            node.vertices = self.vertices[step][rows]
 
     def set_opacity(self, opacity: float) -> None:
-        """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
-        self._fade(opacity)
+        """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a static mesh with
+        ``colors`` stays opaque."""
+        self._fade(opacity, [node for node, _ in self._nodes])
+
+
+def _srgb_to_linear(color: np.ndarray) -> np.ndarray:
+    """sRGB colours in ``[0, 1]`` as linear ones (the sRGB transfer curve), ``(..., 3)``."""
+    return np.where(color <= 0.04045, color / 12.92, ((color + 0.055) / 1.055) ** 2.4)
+
+
+def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """``faces (F, 3)`` grouped by the colour of their first vertex (``colors (V, 3)`` uint8): per colour, the colour,
+    the vertex rows its faces use and those faces indexing the rows."""
+    palette, which = np.unique(colors[faces[:, 0]], axis=0, return_inverse=True)
+    if len(palette) > _MAX_COLOURS:
+        raise ArgumentError(
+            f"a deforming MeshLayer takes at most {_MAX_COLOURS} distinct colors (one node each), got {len(palette)}; "
+            "quantise the colours or show a static mesh"
+        )
+    parts = []
+    for index, colour in enumerate(palette):
+        rows, local = np.unique(faces[which.reshape(-1) == index], return_inverse=True)
+        parts.append((colour, rows, local.reshape(-1, 3).astype(np.uint32)))
+    return parts
 
 
 @final
@@ -143,16 +196,23 @@ class RigidMeshLayer(Layer):
         if not self.meshes:
             return None
         # The corners of each mesh's own box stand in for its vertices: a clip of 300 k vertices frames in a millisecond.
-        world = compose(self.body_poses[step, self._bodies], self._origins)
-        return box(act(world[:, None, 3:], self._corners) + world[:, None, :3])
+        world = self._world(step)
+        corners = so3.act(torch.from_numpy(world[:, None, 3:]), torch.from_numpy(self._corners)).numpy()
+        return box(corners + world[:, None, :3])
 
     @override
     def set_step(self, step: int) -> None:
-        world = compose(self.body_poses[step, self._bodies], self._origins)
-        wxyz = to_wxyz(world[:, 3:])
+        world = self._world(step)
+        wxyz = world[:, [6, 3, 4, 5]]  # viser's scalar-first quaternions
         for index, node in enumerate(self._nodes):
             node.position = world[index, :3]
             node.wxyz = wxyz[index]
+
+    def _world(self, step: int) -> np.ndarray:
+        """World poses ``(M, 7)`` of the meshes at ``step``: each body's pose composed with the mesh's origin."""
+        return se3.compose(
+            torch.from_numpy(self.body_poses[step, self._bodies]), torch.from_numpy(self._origins)
+        ).numpy()
 
     def set_opacity(self, opacity: float) -> None:
         """Draw the meshes at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a textured or
@@ -191,14 +251,16 @@ class SpheresLayer(Layer):
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        vertices, faces = unit_sphere()
+        import trimesh  # noqa: PLC0415 - viser's own dependency, loaded where a unit sphere is needed
+
+        sphere = trimesh.creation.icosphere(subdivisions=2)
         n = self.centers.shape[1]
         self._spheres = self._track(
             scene.add_batched_meshes_simple(
                 f"{root}/spheres",
-                vertices,
-                faces,
-                batched_wxyzs=np.tile(to_wxyz(_IDENTITY_POSE[3:]), (n, 1)),
+                sphere.vertices.astype(np.float32),
+                sphere.faces.astype(np.uint32),
+                batched_wxyzs=np.tile(np.array([1.0, 0.0, 0.0, 0.0], np.float32), (n, 1)),
                 batched_positions=self.centers[0],
                 batched_scales=self.radii,
                 batched_colors=self._colors if self._colors.ndim == 2 else self._colors[0],

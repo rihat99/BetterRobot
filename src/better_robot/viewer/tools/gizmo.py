@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, final
 import numpy as np
 
 from ...exceptions import ShapeError
-from .._lie import to_wxyz
 
 if TYPE_CHECKING:
     from ..viewer import Viewer
@@ -52,7 +51,7 @@ class PoseGizmo:
             disable_axes=disable_axes,
             depth_test=depth_test,
             position=pose[:3],
-            wxyz=to_wxyz(pose[3:]),
+            wxyz=pose[[6, 3, 4, 5]],
         )
         self._callbacks: list[Callable[[np.ndarray], None]] = [on_change] if on_change else []
         self._condition = threading.Condition()
@@ -74,7 +73,7 @@ class PoseGizmo:
     def pose(self, pose: np.ndarray) -> None:
         pose = np.asarray(pose, dtype=np.float32)
         self.handle.position = pose[:3]
-        self.handle.wxyz = to_wxyz(pose[3:])
+        self.handle.wxyz = pose[[6, 3, 4, 5]]
 
     def on_change(self, callback: Callable[[np.ndarray], None]) -> None:
         """Also call ``callback(pose (7,))`` on drags (on the gizmo's worker thread)."""

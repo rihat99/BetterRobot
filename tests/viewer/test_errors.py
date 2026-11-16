@@ -63,9 +63,14 @@ _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
     ),
     (lambda: MeshLayer("m", np.zeros((3, 3)), faces=np.array([[0, 1, 2, 0]])), ShapeError, r"faces must be \(F, 3\)"),
     (
-        lambda: CameraLayer("c", np.zeros((2, 6)), fov=1.0, aspect=1.0),
+        lambda: CameraLayer("c", np.zeros((2, 6)), intrinsics=np.eye(3), size=(4, 3)),
         ShapeError,
         "poses must have 1 or 2 axes with a last axis of 7",
+    ),
+    (
+        lambda: CameraLayer("c", np.zeros((2, 7)), intrinsics=np.eye(4), size=(4, 3)),
+        ShapeError,
+        r"intrinsics must be the \(3, 3\) matrix K",
     ),
     (
         lambda: SkinnedMeshLayer(

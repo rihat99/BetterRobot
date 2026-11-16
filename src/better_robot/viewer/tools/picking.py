@@ -13,8 +13,9 @@ from dataclasses import KW_ONLY, dataclass
 from typing import Any, final
 
 import numpy as np
+import torch
 
-from .._lie import act, inverse
+from ...lie import so3
 
 
 @final
@@ -99,7 +100,8 @@ def project(vertices: np.ndarray, camera: CameraFrustum) -> tuple[np.ndarray, np
     """``(screen (V, 2) in [0, 1], depth (V,))`` of world points under viser's screen convention."""
     wxyz = np.asarray(camera.wxyz, dtype=np.float64)
     xyzw = wxyz[[1, 2, 3, 0]] / max(float(np.linalg.norm(wxyz)), 1e-8)
-    camera_space = act(inverse(xyzw), np.asarray(vertices, dtype=np.float64) - camera.position)
+    world = torch.from_numpy(np.asarray(vertices, dtype=np.float64) - camera.position)
+    camera_space = so3.act(so3.inverse(torch.from_numpy(xyzw)), world).numpy()
     depth = camera_space[..., 2]
     safe_depth = np.where(depth > 0, depth, 1.0)
     tan_half = math.tan(camera.fov / 2.0)

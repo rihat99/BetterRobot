@@ -5,9 +5,10 @@ is toggled, offset and removed as one unit. Every layer is fed preloaded numpy a
 axis ``(T, ...)`` (static input counts as ``T = 1``) and keeps them by reference. One ``Timeline`` drives all
 layers: ``show(k)`` pushes frame ``k``, ``layer.redraw()`` re-pushes one layer after in-place edits, ``serve()``
 plays by wall clock until interrupted, ``save(path)`` writes a ``.viser`` recording for viser's static web client,
-and ``record(path)`` screenshots the live scene in a headless Chromium into WebM, GIF or PNG frames
-(``viewer.capture``). The ``Sidebar`` holds the controls in ordered sections; one ``Theme`` sets colours, lights
-and the backdrop.
+and ``record(path)`` draws the live scene in a headless Chromium into a video (``.mp4`` or ``.webm``) or a still
+(``.png``). The ``Sidebar`` holds the controls in ordered sections; one ``Theme`` sets colours, lights and the
+backdrop. ``PointsLayer`` (a list of arrays is a cloud whose size changes), ``LinesLayer``, ``ArrowsLayer``,
+``MeshLayer`` (one colour or one per vertex) and ``CameraLayer`` (a frustum from the intrinsics ``K``) draw data.
 
 A robot is drawn from one forward-kinematics pass over a clip ``q (T, nq)``: a ``RigidMeshLayer`` takes the joint
 poses and the meshes of ``robot_meshes(geometry, root=)`` (a ``Geometry`` from ``io.load_geometry``),
@@ -30,7 +31,7 @@ viewer.serve()  # plays and blocks until Ctrl-C
 from __future__ import annotations
 
 from .layer import Layer
-from .layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
+from .layers import ArrowsLayer, FramesLayer, GroundLayer, LinesLayer, PointsLayer, SkeletonLayer
 from .layers.image import ImagePanel
 from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
@@ -51,6 +52,7 @@ __all__ = [
     "GroundLayer",
     "ImagePanel",
     "Layer",
+    "LinesLayer",
     "MeshLayer",
     "MeshSpec",
     "PlotPanel",

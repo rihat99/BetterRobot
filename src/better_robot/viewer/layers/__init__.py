@@ -3,6 +3,7 @@
 from .arrows import ArrowsLayer
 from .frames import FramesLayer
 from .ground import GroundLayer
+from .lines import LinesLayer
 from .points import PointsLayer
 from .skeleton import SkeletonLayer
 from .camera import CameraLayer
@@ -13,6 +14,7 @@ __all__ = [
     "CameraLayer",
     "FramesLayer",
     "GroundLayer",
+    "LinesLayer",
     "PointsLayer",
     "SkeletonLayer",
     "SkinnedMeshLayer",

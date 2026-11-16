@@ -29,6 +29,13 @@ that 0.3.0 renames or removes, one table row each.
   an ambient, a hemisphere, a key light that casts shadows and a fill light, one rig for meshes and solid colours.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications.
+- `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
+  one colour, one per segment or one per step, in `Theme.text` unless given.
+- `MeshLayer(colors=(V, 3))`: one colour per vertex. A static mesh is one GLB node that blends them across each face;
+  a deforming one is one node per distinct colour (at most 64), each face in its first vertex's colour.
+- `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
+  one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
+- `testing.FakeServer.scene.add_glb`.
 
 ### Changed
 - `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
@@ -48,6 +55,11 @@ that 0.3.0 renames or removes, one table row each.
   checkboxes in sentence case; a `PlotPanel`'s time axis shows seconds instead of a date.
 - `Viewer.aim` and `Viewer.record` frame the box of the bounds so that it spans 80 % of a 16:9 view (was the
   bounding sphere with a 15 % margin, which left the robot a fifth of the height).
+- `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
+  frustum's edges from the intrinsics `K` of a `(W, H)` image, an off-centre principal point included, and the image
+  on its cut; viser's own frustum has no principal point. It frames `Viewer.aim` too (`bounds`).
+- `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
+  `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
 
 ### Removed
 - `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
@@ -61,6 +73,9 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme.robot` and `Theme.human`: use `Theme.hue(index)`.
 - `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` and `Theme.control_width`: no
   replacement; no layer read the colours, an application passes its own, and the sidebar keeps viser's medium width.
+- `ArrowsLayer(head_size=, line_width=)` and `ArrowsLayer.HEAD_FRACTION`: use `head_length=`; every arrow is solid,
+  and a short one is no longer scaled down whole.
+- `CameraLayer(fov=, aspect=)`: use `CameraLayer(intrinsics=, size=)`.
 
 ## v0.3.0 (2026-11-10)
 
