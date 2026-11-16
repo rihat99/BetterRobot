@@ -88,7 +88,7 @@ def main() -> None:
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)`` and a marker on each joint at (amber) or past (red) its limit, under ``group``."""
         poses, joints, inside = look(q)
-        radii = np.full(7, 0.045)
+        radii = np.full(7, 0.07)
         layers = [
             RigidMeshLayer("robot", meshes, body_poses=poses),
             SpheresLayer("at the limit", joints, radii=radii, colors=AMBER, opacity=0.8),
