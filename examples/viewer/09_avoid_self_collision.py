@@ -5,13 +5,14 @@
     uv run python examples/viewer/09_avoid_self_collision.py --check              # the scripted path, stand-in server
     uv run python examples/viewer/09_avoid_self_collision.py --record self.webm   # the scripted path, recorded
 
-The sphere set's pairs that can collide (``collision.self_collision_pairs`` without the file's ignore list) are kept
-apart by a margin; the ``closest`` pairs of each tick are the rows of the program ``track`` solves
-(``terms.self_clearance(..., hinge=False)``). The GUI switches between those rows, a cost term (a weighted hinge,
-which gives way a little) and off; spheres of a pair more than 1 mm inside the margin turn red. The ignore list
-holds the pairs whose shapes touch at the neutral pose, such as the Panda's hand and fifth link: those are never
-checked. The scripted path drags the hand target through the robot's own body and back, and shows the robot without
-the rows (left) beside the robot with them (right).
+Every pair of the sphere set that can collide (``collision.self_collision_pairs`` without the file's ignore list) is
+kept apart by a margin of 2 cm, or by its distance at the start less 1 mm where that is smaller (60 of the standing
+G1's 3890 pairs), so that the start holds every row; the ``closest`` pairs of each tick are the rows of the program
+``track`` solves (``terms.self_clearance(..., hinge=False)``). The GUI switches between those rows, a cost term (a
+weighted hinge, which gives way a little) and off; spheres of a pair more than 1 mm inside its margin turn red. The
+ignore list holds the pairs whose shapes touch at the neutral pose, such as the Panda's hand and fifth link: those
+are never checked. The scripted path drags the hand target through the robot's own body and back, and shows the
+robot without the rows (left) beside the robot with them (right).
 """
 
 from __future__ import annotations
@@ -84,11 +85,13 @@ def main() -> None:
     _, frames, step, closest = ROBOTS[args.robot]
     spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / f"{args.robot}.json", model)
     pairs = collision.self_collision_pairs(model, spheres, ignore=ignore)  # (P, 2) sphere indices
+    apart = collision.self_distances(spheres, forward_kinematics(model, q0), pairs=pairs)[0]  # (P,) at the start
+    margin = (apart - 1e-3).clamp(max=MARGIN)  # (P,): a pair that starts closer keeps its start distance less 1 mm
     start = forward_kinematics(model, q0).frame_poses[:, [model.frame_id(f) for f in frames]]  # (1, F, 7)
     problems = {form: terms.ik_problem(model, dict(zip(frames, start.unbind(1))), q0=q0) for form in FORMS}
-    row = terms.self_clearance(spheres, pairs=pairs, margin=MARGIN, hinge=False, closest=closest)
+    row = terms.self_clearance(spheres, pairs=pairs, margin=margin, hinge=False, closest=closest)
     problems["rows"].inequality("self", row, upper=0.0)
-    cost = terms.self_clearance(spheres, pairs=pairs, margin=MARGIN, closest=closest)
+    cost = terms.self_clearance(spheres, pairs=pairs, margin=margin, closest=closest)
     problems["cost"].residual("self", cost, weight=1e3)
 
     def tick(form: str, target: torch.Tensor, x: dict, warm: optim.QPSolution | None) -> tuple:
@@ -96,20 +99,20 @@ def main() -> None:
         return optim.track(problems[form].with_(data={f"target/{frames[0]}": target}), x, warm=warm, step=step)
 
     def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Joint poses ``(T, J, 7)``, sphere centres ``(T, S, 3)``, which spheres are in a pair inside the margin
-        ``(T, S)`` and the distances of the pairs ``(T, P)`` of ``q (T, nq)``."""
+        """Joint poses ``(T, J, 7)``, sphere centres ``(T, S, 3)``, which spheres are in a pair inside its margin
+        ``(T, S)`` and each pair's distance less its margin ``(T, P)`` of ``q (T, nq)``."""
         state = forward_kinematics(model, q)
-        distances = collision.self_distances(spheres, state, pairs=pairs)
-        inside = (distances < MARGIN - 1e-3).double()
+        clearance = collision.self_distances(spheres, state, pairs=pairs) - margin
+        inside = (clearance < -1e-3).double()
         hits = torch.zeros(q.shape[0], len(spheres.radii), dtype=torch.float64)
         hits = hits.index_add(1, pairs[:, 0], inside).index_add(1, pairs[:, 1], inside)
-        return state.joint_poses.numpy(), spheres.centers(state).numpy(), hits.numpy() > 0, distances.numpy()
+        return state.joint_poses.numpy(), spheres.centers(state).numpy(), hits.numpy() > 0, clearance.numpy()
 
     viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
     viewer.add([GroundLayer(size=4.0)])
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
-        """The robot at ``q (T, nq)``, its spheres and the ones of a pair inside the margin (red), under ``group``."""
+        """The robot at ``q (T, nq)``, its spheres and the ones of a pair inside its margin (red), under ``group``."""
         poses, centers, red, _ = look(q)
         radii = spheres.radii.numpy()
         layers = [
@@ -130,8 +133,8 @@ def main() -> None:
     for side, form in enumerate(("off", "rows")):
         q, seconds = run(tick, form, dict(problems[form].variables), path)
         print(
-            f"self {form:4s}: closest pair {1e3 * look(q)[3].min():+6.1f} mm apart (margin {1e3 * MARGIN:.0f}, "
-            f"{len(pairs)} pairs), tick {1e3 * seconds:.1f} ms (median)"
+            f"self {form:4s}: deepest pair {1e3 * look(q)[3].min():+6.1f} mm outside its margin ({len(pairs)} pairs, "
+            f"margins {1e3 * margin.min():.2f} to {1e3 * MARGIN:.0f} mm), tick {1e3 * seconds:.1f} ms (median)"
         )
         offset = (0.0, 1.2 * side - 0.6, 0.0)
         draw(form, q[::8], offset)  # every 8th tick: 100 Hz ticks at twice real time
@@ -156,14 +159,13 @@ def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: di
             warm, last = None, form.value
         x, warm = tick(form.value, torch.from_numpy(gizmo.pose).to(start)[None], x, warm)
         seconds = time.perf_counter() - began
-        poses, centers, red, distances = look(x["q"])
+        poses, centers, red, clearance = look(x["q"])
         robot[0].body_poses[:] = poses
         robot[1].centers[:] = robot[2].centers[:] = centers
         robot[2].valid[:] = red
         viewer.show()
         readout.content = (
-            f"closest pair **{1e3 * distances.min():.1f} mm** apart (margin {1e3 * MARGIN:.0f})  \n"
-            f"tick {1e3 * seconds:.1f} ms"
+            f"deepest pair **{1e3 * clearance.min():.1f} mm** outside its margin  \ntick {1e3 * seconds:.1f} ms"
         )
         time.sleep(max(0.0, 0.01 - (time.perf_counter() - began)))
 
