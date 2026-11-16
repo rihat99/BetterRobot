@@ -91,13 +91,14 @@ Two coordinates, but four joints: `universe` and a fixed `root_joint` that attac
 4. `placement_matrices` turns the joint placements $M_j$ and frame placements $F_f$ into 4×4 matrices.
 5. The raw pass `world_transforms` (in `kinematics._fk`, no checks) walks the tree in topological order:
 
-    $$T_{0j} = T_{0\lambda(j)}\, M_j\, X_j(q_j), \qquad T_{0f} = T_{0\,p(f)}\, F_f$$
+    $$T_{0j} = T_{0\lambda(j)}\, M_j\, X_j(q_j)$$
 
-    where $T_{0j}$ is the world pose of joint $j$, $\lambda(j)$ its parent joint, $X_j(q_j)$ the joint's own
-    motion, and $p(f)$ the parent joint of frame $f$.
+    where $T_{0j}$ is the world pose of joint $j$, $\lambda(j)$ its parent joint and $X_j(q_j)$ the joint's own
+    motion.
 
-6. The result is a frozen `KinematicState` holding `joint_transforms` `(B..., njoints, 3, 4)`; the frames'
-   `frame_transforms` `(B..., nframes, 3, 4)` are computed from them on first use, so dynamics never pays for them.
+6. The result is a frozen `KinematicState` holding `joint_transforms` `(B..., njoints, 3, 4)`. The frames'
+   `frame_transforms` `(B..., nframes, 3, 4)` come from them on first use (`world_frames`,
+   $T_{0f} = T_{0\,p(f)}\, F_f$ with $p(f)$ the parent joint of frame $f$), so dynamics never pays for them.
    `state.frame_pose_of(name)` reads one frame as a 7-vector `[tx, ty, tz, qx, qy, qz, qw]`.
 
 Every later query takes that state instead of `q`: `frame_jacobian(model, state, frame=...)`,
