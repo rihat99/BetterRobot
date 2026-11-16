@@ -22,11 +22,11 @@ that 0.3.0 renames or removes, one table row each.
   a number at least 0 (0 switches the term off, a negative number raises `ArgumentError`) or a tensor whose entry 0
   switches its row off. The other solvers, `solve_constrained` and `solve_layer` raise `ArgumentError` on a problem
   with an active constraint term ([Constrained inverse kinematics](../guides/constrained-ik.md)).
-- `optim.track(problem, x, *, warm=None, gain=0.5, damping=1e-3, step=None) -> (x, QPSolution)`: one step of
-  differential inverse kinematics, one warm `solve_qp` program per call: the Gauss-Newton model of the cost terms
-  with `damping` on the identity, under the rows of `SequentialQP` at `gain` and the box of the bounds at the same
-  gain (a discrete barrier), each step entry within `step`; the step is taken, scaled back where the program's step
-  is inexact and leaves a row. The targets move between calls through `Problem.with_(data=)`; the solution is the
+- `optim.track(problem, x, *, warm=None, gain=0.5, damping=1e-3, step=None, iterations=20) -> (x, QPSolution)`: one
+  step of differential inverse kinematics, one warm `solve_qp` program of `iterations` per call: the Gauss-Newton
+  model of the cost terms with `damping` on the identity, under the rows of `SequentialQP` at `gain` and the box of
+  the bounds at the same gain (a discrete barrier), each step entry within `step`; the step is taken, scaled back
+  where the program's step is inexact and leaves a row. The targets move between calls through `Problem.with_(data=)`; the solution is the
   warm start of the next call (record 0057; [Track moving targets](../guides/track-targets.md)).
 - `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None) -> QPSolution`:
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
