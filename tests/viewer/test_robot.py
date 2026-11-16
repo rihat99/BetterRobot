@@ -256,16 +256,21 @@ def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> Non
         robot.set_frames(["panda_nose"])
 
 
-def test_robot_visual_bounds_hold_the_joints_of_the_step() -> None:
+def test_robot_visual_bounds_are_the_box_of_the_robot_at_the_step() -> None:
+    """``Viewer.aim`` fits this box to the view, so it holds the joints and stays within the sphere set's box."""
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "g1.json", model)
     q = model.q_neutral.repeat(2, 1)
     q[1, :3] = torch.tensor([3.0, -2.0, 1.0])
-    robot = RobotVisual(model, q)
-    joints = br.forward_kinematics(model, q).joint_poses[:, 1:, :3].numpy()
+    robot = RobotVisual(model, q, spheres=spheres)
+    state = br.forward_kinematics(model, q)
+    joints, centers = state.joint_poses[:, 1:, :3].numpy(), spheres.centers(state).numpy()
+    radii = spheres.radii.numpy()[:, None]
     for step in range(2):
         low, high = robot.bounds(step)
         assert (low <= joints[step].min(axis=0)).all() and (joints[step].max(axis=0) <= high).all()
-        assert ((high - low) - np.ptp(joints[step], axis=0) < 0.2).all()  # a pad of two glyph radii, not a guess
+        assert (low >= (centers[step] - radii).min(axis=0) - 0.05).all()
+        assert (high <= (centers[step] + radii).max(axis=0) + 0.05).all()
 
 
 def test_robot_visual_leaves_nothing_behind_when_removed_and_builds_again_when_added() -> None:

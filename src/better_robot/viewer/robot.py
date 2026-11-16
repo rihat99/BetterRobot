@@ -33,8 +33,8 @@ from ..lie import se3
 from ..model.geometry import Box, Cylinder, Geometry, Mesh, Sphere
 from ..model.joints import JointFixed
 from ._extras import needs_extra
-from ._lie import to_wxyz
-from .layer import Bounds, Layer, box
+from ._lie import act, to_wxyz
+from .layer import Bounds, Layer
 from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
@@ -51,17 +51,7 @@ if TYPE_CHECKING:
 Style = Literal["meshes", "minimal", "maximal"]
 
 _STYLES = ("meshes", "minimal", "maximal")
-_OVERLAY = 0.35  # opacity of the collision overlay
 _TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the skeleton's glyph radius
-#: How far a part's colour moves from the robot's hue, towards black (negative) or white (positive). ``Theme.shade``
-#: takes these values over; until it has them the robot visual shades its own blocks.
-_SHADES = {"joint": -0.22, "face": -0.58, "body": 0.0, "stick": 0.25}
-
-
-def _shade(hue: RGB, role: str) -> RGB:
-    mix, target = abs(_SHADES[role]), float(_SHADES[role] > 0.0)
-    red, green, blue = (channel + mix * (target - channel) for channel in hue)
-    return red, green, blue
 
 
 @final
@@ -85,16 +75,16 @@ class Skin:
 class _Blocks(Layer):
     """The nodes of one skeleton: a batched node per unit mesh in use and a line node for limit arcs."""
 
-    def __init__(self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB) -> None:
+    def __init__(self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme) -> None:
         super().__init__(name, poses.shape[0])
-        self.skeleton, self.poses, self.hue = skeleton, poses, hue
+        self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
 
     @override
     def build(self, scene: Any, root: str) -> None:
         meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box()}
-        colors = self.skeleton.colors(self.hue, _shade)
+        colors = self.skeleton.colors(self.hue, self.theme.shade)
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
                 vertices, faces = meshes[mesh]
@@ -107,7 +97,7 @@ class _Blocks(Layer):
                 )  # fmt: skip
         if len(self.skeleton.line_body):
             points = self.skeleton.lines(self.poses[0])
-            color = rgb_uint8(_shade(self.hue, "face"))
+            color = rgb_uint8(self.theme.shade(self.hue, "face"))
             self._lines = self._track(scene.add_line_segments(f"{root}/limits", points, color, line_width=2.5))
 
     @override
@@ -121,14 +111,14 @@ class _Blocks(Layer):
         if self._lines is not None:
             self._lines.points = self.skeleton.lines(self.poses[step])
 
-    def recolor(self, hue: RGB) -> None:
-        """Draw the blocks in the shades of ``hue``."""
-        self.hue = hue
-        colors = self.skeleton.colors(hue, _shade)
+    def recolor(self, hue: RGB, theme: Theme) -> None:
+        """Draw the blocks in ``theme``'s shades of ``hue``."""
+        self.hue, self.theme = hue, theme
+        colors = self.skeleton.colors(hue, theme.shade)
         for mesh, node in self._nodes.items():
             node.batched_colors = rgb_uint8(colors[mesh])
         if self._lines is not None:
-            self._lines.colors = rgb_uint8(_shade(hue, "face"))
+            self._lines.colors = rgb_uint8(theme.shade(hue, "face"))
 
 
 @final
@@ -251,13 +241,13 @@ class RobotVisual(Layer):
     def _make(self, part: str) -> list[Layer]:
         """The layers of ``part``, not yet built."""
         if part in ("minimal", "maximal"):
-            return [_Blocks(part, self._skeleton(part), self._poses, self._color())]
+            return [_Blocks(part, self._skeleton(part), self._poses, self._color(), self._theme)]
         if part == "meshes" and self.skin is not None:
             bind = self._solve(self.skin.bind)[1][0]
             return [
                 SkinnedMeshLayer(
                     part, self.skin.vertices, faces=self.skin.faces, weights=self.skin.weights, bind_poses=bind,
-                    bone_poses=self._poses, color=_shade(self._color(), "body"),
+                    bone_poses=self._poses, color=self._theme.shade(self._color(), "body"),
                 )
             ]  # fmt: skip
         if part == "frames":
@@ -268,17 +258,19 @@ class RobotVisual(Layer):
         if part == "collision" and self.spheres is not None:
             radii = self.spheres.radii.detach().cpu().numpy()
             centers = np.zeros((self.nsteps, len(radii), 3), np.float32)
-            layer = SpheresLayer(part, centers, radii=radii, colors=self._theme.collision, opacity=_OVERLAY)
+            theme = self._theme
+            layer = SpheresLayer(part, centers, radii=radii, colors=theme.collision, opacity=theme.collision_opacity)
             return [self._derive(part, layer)]
         shapes = self.geometry.shapes if self.geometry is not None else ()
         collision = part == "collision"
-        color = self._theme.collision if collision else _shade(self._color(), "body")
+        color = self._theme.collision if collision else self._theme.shade(self._color(), "body")
         specs = [
             _shape_spec(attached.body, attached.shape, self._root_folder, color, own_colors=not collision)
             for attached in shapes
             if attached.collision == collision
         ]
-        return [RigidMeshLayer(part, specs, body_poses=self._poses, opacity=_OVERLAY if collision else 1.0)]
+        opacity = self._theme.collision_opacity if collision else 1.0
+        return [RigidMeshLayer(part, specs, body_poses=self._poses, opacity=opacity)]
 
     def _frame_count(self) -> int:
         return len(self._moving()) if self._frames is True else len(self._frames or ())
@@ -389,21 +381,32 @@ class RobotVisual(Layer):
         if self._index is None:  # the robot's place among the robots of its viewer picks its hue
             others = self.viewer.layers if self.viewer is not None else ()
             self._index = sum(isinstance(layer, RobotVisual) and layer is not self for layer in others)
-        hue, overlay = self._color(), self._theme.collision
+        body, overlay = self._theme.shade(self._color(), "body"), (self._theme.collision, self._theme.collision_opacity)
         self._theme = theme
         for part in ("minimal", "maximal"):
             if part in self._parts:
-                self._parts[part][1][0].recolor(self._color())  # type: ignore[attr-defined]
-        for part, stale in (("meshes", hue != self._color()), ("collision", overlay != theme.collision)):
-            if stale:  # their colours are set when they are built
+                self._parts[part][1][0].recolor(self._color(), theme)  # type: ignore[attr-defined]
+        stale = {
+            "meshes": body != theme.shade(self._color(), "body"),
+            "collision": overlay != (theme.collision, theme.collision_opacity),
+        }
+        for part, old in stale.items():
+            if old:  # their colours are set when they are built
                 self._drop(part)
         self._apply()
 
     @override
     def bounds(self, step: int) -> Bounds | None:
-        pad = 2.0 * self._skeleton("maximal").radius
-        low, high = box(self._poses[step, 1:, :3]) or (np.zeros(3), np.zeros(3))
-        return low - pad, high + pad
+        """The box round the joints and the blocks of the maximal skeleton: the robot's extent in any style."""
+        joints = self._poses[step, min(1, self.model.njoints - 1) :, :3]  # not the universe, unless it is all there is
+        lows, highs = [joints], [joints]
+        for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
+            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
+            axes = np.abs(act(world[:, None, 3:], np.eye(3, dtype=world.dtype)))  # (N, 3, 3): each block's axes
+            reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box
+            lows.append(world[:, :3] - reach)
+            highs.append(world[:, :3] + reach)
+        return np.concatenate(lows).min(axis=0), np.concatenate(highs).max(axis=0)
 
     @override
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
