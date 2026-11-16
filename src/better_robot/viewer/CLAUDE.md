@@ -22,3 +22,6 @@ The design is `docs/concepts/viewer.md`; read it first.
 - Default host is `127.0.0.1`; tests use the stand-in `better_robot.testing.FakeServer`, plus one loopback smoke test.
 - A layer that should frame the camera of `Viewer.record` and `Viewer.aim` implements `bounds(step)` (a world box
   `(lo (3,), hi (3,))`, cheap: no per-vertex work); the default `None` keeps it out of the fit.
+- Sidebar callbacks run under `viewer.lock`, and the playback thread takes that lock to push a step: a callback must
+  never wait for the thread (`Timeline.pause` joins it); the Timeline's own controls stop it with `_halt`.
+- `Theme.apply` switches viser's environment map off: any map washes solid colours to pastel. Meshes share the rig.

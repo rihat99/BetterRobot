@@ -50,7 +50,14 @@ class PlotPanel(Layer):
     def build_gui(self, sidebar: Sidebar) -> None:
         data = (self.time, *(self.series[:, k].astype(np.float64) for k in range(self.series.shape[1])))
         with sidebar.section("Plots"):
-            plot = sidebar.gui.add_uplot(data, self._series_config(0), aspect=1.6, legend={"show": False})
+            plot = sidebar.gui.add_uplot(
+                # seconds on the x axis, not a date: uPlot reads x as a Unix time unless told otherwise
+                data,
+                self._series_config(0),
+                scales={"x": {"time": False}},
+                aspect=1.6,
+                legend={"show": False},
+            )
         self._plot = self._track(plot)
 
     @override

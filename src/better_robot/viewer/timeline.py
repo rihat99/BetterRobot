@@ -5,9 +5,15 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable
-from typing import Any, final, override
+from typing import Any, TYPE_CHECKING, final, override
 
 from ..exceptions import ArgumentError
+
+if TYPE_CHECKING:
+    from .sidebar import Sidebar
+
+#: The playback speeds the sidebar offers, as factors of ``fps``.
+_SPEEDS = {"0.25\u00d7": 0.25, "0.5\u00d7": 0.5, "1\u00d7": 1.0, "2\u00d7": 2.0}
 
 
 @final
@@ -16,7 +22,8 @@ class Timeline:
 
     Setting ``step`` clamps to ``[0, nsteps - 1]`` and notifies the ``on_step`` callbacks
     (the viewer pushes the step from there). ``play`` starts a thread that advances by wall
-    clock, so slow pushes drop steps instead of slowing playback.
+    clock, so slow pushes drop steps instead of slowing playback; ``speed`` and ``loop`` take
+    effect while it plays, and a step set meanwhile (the slider) becomes where playback goes on.
     """
 
     def __init__(self, nsteps: int, *, fps: float = 30.0, loop: bool = True) -> None:
@@ -31,6 +38,7 @@ class Timeline:
         self._playing = threading.Event()
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
+        self._generation = 0  # which play() a playback thread belongs to: an older one stops by itself
         self._gui_slider: Any = None
         self._gui_play: Any = None
 
@@ -90,64 +98,77 @@ class Timeline:
             if self.playing or self.nsteps == 1:
                 return
             self._playing.set()
-            self._thread = threading.Thread(target=self._run, name="better_robot.viewer.timeline", daemon=True)
+            self._generation += 1
+            thread = self._thread = threading.Thread(
+                target=self._run, args=(self._generation,), name="better_robot.viewer.timeline", daemon=True
+            )
         if not self.loop and self._step >= self.nsteps - 1:
             self.step = 0
-        self._thread.start()
+        thread.start()
         self._sync_play_button()
 
     def pause(self) -> None:
-        """Stop playback and wait for the playback thread to exit; the current step is kept."""
-        self._playing.clear()
-        if self._thread is not None and self._thread is not threading.current_thread():
-            self._thread.join()
-        self._thread = None
-        self._sync_play_button()
+        """Stop playback and wait for the playback thread to exit; the current step is kept.
+
+        It waits, so never call it while holding the viewer's lock, as a sidebar callback does: the thread may be
+        waiting for that lock to push a step. The sidebar's Play box stops playback without waiting.
+        """
+        self._halt()
+        thread, self._thread = self._thread, None
+        if thread is not None and thread is not threading.current_thread():
+            thread.join()
 
     def toggle(self) -> None:
-        """Pause when playing, play otherwise (the sidebar's Play button)."""
+        """Pause when playing, play otherwise."""
         self.pause() if self.playing else self.play()
 
-    def _run(self) -> None:
-        start_time = time.perf_counter()
-        start_step = self._step
-        while self.playing:
-            elapsed = (time.perf_counter() - start_time) * self.speed
-            target = start_step + int(elapsed * self.fps)
-            if target >= self.nsteps:
+    def _halt(self) -> None:
+        """Stop playback without waiting: the playback thread sees it at its next tick and ends."""
+        self._playing.clear()
+        self._sync_play_button()
+
+    def _run(self, generation: int) -> None:
+        position, shown, last = float(self._step), self._step, time.perf_counter()
+        while self.playing and generation == self._generation:
+            if self._step != shown:  # moved by hand while playing: go on from there
+                position = float(self._step)
+            now = time.perf_counter()
+            position += (now - last) * self.speed * self.fps
+            last = now
+            if position >= self.nsteps:
                 if not self.loop:
                     self.step = self.nsteps - 1
-                    self._playing.clear()
-                    self._sync_play_button()
+                    self._halt()
                     return
-                target %= self.nsteps
-            if target != self._step:
-                self.step = target
+                position %= self.nsteps
+            shown = int(position)
+            if shown != self._step:
+                self.step = shown
             time.sleep(min(0.5 / (self.fps * self.speed), 0.05))
 
-    def build_gui(self, gui: Any) -> None:
-        """Play/pause, step slider, speed and loop controls in the given GUI api or folder."""
-        self._gui_play = gui.add_button("Play")
-        self._gui_play.on_click(lambda _: self.toggle())
-        self._gui_slider = gui.add_slider("Step", min=0, max=self.nsteps - 1, step=1, initial_value=self._step)
-        self._gui_slider.on_update(lambda _: self._on_slider())
-        speed = gui.add_slider("Speed", min=0.1, max=4.0, step=0.1, initial_value=self.speed)
-        speed.on_update(lambda _: self._set_speed(speed.value))
-        loop = gui.add_checkbox("Loop", initial_value=self.loop)
-        loop.on_update(lambda _: setattr(self, "loop", bool(loop.value)))
+    def build_gui(self, sidebar: Sidebar) -> None:
+        """Play, Step, Speed and Loop in the sidebar's Timeline section; like every sidebar control they run under the
+        viewer's lock, so none of them waits for the playback thread."""
+        self._gui_play = sidebar.checkbox(
+            "Timeline", "Play", value=self.playing, on_change=lambda value: self.play() if value else self._halt()
+        )
+        self._gui_slider = sidebar.slider(
+            "Timeline", "Step", low=0, high=self.nsteps - 1, step=1, value=self._step, on_change=self._on_slider
+        )
+        names = {factor: name for name, factor in _SPEEDS.items()}
+        sidebar.dropdown(
+            "Timeline",
+            "Speed",
+            options=list(_SPEEDS),
+            value=names.get(self.speed, "1\u00d7"),
+            on_change=lambda name: setattr(self, "speed", _SPEEDS[name]),
+        )
+        sidebar.checkbox("Timeline", "Loop", value=self.loop, on_change=lambda value: setattr(self, "loop", value))
 
-    def _on_slider(self) -> None:
-        if self._gui_slider.value != self._step:
-            self.step = self._gui_slider.value
-
-    def _set_speed(self, speed: float) -> None:
-        was_playing = self.playing
-        if was_playing:
-            self.pause()
-        self.speed = float(speed)
-        if was_playing:
-            self.play()
+    def _on_slider(self, value: float) -> None:
+        if int(value) != self._step:
+            self.step = int(value)
 
     def _sync_play_button(self) -> None:
-        if self._gui_play is not None:
-            self._gui_play.label = "Pause" if self.playing else "Play"
+        if self._gui_play is not None and self._gui_play.value != self.playing:
+            self._gui_play.value = self.playing
