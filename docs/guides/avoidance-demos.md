@@ -143,7 +143,7 @@ The scripted runs print, per form (CPU, float64, one thread; the tick is one `tr
 - A robot that moves along a row rides slightly short of it, by the reserve `track` keeps (about 0.4 mm at 5 mrad
   per tick), and settles onto it when the target stops: the scripted runs end 20.0 to 21.3 mm away.
 - The robot moves at most `step` per tick, so a fast drag leaves the target behind; the loop runs at most at 100
-  Hz.
+  Hz (the G1 with its self-collision rows at about 85 Hz on one CPU core: 9 ms of `track`, 12 ms per loop).
 - An obstacle dragged faster than the arm can move pushes into the margin; the rows repair the violation once it
   slows. One pressed between two links, or onto a hand that another row holds, can leave the arm no direction: it
   waits until the obstacle moves.
