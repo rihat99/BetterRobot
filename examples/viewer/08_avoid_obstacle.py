@@ -132,8 +132,7 @@ def main() -> None:
         return layers
 
     if not (args.check or args.record):
-        center = hand + torch.tensor([0.0, -0.3, 0.0], dtype=torch.float64)
-        obstacle[:3] = center
+        center = obstacle[:3].clone()  # where the scripted path starts: outside every margin on both robots
         robot = draw("robot", q0, center[None])
         follow(viewer, tick, look, robot, x=dict(problems["rows"].variables), start=start[0, 0], center=center)
         return
@@ -145,7 +144,7 @@ def main() -> None:
         q, seconds = run(tick, form, dict(problems[form].variables), sweep, start[:, 0])
         gave_way = (forward_kinematics(model, q).frame_poses[:, model.frame_id(frames[0]), :3] - hand).norm(dim=-1)
         print(
-            f"obstacle {form:4s}: closest sphere {1e3 * float(look(q, sweep)[2].min()):+6.1f} mm from it "
+            f"obstacle {form:4s}: closest sphere {1e3 * float(look(q, sweep)[2].min()):+8.3f} mm from it "
             f"(margin {1e3 * MARGIN:.0f}), the hand gave way up to {1e3 * float(gave_way.max()):.0f} mm, "
             f"tick {1e3 * seconds:.1f} ms (median)"
         )
