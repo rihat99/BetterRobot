@@ -26,6 +26,7 @@ from better_robot.exceptions import ArgumentError, OptionalDependencyError
 from better_robot.testing import FakeServer
 from better_robot.viewer import DARK, LIGHT, PointsLayer, SpheresLayer, Theme, Viewer
 from better_robot.viewer import record as recorder
+from better_robot.viewer.theme import rgb_uint8
 
 # Six steps, six colours whose bright channels tell the step apart even after lighting and compression.
 _STEP_COLORS = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 0, 1], [0, 1, 1]], dtype=np.float32)
@@ -171,14 +172,14 @@ def _ball_viewer(theme: Theme) -> Viewer:
 
 
 def _step_of(rgb: list[int]) -> int:
-    """The step whose colour has the bright channels of ``rgb``."""
-    bright = tuple(bool(value > 0.5 * max(rgb)) for value in rgb)
+    """The step whose colour has the bright channels of ``rgb``; the theme's lights lift the dark ones."""
+    bright = tuple(bool(value > (min(rgb) + max(rgb)) / 2) for value in rgb)
     return [tuple(bool(c) for c in color) for color in _STEP_COLORS].index(bright)
 
 
-def _page_color(theme: Theme) -> tuple[int, int, int]:
-    """What the browser shows behind the scene: viser's page colour (white, or Mantine's dark 9)."""
-    return (255, 255, 255) if not theme.dark else (20, 21, 23)
+def _backdrop_top(theme: Theme) -> np.ndarray:
+    """What a frame's top rows show behind the scene: the top colour of the theme's backdrop gradient."""
+    return rgb_uint8(theme.backdrop[0])
 
 
 @pytest.mark.slow
@@ -195,11 +196,11 @@ def test_the_viser_client_still_has_what_the_recorder_drives_and_a_clip_shows_ea
     assert (decoded["width"], decoded["height"]) == (320, 180)
     assert round(decoded["duration"] * 10) == 6
     assert [_step_of(rgb) for rgb in decoded["centre"]] == list(range(6))
-    np.testing.assert_allclose(decoded["corner"], [_page_color(DARK)] * 6, atol=6)
+    np.testing.assert_allclose(decoded["corner"], [_backdrop_top(DARK)] * 6, atol=6)
 
 
 @pytest.mark.slow
-def test_a_still_has_the_exact_size_the_step_and_the_light_page_colour(tmp_path: Path) -> None:
+def test_a_still_has_the_exact_size_the_step_and_the_light_backdrop(tmp_path: Path) -> None:
     viewer = _ball_viewer(LIGHT)
     try:
         viewer.show(4)
@@ -209,4 +210,4 @@ def test_a_still_has_the_exact_size_the_step_and_the_light_page_colour(tmp_path:
     image = np.asarray(Image.open(io.BytesIO(path.read_bytes())).convert("RGB"))
     assert image.shape == (181, 321, 3)
     assert _step_of(image[90, 160].tolist()) == 4
-    np.testing.assert_array_equal(image[2, 2], _page_color(LIGHT))
+    np.testing.assert_array_equal(image[2, 2], _backdrop_top(LIGHT))
