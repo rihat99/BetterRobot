@@ -123,28 +123,35 @@ def self_clearance(
     keep = pairs.shape[0] if closest is None else min(closest, pairs.shape[0])
 
     def nearest(kinematics: KinematicState) -> tuple[torch.Tensor, torch.Tensor | None]:
-        """Gaps ``margin - distance``, ``(B..., keep)``, and, when only some pairs are kept, their indices into
-        ``pairs``."""
-        gap = width - self_distances(spheres, kinematics, pairs=pairs)
+        """Distances ``(B..., keep)`` of the pairs with the least room and, when only some pairs are kept, their
+        indices into ``pairs``."""
+        distance = self_distances(spheres, kinematics, pairs=pairs)
         if keep == pairs.shape[0]:
-            return gap, None
-        gap, index = gap.topk(keep, dim=-1)
-        return gap, index
+            return distance, None
+        if width.dim() == 0:  # one margin: the least room is the smallest distance, and no gap is computed twice
+            distance, index = distance.topk(keep, dim=-1, largest=False)
+            return distance, index
+        index = (width - distance).topk(keep, dim=-1).indices
+        return distance.gather(-1, index), index
+
+    def gap(distance: torch.Tensor, index: torch.Tensor | None) -> torch.Tensor:
+        """``margin - distance`` of the kept pairs."""
+        return (width if index is None or width.dim() == 0 else width[index]) - distance
 
     def banded(index: torch.Tensor | None) -> tuple[torch.Tensor, torch.Tensor]:
         """The hinge constants of the kept pairs."""
         return band if index is None or width.dim() == 0 else (band[0][index], band[1][index])
 
     def residual(kinematics: KinematicState) -> torch.Tensor:
-        gap, index = nearest(kinematics)
-        return _hinge(gap, banded(index)) if hinge else gap
+        distance, index = nearest(kinematics)
+        return _hinge(gap(distance, index), banded(index)) if hinge else gap(distance, index)
 
     def jacobian(kinematics: KinematicState) -> dict[str, torch.Tensor]:
-        gap, index = nearest(kinematics)
+        distance, index = nearest(kinematics)
         first, second = pairs[:, 0], pairs[:, 1]
         if index is not None:
             first, second = first[index], second[index]  # (B..., keep)
-        first, second = first.expand(gap.shape), second.expand(gap.shape)
+        first, second = first.expand(distance.shape), second.expand(distance.shape)
         centers = spheres.centers(kinematics)  # (B..., S, 3)
         points = point_jacobian(kinematics.model, kinematics, frames=frames, points=spheres.offsets)
         batch = centers.shape[:-2]
@@ -160,7 +167,7 @@ def self_clearance(
         normal = torch.where(length > 1e-24, delta / length.clamp_min(1e-24).sqrt(), 0.0)
         rows = (normal.unsqueeze(-2) @ (gather(points, first) - gather(points, second))).squeeze(-2)
         if hinge:
-            rows = _hinge_slope(gap, banded(index))[..., None] * rows
+            rows = _hinge_slope(gap(distance, index), banded(index))[..., None] * rows
         return {q: -rows}
 
     return TermFn(fn=residual, reads=(state,), jacobian=jacobian)
