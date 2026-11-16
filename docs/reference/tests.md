@@ -64,6 +64,10 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_versioning.py` | the version is `0.MINOR.PATCH` before 1.0, and this major keeps no deprecated alias |
 | `test_roadmap_stub_inventory.py` | every `NotImplementedError` stub is listed in the [roadmap](roadmap.md) |
 
+A sweep over every public object, file or page is one table test: it runs every case, and its one assertion names
+each case that failed (`tests/support/cases.py`, which also fails an empty table). A sweep keeps one test id per case
+only where another test reads the ids: the entry points of the [effects table](effects.md).
+
 A rule that still has known violations keeps them in a ratchet, `tests/contract/ratchets/<name>.json`: each key
 is one violation with its reason or witness, or `{"count": n, "reason": ...}` when one key holds several sites (a
 symbol with three pyright errors). A ratchet only shrinks: a key with more sites than its count fails, and the fix

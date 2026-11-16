@@ -19,6 +19,7 @@ from better_robot.lie import se3, so3, tangents
 # (tests/lie, tests/spatial) needs the dtype rule io.build_model and Model.to apply, and the batch broadcast every
 # public entry computes, exercised here (the entries' own tests go through them).
 from better_robot.lie._checks import broadcast_batch, check_dtype
+from tests.support.cases import failures
 
 #: ``module.function`` -> trailing shape of each tensor parameter, in order (``()`` takes any shape).
 PARAMETERS: dict[str, tuple[tuple[int, ...], ...]] = {
@@ -75,8 +76,7 @@ def test_the_table_covers_every_public_function() -> None:
     assert public == set(PARAMETERS) | NO_TENSOR_INPUTS
 
 
-@pytest.mark.parametrize("qualified", sorted(PARAMETERS))
-def test_public_function_rejects_bad_inputs(qualified: str) -> None:
+def _check_rejects_bad_inputs(qualified: str) -> None:
     function, shapes = _function(qualified), PARAMETERS[qualified]
     valid = [torch.zeros(2, *shape) if shape else torch.zeros(2) for shape in shapes]
     function(*valid)
@@ -97,8 +97,12 @@ def test_public_function_rejects_bad_inputs(qualified: str) -> None:
                 call(valid[index].double())
 
 
-@pytest.mark.parametrize("qualified", sorted(name for name, shapes in PARAMETERS.items() if len(shapes) > 1))
-def test_batch_axes_that_do_not_broadcast_raise_naming_both_arguments(qualified: str) -> None:
+def test_public_functions_reject_bad_inputs() -> None:
+    failed = failures(_check_rejects_bad_inputs, sorted(PARAMETERS))
+    assert not failed, "\n".join(failed)
+
+
+def _check_batches_that_do_not_broadcast(qualified: str) -> None:
     function, shapes = _function(qualified), PARAMETERS[qualified]
     first, *others = inspect.signature(function).parameters
     for index, shape in enumerate(shapes[1:], start=1):
@@ -106,6 +110,13 @@ def test_batch_axes_that_do_not_broadcast_raise_naming_both_arguments(qualified:
         arguments[index] = torch.zeros(4, *shape)
         with pytest.raises(ShapeError, match=rf"{first} has batch axes \(3,\) and {others[index - 1]} \(4,\), "):
             function(*arguments)
+
+
+def test_batch_axes_that_do_not_broadcast_raise_naming_both_arguments() -> None:
+    failed = failures(
+        _check_batches_that_do_not_broadcast, sorted(n for n, shapes in PARAMETERS.items() if len(shapes) > 1)
+    )
+    assert not failed, "\n".join(failed)
 
 
 def test_the_dtype_rule_keeps_float32_and_float64() -> None:

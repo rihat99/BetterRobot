@@ -11,11 +11,10 @@ import json
 import pkgutil
 from pathlib import Path
 
-import pytest
-
 import better_robot
 from better_robot.model import joints
 from better_robot.model.joints import JointModel
+from tests.support.cases import failures
 
 RATCHET = Path(__file__).resolve().parent / "ratchets" / "abstract_or_final.json"
 
@@ -35,10 +34,14 @@ def _undecided(cls: type) -> bool:
     return not (inspect.isabstract(cls) or getattr(cls, "__final__", False))
 
 
-@pytest.mark.parametrize(("qualname", "cls"), _classes(), ids=[qualname for qualname, _ in _classes()])
-def test_class_is_abstract_or_final(qualname: str, cls: type) -> None:
-    ratchet = json.loads(RATCHET.read_text())
-    assert not _undecided(cls) or qualname in ratchet, f"{qualname} is neither abstract nor @final"
+def test_every_class_is_abstract_or_final() -> None:
+    ratchet, classes = json.loads(RATCHET.read_text()), dict(_classes())
+
+    def check(qualname: str) -> None:
+        assert not _undecided(classes[qualname]) or qualname in ratchet, "neither abstract nor @final"
+
+    failed = failures(check, classes)
+    assert not failed, "\n".join(failed)
 
 
 def test_ratchet_names_only_undecided_classes() -> None:
@@ -48,10 +51,14 @@ def test_ratchet_names_only_undecided_classes() -> None:
     assert stale == [], f"drop from the ratchet: {stale}"
 
 
-@pytest.mark.parametrize("name", [name for name in joints.__all__ if name != "JointModel"])
-def test_exported_kind_is_a_frozen_joint_model(name: str) -> None:
+def _check_kind(name: str) -> None:
     cls = getattr(joints, name)
     assert issubclass(cls, JointModel) and not inspect.isabstract(cls), name
     assert dataclasses.is_dataclass(cls) and cls.__dataclass_params__.frozen, name
     for attribute in ("nq", "nv", "manifold", "axis"):
         assert hasattr(cls, attribute) or attribute in {field.name for field in dataclasses.fields(cls)}, attribute
+
+
+def test_exported_kinds_are_frozen_joint_models() -> None:
+    failed = failures(_check_kind, [name for name in joints.__all__ if name != "JointModel"])
+    assert not failed, "\n".join(failed)

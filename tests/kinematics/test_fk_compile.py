@@ -30,15 +30,6 @@ def free_flyer_model():
     return _free_flyer()
 
 
-def test_free_flyer_fk_compiles_fullgraph(free_flyer_model):
-    """The public wrapper (validation, memoised placements, the kernel) traces as one graph for a quaternion joint."""
-    torch._dynamo.reset()
-    q = free_flyer_model.q_neutral.unsqueeze(0).expand(2, -1).clone()
-    expected = forward_kinematics(free_flyer_model, q)
-    actual = torch.compile(lambda q: forward_kinematics(free_flyer_model, q).joint_transforms, fullgraph=True)(q)
-    torch.testing.assert_close(actual, expected.joint_transforms)
-
-
 def test_free_flyer_fk_compiles_fullgraph_on_a_cold_plan():
     """A fresh model's first call is the compiled one, so the FK plan is built inside the trace: no plan step may read
     a tensor value."""

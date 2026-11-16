@@ -11,7 +11,7 @@ import dataclasses
 import importlib
 import inspect
 
-import pytest
+from tests.support.cases import failures
 
 PACKAGES = [
     "better_robot",
@@ -50,9 +50,14 @@ DATACLASSES = _public_dataclasses()
 FROZEN = [(qualname, cls) for qualname, cls in DATACLASSES if qualname not in MUTABLE_DATACLASSES]
 
 
-@pytest.mark.parametrize("qualname,cls", FROZEN, ids=[qualname for qualname, _ in FROZEN])
-def test_public_dataclass_is_frozen(qualname: str, cls: type) -> None:
-    assert cls.__dataclass_params__.frozen, f"{qualname} must be @dataclass(frozen=True)"
+def test_public_dataclasses_are_frozen() -> None:
+    classes = dict(FROZEN)
+
+    def check(qualname: str) -> None:
+        assert classes[qualname].__dataclass_params__.frozen, "must be @dataclass(frozen=True)"
+
+    failed = failures(check, classes)
+    assert not failed, "\n".join(failed)
 
 
 def test_mutable_list_names_public_mutable_dataclasses() -> None:
@@ -60,7 +65,3 @@ def test_mutable_list_names_public_mutable_dataclasses() -> None:
     found = dict(DATACLASSES)
     stale = [name for name in MUTABLE_DATACLASSES if name not in found or found[name].__dataclass_params__.frozen]
     assert not stale, f"remove from MUTABLE_DATACLASSES: {stale}"
-
-
-def test_contract_covers_public_dataclasses() -> None:
-    assert FROZEN

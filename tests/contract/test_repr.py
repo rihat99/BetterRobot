@@ -13,13 +13,13 @@ import inspect
 from collections.abc import Callable
 
 import numpy as np
-import pytest
 import torch
 
 import better_robot as br
 from better_robot import collision, io, optim, terms, viewer
 from better_robot import model as robot_model
 from better_robot.testing import FakeServer, public_objects
+from tests.support.cases import failures
 from tests.support.robots import panda_urdf
 
 EXCEPTION = "an exception's repr is its message, which contract 06 shapes"
@@ -202,14 +202,18 @@ def test_every_public_class_is_built_or_has_a_reason() -> None:
     assert sorted((BUILDERS.keys() | NO_INSTANCE.keys()) - classes.keys()) == []
 
 
-@pytest.mark.parametrize("path", sorted(BUILDERS))
-def test_repr_is_one_short_line_naming_the_type(path: str) -> None:
+def _check_repr(path: str) -> None:
     value = BUILDERS[path]()
     name = path.rsplit(".", 1)[-1]
     assert type(value).__name__ == name
     text = repr(value)
-    assert "\n" not in text and len(text) < 200 and name in text, f"{path}: {len(text)} characters: {text[:120]!r}"
-    assert "object at 0x" not in text, f"{path} prints the default object repr; give it a one-line __repr__: {text!r}"
+    assert "\n" not in text and len(text) < 200 and name in text, f"{len(text)} characters: {text[:120]!r}"
+    assert "object at 0x" not in text, f"prints the default object repr; give it a one-line __repr__: {text!r}"
+
+
+def test_repr_is_one_short_line_naming_the_type() -> None:
+    failed = failures(_check_repr, sorted(BUILDERS))
+    assert not failed, "\n".join(failed)
 
 
 def test_panda_repr_names_its_sizes_dtype_and_device() -> None:

@@ -15,9 +15,8 @@ import inspect
 from collections.abc import Callable
 from pathlib import Path
 
-import pytest
-
 from better_robot.testing import public_objects
+from tests.support.cases import failures
 
 from ._ratchet_sites import counts
 
@@ -55,13 +54,17 @@ def _positional_count(function: Callable[..., object]) -> int:
 CALLABLES = _callables()
 
 
-@pytest.mark.parametrize("path", sorted(CALLABLES))
-def test_public_callable_is_keyword_only_after_its_second_argument(path: str) -> None:
-    count = _positional_count(CALLABLES[path])
-    assert count <= ALLOWED.get(path, MAX_POSITIONAL), (
-        f"{path} takes {count} positional parameters; make the ones after the second keyword-only (`*`, or "
+def _check_keyword_only(path: str) -> None:
+    count, allowed = _positional_count(CALLABLES[path]), ALLOWED.get(path, MAX_POSITIONAL)
+    assert count <= allowed, (
+        f"takes {count} positional parameters; make the ones after the second keyword-only (`*`, or "
         "`kw_only=True` on a dataclass)"
     )
+
+
+def test_public_callables_are_keyword_only_after_their_second_argument() -> None:
+    failed = failures(_check_keyword_only, sorted(CALLABLES))
+    assert not failed, "\n".join(failed)
 
 
 def test_exceptions_and_ratchet_name_only_violations() -> None:

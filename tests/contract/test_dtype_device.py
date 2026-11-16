@@ -6,6 +6,7 @@ of those packages (``_public_ops``), less the reasoned ``NOT_DRIVEN`` ones."""
 from __future__ import annotations
 
 import math
+from functools import partial
 from typing import Any
 
 import pytest
@@ -14,6 +15,7 @@ import torch
 from better_robot.exceptions import DtypeMismatchError
 from better_robot.kinematics import KinematicState, forward_kinematics
 from better_robot.model import Model
+from tests.support.cases import failures
 
 from ._public_ops import CASE_NAMES, NOT_DRIVEN, PUBLIC_FUNCTIONS, build_case, tensors_of
 
@@ -33,16 +35,21 @@ ROBOT_CASES_WITH_TENSOR_INPUTS = tuple(
 )
 
 
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_output_matches_input_dtype_and_device(name: str, dtype: torch.dtype) -> None:
+def test_output_matches_input_dtype_and_device(name: str) -> None:
+    """In float32 and in float64."""
     device = torch.device("cpu")
-    fn, args, kwargs = build_case(name, dtype, device)
-    outputs = tensors_of(fn(*args, **kwargs))
-    assert outputs, f"{name} returned no tensors"
-    for output in outputs:
-        assert output.dtype == dtype, f"{name}: {output.dtype} != {dtype}"
-        assert output.device == device, f"{name}: {output.device} != {device}"
+
+    def check(dtype: torch.dtype) -> None:
+        fn, args, kwargs = build_case(name, dtype, device)
+        outputs = tensors_of(fn(*args, **kwargs))
+        assert outputs, f"{name} returned no tensors"
+        for output in outputs:
+            assert output.dtype == dtype, f"{name}: {output.dtype} != {dtype}"
+            assert output.device == device, f"{name}: {output.device} != {device}"
+
+    failed = failures(check, (torch.float32, torch.float64))
+    assert not failed, "\n".join(failed)
 
 
 @pytest.mark.parametrize("name", ROBOT_CASES_WITH_TENSOR_INPUTS)
@@ -75,10 +82,7 @@ def _stacked(values: list[Any], batch: tuple[int, ...], model: Model | None) -> 
     return first
 
 
-@pytest.mark.parametrize("batch", BATCHES, ids=str)
-@pytest.mark.parametrize("name", CASE_NAMES)
-def test_leading_batch_axes_give_each_element_its_own_result(name: str, batch: tuple[int, ...]) -> None:
-    """C-TENS-2: inputs ``(*batch, n)`` give results ``(*batch, ...)`` whose every element equals the ``(n,)`` call."""
+def _check_batch(name: str, batch: tuple[int, ...]) -> None:
     variants = [build_case(name, torch.float64, torch.device("cpu"), variant=k) for k in range(math.prod(batch))]
     fn, args, kwargs = variants[0]
     model = args[0] if isinstance(args[0], Model) else None
@@ -92,3 +96,11 @@ def test_leading_batch_axes_give_each_element_its_own_result(name: str, batch: t
         for result, alone in zip(results, expected, strict=True):
             assert result.shape == (*batch, *alone.shape), f"{name}: {tuple(result.shape)} for {batch} + {alone.shape}"
             torch.testing.assert_close(result[index], alone, msg=f"{name}: element {index} differs from its call alone")
+
+
+@pytest.mark.parametrize("name", CASE_NAMES)
+def test_leading_batch_axes_give_each_element_its_own_result(name: str) -> None:
+    """C-TENS-2: inputs ``(*batch, n)`` give results ``(*batch, ...)`` whose every element equals the ``(n,)`` call,
+    for each batch of ``BATCHES``."""
+    failed = failures(partial(_check_batch, name), BATCHES)
+    assert not failed, "\n".join(failed)

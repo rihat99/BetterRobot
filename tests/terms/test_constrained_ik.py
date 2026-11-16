@@ -16,25 +16,27 @@ FRAME = "panda_hand"
 MARGIN = 0.02
 OBSTACLE = (0.45, 0.25, 0.45, 0.10)  # centre and radius of a sphere beside the arm
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
+# Torch's CUDA-graph tree captures an empty graph on purpose to keep its memory pool alive, a warning it records but
+# the "error" filter raises (as in tests/kinematics/test_compilation.py).
+CUDA_GRAPH_KEEPS_ITS_POOL = "ignore:The CUDA Graph is empty:UserWarning"
 
 
-@pytest.fixture(scope="module")
-def scene():
-    """``(build, worst, reached)``: ``build(batch, seed)`` is the IK problem of ``batch`` random targets from the
-    ready pose with the clearances as inequality rows, the target poses and their configurations;
+def _scene(device: torch.device):
+    """``(build, worst, reached)`` on ``device``: ``build(batch, seed)`` is the IK problem of ``batch`` random targets
+    from the ready pose with the clearances as inequality rows, the target poses and their configurations;
     ``worst(q): (B,)`` is the largest violation over every row of the nonlinear problem (all sphere pairs, not the
     closest eight; the joint limits); ``reached(q, goal): (B,)`` is the benchmark's 1 mm and 0.01 rad."""
-    panda = br.load(panda_urdf(), dtype=torch.float64)
+    panda = br.load(panda_urdf(), dtype=torch.float64, device=device)
     spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
     pairs = collision.self_collision_pairs(panda, spheres, ignore=ignore)
-    obstacle = torch.tensor(OBSTACLE, dtype=torch.float64)
+    obstacle = torch.tensor(OBSTACLE, dtype=torch.float64, device=device)
 
     def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
         return (centers - obstacle[:3]).norm(dim=-1) - radii - obstacle[3]
 
     def build(batch: int, seed: int) -> tuple[optim.Problem, torch.Tensor, torch.Tensor]:
-        q0 = torch.tensor(READY, dtype=torch.float64).expand(batch, -1)
-        generator = torch.Generator().manual_seed(seed)
+        q0 = torch.tensor(READY, dtype=torch.float64, device=device).expand(batch, -1)
+        generator = torch.Generator(device).manual_seed(seed)
         q_target = terms.random_start(panda, panda.q_neutral.expand(batch, -1), generator=generator)
         goal = forward_kinematics(panda, q_target).frame_poses[:, panda.frame_id(FRAME)]
         problem = terms.ik_problem(panda, {FRAME: goal}, q0=q0)
@@ -57,6 +59,11 @@ def scene():
         return ((pose[:, :3] - goal[:, :3]).norm(dim=-1) < 1e-3) & (turn < 1e-2)
 
     return build, worst, reached
+
+
+@pytest.fixture(scope="module")
+def scene():
+    return _scene(torch.device("cpu"))
 
 
 def test_every_row_holds_at_the_end_of_a_constrained_ik_run(scene) -> None:
@@ -86,11 +93,9 @@ def _tensors(value: object, path: str = "state") -> dict[str, torch.Tensor]:
     return {name: found for key, item in value.items() for name, found in _tensors(item, f"{path}.{key}").items()}
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("mode", ["default", "reduce-overhead"])
-def test_a_compiled_step_equals_the_eager_one(scene, mode: str) -> None:
-    """In both modes, over the whole state: the reported point, the iterate, its rows and normal equations, the
-    quadratic program and the step control."""
+def _check_compiled_step(scene, mode: str) -> None:
+    """Over the whole state: the reported point, the iterate, its rows and normal equations, the quadratic program and
+    the step control."""
     build, _, _ = scene
     solver = optim.SequentialQP()
     step = br.kinematics.compiled(solver.step, mode=mode)
@@ -104,21 +109,33 @@ def test_a_compiled_step_equals_the_eager_one(scene, mode: str) -> None:
         )
 
 
-@pytest.fixture(scope="module")
-def tracking():
-    """``(problem, path, worst)``: 24 Panda targets whose paths from the ready pose cross a joint limit, a floor 5 cm
+@pytest.mark.slow
+def test_a_compiled_step_equals_the_eager_one(scene) -> None:
+    _check_compiled_step(scene, "default")
+
+
+@pytest.mark.cuda
+@pytest.mark.filterwarnings(CUDA_GRAPH_KEEPS_ITS_POOL)
+def test_a_step_compiled_with_cuda_graphs_equals_the_eager_one() -> None:
+    """``mode="reduce-overhead"`` adds CUDA graphs, so its twin of the step above runs on a GPU (release tier)."""
+    _check_compiled_step(_scene(torch.device("cuda")), "reduce-overhead")
+
+
+def _tracking(device: torch.device):
+    """``(problem, path, worst)`` on ``device``: 24 Panda targets whose paths from the ready pose cross a joint limit, a floor 5 cm
     up, the obstacle sphere, the arm itself or a singular pose (each crossed by some), and the five behaviours as rows
     of ``optim.track``; ``path(t)`` is ``{frame: poses (24, 7)}`` and its configurations at tick ``t`` of 100;
     ``worst(q)`` is ``{behaviour: (24,) largest violation over every row}``."""
-    panda = br.load(panda_urdf(), dtype=torch.float64)
+    panda = br.load(panda_urdf(), dtype=torch.float64, device=device)
     spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
     pairs = collision.self_collision_pairs(panda, spheres, ignore=ignore)
-    start = torch.tensor(READY, dtype=torch.float64)
-    obstacle = torch.tensor(OBSTACLE, dtype=torch.float64)
+    start = torch.tensor(READY, dtype=torch.float64, device=device)
+    obstacle = torch.tensor(OBSTACLE, dtype=torch.float64, device=device)
     base = torch.tensor(
-        [int(f) in {panda.frame_id("panda_link0"), panda.frame_id("panda_link1")} for f in spheres.frame_ids]
+        [int(f) in {panda.frame_id("panda_link0"), panda.frame_id("panda_link1")} for f in spheres.frame_ids],
+        device=device,
     )
-    up = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64)
+    up = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64, device=device)
 
     def to_floor(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:  # the base spheres never reach it
         return collision.sphere_halfspace(centers, radii, normal=up, offset=0.05) + base
@@ -143,7 +160,7 @@ def tracking():
         return {name: value.clamp_min(0.0) for name, value in out.items()}
 
     mid = (panda.lower_position_limit + panda.upper_position_limit) / 2
-    draws = terms.random_start(panda, start.expand(512, -1), generator=torch.Generator().manual_seed(3))
+    draws = terms.random_start(panda, start.expand(512, -1), generator=torch.Generator(device).manual_seed(3))
     goal = mid + 1.2 * (draws - mid)  # some beyond a limit
     crossed = torch.stack(
         [torch.stack(list(worst(start + s * (goal - start)).values())) for s in (0.25, 0.5, 0.75, 1.0)]
@@ -162,6 +179,11 @@ def tracking():
     for name, row in rows.items():
         problem.inequality(name, row, upper=0.0)
     return problem, path, worst
+
+
+@pytest.fixture(scope="module")
+def tracking():
+    return _tracking(torch.device("cpu"))
 
 
 def test_each_behaviour_row_holds_while_track_follows_targets_through_the_forbidden_regions(tracking) -> None:
@@ -192,10 +214,8 @@ def test_a_tick_reads_nothing_back(tracking) -> None:
     assert sum(event.name in ("aten::_local_scalar_dense", "aten::nonzero") for event in profile.events()) == 0
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("mode", ["default", "reduce-overhead"])
-def test_a_compiled_tick_equals_the_eager_one(tracking, mode: str) -> None:
-    """In both modes, over six ticks: the configuration and the whole quadratic program's solution."""
+def _check_compiled_tick(tracking, mode: str) -> None:
+    """Over six ticks: the configuration and the whole quadratic program's solution."""
     problem, path, _ = tracking
     tick = br.kinematics.compiled(lambda problem, x, warm: optim.track(problem, x, warm=warm, step=0.005), mode=mode)
     runs = []
@@ -209,6 +229,18 @@ def test_a_compiled_tick_equals_the_eager_one(tracking, mode: str) -> None:
         torch.testing.assert_close(
             runs[0][name], tensor, rtol=1e-9, atol=1e-9, msg=lambda text, name=name: f"{name}: {text}"
         )
+
+
+@pytest.mark.slow
+def test_a_compiled_tick_equals_the_eager_one(tracking) -> None:
+    _check_compiled_tick(tracking, "default")
+
+
+@pytest.mark.cuda
+@pytest.mark.filterwarnings(CUDA_GRAPH_KEEPS_ITS_POOL)
+def test_a_tick_compiled_with_cuda_graphs_equals_the_eager_one() -> None:
+    """The twin of the tick above with ``mode="reduce-overhead"``, on a GPU (release tier)."""
+    _check_compiled_tick(_tracking(torch.device("cuda")), "reduce-overhead")
 
 
 def test_a_start_deep_inside_a_margin_comes_out_without_a_stall() -> None:

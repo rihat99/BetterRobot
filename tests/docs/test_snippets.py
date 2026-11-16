@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from better_robot.testing.snippets import check_page
+from tests.support.cases import failures
 
 REPO = Path(__file__).parents[2]
 DOCS = REPO / "docs"
@@ -33,11 +34,29 @@ def _pages() -> list[Path]:
     return sorted(DOCS.rglob("*.md"))
 
 
-@pytest.mark.parametrize("page", [*_pages(), REPO / "README.md"], ids=lambda p: p.relative_to(REPO).as_posix())
-def test_page_fences_run_and_print_their_output_fences(page: Path) -> None:
-    """Every fence runs once, CPU only, seeded, with a fake viser server; every output fence is compared in full."""
+def _check_page(page: Path) -> None:
     compared = check_page(page, root=REPO, folder_reasons=FOLDER_REASONS)
     assert compared == len(OUTPUT_FENCE.findall(page.read_text())), f"{page.name}: an output fence went unchecked"
+
+
+def _opted_out(page: Path) -> bool:
+    return page.relative_to(REPO).as_posix().startswith(tuple(FOLDER_REASONS))
+
+
+@pytest.mark.parametrize(
+    "page",
+    [*(page for page in _pages() if not _opted_out(page)), REPO / "README.md"],
+    ids=lambda p: p.relative_to(REPO).as_posix(),
+)
+def test_page_fences_run_and_print_their_output_fences(page: Path) -> None:
+    """Every fence runs once, CPU only, seeded, with a fake viser server; every output fence is compared in full."""
+    _check_page(page)
+
+
+def test_pages_of_an_opted_out_folder_pass_the_same_check() -> None:
+    """The fences of a ``FOLDER_REASONS`` folder opt out together, so its pages run nothing: one test checks them all."""
+    failed = failures(lambda page: _check_page(REPO / page), [p.relative_to(REPO) for p in _pages() if _opted_out(p)])
+    assert not failed, "\n".join(failed)
 
 
 def _output_fences(page: Path) -> list[tuple[int, str, str]]:
@@ -46,9 +65,7 @@ def _output_fences(page: Path) -> list[tuple[int, str, str]]:
     return [(text.count("\n", 0, m.start()), m["indent"], m["body"]) for m in OUTPUT_FENCE.finditer(text)]
 
 
-@pytest.mark.parametrize("page", _pages(), ids=lambda p: p.relative_to(DOCS).as_posix())
-def test_output_fences_follow_python(page: Path) -> None:
-    """Every ```output pane docks directly under a ```python fence that closed on the previous line."""
+def _check_output_fences_dock(page: Path) -> None:
     lines = page.read_text().splitlines()
     for line, indent, _ in _output_fences(page):
         assert line > 0 and lines[line - 1] == indent + "```", (
@@ -58,6 +75,12 @@ def test_output_fences_follow_python(page: Path) -> None:
         assert lines[start].startswith(indent + "```python"), (
             f"{page.relative_to(REPO)}:{line + 1} output follows a non-python fence"
         )
+
+
+def test_output_fences_follow_python() -> None:
+    """Every ```output pane docks directly under a ```python fence that closed on the previous line."""
+    failed = failures(lambda page: _check_output_fences_dock(REPO / page), [p.relative_to(REPO) for p in _pages()])
+    assert not failed, "\n".join(failed)
 
 
 EXTEND = DOCS / "guides" / "extend.md"
@@ -79,9 +102,7 @@ def test_index_has_runnable_snippet() -> None:
     assert re.search(r"^```python\n", (DOCS / "index.md").read_text(), re.MULTILINE)
 
 
-@pytest.mark.parametrize("page", [*_pages(), REPO / "README.md"], ids=lambda p: p.relative_to(REPO).as_posix())
-def test_referenced_images_exist(page: Path) -> None:
-    """Every ``![...](path)`` and ``figures/*.svg`` / ``images/*`` reference of the docs and README resolves."""
+def _check_references(page: Path) -> None:
     text = page.read_text()
     paths = {m["path"] for m in IMAGE.finditer(text)} | {m["path"] for m in FIGURE.finditer(text)}
     # mkdocs rewrites Markdown links but leaves raw HTML alone, and with directory URLs a page lives one level
@@ -96,3 +117,10 @@ def test_referenced_images_exist(page: Path) -> None:
         if "://" not in path and not (page.parent / path.split("#")[0]).resolve().exists()
     ] + [path for path in sorted(video_paths) if not (built_dir / path).resolve().exists()]
     assert not missing, f"{page.relative_to(REPO)} references missing files: {missing}"
+
+
+def test_referenced_images_exist() -> None:
+    """Every ``![...](path)`` and ``figures/*.svg`` / ``images/*`` reference of the docs and README resolves."""
+    pages = [p.relative_to(REPO) for p in [*_pages(), REPO / "README.md"]]
+    failed = failures(lambda page: _check_references(REPO / page), pages)
+    assert not failed, "\n".join(failed)
