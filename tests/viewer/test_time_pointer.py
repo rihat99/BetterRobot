@@ -162,9 +162,7 @@ def test_valid_per_element_hides_single_spheres_and_arrows() -> None:
     forces = viewer.add(ArrowsLayer("forces", np.zeros((2, 2, 3)), vectors=np.ones((2, 2, 3))), valid=keep)
     viewer.show(1)
     np.testing.assert_allclose(server.scene.nodes["/contacts/contacts/spheres"].batched_scales, [0.0, 0.2])
-    np.testing.assert_allclose(server.scene.nodes["/forces/forces/heads"].batched_scales[0], 0.0)
-    shafts = server.scene.nodes["/forces/forces/shafts"].points
-    np.testing.assert_allclose(shafts[0, 1], shafts[0, 0])  # zero-length shaft
+    np.testing.assert_allclose(server.scene.nodes["/forces/forces/arrows"].points, [[[0.0] * 3, [1.0] * 3]])  # 2nd
     # The camera's framing reads only the valid elements: the second sphere, the second arrow (origin to tip).
     np.testing.assert_allclose(contacts.bounds(1), [[0.8] * 3, [1.2] * 3])
     np.testing.assert_allclose(forces.bounds(1), [[0.0] * 3, [1.0] * 3])

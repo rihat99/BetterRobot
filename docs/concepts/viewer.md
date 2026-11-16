@@ -32,19 +32,24 @@ print(viewer.url, viewer.timeline.nsteps)
 http://127.0.0.1:8080 100
 ```
 
-The built-in layers are `PointsLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
+The built-in layers are `PointsLayer`, `LinesLayer`, `SkeletonLayer`, `FramesLayer`, `ArrowsLayer`, `GroundLayer`,
 `RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer` and `CameraLayer`. Each layer of data takes its name and
 its main array by position and every other argument by keyword, as in `SpheresLayer("contacts", centers, radii=radii)`.
 `viewer.add_plot` adds a
 `PlotPanel` of time series to the GUI, and `ImagePanel(name, images)` puts an image per step there, such as the input
-video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `PointsLayer`, `SkeletonLayer`,
+video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `PointsLayer`, `LinesLayer`, `SkeletonLayer`,
 `SpheresLayer` and `ArrowsLayer` take one colour, one per element `(N, 3)`, or one per step `(T, N, 3)`, such as a
-contact turning red or green. `ArrowsLayer` draws line shafts `line_width` pixels wide by default; with
-`shaft_radius=` (metres) its arrows are solid, a cylinder and a cone of length `head_size` and radius
-`head_radius`, so forces keep their thickness at any zoom; a head takes at most 35 % of its arrow, so a short solid
-arrow is the long one scaled down, never a lone head. An arrow of at most `min_length` metres (default
-`1e-6`: exact zeros and float noise) draws nothing in either mode, neither a dot nor a lone head; raise it to hide
-forces too small to read. `SkeletonLayer(name, joints, parent_ids=)` draws joints `(T, J, 3)` (or poses
+contact turning red or green. A list of `(N_t, 3)` arrays makes a `PointsLayer` whose size changes per step
+(detections, a growing map); a step without points hides it. `LinesLayer(name, points)` draws segments
+`(T, N, 2, 3)` (start, end) `width` pixels wide, in the theme's text colour unless given `colors`.
+`MeshLayer(name, vertices, faces=, colors=(V, 3))` colours each vertex: a static mesh blends them across each face,
+a deforming one draws one scene node per distinct colour (at most 64), each face in its first vertex's colour.
+`CameraLayer(name, poses, intrinsics=K, size=(W, H))` draws a pinhole camera's frustum from its intrinsics, an
+off-centre principal point included, cut `scale` metres in front of the camera, with an optional image on the cut.
+`ArrowsLayer` draws viser's solid arrows, a cylinder of `shaft_radius` and a cone of `head_radius` and `head_length`
+(metres, the same for every arrow), so forces keep their thickness at any zoom; an arrow shorter than its head is all
+head. An arrow of at most `min_length` metres (default `1e-6`: exact zeros and float noise) is left out of the step;
+raise it to hide forces too small to read. `SkeletonLayer(name, joints, parent_ids=)` draws joints `(T, J, 3)` (or poses
 `(T, J, 7)`) as a stick figure, a bone from each joint to its parent (`parent_ids (J,)`, `-1` for a root); it takes a
 joint `radius` per joint `(J,)` or per step `(T, J)`, a `thickness` `(J,)` or `(T, J)` that multiplies each marker's cross-section but not its
 length, `offsets (J, 3)` in each joint's frame that move a marker off its joint origin (bones then join the drawn

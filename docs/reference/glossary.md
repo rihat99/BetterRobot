@@ -253,7 +253,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 
 | Term | Meaning |
 |---|---|
-| **`Viewer`** | The browser viewer on viser. `viewer.add(layer, tags=...)` adds a layer or an iterable of layers, `viewer.show(step)` draws one step, `viewer.serve()` serves the page until interrupted, `Viewer.record(path, *, steps, size, fps, gpu, camera)` screenshots the live scene through headless Chromium into a clip. |
+| **`Viewer`** | The browser viewer on viser. `viewer.add(layer, tags=...)` adds a layer or an iterable of layers, `viewer.show(step)` draws one step, `viewer.serve()` serves the page until interrupted, `viewer.record(path)` draws the live scene in a headless Chromium into a video (`.mp4` or `.webm`) or a still (`.png`). |
 | **tag** | A name a layer carries (`Layer.tags`, `Viewer.add(tags=)`); the first is its scene parent. `Viewer.remove`, `set_visible`, `set_offset` and `redraw` address every layer of a tag. |
 | **sidebar** | The viewer's panel of controls in ordered sections (`Sidebar`, `Layer.build_gui(sidebar)`). |
 | **bounds** | The world box `(lo, hi)` of what a layer draws at a step (`Layer.bounds`), which `Viewer.aim` frames. |
@@ -263,6 +263,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **shade** | A hue mixed towards black or white for one role of a part, such as a joint or a bone (`Theme.shade`). |
 | **backdrop** | The page behind the scene: a vertical gradient (`Theme.backdrop`). |
 | **accent** | The colour of the viewer's controls and tools (`Theme.accent`). |
+| **intrinsics** | A pinhole camera's `(3, 3)` matrix `K`: the focal lengths `fx, fy` and the principal point `cx, cy`, in pixels (`CameraLayer(intrinsics=)`). |
 | **`Layer`** | One drawable thing (a robot, frames, points, a skeleton) holding a whole clip. The viewer calls `layer.set_step(k)`; `layer.nsteps` is its clip length. `optim.solve_layer` uses the word as deep learning does: a solve inside an autograd graph. |
 | **timeline** | The steps the viewer plays (`Timeline`). It is as long as the longest layer; a shorter layer holds its last step. |
 | **skinning, skin, skinned mesh** | Linear blend skinning: each vertex of a skinned mesh moves with a weighted blend of bone poses (`SkinnedMeshLayer.skin(step)`). |
@@ -316,7 +317,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 
 These words keep their ordinary English meaning in public names.
 
-actual, add, aim, angle, apply, argument, arrow, aspect, at, atomic, attached, axes, axis, azimuth, band, bone, border,
+actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, axes, axis, azimuth, band, bone, border,
 box, build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color,
 column, component, consistently, constrained, corner, create, cylinder, dark, decrease, default, delta, dense, density,
 dependency, diagnostics, diagonal, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,

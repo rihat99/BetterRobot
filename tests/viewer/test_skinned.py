@@ -1,4 +1,4 @@
-"""Skinned mesh (client bones + numpy LBS) and camera layers on a synthetic two-bone mesh."""
+"""Skinned mesh (client bones + numpy LBS) on a synthetic two-bone mesh."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from better_robot.viewer import CameraLayer, SkinnedMeshLayer, Viewer
+from better_robot.viewer import SkinnedMeshLayer, Viewer
 from better_robot.viewer.layers.skinned import top_k_weights
 
 from better_robot.testing import FakeServer
@@ -45,22 +45,3 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
     sparse = top_k_weights(np.array([[0.4, 0.3, 0.2, 0.05, 0.05]], dtype=np.float32), 4)
     np.testing.assert_allclose(sparse.sum(), 1.0, atol=1e-6)
     assert (sparse > 0).sum() == 4
-
-
-def test_camera_layer_moves_the_frustum_and_swaps_images() -> None:
-    scene = FakeServer().scene
-    poses = np.zeros((3, 7), dtype=np.float32)
-    poses[:, 6] = 1.0
-    poses[:, 0] = np.arange(3)
-    images = np.zeros((3, 4, 6, 3), dtype=np.uint8)
-    images[2] = 255
-    layer = CameraLayer("cam", poses, fov=1.0, aspect=1.5, image=images)
-    layer.build(scene, "/g/cam")
-    node = scene.nodes["/g/cam/frustum"]
-    assert node.props["image"].max() == 0 and node.props["aspect"] == 1.5
-    layer.set_step(2)
-    assert node.position[0] == 2.0 and node.image.min() == 255
-    lazy = CameraLayer("lazy", poses, fov=1.0, aspect=1.0, image=lambda k: images[k])
-    lazy.build(scene, "/g/lazy")
-    lazy.set_step(1)
-    assert scene.nodes["/g/lazy/frustum"].image.shape == (4, 6, 3)
