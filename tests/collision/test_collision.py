@@ -221,6 +221,36 @@ def test_clearance_jacobians_cover_every_shape_and_the_closest_pairs(panda):
     assert max(errors.values()) < 1e-12, errors
 
 
+def test_self_clearance_takes_a_margin_per_pair(panda):
+    """A ``(P,)`` margin gives each pair its own: the rows are ``margin - distance`` pair by pair, the ``closest`` ones
+    are those with the least room, not the nearest, the analytic Jacobians match autodiff in both forms, and a
+    margin that is the same for every pair equals the number bitwise."""
+    spheres = _spheres(panda)
+    pairs = collision.self_collision_pairs(panda, spheres)
+    q = terms.random_start(panda, panda.q_neutral.expand(16, -1), generator=torch.Generator().manual_seed(14))
+    distance = collision.self_distances(spheres, forward_kinematics(panda, q), pairs=pairs)
+    margins = torch.linspace(0.05, 0.6, pairs.shape[0], dtype=DT)
+    problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)})
+    problem.cached(terms.kinematic_state(panda), name="state")
+    problem.residual("rows", terms.self_clearance(spheres, pairs=pairs, margin=margins, hinge=False))
+    problem.residual("closest", terms.self_clearance(spheres, pairs=pairs, margin=margins, hinge=False, closest=2))
+    problem.residual("hinged", terms.self_clearance(spheres, pairs=pairs, margin=margins, closest=3))
+    problem.residual("number", terms.self_clearance(spheres, pairs=pairs, margin=0.3, closest=2))
+    problem.residual(
+        "same", terms.self_clearance(spheres, pairs=pairs, margin=torch.full_like(margins, 0.3), closest=2)
+    )
+    residuals = problem.residuals()
+    torch.testing.assert_close(residuals["rows"], margins - distance, rtol=0, atol=1e-15)
+    torch.testing.assert_close(residuals["closest"], residuals["rows"].topk(2).values, rtol=0, atol=0)
+    assert not torch.equal(residuals["rows"].topk(2).indices, distance.topk(2, largest=False).indices)
+    torch.testing.assert_close(residuals["same"], residuals["number"], rtol=0, atol=0)
+    assert bool((residuals["hinged"] > 0).any())
+    errors = optim.check_jacobian(problem)
+    assert max(errors.values()) < 1e-12, errors
+    with pytest.raises(ShapeError):
+        terms.self_clearance(spheres, pairs=pairs, margin=margins[:-1])
+
+
 def test_a_new_obstacle_shape_is_only_a_function(panda):
     """C-EXT-8: shapes the library does not ship, a floor and two walls, plug in as distance functions returning
     ``(B..., S)`` or ``(B..., S, K)``; ``sphere_clearance`` and the solver take them unchanged."""

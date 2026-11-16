@@ -114,7 +114,6 @@ def tracking():
     spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
     pairs = collision.self_collision_pairs(panda, spheres, ignore=ignore)
     start = torch.tensor(READY, dtype=torch.float64)
-    pairs = pairs[collision.self_distances(spheres, forward_kinematics(panda, start), pairs=pairs) > MARGIN + 0.01]
     obstacle = torch.tensor(OBSTACLE, dtype=torch.float64)
     base = torch.tensor(
         [int(f) in {panda.frame_id("panda_link0"), panda.frame_id("panda_link1")} for f in spheres.frame_ids]
