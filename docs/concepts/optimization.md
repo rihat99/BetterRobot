@@ -234,23 +234,53 @@ with value $c$ and Jacobian $J$ gives the rows
 
 $$\text{gain} \cdot (\text{lower} - c) \;\le\; J\,\delta \;\le\; \text{gain} \cdot (\text{upper} - c),$$
 
-so one step uses at most `gain` of a row's distance to its bound and repairs `gain` of a violation. A term's `weight`
-scales its rows and bounds; leave it at 1 unless rows are in conflict and one of them must win (`solve_qp`'s rows
-are elastic). The number of rows must stay fixed between steps, because each program starts from the solution of
-the last one (`State.extra["qp"]`, which a warm start keeps too): a clearance term picks its `closest=k` pairs.
+so one step uses at most `gain` of a row's distance to its bound and repairs `gain` of a violation. The number of
+rows must stay fixed between steps, because each program starts from the solution of the last one
+(`State.extra["qp"]`, which a warm start keeps too): a clearance term picks its `closest=k` pairs.
 
-A step is taken where it lowers the merit, the loss plus the summed violation of the rows times the largest
-multiplier of the step's program, and the damping follows the ratio of that decrease to the predicted one. The
-damping is what stands in for the curvature of the constraint terms, which linear rows do not carry. The iterate
-may therefore leave a curved constraint by a little and come back; `State.x` is the last iterate that was within
-`tolerance` of every bound, in the terms' own units (or the closest one, before any was). A solve that starts
-within `tolerance` returns a point within it after any number of steps, and `Result.diagnostics[phase]["violation"]`
-reports the largest distance from the bounds per step. `State.extra["iterate"]` holds the iterate itself.
+A term's `weight` scales its rows and bounds; leave it at 1 unless rows are in conflict and one of them must win.
+The rows of `solve_qp` are [elastic](#a-quadratic-program-per-step): a row gives way once holding it would take a
+multiplier over the cap, 100 times the larger of $\lVert g\rVert_\infty$ and the largest diagonal entry of $H$. The
+multiplier a row needs is about the loss's pull along it divided by the size of its coefficients, so rows whose
+coefficients are of order one hold with a margin of about 100, and a row scaled down to a hundredth or less can give
+way although it could hold. On the unit ball, 64 targets drawn as twice a standard normal in three variables and
+100 steps, every problem reached the optimum at weights 0.01 to 10000; at 0.001 the ball gave way, and 61 of 64
+problems returned the start, not done, with `violation` 0, while their iterates sat up to 31 outside. Rows in
+metres against joint angles in radians are of order one; a row in other units is scaled with `weight` until its
+coefficients are.
 
-Measured on 64 problems of three variables pulled to targets outside the constraint, in float64: every problem is
-within `1e-6` of the closed-form optimum after 2 steps under a box, 20 on a plane (an equality; 3 with `gain=1.0`),
-39 on the unit ball and 57 on the unit sphere, whose curvature the damping has to find. In float32 a problem whose
-loss stays large at the optimum stops where a step's decrease drops under the rounding of that loss.
+A step is taken where it lowers the merit, the loss plus the summed violation of the rows times a price. The price
+is the largest multiplier of the step's program, capped by the larger of two prices that multipliers drifting
+apart on redundant rows do not raise: the multipliers' pull along one row, and the loss the step gives up per unit
+of violation it repairs. The damping follows the ratio of the merit's decrease to the predicted one by Nielsen's
+rule; it stands in for the curvature of the constraint terms, which linear rows do not carry. The damping cannot
+shorten a step that a row forces, so the step is also scaled back to a radius on its largest entry: there is none at
+first, a taken step doubles it, and once the damping has reached 1 a refused step leaves its length as the radius
+(a quarter of it where it had been scaled back or was no shorter than 0.9 of the radius). A problem is also done
+when its radius reaches `1e-12`.
+
+The merit charges the rows of the `closest` pairs selected again at the trial point. A pair outside them is not
+charged, which happens only where more than `closest` pairs are broken at once: on the benchmark's scenes 3.5 to
+3.7 % of the accepted Panda iterates at `closest=8` and 0.7 to 1.2 % of the G1 ones at 64. The `violation` is
+exact over every pair, since a clearance term keeps its pairs nearest first. Raise `closest` where many pairs can
+break at once.
+
+The iterate leaves a curved constraint by what its rows do not see, and later steps bring it back. On the
+benchmark's IK scenes (1024 targets, 50 steps, float64, margin 0.02 m) accepted iterates left the clearances by up
+to 0.37 m (Panda floor) and 0.05 to 0.19 m on the other scenes with clearances. `State.x` is therefore the last
+iterate that was within `tolerance` of every bound, in the terms' own units, or the closest one before any was
+([record 0056](../contracts/decisions/0056-sequential-qp-reports-its-last-point-within-tolerance.md)). A solve that
+starts within `tolerance` returns a point within it after any number of steps; where no later iterate comes back
+within it, that point is the unmoved start (G1 self-collision: 104 of 1024 targets, G1 all: 155).
+`Result.diagnostics[phase]["violation"]` is the largest distance of that point from the bounds per step, and
+`State.extra["iterate"]` holds the iterate itself. A problem can be done with `violation` over `tolerance`, where
+no point was ever within it, as with rows that cannot all hold: `violation`, not `done`, says whether they held.
+
+Measured on 8 draws of 256 problems of three variables pulled to targets outside the constraint, in float64: every
+problem is within `1e-6` of the closed-form optimum after 2 steps under a box, 20 to 22 on a plane (an equality; 3
+with `gain=1.0`), 36 to 44 on the unit ball and 35 to 65 on the unit sphere, whose curvature the damping has to
+find. In float32 a problem whose loss stays large at the optimum stops where a step's decrease drops under the
+rounding of that loss.
 [Constrained inverse kinematics](../guides/constrained-ik.md) uses the solver on a robot and compares it with the
 hinged cost and with `solve_constrained`;
 [record 0055](../contracts/decisions/0055-constraint-terms-and-sequential-qp.md) has the alternatives.

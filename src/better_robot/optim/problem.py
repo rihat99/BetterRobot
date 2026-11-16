@@ -327,8 +327,11 @@ class Problem:
         positive number or a tensor of the output's shape (with or without the batch axis) without a negative entry,
         scales the rows: where the rows of a step cannot all hold, a row's violation counts ``weight`` times. The
         number 0 switches the term off, as for a cost term, and an entry 0 of a tensor switches its row off; a
-        negative number is refused (``ArgumentError``). ``reads`` and ``jacobian`` are those of ``residual``; a
-        ``TermFn`` brings its own, and may not carry a ``window``.
+        negative number is refused (``ArgumentError``). A negative entry of a tensor is not checked, since that would
+        read its values back, and turns its row around. Rows whose weighted Jacobian entries are a hundredth or less
+        (against variables in natural units) can give way where they could hold, by `solve_qp`'s elastic cap: scale
+        such a term up. ``reads`` and ``jacobian`` are those of ``residual``; a ``TermFn`` brings its own, and may not
+        carry a ``window``.
         """
         self._add_constraint(name, fn, "equality", weight, jacobian, reads, 0.0, 0.0)
 
