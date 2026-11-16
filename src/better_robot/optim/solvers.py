@@ -476,12 +476,18 @@ def track(
     damping is added as a multiple of the identity, so ``H + damping·I`` stays positive definite where the targets'
     Jacobian loses rank and on coordinates no cost term reads; it shortens every step and moves no fixed point.
 
-    Unlike `SequentialQP` nothing is accepted or refused: the step is taken, with its rows elastic as in `solve_qp`.
-    Where the program's step is not its exact solution (``solution.exact`` unset) it may leave a row: the step taken
-    is the program's clamped to the box and scaled back until it leaves no row by more than 1e-6 in that row's unit
-    and takes no violated row further out, so ``solution.x`` is the program's step and the new point carries the step
-    taken. ``iterations`` goes to `solve_qp`: more per call make more of its steps exact where many rows press at
-    once (a G1 with five behaviours as rows).
+    Unlike `SequentialQP` nothing is accepted or refused: a step is taken every call, with its rows elastic as in
+    `solve_qp`, and the program's step may not be its exact solution (``solution.exact`` unset). Two things keep
+    such a step on the rows. The program holds each constraint row with a reserve: a tenth of what a step as long
+    as the last program's (``warm.x``; none on a first call) can change that row by, never more than half the
+    row's own width. A point that moves along a row keeps that reserve over ``gain`` short of it; one that
+    comes to rest closes in on the row itself. And the step taken is the program's clamped to the box, moved the
+    least distance that puts it back on the rows it leaves (among the coordinates the box leaves free), then scaled
+    back until it leaves no row by more than 1e-6 in that row's unit and takes no violated row further out. So
+    ``solution.x`` is the program's step and the new point carries the step taken. The scale-back shortens a step
+    to nothing where the rows leave it no direction: rows in conflict, or a program still far from solved; the next
+    calls go on solving it from ``warm``. ``iterations`` goes to `solve_qp`: more per call make more of its steps
+    exact where many rows press at once (a G1 with five behaviours as rows).
     The targets move between calls through ``problem.with_(data=...)``; the rows must keep their count (``closest=``)
     so that ``warm`` fits. The problem needs dense normal equations. One evaluation, one `solve_qp` and one
     retraction per call, with no read back to the host.
@@ -499,17 +505,21 @@ def track(
     if not isinstance(normal, Normal):
         raise ArgumentError("track takes dense normal equations; build the problem with dense=True")
     matrix, lower, upper = _program(problem, x, rows, gain, gain, step)
+    count = 0 if rows is None else rows.value.shape[1]
+    travel = 0.0 if warm is None else warm.x.abs().unsqueeze(-2)
+    reach = (matrix[:, :count].abs() * travel).sum(-1)
+    reserve = torch.minimum(_RESERVE * reach, (upper[:, :count] - lower[:, :count]) / 2)
     diagonal = torch.full_like(normal.g, damping)
     solution = solve_qp(
         normal.H + torch.diag_embed(diagonal),
         normal.g,
         rows=matrix,
-        lower=lower,
-        upper=upper,
+        lower=torch.cat((lower[:, :count] + reserve, lower[:, count:]), dim=1),
+        upper=torch.cat((upper[:, :count] - reserve, upper[:, count:]), dim=1),
         iterations=iterations,
         warm=warm,
     )
-    delta = _held(solution.x, matrix, lower, upper, 0 if rows is None else rows.value.shape[1])
+    delta = _held(solution.x, matrix, lower, upper, count)
     with torch.no_grad():
         return problem.retract(x, delta), solution
 
@@ -517,19 +527,30 @@ def track(
 def _held(
     delta: torch.Tensor, matrix: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor, count: int
 ) -> torch.Tensor:
-    """``delta: (B, N)`` clamped to the box rows (the rows after the first ``count``) and scaled back so that it
-    leaves none of the first ``count`` rows by more than `_SLACK`, nor takes a violated one further out."""
-    delta = torch.clamp(delta, lower[:, count:], upper[:, count:])
+    """``delta: (B, N)`` clamped to the box rows (the rows after the first ``count``), moved back onto the first
+    ``count`` rows it leaves and scaled back so that it leaves none of them by more than `_SLACK`, nor takes a
+    violated one further out."""
+    box_low, box_high = lower[:, count:], upper[:, count:]
+    delta = torch.clamp(delta, box_low, box_high)
     if count:
-        value = (matrix[:, :count] @ delta.unsqueeze(-1)).squeeze(-1)
-        low = lower[:, :count].clamp(max=0.0) - _SLACK
-        high = upper[:, :count].clamp(min=0.0) + _SLACK
+        rows = matrix[:, :count]
+        low, high = lower[:, :count].clamp(max=0.0), upper[:, :count].clamp(min=0.0)
+        value = (rows @ delta.unsqueeze(-1)).squeeze(-1)
+        excess = value - torch.clamp(value, low, high)
+        # The least change of delta that takes the excess off the rows it leaves, among the coordinates that the
+        # box does not hold against it: scaling alone would give up the whole step for one row left by a hair.
+        left = rows * (excess != 0).unsqueeze(-1)
+        back = Normal(H=left.mT @ left, g=(excess.unsqueeze(-2) @ left).squeeze(-2))
+        delta = delta + back.restrict(box_low - delta, box_high - delta).solve()
+        value = (rows @ delta.unsqueeze(-1)).squeeze(-1)
+        low, high = low - _SLACK, high + _SLACK
         ratio = torch.where(value > high, high / value, torch.where(value < low, low / value, 1.0))
         delta = delta * ratio.amin(-1, keepdim=True)
     return delta
 
 
 _SLACK = 1e-6  # how far the step of `track` may leave a row that held at its start, in the row's unit
+_RESERVE = 0.1  # share of what the last step could change a row by that the program of `track` keeps short of its bound
 
 
 def _program(

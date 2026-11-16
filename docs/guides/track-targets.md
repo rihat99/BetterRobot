@@ -201,10 +201,22 @@ graphs on a GPU.
 | `damping` | `1e-3` | added to the diagonal of the Gauss-Newton matrix: keeps a step finite where the targets' Jacobian loses rank; 1e-2 lags the targets by 0.3 mm (median), 1e-4 by 0.02 mm |
 | `step` | `None` | bound on every entry of the step, a number or `(nv,)`: velocity limits times the tick period |
 
-`track` takes the step the program gives, without the acceptance test of `SequentialQP`. Where the program's step
-is not its exact solution (`solution.exact` unset), the step taken is scaled back until it leaves no row by more
-than 1e-6. A target's Jacobian that loses rank does not stall the loop: the damping keeps the program positive
-definite there.
+`track` takes a step every call, without the acceptance test of `SequentialQP`, and the program's step need not be
+its exact solution (`solution.exact` unset). Two things keep such a step on the rows. The program holds each row
+with a reserve, a tenth of what a step as long as the last one can change that row by: a hand whose target
+slides along under a table rides 0.4 mm above the margin at 5 mrad per tick (median; 1.0 mm at 25 mrad) and
+settles onto the margin when the target stops. And the
+step taken is the program's clamped to the box, moved the least distance that puts it back on the rows it
+leaves, then scaled back until it leaves no row by more than 1e-6 and takes no violated row further out.
+
+The scale-back is what can stop the robot. It gives the whole step up where the rows leave it no direction:
+
+- rows in conflict, such as an obstacle pressed onto a hand that rests on the table, or one placed between two
+  links so that every way out takes one of them further in: the robot waits until the obstacle moves;
+- a program still far from solved: the next calls go on solving it from `warm=`, and more `iterations` per call
+  shorten the wait (the table above).
+
+A target's Jacobian that loses rank is not such a case: the damping keeps the program positive definite there.
 
 ## Where next
 

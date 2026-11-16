@@ -287,7 +287,7 @@ hinged cost and with `solve_constrained`;
 
 ### One step per call: `track`
 
-`optim.track(problem, x, warm=)` takes one step of the same program per call and returns the new point with the
+`optim.track(problem, x, step=, warm=)` takes one step of the same program per call and returns the new point with the
 program's solution, the warm start of the next call: differential inverse kinematics, for targets that move
 between calls through `problem.with_(data=)`. It keeps `SequentialQP`'s model and rows and leaves out what makes
 that a solver to convergence: no acceptance test, no damping that follows the steps, no radius. The damping is a
@@ -296,8 +296,10 @@ Jacobian loses rank. The bounds give the box $\text{gain} \cdot (\text{lower} - 
 \cdot (\text{upper} - x)$, so a joint limit is approached like any other row, and `step` bounds every entry of
 $\delta$ (velocity limits times the tick period). The rows are a discrete barrier: exact for rows linear in $x$,
 such as the bounds; a curved row is left by what its linearization misses, which grows with the square of the
-step. Where the program's step is inexact, the step taken is scaled back until it leaves no row by more than
-1e-6. [Track moving targets](../guides/track-targets.md) measures how far rows hold per step size;
+step. The program's step may be inexact, so two things keep the step taken on the rows: the program holds each
+row with a reserve (a tenth of what a step as long as the last one can change the row by), and its step is
+clamped to the box, moved the least distance back onto the rows it leaves, then scaled back until it leaves no
+row by more than 1e-6. The scale-back gives a step up where rows conflict. [Track moving targets](../guides/track-targets.md) measures how far rows hold per step size;
 [record 0057](../contracts/decisions/0057-differential-ik-is-one-track-call-per-tick.md) has the alternatives.
 
 ## A quadratic program per step

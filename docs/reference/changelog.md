@@ -25,9 +25,10 @@ that 0.3.0 renames or removes, one table row each.
 - `optim.track(problem, x, *, step, warm=None, gain=0.5, damping=1e-3, iterations=20) -> (x, QPSolution)`: one
   step of differential inverse kinematics, one warm `solve_qp` program of `iterations` per call: the Gauss-Newton
   model of the cost terms with `damping` on the identity, under the rows of `SequentialQP` at `gain` and the box of
-  the bounds at the same gain (a discrete barrier), each step entry within the required `step`; the step is taken, scaled back
-  where the program's step is inexact and leaves a row. The targets move between calls through `Problem.with_(data=)`; the solution is the
-  warm start of the next call (record 0057; [Track moving targets](../guides/track-targets.md)).
+  the bounds at the same gain (a discrete barrier), each step entry within the required `step`. The step is taken:
+  the program holds each row with a reserve, and its step is clamped to the box, moved back onto the rows it
+  leaves and scaled back where that is not enough. The targets move between calls through `Problem.with_(data=)`;
+  the solution is the warm start of the next call (record 0057; [Track moving targets](../guides/track-targets.md)).
 - `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None) -> QPSolution`:
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
   fixed number of ADMM steps and one active-set step, in float64, with no host read (record 0054). Accuracy comes

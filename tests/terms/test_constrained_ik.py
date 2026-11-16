@@ -212,6 +212,37 @@ def test_a_compiled_tick_equals_the_eager_one(tracking, mode: str) -> None:
         )
 
 
+def test_a_start_deep_inside_a_margin_comes_out_without_a_stall() -> None:
+    """A Panda that starts with three forearm spheres 26 to 30 mm inside an obstacle's margin, more than one step of
+    6.3 mrad can repair, comes out a little on every call and is clear within 40 (28 measured), while its hand holds
+    its pose. (Scaled back alone, the step was given up whole from the second call on: clamped to the box, it took
+    one of the violated rows further out.)"""
+    panda = br.load(panda_urdf(), dtype=torch.float64)
+    spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
+    start = torch.tensor([READY], dtype=torch.float64)
+    state = forward_kinematics(panda, start)
+    forearm = int(torch.nonzero(spheres.frame_ids == panda.frame_id("panda_link4"))[3])
+    lift = spheres.radii[forearm] + 0.05 + MARGIN - 0.03
+    obstacle = torch.cat([spheres.centers(state)[0, forearm], torch.tensor([0.05], dtype=torch.float64)])
+    obstacle[2] += lift
+
+    def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
+        return (centers - obstacle[:3]).norm(dim=-1) - radii - obstacle[3]
+
+    def inside(q: torch.Tensor) -> float:
+        return float((MARGIN - to_obstacle(spheres.centers(forward_kinematics(panda, q)), spheres.radii)).max())
+
+    problem = terms.ik_problem(panda, {FRAME: state.frame_poses[:, panda.frame_id(FRAME)]}, q0=start)
+    clearance = terms.sphere_clearance(spheres, to_obstacle, margin=MARGIN, hinge=False, closest=8)
+    problem.inequality("obstacle", clearance, upper=0.0)
+    x, warm, depth = dict(problem.variables), None, [inside(start)]
+    for _ in range(40):
+        x, warm = optim.track(problem, x, warm=warm, step=0.0063)
+        depth.append(inside(x["q"]))
+    assert depth[0] > 0.029 and depth[-1] <= 0.0, depth
+    assert all(after < before - 2e-5 for before, after in zip(depth, depth[1:], strict=False) if before > 0), depth
+
+
 @pytest.mark.slow
 def test_an_obstacle_moved_in_place_needs_no_new_problem_and_compiles_once() -> None:
     """The obstacle's distance function reads a tensor that the loop moves in place before each tick, 1 mm per tick
