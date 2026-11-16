@@ -13,17 +13,15 @@ tensor. Frames are not computed here: `KinematicState.frame_transforms` derives 
 stays autograd- and ``torch.func``-safe (jacrev and jacfwd); no host syncs; the public wrapper traces as one graph
 under ``torch.compile(fullgraph=True)`` (``tests/kinematics/test_fk_compile.py``).
 
-The ``(njoints, 7)`` and ``(nframes, 7)`` placements are converted to ``4x4`` matrices by `placement_matrices` and
-memoised on the model by grad mode (record 0040): converting per call cost 0.17 ms, 44 % of a batch-1 Panda FK
-call on CPU (0.19 -> 0.39 ms; one thread, float32, torch 2.13, AMD EPYC 9654) and under 1.2 % at batch 4096. The
-memo holds unbatched joint placements already folded into the feature map: the fold costs two products independent
-of the batch size, which were 29 % of a batch-1 G1 FK call. Placements that carry a graph are converted per call so
-that each differentiable call owns its graph.
+The ``(njoints, 7)`` and ``(nframes, 7)`` placements are converted to ``4x4`` matrices by `joint_map` and
+`world_frames` and memoised on the model by grad mode (record 0040): converting per call cost 0.17 ms, 44 % of a
+batch-1 Panda FK call on CPU (0.19 -> 0.39 ms; one thread, float32, torch 2.13, AMD EPYC 9654) and under 1.2 % at
+batch 4096. The memo holds unbatched joint placements already folded into the feature map: the fold costs two
+products independent of the batch size, which were 29 % of a batch-1 G1 FK call. Placements that carry a graph are
+converted per call so that each differentiable call owns its graph.
 """
 
 from __future__ import annotations
-
-from typing import Literal, overload
 
 import torch
 
@@ -33,19 +31,12 @@ from ._plans import fk_plan
 from .compilation import fused_forms, small_matmul
 
 
-@overload
-def placement_matrices(model: Model, part: Literal["joints"]) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]: ...
-@overload
-def placement_matrices(model: Model, part: Literal["frames"]) -> torch.Tensor: ...
-def placement_matrices(model: Model, part: str) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
-    """The joint placements as the FK kernel reads them (`_joint_map`), or the frame placements
-    ``(I..., nframes, 4, 4)``.
+def joint_map(model: Model) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """The joint placements as the FK kernel reads them (`_joint_map`).
 
     Memoised on the model by grad or inference mode (records 0040, 0052); placements that carry a graph are converted
     per call.
     """
-    if part == "frames":
-        return model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))
     return model._value("joint_matrices", _joint_map)
 
 
@@ -69,8 +60,8 @@ def world_transforms(
 ) -> torch.Tensor:
     """World ``[R | p]`` of every joint, ``(N, njoints, 3, 4)``, in joint order.
 
-    ``q_full: (N, nq_full)`` is the mimic-expanded configuration; ``joint_map`` is the first value of
-    `placement_matrices`, its placement matrices flattened to ``(N, njoints, 4, 4)`` when the model's values are
+    ``q_full: (N, nq_full)`` is the mimic-expanded configuration; ``joint_map`` is the value of
+    `joint_map`, its placement matrices flattened to ``(N, njoints, 4, 4)`` when the model's values are
     batched. Trusts validated inputs.
     """
     plan = fk_plan(model, dtype=q_full.dtype, device=q_full.device)
@@ -128,10 +119,10 @@ def world_frames(model: Model, joints: torch.Tensor) -> torch.Tensor:
 
     ``B...`` already holds the model's value batch ``I...``, so batched frame placements broadcast.
     """
-    frames = placement_matrices(model, "frames")
+    frames = model._value("frame_matrices", lambda m: se3.to_matrix_raw(m.frame_placements))  # memoised as joint_map
     parents = joints.index_select(-3, fk_plan(model, dtype=joints.dtype, device=joints.device).frame_parents)
     # einsum is several times faster than a broadcast matmul on CPU when one side has no batch axis.
     return torch.einsum("...fab,fbc->...fac", parents, frames) if frames.ndim == 3 else parents @ frames
 
 
-__all__ = ["placement_matrices", "world_frames", "world_transforms"]
+__all__ = ["joint_map", "world_frames", "world_transforms"]

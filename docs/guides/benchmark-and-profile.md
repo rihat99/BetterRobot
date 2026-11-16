@@ -80,7 +80,7 @@ for row in thresholds["rows"]:
     print(f"{row['row']:22}", *(f"{'-' if row[name] is None else row[name]:>12}" for name in counters))
 ```
 ```output
-1246c51 benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-2.13.0.json
+d1d59ac benchmarks/run.py --counters-only --out benchmarks/thresholds/torch-2.13.0.json
 row                    graph_breaks   recompiles          ops   host_syncs
 fk_joints/panda/B1                0            1           40            0
 fk_joints/panda/B1024             0            2           40            0
@@ -95,10 +95,10 @@ rnea/g1/B1                        0            1          180            0
 crba/g1/B1                        0            1          147            0
 aba/g1/B1                         0            1          252            0
 ik/panda/B64                      5           11        30373            0
-ik_constrained/panda/B64            3           11        31393            0
-track/panda/B64                   0            3        29344            0
-qp/n7m30/B1                       0            1          561            0
-qp/n35m150/B1024                  0            2          561            0
+ik_constrained/panda/B64            3           11        31372            0
+track/panda/B64                   0            3        29324            0
+qp/n7m30/B1                       0            1          560            0
+qp/n35m150/B1024                  0            2          560            0
 ```
 
 When a change adds a counter, remove what added it. When the change needs it, or when a change lowers a counter,

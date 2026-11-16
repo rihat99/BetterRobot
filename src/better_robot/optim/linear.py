@@ -8,6 +8,40 @@ from typing import final, override
 import torch
 
 
+def blocked(g: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor, tolerance: float = 1e-9) -> torch.Tensor:
+    """``(B, N)`` bool: the coordinates on a bound of the step box ``lower, upper: (B, N)`` that the gradient
+    ``g: (B, N)`` pushes outward."""
+    return ((lower >= -tolerance) & (g > 0)) | ((upper <= tolerance) & (g < 0))
+
+
+def unit_diagonal(
+    matrix: torch.Tensor, damping: torch.Tensor | float, floor: float
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """``matrix: (B, ..., n, n)`` scaled to unit diagonal, with ``damping + floor`` added to that diagonal.
+
+    Returns ``scale: (B, ..., n)`` and ``scale · matrix · scale + (damping + floor) · I``; a diagonal entry that is
+    not positive keeps the scale 1. ``damping`` is a number or ``(B,)``, one per problem.
+    """
+    diagonal = matrix.diagonal(dim1=-2, dim2=-1)
+    scale = torch.where(diagonal > 0, diagonal, 1.0).rsqrt()
+    scaled = matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2)
+    # A number stays a Python scalar: torch.as_tensor of it is a host-to-device copy, a stream sync on CUDA.
+    if isinstance(damping, torch.Tensor):
+        damping = damping.to(scaled).reshape(-1, *[1] * (scaled.ndim - 2))
+    scaled.diagonal(dim1=-2, dim2=-1).add_(damping + floor)
+    return scale, scaled
+
+
+def factored_solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+    """``right: (B..., n, k)`` solved against ``factor @ factor.mT``, ``factor: (B..., n, n)`` a lower Cholesky factor.
+
+    Two triangular solves, not ``torch.cholesky_solve``: that one reads its status back to the host.
+    """
+    return torch.linalg.solve_triangular(
+        factor.mT, torch.linalg.solve_triangular(factor, right, upper=False), upper=True
+    )
+
+
 @final
 @dataclass(frozen=True)
 class Normal:
@@ -31,8 +65,7 @@ class Normal:
         gradient entry becomes 0 and its row and column of ``H`` become the identity. The step
         of the other coordinates is clamped to the box by ``solve``.
         """
-        blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
-        out = self.masked(~blocked)
+        out = self.masked(~blocked(self.g, lower, upper, tolerance))
         return Normal(H=out.H, g=out.g, lower=lower, upper=upper)
 
     def masked(self, keep: torch.Tensor) -> Normal:
@@ -52,17 +85,10 @@ class Normal:
         ``damping`` is a number or ``(B,)``, one per problem. ``g: (B, N)`` replaces the stored gradient; the result
         is differentiable w.r.t. it.
         """
-        H, g = self.H.double(), (self.g if g is None else g).double()
-        diagonal = H.diagonal(dim1=-2, dim2=-1)
-        scale = torch.where(diagonal > 0, diagonal, 1.0).rsqrt()
-        scaled = H * scale.unsqueeze(-1) * scale.unsqueeze(-2)
-        # A number stays a Python scalar: torch.as_tensor of it is a host-to-device copy, a stream sync on CUDA.
-        shift = damping.to(H).unsqueeze(-1) + floor if isinstance(damping, torch.Tensor) else damping + floor
-        scaled.diagonal(dim1=-2, dim2=-1).add_(shift)
+        g = (self.g if g is None else g).double()
+        scale, scaled = unit_diagonal(self.H.double(), damping, floor)
         factor, info = torch.linalg.cholesky_ex(scaled)
-        # Two triangular solves, not torch.cholesky_solve: that one checks its result with a host read.
-        half = torch.linalg.solve_triangular(factor, -(g * scale).unsqueeze(-1), upper=False)
-        delta = torch.linalg.solve_triangular(factor.mT, half, upper=True).squeeze(-1) * scale
+        delta = factored_solve(factor, -(g * scale).unsqueeze(-1)).squeeze(-1) * scale
         ok = (info == 0).unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
         delta = torch.where(ok, delta, 0.0).to(self.g.dtype)
         if self.lower is not None:
@@ -143,8 +169,7 @@ class BandedNormal:
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> BandedNormal:
         """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
-        blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
-        out = self.masked(~blocked)
+        out = self.masked(~blocked(self.g, lower, upper, tolerance))
         return BandedNormal(out.diagonal, out.upper, g=out.g, layout=self.layout, lower=lower, upper_bound=upper)
 
     def solve(
@@ -167,29 +192,19 @@ class BandedNormal:
 
     def _factor(self, damping: torch.Tensor | float, floor: float):
         """Block Cholesky of the scaled, damped matrix. Returns ``(scale (B, K, S), factorization, failed (B,))``."""
-        D, U = self.diagonal.double(), self.upper.double()
-        batch, blocks, size, _ = D.shape
-        diagonal = D.diagonal(dim1=-2, dim2=-1)
-        scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-        shift = (  # a number fills on the device: no host-to-device copy (see Normal.solve)
-            damping.to(D).expand(batch) + floor
-            if isinstance(damping, torch.Tensor)
-            else D.new_full((batch,), damping + floor)
-        )
-        D = D * scale.unsqueeze(-1) * scale.unsqueeze(-2) + torch.diag_embed(
-            shift.view(batch, 1, 1).expand(batch, blocks, size)
-        )
-        U = U * scale[:, :-1].unsqueeze(-1) * scale[:, 1:].unsqueeze(-2)
+        scale, diagonal = unit_diagonal(self.diagonal.double(), damping, floor)
+        upper = self.upper.double() * scale[:, :-1].unsqueeze(-1) * scale[:, 1:].unsqueeze(-2)
+        batch, blocks = diagonal.shape[:2]
         factors, links = [], []
-        failed = torch.zeros(batch, dtype=torch.bool, device=D.device)
-        schur = D[:, 0]
+        failed = torch.zeros(batch, dtype=torch.bool, device=diagonal.device)
+        schur = diagonal[:, 0]
         for index in range(blocks):
             factor, info = torch.linalg.cholesky_ex(schur)
             failed |= info != 0
             factors.append(factor)
             if index + 1 < blocks:
-                links.append(torch.linalg.solve_triangular(factor, U[:, index], upper=False))
-                schur = D[:, index + 1] - links[-1].mT @ links[-1]
+                links.append(torch.linalg.solve_triangular(factor, upper[:, index], upper=False))
+                schur = diagonal[:, index + 1] - links[-1].mT @ links[-1]
         return scale, (factors, links), failed
 
     @staticmethod
@@ -269,8 +284,7 @@ class ArrowNormal:
 
     def restrict(self, lower: torch.Tensor, upper: torch.Tensor, *, tolerance: float = 1e-9) -> ArrowNormal:
         """Box-constrain the step to ``lower, upper: (B, N)``; see ``Normal.restrict``."""
-        blocked = ((lower >= -tolerance) & (self.g > 0)) | ((upper <= tolerance) & (self.g < 0))
-        out = self.masked(~blocked)
+        out = self.masked(~blocked(self.g, lower, upper, tolerance))
         return ArrowNormal(out.band, out.border, corner=out.corner, g=out.g, lower=lower, upper=upper)
 
     def solve(
@@ -283,29 +297,17 @@ class ArrowNormal:
         """
         g = (self.g if g is None else g).double()
         layout = self.band.layout
-        batch = g.shape[0]
         scale, factorization, failed = self.band._factor(damping, floor)
-        C = self.corner.double()
-        diagonal = C.diagonal(dim1=-2, dim2=-1)
-        scale_shared = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
-        shift = (  # a number fills on the device: no host-to-device copy (see Normal.solve)
-            damping.to(C).expand(batch) + floor
-            if isinstance(damping, torch.Tensor)
-            else C.new_full((batch,), damping + floor)
-        )
-        C = C * scale_shared.unsqueeze(-1) * scale_shared.unsqueeze(-2) + torch.diag_embed(
-            shift.unsqueeze(-1).expand_as(diagonal)
-        )
+        scale_shared, corner = unit_diagonal(self.corner.double(), damping, floor)
         border = self.border.double() * scale.unsqueeze(-1) * scale_shared[:, None, None]
         rhs_time = -self.band._to_band(g[:, layout.time_columns]) * scale
         rhs_shared = -g[:, layout.shared_columns] * scale_shared
         solved = self.band._substitute(factorization, torch.cat([border, rhs_time.unsqueeze(-1)], dim=-1))
         flat_border, solved = border.flatten(1, 2), solved.flatten(1, 2)  # (B, K·S, Ns), (B, K·S, Ns + 1)
-        schur = C - flat_border.mT @ solved[..., :-1]
+        schur = corner - flat_border.mT @ solved[..., :-1]
         factor, info = torch.linalg.cholesky_ex(schur)
         right = rhs_shared.unsqueeze(-1) - flat_border.mT @ solved[..., -1:]
-        half = torch.linalg.solve_triangular(factor, right, upper=False)  # not cholesky_solve: see Normal.solve
-        shared = torch.linalg.solve_triangular(factor.mT, half, upper=True)  # (B, Ns, 1)
+        shared = factored_solve(factor, right)  # (B, Ns, 1)
         time = (solved[..., -1:] - solved[..., :-1] @ shared).view_as(rhs_time) * scale
         delta = g.new_zeros(g.shape)
         delta = delta.index_copy(1, layout.time_columns, self.band._from_band(time))
@@ -453,4 +455,15 @@ class ArrowSink:
         return ArrowNormal(band=band, border=border, corner=self.corner.view(batch, self.count, self.count), g=g)
 
 
-__all__ = ["ArrowNormal", "ArrowSink", "BandLayout", "BandSink", "BandedNormal", "DenseSink", "Normal"]
+__all__ = [
+    "ArrowNormal",
+    "ArrowSink",
+    "BandLayout",
+    "BandSink",
+    "BandedNormal",
+    "DenseSink",
+    "Normal",
+    "blocked",
+    "factored_solve",
+    "unit_diagonal",
+]

@@ -32,7 +32,8 @@ SAME_CLASS = "a Problem method fills the private registries of the copy it made 
 PERMANENT: dict[str, tuple[int, str]] = {
     "src/better_robot/dynamics/_world.py::dynamics_plan SLF001": (1, MODEL_MEMO),
     "src/better_robot/dynamics/_world.py::world_kinematics SLF001": (1, MODEL_MEMO),
-    "src/better_robot/kinematics/_fk.py::placement_matrices SLF001": (2, MODEL_MEMO),
+    "src/better_robot/kinematics/_fk.py::joint_map SLF001": (1, MODEL_MEMO),
+    "src/better_robot/kinematics/_fk.py::world_frames SLF001": (1, MODEL_MEMO),
     "src/better_robot/kinematics/_plans.py::fk_plan SLF001": (1, MODEL_MEMO),
     "src/better_robot/kinematics/_plans.py::jacobian_plan SLF001": (1, MODEL_MEMO),
     "src/better_robot/kinematics/configuration.py::manifold_plan SLF001": (1, MODEL_MEMO),

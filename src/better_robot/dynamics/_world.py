@@ -54,8 +54,8 @@ import torch
 from ..kinematics import KinematicState
 from ..kinematics._plans import JacobianPlan, jacobian_plan
 from ..kinematics.compilation import fused_forms, small_matmul
+from ..kinematics.tree import build_supports
 from ..model.model import Model
-from ..model.topology import build_supports
 from ..spatial.algebra import cross_force_raw, cross_motion_raw
 from ..spatial.inertia import inertia_matrix_from_mass_com_raw, inertia_matrix_raw, rotational_inertia_raw
 

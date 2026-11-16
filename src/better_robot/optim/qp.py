@@ -19,6 +19,7 @@ from typing import final, override
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
+from .linear import factored_solve, unit_diagonal
 
 _FLOOR = (
     1e-9  # added to the unit-diagonal H, as Normal.solve does: a variable the objective does not see stays solvable
@@ -92,13 +93,6 @@ class _Scaled:
         return gap, gradient, (gradient.abs().amax(-1) / parts.clamp_min(1e-300)).squeeze(-1)
 
 
-def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
-    """Two triangular solves, not ``cholesky_solve``: that one reads its status back to the host."""
-    return torch.linalg.solve_triangular(
-        factor.mT, torch.linalg.solve_triangular(factor, right, upper=False), upper=True
-    )
-
-
 def _active_set_step(
     problem: _Scaled, v: torch.Tensor, dual: torch.Tensor, yields: torch.Tensor, cold: torch.Tensor, cap: torch.Tensor
 ) -> tuple[torch.Tensor, ...]:
@@ -118,11 +112,11 @@ def _active_set_step(
     weighted = (problem.A * stiff.unsqueeze(-1)).mT
     factor, info = torch.linalg.cholesky_ex(problem.H + torch.bmm(weighted, problem.A))
     pull, force = stiff * bound, dual
-    y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
+    y = factored_solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
     value = problem.values(y)
     for _ in range(_UPDATES):
         force = force + stiff * (value - bound)
-        y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
+        y = factored_solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
         value = problem.values(y)
     nothing = torch.zeros_like(v)
     lowest, highest = torch.where(below, -cap, nothing), torch.where(above, cap, nothing)
@@ -191,59 +185,27 @@ def solve_qp(
     solves the rows the multipliers press on as equalities. That point is returned, with ``exact`` set, where it
     puts every row where its multiplier holds it and makes the gradient vanish, both to a relative ``1e-6`` (of the
     largest row value and of the largest term of the gradient), and where no row it holds asks for a multiplier of
-    the wrong sign or beyond the cap (below). A point that would need such a multiplier cut is refused: the gradient
-    the cut leaves is small, but along a direction of weak curvature a small gradient is far from the minimiser.
-    Elsewhere the last step is returned with ``exact`` unset, and ``primal_residual`` and ``dual_residual`` say how
-    far it still is, in the caller's units.
-
-    Small residuals bound the gap in the objective, not the distance to the minimiser along weak curvature. On
-    problems shaped like damped inverse kinematics (damping 1e-4), steps up to 1.6e-2 from the minimiser reported
-    ``primal_residual`` 0 and ``dual_residual`` under 1e-4, with an objective at most 1.4e-6 above the minimum.
-    Between equality rows in conflict, steps up to 9e-2 from the elastic minimiser show a ``dual_residual`` of 1e-11
-    to 1e-10 and a positive ``primal_residual``, as the minimiser does (2 and 64 of 256 such problems after 60 warm
-    calls, none of them ``exact``). ``exact`` is the sign that a step is the minimiser; where rows give way it is the
-    only one.
+    the wrong sign or beyond the cap (below); a point that would need such a multiplier cut is refused. Elsewhere the
+    last step is returned with ``exact`` unset, and ``primal_residual`` and ``dual_residual`` say how far it still
+    is, in the caller's units. Small residuals bound the gap in the objective, not the distance to the minimiser
+    along weak curvature: ``exact`` is the sign that a step is the minimiser, and where rows give way the only one.
 
     One call is a step, not a solve: accuracy comes from calling again with ``warm=`` set to the last solution, not
-    from more ``iterations``, because the penalty that sets the pace of the steps is tuned between calls. On random
-    feasible problems of 7 variables and 30 rows, half of them active, ``cond(H) = 1e4``, a cold call solves (both
-    residuals under 1e-8) none of 256 at 20 to 500 iterations (median violation 0.33 at 20, 0.062 at 500), while
-    warm calls of 20 iterations on the same problems solve 47, 181 and 247 of them after 5, 12 and 40 calls (35
-    variables and 150 rows: 44 of 128 after 40 calls). An outer loop whose problem changes little between its
-    steps gets the same from one warm call per step. ``warm`` is the solution of a nearby problem with the same row
-    layout; it carries ``x``, ``dual`` and the ``penalty`` the last call tuned. The penalty is kept within a factor
-    of 1000 of the one a cold call of the new problem starts with; each row starts from its value at ``x``, so a
-    warm call started at an elastic minimiser stays there (it moved by under 1e-9 on problems of 7 variables, 1.7e-6
-    on problems shaped like inverse kinematics at damping 1e-6); and nothing in it needs a reset. A cold call starts
-    from ``x = 0``.
-
-    The rows bound the step only in the limit. A cold call on an ill-conditioned ``H`` can return a step far outside
-    a box of identity rows: 35 against a box of 0.3 at ``cond(H) = 1e8`` and 20 iterations, 3.4 at 200 iterations,
-    0.30 after 5 warm calls; ``primal_residual`` reports it.
+    from more ``iterations``, because the penalty that sets the pace of the steps is tuned between calls; the rows
+    bound the step only in the limit, and ``primal_residual`` reports a step outside them. ``warm`` is the solution
+    of a nearby problem with the same row layout; it carries ``x``, ``dual`` and the ``penalty`` the last call
+    tuned, kept within a factor of 1000 of the one a cold call of the new problem starts with. Each row starts from
+    its value at ``x``, so a warm call started at an elastic minimiser stays there, and nothing needs a reset. A cold
+    call starts from ``x = 0``.
 
     The rows are elastic. Each batch element has a cap, ``weight`` times the larger of ``|g|∞`` and the largest
-    diagonal entry of ``H``; a row gives way once holding it would take a multiplier beyond the cap, so the problem
-    solved is ``½ xᵀH x + gᵀx + cap · (sum of the rows' violations)`` and every ``dual`` stays within ``±cap``. Where
-    the rows can all hold with multipliers under the cap, its minimiser is the one under hard rows. Where they
-    cannot, it is the L1-elastic minimiser for that cap, with ``primal_residual`` positive: a row gives way where
-    holding it would cost the objective more than the cap per unit of violation. Only as ``weight`` grows does that
-    point tend to the least sum of violations and, among such points, the least objective. It may break one row by
-    much where a least-squares compromise breaks many by little, and that row may be a box row: two rows in
-    conflict inside a box of 0.3 can both hold once one box row gives way, at steps up to 1.76. Scale a box's rows up
-    when the box must win.
-
-    The cap follows the objective: scaling ``H`` and ``g`` by ``s`` scales the cap and every multiplier by ``s`` and
-    leaves ``x``, so ``weight`` is a pure number. It compares a multiplier (objective per unit of a row) with a
-    gradient (objective per unit of a variable), which assumes rows whose coefficients are of order one and
-    variables in natural units. Scaling a row and its bounds by ``t`` divides its multiplier by ``t`` and counts its
-    violation ``t`` times: that is how a row is weighted against the others. The unit-diagonal scaling of the
-    variables inside the solve changes neither. With the default ``100.0`` no row of a feasible problem had to give
-    way in the problems measured (shaped like inverse kinematics, with the objective scaled by 1 to 3000, with
-    near-opposed rows, and with rows that ask for a motion where ``g`` vanishes: the multipliers needed stay at least
-    28 times under the cap), and rows that had been in conflict let go within 7 warm calls in the review's problems
-    of 7 variables (23 at 35 variables and 150 rows). A smaller ``weight`` lets go sooner (5 calls at 30) with less
-    margin. A zero row whose bounds exclude 0 can never hold: its multiplier goes to the cap and stays there, and the
-    other rows are solved as without it.
+    diagonal entry of ``H``; the problem solved is ``½ xᵀH x + gᵀx + cap · (sum of the rows' violations)``, so every
+    ``dual`` stays within ``±cap``. Rows that can all hold with multipliers under the cap are held exactly; where they
+    cannot, a row gives way where holding it would cost the objective more than the cap per unit of violation, and
+    that row may be a box row (scale a box's rows up when the box must win). Scaling ``H`` and ``g`` by ``s`` scales
+    the cap and every multiplier by ``s`` and leaves ``x``, so ``weight`` is a pure number; scaling a row and its
+    bounds by ``t`` divides its multiplier by ``t`` and counts its violation ``t`` times. A zero row whose bounds
+    exclude 0 never holds: its multiplier stays at the cap and the other rows are solved as without it.
 
     A batch element whose ``H + penalty · rowsᵀ rows`` is not positive definite, or whose data are not finite, gets
     ``x = 0``, ``dual = 0``, both residuals ``inf`` and ``penalty = 1``.
@@ -251,14 +213,14 @@ def solve_qp(
     batch, size, count = _checked(hessian, gradient, rows, lower, upper, weight, warm)
     matrix = hessian.detach().double().reshape(-1, size, size)
     diagonal = matrix.diagonal(dim1=-2, dim2=-1)
-    scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
+    scale, unit = unit_diagonal(matrix, 0.0, _FLOOR)
     identity = torch.eye(size, dtype=matrix.dtype, device=matrix.device)
     linear = gradient.detach().double().reshape(-1, size)
     # The multipliers stop at `weight` times the size of the objective's gradient: at x = 0, or one unit of a
     # variable away where that is larger, so that a gradient that vanishes does not let every row go.
     cap = weight * torch.maximum(linear.abs().amax(-1), diagonal.amax(-1)).unsqueeze(-1)
     problem = _Scaled(
-        H=matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2) + _FLOOR * identity,
+        H=unit,
         c=(linear * scale).unsqueeze(-2),
         A=rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2),
         lower=torch.minimum(lower, upper).detach().double().reshape(-1, count),
@@ -279,7 +241,7 @@ def solve_qp(
 
     # The inverse of H + penalty · rowsᵀ rows, by N right-hand sides: each step is then three products with a vector.
     factor, info = torch.linalg.cholesky_ex(problem.H + rho.unsqueeze(-1) * gram)
-    inverse = _solve(factor, identity.expand_as(gram))
+    inverse = factored_solve(factor, identity.expand_as(gram))
     free, spread = -torch.bmm(problem.c, inverse), rho.unsqueeze(-1) * inverse
     # State v = z + give: z is where the rows are held, give = dual / penalty. A row is held inside its bounds until
     # its multiplier reaches `cap`; from there it gives way and z follows v beyond the bound (the L1-elastic row).

@@ -3,19 +3,7 @@
     "count": 1,
     "reason": "torch._assert_async is torch's one assert that does not sync the host; it serves umeyama's finite-value scan (value_checks.json), whose opt-in replacement changes umeyama's signature: parked for the owner"
   },
-  "src/better_robot/optim/linear.py::ArrowNormal.solve N806": {
-    "count": 2,
-    "reason": "matrix monograms of the normal equations (C, the Schur corner), C-NAME-1; pyproject.toml exempts only lie, spatial, kinematics and dynamics from N806, and adding this module to that list is the owner's call"
-  },
-  "src/better_robot/optim/linear.py::BandedNormal._factor N806": {
-    "count": 4,
-    "reason": "matrix monograms of the normal equations (D, U: diagonal and upper blocks), C-NAME-1; pyproject.toml exempts only lie, spatial, kinematics and dynamics from N806, and adding this module to that list is the owner's call"
-  },
   "src/better_robot/optim/linear.py::Normal.masked N806": {
-    "count": 1,
-    "reason": "matrix monograms of the normal equations (H), C-NAME-1; pyproject.toml exempts only lie, spatial, kinematics and dynamics from N806, and adding this module to that list is the owner's call"
-  },
-  "src/better_robot/optim/linear.py::Normal.solve N806": {
     "count": 1,
     "reason": "matrix monograms of the normal equations (H), C-NAME-1; pyproject.toml exempts only lie, spatial, kinematics and dynamics from N806, and adding this module to that list is the owner's call"
   },

@@ -14,7 +14,7 @@ from ..lie import so3
 from ..lie._checks import check_tensor
 from ..model._checks import batch_shape, expand_batch
 from ..model.model import Model
-from ._fk import placement_matrices, world_frames, world_transforms
+from ._fk import joint_map, world_frames, world_transforms
 from ._jacobian import geometry_about_first_joint, world_column_table
 from ._plans import fk_plan, jacobian_plan
 from .configuration import full_configuration_raw
@@ -203,16 +203,16 @@ def forward_kinematics(model: Model, q: torch.Tensor, *, check_quaternion_norm: 
     check_tensor("q", q, shape=(model.nq,), dtype=model.dtype, device=model.device)
     batch = batch_shape(model, "q", q, (model.nq,))
     q = expand_batch("q", q, batch, (model.nq,))
-    joint_map = placement_matrices(model, "joints")
+    placements = joint_map(model)
     count = math.prod(batch)  # explicit: a model without coordinates has zero-width q
     nj = model.njoints
     # Unbatched placements are folded into the kernel's map; batched ones are flattened with q.
-    if isinstance(joint_map, torch.Tensor) and joint_map.ndim > 3:
-        joint_map = joint_map.broadcast_to(*batch, nj, 4, 4).reshape(count, nj, 4, 4)
+    if isinstance(placements, torch.Tensor) and placements.ndim > 3:
+        placements = placements.broadcast_to(*batch, nj, 4, 4).reshape(count, nj, 4, 4)
     q_full = full_configuration_raw(model, q).reshape(count, model.nq_full)
     if check_quaternion_norm:
         _check_quaternion_norms(model, q_full)
-    joints = world_transforms(model, q_full, joint_map)
+    joints = world_transforms(model, q_full, placements)
     return KinematicState(model=model, q=q, joint_transforms=joints.view(*batch, nj, 3, 4))
 
 

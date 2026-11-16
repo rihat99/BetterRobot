@@ -1,4 +1,5 @@
-"""``better_robot.kinematics``: forward kinematics, Jacobians, configuration steps and tree queries on a ``Model``."""
+"""``better_robot.kinematics``: forward kinematics, Jacobians, configuration steps and tree queries on a ``Model``,
+and ``compiled``, the opt-in compiled form of a library call."""
 
 from __future__ import annotations
 

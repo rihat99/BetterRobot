@@ -47,7 +47,7 @@ FROZEN_RECORD_CITATIONS: dict[str, str] = {
         "trashed with the JointModel protocol (0013); C-EXT-1 is review-enforced"
     ),
     "docs/contracts/decisions/0040-model-value-memo.md: src/better_robot/kinematics/_fk_lean.py::placement_matrices": (
-        "now src/better_robot/kinematics/_fk.py::placement_matrices"
+        "now src/better_robot/kinematics/_fk.py::joint_map and world_frames"
     ),
     "docs/contracts/decisions/0035-shared-testing-module.md: scripts/docs_screenshots.mjs": (
         "now tools/docs_screenshots.mjs, the one copy both repositories use"
