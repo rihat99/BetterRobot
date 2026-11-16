@@ -60,7 +60,7 @@ Each behaviour is the term of its cost form registered with `hinge=False` as an 
 | self-collision | `terms.self_clearance(spheres, pairs=, margin=, hinge=False, closest=k)` |
 | singular poses | `terms.manipulability(model, frame=, threshold=, hinge=False)` |
 
-`closest=k` keeps the `k` nearest spheres or pairs as rows, so the program has the same rows at every tick, as the
+`closest=k` keeps the `k` nearest spheres or pairs as rows: few rows, and the same number at every tick, as the
 warm start needs. Below, a table 30 cm up and a sphere on the circle stand in the hand's way:
 
 ```python
