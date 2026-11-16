@@ -19,6 +19,7 @@ from typing import final, override
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
+from .linear import factored_solve, unit_diagonal
 
 _FLOOR = (
     1e-9  # added to the unit-diagonal H, as Normal.solve does: a variable the objective does not see stays solvable
@@ -92,13 +93,6 @@ class _Scaled:
         return gap, gradient, (gradient.abs().amax(-1) / parts.clamp_min(1e-300)).squeeze(-1)
 
 
-def _solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
-    """Two triangular solves, not ``cholesky_solve``: that one reads its status back to the host."""
-    return torch.linalg.solve_triangular(
-        factor.mT, torch.linalg.solve_triangular(factor, right, upper=False), upper=True
-    )
-
-
 def _active_set_step(
     problem: _Scaled, v: torch.Tensor, dual: torch.Tensor, yields: torch.Tensor, cold: torch.Tensor, cap: torch.Tensor
 ) -> tuple[torch.Tensor, ...]:
@@ -118,11 +112,11 @@ def _active_set_step(
     weighted = (problem.A * stiff.unsqueeze(-1)).mT
     factor, info = torch.linalg.cholesky_ex(problem.H + torch.bmm(weighted, problem.A))
     pull, force = stiff * bound, dual
-    y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
+    y = factored_solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
     value = problem.values(y)
     for _ in range(_UPDATES):
         force = force + stiff * (value - bound)
-        y = _solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
+        y = factored_solve(factor, (torch.bmm((pull - force).unsqueeze(-2), problem.A) - problem.c).mT).mT
         value = problem.values(y)
     nothing = torch.zeros_like(v)
     lowest, highest = torch.where(below, -cap, nothing), torch.where(above, cap, nothing)
@@ -251,14 +245,14 @@ def solve_qp(
     batch, size, count = _checked(hessian, gradient, rows, lower, upper, weight, warm)
     matrix = hessian.detach().double().reshape(-1, size, size)
     diagonal = matrix.diagonal(dim1=-2, dim2=-1)
-    scale = torch.where(diagonal > 0, diagonal.clamp_min(1e-300).rsqrt(), torch.ones_like(diagonal))
+    scale, unit = unit_diagonal(matrix, 0.0, _FLOOR)
     identity = torch.eye(size, dtype=matrix.dtype, device=matrix.device)
     linear = gradient.detach().double().reshape(-1, size)
     # The multipliers stop at `weight` times the size of the objective's gradient: at x = 0, or one unit of a
     # variable away where that is larger, so that a gradient that vanishes does not let every row go.
     cap = weight * torch.maximum(linear.abs().amax(-1), diagonal.amax(-1)).unsqueeze(-1)
     problem = _Scaled(
-        H=matrix * scale.unsqueeze(-1) * scale.unsqueeze(-2) + _FLOOR * identity,
+        H=unit,
         c=(linear * scale).unsqueeze(-2),
         A=rows.detach().double().reshape(-1, count, size) * scale.unsqueeze(-2),
         lower=torch.minimum(lower, upper).detach().double().reshape(-1, count),
@@ -279,7 +273,7 @@ def solve_qp(
 
     # The inverse of H + penalty · rowsᵀ rows, by N right-hand sides: each step is then three products with a vector.
     factor, info = torch.linalg.cholesky_ex(problem.H + rho.unsqueeze(-1) * gram)
-    inverse = _solve(factor, identity.expand_as(gram))
+    inverse = factored_solve(factor, identity.expand_as(gram))
     free, spread = -torch.bmm(problem.c, inverse), rho.unsqueeze(-1) * inverse
     # State v = z + give: z is where the rows are held, give = dual / penalty. A row is held inside its bounds until
     # its multiplier reaches `cap`; from there it gives way and z follows v beyond the bound (the L1-elastic row).

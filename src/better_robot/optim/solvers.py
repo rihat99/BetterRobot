@@ -17,7 +17,7 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from .evaluation import CONSTRAINTS, active_terms
-from .linear import ArrowNormal, BandedNormal, DenseSink, Normal
+from .linear import ArrowNormal, BandedNormal, DenseSink, Normal, blocked
 from .linearization import Rows, linearize
 from .problem import Problem
 from .qp import QPSolution, solve_qp
@@ -617,10 +617,7 @@ def _no_step(
 
 def _free(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor | bool:
     """``(B, n)`` mask of the coordinates not held by an active step bound that the gradient ``g`` pushes against."""
-    if bounds is None:
-        return True
-    lower, upper = bounds
-    return ~(((lower >= -1e-9) & (g > 0)) | ((upper <= 1e-9) & (g < 0)))
+    return True if bounds is None else ~blocked(g, *bounds)
 
 
 def _projected(g: torch.Tensor, bounds: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:

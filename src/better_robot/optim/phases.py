@@ -10,6 +10,7 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from .evaluation import active_terms, checked_values
+from .linear import blocked
 from .problem import Problem
 from .solvers import DIAGNOSTICS, Solver, State
 
@@ -189,9 +190,8 @@ def solve_layer(
     _, g, _ = problem.gradient(result.x, create_graph=True)
     bounds = problem.step_bounds(result.x)
     if bounds is not None:
-        lower, upper = bounds
-        blocked = ((lower >= -1e-9) & (normal.g > 0)) | ((upper <= 1e-9) & (normal.g < 0))
-        normal, g = normal.masked(~blocked), g * ~blocked
+        free = ~blocked(normal.g, *bounds)
+        normal, g = normal.masked(free), g * free
     step = normal.solve(damping, g=g)
     # The unclamped retract: x* itself, carrying the derivative of the step (an active bound has none).
     slices, zero = problem.slices(), step - step.detach()
