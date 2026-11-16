@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any
 
@@ -15,7 +16,8 @@ from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, Po
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.layers.skinned import SkinnedMeshLayer
-from better_robot.viewer.theme import Theme
+from better_robot.viewer.sidebar import Sidebar
+from better_robot.viewer.theme import DARK, LIGHT, Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
 
@@ -60,7 +62,7 @@ def test_hidden_layers_are_skipped_and_catch_up_when_shown_again() -> None:
     layer = _skeleton(10)
     viewer.add([layer])
     viewer.add(PointsLayer("cloud", np.zeros((1, 3))))  # a second tag brings the Layers checkboxes
-    checkbox = server.gui.control("skel")
+    checkbox = server.gui.control("Skel")
     checkbox.value = False
     checkbox.fire()
     assert server.scene.nodes["/skel/skel/joints"].visible is False
@@ -102,8 +104,9 @@ def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
     timeline = Timeline(5, fps=100.0)
     seen: list[int] = []
     timeline.on_step(seen.append)
-    gui = FakeServer().gui
-    timeline.build_gui(gui)
+    server = FakeServer()
+    gui = server.gui
+    timeline.build_gui(Sidebar(server, threading.RLock()))
     slider = gui.control("Step")
     timeline.step = 99
     assert timeline.step == 4 and slider.value == 4
@@ -130,7 +133,26 @@ def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
     timeline.pause()
     assert not timeline.playing
     assert any(step < timeline.step or step == 0 for step in seen[-8:])
-    assert gui.control("Play").label == "Play"
+    assert gui.control("Play").value is False
+
+
+def test_timeline_controls_run_under_the_viewer_lock_without_waiting_for_playback() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    viewer.add(_skeleton(1000))
+    play, speed = server.gui.control("Play"), server.gui.control("Speed")
+    assert [c.name for c in server.gui.controls if c.kind != "GuiFolderHandle"][:4] == ["Play", "Step", "Speed", "Loop"]
+    play.value = True
+    play.fire()  # under the lock, as every sidebar callback
+    time.sleep(0.1)
+    speed.value = "2\u00d7"
+    speed.fire()
+    assert viewer.timeline.playing and viewer.timeline.speed == 2.0  # no restart: the thread reads it
+    with viewer.lock:  # the playback thread waits for this lock: unticking Play must not wait for the thread
+        play.value = False
+        play.fire()
+    assert not viewer.timeline.playing
+    viewer.timeline.pause()  # outside the lock it waits for the thread to end
 
 
 def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
@@ -365,6 +387,29 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     assert eager_image.removed and lazy_image.removed
 
 
+def test_theme_shades_run_from_dark_drum_faces_to_pale_sticks_with_bodies_in_the_hue() -> None:
+    theme = Theme()
+    hue = theme.hue(0)
+    brightness = {role: sum(theme.shade(hue, role)) for role in ("face", "joint", "body", "stick")}
+    assert brightness["face"] < brightness["joint"] < brightness["body"] < brightness["stick"]
+    assert theme.shade(hue, "body") == hue
+    with pytest.raises(ArgumentError, match="role must be one of"):
+        theme.shade(hue, "bone")  # pyright: ignore[reportArgumentType]
+
+
+def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    assert server.scene.environment is not None and server.scene.environment["hdri"] is None  # no pastel wash
+    grid = server.scene.nodes["/ground/ground/grid"].props
+    assert grid["infinite_grid"] and grid["shadow_opacity"] == LIGHT.shadow
+    viewer.set_theme(DARK)
+    assert server.scene.nodes["/ground/ground/grid"].shadow_opacity == DARK.shadow
+    GroundLayer(size=4.0).build(server.scene, "/g/square")  # a number keeps a square of that width
+    square = server.scene.nodes["/g/square/grid"].props
+    assert not square["infinite_grid"] and square["width"] == 4.0
+
+
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
     viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"), ground=False)
     ground, explicit = GroundLayer(), GroundLayer("explicit", plane="xy")
@@ -416,7 +461,7 @@ def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_se
         return {
             c.name: c
             for c in server.gui.controls
-            if c.kind == "GuiCheckboxHandle" and c.name != "Loop" and not c.removed
+            if c.kind == "GuiCheckboxHandle" and c.name not in ("Play", "Loop") and not c.removed
         }
 
     skel = _skeleton(10, "skel")
@@ -424,19 +469,20 @@ def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_se
     assert boxes() == {} and "Layers" not in [c.name for c in server.gui.controls]  # one tag: nothing to toggle
     arm, hand = _skeleton(10, "arm"), PointsLayer("hand", np.zeros((1, 3)))
     viewer.add([arm, hand], tags="robot")
-    assert list(boxes()) == ["skel", "robot"]
+    viewer.add_plot("torque", np.zeros((10, 2)))  # a chart in the sidebar has nothing to hide in the scene
+    assert list(boxes()) == ["Skel", "Robot"]
     assert [control.name for control in server.gui.controls].count("Layers") == 1
     viewer.set_visible(arm, False)
-    assert arm.visible is False and boxes()["robot"].value is True  # the hand still shows
+    assert arm.visible is False and boxes()["Robot"].value is True  # the hand still shows
     viewer.set_visible(hand, False)
-    assert boxes()["robot"].value is False
-    boxes()["skel"].value = False
-    boxes()["skel"].fire()
+    assert boxes()["Robot"].value is False
+    boxes()["Skel"].value = False
+    boxes()["Skel"].fire()
     assert skel.visible is False
 
     viewer.show(4)
-    boxes()["robot"].value = True
-    boxes()["robot"].fire()
+    boxes()["Robot"].value = True
+    boxes()["Robot"].fire()
     assert arm.visible and hand.visible and viewer._entry(arm).step == 4
     folder = server.gui.control("Layers")
     viewer.remove("robot")
@@ -564,14 +610,17 @@ class _Box(Layer):
 
 
 def _inside_view(points: np.ndarray, position: np.ndarray, look_at: np.ndarray, fov: float) -> bool:
-    """Whether every point lies inside the cone of half-angle ``fov / 2`` around the line of sight."""
+    """Whether every point lies inside a 16:9 view of vertical field of view ``fov``, upright along +z."""
     sight = (look_at - position) / np.linalg.norm(look_at - position)
+    right = np.cross(sight, [0.0, 0.0, 1.0])
+    right /= np.linalg.norm(right)
     rays = points - position
-    cosines = rays @ sight / np.linalg.norm(rays, axis=-1)
-    return bool((cosines >= np.cos(fov / 2)).all())
+    depth = rays @ sight
+    tall, wide = np.abs(rays @ np.cross(right, sight)) / depth, np.abs(rays @ right) / depth
+    return bool((depth > 0).all() and (tall <= np.tan(fov / 2)).all() and (wide <= np.tan(fov / 2) * 16 / 9).all())
 
 
-def test_aim_frames_the_bounding_sphere_of_the_visible_layers_in_new_and_connected_browsers() -> None:
+def test_aim_frames_the_box_of_the_visible_layers_in_new_and_connected_browsers() -> None:
     server = FakeServer()
     server.clients[0] = FakeClient()
     viewer = Viewer(server=server)  # the ground has no bounds: never framed
@@ -589,8 +638,15 @@ def test_aim_frames_the_bounding_sphere_of_the_visible_layers_in_new_and_connect
         np.testing.assert_allclose(camera.look_at, look_at)
         assert camera.writes.index("position") < camera.writes.index("look_at")
     np.testing.assert_allclose(look_at, [0.0, 2.0, 0.5])  # the box of step 0, moved by the tag's offset
-    # The sphere around that box (radius 0.5) fills the field of view with a 15 % margin.
-    np.testing.assert_allclose(np.linalg.norm(position - look_at), 0.5 / np.sin(fov / 2) * 1.15)
+    # That box spans 80 % of a 16:9 view: its corners reach the bound on one screen axis and stay inside the other.
+    view = (look_at - position) / np.linalg.norm(look_at - position)
+    right = np.cross(view, viewer.theme.up_vector)
+    right /= np.linalg.norm(right)
+    corners = np.array([[x, y, z] for x in (0.0, 0.0) for y in (2.0, 2.0) for z in (0.0, 1.0)]) - position
+    depth = corners @ view
+    tall = np.abs(corners @ np.cross(right, view)) / depth / np.tan(fov / 2)
+    wide = np.abs(corners @ right) / depth / (np.tan(fov / 2) * 16 / 9)
+    np.testing.assert_allclose(max(tall.max(), wide.max()), 0.8)
     up = viewer.theme.up_vector
     assert np.dot(position - look_at, up) > 0.0  # seen from above
     position, look_at = viewer.aim()  # the whole clip: the last step is in view too

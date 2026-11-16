@@ -217,6 +217,8 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `Layer(name, nsteps)`, `Layer.listed`, `GroundLayer.listed` | `Layer(name, nsteps, *, tags=)` | the sidebar's Layers section has one checkbox per tag once there are two; the ground is never listed |
 | `Layer.build_gui(gui)`, `PlotPanel.build_gui`, `ImagePanel.build_gui` | `Layer.build_gui(sidebar)`, `Sidebar` | a layer adds its controls through the viewer's `Sidebar`; viser's GUI API is `sidebar.gui` |
 | `GroundLayer(..., cell_color=, section_color=)` | `GroundLayer(..., cell_color=None, section_color=None)` | the grid takes `Theme.grid` unless given |
+| `GroundLayer(size=10.0)` | `GroundLayer(size=None)` | the default grid has no edges and fades out; pass `size=` for a square |
+| `Timeline.build_gui(gui)` | `Timeline.build_gui(sidebar)` | the viewer builds the Timeline section through its `Sidebar` |
 | `Theme.brand_color` | `Theme.accent` | the colour of the GUI and the tools |
 | `Theme.grid_cell`, `Theme.grid_section` | `Theme.grid` | a (cell, section) pair |
 | `Theme.robot`, `Theme.human` | `Theme.hue` | a robot or body takes `theme.hue(index)`, its parts `theme.shade(hue, role)` |

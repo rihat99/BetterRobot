@@ -505,6 +505,7 @@ class FakeGui:
         data: Any,
         series: Any,
         *,
+        scales: Any = None,
         legend: Any = None,
         aspect: float = 1.0,
         order: float | None = None,

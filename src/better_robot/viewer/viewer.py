@@ -15,6 +15,7 @@ from ..exceptions import ArgumentError, ShapeError, UnknownNameError
 from ._extras import needs_extra
 from .layer import Layer, as_tags
 from .layers.ground import GroundLayer
+from .layers.image import ImagePanel
 from .layers.plot import PlotPanel
 from .sidebar import Sidebar
 from .theme import LIGHT, Theme
@@ -29,7 +30,8 @@ if TYPE_CHECKING:
 _EMPTY_SCENE: tuple[np.ndarray, np.ndarray] = (np.array([-1.0, -1.0, 0.0]), np.array([1.0, 1.0, 1.0]))
 _FOV = math.radians(40.0)  # the vertical field of view of the browsers' camera
 _AIM_STEPS = 32  # at most this many evenly spaced steps are framed by ``aim``
-_AIM_MARGIN = 1.15  # distance over the one that just fits the bounding sphere into the field of view
+_AIM_FILL = 0.8  # share of a 16:9 view's height (or width) the framed box spans
+_AIM_ASPECT = 16.0 / 9.0
 
 
 def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
@@ -40,6 +42,11 @@ def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
     if np.any(np.diff(times) < 0):
         raise ArgumentError("times must be non-decreasing")
     return times
+
+
+def _label(tag: str) -> str:
+    """A tag as its Layers checkbox reads, in sentence case: ``"left_arm"`` -> ``"Left arm"``."""
+    return tag[:1].upper() + tag[1:].replace("_", " ")
 
 
 @final
@@ -239,12 +246,16 @@ class Viewer:
         """Build the Timeline section once the timeline has more than one step."""
         if self.timeline.nsteps > 1 and not self._timeline_built:
             self._timeline_built = True
-            with self.sidebar.section("Timeline"):
-                self.timeline.build_gui(self.server.gui)
+            self.timeline.build_gui(self.sidebar)
 
     def _sync_layers_section(self) -> None:
-        """One Layers checkbox per tag (the ground's excluded) while there are two or more tags, none otherwise."""
-        tags = [tag for tag in self.tags if tag != "ground"]
+        """One Layers checkbox per tag while there are two or more, none otherwise; the ground and tags that hold only
+        sidebar panels (charts, images) are not listed. A checkbox reads its tag in sentence case."""
+        tags = [
+            tag
+            for tag in self.tags
+            if tag != "ground" and not all(isinstance(layer, PlotPanel | ImagePanel) for layer in self._tagged(tag))
+        ]
         if len(tags) < 2:
             if self._boxes:
                 self._boxes.clear()
@@ -252,12 +263,12 @@ class Viewer:
             return
         for tag in [tag for tag in self._boxes if tag not in tags]:
             del self._boxes[tag]
-            self.sidebar.remove("Layers", tag)
+            self.sidebar.remove("Layers", _label(tag))
         for tag in tags:
             if tag not in self._boxes:
                 self._boxes[tag] = self.sidebar.checkbox(
                     "Layers",
-                    tag,
+                    _label(tag),
                     value=any(layer.visible for layer in self._tagged(tag)),
                     on_change=lambda visible, tag=tag: self.set_visible(tag, visible),
                 )
@@ -411,10 +422,11 @@ class Viewer:
         """Point the connected browsers and every new one (viser's initial camera, also "Reset View") at the visible
         layers, and stop aiming by itself after each ``add``.
 
-        The view is the bounding sphere of the visible layers' ``Layer.bounds`` over ``steps`` (default: every step;
-        at most 32 evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and
-        ``elevation`` (radians) about the theme's ``up`` axis at the distance where the sphere fills the vertical
-        field of view ``fov`` with a margin; the browsers take ``fov``. Returns ``(position, look_at)``.
+        The view is the box of the visible layers' ``Layer.bounds`` over ``steps`` (default: every step; at most 32
+        evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and ``elevation``
+        (radians) about the theme's ``up`` axis at the distance where the box spans 80 % of a 16:9 view's height or
+        width, whichever is reached first, in the vertical field of view ``fov``; the browsers take ``fov``. Returns
+        ``(position, look_at)``.
         """
         with self.lock:
             self._aimed = True
@@ -433,14 +445,22 @@ class Viewer:
         lo, hi = (
             (np.min([b[0] for b in boxes], axis=0), np.max([b[1] for b in boxes], axis=0)) if boxes else _EMPTY_SCENE
         )
-        center, radius = (lo + hi) / 2.0, max(float(np.linalg.norm(hi - lo)) / 2.0, 1e-3)
+        center = (lo + hi) / 2.0
         up = np.asarray(self.theme.up_vector)
         side = np.cross(np.array([0.0, 0.0, 1.0]) if abs(up[2]) < 0.9 else np.array([1.0, 0.0, 0.0]), up)
         side /= np.linalg.norm(side)
         forward = np.cross(up, side)
         direction = math.cos(elevation) * (math.cos(azimuth) * side + math.sin(azimuth) * forward)
         direction = direction + math.sin(elevation) * up
-        distance = radius / math.sin(fov / 2.0) * _AIM_MARGIN
+        right = np.cross(up, direction)
+        right /= np.linalg.norm(right)
+        screen_up = np.cross(direction, right)
+        # The nearest distance at which every corner of the box projects inside the filled part of a 16:9 view.
+        corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+        offsets = corners - center
+        tan_y = _AIM_FILL * math.tan(fov / 2.0)
+        reach = np.maximum(np.abs(offsets @ screen_up) / tan_y, np.abs(offsets @ right) / (tan_y * _AIM_ASPECT))
+        distance = max(float(np.max(offsets @ direction + reach)), 1e-3)
         return center + distance * direction, center
 
     def _boxes_at(self, step: int) -> list[tuple[np.ndarray, np.ndarray]]:
