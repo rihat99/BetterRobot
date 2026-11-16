@@ -204,14 +204,18 @@ def _yoshikawa(rows: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return adjugate, torch.where(det > 0, det, 0.0).sqrt()
 
 
-def manipulability(model: Model, *, frame: int | str, threshold: float, state: str = "state", q: str = "q") -> TermFn:
+def manipulability(
+    model: Model, *, frame: int | str, threshold: float, hinge: bool = True, state: str = "state", q: str = "q"
+) -> TermFn:
     """Push ``frame`` away from singular configurations once its manipulability falls below ``threshold``.
 
     The manipulability is Yoshikawa's ``w = sqrt(det(J Jᵀ))`` of the position rows ``J (3, nv)`` of the frame's
     Jacobian without the columns of free-flyer joints, which move the frame in every direction. Residual ``(B, 1)``:
-    the C1 hinge of ``threshold - w`` with band ``threshold`` (`joint_limits`), zero while ``w >= threshold``.
-    The Jacobian is analytic (each column of the world Jacobian moves by its Lie bracket with the columns above it),
-    or autodiff when a mimic joint drives the frame.
+    the C1 hinge of ``threshold - w`` with band ``threshold`` (`joint_limits`), zero while ``w >= threshold``; with
+    ``hinge=False`` the plain ``threshold - w``, the row of ``problem.inequality(..., upper=0.0)``. The Jacobian is
+    analytic (each column of the world Jacobian moves by its Lie bracket with the columns above it), or autodiff when
+    a mimic joint drives the frame. At ``w = 0`` it is zero, the smallest subgradient: a row there cannot hold and
+    gives way (`optim.solve_qp`).
     """
     if threshold <= 0:
         raise ArgumentError(f"threshold must be positive, got {threshold}")
@@ -228,7 +232,7 @@ def manipulability(model: Model, *, frame: int | str, threshold: float, state: s
 
     def residual(kinematics: KinematicState) -> torch.Tensor:
         _, size = _yoshikawa(frame_jacobian(model, kinematics, frame=frame_id)[..., :3, :] * columns)
-        return _hinge(width - size, band)[..., None]
+        return (_hinge(width - size, band) if hinge else width - size)[..., None]
 
     chain = support(model, joint=model.frame_parent_joint_ids[frame_id])
     if any(model.mimic_source_ids[joint] != joint for joint in chain):
@@ -259,7 +263,9 @@ def manipulability(model: Model, *, frame: int | str, threshold: float, state: s
         gradient = (
             (angular * (first @ above.mT)).sum(-2) + (linear * (second @ above.mT)).sum(-2) + (rows * third).sum(-2)
         )
-        return {q: -(_hinge_slope(width - size, band)[..., None] * gradient)[..., None, :]}
+        if hinge:
+            gradient = _hinge_slope(width - size, band)[..., None] * gradient
+        return {q: -gradient[..., None, :]}
 
     return TermFn(fn=residual, reads=(state,), jacobian=jacobian)
 

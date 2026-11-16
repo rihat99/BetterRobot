@@ -1,0 +1,133 @@
+# 0057 Differential inverse kinematics is one call of `optim.track` per tick
+
+**Status:** Proposed (integrator, awaiting owner). **Date:** 2026-11-16
+
+## Context
+`SequentialQP` (record 0055) solves one problem to convergence. A control loop whose targets move every tick (a
+teleoperated hand, a planner's waypoints) needs one step per tick, from the configuration the robot is at, under
+the same rows: frax's `DiffIKSolver.step`, a velocity-level QP with first-order barrier rows for joint limits,
+floor, obstacles and self-collision. The owner asked for that layer over `solve_qp` (record 0054), with the five
+behaviours (joint limits, floor, obstacle, self-collision, singularity) as rows, the cost forms of record 0051's
+terms kept, spheres only, one obvious way and a small public surface.
+
+Everything the tick needs is already on a `Problem`: the cost terms give the Gauss-Newton model, the constraint
+terms the rows, `bounds` the box, the manifolds the retraction. Nothing in it is about robots.
+
+## Decision
+1. **One function in `optim`.** `optim.track(problem, x, *, step, warm=None, gain=0.5, damping=1e-3,
+   iterations=20) -> (x, QPSolution)`: one `linearize` at `x`, one `solve_qp` of `iterations` started from `warm`,
+   one `retract`. `step` is required: without it a far target gives a long step, and the curved rows were left by
+   0.10 to 0.18 m on the Panda. The new point and the
+   program's solution are the whole state a loop carries; the targets move between calls through
+   `problem.with_(data=)` and the rows keep their count (`closest=`), so the warm start fits.
+2. **The program.** Minimize `½ δᵀ(H + damping·I) δ + gᵀδ`, the Gauss-Newton model of the cost terms with an
+   absolute (Levenberg) damping, under `SequentialQP`'s rows at `gain`, `gain · (lower - c) <= J δ <= gain ·
+   (upper - c)`, and the problem's bounds as the box `gain · (lower - x) <= δ <= gain · (upper - x)` (the velocity
+   damper of the joint limits), each entry of that box clamped to `±step` (a number or `(nv,)`: velocity limits
+   times the tick period). `SequentialQP` and `track` build the rows with one private function; `SequentialQP`
+   keeps its full box (`box=1`).
+3. **No acceptance.** The step is taken. The program holds each constraint row with a reserve, a tenth of what a
+   step as long as the last program's can change that row by (at most half the row's width; none on a first call).
+   The step taken is the program's clamped to the box, moved back onto the rows it leaves by the least change the
+   box allows (one least-squares solve), then scaled back until it leaves no row that held by more than 1e-6 and
+   takes no violated row further out. A row that starts violated is repaired at `gain` per call, not all at once.
+4. **Row forms of the behaviours.** Each behaviour's row is its cost term with `hinge=False`:
+   `terms.manipulability(..., hinge=False)` (`threshold - w`, new) and `terms.sphere_clearance(..., closest=k)` (the
+   `k` smallest distances, new, as `self_clearance` already had); the joint limits are the bounds.
+   `terms.self_clearance(margin=)` takes one margin per pair, so that a pair closer than the common margin in the
+   rest pose keeps a row of its own (margin = its rest distance less 1 mm) instead of being left out.
+5. **No posture term, no task gain by default.** A posture term is the caller's `terms.rest` (`ik_problem(
+   rest_weight=)`); the task error enters at full weight.
+6. **A moving obstacle needs no new argument.** Its distance function reads a tensor the loop moves in place
+   (`copy_`); the problem, its rows and a compiled tick stay as they are.
+
+## Example
+```python { .no-run }
+problem = terms.ik_problem(model, {"panda_hand": pose}, q0=q0)
+problem.inequality("self", terms.self_clearance(spheres, pairs=pairs, margin=0.02, hinge=False, closest=8), upper=0.0)
+x, warm = dict(problem.variables), None
+for pose in stream:
+    x, warm = optim.track(problem.with_(data={"target/panda_hand": pose}), x, warm=warm, step=0.005)
+```
+
+## Consequences
+Measured with 256 tracking tasks per scene, 75 % of them on paths that cross the scene's region, the path taking
+2 s and held for 1 s, tick 0.01 s (300 ticks) or 0.0025 s (1200 ticks), step = min(velocity limit, 2.5 rad/s) times
+the tick, float64, CPU. Every scene keeps the joint-limit box, as `ik_problem` builds it. Largest violation over
+every tick and task, over every sphere pair (the G1's 60 pairs closer than 2 cm when standing with margins of their
+own, as decision 4 says; `closest` 8 on the Panda and 64 on the G1). "cost" registers each behaviour as its hinge at
+weight 1e3, "padded" the same hinge with every margin and threshold 0.01 larger, "free" leaves it out.
+
+| Scene | Panda rows, 25 mrad | Panda rows, 6.3 mrad | Panda cost / padded / free, 25 mrad | G1 rows, 25 mrad | G1 rows, 6.3 mrad | G1 cost / padded / free, 25 mrad |
+|---|---|---|---|---|---|---|
+| joint limits | 0 | 0 | 2.5e-2 / 1.7e-2 / 2.1 | 0 | 0 | 2.5e-2 / 1.5e-2 / 2.9 |
+| floor | 1.9e-5 | 0 | 8.6e-3 / 7.1e-4 / 0.42 | 0 | 0 | 2.8e-3 / 0 / 3.2e-2 |
+| obstacle | 0 | 0 | 1.3e-2 / 3.1e-4 / 0.18 | 0 | 0 | 5.9e-2 / 1.9e-2 / 0.19 |
+| self-collision | 5.1e-3 | 3.3e-5 | 9.4e-3 / 4.6e-3 / 0.21 | 1.2e-2 | 1.5e-4 | 2.8e-2 / 1.1e-2 / 0.20 |
+| singularity | 3.2e-5 | 2.7e-5 | 1.3e-2 / 9.2e-3 / 2.9e-2 | 5.3e-5 | 8.8e-5 | 7.2e-3 / 9.7e-4 / 1.7e-2 |
+| all five | 4.4e-5 | 7.5e-5 | 2.4e-2 / 1.4e-2 / 0.61 | 1.5e-2 | 4.2e-4 | 3.1e-2 / 2.3e-2 / 3.0 |
+
+- The joint-limit box holds exactly (to rounding in float32, 6e-8). Curved rows are left by what their
+  linearization misses, which grows with the square of the step, and by rows that `closest` leaves out: the Panda's
+  self-collision rows at 25 mrad left 5.1e-3 on 3 tasks with 8 pairs and 4.9e-5 with 16. At about 6.3 mrad per
+  tick the Panda holds all five within 1e-4 (float32: 4.2e-5). The G1 with every pair does not: its programs are
+  exact on 29 to 40 % of the ticks at 20 iterations; at `iterations=100` its self-collision rows reach 2e-5 to 4e-4
+  and all five 7e-5 to 4e-4 on three other sets of 256 targets (up to 7 tasks over 1e-4). With the 74 near pairs
+  left out, as an earlier evaluation did, the same 100 iterations held 1.5e-5 to 2.8e-5: the near pairs, a
+  millimetre from their own margins when standing, are what the G1's program finds hard.
+- The reserve has a visible cost: a point that moves along a row rides short of it, a Panda hand whose target
+  slides under a table by 0.38 mm at 5 mrad per tick (median) and 1.0 mm at 25 mrad; it settles on the row when
+  the target stops.
+- The robot waits where the rows leave the step no direction. A start 30 mm inside an obstacle's margin clears in
+  12 calls at 6.3 mrad and gain 0.5 (before the reserve and the move back, 136). On 64 G1 targets that hold every
+  row (the near pairs left out), 400 calls of 6.3 mrad reached 22 with self-collision rows and 20 with all five,
+  against 42 with the joint limits alone and 29 with no scale-back at all (which leaves the rows by 1e-3); a task
+  far from its target stood still on 2.1 % and 5.6 % of the calls. With every pair, 4 of 27 such targets were
+  reached against 16 (18 % of the calls standing still; 7 and 5 % at `iterations=100`). Rows in conflict, such as
+  a sphere pressing the hand onto the floor, hold the robot until the obstacle moves.
+- Tracking where the target holds every row: median error 0.01 to 0.17 mm in every form; the 95th percentile
+  reaches 13 cm where rows on the way hold the arm back. The 99th percentile of the largest joint acceleration
+  sits at or near the step box's cap, `2 step / tick²`, with rows (500 rad/s² at 25 mrad); with no behaviour the
+  Panda's is 290 to 375.
+- A moving obstacle: the rows see it where the tick starts, so one closing in by `v` per tick ends a tick up to
+  `v / gain` inside the margin, for `gain` up to 0.5 (measured 1.8 mm at 1 mm per tick); padding its radius by
+  `v / gain` holds it within 1e-4. Moved in place or rebound, it compiles nothing new
+  (`tests/terms/test_constrained_ik.py`).
+- Damping 1e-4, 1e-3, 1e-2: median tracking error 0.02, 0.04, 0.3 mm (Panda, B=64, all five).
+
+## Alternatives
+- A function in `terms` or a controller class holding the tasks: it would need a public way to read the rows out
+  of `optim`, or a second row builder; a class adds a state type where a `QPSolution` suffices.
+- A task gain below 1 (`v_des = -gain · error`, as frax): the largest acceleration stayed (308 against 474 rad/s²)
+  and the median tracking error grew from 0.04 to 14 mm.
+- A posture term by default: weight 1e-2 toward the start biased the median tracking error to 40 mm.
+- Marquardt damping (the diagonal of `H`): it leaves joints that no target sees, and a rank-deficient `H`,
+  unregularized.
+- More `solve_qp` calls per tick on the same program: no gain over the iterations of one call.
+- Hinge cost forms only (record 0051): 3e-3 to 6e-2 violations at the same steps, up to 2.3e-2 with the hinge
+  started 1 cm early (table).
+- A data name on `sphere_clearance` for the obstacle centre (frax's `ref`): a new parameter and a new
+  `distance_fn` signature for what an in-place tensor already does.
+
+## Compatibility
+Additive: `optim.track`; `hinge=` on `terms.manipulability` (default `True`, the old form);
+`closest=` on `terms.sphere_clearance` (default `None`, every distance). `SequentialQP` takes the same steps as
+before (its box at `box=1`, the counter row `ik_constrained/panda/B64` keeps its operator count).
+
+## Enforcement
+`tests/optim/test_track.py` (a linear row and the box close in by at most the gain per call and hold, step bound,
+refusals, `iterations` reaches `solve_qp`), `tests/terms/test_constrained_ik.py` (each behaviour's row within 1e-4 over 100 ticks of 5 mrad on a
+Panda whose targets break every behaviour; no host read per tick; compiled tick equals eager in both modes; an
+obstacle moved in place compiles nothing new and is held to `v / gain`), `tests/terms/test_robot_terms.py` and
+`tests/collision/test_collision.py` (the new row forms against the hinge forms and `check_jacobian`), the counter
+row `track/panda/B64` of `benchmarks/run.py`.
+
+## Open questions
+- The reserve keeps a moving point short of its row (0.4 mm at 5 mrad per tick): is riding short acceptable, or
+  should the reserve shrink with the distance the row has left?
+- The G1 with every self pair: all five behaviours stay over 1e-4 on a few tasks even at `iterations=100`, and the
+  robot stands still often near its torso. A standing pose with the arms further out, or a sphere set whose
+  torso and arm spheres do not nearly touch, would leave the near pairs room.
+- One `gain` for every row. frax gives each constraint its own; no scene here needed it.
+- An obstacle's velocity as a term of its row (`J δ >= -gain (d - margin) + v`) would remove the lag of a moving
+  obstacle without padding; it needs the velocity as data.

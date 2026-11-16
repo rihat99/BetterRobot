@@ -99,7 +99,9 @@ The following surfaces are live:
   Gauss--Newton, L-BFGS and a `torch.optim` adapter; dense, banded and arrow
   normal equations; staged solves with `Phase`; `solve_layer` and
   `solve_constrained`; equality and inequality terms held by `SequentialQP`, a
-  quadratic program per step (`solve_qp`);
+  quadratic program per step (`solve_qp`); differential IK, one such program per
+  control tick (`optim.track`), with joint limits, floor, obstacle,
+  self-collision and singularity as rows;
 - fixed-base and floating-base IK (`terms.solve_ik`) and knot-based trajectory
   optimization; and
 - URDF, MJCF, and programmatic model construction (`ModelBuilder`).
@@ -117,6 +119,7 @@ The [API reference](api/better_robot.md) is the exact signature source.
 | One flattened batch axis inside solvers | simpler solver code, compile | batch-axis rule documented (now) | later |
 | Schur complement beyond the arrow border; matrix-free normal route | trajectories too long for banded Cholesky | block-sparse sink | later |
 | A quadratic program that keeps the band of a `time=` problem | constrained trajectories with `SequentialQP` | constraint term kinds and `SequentialQP` on dense problems (now) | later |
+| A gain per constraint term, and an obstacle's velocity in its rows | differential IK around moving obstacles without padding | `optim.track` (now) | maybe |
 | Shooting and DDP/iLQR | trajectory optimization | warm start (now), dynamics derivatives | later |
 | Fixed-shape, `torch.compile`-friendly step | real-time solves in a caller's control loop | compile-clean kinematics (now) | maybe |
 | Forward-mode Jacobians when the tangent is narrower than the residual | point-heavy terms | a benchmark that beats reverse mode, which stays the default | maybe |

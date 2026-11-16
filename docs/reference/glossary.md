@@ -183,9 +183,10 @@ derivative method.
 | **quadratic program, QP** | Minimise `½ xᵀH x + gᵀx` subject to linear rows `lower <= rows x <= upper`: the constrained form of one Gauss-Newton step (`optim.solve_qp`). |
 | **constraint term** | A term a solver holds instead of minimizing: `Problem.equality` holds `fn = 0`, `Problem.inequality` holds `lower <= fn <= upper`, each entry of the output one row of every step. It is no part of the loss. |
 | **sequential quadratic programming, sequential QP** | Solve a problem with constraint terms by a sequence of quadratic programs: each step minimizes the damped Gauss-Newton model of the loss under the constraint terms linearized at the iterate (`optim.SequentialQP`). |
-| **gain** | The share of a row's distance to its bound that one step of `SequentialQP` may use, and the share of a violation that it repairs (`SequentialQP(gain=)`); 1 is the plain linearization. |
+| **gain** | The share of a row's distance to its bound that one step of `SequentialQP` or `track` may use, and the share of a violation that it repairs (`SequentialQP(gain=)`, `track(gain=)`); 1 is the plain linearization. |
 | **merit** | What a step of `SequentialQP` must lower to be taken: the loss plus the summed violation of the constraint rows times a price, the largest multiplier of the step's program capped by two prices that redundant rows do not raise. |
 | **step radius** | The largest entry a step of `SequentialQP` may have (`State.extra["radius"]`): none at first, doubled by a taken step, shortened by a refused one once the damping has reached 1. |
+| **track** | Follow targets that move between calls: `optim.track` takes one step of differential inverse kinematics, one quadratic program of the damped Gauss-Newton model under the constraint terms and bounds, per call. |
 | **Hessian** | The matrix `H` of a quadratic objective: for one Gauss-Newton step, the `H` of the normal equations with its damping. |
 | **row** | One linear constraint of a quadratic program, `lower <= a · x <= upper`; an equality when both bounds are equal, one-sided when one is infinite. An elastic row (`solve_qp`) gives way once holding it would take a multiplier beyond the cap that `weight` sets. |
 | **primal, dual** | Of a constrained problem: its variables `x`, and the multipliers of its rows. The primal residual is the largest distance of a row from where its multiplier holds it (its violation where the multiplier is zero), the dual residual the largest entry of `H x + g + rowsᵀ dual`. |
@@ -232,7 +233,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **signed distance, distance** | The distance between two shapes, negative when they overlap. |
 | **signed distance field, SDF** | A voxel grid of signed distances to an obstacle (`collision.sphere_sdf`). |
 | **clearance, margin, hinge** | The residual `margin - distance` between shapes: positive when they are closer than `margin`. With `hinge=True` it is zero for a clear configuration, `gap² / (2 margin)` for a gap `margin - distance` below `margin`, then `gap - margin / 2`: a hinge whose slope has no jump (`terms.self_clearance`, `terms.sphere_clearance`). `terms.joint_limits(margin=)` uses the same hinge from `margin` inside the limits. |
-| **closest** | `terms.self_clearance(closest=k)` keeps the `k` nearest sphere pairs of each configuration, a fixed number of rows. |
+| **closest** | `terms.self_clearance(closest=k)` keeps the `k` sphere pairs with the least room (distance less margin) in each configuration, `terms.sphere_clearance(closest=k)` the `k` smallest sphere-obstacle distances: a fixed number of rows. |
 | **capsule** | A cylinder with a hemisphere on each end: a segment from `start` to `end` with a `radius`. |
 | **half-space** | The solid on one side of a plane, `{x : normal . x <= offset}`. |
 | **semi-axes** | The three half-lengths of an ellipsoid along its axes (`spatial.inertia_of_ellipsoid`). |

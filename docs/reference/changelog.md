@@ -22,6 +22,13 @@ that 0.3.0 renames or removes, one table row each.
   a number at least 0 (0 switches the term off, a negative number raises `ArgumentError`) or a tensor whose entry 0
   switches its row off. The other solvers, `solve_constrained` and `solve_layer` raise `ArgumentError` on a problem
   with an active constraint term ([Constrained inverse kinematics](../guides/constrained-ik.md)).
+- `optim.track(problem, x, *, step, warm=None, gain=0.5, damping=1e-3, iterations=20) -> (x, QPSolution)`: one
+  step of differential inverse kinematics, one warm `solve_qp` program of `iterations` per call: the Gauss-Newton
+  model of the cost terms with `damping` on the identity, under the rows of `SequentialQP` at `gain` and the box of
+  the bounds at the same gain (a discrete barrier), each step entry within the required `step`. The step is taken:
+  the program holds each row with a reserve, and its step is clamped to the box, moved back onto the rows it
+  leaves and scaled back where that is not enough. The targets move between calls through `Problem.with_(data=)`;
+  the solution is the warm start of the next call (record 0057; [Track moving targets](../guides/track-targets.md)).
 - `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None) -> QPSolution`:
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
   fixed number of ADMM steps and one active-set step, in float64, with no host read (record 0054). Accuracy comes
@@ -98,12 +105,15 @@ that 0.3.0 renames or removes, one table row each.
   the package, and `read(page)` those of another page; `words`, `entry` and `spelling` check a name against them.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
 - [Release a version](../guides/release.md): the release checklist, from the public-API diff to the downstream pins.
-- `terms.manipulability(model, *, frame, threshold)`: a hinge on Yoshikawa's manipulability of a frame's position
-  Jacobian that pushes away from singular configurations below `threshold`, with an analytic Jacobian.
+- `terms.manipulability(model, *, frame, threshold, hinge=True)`: a hinge on Yoshikawa's manipulability of a frame's
+  position Jacobian that pushes away from singular configurations below `threshold`, with an analytic Jacobian;
+  `hinge=False` gives the plain `threshold - w`, the row of an inequality term.
 - `terms.joint_limits(..., margin=)` starts its penalty `margin` inside the limits (a number or `(nq,)`; Euclidean
   coordinates only, at most half a joint's range);
-  `terms.self_clearance(..., closest=k)` keeps the `k` nearest sphere pairs of each configuration; both clearance
-  terms take `q=`, the variable their Jacobian is for.
+  `terms.self_clearance(..., closest=k)` keeps the `k` sphere pairs with the least room in each configuration and
+  `terms.sphere_clearance(..., closest=k)` the `k` smallest sphere-obstacle distances; both clearance terms take
+  `q=`, the variable their Jacobian is for. `terms.self_clearance(margin=)` is a number or `(P,)`, one margin per
+  pair, for pairs that sit closer than the common margin in the rest pose.
 - `kinematics.compiled(fn, *, mode="default" | "reduce-overhead")`: an opt-in `torch.compile` of a function that
   calls the library, one graph family per grad mode and argument kind, each compiled on its second call; under
   `"reduce-overhead"` (CUDA graphs) each result is the caller's own (record

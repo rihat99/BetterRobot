@@ -14,7 +14,9 @@ Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Pan
 (``solve_ik`` to 64 ``panda_hand`` poses, 5 seeds, fixed generators; it also records ``success_fraction`` and
 ``worst_position_error_m``), ``ik_constrained/panda/B64`` (20 steps of ``SequentialQP`` to the same poses with an
 obstacle sphere and the arm's own sphere pairs as clearance rows; it also records ``success_fraction`` and
-``worst_violation_m``, over every pair), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
+``worst_violation_m``, over every pair), ``track/panda/B64`` (20 calls of ``optim.track`` with the same rows and
+steps of at most 5 mrad, each warm started from the last; its ``worst_violation_m`` is what is left of the start:
+``q_neutral`` is up to 2 cm inside the margin between the fingers and link 5, which 20 such steps do not clear), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
 (one cold ``optim.solve_qp`` of seeded random programs with that many variables and rows). Each has four counters, deterministic for
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
 ``torch.compile(fn, backend="eager")``, first called at the row's batch, is called at each batch of ``SWEEP``),
@@ -144,6 +146,7 @@ def counter_cases(device: torch.device) -> list[Case]:
             cases.append(counter_case(f"{algo}/{name}/B1", partial(ALGORITHMS[algo], model), (pool, v, u), 1))
     cases.append(ik_case(device))
     cases.append(constrained_ik_case(device))
+    cases.append(constrained_ik_case(device, track=True))
     for size, count, batch in ((7, 30, 1), (35, 150, LARGE_BATCH)):
         generator = torch.Generator().manual_seed(0)
         root = torch.randn(LARGE_BATCH, size, size, generator=generator)
@@ -199,9 +202,10 @@ def ik_case(device: torch.device) -> Case:
     return Case("ik/panda/B64", 64, call, ik, (q0, targets), sweep, report=accuracy)
 
 
-def constrained_ik_case(device: torch.device) -> Case:
+def constrained_ik_case(device: torch.device, *, track: bool = False) -> Case:
     """``ik_constrained/panda/B64``: ``SequentialQP`` for 20 steps to the poses of ``ik/panda/B64``, clear by 2 cm of
-    a sphere beside the arm and of itself (the 8 closest sphere pairs as rows)."""
+    a sphere beside the arm and of itself (the 8 closest sphere pairs as rows); with ``track``, ``track/panda/B64``:
+    20 warm calls of ``optim.track`` with steps of at most 5 mrad instead."""
     model = load_model("panda")
     generator = torch.Generator().manual_seed(0)
     q_target = torch.stack([model.random_configuration(generator=generator) for _ in range(64)])
@@ -225,7 +229,12 @@ def constrained_ik_case(device: torch.device) -> Case:
         problem = br.terms.ik_problem(model, {IK_FRAME: targets}, q0=q0)
         problem.inequality("obstacle", avoid, upper=0.0)
         problem.inequality("self", apart, upper=0.0)
-        return br.optim.run(problem, [br.optim.Phase(br.optim.SequentialQP(), 20, stop_every=0)]).x["q"]
+        if not track:
+            return br.optim.run(problem, [br.optim.Phase(br.optim.SequentialQP(), 20, stop_every=0)]).x["q"]
+        x, warm = {"q": q0}, None
+        for _ in range(20):
+            x, warm = br.optim.track(problem, x, warm=warm, step=0.005)
+        return x["q"]
 
     def accuracy(q: torch.Tensor) -> dict[str, float]:
         state = br.forward_kinematics(model, q)
@@ -238,7 +247,8 @@ def constrained_ik_case(device: torch.device) -> Case:
         }
 
     sweep = tuple((q0[:size], targets[:size]) for size in SWEEP)
-    return Case("ik_constrained/panda/B64", 64, partial(ik, q0, targets), ik, (q0, targets), sweep, report=accuracy)
+    row = "track/panda/B64" if track else "ik_constrained/panda/B64"
+    return Case(row, 64, partial(ik, q0, targets), ik, (q0, targets), sweep, report=accuracy)
 
 
 def profile_counts(call: Callable[[], object]) -> tuple[int, int]:

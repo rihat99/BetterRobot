@@ -124,6 +124,7 @@ nav:
       - guides/own-the-loop.md
       - guides/hard-constraints.md
       - guides/constrained-ik.md
+      - guides/track-targets.md
       - guides/fit-a-clip.md
       - guides/differentiate.md
       - guides/benchmark-and-profile.md

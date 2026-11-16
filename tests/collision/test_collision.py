@@ -185,7 +185,7 @@ def test_terms_pass_check_jacobian(panda):
 def test_clearance_jacobians_cover_every_shape_and_the_closest_pairs(panda):
     """The analytic clearance Jacobians (a pullback of ``distance_fn`` times ``point_jacobian``) equal autodiff for
     every shipped shape, ``K`` obstacles per sphere and the unhinged inequality; ``closest=k`` keeps the k nearest
-    pairs, rows and Jacobian alike."""
+    pairs, or sphere-obstacle distances, rows and Jacobian alike."""
     spheres = _spheres(panda)
     center, size = torch.tensor([0.3, 0.0, 0.5], dtype=DT), torch.tensor(0.1, dtype=DT)
     rotation, grid = torch.linalg.qr(_randn(3, 3, seed=12))[0], 0.2 * _randn(10, 10, 10, seed=13)
@@ -210,12 +210,45 @@ def test_clearance_jacobians_cover_every_shape_and_the_closest_pairs(panda):
     pairs = collision.self_collision_pairs(panda, spheres)
     problem.residual("self", terms.self_clearance(spheres, pairs=pairs, margin=0.3))
     problem.residual("closest", terms.self_clearance(spheres, pairs=pairs, margin=0.3, closest=2))
+    walls = terms.sphere_clearance(spheres, shapes["walls"], margin=0.1, hinge=False, closest=3)
+    problem.residual("walls/closest", walls)
     residuals = problem.residuals()
     assert residuals["walls"].shape == (16, 8) and residuals["closest"].shape == (16, 2)
     torch.testing.assert_close(residuals["closest"], residuals["self"].topk(2).values, rtol=0, atol=0)
+    torch.testing.assert_close(residuals["walls/closest"], residuals["walls/inequality"].topk(3).values, rtol=0, atol=0)
     assert all(bool((value > 0).any()) for value in residuals.values())
     errors = optim.check_jacobian(problem)
     assert max(errors.values()) < 1e-12, errors
+
+
+def test_self_clearance_takes_a_margin_per_pair(panda):
+    """A ``(P,)`` margin gives each pair its own: the rows are ``margin - distance`` pair by pair, the ``closest`` ones
+    are those with the least room, not the nearest, the analytic Jacobians match autodiff in both forms, and a
+    margin that is the same for every pair equals the number bitwise."""
+    spheres = _spheres(panda)
+    pairs = collision.self_collision_pairs(panda, spheres)
+    q = terms.random_start(panda, panda.q_neutral.expand(16, -1), generator=torch.Generator().manual_seed(14))
+    distance = collision.self_distances(spheres, forward_kinematics(panda, q), pairs=pairs)
+    margins = torch.linspace(0.05, 0.6, pairs.shape[0], dtype=DT)
+    problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(panda)})
+    problem.cached(terms.kinematic_state(panda), name="state")
+    problem.residual("rows", terms.self_clearance(spheres, pairs=pairs, margin=margins, hinge=False))
+    problem.residual("closest", terms.self_clearance(spheres, pairs=pairs, margin=margins, hinge=False, closest=2))
+    problem.residual("hinged", terms.self_clearance(spheres, pairs=pairs, margin=margins, closest=3))
+    problem.residual("number", terms.self_clearance(spheres, pairs=pairs, margin=0.3, closest=2))
+    problem.residual(
+        "same", terms.self_clearance(spheres, pairs=pairs, margin=torch.full_like(margins, 0.3), closest=2)
+    )
+    residuals = problem.residuals()
+    torch.testing.assert_close(residuals["rows"], margins - distance, rtol=0, atol=1e-15)
+    torch.testing.assert_close(residuals["closest"], residuals["rows"].topk(2).values, rtol=0, atol=0)
+    assert not torch.equal(residuals["rows"].topk(2).indices, distance.topk(2, largest=False).indices)
+    torch.testing.assert_close(residuals["same"], residuals["number"], rtol=0, atol=0)
+    assert bool((residuals["hinged"] > 0).any())
+    errors = optim.check_jacobian(problem)
+    assert max(errors.values()) < 1e-12, errors
+    with pytest.raises(ShapeError):
+        terms.self_clearance(spheres, pairs=pairs, margin=margins[:-1])
 
 
 def test_a_new_obstacle_shape_is_only_a_function(panda):

@@ -227,7 +227,8 @@ def g1():
 
 def test_limit_margin_and_manipulability_jacobians_match_autodiff(panda, g1):
     """``joint_limits(margin=)`` starts ``margin`` inside the limits and reaches ``margin / 2`` at them; the
-    manipulability Jacobian (Lie brackets of the world columns) equals autodiff on an arm and on a floating base."""
+    manipulability Jacobian (Lie brackets of the world columns) equals autodiff on an arm and on a floating base, and
+    the row form (``hinge=False``) is ``threshold - w``, whose hinge is the cost form."""
     upper = panda.upper_position_limit
     limits = terms.joint_limits(panda, margin=0.01)  # under half of every range, the gripper's 0.04 m included
     torch.testing.assert_close(
@@ -238,10 +239,14 @@ def test_limit_margin_and_manipulability_jacobians_match_autodiff(panda, g1):
         problem = optim.Problem({"q": q}, manifolds={"q": terms.RobotManifold(model)})
         problem.cached(terms.kinematic_state(model), name="state")
         problem.residual("manipulability", terms.manipulability(model, frame=frame, threshold=0.05))
+        problem.residual("row", terms.manipulability(model, frame=frame, threshold=0.05, hinge=False))
         if model is panda:
             problem.residual("limits", terms.joint_limits(panda, margin=torch.linspace(0.0, 0.3, panda.nq)))
         residuals = problem.residuals()
-        assert all(bool((value > 0).any()) for value in residuals.values()) and len(residuals) == 1 + (model is panda)
+        assert all(bool((value > 0).any()) for value in residuals.values()) and len(residuals) == 2 + (model is panda)
+        gap = residuals["row"]
+        hinged = torch.where(gap < 0.05, gap.clamp_min(0.0).square() / 0.1, gap - 0.025)
+        torch.testing.assert_close(residuals["manipulability"], hinged)
         errors = optim.check_jacobian(problem)
         assert max(errors.values()) < 1e-12, errors
 
