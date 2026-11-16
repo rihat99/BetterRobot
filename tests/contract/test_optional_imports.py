@@ -32,7 +32,7 @@ IMPORTERS: dict[str, set[str]] = {
     "numpy": {"io", "viewer"},
     "yourdfpy": {"io"},
     "viser": {"viewer"},  # extra viewer
-    "pillow": {"viewer"},  # extra viewer: Viewer.record writes its frames with it
+    "pillow": {"viewer"},  # extra viewer: tests/viewer/test_record.py reads a recorded still with it
     "mujoco": {"io"},  # extra mjcf
     "trimesh": {"viewer"},  # extra meshes
     "robot_descriptions": set(),  # extra demos: the examples and docs load robots with it

@@ -230,6 +230,9 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `CameraFrustum`, `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` (in `viewer.tools`) | `fov=`, `vertices=`, `direction=`, `radius=`, `rect_min=` | keyword-only after the first two arguments |
 | click callback event with `screen_pos ((x, y),)` and `event_type` | viser's click event | `Viewer.on_pointer("click", ...)` passes it: `screen_pos` is `(x, y)`, no `event_type` |
 | rect-select callback event with `screen_pos` | viser's rect-select event | its corners are `screen_min` and `screen_max` |
+| `Viewer.record(path, *, steps, size=(960, 540), fps, gpu=False, camera)` | `Viewer.record(path, *, size=(1920, 1080), fps, steps, camera, fov, gpu=None, bitrate)` | `gpu` is the `nvidia-smi` index of the GPU to draw on (`gpu=True` used whichever GPU EGL chose); the call returns the path it wrote |
+| `Viewer.record` to `.gif`, to `name.png` frames or to a directory of frames | `Viewer.record` to `.mp4`, `.webm` or one `.png` still | a still per call: `record("a.png", steps=[k])`; ffmpeg turns a video into a GIF or frames |
+| `viewer.capture`: `HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg` | `Viewer.record` | the browser path is private (`viewer/record.py`) |
 
 ## Module paths
 
@@ -270,5 +273,7 @@ Import from the package; the modules under it are private.
 | `better-robot[io-mjcf]` | `better-robot[mjcf]` | MuJoCo compiles MJCF |
 | `better-robot[dev]` | the dev dependency group | `uv sync --group dev`; `test-oracles` holds the parity oracles |
 | `better-robot[viewer]` with `viser>=1.0.18` | `better-robot[viewer]` with `viser>=1.0.30` and `pillow>=10` | |
+| `better-robot[viewer]` with `viser>=1.0.30` | `better-robot[viewer]` with `viser>=1.0.30,<1.1` | `Viewer.record` drives the client of viser 1.0 |
+| `$FFMPEG` | `$BETTER_ROBOT_FFMPEG` | the ffmpeg that `Viewer.record` writes an `.mp4` with, else the one on `PATH` |
 | — | `better-robot[testing]` | pytest, for `better_robot.testing`'s pytest plugin |
 | Python 3.10 and 3.11 | Python 3.12 or newer | |

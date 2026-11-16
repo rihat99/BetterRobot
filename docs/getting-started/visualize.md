@@ -81,19 +81,19 @@ skeleton.rotations[:] = backwards[:, 1:, 3:]
 skeleton.redraw()
 ```
 
-## Record a GIF without a browser
+## Record a video without a browser window
 
-`viewer.record` screenshots the live scene in a headless Chromium and writes `.webm`, `.gif` or
-`.png` frames. Without a `camera` it frames the robot automatically:
+`viewer.record` draws the live scene in a headless Chromium and writes an `.mp4` or `.webm` video, or a `.png`
+still. Without a `camera` it frames the robot automatically:
 
-```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_capture.py runs record" }
+```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_record.py runs record" }
 viewer.remove("live")
-out = Path(tempfile.mkdtemp()) / "panda_swing.gif"
-viewer.record(out, size=(320, 240), steps=range(0, 30, 3))
+out = viewer.record(Path(tempfile.mkdtemp()) / "panda_swing.webm", size=(640, 360), steps=range(0, 30, 3))
 print(out.exists(), out.stat().st_size > 0)
 ```
 
-It needs Chromium (`$BETTER_ROBOT_CHROME` or on `PATH`) and, for `.webm`, ffmpeg; see `better_robot.viewer.capture`.
+It needs Chromium (`$BETTER_ROBOT_CHROME` or on `PATH`) and, for `.mp4`, ffmpeg; see
+[Record a video of a scene](../guides/record-a-video.md).
 
 ## Where next
 
