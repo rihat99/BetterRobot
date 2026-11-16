@@ -358,9 +358,9 @@ def check_thresholds(rows: list[dict[str, Any]], selected: set[str] | None) -> l
     return problems
 
 
-def git(*arguments: str) -> str:
-    """Stdout of one git command in the runner's checkout."""
-    command = ["git", "-C", str(REPO_ROOT), *arguments]
+def git(root: Path, *arguments: str) -> str:
+    """Stdout of one git command in the checkout at ``root``."""
+    command = ["git", "-C", str(root), *arguments]
     return subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
 
 
@@ -382,8 +382,8 @@ def device_name(device: torch.device) -> str:
 def context(args: argparse.Namespace, device: torch.device) -> dict[str, Any]:
     """The ``meta`` record: what ran, on what, under which load."""
     return {
-        "commit": git("rev-parse", "--short", "HEAD"),
-        "dirty": bool(git("status", "--porcelain")),
+        "commit": git(REPO_ROOT, "rev-parse", "--short", "HEAD"),
+        "dirty": bool(git(REPO_ROOT, "status", "--porcelain")),
         "command": shlex.join(sys.argv),
         "package_file": os.path.relpath(br.__file__, REPO_ROOT),  # relative: no home directory in a tracked file
         "torch": torch.__version__,

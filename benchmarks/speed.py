@@ -137,6 +137,7 @@ from torch._inductor.utils import fresh_cache
 import better_robot as br
 from better_robot.model import JointFixed
 from better_robot.optim import LevenbergMarquardt, Phase, SequentialQP, State
+from run import device_name, git, loadavg  # benchmarks/run.py: the counter gate's context helpers
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROBOT_DIR = REPO_ROOT / "tests" / "fixtures" / "robots"
@@ -708,27 +709,6 @@ def pinocchio_rows(args: argparse.Namespace) -> list[dict[str, Any]]:
             rows.append(row | time_call(calls[function], lambda: None, args.repeats))
             print_row(rows[-1])
     return rows
-
-
-def git(root: Path, *arguments: str) -> str:
-    """Stdout of one git command in the checkout at ``root``."""
-    command = ["git", "-C", str(root), *arguments]
-    return subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
-
-
-def loadavg() -> str:
-    """``/proc/loadavg``: the 1, 5 and 15 minute load averages, running/total tasks, last pid."""
-    return Path("/proc/loadavg").read_text().strip()
-
-
-def device_name(device: torch.device) -> str:
-    """The GPU's name, or the CPU model from ``/proc/cpuinfo``."""
-    if device.type == "cuda":
-        return torch.cuda.get_device_name(device)
-    for line in Path("/proc/cpuinfo").read_text().splitlines():
-        if line.startswith("model name"):
-            return line.split(":", 1)[1].strip()
-    return platform.processor()
 
 
 def print_row(row: dict[str, Any]) -> None:
