@@ -35,19 +35,11 @@ def _simple_arm() -> IRModel:
     return b.finalize()
 
 
-def test_root_body_detected():
+def test_finalize_emits_the_root_bodies_and_joints():
     ir = _simple_arm()
     assert ir.root_body == "base"
-
-
-def test_bodies_and_joints_count():
-    ir = _simple_arm()
     assert len(ir.bodies) == 2
     assert len(ir.joints) == 1
-
-
-def test_joint_parent_child():
-    ir = _simple_arm()
     j = ir.joints[0]
     assert j.parent_body == "base"
     assert j.child_body == "link1"
