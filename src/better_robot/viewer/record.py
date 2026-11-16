@@ -96,12 +96,15 @@ _RECORDER = r"""
   };
   rec.render = async (id, camera) => {
     // A re-render of viser's canvas component (an intersection or resize event) restarts the loop, which then
-    // applies the queue by itself: stop it again, and count a marker already applied as arrived.
+    // applies the queue by itself: stop it again, and count a marker already applied as arrived. A loop stopped
+    // between taking the marker from the queue and drawing it leaves the node where it was: draw now and then.
     if (root.getState().frameloop !== 'never') state.setFrameloop('never');
     const t0 = performance.now(), marker = () => m.nodeRefFromName['__MARKER__'];
     const arrived = () => m.messageQueue.some((message) => message.type === 'SetPositionMessage' && message.name === '__MARKER__' && message.position[0] === id) || (marker() !== undefined && marker().position.x === id);
+    let drawn = t0;
     while (!arrived()) {
       if (performance.now() - t0 > 30000) throw new Error('the frame marker ' + id + ' (a SetPositionMessage) never reached the page');
+      if (performance.now() - drawn > 100) { state.advance(performance.now()); drawn = performance.now(); }
       await tick();
     }
     // Positions apply inside one advance, but changed props (points, vertices, batched poses, colours) re-render
