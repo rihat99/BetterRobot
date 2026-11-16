@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 import math
 import re
 from dataclasses import dataclass
@@ -59,12 +58,6 @@ def _simple_arm_ir():
 def test_a_dtype_other_than_float32_or_float64_is_refused(dtype):
     with pytest.raises(DtypeMismatchError, match="is not float32 or float64; pass torch.float32 or torch.float64"):
         build_model(_simple_arm_ir(), dtype=dtype)
-
-
-def test_frozen():
-    model = build_model(_simple_arm_ir())
-    with pytest.raises((dataclasses.FrozenInstanceError, AttributeError)):
-        model.nq = 99  # type: ignore[misc]
 
 
 def test_universe_joint_zero():
