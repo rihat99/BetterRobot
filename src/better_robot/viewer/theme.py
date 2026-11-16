@@ -59,19 +59,20 @@ class Theme:
     ``backdrop`` is the page's vertical gradient (top, bottom), ``grid`` the ground's cell and section lines,
     ``shadow`` the opacity of shadows on the ground, ``lights`` the intensities (ambient, hemisphere, key, fill).
     ``hues`` are the robots' colours in the order robots are added (``hue(k)``), ``shade`` derives a part's colour
-    from a hue, ``accent`` colours the GUI and the tools, ``collision`` the collision overlay, ``text`` labels.
+    from a hue, ``accent`` colours the GUI and the tools, ``collision`` and ``collision_opacity`` the collision
+    overlay, ``text`` labels.
     ``apply(server)`` sends all of it to a viser server; ``Viewer.set_theme`` re-applies it with the layers.
     """
 
     dark: bool = False
-    backdrop: tuple[RGB, RGB] = (_srgb(255, 255, 255), _srgb(236, 237, 241))
-    grid: tuple[RGB, RGB] = (_srgb(226, 227, 231), _srgb(204, 206, 212))
+    backdrop: tuple[RGB, RGB] = (_srgb(246, 246, 248), _srgb(226, 227, 232))  # a white robot needs a grey ground
+    grid: tuple[RGB, RGB] = (_srgb(218, 219, 224), _srgb(204, 206, 212))
     shadow: float = 0.22
     up: str = "+z"
-    lights: tuple[float, float, float, float] = (0.6, 0.5, 1.8, 0.35)
+    lights: tuple[float, float, float, float] = (0.25, 0.5, 2.6, 0.3)  # little ambient: white meshes keep their form
     hues: tuple[RGB, ...] = (
         _srgb(82, 160, 104),  # green
-        _srgb(221, 132, 82),  # orange
+        _srgb(238, 130, 50),  # orange; (221, 132, 82) turned brown under the rig
         _srgb(72, 124, 200),  # blue
         _srgb(142, 112, 192),  # purple
         _srgb(60, 160, 170),  # teal
@@ -79,7 +80,8 @@ class Theme:
         _srgb(110, 115, 125),  # graphite
     )
     accent: RGB = _srgb(72, 124, 200)
-    collision: RGB = _srgb(240, 140, 60)
+    collision: RGB = _srgb(140, 150, 165)  # a quiet grey: the body under the overlay stays the subject
+    collision_opacity: float = 0.18
     text: RGB = _srgb(40, 42, 48)
     # Read by the old skeleton adapter of ``robot.py`` only; they leave with it.
     joint: RGB = (0.122, 0.227, 0.408)
@@ -123,8 +125,9 @@ class Theme:
     def apply(self, server: Any) -> None:
         """Send the theme to a viser server: GUI colours, up axis, the backdrop gradient and the light rig.
 
-        viser's default lights are switched off; an ambient, a hemisphere, a key light that casts shadows and a fill
-        light take their place, as scene nodes under ``/theme``. Applying another theme replaces them.
+        viser's default lights and its environment map are switched off: meshes and solid colours share one rig, an
+        ambient, a hemisphere, a key light that casts shadows and a fill light, as scene nodes under ``/theme``.
+        Applying another theme replaces them.
         """
         server.gui.configure_theme(
             dark_mode=self.dark,
@@ -140,6 +143,7 @@ class Theme:
         top, bottom = np.asarray(self.backdrop[0], np.float32), np.asarray(self.backdrop[1], np.float32)
         scene.set_background_image(np.repeat(rgb_uint8((1.0 - ramp) * top + ramp * bottom), 2, axis=1), format="png")
         scene.configure_default_lights(enabled=False, cast_shadow=False)
+        scene.configure_environment_map(None)  # viser's default city map washes solid colours out to pastel
         ambient, hemisphere, key, fill = self.lights
         scene.add_light_ambient("/theme/ambient", intensity=ambient)
         scene.add_light_hemisphere(

@@ -15,7 +15,7 @@ from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, Po
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.layers.skinned import SkinnedMeshLayer
-from better_robot.viewer.theme import Theme
+from better_robot.viewer.theme import DARK, LIGHT, Theme
 from better_robot.viewer.timeline import Timeline
 from better_robot.viewer.viewer import Viewer
 
@@ -373,6 +373,19 @@ def test_theme_shades_run_from_dark_drum_faces_to_pale_sticks_with_bodies_in_the
     assert theme.shade(hue, "body") == hue
     with pytest.raises(ArgumentError, match="role must be one of"):
         theme.shade(hue, "bone")  # pyright: ignore[reportArgumentType]
+
+
+def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    assert server.scene.environment is not None and server.scene.environment["hdri"] is None  # no pastel wash
+    grid = server.scene.nodes["/ground/ground/grid"].props
+    assert grid["infinite_grid"] and grid["shadow_opacity"] == LIGHT.shadow
+    viewer.set_theme(DARK)
+    assert server.scene.nodes["/ground/ground/grid"].shadow_opacity == DARK.shadow
+    GroundLayer(size=4.0).build(server.scene, "/g/square")  # a number keeps a square of that width
+    square = server.scene.nodes["/g/square/grid"].props
+    assert not square["infinite_grid"] and square["width"] == 4.0
 
 
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
