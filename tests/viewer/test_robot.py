@@ -15,10 +15,11 @@ from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer import _lie
 from better_robot.viewer.layers.frames import FramesLayer
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
-from better_robot.viewer.robot import robot_meshes, robot_skeleton, spread_offsets
+from better_robot.viewer.robot import RobotVisual, robot_meshes, robot_skeleton, spread_offsets
 from better_robot.viewer.viewer import Viewer
 
-from better_robot.exceptions import ShapeError
+from better_robot import collision
+from better_robot.exceptions import ArgumentError, ShapeError
 from better_robot.testing import FakeServer
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -517,3 +518,102 @@ def test_robot_skeleton_draws_a_joint_kind_from_outside_the_library_as_a_sphere(
     layer = robot_skeleton(model, poses)
     Viewer(server=FakeServer()).add([layer])
     assert list(layer.groups) == ["sphere"]
+
+
+# ---------------------------------------------------------------------------------------------- the robot visual
+
+
+def _g1_visual(q: torch.Tensor | None = None, **options: object) -> tuple[RobotVisual, FakeServer, Viewer]:
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "g1.json", model)
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    robot = viewer.add(RobotVisual(model, q, spheres=spheres, **options))  # type: ignore[arg-type]
+    return robot, server, viewer
+
+
+def _drawn(server: FakeServer) -> dict[str, object]:
+    """The robot's nodes that draw something: everything under its tag but the frames that group them."""
+    nodes = server.scene.nodes.items()
+    return {name: node for name, node in nodes if name.startswith("/g1_29dof/") and node.kind != "FrameHandle"}
+
+
+def _positions(node: object) -> np.ndarray:
+    """What a batched node shows: its last write, or what it was created with."""
+    return vars(node).get("batched_positions", node.props["batched_positions"])  # type: ignore[attr-defined]
+
+
+def test_robot_visual_maximal_with_every_overlay_stays_within_six_nodes_and_two_writes_each() -> None:
+    robot, server, viewer = _g1_visual(collision=True, frames=True)
+    assert robot.style == "maximal" and robot.styles == ("minimal", "maximal")  # no geometry: no meshes
+    drawn = _drawn(server)
+    assert sorted(name.rsplit("/", 2)[-2] + "/" + name.rsplit("/", 1)[-1] for name in drawn) == [
+        "collision/spheres", "frames/axes", "maximal/balls", "maximal/boxes", "maximal/cylinders",
+    ]  # fmt: skip
+    assert len(drawn) <= 6
+    server.scene.log.clear()
+    viewer.show(0)
+    writes = [name for name, _ in server.scene.log if name in drawn]
+    assert writes and max(writes.count(name) for name in drawn) <= 2
+
+
+def test_robot_visual_builds_a_style_once_and_switches_by_visibility() -> None:
+    robot, server, _ = _g1_visual()
+    robot.set_style("minimal")
+    robot.set_style("maximal")
+    nodes = set(server.scene.nodes)
+    path = "/g1_29dof/g1_29dof"
+    assert {f"{path}/minimal", f"{path}/maximal"} <= nodes and f"{path}/collision" not in nodes  # parts are lazy
+    server.scene.log.clear()
+    robot.set_style("minimal")
+    assert set(server.scene.nodes) == nodes  # the second switch creates nothing
+    assert server.scene.nodes[f"{path}/minimal"].visible and not server.scene.nodes[f"{path}/maximal"].visible
+    assert not any(name.startswith(f"{path}/maximal/") for name, _ in server.scene.log)  # a hidden part gets no write
+    assert any(name.startswith(f"{path}/minimal/") for name, _ in server.scene.log)  # the shown one its step
+    with pytest.raises(ArgumentError, match="meshes"):
+        robot.set_style("meshes")
+
+
+def test_robot_visual_update_equals_building_with_that_configuration() -> None:
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    velocity = 0.5 * torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
+    q = br.kinematics.integrate(model, model.q_neutral, velocity)
+    updated, server_a, _ = _g1_visual(collision=True, frames=True)
+    updated.set_style("minimal")
+    updated.set_style("maximal")
+    updated.update(q)
+    built, server_b, _ = _g1_visual(q, collision=True, frames=True)
+    built.set_style("minimal")
+    built.set_style("maximal")
+    for name, node in _drawn(server_b).items():
+        other = server_a.scene.nodes[name]
+        if "minimal" in name:  # hidden when the update came: it catches up when it is shown again
+            continue
+        np.testing.assert_allclose(_positions(other), _positions(node), atol=1e-6, err_msg=name)
+    updated.set_style("minimal")
+    built.set_style("minimal")
+    for mesh in ("cylinders", "balls"):
+        name = f"/g1_29dof/g1_29dof/minimal/{mesh}"
+        np.testing.assert_allclose(
+            _positions(server_a.scene.nodes[name]), _positions(server_b.scene.nodes[name]), atol=1e-6
+        )
+    np.testing.assert_allclose(updated.bounds(0)[0], built.bounds(0)[0], atol=1e-6)
+    with pytest.raises(ShapeError, match="steps"):
+        updated.update(torch.stack([q, q]))
+
+
+def test_robot_visuals_take_one_hue_each_and_share_the_sidebar_controls() -> None:
+    model = br.load(panda_urdf())
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    first = viewer.add(RobotVisual(model, name="left", style="maximal"))
+    second = viewer.add(RobotVisual(model, name="right", style="maximal"))
+    colors = [
+        server.scene.nodes[f"/{name}/{name}/maximal/cylinders"].props["batched_colors"] for name in ("left", "right")
+    ]
+    assert not np.array_equal(colors[0], colors[1])
+    styles = [control for control in server.gui.controls if control.name == "Style"]
+    assert len(styles) == 1  # one Style control for both robots
+    styles[0].value = "minimal"
+    styles[0].fire(None)
+    assert first.style == second.style == "minimal"
