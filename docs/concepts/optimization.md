@@ -389,5 +389,6 @@ The term kinds are `residual`, `scalar`, `equality` and `inequality`.
 
 - [Time and structure](time-and-structure.md): trajectories, windows and the banded solve.
 - [Write a term](../guides/write-a-term.md): a custom term with an analytic Jacobian.
+- [Try the avoidance demos](../guides/avoidance-demos.md): `track` with each of five behaviours as rows, live.
 - Robot terms (`frame_pose`, limits, collision, `ik_problem`) are in `better_robot.terms`;
   see [Inverse kinematics](../getting-started/inverse-kinematics.md).

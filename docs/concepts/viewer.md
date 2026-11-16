@@ -262,5 +262,6 @@ Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames
 
 - [Visualize a robot](../getting-started/visualize.md) walks through a first scene and a recording.
 - [Record a video of a scene](../guides/record-a-video.md): `record`'s formats, options and camera.
-- `examples/viewer/` has runnable scripts: a robot pose, an IK gizmo, recording a clip.
+- `examples/viewer/` has runnable scripts: a robot pose, an IK gizmo, recording a clip, and five demos of
+  avoidance while tracking a dragged target ([Try the avoidance demos](../guides/avoidance-demos.md)).
 - [API reference: viewer](../reference/api/viewer.md).

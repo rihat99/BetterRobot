@@ -208,4 +208,6 @@ record [0016: geometry is a value, not a field of `Model`](../contracts/decision
 - [Optimization](optimization.md): how the clearance residual joins a `Problem` and which solver runs it.
 - [Keep a trajectory clear of obstacles](../guides/avoid-collisions.md): a clearance term in a trajectory problem.
 - [Hard constraints](../guides/hard-constraints.md): enforce the margin exactly with `solve_constrained`.
+- [Try the avoidance demos](../guides/avoidance-demos.md): these sphere sets kept off the floor, an obstacle and
+  themselves while a dragged target is tracked, live in the viewer.
 - [Viewer](viewer.md): show spheres, obstacles and the optimized trajectory.

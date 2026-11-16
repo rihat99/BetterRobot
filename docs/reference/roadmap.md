@@ -147,6 +147,7 @@ BetterHuman as extensions; BetterRobot stays generic.
 |---|---|---|---|
 | Capsule robots read from the geometry (`RobotCapsules` takes a table today) | humanoids, thin links | `model.Geometry` (now) | next |
 | `fit_spheres(geometry)`; sampled collision matrix and SRDF import | new robots without hand-made spheres | `model.Geometry` (now) | next |
+| A finer head in the G1 sphere set (two spheres overshoot its mesh by 65 mm on average) | hands that work near the head, as in the self-collision demo | `tools/fit_spheres.py` (now) | maybe |
 | Closest point and normal as separate functions; generic contact for dynamics | contact terms and contact Jacobians | none | next |
 | `terms.swept_clearance` and `collision.Scene` | trajectories, planning | closest-point functions | next |
 | Attached objects; ESDF from a mesh; active-set pairs | pick-and-place, speed | `collision.Scene` | later |
@@ -161,6 +162,7 @@ BetterHuman as extensions; BetterRobot stays generic.
 | Lines, labels and a wrench layer | dynamics users | none | next |
 | Follow camera, source comparison, clip browser, measurement tool | demos, ground truth against estimate | panel brick | later |
 | Scene export to `.npz` (the only export format) | sharing results | none | later |
+| `record` fits its camera to each step's bounding box, as `aim` does, not to every mesh vertex | recording robot clips without a `camera=` (two G1 clips of 100 steps took over 9 minutes in the fit) | none | next |
 | Video panel with reprojection, synced through per-layer `times` | video reconstruction | per-layer `times` (now) | later |
 
 viser stays the only backend ([ADR 0004](../contracts/decisions/0004-viser-viewer.md)); no own three.js client is planned.
