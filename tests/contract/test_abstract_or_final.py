@@ -11,8 +11,6 @@ import json
 import pkgutil
 from pathlib import Path
 
-import pytest
-
 import better_robot
 from better_robot.model import joints
 from better_robot.model.joints import JointModel
@@ -53,10 +51,14 @@ def test_ratchet_names_only_undecided_classes() -> None:
     assert stale == [], f"drop from the ratchet: {stale}"
 
 
-@pytest.mark.parametrize("name", [name for name in joints.__all__ if name != "JointModel"])
-def test_exported_kind_is_a_frozen_joint_model(name: str) -> None:
+def _check_kind(name: str) -> None:
     cls = getattr(joints, name)
     assert issubclass(cls, JointModel) and not inspect.isabstract(cls), name
     assert dataclasses.is_dataclass(cls) and cls.__dataclass_params__.frozen, name
     for attribute in ("nq", "nv", "manifold", "axis"):
         assert hasattr(cls, attribute) or attribute in {field.name for field in dataclasses.fields(cls)}, attribute
+
+
+def test_exported_kinds_are_frozen_joint_models() -> None:
+    failed = failures(_check_kind, [name for name in joints.__all__ if name != "JointModel"])
+    assert not failed, "\n".join(failed)
