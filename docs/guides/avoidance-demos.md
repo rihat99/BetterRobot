@@ -38,7 +38,7 @@ and with its rows on the right; the blue ball is the target.
 
 ## Joint limits
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_joint_limits.png" width="960"><source src="../../clips/avoid_joint_limits.webm" type="video/webm"></video><figcaption>The target turns 4.5 rad about the hand's axis and back. Without limits (left) the last joint turns 1.58 rad past its range (red marker); with the box (right) it stops at its limit (amber) and the other joints turn the hand.</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_joint_limits.png" width="960"><source src="../../clips/avoid_joint_limits.webm" type="video/webm"></video><figcaption>The target turns 4.5 rad about the hand's axis and back. Without limits (left) the last joint turns 1.58 rad past its range (red marker); with the box (right) it stops at its limit (amber) and the other joints turn the hand, which leaves the target by up to 45 mm.</figcaption></figure>
 
 `terms.ik_problem` passes the position limits as the problem's bounds, and `track` makes them a box on every step.
 The box is linear in the configuration, so it holds exactly at any step size: this demo takes 20 mrad per tick. The
@@ -65,7 +65,7 @@ start poses, so it bends at the hips and knees to reach down.
 
 ## Obstacle
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_obstacle_panda.png" width="960"><source src="../../clips/avoid_obstacle_panda.webm" type="video/webm"></video><figcaption>The hand holds its pose while a 6 cm sphere sweeps through it at 1 mm per tick. Without the rows (left) it passes through the hand; with them (right) the arm gives way up to 114 mm and keeps 20 mm away.</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_obstacle_panda.png" width="960"><source src="../../clips/avoid_obstacle_panda.webm" type="video/webm"></video><figcaption>The hand holds its pose while a ball of 6 cm radius sweeps through it at 1 mm per tick. Without the rows (left) it passes through the hand; with them (right) the arm gives way up to 115 mm and keeps 20 mm away.</figcaption></figure>
 
 The obstacle `[x, y, z, radius]` lives in a tensor that the distance function reads, and the demo moves it in place
 (`obstacle.copy_(...)`) before each tick, from a second transform handle named "obstacle". The rows see the
@@ -74,11 +74,36 @@ demo pads the radius by the handle's move over the gain each tick, and the reado
 
 ## Self-collision
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_self_collision_panda.png" width="960"><source src="../../clips/avoid_self_collision_panda.webm" type="video/webm"></video><figcaption>The target goes down and back toward the robot's base. Without the rows (left) the hand's spheres go 25 mm into the base's; with them (right) the closest pair stays 20 mm apart.</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/avoid_self_collision_panda.png" width="960"><source src="../../clips/avoid_self_collision_panda.webm" type="video/webm"></video><figcaption>The target goes down and back toward the robot's base. Without the rows (left) the arm folds into itself and two of its spheres overlap by 25 mm (red); with them (right) every pair stays 20 mm apart.</figcaption></figure>
 
 The pairs are `collision.self_collision_pairs(model, spheres, ignore=ignore)` with the ignore list of the sphere
-file (`collision.load_spheres`), and the rows are the 8 closest of them each tick (the G1: 64),
-`terms.self_clearance(spheres, pairs=pairs, margin=0.02, hinge=False, closest=8)`.
+file (`collision.load_spheres`): every one of them. Each keeps a margin of 20 mm, or its distance at the start less
+1 mm where that is smaller, so that the start holds every row (the Panda's ready pose has no pair closer than
+21 mm). On the standing G1:
+
+```python
+import torch
+from robot_descriptions import g1_description
+
+import better_robot as br
+from better_robot import collision, forward_kinematics, terms
+
+model = br.load(g1_description.URDF_PATH, root_joint=br.JointFreeFlyer(), dtype=torch.float64)
+q0 = model.q_neutral.clone()[None]
+q0[0, 2] = 0.793                                                                   # the soles on z = 0
+spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "g1.json", model)
+pairs = collision.self_collision_pairs(model, spheres, ignore=ignore)              # (P, 2)
+apart = collision.self_distances(spheres, forward_kinematics(model, q0), pairs=pairs)[0]  # (P,) at the start
+margin = (apart - 1e-3).clamp(max=0.02)                                            # (P,) one per pair
+row = terms.self_clearance(spheres, pairs=pairs, margin=margin, hinge=False, closest=64)
+print(f"{len(pairs)} pairs, {int((apart < 0.02).sum())} closer than 20 mm, the closest {1e3 * apart.min():.2f} mm")
+```
+```output
+3890 pairs, 58 closer than 20 mm, the closest 2.45 mm
+```
+
+The rows are the 8 pairs closest to their margins each tick (the G1: 64). The readout shows the deepest pair's
+distance outside its own margin.
 
 ## Settings that matter
 
@@ -86,7 +111,7 @@ file (`collision.load_spheres`), and the rows are the 8 closest of them each tic
 |---|---|---|
 | `step` | 5 mrad per tick (Panda), 6.3 mrad (G1), 20 mrad for the joint limits | curved rows hold within 1e-4 m at these steps; at 25 mrad they leave up to about 1e-3 m |
 | `gain` | 0.5 | the share of a row's distance one tick may use |
-| `margin` | 20 mm | the clearance the rows keep |
+| `margin` | 20 mm; per pair for self-collision, at most the pair's start distance less 1 mm | the clearance the rows keep; a start inside a margin would begin with violated rows |
 | `closest` | 8 (Panda), 64 (G1 self-collision) | rows per tick; the same count every tick, so the warm start fits |
 | `iterations` | 20 (the default) | one behaviour at a time; the G1 with several behaviours as rows at once needs about 100 |
 | cost `weight` | 1e3 | the cost form's hinge; it leaves a few millimetres inside the margin |
@@ -96,25 +121,32 @@ The scripted runs print, per form (CPU, float64, one thread; the tick is one `tr
 | Demo | Without | With the rows | Tick with rows |
 |---|---|---|---|
 | joint limits (Panda) | 1.58 rad past joint 7 | 0 | 2.4 ms |
-| singular poses (Panda) | `w` = 0.005 | `w` = 0.030 | 2.8 ms |
-| floor (Panda) | sphere 160 mm into the floor | 20.0 mm above | 3.2 ms |
-| floor (G1) | 25 mm into the floor | 20.0 mm above | 6.9 ms |
-| obstacle (Panda) | 90 mm inside | 20.9 mm away | 3.2 ms |
-| self-collision (Panda) | pair 25 mm into each other | 20.0 mm apart | 3.1 ms |
+| singular poses (Panda) | `w` = 0.005 | `w` = 0.030 | 3.0 ms |
+| floor (Panda) | sphere 160 mm into the floor | 20.0 mm above | 3.6 ms |
+| floor (G1) | 25 mm into the floor | 20.1 mm above | 7.2 ms |
+| obstacle (Panda) | 90 mm inside | 21.2 mm away | 3.4 ms |
+| obstacle (G1) | 94 mm inside | 21.3 mm away | 7.4 ms |
+| self-collision (Panda) | a pair 45 mm inside its margin (25 mm into each other) | every pair outside its margin | 3.3 ms |
+| self-collision (G1) | a pair 140 mm inside its margin | every pair within 0.04 mm of its margin | 7.4 ms |
 
 ## Limits
 
 - Curved rows (clearances, manipulability) hold for small steps only; [How far the rows
   hold](track-targets.md#how-far-the-rows-hold) has the measurements. The joint-limit box holds at any step.
+- A robot that moves along a row rides slightly short of it, by the reserve `track` keeps (about 0.4 mm at 5 mrad
+  per tick), and settles onto it when the target stops: the scripted runs end 20.0 to 21.3 mm away.
 - The robot moves at most `step` per tick, so a fast drag leaves the target behind; the loop runs at most at 100
   Hz.
-- An obstacle dragged faster than the arm can give way pushes into it: the rows are elastic and give way when no
-  step holds them all.
+- An obstacle dragged faster than the arm can move pushes into the margin; the rows repair the violation once it
+  slows. One pressed between two links, or onto a hand that another row holds, can leave the arm no direction: it
+  waits until the obstacle moves.
+- With the joint-limit rows the hand leaves the target by up to 45 mm while the other joints turn it: the pose
+  residual weighs 1 rad of rotation like 1 m.
 - The spheres contain the meshes and overshoot them: 7-37 mm on average per body, and 65 mm on the G1's head, which
   is two spheres, so a hand near the head stops early.
 - Self-collision skips the frame pairs of the file's ignore list; the "neutral" ones touch at the neutral pose (the
   Panda's hand and fifth link, fifth and seventh link, the fingers; the G1's knees and feet) and are never checked,
-  though they can collide elsewhere.
+  though they can collide elsewhere. A pair that starts closer than 20 mm keeps only its start distance less 1 mm.
 - Start from a pose where every row holds, such as the Panda's ready pose (the scripts do).
 
 ## Where next

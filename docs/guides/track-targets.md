@@ -251,6 +251,7 @@ A target's Jacobian that loses rank is not such a case: the damping keeps the pr
 
 ## Where next
 
+- [Try the avoidance demos](avoidance-demos.md): each behaviour in a browser, with a target you drag.
 - [Solve inverse kinematics under constraints](constrained-ik.md): the same rows, solved to convergence.
 - [Optimization](../concepts/optimization.md#constraint-terms): the rows of a constraint term.
 - [Collision](../concepts/collision.md): the sphere distances behind the clearance terms.
