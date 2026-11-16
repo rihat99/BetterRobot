@@ -65,8 +65,8 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme.robot` and `Theme.human`: use `Theme.hue(index)`.
 - `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` and `Theme.control_width`: no
   replacement; no layer read the colours, an application passes its own, and the sidebar keeps viser's medium width.
-- `Viewer.record` to `.gif`, to numbered `.png` frames and to a directory of frames: record an `.mp4` or a `.webm`,
-  or one `.png` still per call.
+- `Viewer.record` to `.gif`, to numbered `.png` frames and to a directory of frames: use `Viewer.record` to an
+  `.mp4` or a `.webm`, or to one `.png` still per call.
 - `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.
 
 ## v0.3.0 (2026-11-10)

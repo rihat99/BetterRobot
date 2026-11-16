@@ -232,7 +232,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | rect-select callback event with `screen_pos` | viser's rect-select event | its corners are `screen_min` and `screen_max` |
 | `Viewer.record(path, *, steps, size=(960, 540), fps, gpu=False, camera)` | `Viewer.record(path, *, size=(1920, 1080), fps, steps, camera, fov, gpu=None, bitrate)` | `gpu` is the `nvidia-smi` index of the GPU to draw on (`gpu=True` used whichever GPU EGL chose); the call returns the path it wrote |
 | `Viewer.record` to `.gif`, to `name.png` frames or to a directory of frames | `Viewer.record` to `.mp4`, `.webm` or one `.png` still | a still per call: `record("a.png", steps=[k])`; ffmpeg turns a video into a GIF or frames |
-| `viewer.capture`: `HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg` | `Viewer.record` | the browser path is private (`viewer/record.py`) |
+| `viewer.capture`: `HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg` | `Viewer.record` | the browser path is private (`src/better_robot/viewer/record.py`) |
 
 ## Module paths
 

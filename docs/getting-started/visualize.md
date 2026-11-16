@@ -4,7 +4,7 @@ You open the browser viewer, show the Panda moving along a trajectory, step thro
 GIF through a headless browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video>
-<figcaption>One scene built up layer by layer: mesh, then skeleton, frames and ground, each switched on with <code>set_visible</code>; the layer list on the left toggles each one.</figcaption></figure>
+<figcaption>One scene built up layer by layer: mesh, then skeleton, frames and ground, each switched on with <code>set_visible</code>.</figcaption></figure>
 
 ## Make a clip to show
 
