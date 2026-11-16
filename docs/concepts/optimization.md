@@ -285,6 +285,21 @@ rounding of that loss.
 hinged cost and with `solve_constrained`;
 [record 0055](../contracts/decisions/0055-constraint-terms-and-sequential-qp.md) has the alternatives.
 
+### One step per call: `track`
+
+`optim.track(problem, x, warm=)` takes one step of the same program per call and returns the new point with the
+program's solution, the warm start of the next call: differential inverse kinematics, for targets that move
+between calls through `problem.with_(data=)`. It keeps `SequentialQP`'s model and rows and leaves out what makes
+that a solver to convergence: no acceptance test, no damping that follows the steps, no radius. The damping is a
+fixed multiple of the identity (`damping=1e-3`), so the program stays positive definite where the targets'
+Jacobian loses rank. The bounds give the box $\text{gain} \cdot (\text{lower} - x) \le \delta \le \text{gain}
+\cdot (\text{upper} - x)$, so a joint limit is approached like any other row, and `step` bounds every entry of
+$\delta$ (velocity limits times the tick period). The rows are a discrete barrier: exact for rows linear in $x$,
+such as the bounds; a curved row is left by what its linearization misses, which grows with the square of the
+step. Where the program's step is inexact, the step taken is scaled back until it leaves no row by more than
+1e-6. [Track moving targets](../guides/track-targets.md) measures how far rows hold per step size;
+[record 0057](../contracts/decisions/0057-differential-ik-is-one-track-call-per-tick.md) has the alternatives.
+
 ## A quadratic program per step
 
 `solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None)` takes one step towards

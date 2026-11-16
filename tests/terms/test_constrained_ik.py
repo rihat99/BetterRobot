@@ -214,8 +214,8 @@ def test_a_compiled_tick_equals_the_eager_one(tracking, mode: str) -> None:
 @pytest.mark.slow
 def test_an_obstacle_moved_in_place_needs_no_new_problem_and_compiles_once() -> None:
     """The obstacle's distance function reads a tensor that the loop moves in place before each tick, 1 mm per tick
-    through the hand, which holds its pose. The compiled tick compiles no graph after its first ones and equals the
-    eager tick; the hand gives way, and a tick ends at most ``v / gain`` (2 mm) inside the margin of where the obstacle
+    through the hand, which holds its pose (a new problem and target tensor every tick). The compiled tick compiles no
+    graph after its first ones and equals the eager tick; the hand gives way, and a tick ends at most ``v / gain`` (2 mm) inside the margin of where the obstacle
     has moved, or within 1e-4 of it when the loop pads the radius by that much."""
     panda = br.load(panda_urdf(), dtype=torch.float64)
     spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
@@ -242,7 +242,7 @@ def test_an_obstacle_moved_in_place_needs_no_new_problem_and_compiles_once() -> 
         x, warm, deepest, moved = dict(problem.variables), None, 0.0, 0.0
         for t in range(1, 601):
             place(t, pad)
-            x, warm = tick(problem, x, warm)
+            x, warm = tick(problem.with_(data={f"target/{FRAME}": goal.clone()}), x, warm)
             if t == 3:  # the eager calls of both keys and the compile are behind
                 counters.clear()
             place(t + 1)
