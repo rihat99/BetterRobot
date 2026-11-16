@@ -9,17 +9,21 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.cases import failures
+
 REPO = Path(__file__).resolve().parents[2]
 LINT = runpy.run_path(str(REPO / "tools" / "hot_path_lint.py"))  # tools/ is scripts, not a package
 find_violations, hot_path_files = LINT["find_violations"], LINT["hot_path_files"]
 SOLVERS = REPO / LINT["WATCHED_FILES"][0]
 
 
-@pytest.mark.parametrize("file", hot_path_files(), ids=lambda path: path.relative_to(REPO).as_posix())
-def test_no_forbidden_hot_path_patterns(file: Path) -> None:
-    violations = find_violations(file, file.read_text())
-    if violations:
-        pytest.fail("hot-path violations:\n  " + "\n  ".join(violations))
+def test_no_forbidden_hot_path_patterns() -> None:
+    def check(file: str) -> None:
+        violations = find_violations(REPO / file, (REPO / file).read_text())
+        assert not violations, "hot-path violations:\n  " + "\n  ".join(violations)
+
+    failed = failures(check, [path.relative_to(REPO).as_posix() for path in hot_path_files()])
+    assert not failed, "\n".join(failed)
 
 
 @pytest.mark.parametrize(
