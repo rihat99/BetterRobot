@@ -131,8 +131,9 @@ Within 1e-4 m (or 1e-4 of manipulability) takes steps of about 6.3 mrad per tick
 behaviours, the G1 each one alone; the G1 with all five at once is just over (3 of 256 tasks, the same in float32
 with 5). There more `solve_qp` iterations per call close the gap, since its programs are exact on only 44 % of the
 ticks at the default 20: `track(..., iterations=60)` leaves 1.0e-4 (1 task just over, 59 % exact) and
-`iterations=100` 8.8e-5 (none over, 68 % exact). A weighted hinge cost in place of the rows leaves 1e-2 to 6e-2, and no behaviour at all 0.2 to 3. Without
-`step`, a far target gives a long step and the curvature has its way.
+`iterations=100` 8.8e-5 (none over, 68 % exact), at a price: a compiled G1 tick with clearance rows takes 3.0 ms
+instead of 1.75 ms on one CPU core. A weighted hinge cost in place of the rows leaves 1e-2 to 6e-2, and no
+behaviour at all 0.2 to 3. Without `step`, a far target gives a long step and the curvature has its way.
 
 ## A moving obstacle
 
