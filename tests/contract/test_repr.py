@@ -167,9 +167,9 @@ BUILDERS: dict[str, Callable[[], object]] = {
     "better_robot.viewer.RigidMeshLayer": lambda: viewer.RigidMeshLayer(
         name="rigid", meshes=[_mesh_spec()], body_poses=POSES[None, :1]
     ),
-    "better_robot.viewer.SkeletonLayer": lambda: viewer.SkeletonLayer(
-        name="skeleton", joints=np.zeros((3, 3)), parent_ids=[-1, 0, 1]
-    ),
+    "better_robot.viewer.RobotVisual": lambda: viewer.RobotVisual(_panda()),
+    "better_robot.viewer.SkeletonRecipe": viewer.SkeletonRecipe,
+    "better_robot.viewer.Skin": lambda: viewer.Skin(np.zeros((3, 3)), FACES, weights=np.ones((3, 1))),
     "better_robot.viewer.SkinnedMeshLayer": lambda: viewer.SkinnedMeshLayer(
         name="skin",
         vertices=np.zeros((3, 3)),

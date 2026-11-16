@@ -7,22 +7,19 @@ short clip of a Panda swinging one joint, records it, and points the live browse
 ## Build the scene
 
 ```python
-from pathlib import Path
 
 import torch
 import better_robot as br
 from robot_descriptions import panda_description
 from better_robot import Viewer
-from better_robot.viewer import RigidMeshLayer, robot_meshes
+from better_robot.viewer import RobotVisual
 
 model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
 clip = model.q_neutral.repeat(60, 1)                                   # (T, nq)
 clip[:, 0] = torch.linspace(-1.0, 1.0, 60, dtype=torch.float64)
 geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-poses = br.forward_kinematics(model, clip).joint_poses.numpy()         # (T, njoints, 7)
-meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
 viewer = Viewer()
-viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses)])
+viewer.add(RobotVisual(model, clip, geometry=geometry, root=panda_description.URDF_PATH))
 print(viewer.timeline.nsteps)
 ```
 ```output

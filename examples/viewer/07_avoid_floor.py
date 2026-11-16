@@ -27,7 +27,7 @@ from robot_descriptions import g1_description, panda_description
 import better_robot as br
 from better_robot import Viewer, collision, forward_kinematics, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import GroundLayer, MeshSpec, RigidMeshLayer, SpheresLayer, robot_meshes
+from better_robot.viewer import GroundLayer, RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
@@ -46,9 +46,9 @@ MARGIN, TICKS, RED = 0.02, 800, (0.9, 0.1, 0.1)
 FORMS = ("rows", "cost", "off")  # the GUI's choices: the floor as rows, as a cost term, or no floor
 
 
-def load(robot: str) -> tuple[br.Model, torch.Tensor, list[MeshSpec]]:
+def load(robot: str) -> tuple[br.Model, torch.Tensor, br.Geometry]:
     """The model of ``robot`` (the G1 on a free base), its start ``q0 (1, nq)`` (Panda ready, G1 standing on z = 0)
-    and its display meshes."""
+    and its geometry."""
     description, g1 = ROBOTS[robot][0], robot == "g1"
     model = br.load(description.URDF_PATH, root_joint=br.JointFreeFlyer() if g1 else None, dtype=torch.float64)
     q0 = model.q_neutral.clone()[None]
@@ -56,9 +56,7 @@ def load(robot: str) -> tuple[br.Model, torch.Tensor, list[MeshSpec]]:
         q0[0, 2] = 0.793
     else:
         q0[0, :7] = torch.tensor(READY)
-    geometry = br.io.load_geometry(description.URDF_PATH, model)
-    root = Path(description.URDF_PATH).parent if g1 else Path(description.REPOSITORY_PATH)
-    return model, q0, robot_meshes(geometry, root=root)
+    return model, q0, br.io.load_geometry(description.URDF_PATH, model)
 
 
 def run(tick: Callable, form: str, x: dict, path: torch.Tensor) -> tuple[torch.Tensor, float]:
@@ -79,8 +77,8 @@ def main() -> None:
     parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
     args = parser.parse_args()
 
-    model, q0, meshes = load(args.robot)
-    _, frames, step, closest = ROBOTS[args.robot]
+    model, q0, geometry = load(args.robot)
+    description, frames, step, closest = ROBOTS[args.robot]
     spheres, _ = collision.load_spheres(collision.SPHERE_SETS / f"{args.robot}.json", model)
     standing = torch.tensor([model.frame_names[int(f)] in STANDING[args.robot] for f in spheres.frame_ids])
     up = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64)
@@ -98,26 +96,26 @@ def main() -> None:
         """One ``track`` step toward ``target (1, 7)`` for the first frame; the others hold their start poses."""
         return optim.track(problems[form].with_(data={f"target/{frames[0]}": target}), x, warm=warm, step=step)
 
-    def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Joint poses ``(T, J, 7)``, sphere centres ``(T, S, 3)`` and clearances ``(T, S)`` of ``q (T, nq)``."""
-        state = forward_kinematics(model, q)
-        centers = spheres.centers(state)
-        return state.joint_poses.numpy(), centers.numpy(), to_floor(centers, spheres.radii).numpy()
+    def look(q: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
+        """Sphere centres ``(T, S, 3)`` and clearances ``(T, S)`` of ``q (T, nq)``."""
+        centers = spheres.centers(forward_kinematics(model, q))
+        return centers.numpy(), to_floor(centers, spheres.radii).numpy()
 
     viewer = Viewer(fps=25.0, ground=False, server=FakeServer() if args.check else None)
     viewer.add([GroundLayer(size=4.0, fill=0.5)])  # a solid floor: what sinks below it fades
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)``, its spheres and the ones inside the margin (red), under ``group``."""
-        poses, centers, clearance = look(q)
+        centers, clearance = look(q)
         radii = spheres.radii.numpy()
         layers = [
-            RigidMeshLayer("robot", meshes, body_poses=poses),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH),
             SpheresLayer("spheres", centers, radii=radii, opacity=0.15),
             SpheresLayer("inside the margin", centers, radii=radii, colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:2], tags=group, offset=offset)
-        viewer.add(layers[2:], tags=group, offset=offset, valid=clearance < MARGIN - 1e-3)
+        viewer.add(layers[:1], tags=group, offset=offset)
+        viewer.add(layers[1:2], tags=(group, "spheres"), offset=offset)  # the Layers section switches the tag
+        viewer.add(layers[2:], tags=(group, "spheres"), offset=offset, valid=clearance < MARGIN - 1e-3)
         return layers
 
     if not (args.check or args.record):
@@ -129,7 +127,7 @@ def main() -> None:
     for side, form in enumerate(("off", "rows")):
         q, seconds = run(tick, form, dict(problems[form].variables), path)
         print(
-            f"floor {form:4s}: lowest sphere {1e3 * look(q)[2].min():+8.3f} mm above the floor "
+            f"floor {form:4s}: lowest sphere {1e3 * look(q)[1].min():+8.3f} mm above the floor "
             f"(margin {1e3 * MARGIN:.0f}), tick {1e3 * seconds:.1f} ms (median)"
         )
         offset = (0.0, 1.2 * side - 0.6, 0.0)
@@ -155,11 +153,11 @@ def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: di
             warm, last = None, form.value
         x, warm = tick(form.value, torch.from_numpy(gizmo.pose).to(start)[None], x, warm)
         seconds = time.perf_counter() - began
-        poses, centers, clearance = look(x["q"])
-        robot[0].body_poses[:] = poses
+        centers, clearance = look(x["q"])
+        robot[0].update(x["q"])
         robot[1].centers[:] = robot[2].centers[:] = centers
         robot[2].valid[:] = clearance < MARGIN - 1e-3
-        viewer.show()
+        viewer.redraw("spheres")
         readout.content = (
             f"lowest sphere **{1e3 * clearance.min():.1f} mm** above the floor (margin {1e3 * MARGIN:.0f})  \n"
             f"tick {1e3 * seconds:.1f} ms"

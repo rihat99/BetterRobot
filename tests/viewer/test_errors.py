@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 import better_robot as br
-from better_robot.exceptions import ArgumentError, OptionalDependencyError, ShapeError, UnknownNameError
+from better_robot.exceptions import ArgumentError, OptionalDependencyError, ShapeError
 from better_robot.testing import FakeServer
 from better_robot.viewer import (
     ArrowsLayer,
@@ -22,14 +22,12 @@ from better_robot.viewer import (
     MeshSpec,
     PointsLayer,
     RigidMeshLayer,
-    SkeletonLayer,
+    RobotVisual,
     SkinnedMeshLayer,
     Theme,
     Viewer,
-    robot_skeleton,
 )
 from better_robot.viewer.capture import write_frames
-from better_robot.viewer.robot import robot_meshes
 from better_robot.viewer.tools import PoseGizmo
 from tests.support.robots import panda_urdf
 
@@ -85,26 +83,6 @@ _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
         r"bind_poses must be \(J, 7\)",
     ),
     (
-        lambda: SkeletonLayer("s", np.zeros((3, 3)), parent_ids=[-1, 0, 9]),
-        ArgumentError,
-        r"parent_ids must be joint indices in \[0, 3\)",
-    ),
-    (
-        lambda: SkeletonLayer("s", np.zeros((2, 3)), parent_ids=[-1, 0], axes=np.zeros((3, 3))),
-        ShapeError,
-        r"axes must be \(3,\) or \(J, 3\)",
-    ),
-    (
-        lambda: SkeletonLayer("s", np.zeros((3, 3)), parent_ids=[-1, 0, 1], bone_radius=np.zeros(5)),
-        ShapeError,
-        "bone_radius must be one float",
-    ),
-    (
-        lambda: SkeletonLayer("s", np.zeros((2, 3)), parent_ids=[-1, 0], kinds=["revolute", "bogus"]),
-        UnknownNameError,
-        "unknown joint kind 'bogus'",
-    ),
-    (
         lambda: RigidMeshLayer(
             "r", [MeshSpec(np.zeros((3, 3)), _TRIANGLE, body=5, origin=_POSE)], body_poses=np.zeros((10, 2, 7))
         ),
@@ -122,13 +100,10 @@ def test_layers_refuse_bad_input_at_construction() -> None:
             build()
 
 
-def test_robot_skeleton_names_joint_poses_and_tau_when_their_shape_is_wrong() -> None:
+def test_robot_visual_names_q_when_its_shape_is_wrong() -> None:
     model = br.load(panda_urdf())
-    poses = br.forward_kinematics(model, model.q_neutral).joint_poses.numpy()
-    with pytest.raises(ShapeError, match=rf"joint_poses must be \(T, njoints, 7\) = \(T, {model.njoints}, 7\)"):
-        robot_skeleton(model, poses[:-1])
-    with pytest.raises(ShapeError, match=rf"tau must be \(T, nv\) or \(nv,\) with nv = {model.nv}"):
-        robot_skeleton(model, poses, tau=np.zeros(model.nv + 1))
+    with pytest.raises(ShapeError, match=rf"q must be \(nq,\) or \(T, nq\) with nq = {model.nq}"):
+        RobotVisual(model, np.zeros(model.nq + 1))
 
 
 def test_pose_gizmo_takes_one_pose() -> None:
@@ -136,11 +111,18 @@ def test_pose_gizmo_takes_one_pose() -> None:
         PoseGizmo(Viewer(server=FakeServer()), "g", pose=np.zeros(6))
 
 
+def _panda_collision_overlay() -> None:
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    robot = RobotVisual(model, geometry=geometry, root=panda_urdf(), style="maximal", collision=True)
+    Viewer(server=FakeServer(), ground=False).add(robot)  # the overlay's meshes are loaded when it is built
+
+
 def test_a_missing_optional_package_raises_its_install_line(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls = [
         ("viser", "viewer", Viewer),
         ("PIL", "viewer", lambda: write_frames([np.zeros((2, 2, 3), np.uint8)], tmp_path / "a.gif", fps=1.0)),
-        ("trimesh", "meshes", lambda: robot_meshes(br.io.load_geometry(panda_urdf(), br.load(panda_urdf())))),
+        ("trimesh", "meshes", _panda_collision_overlay),
     ]
     for module, extra, call in calls:
         with monkeypatch.context() as patch:

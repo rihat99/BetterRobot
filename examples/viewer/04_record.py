@@ -18,7 +18,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot.testing import FakeServer
 from better_robot import Viewer
-from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
+from better_robot.viewer import RobotVisual
 
 
 def main() -> None:
@@ -39,12 +39,8 @@ def main() -> None:
     q = mid + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)
 
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-    state = br.forward_kinematics(model, q)
-    poses = state.joint_poses.numpy()
     viewer = Viewer(fps=30.0, server=FakeServer() if args.check else None)
-    meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-    hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-    viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], tags="panda")
+    viewer.add(RobotVisual(model, q, geometry=geometry, root=panda_description.URDF_PATH, frames=["panda_hand"]))
 
     if args.check:  # recording needs a real server and Chromium
         for step in range(args.frames):

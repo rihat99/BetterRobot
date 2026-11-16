@@ -5,7 +5,6 @@ from .frames import FramesLayer
 from .ground import GroundLayer
 from .lines import LinesLayer
 from .points import PointsLayer
-from .skeleton import SkeletonLayer
 from .camera import CameraLayer
 from .skinned import SkinnedMeshLayer
 
@@ -16,6 +15,5 @@ __all__ = [
     "GroundLayer",
     "LinesLayer",
     "PointsLayer",
-    "SkeletonLayer",
     "SkinnedMeshLayer",
 ]

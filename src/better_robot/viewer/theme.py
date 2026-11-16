@@ -83,11 +83,6 @@ class Theme:
     collision: RGB = _srgb(140, 150, 165)  # a quiet grey: the body under the overlay stays the subject
     collision_opacity: float = 0.18
     text: RGB = _srgb(40, 42, 48)
-    # Read by the old skeleton adapter of ``robot.py`` only; they leave with it.
-    joint: RGB = (0.122, 0.227, 0.408)
-    link: RGB = (0.62, 0.64, 0.68)
-    torque_ramp: tuple[RGB, ...] = ((0.03, 0.07, 0.20), (0.0, 0.38, 0.42), (0.25, 0.55, 0.10), (0.95, 0.75, 0.0))
-    over_limit: RGB = (0.80, 0.0, 0.70)
 
     @override
     def __repr__(self) -> str:
@@ -167,7 +162,4 @@ DARK = Theme(
     grid=(_srgb(58, 59, 64), _srgb(86, 88, 95)),
     shadow=0.45,
     text=_srgb(228, 229, 233),
-    joint=(0.45, 0.60, 0.85),
-    link=(0.55, 0.57, 0.60),
-    torque_ramp=((0.18, 0.28, 0.62), *LIGHT.torque_ramp[1:]),  # a brighter navy at zero load: visible on dark
 )

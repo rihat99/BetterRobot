@@ -1,4 +1,4 @@
-"""Show one robot pose: meshes, skeleton, a frame and the ground.
+"""Show one robot pose: its meshes, the hand frame and the ground; the sidebar switches to the skeleton styles.
 
 uv run python examples/viewer/01_robot_pose.py            # open http://127.0.0.1:8080
 uv run python examples/viewer/01_robot_pose.py --check    # build the scene on the stand-in server and exit
@@ -7,14 +7,15 @@ uv run python examples/viewer/01_robot_pose.py --check    # build the scene on t
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 from robot_descriptions import panda_description
 
 import better_robot as br
-from better_robot.testing import FakeServer
 from better_robot import Viewer
-from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
+from better_robot.testing import FakeServer
+from better_robot.viewer import RobotVisual
+
+URDF = panda_description.URDF_PATH
 
 
 def main() -> None:
@@ -24,17 +25,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    model = br.load(panda_description.URDF_PATH)
-    geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-    q = model.q_neutral
-    state = br.forward_kinematics(model, q[None])
-    poses = state.joint_poses.numpy()
+    model = br.load(URDF)
     viewer = Viewer(server=FakeServer() if args.check else None)
-    meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-    hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-    viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], tags="panda")
-    viewer.show()
-    print(f"{len(viewer.layers)} layers at {viewer.url}")
+    robot = viewer.add(RobotVisual(model, geometry=br.io.load_geometry(URDF, model), root=URDF, frames=["panda_hand"]))
+    print(f"{robot.name} as {robot.style} at {viewer.url}")
     if args.check:
         return
     viewer.serve()

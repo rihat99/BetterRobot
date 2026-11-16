@@ -19,9 +19,10 @@ import torch
 import better_robot as br
 from robot_descriptions import panda_description
 from better_robot import Viewer
-from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
+from better_robot.viewer import RobotVisual
 
-model = br.load(panda_description.URDF_PATH, dtype=torch.float64)
+URDF = panda_description.URDF_PATH
+model = br.load(URDF, dtype=torch.float64)
 q_rest = model.q_neutral
 clip = q_rest.repeat(30, 1)                       # (T, nq)
 clip[:, 0] = torch.linspace(-1.0, 1.0, 30, dtype=torch.float64)
@@ -32,25 +33,23 @@ Any `(T, nq)` tensor works: the `result.x["q"][0]` of [the trajectory tutorial](
 ## Open the viewer and add the robot
 
 `Viewer()` starts a local [viser](https://viser.studio) server on `127.0.0.1:8080`; open `viewer.url` in a
-browser. Forward kinematics runs once for the clip; `robot_meshes` turns the description's `Geometry` into the
-meshes of a `RigidMeshLayer` that follows the joint poses, and a `FramesLayer` draws frame axes. The viewer adds
-the ground grid itself (`Viewer(ground=False)` leaves it out), so it holds three layers:
+browser. A `RobotVisual` is the robot as one layer: it runs forward kinematics once for the whole clip, draws the
+meshes of the description's `Geometry` (found under `root`, the file you loaded) and, with `frames=`, the axes of
+the frames you name. The viewer adds the ground grid itself (`Viewer(ground=False)` leaves it out), so it holds two
+layers:
 
 ```python
 viewer = Viewer()
-geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
-state = br.forward_kinematics(model, clip)
-poses = state.joint_poses.numpy()                                        # (T, njoints, 7)
-meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
-hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), hand])   # an iterable of layers
-print(viewer.url, len(viewer.layers))
+geometry = br.io.load_geometry(URDF, model)
+robot = viewer.add(RobotVisual(model, clip, geometry=geometry, root=URDF, frames=["panda_hand"]))
+print(viewer.url, len(viewer.layers), robot.style)
 ```
 ```output
-http://127.0.0.1:8080 3
+http://127.0.0.1:8080 2 meshes
 ```
 
-Forward kinematics runs once for the whole clip, not once per step.
+The sidebar's Robot section switches the robot between its meshes and two skeleton styles, and
+`robot.set_style("maximal")` does the same from code.
 
 ## Step through the timeline
 
@@ -70,15 +69,12 @@ viewer.serve()
 
 ## Update the robot in place
 
-A layer keeps its arrays by reference. To redraw the robot for a new clip of the same length, for example after
-each solver step, write the new poses into the layer's arrays and call `redraw()`:
+To show a new clip of the same length, for example after each solver step, call `update`: one forward-kinematics
+pass, then the robot redraws itself. Here a second robot, drawn as a skeleton, plays the clip backwards:
 
 ```python
-skeleton = viewer.add(robot_skeleton(model, poses, name="panda_live"), tags="live")
-backwards = br.forward_kinematics(model, clip.flip(0)).joint_poses.numpy()
-skeleton.joints[:] = backwards[:, 1:, :3]
-skeleton.rotations[:] = backwards[:, 1:, 3:]
-skeleton.redraw()
+live = viewer.add(RobotVisual(model, clip, name="panda_live", style="maximal"), tags="live")
+live.update(clip.flip(0))
 ```
 
 ## Record a GIF without a browser

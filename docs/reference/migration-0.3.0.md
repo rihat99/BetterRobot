@@ -77,7 +77,7 @@ A joint's kind is its class. The classes are exported from `better_robot.model`.
 | `joint_velocity` | `JointModel.motion_subspace` | the joint velocity is the motion subspace times `v` |
 | `JointModel.integrate`, `JointModel.difference` | `kinematics.integrate`, `kinematics.difference` | written once per manifold, for the whole configuration |
 | `joint_bias_acceleration`, `joint_motion_subspace_derivative` | — | hooks nothing called |
-| kind strings `"revolute_rx"`, `"revolute_ry"`, `"revolute_rz"`, `"revolute_unaligned"`, `"prismatic_px"`, `"prismatic_py"`, `"prismatic_pz"`, `"prismatic_unaligned"`, `"revolute_unbounded"`, `"universe"`, `"composite"`, `"ball"`, `"free"`, `"floating"`, `"world"` | `JointRevolute`, `JointPrismatic`, `JointRevoluteUnbounded`, `JointFixed`, `JointSpherical`, `JointFreeFlyer` | the IR and the builder take joint objects; `viewer.SkeletonLayer(kinds=)` names kinds `"revolute"`, `"continuous"`, `"prismatic"`, `"helical"`, `"spherical"`, `"free_flyer"`, `"planar"`, `"translation"`, `"fixed"` |
+| kind strings `"revolute_rx"`, `"revolute_ry"`, `"revolute_rz"`, `"revolute_unaligned"`, `"prismatic_px"`, `"prismatic_py"`, `"prismatic_pz"`, `"prismatic_unaligned"`, `"revolute_unbounded"`, `"universe"`, `"composite"`, `"ball"`, `"free"`, `"floating"`, `"world"` | `JointRevolute`, `JointPrismatic`, `JointRevoluteUnbounded`, `JointFixed`, `JointSpherical`, `JointFreeFlyer` | the IR and the builder take joint objects |
 
 ## `lie`
 
@@ -153,7 +153,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `format="builder"` | `io.build_model` | `build_model(builder.finalize())` |
 | `parse(source, *, format="auto")` | `parse(path, *, format=None)` | |
 | `io.register_parser` | `io.build_model` | a new format is a function returning `IRModel`: `build_model(my_parser(path))` |
-| `io.AssetResolver`, `io.FilesystemResolver`, `io.PackageResolver`, `io.CompositeResolver`, `io.CachedDownloadResolver` | `viewer.robot_meshes` | mesh URIs stay strings; `robot_meshes(geometry, root=...)` reads them under `root` |
+| `io.AssetResolver`, `io.FilesystemResolver`, `io.PackageResolver`, `io.CompositeResolver`, `io.CachedDownloadResolver` | `viewer.RobotVisual` | mesh URIs stay strings; `RobotVisual(model, geometry=, root=)` reads them under `root`, the description file |
 | `io.IRGeom`, `IRBody.visual_geoms`, `IRBody.collision_geoms` | `io.IRShape`, `IRModel.shapes` | `IRShape(body, shape, collision)` with a typed `Shape` |
 | `IRModel.meta` | `io.build_geometry` | the geometry is built from the IR: `build_geometry(ir, model)` |
 | `IRJoint.kind`, `IRJoint.axis`, `IRJoint.pitch`, `IRJoint.joint_model` | `IRJoint.joint` | the joint object, such as `JointRevolute(axis=...)` |
@@ -203,9 +203,10 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 
 | 0.2 | 0.3.0 | note |
 |---|---|---|
-| `viewer.RobotView`, `viewer.robot_layers` | `viewer.RigidMeshLayer`, `viewer.robot_skeleton` | build the layers: `RigidMeshLayer(name, robot_meshes(geometry, root=...), body_poses=...)`, `robot_skeleton(model, joint_poses)`, `FramesLayer`, `SpheresLayer` |
-| `viewer.skeleton_spec`, `viewer.spread_offsets` | `viewer.robot_skeleton` | helpers of `robot_skeleton` |
-| `robot_meshes(model, *, collision, default_color)` | `robot_meshes(geometry, *, root=None, collision=False, default_color)` | `geometry = io.load_geometry(path, model)` |
+| `viewer.RobotView`, `viewer.robot_layers` | `viewer.RobotVisual` | one layer: `RobotVisual(model, q, geometry=, root=, spheres=)` with `style=`, `collision=` and `frames=`; `update(q)` shows new configurations |
+| `viewer.skeleton_spec`, `viewer.spread_offsets` | `viewer.SkeletonRecipe` | the skeleton is laid out inside `RobotVisual`; a `SkeletonRecipe` (`RobotVisual(maximal=, minimal=)`) sets how |
+| `viewer.robot_skeleton(model, joint_poses, ...)` | `viewer.RobotVisual` | `RobotVisual(model, q, style="maximal")` or `"minimal"`; it runs the forward kinematics itself. The torque colours (`tau=`) and `end_points=` have no replacement |
+| `robot_meshes(model, *, collision, default_color)` | `viewer.RobotVisual` | `RobotVisual(model, q, geometry=io.load_geometry(path, model), root=path)` draws the display shapes; `collision=True` overlays the collision shapes |
 | `Layer.times`, `Layer.root` | `Viewer.add(..., times=)` | the viewer keeps what each `add` set; `Layer.elements` is read-only |
 | `Viewer.add(layer, group)`, `Viewer.add_plot(..., group=)` | `Viewer.add(layers, *, tags)`, `Viewer.add_plot(..., tags=)` | one layer or an iterable of layers, returned as given; a layer's first tag is its scene parent `/<tag>/<name>` |
 | `Viewer(*, host, port, fps, theme=None, server)` | `Viewer(*, host, port, fps, theme=LIGHT, ground=True, server)` | the viewer adds a `GroundLayer` under the tag `ground`; pass `ground=False` to add your own |
@@ -222,11 +223,12 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `Theme.brand_color` | `Theme.accent` | the colour of the GUI and the tools |
 | `Theme.grid_cell`, `Theme.grid_section` | `Theme.grid` | a (cell, section) pair |
 | `Theme.robot`, `Theme.human` | `Theme.hue` | a robot or body takes `theme.hue(index)`, its parts `theme.shade(hue, role)` |
+| `Theme.joint`, `Theme.link`, `Theme.torque_ramp`, `Theme.over_limit` | `Theme.shade` | a skeleton takes its robot's hue and `theme.shade(hue, role)` for joints, drum faces, bodies and sticks; the torque colours went with `robot_skeleton(tau=)` |
 | `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target`, `Theme.control_width` | — | no layer read the colours, and an application passes its own; the sidebar keeps viser's medium width |
 | `ArrowsLayer(..., head_size=, line_width=, shaft_radius=None, head_radius=None)`, `ArrowsLayer.HEAD_FRACTION` | `ArrowsLayer(..., shaft_radius=0.006, head_radius=0.016, head_length=0.04)` | viser's solid arrows: no line shafts, the head keeps its size, so an arrow shorter than `head_length` is all head |
 | `CameraLayer(name, poses, *, fov, aspect, ...)` | `CameraLayer(name, poses, *, intrinsics, size, ...)` | the frustum from the `(3, 3)` matrix `K` of a `(W, H)` image, principal point included; `color=None` takes `Theme.text` |
 | `Timeline(nsteps=1, fps=30.0, loop=True)` | `Timeline(nsteps, *, fps=30.0, loop=True)` | |
-| `SkeletonLayer(name, joints, parents, ...)` | `SkeletonLayer(name, joints, *, parent_ids, ...)` | renamed and keyword-only |
+| `SkeletonLayer(name, joints, parents, ...)` | `viewer.RobotVisual` | a model's skeleton is `RobotVisual(model, q, style="minimal")` or `"maximal"`; joint positions without a model are a `SpheresLayer` or a `PointsLayer` |
 | `ArrowsLayer(name, origins, vectors, ...)`, `MeshLayer(name, vertices, faces, ...)`, `SpheresLayer(name, centers, radii, ...)` | `vectors=`, `faces=`, `radii=` | keyword-only after the second argument |
 | `RigidMeshLayer(name, meshes, body_poses, ...)`, `SkinnedMeshLayer(name, vertices, faces, weights, bind_poses, bone_poses, ...)` | `body_poses=`, `faces=`, `weights=`, `bind_poses=`, `bone_poses=` | keyword-only |
 | `MeshSpec(vertices, faces, body, origin, color, trimesh)`, `Theme(dark, brand_color, ...)` | `body=`, `origin=`, `dark=`, `accent=` | keyword-only fields |

@@ -267,7 +267,14 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **`Layer`** | One drawable thing (a robot, frames, points, a skeleton) holding a whole clip. The viewer calls `layer.set_step(k)`; `layer.nsteps` is its clip length. `optim.solve_layer` uses the word as deep learning does: a solve inside an autograd graph. |
 | **timeline** | The steps the viewer plays (`Timeline`). It is as long as the longest layer; a shorter layer holds its last step. |
 | **skinning, skin, skinned mesh** | Linear blend skinning: each vertex of a skinned mesh moves with a weighted blend of bone poses (`SkinnedMeshLayer.skin(step)`). |
-| **bind pose** | The pose in which a skinned mesh's vertices are given (`SkinnedMeshLayer(bind_poses=)`). |
+| **bind pose, bind** | The pose in which a skinned mesh's vertices are given (`SkinnedMeshLayer(bind_poses=)`); for a `Skin`, the configuration `bind (nq,)` of its rest surface. |
+| **visual** | A robot as one layer of the viewer (`RobotVisual`): its meshes or a skeleton, with a collision overlay and frames. |
+| **style** | How a robot visual draws its robot: `"meshes"`, `"minimal"` or `"maximal"` (`RobotVisual(style=)`, `RobotVisual.set_style`). |
+| **minimal, maximal** | The two skeleton styles and their recipes: `MINIMAL` is a stick figure with one ball per cluster of joints, `MAXIMAL` one glyph per joint with bones, hulls and end blocks. |
+| **recipe** | The choices that lay out a skeleton (`SkeletonRecipe`): glyphs, bones, hulls, limit arcs, clusters. Its `twists=False` leaves out the glyph of a joint that only turns its limb about the limb's own line, which is not the six-number twist. |
+| **glyph** | The shape that stands for one joint in a skeleton: a drum for a revolute joint, a sleeve on a rail for a prismatic one, a ball otherwise (`SkeletonRecipe(glyphs=)`). |
+| **hull** | A rounded box that stands for a body in a skeleton: the root, a body where the tree branches, and as an end block the last body of a chain (`SkeletonRecipe(hulls=, body_hull=)`). |
+| **cluster** | Joints close enough to share one ball in the minimal skeleton (`SkeletonRecipe(cluster=)`, a fraction of the robot's size). |
 | **trimesh** | The mesh library; `MeshSpec.trimesh` holds one of its meshes, with textures or vertex colours. |
 
 ## Testing
@@ -319,17 +326,17 @@ These words keep their ordinary English meaning in public names.
 
 actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, axes, axis, azimuth, band, bone, border,
 box, build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color,
-column, component, consistently, constrained, corner, create, cylinder, dark, decrease, default, delta, dense, density,
+column, component, consistently, constrained, corner, create, cylinder, dark, decrease, delta, dense, density,
 dependency, diagnostics, diagonal, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,
 estimate, evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize,
 flat, floor, folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, growth, half, head,
 height, high, history, host, identity, ignore, image, imported, index, inequality, install, inverse, iteration, keep,
 key, label, layout, length, light, limit, line, linearize, load, lock, loop, low, lower, masked, mass, match, matrix,
 mesh, mismatch, mode, multiplier, name, new, no, norm, normalize, object, of, offset, old, on, opacity, option,
-optional, order, orient, other, outer, output, over, package, page, pair, panel, parse, path, pause, penalty,
-permutation, pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii,
-radius, ramp, random, read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run, save,
-scalar, scale, scene, scheduler, search, section, segment, serializer, series, server, set, shading, shadow, shaft,
-show, size, skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere, squared, start,
-stop, target, testing, text, theme, thickness, time, timeout, to, toggle, tolerance, torque, unknown, up, upper, valid,
-validate, value, vector, vertices, visible, voxel, weight, width, with, word
+optional, order, orient, other, outer, output, package, page, pair, panel, parse, path, pause, penalty, permutation,
+pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii, radius, random,
+read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run, save, scalar, scale, scene,
+scheduler, search, section, segment, serializer, series, server, set, shading, shadow, shaft, show, side, size,
+skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere, squared, start, stop, target,
+testing, text, theme, time, timeout, to, toggle, tolerance, unknown, up, update, upper, valid, validate, value, vector,
+vertices, visible, voxel, weight, width, with, word
