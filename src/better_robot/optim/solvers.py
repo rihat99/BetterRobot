@@ -480,8 +480,9 @@ def track(
     `solve_qp`, and the program's step may not be its exact solution (``solution.exact`` unset). Two things keep
     such a step on the rows. The program holds each constraint row with a reserve: a tenth of what a step as long
     as the last program's (``warm.x``; none on a first call) can change that row by, never more than half the
-    row's own width. A point that moves along a row keeps that reserve over ``gain`` short of it; one that
-    comes to rest closes in on the row itself. And the step taken is the program's clamped to the box, moved the
+    row's own width. A point that moves along a row keeps that reserve over ``gain`` short of it (a Panda hand
+    whose target slides under a table rides 0.4 mm above the margin at 5 mrad per call, 1.0 mm at 25 mrad); one
+    that comes to rest closes in on the row itself. And the step taken is the program's clamped to the box, moved the
     least distance that puts it back on the rows it leaves (among the coordinates the box leaves free), then scaled
     back until it leaves no row by more than 1e-6 in that row's unit and takes no violated row further out. So
     ``solution.x`` is the program's step and the new point carries the step taken. The scale-back shortens a step

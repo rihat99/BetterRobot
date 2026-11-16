@@ -96,7 +96,7 @@ crba/g1/B1                        0            1          154            0
 aba/g1/B1                         0            1          255            0
 ik/panda/B64                      5           12        30446            0
 ik_constrained/panda/B64            3           11        31393            0
-track/panda/B64                   0            3        27426            0
+track/panda/B64                   0            3        29104            0
 qp/n7m30/B1                       0            1          561            0
 qp/n35m150/B1024                  0            2          561            0
 ```

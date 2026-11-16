@@ -45,8 +45,10 @@ the hand follows 2.9 mm behind its target (median), at most 26.6 mm
 
 `track` returns the new point and the program's solution. Passing that solution back as `warm=` starts the next
 program from it; the pair is all the state a loop carries. `step` bounds the move of every joint per call: a
-robot's velocity limits times the tick period, or less (below). The lag is that bound at work: parts of the circle
-ask some joints for more than 5 mrad per tick.
+robot's velocity limits times the tick period, or less (below). It has no default, because the curved rows hold
+only for small steps. The lag is that bound at work: parts of the circle ask some joints for more than 5 mrad per
+tick. A start outside the joint limits is back inside them after the first call, whatever `step`: the retraction
+clamps to the bounds.
 
 ## The five behaviours are rows
 
@@ -60,8 +62,23 @@ Each behaviour is the term of its cost form registered with `hinge=False` as an 
 | self-collision | `terms.self_clearance(spheres, pairs=, margin=, hinge=False, closest=k)` |
 | singular poses | `terms.manipulability(model, frame=, threshold=, hinge=False)` |
 
-`closest=k` keeps the `k` nearest spheres or pairs as rows: few rows, and the same number at every tick, as the
-warm start needs. Below, a table 30 cm up and a sphere on the circle stand in the hand's way:
+`closest=k` keeps the `k` spheres or pairs with the least room as rows: few rows, and the same number at every
+tick, as the warm start needs. A sphere or pair outside them is not held, so choose `k` above the number that can
+come inside the margin within one tick: on the Panda at 6.3 mrad per tick 8 hold every row within 1e-4, while 2
+leave up to 6.1e-3 and 1 up to 1.1e-2; at 25 mrad per tick 8 self-collision pairs left 5.1e-3 on 3 of 256 tasks,
+where 16 held 4.9e-5.
+
+A robot whose rest pose has pairs closer than the margin, such as the G1 standing (60 of its pairs, torso and arms,
+pelvis and hips, are 2.5 to 20 mm apart), gives each of those pairs a margin of its own, a millimetre below its
+distance there: every pair is then a row, and the rest pose holds them all.
+
+```python { .no-run data-reason="the G1 model is not among the guide's robots; the fence shows one line of the recipe" }
+standing = collision.self_distances(spheres, forward_kinematics(model, q_rest), pairs=pairs)    # (P,)
+per_pair = (standing - 0.001).clamp(max=0.02)                                                 # (P,)
+self_rows = terms.self_clearance(spheres, pairs=pairs, margin=per_pair, hinge=False, closest=64)
+```
+
+Below, a table 30 cm up and a sphere on the circle stand in the hand's way:
 
 ```python
 spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / "panda.json", model)
@@ -110,8 +127,8 @@ print("limits, table, obstacle, self, singular:", [f"{float(v):.0e}" for v in wo
 print(f"the hand stayed up to {1e3 * away:.0f} mm from targets inside the table or the sphere")
 ```
 ```output
-limits, table, obstacle, self, singular: ['0e+00', '1e-05', '3e-06', '0e+00', '0e+00']
-the hand stayed up to 148 mm from targets inside the table or the sphere
+limits, table, obstacle, self, singular: ['0e+00', '0e+00', '8e-07', '0e+00', '0e+00']
+the hand stayed up to 151 mm from targets inside the table or the sphere
 ```
 
 ## How far the rows hold
@@ -140,7 +157,8 @@ behaviour at all 0.2 to 3. Without `step`, a far target gives a long step and th
 The problem holds its functions by reference, so the obstacle's distance function can read a tensor that the
 loop moves in place: no new problem, and a compiled tick compiles nothing new. The rows see the obstacle where it
 is when the tick starts. One that closes in by `v` per tick therefore ends a tick up to `v / gain` inside the
-margin; pad its radius by that much. Here a sphere sweeps through the hand at 1 mm per tick while the hand holds
+margin; pad its radius by that much (measured for `gain` up to 0.5; at `gain=1` the lag is a few percent
+longer). Here a sphere sweeps through the hand at 1 mm per tick while the hand holds
 its pose:
 
 ```python
@@ -156,13 +174,13 @@ for pad in (0.0, 0.002):
     print(f"radius padded {1e3 * pad:.0f} mm: {1e3 * inside:.2f} mm inside the margin; the hand gave way {1e3 * moved:.0f} mm")
 ```
 ```output
-radius padded 0 mm: 2.00 mm inside the margin; the hand gave way 125 mm
+radius padded 0 mm: 1.80 mm inside the margin; the hand gave way 126 mm
 radius padded 2 mm: 0.00 mm inside the margin; the hand gave way 128 mm
 ```
 
-Move the tensor in place (`copy_`, as here): the problem keeps its function, and a compiled tick keeps its graph
-(measured: no graph after the first ones over 600 ticks with a new target each on CPU, and over 420 ticks of CUDA
-graphs).
+Move the tensor in place (`copy_`, as here) or rebind the name the function reads: the problem keeps its
+function, and a compiled tick keeps its graph (measured: no graph after the first ones over 600 ticks with a new
+target each on CPU, and over 420 ticks of CUDA graphs).
 
 ## A twist target
 
@@ -199,7 +217,8 @@ graphs on a GPU.
 | `warm` | `None` | the solution of the last call: its program starts from there |
 | `gain` | `0.5` | share of a row's distance to its bound (and of the box's) one call may use, and of a violation it repairs; 0.2 tracks the same within the measurement |
 | `damping` | `1e-3` | added to the diagonal of the Gauss-Newton matrix: keeps a step finite where the targets' Jacobian loses rank; 1e-2 lags the targets by 0.3 mm (median), 1e-4 by 0.02 mm |
-| `step` | `None` | bound on every entry of the step, a number or `(nv,)`: velocity limits times the tick period |
+| `step` | required | bound on every entry of the step, a positive number or `(nv,)`: velocity limits times the tick period, at most what the table above allows |
+| `iterations` | `20` | `solve_qp` iterations per call; 100 where self-collision rows press at once (the G1) |
 
 `track` takes a step every call, without the acceptance test of `SequentialQP`, and the program's step need not be
 its exact solution (`solution.exact` unset). Two things keep such a step on the rows. The program holds each row
