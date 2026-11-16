@@ -542,7 +542,7 @@ def _program(
         infinite = first.new_full((first.shape[0], problem.tangent_dim), torch.inf)
         bounds = (-infinite, infinite)
     if bounds is not None:
-        low, high = box * bounds[0], box * bounds[1]
+        low, high = bounds if box == 1.0 else (box * bounds[0], box * bounds[1])
         if step is not None:
             limit = torch.as_tensor(step, dtype=low.dtype, device=low.device)
             # both sides inside ±step, so a box that ``step`` cannot reach still has lower <= upper

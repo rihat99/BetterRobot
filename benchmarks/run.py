@@ -14,8 +14,8 @@ Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Pan
 (``solve_ik`` to 64 ``panda_hand`` poses, 5 seeds, fixed generators; it also records ``success_fraction`` and
 ``worst_position_error_m``), ``ik_constrained/panda/B64`` (20 steps of ``SequentialQP`` to the same poses with an
 obstacle sphere and the arm's own sphere pairs as clearance rows; it also records ``success_fraction`` and
-``worst_violation_m``, over every pair), ``track/panda/B64`` (20 calls of ``optim.track`` with the same rows, each warm
-started from the last), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
+``worst_violation_m``, over every pair), ``track/panda/B64`` (20 calls of ``optim.track`` with the same rows and
+steps of at most 5 mrad, each warm started from the last), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
 (one cold ``optim.solve_qp`` of seeded random programs with that many variables and rows). Each has four counters, deterministic for
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
 ``torch.compile(fn, backend="eager")``, first called at the row's batch, is called at each batch of ``SWEEP``),
@@ -204,7 +204,7 @@ def ik_case(device: torch.device) -> Case:
 def constrained_ik_case(device: torch.device, *, track: bool = False) -> Case:
     """``ik_constrained/panda/B64``: ``SequentialQP`` for 20 steps to the poses of ``ik/panda/B64``, clear by 2 cm of
     a sphere beside the arm and of itself (the 8 closest sphere pairs as rows); with ``track``, ``track/panda/B64``:
-    20 warm calls of ``optim.track`` instead."""
+    20 warm calls of ``optim.track`` with steps of at most 5 mrad instead."""
     model = load_model("panda")
     generator = torch.Generator().manual_seed(0)
     q_target = torch.stack([model.random_configuration(generator=generator) for _ in range(64)])
@@ -232,7 +232,7 @@ def constrained_ik_case(device: torch.device, *, track: bool = False) -> Case:
             return br.optim.run(problem, [br.optim.Phase(br.optim.SequentialQP(), 20, stop_every=0)]).x["q"]
         x, warm = {"q": q0}, None
         for _ in range(20):
-            x, warm = br.optim.track(problem, x, warm=warm)
+            x, warm = br.optim.track(problem, x, warm=warm, step=0.005)
         return x["q"]
 
     def accuracy(q: torch.Tensor) -> dict[str, float]:

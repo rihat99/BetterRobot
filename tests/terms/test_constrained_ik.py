@@ -5,6 +5,7 @@ import math
 
 import pytest
 import torch
+from torch._dynamo.utils import counters
 
 import better_robot as br
 from better_robot import collision, optim, terms
@@ -208,3 +209,51 @@ def test_a_compiled_tick_equals_the_eager_one(tracking, mode: str) -> None:
         torch.testing.assert_close(
             runs[0][name], tensor, rtol=1e-9, atol=1e-9, msg=lambda text, name=name: f"{name}: {text}"
         )
+
+
+@pytest.mark.slow
+def test_an_obstacle_moved_in_place_needs_no_new_problem_and_compiles_once() -> None:
+    """The obstacle's distance function reads a tensor that the loop moves in place before each tick, 1 mm per tick
+    through the hand, which holds its pose. The compiled tick compiles no graph after its first ones and equals the
+    eager tick; the hand gives way, and a tick ends at most ``v / gain`` (2 mm) inside the margin of where the obstacle
+    has moved, or within 1e-4 of it when the loop pads the radius by that much."""
+    panda = br.load(panda_urdf(), dtype=torch.float64)
+    spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "panda.json", panda)
+    start = torch.tensor(READY, dtype=torch.float64).expand(2, -1).contiguous()
+    hand = panda.frame_id(FRAME)
+    goal = forward_kinematics(panda, start).frame_poses[:, hand]
+    obstacle = torch.zeros(4, dtype=torch.float64)
+
+    def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
+        return (centers - obstacle[:3]).norm(dim=-1) - radii - obstacle[3]
+
+    def place(tick: int, pad: float = 0.0) -> None:
+        sweep = torch.tensor([0.0, tick / 1000 - 0.3, 0.0, 0.0], dtype=torch.float64)
+        obstacle.copy_(torch.cat([goal[0, :3], torch.tensor([0.04 + pad], dtype=torch.float64)]) + sweep)
+
+    problem = terms.ik_problem(panda, {FRAME: goal}, q0=start)
+    clearance = terms.sphere_clearance(spheres, to_obstacle, margin=MARGIN, hinge=False, closest=8)
+    problem.inequality("obstacle", clearance, upper=0.0)
+
+    def eager(problem: optim.Problem, x: dict, warm: optim.QPSolution | None) -> tuple:
+        return optim.track(problem, x, warm=warm, step=0.005)
+
+    def run(tick, pad: float = 0.0) -> tuple[torch.Tensor, float, float]:
+        x, warm, deepest, moved = dict(problem.variables), None, 0.0, 0.0
+        for t in range(1, 601):
+            place(t, pad)
+            x, warm = tick(problem, x, warm)
+            if t == 3:  # the eager calls of both keys and the compile are behind
+                counters.clear()
+            place(t + 1)
+            state = forward_kinematics(panda, x["q"])
+            deepest = max(deepest, float((MARGIN - to_obstacle(spheres.centers(state), spheres.radii)).max()))
+            moved = max(moved, float((state.frame_poses[:, hand, :3] - goal[:, :3]).norm(dim=-1).max()))
+        return x["q"], deepest, moved
+
+    found, _, _ = run(br.kinematics.compiled(eager))
+    assert counters["stats"]["unique_graphs"] == 0
+    expected, deepest, moved = run(eager)
+    torch.testing.assert_close(found, expected, rtol=1e-9, atol=1e-9)
+    assert moved > 0.05 and 1e-3 < deepest <= 2e-3 + 1e-4, (moved, deepest)
+    assert run(eager, pad=0.002)[1] <= 1e-4
