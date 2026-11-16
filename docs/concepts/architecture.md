@@ -88,7 +88,7 @@ Two coordinates, but four joints: `universe` and a fixed `root_joint` that attac
    This is the only check on the whole path.
 2. The leading batch axes of `q` and of the model's values broadcast together (here `(4,)`).
 3. `full_configuration` fills mimic joints, giving the full configuration `q_full`.
-4. `placement_matrices` turns the joint placements $M_j$ and frame placements $F_f$ into 4×4 matrices.
+4. `joint_map` turns the joint placements $M_j$ into 4×4 matrices, memoised on the model.
 5. The raw pass `world_transforms` (in `kinematics._fk`, no checks) walks the tree in topological order:
 
     $$T_{0j} = T_{0\lambda(j)}\, M_j\, X_j(q_j)$$
