@@ -178,6 +178,7 @@ BUILDERS: dict[str, Callable[[], object]] = {
         bone_poses=POSES[None, :1],
     ),
     "better_robot.viewer.SpheresLayer": lambda: viewer.SpheresLayer(name="spheres", centers=POINTS, radii=np.ones(300)),
+    "better_robot.viewer.Sidebar": lambda: viewer.Viewer(server=FakeServer()).sidebar,
     "better_robot.viewer.Theme": viewer.Theme,
     "better_robot.viewer.Timeline": lambda: viewer.Timeline(10),
     "better_robot.viewer.Viewer": lambda: viewer.Viewer(server=FakeServer()),

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, final, override
+from typing import Any, TYPE_CHECKING, final, override
 
 import numpy as np
 
 from ...exceptions import ArgumentError, ShapeError
 from ..layer import Layer
+
+if TYPE_CHECKING:
+    from ..sidebar import Sidebar
 
 
 @final
@@ -51,8 +54,10 @@ class ImagePanel(Layer):
         pass
 
     @override
-    def build_gui(self, gui: Any) -> None:
-        self._image = self._track(gui.add_image(self.image_at(0), label=self.name, format=self.format))
+    def build_gui(self, sidebar: Sidebar) -> None:
+        with sidebar.section("Images"):
+            image = sidebar.gui.add_image(self.image_at(0), label=self.name, format=self.format)
+        self._image = self._track(image)
 
     @override
     def set_step(self, step: int) -> None:

@@ -9,7 +9,7 @@ import numpy as np
 
 from ...exceptions import ArgumentError
 from .._lie import from_z, to_wxyz
-from ..theme import RGB, rgb_uint8
+from ..theme import LIGHT, RGB, rgb_uint8
 from ..layer import Layer
 
 if TYPE_CHECKING:
@@ -25,9 +25,8 @@ class GroundLayer(Layer):
     ``normal`` ``(3,)`` tilts the grid to the plane with that normal (a fitted floor), replacing ``plane``;
     ``origin`` ``(3,)`` is the point the grid is centred on before ``height`` moves it along the normal.
     ``fill`` is the opacity of a solid ``fill_color`` plane under the lines; 0 (the default) draws lines only.
+    ``cell_color`` and ``section_color`` default to the theme's ``grid`` and follow ``Viewer.set_theme``.
     """
-
-    listed = False
 
     def __init__(
         self,
@@ -41,8 +40,8 @@ class GroundLayer(Layer):
         origin: Sequence[float] | None = None,
         normal: Sequence[float] | None = None,
         fill: float = 0.0,
-        cell_color: RGB = (0.88, 0.88, 0.89),
-        section_color: RGB = (0.74, 0.75, 0.77),
+        cell_color: RGB | None = None,
+        section_color: RGB | None = None,
         fill_color: RGB = (0.80, 0.80, 0.80),
     ) -> None:
         super().__init__(name, 1)
@@ -61,11 +60,17 @@ class GroundLayer(Layer):
         self.cell_color = cell_color
         self.section_color = section_color
         self.fill_color = fill_color
+        self._colors = (cell_color or LIGHT.grid[0], section_color or LIGHT.grid[1])  # (cell, section) drawn
+        self._grid: Any = None
 
     @override
     def apply_theme(self, theme: Theme) -> None:
         if self.plane is None:
             self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
+        self._colors = (self.cell_color or theme.grid[0], self.section_color or theme.grid[1])
+        if self._grid is not None:
+            self._grid.cell_color = _uint8(self._colors[0])
+            self._grid.section_color = _uint8(self._colors[1])
 
     @override
     def build(self, scene: Any, root: str) -> None:
@@ -79,7 +84,7 @@ class GroundLayer(Layer):
             axis = axis / np.linalg.norm(axis)
             wxyz = to_wxyz(from_z(axis))
         origin = np.zeros(3) if self.origin is None else np.asarray(self.origin, dtype=np.float64).reshape(3)
-        self._track(
+        self._grid = self._track(
             scene.add_grid(
                 f"{root}/grid",
                 width=self.size,
@@ -87,9 +92,9 @@ class GroundLayer(Layer):
                 plane=plane,
                 cell_size=self.cell_size,
                 section_size=self.section_size,
-                cell_color=tuple(int(c) for c in rgb_uint8(self.cell_color)),
-                section_color=tuple(int(c) for c in rgb_uint8(self.section_color)),
-                plane_color=tuple(int(c) for c in rgb_uint8(self.fill_color)),
+                cell_color=_uint8(self._colors[0]),
+                section_color=_uint8(self._colors[1]),
+                plane_color=_uint8(self.fill_color),
                 plane_opacity=self.fill,
                 wxyz=tuple(float(c) for c in wxyz),
                 position=tuple(float(c) for c in origin + self.height * axis),
@@ -99,3 +104,8 @@ class GroundLayer(Layer):
     @override
     def set_step(self, step: int) -> None:
         pass
+
+
+def _uint8(color: RGB) -> tuple[int, int, int]:
+    red, green, blue = (int(c) for c in rgb_uint8(color))
+    return red, green, blue

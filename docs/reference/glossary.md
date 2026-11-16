@@ -253,7 +253,16 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 
 | Term | Meaning |
 |---|---|
-| **`Viewer`** | The browser viewer on viser. `viewer.add(layers, group=...)` adds an iterable of layers, `viewer.show(step)` draws one step, `Viewer.record(path, *, steps, size, fps, gpu, camera)` screenshots the live scene through headless Chromium into a clip. |
+| **`Viewer`** | The browser viewer on viser. `viewer.add(layer, tags=...)` adds a layer or an iterable of layers, `viewer.show(step)` draws one step, `viewer.serve()` serves the page until interrupted, `Viewer.record(path, *, steps, size, fps, gpu, camera)` screenshots the live scene through headless Chromium into a clip. |
+| **tag** | A name a layer carries (`Layer.tags`, `Viewer.add(tags=)`); the first is its scene parent. `Viewer.remove`, `set_visible`, `set_offset` and `redraw` address every layer of a tag. |
+| **sidebar** | The viewer's panel of controls in ordered sections (`Sidebar`, `Layer.build_gui(sidebar)`). |
+| **bounds** | The world box `(lo, hi)` of what a layer draws at a step (`Layer.bounds`), which `Viewer.aim` frames. |
+| **redraw** | Push a layer's current step again after its arrays changed (`Layer.redraw`, `Viewer.redraw`). |
+| **serve** | Keep the viewer's page served, playing the timeline, until interrupted (`Viewer.serve`). |
+| **hue** | A robot's one colour (`Theme.hues`, `Theme.hue(index)`); its parts take shades of it. |
+| **shade** | A hue mixed towards black or white for one role of a part, such as a joint or a bone (`Theme.shade`). |
+| **backdrop** | The page behind the scene: a vertical gradient (`Theme.backdrop`). |
+| **accent** | The colour of the viewer's controls and tools (`Theme.accent`). |
 | **`Layer`** | One drawable thing (a robot, frames, points, a skeleton) holding a whole clip. The viewer calls `layer.set_step(k)`; `layer.nsteps` is its clip length. `optim.solve_layer` uses the word as deep learning does: a solve inside an autograd graph. |
 | **timeline** | The steps the viewer plays (`Timeline`). It is as long as the longest layer; a shorter layer holds its last step. |
 | **skinning, skin, skinned mesh** | Linear blend skinning: each vertex of a skinned mesh moves with a weighted blend of bone poses (`SkinnedMeshLayer.skin(step)`). |
@@ -284,7 +293,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **`fps`** | Steps per second of playback ("frames per second"; the one place where *frame* means an image). |
 | **`g`, `H`** | The gradient and the Gauss-Newton matrix of the normal equations. |
 | **GPU** | Graphics processing unit (`Viewer.record(gpu=)`). |
-| **GUI** | Graphical user interface: the viewer's sidebar controls (`Layer.build_gui`). |
+| **GUI** | Graphical user interface: the viewer's sidebar controls (`Layer.build_gui`, `Sidebar.gui`). |
 | **`init`** | Initialize: `Solver.init(problem, x)` returns the first state. |
 | **I/O** | Input and output: reading robot descriptions (`better_robot.io`). |
 | **`min`** | Minimum (`ArrowsLayer(min_length=)`). |
@@ -307,19 +316,19 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 
 These words keep their ordinary English meaning in public names.
 
-actual, add, aim, angle, apply, argument, arrow, aspect, at, atomic, attached, axes, axis, azimuth, band, block, bone,
-border, box, brand, build, by, cached, callback, camera, cell, center, check, clear, client, color, column, component,
-consistently, constrained, contact, control, corner, create, cylinder, dark, decrease, default, delta, dense, density,
-dependency, diagnostics, diagonal, dispose, done, element, elevation, ellipsoid, end, entry, equality, error, estimate,
-evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize, flat, floor,
-folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, group, growth, half, head, height,
-history, host, human, identity, ignore, image, imported, inequality, install, inverse, iteration, keep, key, label,
-layout, length, light, limit, line, linearize, listed, load, loop, lower, masked, mass, match, matrix, mesh, mismatch,
-mode, multiplier, name, new, no, norm, normalize, object, of, offset, old, on, opacity, optional, order, orient, other,
-outer, output, over, package, page, pair, panel, parse, path, pause, penalty, permutation, pitch, plane, play,
-playing, plot, point, pointer, port, position, predicted, project, public, radii, radius, ramp, random, read, reason,
-rebuild, record, remove, replace, resize, restrict, result, rigid, robot, run, save, scalar, scale, scene,
-scheduler, search, section, segment, serializer, series, server, set, shading, shaft, show, size, skeleton, skip, sleep,
-slice, solution, solve, solver, source, spelling, sphere, squared, start, stop, target, testing, theme, thickness, time, timeout,
-to, toggle, tolerance, torque, unknown, up, upper, valid, validate, value, vector, vertices, visible, voxel, weight,
-width, with, word
+actual, add, aim, angle, apply, argument, arrow, aspect, at, atomic, attached, axes, axis, azimuth, band, bone, border,
+box, build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color,
+column, component, consistently, constrained, corner, create, cylinder, dark, decrease, default, delta, dense, density,
+dependency, diagnostics, diagonal, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,
+estimate, evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize,
+flat, floor, folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, growth, half, head,
+height, high, history, host, identity, ignore, image, imported, index, inequality, install, inverse, iteration, keep,
+key, label, layout, length, light, limit, line, linearize, load, lock, loop, low, lower, masked, mass, match, matrix,
+mesh, mismatch, mode, multiplier, name, new, no, norm, normalize, object, of, offset, old, on, opacity, option,
+optional, order, orient, other, outer, output, over, package, page, pair, panel, parse, path, pause, penalty,
+permutation, pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii,
+radius, ramp, random, read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run, save,
+scalar, scale, scene, scheduler, search, section, segment, serializer, series, server, set, shading, shadow, shaft,
+show, size, skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere, squared, start,
+stop, target, testing, text, theme, thickness, time, timeout, to, toggle, tolerance, torque, unknown, up, upper, valid,
+validate, value, vector, vertices, visible, voxel, weight, width, with, word

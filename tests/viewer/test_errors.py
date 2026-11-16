@@ -38,9 +38,9 @@ _TRIANGLE = np.array([[0, 1, 2]])
 
 
 def test_add_and_show_refuse_what_is_not_a_layer_or_a_step() -> None:
-    viewer = Viewer(server=FakeServer())
+    viewer = Viewer(server=FakeServer(), ground=False)
     for bad in ("abc", 5, None):
-        with pytest.raises(ArgumentError, match=r"add takes an iterable of layers; pass \[layer, \.\.\.\]"):
+        with pytest.raises(ArgumentError, match=r"add takes a layer or an iterable of layers, got"):
             viewer.add(bad)  # type: ignore[arg-type]
     with pytest.raises(ArgumentError, match="add takes Layer objects, got int at index 1"):
         viewer.add([PointsLayer("p", np.zeros((2, 3))), 5])  # type: ignore[list-item]

@@ -111,6 +111,9 @@ class FakeScene:
         self.log: list[tuple[str, str]] = []
         self.pointers: list[tuple[str, Callable[[Any], None]]] = []
         self.up_direction: Any = None
+        self.background: Any = None  # the last ``set_background_image`` image
+        self.default_lights: tuple[bool, bool] | None = None  # (enabled, cast_shadow) of the last configuration
+        self.environment: dict[str, Any] | None = None  # the last ``configure_environment_map`` arguments
 
     def _node(self, kind: str, arguments: dict[str, Any]) -> FakeHandle:
         """A scene node from a method's ``locals()``: position, orientation and visibility readable as on viser."""
@@ -142,6 +145,22 @@ class FakeScene:
         """viser's batch of axes, one per pose: a ``BatchedAxesHandle``."""
         return self._node("BatchedAxesHandle", locals())
 
+    def add_arrows(
+        self,
+        name: str,
+        points: Any,
+        colors: Any,
+        *,
+        shaft_radius: float = 0.02,
+        head_radius: float = 0.05,
+        head_length: float = 0.1,
+        wxyz: Any = _IDENTITY,
+        position: Any = _ORIGIN,
+        visible: bool = True,
+    ) -> FakeHandle:
+        """viser's solid arrows ``points: (N, 2, 3)`` (tail, tip): an ``ArrowsHandle``."""
+        return self._node("ArrowsHandle", locals())
+
     def add_batched_meshes_simple(
         self,
         name: str,
@@ -152,9 +171,12 @@ class FakeScene:
         *,
         batched_scales: Any = None,
         batched_colors: Any = (90, 200, 255),
+        batched_opacities: Any = None,
         lod: Any = "auto",
         opacity: float | None = None,
+        flat_shading: bool = False,
         cast_shadow: bool = True,
+        receive_shadow: bool = True,
         wxyz: Any = _IDENTITY,
         position: Any = _ORIGIN,
         visible: bool = True,
@@ -189,6 +211,10 @@ class FakeScene:
         cell_size: float = 0.5,
         section_color: Any = (140, 140, 140),
         section_size: float = 1.0,
+        infinite_grid: bool = False,
+        fade_distance: float = 100.0,
+        fade_strength: float = 1.0,
+        shadow_opacity: float = 0.125,
         plane_color: Any = (255, 255, 255),
         plane_opacity: float = 0.0,
         wxyz: Any = _IDENTITY,
@@ -197,6 +223,62 @@ class FakeScene:
     ) -> FakeHandle:
         """viser's ground grid: a ``GridHandle``."""
         return self._node("GridHandle", locals())
+
+    def add_image(
+        self,
+        name: str,
+        image: Any,
+        render_width: float,
+        render_height: float,
+        *,
+        format: str = "auto",  # noqa: A002 - viser's parameter name
+        wxyz: Any = _IDENTITY,
+        position: Any = _ORIGIN,
+        visible: bool = True,
+    ) -> FakeHandle:
+        """viser's image placed in the scene, ``render_width`` by ``render_height`` metres: an ``ImageHandle``."""
+        return self._node("ImageHandle", locals())
+
+    def add_light_ambient(
+        self,
+        name: str,
+        *,
+        color: Any = (255, 255, 255),
+        intensity: float = 1.0,
+        wxyz: Any = _IDENTITY,
+        position: Any = _ORIGIN,
+        visible: bool = True,
+    ) -> FakeHandle:
+        """viser's ambient light: an ``AmbientLightHandle``."""
+        return self._node("AmbientLightHandle", locals())
+
+    def add_light_directional(
+        self,
+        name: str,
+        *,
+        color: Any = (255, 255, 255),
+        intensity: float = 1.0,
+        cast_shadow: bool = False,
+        wxyz: Any = _IDENTITY,
+        position: Any = _ORIGIN,
+        visible: bool = True,
+    ) -> FakeHandle:
+        """viser's directional light, shining from ``position`` towards the origin: a ``DirectionalLightHandle``."""
+        return self._node("DirectionalLightHandle", locals())
+
+    def add_light_hemisphere(
+        self,
+        name: str,
+        *,
+        sky_color: Any = (255, 255, 255),
+        ground_color: Any = (255, 255, 255),
+        intensity: float = 1.0,
+        wxyz: Any = _IDENTITY,
+        position: Any = _ORIGIN,
+        visible: bool = True,
+    ) -> FakeHandle:
+        """viser's hemisphere light: a ``HemisphereLightHandle``."""
+        return self._node("HemisphereLightHandle", locals())
 
     def add_line_segments(
         self,
@@ -290,7 +372,22 @@ class FakeScene:
         return self._node("TransformControlsHandle", locals())
 
     def configure_default_lights(self, enabled: bool = True, cast_shadow: bool = True) -> None:  # noqa: FBT001, FBT002 - viser's signature
-        """Accepted; the stand-in draws nothing."""
+        """Keep ``(enabled, cast_shadow)`` in ``default_lights``."""
+        self.default_lights = (enabled, cast_shadow)
+
+    def configure_environment_map(
+        self,
+        hdri: str | None = "warehouse",
+        *,
+        background: bool = False,
+        environment_intensity: float = 1.0,
+    ) -> None:
+        """Keep the arguments in ``environment``."""
+        self.environment = {"hdri": hdri, "background": background, "environment_intensity": environment_intensity}
+
+    def set_background_image(self, image: Any, format: str = "auto") -> None:  # noqa: A002 - viser's parameter name
+        """Keep ``image`` in ``background``."""
+        self.background = image
 
     def set_up_direction(self, direction: Any) -> None:
         """Keep ``direction`` in ``up_direction``."""
@@ -349,13 +446,21 @@ class FakeGui:
         self.controls.append(handle)
         return handle
 
-    def add_folder(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
+    def add_folder(
+        self, label: str, *, order: float | None = None, expand_by_default: bool = True, visible: bool = True
+    ) -> FakeHandle:
         """viser's folder, a context manager for the controls inside it: a ``GuiFolderHandle``."""
         return self._control("GuiFolderHandle", label, locals())
 
     def add_button(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
         """viser's button: a ``GuiButtonHandle``."""
         return self._control("GuiButtonHandle", label, locals())
+
+    def add_button_group(
+        self, label: str, options: Sequence[str], *, visible: bool = True, order: float | None = None
+    ) -> FakeHandle:
+        """viser's row of buttons: a ``GuiButtonGroupHandle`` whose value is the last option clicked."""
+        return self._control("GuiButtonGroupHandle", label, locals(), value=options[0])
 
     def add_checkbox(
         self,
@@ -420,7 +525,11 @@ class FakeGui:
     ) -> FakeHandle:
         """viser's dropdown: a ``GuiDropdownHandle`` whose value starts at ``initial_value``, else the first option."""
         return self._control(
-            "GuiDropdownHandle", label, locals(), value=options[0] if initial_value is None else initial_value
+            "GuiDropdownHandle",
+            label,
+            locals(),
+            value=options[0] if initial_value is None else initial_value,
+            options=tuple(options),
         )
 
     def add_text(
@@ -458,6 +567,32 @@ class FakeGui:
 
 
 @final
+class FakeClient:
+    """viser's ``ClientHandle`` of one connected browser: its ``camera`` and the ``notifications`` shown to it."""
+
+    def __init__(self) -> None:
+        self.camera = FakeHandle(None, "CameraHandle", "camera", {})
+        self.notifications: list[dict[str, Any]] = []
+
+    def __repr__(self) -> str:
+        """One line: how many notifications it holds."""
+        return f"FakeClient(notifications={len(self.notifications)})"
+
+    def add_notification(
+        self,
+        title: str,
+        body: str,
+        *,
+        with_close_button: bool = True,
+        auto_close_seconds: float | None = None,
+        color: Any = None,
+    ) -> FakeHandle:
+        """Keep the notification in ``notifications``; returns a ``NotificationHandle``."""
+        self.notifications.append({"title": title, "body": body, "color": color})
+        return FakeHandle(None, "NotificationHandle", title, {"body": body})
+
+
+@final
 class _FakeSerializer:
     """viser's scene serializer: ``insert_sleep`` per recorded frame, ``serialize`` the bytes of a ``.viser`` file."""
 
@@ -482,7 +617,7 @@ class FakeServer:
         self.atomic_blocks = 0
         self.port = port
         self.initial_camera = FakeHandle(None, "InitialCameraConfig", "initial_camera", {})
-        self.clients: dict[int, Any] = {}  # connected browsers, each with a ``camera`` handle
+        self.clients: dict[int, Any] = {}  # connected browsers by id, such as ``FakeClient``s
         self.stopped = False
 
     def __repr__(self) -> str:

@@ -42,7 +42,7 @@ from better_robot import Viewer
 
 view = HumanView(identity.forward(identity.q_neutral))   # viewer layers with T = 1, updated in place
 viewer = Viewer()
-viewer.add(view, group="human")
+viewer.add(view, tags="human")
 viewer.show()
 view.update(identity.forward(q[:1]))                     # rewrite the layers for a new pose
 viewer.show()

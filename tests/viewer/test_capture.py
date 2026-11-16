@@ -5,14 +5,13 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from PIL import Image
 
 from better_robot.viewer import capture
-from better_robot.viewer.layers import GroundLayer, PointsLayer
+from better_robot.viewer.layers import PointsLayer
 from better_robot.viewer.viewer import Viewer
 
 from better_robot.exceptions import ArgumentError, OptionalDependencyError
@@ -49,7 +48,7 @@ def test_record_frames_the_offset_group_after_the_first_render_and_writes_pngs(
     viewer = Viewer(server=FakeServer())
     points = np.zeros((3, 2, 3), dtype=np.float32)
     points[:, 1, 2] = 1.0
-    viewer.add([PointsLayer("pts", points)], group="g", offset=(10.0, 0.0, 0.0))
+    viewer.add([PointsLayer("pts", points)], tags="g", offset=(10.0, 0.0, 0.0))
     viewer.record(tmp_path / "clip.png", size=(8, 6))
     kinds = [call[0] for call in FakeClient.calls]
     assert kinds == ["render", "camera", "render", "render", "render", "exit"]
@@ -83,49 +82,6 @@ def test_record_screenshots_a_real_scene(tmp_path: Path) -> None:
     finally:
         viewer.server.stop()
     assert np.asarray(Image.open(tmp_path / "shot_000.png")).shape == (48, 64, 3)
-
-
-def test_points_apply_group_offset_and_skip_hidden_or_pointless_layers() -> None:
-    """``Viewer._points`` (the camera-fit input) is ``Layer.world_points`` shifted by the group's ``offset``."""
-    viewer = Viewer(server=FakeServer())
-    viewer.add([GroundLayer()])
-    viewer.add([PointsLayer("p", np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]))], group="a", offset=(0.0, 2.0, 0.0))
-    hidden = PointsLayer("h", np.full((1, 3), 50.0))
-    viewer.add([hidden], group="b")
-    viewer.set_visible(hidden, False)
-    np.testing.assert_allclose(viewer._points([0]), [[0.0, 2.0, 0.0], [1.0, 2.0, 0.0]])
-
-
-def test_aim_points_new_and_connected_browsers_at_the_visible_layers() -> None:
-    server = FakeServer()
-    client = SimpleNamespace(camera=FakeServer().initial_camera)  # a connected browser's camera handle
-    server.clients[0] = client
-    viewer = Viewer(server=server)
-    points = np.zeros((3, 2, 3), dtype=np.float32)
-    points[:, 1, 2] = 1.0
-    points[2, :, 0] = 5.0  # the last step moves away
-    viewer.add([PointsLayer("pts", points)], group="g", offset=(0.0, 2.0, 0.0))
-    up = np.asarray(viewer.theme.up_vector)
-    position, look_at = viewer.aim()  # the current step only
-    for camera in (server.initial_camera, client.camera):
-        assert camera.fov == capture.FOV
-        np.testing.assert_allclose(camera.position, position)
-        np.testing.assert_allclose(camera.look_at, look_at)
-        assert camera.writes.index("position") < camera.writes.index("look_at")
-    assert 0.62 < max(_frame_fill(viewer._points([0]), position, look_at, up)) <= 0.701
-    position, look_at = viewer.aim(steps=range(3))  # the whole clip, the last step included
-    assert 0.62 < max(_frame_fill(viewer._points(range(3)), position, look_at, up)) <= 0.701
-
-
-def test_aim_skips_steps_with_nothing_visible() -> None:
-    viewer = Viewer(server=FakeServer())
-    points = np.zeros((3, 2, 3))
-    points[:, :, 0] = 5.0
-    points[:, 1, 2] = 1.0
-    viewer.add([PointsLayer("pts", points)], valid=np.array([True, False, True]))
-    np.testing.assert_allclose(viewer.aim(steps=range(3)), viewer.aim(steps=[0, 2]))  # step 1 does not pull to 0
-    empty = capture.fit_camera(np.array([[1.0, 1.0, 1.0], [-1.0, -1.0, 0.0]]), up=viewer.theme.up_vector)
-    np.testing.assert_allclose(viewer.aim(steps=[1]), empty)  # nothing visible at all: the default box
 
 
 def _frame_fill(points: np.ndarray, position: np.ndarray, look_at: np.ndarray, up: np.ndarray) -> tuple[float, float]:

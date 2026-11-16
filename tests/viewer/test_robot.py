@@ -82,7 +82,7 @@ def test_panda_layers_follow_forward_kinematics() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     for layer in layers.values():
-        viewer.add([layer], group="panda")
+        viewer.add([layer], tags="panda")
     viewer.show(4)
     meshes = layers["robot collision"].meshes
     hand_mesh = next(i for i, spec in enumerate(meshes) if spec.body == model.body_id("panda_hand"))
@@ -99,7 +99,7 @@ def test_in_place_pose_edits_reach_the_scene_on_show() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     viewer.add([skeleton])
-    node = "/scene/robot skeleton/joints_cylinder"  # Panda's revolute joints
+    node = "/robot skeleton/robot skeleton/joints_cylinder"  # Panda's revolute joints
     before = server.scene.nodes[node].batched_positions.copy()
     skeleton.joints[:] = poses_1[:, 1:, :3]
     skeleton.rotations[:] = poses_1[:, 1:, 3:]
@@ -126,9 +126,9 @@ def test_skeleton_markers_follow_joint_kind_and_axis() -> None:
     )
     server = FakeServer()
     Viewer(server=server).add([layer])
-    assert {"/scene/s/joints_axes", "/scene/s/joints_cylinder"} <= set(server.scene.nodes)
-    assert "/scene/s/joints" not in server.scene.nodes
-    wxyz = server.scene.nodes["/scene/s/joints_cylinder"].batched_wxyzs[0]
+    assert {"/s/s/joints_axes", "/s/s/joints_cylinder"} <= set(server.scene.nodes)
+    assert "/s/s/joints" not in server.scene.nodes
+    wxyz = server.scene.nodes["/s/s/joints_cylinder"].batched_wxyzs[0]
     np.testing.assert_allclose(np.abs(wxyz), [np.sqrt(0.5), 0.0, np.sqrt(0.5), 0.0], atol=1e-6)  # +z -> +x
     np.testing.assert_allclose(layer.world_points(0), layer.joints[0])
 
@@ -178,7 +178,7 @@ def test_skeleton_markers_lie_on_the_forward_kinematics_joint_axes(robot: str) -
     for marker in ("cylinder", "box"):
         if marker not in layer.groups:
             continue
-        w, x, y, z = np.asarray(server.scene.nodes[f"/scene/skeleton/joints_{marker}"].batched_wxyzs, np.float64).T
+        w, x, y, z = np.asarray(server.scene.nodes[f"/skeleton/skeleton/joints_{marker}"].batched_wxyzs, np.float64).T
         drawn = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
         for entry, joint in enumerate(layer.groups[marker] + 1):
             step = torch.zeros(model.nv, dtype=torch.float64)
@@ -205,10 +205,10 @@ def test_robot_skeleton_hides_the_bones_given_a_zero_radius() -> None:
     server = FakeServer()
     Viewer(server=server).add([layer])
     child = layer.parent_ids >= 0
-    scales = server.scene.nodes["/scene/skeleton/bones"].props["batched_scales"].reshape(child.sum(), -1, 3)
+    scales = server.scene.nodes["/skeleton/skeleton/bones"].props["batched_scales"].reshape(child.sum(), -1, 3)
     drawn = scales[..., 2] > 1e-6  # the legs a bone uses
     np.testing.assert_allclose(scales[..., 0], np.where(drawn, np.where(massless, 0.0, 0.01)[child, None], 0.0))
-    corners = server.scene.nodes["/scene/skeleton/bone_corners"].props["batched_scales"].reshape(child.sum(), -1)
+    corners = server.scene.nodes["/skeleton/skeleton/bone_corners"].props["batched_scales"].reshape(child.sum(), -1)
     assert not corners[massless[child]].any()  # a hidden bone hides its corners too
     assert robot_skeleton(model, poses).bone_radius == pytest.approx(0.008)
 
@@ -219,7 +219,7 @@ def _g1() -> br.Model:
 
 def _drawn_markers(layer, server: FakeServer, marker: str) -> tuple[np.ndarray, np.ndarray]:  # noqa: ANN001
     """Centres ``(N, 3)`` and unit axes ``(N, 3)`` of the ``marker`` instances the skeleton sent."""
-    node = server.scene.nodes[f"/scene/{layer.name}/joints_{marker}"]
+    node = server.scene.nodes[f"/{layer.name}/{layer.name}/joints_{marker}"]
     w, x, y, z = np.asarray(node.batched_wxyzs, np.float64).T
     axes = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
     return np.asarray(node.batched_positions, np.float64), axes
@@ -257,7 +257,7 @@ def test_spread_layout_draws_no_two_g1_cylinders_overlapping() -> None:
     model = _g1()
     radius = 0.025
     poses, layer, server, centres, axes = _drawn_skeleton(model, model.q_neutral, radius)
-    scales = np.asarray(server.scene.nodes["/scene/skeleton/joints_cylinder"].props["batched_scales"], np.float64)
+    scales = np.asarray(server.scene.nodes["/skeleton/skeleton/joints_cylinder"].props["batched_scales"], np.float64)
     rho, half = scales[:, 0], scales[:, 2] / 2  # (N,) each drawn cylinder's radius and half-length
     np.testing.assert_allclose(rho, radius, rtol=1e-6)
     side = np.cross(axes, [[0.0, 0.0, 1.0]])
@@ -289,7 +289,7 @@ def test_spread_layout_draws_no_two_g1_cylinders_overlapping() -> None:
 
     drawn = np.zeros((model.njoints - 1, 3))
     drawn[layer.groups["cylinder"]] = centres
-    scales = np.asarray(server.scene.nodes["/scene/skeleton/bones"].batched_scales)
+    scales = np.asarray(server.scene.nodes["/skeleton/skeleton/bones"].batched_scales)
     assert ((scales[:, 2] > 1e-6) | (scales[:, 0] == 0.0)).all()  # a zero-length leg is hidden
     root, waist = (model.joint_names.index(name) - 1 for name in ("root_joint", "waist_yaw_joint"))
     assert np.linalg.norm(drawn[waist] - poses[0, root + 1, :3]) > radius  # the waist yaw leaves the root
@@ -311,7 +311,7 @@ def test_skeleton_bones_run_as_axis_aligned_legs_in_the_parent_joint_frame(robot
     parent = layer.parent_ids[child]
     rotations = poses[0, 1:, 3:].astype(np.float64)
     centres = poses[0, 1:, :3] + _lie.act(rotations, layer.offsets.astype(np.float64))
-    node = server.scene.nodes["/scene/skeleton/bones"]
+    node = server.scene.nodes["/skeleton/skeleton/bones"]
     w, x, y, z = np.asarray(node.batched_wxyzs, np.float64).T
     direction = np.stack([2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)], axis=-1)  # R @ +z
     direction = direction.reshape(len(child), -1, 3)  # (B, L, 3) world, the cylinder's axis either way round
@@ -418,13 +418,19 @@ def test_robot_skeleton_shows_the_joint_load_in_colour_and_thickness_at_a_fixed_
     server = FakeServer()
     viewer = Viewer(server=server)
     viewer.add([layer])
-    counts = {path: len(node.batched_positions) for path, node in server.scene.nodes.items() if "/skeleton/" in path}
-    assert {"/scene/skeleton/bones", "/scene/skeleton/bone_corners"} <= set(counts)
+    counts = {
+        path: len(node.batched_positions)
+        for path, node in server.scene.nodes.items()
+        if path.startswith("/skeleton/skeleton/")
+    }
+    assert {"/skeleton/skeleton/bones", "/skeleton/skeleton/bone_corners"} <= set(counts)
     viewer.show(1)
     assert counts == {
-        path: len(node.batched_positions) for path, node in server.scene.nodes.items() if "/skeleton/" in path
+        path: len(node.batched_positions)
+        for path, node in server.scene.nodes.items()
+        if path.startswith("/skeleton/skeleton/")
     }
-    cylinders = server.scene.nodes["/scene/skeleton/joints_cylinder"].batched_scales
+    cylinders = server.scene.nodes["/skeleton/skeleton/joints_cylinder"].batched_scales
     index = list(layer.groups["cylinder"]).index(over - 1)
     np.testing.assert_allclose(cylinders[index], np.array([1.0, 1.0, 2.4]) * 0.025 * [1.5, 1.5, 1.0], rtol=1e-6)
 
@@ -468,10 +474,10 @@ def test_robot_skeleton_end_points_add_a_bone_from_the_frames_joint_to_the_point
     viewer.add([layer])
     for step in range(2):
         viewer.show(step)
-        cylinders = server.scene.nodes["/scene/skeleton/joints_cylinder"]
+        cylinders = server.scene.nodes["/skeleton/skeleton/joints_cylinder"]
         assert len(cylinders.batched_positions) == 2  # the end point has no marker
         start = cylinders.batched_positions[list(layer.groups["cylinder"]).index(wrist)]
-        bones = server.scene.nodes["/scene/skeleton/bones"]
+        bones = server.scene.nodes["/skeleton/skeleton/bones"]
         np.testing.assert_allclose(bones.batched_positions[-1], (start + expected[step]) / 2, atol=1e-5)
         length = np.linalg.norm(expected[step] - start)
         np.testing.assert_allclose(bones.batched_scales[-1], [radii[wrist], radii[wrist], length], rtol=1e-5)

@@ -45,8 +45,8 @@ viewer.record(out, size=(960, 540), steps=range(0, 60, 2))
 print(out.exists())
 ```
 
-Without a `camera`, `record` fits a 3/4 view to the visible layers' `Layer.world_points` over the recorded
-steps, upright along the theme's `up` axis. Pass `camera=(position, look_at)` for a fixed view. The browser
+Without a `camera`, `record` takes the view of `aim` over the recorded steps (the bounding sphere of the visible
+layers' `Layer.bounds`), upright along the theme's `up` axis. Pass `camera=(position, look_at)` for a fixed view. The browser
 binary comes from `$BETTER_ROBOT_CHROME` or the `PATH`; the module docstring of `capture` explains the
 one-time setup.
 

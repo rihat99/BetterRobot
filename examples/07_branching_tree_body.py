@@ -48,15 +48,13 @@ def main() -> None:
 
     if not args.no_viewer:
         viewer = br.Viewer(port=8081, server=br.testing.FakeServer() if args.check else None)
-        viewer.add(
-            [br.viewer.GroundLayer(), br.viewer.robot_skeleton(model, state.joint_poses.numpy())]
-        )  # no meshes for a programmatic body
+        viewer.add([br.viewer.robot_skeleton(model, state.joint_poses.numpy())])  # no meshes for a programmatic body
         viewer.show()
         if args.check:
             print(f"{len(viewer.layers)} layers built on the stand-in server")
             return
         print(f"\nOpening viewer at {viewer.url} — press Ctrl-C to exit.")
-        viewer.server.sleep_forever()
+        viewer.serve()
     else:
         print("Viewer skipped (--no-viewer).")
 

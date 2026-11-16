@@ -19,7 +19,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer, forward_kinematics, inverse_dynamics, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, robot_meshes, robot_skeleton
+from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
 
 FRAME, KNOTS, DT = "panda_hand", 60, 1.0 / 30.0
 READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
@@ -75,11 +75,10 @@ def main() -> None:
     state = forward_kinematics(model, q)
     poses = state.joint_poses.numpy()
     viewer = Viewer(fps=1.0 / DT, server=FakeServer() if args.check else None)
-    viewer.add([GroundLayer()])
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
     hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id(FRAME)]].numpy())
     viewer.add(
-        [RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses, tau=tau), hand], group="panda"
+        [RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses, tau=tau), hand], tags="panda"
     )
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
     viewer.add_plot("torque", tau.numpy(), labels=moving)
@@ -88,7 +87,7 @@ def main() -> None:
             viewer.show(step)
         return
     print(f"playing at {viewer.url}")
-    viewer.play()
+    viewer.serve()
 
 
 if __name__ == "__main__":

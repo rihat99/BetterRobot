@@ -14,7 +14,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot.testing import FakeServer
 from better_robot import Viewer
-from better_robot.viewer import FramesLayer, GroundLayer, RigidMeshLayer, robot_meshes, robot_skeleton
+from better_robot.viewer import FramesLayer, RigidMeshLayer, robot_meshes, robot_skeleton
 
 
 def main() -> None:
@@ -30,15 +30,14 @@ def main() -> None:
     state = br.forward_kinematics(model, q[None])
     poses = state.joint_poses.numpy()
     viewer = Viewer(server=FakeServer() if args.check else None)
-    viewer.add([GroundLayer()])
     meshes = robot_meshes(geometry, root=Path(panda_description.REPOSITORY_PATH))
     hand = FramesLayer("hand", state.frame_poses[:, [model.frame_id("panda_hand")]].numpy())
-    viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], group="panda")
+    viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), robot_skeleton(model, poses), hand], tags="panda")
     viewer.show()
     print(f"{len(viewer.layers)} layers at {viewer.url}")
     if args.check:
         return
-    viewer.server.sleep_forever()
+    viewer.serve()
 
 
 if __name__ == "__main__":

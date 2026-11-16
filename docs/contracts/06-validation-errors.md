@@ -43,7 +43,7 @@ Every raised error is a subclass of `better_robot.exceptions.BetterRobotError` (
 exception: a value of the wrong Python type (not a `torch.Tensor`, not a `KinematicState`) raises Python's
 `TypeError` (the tree has no node for it; `PLAIN_RAISES` in `tests/contract/test_error_tree.py` lists each
 site). An exception class exists only if something raises it; never-raised types are removed.
-An unknown name (a model's joint, frame or body, a problem's term or variable, a viewer's group) raises
+An unknown name (a model's joint, frame or body, a problem's term or variable, a viewer's tag) raises
 `UnknownNameError` (also a `KeyError`) with one message shape, `unknown <kind> '<name>' (valid names: [...])`, or
 `(<n> valid names)` when there are more than 20; every
 public id argument accepts `int | str` and resolves through `model.joint_id` / `model.frame_id` / `model.body_id`.

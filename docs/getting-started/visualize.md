@@ -33,7 +33,8 @@ Any `(T, nq)` tensor works: the `result.x["q"][0]` of [the trajectory tutorial](
 
 `Viewer()` starts a local [viser](https://viser.studio) server on `127.0.0.1:8080`; open `viewer.url` in a
 browser. Forward kinematics runs once for the clip; `robot_meshes` turns the description's `Geometry` into the
-meshes of a `RigidMeshLayer` that follows the joint poses, and a `FramesLayer` draws frame axes:
+meshes of a `RigidMeshLayer` that follows the joint poses, and a `FramesLayer` draws frame axes. The viewer adds
+the ground grid itself (`Viewer(ground=False)` leaves it out), so it holds three layers:
 
 ```python
 viewer = Viewer()
@@ -46,7 +47,7 @@ viewer.add([RigidMeshLayer("panda", meshes, body_poses=poses), hand])   # an ite
 print(viewer.url, len(viewer.layers))
 ```
 ```output
-http://127.0.0.1:8080 2
+http://127.0.0.1:8080 3
 ```
 
 Forward kinematics runs once for the whole clip, not once per step.
@@ -60,25 +61,24 @@ viewer.show(0)
 viewer.show(29)
 ```
 
-`viewer.play()` runs the timeline at the viewer's `fps` and blocks until you stop it, so call it last in a
+`viewer.serve()` plays the timeline at the viewer's `fps` and blocks until you stop it, so call it last in a
 script:
 
 ```python { .no-run data-reason="blocks until Ctrl-C" }
-viewer.play()
+viewer.serve()
 ```
 
 ## Update the robot in place
 
 A layer keeps its arrays by reference. To redraw the robot for a new clip of the same length, for example after
-each solver step, write the new poses into the layer's arrays and call `viewer.show()`:
+each solver step, write the new poses into the layer's arrays and call `redraw()`:
 
 ```python
-skeleton = robot_skeleton(model, poses, name="panda_live")
-viewer.add([skeleton], group="live")
+skeleton = viewer.add(robot_skeleton(model, poses, name="panda_live"), tags="live")
 backwards = br.forward_kinematics(model, clip.flip(0)).joint_poses.numpy()
 skeleton.joints[:] = backwards[:, 1:, :3]
 skeleton.rotations[:] = backwards[:, 1:, 3:]
-viewer.show()
+skeleton.redraw()
 ```
 
 ## Record a GIF without a browser
@@ -87,7 +87,7 @@ viewer.show()
 `.png` frames. Without a `camera` it frames the robot automatically:
 
 ```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_capture.py runs record" }
-viewer.remove_group("live")
+viewer.remove("live")
 out = Path(tempfile.mkdtemp()) / "panda_swing.gif"
 viewer.record(out, size=(320, 240), steps=range(0, 30, 3))
 print(out.exists(), out.stat().st_size > 0)
@@ -97,6 +97,6 @@ It needs Chromium (`$BETTER_ROBOT_CHROME` or on `PATH`) and, for `.webm`, ffmpeg
 
 ## Where next
 
-- [Viewer](../concepts/viewer.md) — layers, groups, tools and themes in depth.
+- [Viewer](../concepts/viewer.md) — layers, tags, tools and themes in depth.
 - [Fit a clip](../guides/fit-a-clip.md) — optimize a motion against point data and watch both layers together.
 - [Optimize a trajectory](trajectories.md) — back to the problem that produced this clip.

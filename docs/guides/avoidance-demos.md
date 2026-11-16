@@ -28,8 +28,7 @@ readout:
 
 The readout shows the behaviour's number (the smallest clearance, the distance to the nearest limit or the
 manipulability) and the time of the last `track` call. Spheres or markers more than 1 mm inside the margin turn
-red, and each layer has its own switch in the group's folder, such as the sphere set. Switching the form starts
-the next program cold (`warm=None`), since its row count changes.
+red. Switching the form starts the next program cold (`warm=None`), since its row count changes.
 
 Every script also runs a fixed path without a browser: `--check` runs it on the stand-in server and prints the
 numbers below, `--record clip.webm` records it through a headless Chromium (see

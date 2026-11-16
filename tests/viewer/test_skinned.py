@@ -32,7 +32,7 @@ def test_two_bone_mesh_bends_at_the_second_bone() -> None:
 
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add([layer], group="g")
+    viewer.add([layer], tags="g")
     node = server.scene.nodes["/g/body/mesh"]
     # viser needs four bones: two unweighted bones at the origin pad the mesh and never move.
     assert node.props["skin_weights"].shape == (9, 4) and not node.props["skin_weights"][:, 2:].any()

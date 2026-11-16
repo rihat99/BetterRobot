@@ -10,9 +10,8 @@ import numpy as np
 from ...exceptions import ArgumentError, ShapeError
 from .._lie import act, compose, to_wxyz
 from .._primitives import unit_sphere
-from ..layer import as_frames, as_triangles
+from ..layer import Bounds, Layer, as_frames, as_triangles, box
 from ..theme import RGB, rgb_uint8
-from ..layer import Layer
 
 _IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
@@ -52,9 +51,9 @@ class MeshLayer(Layer):
             )
         )
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
-        return self.vertices[step]
+    @override
+    def bounds(self, step: int) -> Bounds | None:
+        return box(self.vertices[step])
 
     @override
     def set_step(self, step: int) -> None:
@@ -111,6 +110,12 @@ class RigidMeshLayer(Layer):
         self._origins = (
             np.stack([spec.origin for spec in meshes]).astype(np.float32) if meshes else np.zeros((0, 7), np.float32)
         )
+        # (M, 8, 3): the corners of each mesh's box in its body frame, what ``bounds`` moves per step.
+        lows = [np.asarray(spec.vertices, np.float32).reshape(-1, 3).min(axis=0) for spec in meshes]
+        highs = [np.asarray(spec.vertices, np.float32).reshape(-1, 3).max(axis=0) for spec in meshes]
+        self._corners = np.array(
+            [np.stack(np.meshgrid(*zip(low, high)), -1).reshape(8, 3) for low, high in zip(lows, highs)], np.float32
+        ).reshape(-1, 8, 3)
         self._nodes: list[Any] = []
         self._plain: list[Any] = []  # the nodes of meshes without their own colours, which take an opacity
 
@@ -133,12 +138,13 @@ class RigidMeshLayer(Layer):
             if spec.trimesh is None:
                 self._plain.append(node)
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+    @override
+    def bounds(self, step: int) -> Bounds | None:
         if not self.meshes:
             return None
+        # The corners of each mesh's own box stand in for its vertices: a clip of 300 k vertices frames in a millisecond.
         world = compose(self.body_poses[step, self._bodies], self._origins)
-        return np.concatenate([act(world[i, 3:], spec.vertices) + world[i, :3] for i, spec in enumerate(self.meshes)])
+        return box(act(world[:, None, 3:], self._corners) + world[:, None, :3])
 
     @override
     def set_step(self, step: int) -> None:
@@ -201,12 +207,12 @@ class SpheresLayer(Layer):
             )
         )
 
-    def world_points(self, step: int) -> np.ndarray | None:
-        """World positions ``(N, 3)`` drawn at ``step``, for camera fitting."""
+    @override
+    def bounds(self, step: int) -> Bounds | None:
         centers, radii = self.centers[step], self.radii[:, None]
         if self.valid is not None and self.valid.ndim == 2:
             centers, radii = centers[self.valid[step]], radii[self.valid[step]]
-        return np.concatenate([centers - radii, centers + radii])
+        return box(np.concatenate([centers - radii, centers + radii]))
 
     @override
     def set_step(self, step: int) -> None:

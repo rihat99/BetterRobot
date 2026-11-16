@@ -7,6 +7,52 @@ that 0.3.0 renames or removes, one table row each.
 
 ## Unreleased
 
+### Added
+- `viewer.Sidebar`: the viewer's controls in ordered sections (Timeline, Robot, Layers, Plots, an application's
+  sections in creation order, Info). A control is shared by `(section, label)`, so one control drives every layer
+  that asks for it; every callback runs under `Viewer.lock`, and a `BetterRobotError` raised in one returns the
+  control to its previous value and shows a red notification in the browser. `Viewer.sidebar` is the viewer's one.
+- Tags: `Layer(name, nsteps, *, tags=)` (default: the layer's name; the first tag is the scene parent
+  `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_offset` and
+  `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
+  are two.
+- `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, which `Viewer.aim` and `Viewer.record` frame
+  (the bounding sphere over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
+  the camera after each `add`.
+- `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
+  `Layer.viewer` is the viewer the layer was added to.
+- `Viewer.serve()` plays the timeline and serves the page until interrupted; `Viewer.set_theme(theme)` applies a
+  theme to the page and to every layer; `Viewer(ground=True)` adds the ground grid under the tag `ground`.
+- `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
+  fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role)`, `accent`, `collision` and `text`, all colours RGB
+  in `[0, 1]`. `Theme.apply` switches viser's default lights off for an ambient, a hemisphere, a key light that
+  casts shadows and a fill light.
+- `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
+  and its clients have a camera and notifications.
+
+### Changed
+- `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
+  its argument; `tags` replaces `group`, also in `Viewer.add_plot`. `Viewer.set_visible(target, visible)` and
+  `Viewer.set_offset(tag, offset)` rename their first parameter.
+- `Viewer(theme=LIGHT)` (was `None`); `Viewer.replace(old, new)` keeps `old`'s tags and sidebar rows.
+- `Layer.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API); `PlotPanel` and `ImagePanel` sit in
+  the sidebar's Plots and Images sections.
+- `GroundLayer(cell_color=None, section_color=None)`: the grid takes `Theme.grid` unless given and follows
+  `Viewer.set_theme`.
+
+### Removed
+- `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
+  `Viewer.remove(tag)`.
+- `Viewer.play`: use `Viewer.serve()`, or `viewer.timeline.play()` to play without blocking.
+- `Viewer.rebuild`: use `Layer.redraw()` after an in-place edit, or `Viewer.replace(old, new)` for a new layer.
+- `Layer.world_points` and its overrides in the layers: use `Layer.bounds`.
+- `Layer.listed` and `GroundLayer.listed`: use `Layer(tags=)`; the Layers section lists tags, never the ground.
+- `Theme.brand_color`: use `Theme.accent`.
+- `Theme.grid_cell` and `Theme.grid_section`: use `Theme.grid`.
+- `Theme.robot` and `Theme.human`: use `Theme.hue(index)`.
+- `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` and `Theme.control_width`: no
+  replacement; no layer read the colours, an application passes its own, and the sidebar keeps viser's medium width.
+
 ## v0.3.0 (2026-11-10)
 
 ### Added

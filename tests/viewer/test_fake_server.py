@@ -14,12 +14,13 @@ import pytest
 import viser
 
 from better_robot.testing import FakeServer
-from better_robot.testing.fake_server import FakeGui, FakeHandle, FakeScene
+from better_robot.exceptions import ArgumentError
+from better_robot.testing.fake_server import FakeClient, FakeGui, FakeHandle, FakeScene
 from better_robot.viewer import (
+    DARK,
     ArrowsLayer,
     CameraLayer,
     FramesLayer,
-    GroundLayer,
     ImagePanel,
     MeshLayer,
     MeshSpec,
@@ -40,9 +41,9 @@ STAND_IN_ONLY = {"control", "fire"}
 def test_a_stand_in_handle_refuses_writes_after_remove() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add([PointsLayer("cloud", np.zeros((2, 4, 3)))], group="a")
+    viewer.add([PointsLayer("cloud", np.zeros((2, 4, 3)))], tags="a")
     cloud = server.scene.nodes["/a/cloud/points"]
-    viewer.remove_group("a")
+    viewer.remove("a")
     with pytest.raises(AttributeError, match="'points': this PointCloudHandle was removed"):
         cloud.points = np.ones((4, 3))
 
@@ -59,7 +60,13 @@ def test_removing_a_pointer_callback_that_is_not_held_does_nothing_as_on_viser()
 
 @pytest.mark.slow
 @pytest.mark.parametrize(
-    ("fake", "real"), [(FakeScene, viser.SceneApi), (FakeGui, viser.GuiApi), (FakeServer, viser.ViserServer)]
+    ("fake", "real"),
+    [
+        (FakeScene, viser.SceneApi),
+        (FakeGui, viser.GuiApi),
+        (FakeServer, viser.ViserServer),
+        (FakeClient, viser.ClientHandle),
+    ],
 )
 def test_every_stand_in_method_binds_like_viser(fake: type, real: type) -> None:
     methods = [name for name, member in vars(fake).items() if callable(member) and not name.startswith("_")]
@@ -74,6 +81,26 @@ def test_every_stand_in_method_binds_like_viser(fake: type, real: type) -> None:
 @pytest.mark.slow
 def test_a_tab_group_adds_tabs_like_viser() -> None:
     _assert_binds_like(FakeHandle.add_tab, viser.GuiTabGroupHandle.add_tab, "FakeHandle.add_tab")
+
+
+def _drive_the_sidebar(viewer: Viewer) -> None:
+    """Each kind of sidebar control, and a refused change that turns into a notification."""
+
+    def refuse(value: object) -> None:
+        raise ArgumentError(f"cannot show {value}")
+
+    sidebar, server = viewer.sidebar, viewer.server
+    sidebar.dropdown("Robot", "Style", options=("meshes", "maximal"), value="meshes", on_change=refuse)
+    sidebar.slider("Robot", "Size", low=0.5, high=2.0, step=0.1, value=1.0, on_change=print)
+    sidebar.checkbox("Robot", "Frames", value=False, on_change=print).value = True
+    sidebar.button("Robot", "Reset", on_click=print).fire()
+    style = server.gui.control("Style")
+    style.value = "maximal"
+    style.fire(SimpleNamespace(client=server.clients[0]))  # refused: back to "meshes", a notification shown
+    assert style.value == "meshes" and server.clients[0].notifications[0]["color"] == "red"
+    sidebar.remove("Robot")
+    viewer.layers[1].redraw()
+    viewer.set_theme(DARK)
 
 
 def _assert_binds_like(fake: Callable[..., Any], real: Callable[..., Any], where: str) -> None:
@@ -111,15 +138,14 @@ def test_the_controls_an_app_adds_read_back_their_initial_values() -> None:
 @pytest.mark.slow
 def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> None:
     server = FakeServer()
-    server.clients[0] = SimpleNamespace(camera=FakeHandle(None, "CameraHandle", "camera", {}))
-    viewer = Viewer(server=server)
+    server.clients[0] = FakeClient()
+    viewer = Viewer(server=server)  # its ground and the theme's lights and backdrop included
     rng = np.random.default_rng(0)
     points = rng.normal(size=(3, 8, 3)).astype(np.float32)
     faces = np.array([[0, 1, 2], [2, 3, 4]])
     poses = np.tile(np.array([0, 0, 0, 0, 0, 0, 1.0], np.float32), (3, 4, 1))
     spec = MeshSpec(vertices=points[0], faces=faces, body=1, origin=poses[0, 0])
     layers = [
-        GroundLayer(),
         PointsLayer("points", points),
         MeshLayer("mesh", points, faces=faces, opacity=0.5),
         RigidMeshLayer("rigid", [spec], body_poses=poses),
@@ -138,16 +164,17 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
         PlotPanel("plot", rng.normal(size=(3, 2))),
     ]
     viewer.add(layers)
-    viewer.add([SpheresLayer("valid", points[:, :3], radii=np.full(3, 0.1))], group="v", valid=np.ones((3, 3), bool))
+    viewer.add([SpheresLayer("valid", points[:, :3], radii=np.full(3, 0.1))], tags="v", valid=np.ones((3, 3), bool))
     for step in range(3):
         viewer.show(step)
-    for layer in (layers[2], layers[3], layers[8], layers[9]):
+    for layer in (layers[1], layers[2], layers[7], layers[8]):
         layer.set_opacity(0.3)
     for layer in layers:
         viewer.set_visible(layer, False)
         viewer.set_visible(layer, True)
-    viewer.rebuild(layers[3])
-    viewer.replace(layers[1], PointsLayer("points2", points))
+    viewer.replace(layers[0], PointsLayer("points2", points))
+
+    _drive_the_sidebar(viewer)
     server.gui.control("Play").fire()
     server.gui.control("Step").fire()
     viewer.timeline.pause()
@@ -158,8 +185,8 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
     viewer.clear_pointer()
     viewer.aim()
     viewer.set_fps(10.0)
-    viewer.remove_group("v")
-    viewer.play(block=True)
+    viewer.remove("v")
+    viewer.serve()
     tabs = server.gui.add_tab_group()  # the GUI calls of an app built on the viewer (BetterHuman's studio)
     with tabs.add_tab("Model"):
         server.gui.add_dropdown("Family", options=("smpl", "mhr"), initial_value="smpl").value = "mhr"

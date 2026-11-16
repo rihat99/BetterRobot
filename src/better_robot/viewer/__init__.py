@@ -1,11 +1,13 @@
 """Interactive and offline viewing of robots, bodies and data clips, built on viser.
 
-A ``Viewer`` runs a viser server (``http://127.0.0.1:8080`` by default) and holds named groups of ``Layer``s; a
-group is toggled, offset and removed as one unit. Every layer is fed preloaded numpy arrays with a leading time
+A ``Viewer`` runs a viser server (``http://127.0.0.1:8080`` by default) and holds ``Layer``s under tags; a tag
+is toggled, offset and removed as one unit. Every layer is fed preloaded numpy arrays with a leading time
 axis ``(T, ...)`` (static input counts as ``T = 1``) and keeps them by reference. One ``Timeline`` drives all
-layers: ``show(k)`` pushes frame ``k``, ``show()`` re-pushes after in-place edits, ``play()`` plays by wall clock,
-``save(path)`` writes a ``.viser`` recording for viser's static web client, and ``record(path)`` screenshots the
-live scene in a headless Chromium into WebM, GIF or PNG frames (``viewer.capture``).
+layers: ``show(k)`` pushes frame ``k``, ``layer.redraw()`` re-pushes one layer after in-place edits, ``serve()``
+plays by wall clock until interrupted, ``save(path)`` writes a ``.viser`` recording for viser's static web client,
+and ``record(path)`` screenshots the live scene in a headless Chromium into WebM, GIF or PNG frames
+(``viewer.capture``). The ``Sidebar`` holds the controls in ordered sections; one ``Theme`` sets colours, lights
+and the backdrop.
 
 A robot is drawn from one forward-kinematics pass over a clip ``q (T, nq)``: a ``RigidMeshLayer`` takes the joint
 poses and the meshes of ``robot_meshes(geometry, root=)`` (a ``Geometry`` from ``io.load_geometry``),
@@ -20,8 +22,8 @@ import numpy as np
 from better_robot.viewer import PointsLayer, Viewer
 
 viewer = Viewer()
-viewer.add([PointsLayer("cloud", np.random.rand(100, 50, 3))])  # T = 100 frames of 50 points
-viewer.play()  # blocks until Ctrl-C
+viewer.add(PointsLayer("cloud", np.random.rand(100, 50, 3)))  # T = 100 frames of 50 points
+viewer.serve()  # plays and blocks until Ctrl-C
 ```
 """
 
@@ -35,6 +37,7 @@ from .layers.plot import PlotPanel
 from .layers.camera import CameraLayer
 from .layers.skinned import SkinnedMeshLayer
 from .robot import robot_meshes, robot_skeleton
+from .sidebar import Sidebar
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline
 from .viewer import Viewer
@@ -53,6 +56,7 @@ __all__ = [
     "PlotPanel",
     "PointsLayer",
     "RigidMeshLayer",
+    "Sidebar",
     "SkeletonLayer",
     "SkinnedMeshLayer",
     "SpheresLayer",
