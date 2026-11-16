@@ -102,7 +102,7 @@ def main() -> None:
     for side, form in enumerate(("off", "rows")):
         q, seconds = run(tick, form, dict(problems[form].variables), path)
         print(
-            f"singular {form:4s}: lowest manipulability {float(look(q)[2].min()):.4f} (threshold {THRESHOLD}), "
+            f"singular {form:4s}: lowest manipulability {float(look(q)[2].min()):.5f} (threshold {THRESHOLD}), "
             f"tick {1e3 * seconds:.1f} ms (median)"
         )
         offset = (0.0, 1.0 * side - 0.5, 0.0)

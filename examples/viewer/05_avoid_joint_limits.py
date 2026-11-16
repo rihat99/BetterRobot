@@ -109,7 +109,7 @@ def main() -> None:
         q, seconds = run(tick, form, dict(problems[form].variables), path)
         inside = look(q)[2]
         print(
-            f"limits {form:4s}: deepest joint {max(0.0, -inside.min()):.3f} rad past its limit "
+            f"limits {form:4s}: deepest joint {max(0.0, -inside.min()):.5f} rad past its limit "
             f"(panda_joint{int(inside.min(0).argmin()) + 1}), tick {1e3 * seconds:.1f} ms (median)"
         )
         draw(form, q[::8], (0.0, 1.0 * side - 0.5, 0.0))  # every 8th tick: 100 Hz ticks at twice real time

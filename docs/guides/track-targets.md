@@ -69,7 +69,7 @@ leave up to 6.1e-3 and 1 up to 1.1e-2; at 25 mrad per tick 8 self-collision pair
 where 16 held 4.9e-5.
 
 A robot whose rest pose has pairs closer than the margin, such as the G1 standing (60 of its pairs, torso and arms,
-pelvis and hips, are 2.5 to 20 mm apart), gives each of those pairs a margin of its own, a millimetre below its
+pelvis and hips, are 2.5 to 21 mm apart), gives each of those pairs a margin of its own, a millimetre below its
 distance there: every pair is then a row, and the rest pose holds them all.
 
 ```python { .no-run data-reason="the G1 model is not among the guide's robots; the fence shows one line of the recipe" }
