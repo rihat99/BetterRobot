@@ -49,7 +49,7 @@ def test_times_default_to_one_sample_per_step_and_are_validated() -> None:
     viewer = Viewer(server=FakeServer())
     layer = _Recorder("plain", 5)
     viewer.add([layer])
-    viewer.add([_Recorder("long", 100)], group="long")
+    viewer.add([_Recorder("long", 100)], tags="long")
     viewer.show(3)
     assert layer.shown[-1] == 3
     viewer.show(99)
@@ -71,27 +71,26 @@ def test_a_refused_add_changes_nothing() -> None:
     assert viewer.timeline.nsteps == 3  # a refused add with later times does not stretch the timeline
     first, clash = _Recorder("first", 3), _Recorder("first", 3)
     with pytest.raises(ArgumentError, match="already has a layer named 'first'"):
-        viewer.add([first, clash], group="pair")  # a refused call adds none of its layers
+        viewer.add([first, clash], tags="pair")  # a refused call adds none of its layers
     assert first not in viewer.layers
-    with pytest.raises(ArgumentError, match=r"an iterable of layers; pass \[_Recorder"):
-        viewer.add(first)
+    assert viewer.add(first) is first  # one layer needs no list, and comes back for ``robot = viewer.add(...)``
 
 
 def test_the_same_layer_object_is_never_added_twice() -> None:
     viewer = Viewer(server=FakeServer())
     layer, other = _Recorder("a", 3), _Recorder("b", 3)
     viewer.add([layer])
-    viewer.add([other], group="g")
+    viewer.add([other], tags="g")
     with pytest.raises(ArgumentError, match="'a' is already in this viewer"):
-        viewer.add([layer], group="other")
+        viewer.add([layer], tags="other")
     with pytest.raises(ArgumentError, match="'c' is already in this viewer"):
         twice = _Recorder("c", 3)
-        viewer.add([twice, twice], group="pair")
+        viewer.add([twice, twice], tags="pair")
     with pytest.raises(ArgumentError, match="'b' is already in this viewer; replace takes a new layer object"):
         viewer.replace(layer, other)
-    with pytest.raises(ArgumentError, match="rebuild redraws a layer in place"):
+    with pytest.raises(ArgumentError, match="'a' is already in this viewer; replace takes a new layer object"):
         viewer.replace(layer, layer)
-    assert [(entry.name, id(entry)) for entry in viewer.layers] == [("a", id(layer)), ("b", id(other))]
+    assert [(entry.name, id(entry)) for entry in viewer.layers[1:]] == [("a", id(layer)), ("b", id(other))]
 
 
 def test_on_pointer_holds_one_scene_pointer_callback() -> None:
@@ -136,7 +135,7 @@ def test_valid_hides_a_layer_on_invalid_samples_without_touching_its_switch() ->
     valid = np.array([True, True, False, False, True])
     layer = PointsLayer("person", np.zeros((5, 4, 3)))
     viewer.add([layer], valid=valid)
-    frame, cloud = server.scene.nodes["/scene/person"], server.scene.nodes["/scene/person/points"]
+    frame, cloud = server.scene.nodes["/person/person"], server.scene.nodes["/person/person/points"]
     viewer.show(2)
     assert frame.visible is False and cloud.visible and layer.visible  # the layer's frame hides the sample
     viewer.show(3)
@@ -159,29 +158,31 @@ def test_valid_per_element_hides_single_spheres_and_arrows() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
     keep = np.array([[True, False], [False, True]])
-    viewer.add([SpheresLayer("contacts", np.ones((2, 2, 3)), radii=np.array([0.1, 0.2]))], valid=keep)
-    viewer.add([ArrowsLayer("forces", np.zeros((2, 2, 3)), vectors=np.ones((2, 2, 3)))], valid=keep)
+    contacts = viewer.add(SpheresLayer("contacts", np.ones((2, 2, 3)), radii=np.array([0.1, 0.2])), valid=keep)
+    forces = viewer.add(ArrowsLayer("forces", np.zeros((2, 2, 3)), vectors=np.ones((2, 2, 3))), valid=keep)
     viewer.show(1)
-    np.testing.assert_allclose(server.scene.nodes["/scene/contacts/spheres"].batched_scales, [0.0, 0.2])
-    np.testing.assert_allclose(server.scene.nodes["/scene/forces/heads"].batched_scales[0], 0.0)
-    shafts = server.scene.nodes["/scene/forces/shafts"].points
+    np.testing.assert_allclose(server.scene.nodes["/contacts/contacts/spheres"].batched_scales, [0.0, 0.2])
+    np.testing.assert_allclose(server.scene.nodes["/forces/forces/heads"].batched_scales[0], 0.0)
+    shafts = server.scene.nodes["/forces/forces/shafts"].points
     np.testing.assert_allclose(shafts[0, 1], shafts[0, 0])  # zero-length shaft
-    assert len(viewer._points([1])) == 4  # camera fit: one sphere (2 corners) + one arrow (origin, tip)
+    # The camera's framing reads only the valid elements: the second sphere, the second arrow (origin to tip).
+    np.testing.assert_allclose(contacts.bounds(1), [[0.8] * 3, [1.2] * 3])
+    np.testing.assert_allclose(forces.bounds(1), [[0.0] * 3, [1.0] * 3])
 
 
-def test_remove_group_shrinks_the_timeline_to_the_remaining_layers() -> None:
+def test_removing_a_tag_shrinks_the_timeline_to_the_remaining_layers() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add([_Recorder("long", 10)], group="clip_a")
+    viewer.add([_Recorder("long", 10)], tags="clip_a")
     short = _Recorder("short", 4)
-    viewer.add([short], group="clip_b")
+    viewer.add([short], tags="clip_b")
     viewer.show(8)
-    viewer.remove_group("clip_a")
+    viewer.remove("clip_a")
     assert viewer.timeline.nsteps == 4 and viewer.timeline.step == 3
     assert server.gui.control("Step").max == 3 and short.shown[-1] == 3
-    viewer.remove_group("clip_b")
+    viewer.remove("clip_b")
     assert viewer.timeline.nsteps == 1 and viewer.timeline.step == 0
-    viewer.add([_Recorder("next", 6)], group="clip_c")
+    viewer.add([_Recorder("next", 6)], tags="clip_c")
     assert viewer.timeline.nsteps == 6
 
 

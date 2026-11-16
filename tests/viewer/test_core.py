@@ -21,6 +21,7 @@ from better_robot.viewer.viewer import Viewer
 
 from better_robot.exceptions import ArgumentError, ShapeError, UnknownNameError
 from better_robot.testing import FakeServer
+from better_robot.testing.fake_server import FakeClient
 
 
 def _skeleton(nsteps: int = 10, name: str = "skel") -> SkeletonLayer:
@@ -31,26 +32,25 @@ def _skeleton(nsteps: int = 10, name: str = "skel") -> SkeletonLayer:
 def test_show_pushes_each_visible_layer_once_per_frame_inside_one_atomic_block() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add([_skeleton(10)])
-    viewer.add([GroundLayer()])
+    viewer.add([_skeleton(10)])  # beside the ground the viewer adds by itself
     arrows = ArrowsLayer("f", np.zeros((5, 2, 3)), vectors=np.ones((5, 2, 3)))
-    viewer.add([arrows], group="forces")
+    viewer.add([arrows], tags="forces")
     server.scene.log.clear()
     blocks = server.atomic_blocks
     viewer.show(3)
     assert server.atomic_blocks == blocks + 1
     assert viewer.timeline.step == 3
     pushed = {node for node, event in server.scene.log if event != "add"}
-    assert pushed == {"/scene/skel/joints", "/scene/skel/bones", "/forces/f/shafts", "/forces/f/heads"}
+    assert pushed == {"/skel/skel/joints", "/skel/skel/bones", "/forces/f/shafts", "/forces/f/heads"}
     # The arrows layer has 5 frames: frame 7 clamps to its last frame and the static grid is never touched.
     server.scene.log.clear()
     viewer.timeline.step = 7
     assert ("/forces/f/shafts", "points") in server.scene.log
-    assert not any(node.startswith("/scene/ground") for node, _ in server.scene.log)
+    assert not any(node.startswith("/ground") for node, _ in server.scene.log)
     server.scene.log.clear()
     viewer.timeline.step = 8  # arrows already show their last frame: skipped
     assert not any(node.startswith("/forces") for node, _ in server.scene.log)
-    assert ("/scene/skel/joints", "batched_positions") in server.scene.log
+    assert ("/skel/skel/joints", "batched_positions") in server.scene.log
     assert arrows.nsteps == 5 and viewer.timeline.nsteps == 10
 
 
@@ -59,41 +59,42 @@ def test_hidden_layers_are_skipped_and_catch_up_when_shown_again() -> None:
     viewer = Viewer(server=server)
     layer = _skeleton(10)
     viewer.add([layer])
+    viewer.add(PointsLayer("cloud", np.zeros((1, 3))))  # a second tag brings the Layers checkboxes
     checkbox = server.gui.control("skel")
     checkbox.value = False
     checkbox.fire()
-    assert server.scene.nodes["/scene/skel/joints"].visible is False
+    assert server.scene.nodes["/skel/skel/joints"].visible is False
     server.scene.log.clear()
     viewer.timeline.step = 6
     assert not any(event != "add" for _, event in server.scene.log)
     viewer.set_visible(layer, True)
-    assert ("/scene/skel/joints", "batched_positions") in server.scene.log
-    np.testing.assert_array_equal(server.scene.nodes["/scene/skel/joints"].batched_positions, layer.joints[6])
+    assert ("/skel/skel/joints", "batched_positions") in server.scene.log
+    np.testing.assert_array_equal(server.scene.nodes["/skel/skel/joints"].batched_positions, layer.joints[6])
 
 
-def test_remove_group_disposes_layers_and_the_group_node() -> None:
+def test_remove_a_tag_disposes_its_layers_and_the_tag_node() -> None:
     server = FakeServer()
-    viewer = Viewer(server=server)
-    viewer.add([_skeleton()], group="ref")
-    viewer.add([PointsLayer("pts", np.zeros((3, 3)))], group="ref")
+    viewer = Viewer(server=server, ground=False)
+    viewer.add([_skeleton()], tags="ref")
+    viewer.add([PointsLayer("pts", np.zeros((3, 3)))], tags="ref")
     viewer.add([_skeleton(name="keep")])
-    viewer.remove_group("ref")
+    viewer.remove("ref")
     assert server.scene.nodes["/ref"].removed
     assert server.scene.nodes["/ref/skel/joints"].removed and server.scene.nodes["/ref/pts/points"].removed
-    assert not server.scene.nodes["/scene/keep/joints"].removed
+    assert not server.scene.nodes["/keep/keep/joints"].removed
     assert [layer.name for layer in viewer.layers] == ["keep"]
     with pytest.raises(ArgumentError, match="already has a layer"):
         viewer.add([_skeleton(name="keep")])
 
 
-def test_set_offset_moves_a_group_after_it_was_added() -> None:
+def test_set_offset_moves_a_tag_after_it_was_added() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add([PointsLayer("p", np.zeros((1, 3)))], group="robot", offset=(0.0, 2.0, 0.0))
+    viewer.add([PointsLayer("p", np.zeros((1, 3)))], tags="robot", offset=(0.0, 2.0, 0.0))
     viewer.set_offset("robot", (0.0, 3.0, 0.0))
     assert server.scene.nodes["/robot"].position == (0.0, 3.0, 0.0)
-    np.testing.assert_allclose(viewer._points([0]), [[0.0, 3.0, 0.0]])  # record and aim frame the moved group
-    with pytest.raises(UnknownNameError, match="unknown group 'missing'"):
+    np.testing.assert_allclose(viewer.aim()[1], [0.0, 3.0, 0.0])  # record and aim frame the moved tag
+    with pytest.raises(UnknownNameError, match="unknown tag 'missing'"):
         viewer.set_offset("missing", (0.0, 0.0, 0.0))
 
 
@@ -192,13 +193,13 @@ def test_skeleton_takes_per_bone_radii_and_per_step_joint_radii() -> None:
     viewer.add([SkeletonLayer("c", joints, parent_ids=[-1, 0, 1], radius=0.1, bone_radius=0.02)])
     nodes = server.scene.nodes
     viewer.show(0)
-    np.testing.assert_allclose(nodes["/scene/s/bones"].batched_scales, [[0.05, 0.05, 1.0], [0.0, 0.0, 1.0]])
-    np.testing.assert_allclose(nodes["/scene/c/bones"].batched_scales[:, :2], 0.02)
+    np.testing.assert_allclose(nodes["/s/s/bones"].batched_scales, [[0.05, 0.05, 1.0], [0.0, 0.0, 1.0]])
+    np.testing.assert_allclose(nodes["/c/c/bones"].batched_scales[:, :2], 0.02)
     server.scene.log.clear()
     viewer.show(1)
-    np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.1] * 3, [0.2] * 3, [0.0] * 3])
+    np.testing.assert_allclose(nodes["/s/s/joints"].batched_scales, [[0.1] * 3, [0.2] * 3, [0.0] * 3])
     # A constant radius never rewrites the joint scales: per-step cost unchanged.
-    assert ("/scene/c/joints", "batched_scales") not in server.scene.log
+    assert ("/c/c/joints", "batched_scales") not in server.scene.log
     with pytest.raises(ShapeError, match="radius"):
         SkeletonLayer("bad", joints, parent_ids=[-1, 0, 1], radius=np.ones((3, 3)))
 
@@ -217,8 +218,8 @@ def test_skeleton_thickness_widens_axial_markers_only_across_and_axis_less_ones_
     )
     viewer.show(1)
     nodes = server.scene.nodes
-    np.testing.assert_allclose(nodes["/scene/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
-    np.testing.assert_allclose(nodes["/scene/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
+    np.testing.assert_allclose(nodes["/s/s/joints_cylinder"].batched_scales, [[0.2, 0.2, 0.24]], rtol=1e-6)
+    np.testing.assert_allclose(nodes["/s/s/joints"].batched_scales, [[0.3, 0.3, 0.3]], rtol=1e-6)
     with pytest.raises(ShapeError, match="thickness"):
         SkeletonLayer("bad", joints, parent_ids=[-1, 0], thickness=np.ones((3, 2)))
     with pytest.raises(ShapeError, match="offsets"):
@@ -247,7 +248,7 @@ def test_solid_arrows_keep_a_fixed_head_shrink_short_ones_whole_and_hide_zero_an
         ],
         valid=keep,
     )
-    shafts, heads = server.scene.nodes["/scene/f/shafts"], server.scene.nodes["/scene/f/heads"]
+    shafts, heads = server.scene.nodes["/f/f/shafts"], server.scene.nodes["/f/f/heads"]
     assert shafts.kind == "BatchedMeshHandle"
     viewer.show(0)
     # Long arrow: shaft up to the head's base, head of full size. Short arrow (0.05 m, under head_size / 0.35): the
@@ -283,7 +284,7 @@ def test_arrows_draw_nothing_up_to_min_length(shaft_radius: float | None) -> Non
         )
     viewer.show(0)
     for name, shown in (("default", [False, False, True, True]), ("coarse", [False, False, False, True])):
-        heads, shafts = server.scene.nodes[f"/scene/{name}/heads"], server.scene.nodes[f"/scene/{name}/shafts"]
+        heads, shafts = server.scene.nodes[f"/{name}/{name}/heads"], server.scene.nodes[f"/{name}/{name}/shafts"]
         np.testing.assert_array_equal(heads.batched_scales.any(axis=-1), shown)
         if shaft_radius is None:  # a hidden line is a zero-length segment
             np.testing.assert_array_equal((shafts.points[:, 1] != shafts.points[:, 0]).any(axis=-1), shown)
@@ -298,8 +299,8 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     colours[1, 0] = (1.0, 0.0, 0.0)  # contact 0 turns red at step 1
     viewer.add([SpheresLayer("contacts", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=colours)])
     viewer.add([ArrowsLayer("forces", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=colours)])
-    spheres, heads = server.scene.nodes["/scene/contacts/spheres"], server.scene.nodes["/scene/forces/heads"]
-    shafts = server.scene.nodes["/scene/forces/shafts"]
+    spheres, heads = server.scene.nodes["/contacts/contacts/spheres"], server.scene.nodes["/forces/forces/heads"]
+    shafts = server.scene.nodes["/forces/forces/shafts"]
     viewer.show(1)
     np.testing.assert_array_equal(spheres.batched_colors, [[255, 0, 0], [0, 0, 0]])
     np.testing.assert_array_equal(heads.batched_colors, [[255, 0, 0], [0, 0, 0]])
@@ -339,7 +340,7 @@ def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
     viewer.show(7)
     assert plot.series[1]["points"]["filter"] == (7,) and plot.series[1]["label"] == "a"
     assert panel.nsteps == 20 and viewer.timeline.nsteps == 20
-    viewer.remove_group("plots")
+    viewer.remove("plots")
     assert plot.removed
 
 
@@ -347,10 +348,10 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     server = FakeServer()
     viewer = Viewer(server=server)
     frames = np.arange(4 * 2 * 3 * 3, dtype=np.uint8).reshape(4, 2, 3, 3)
-    viewer.add([ImagePanel("video", frames)], group="video")
+    viewer.add([ImagePanel("video", frames)], tags="video")
     asked = []
     lazy = ImagePanel("lazy", lambda step: asked.append(step) or frames[step], nsteps=4)
-    viewer.add([lazy], group="video", times=np.arange(4) / 10.0)  # a 10 Hz video on the 30 fps timeline
+    viewer.add([lazy], tags="video", times=np.arange(4) / 10.0)  # a 10 Hz video on the 30 fps timeline
     eager_image, lazy_image = (control for control in server.gui.controls if control.kind == "GuiImageHandle")
     viewer.show(3)  # 0.1 s: the lazy panel's sample 1
     np.testing.assert_array_equal(eager_image.image, frames[3])
@@ -360,16 +361,16 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     assert lazy_image.visible is False
     with pytest.raises(ArgumentError, match="nsteps"):
         ImagePanel("no_length", lambda step: frames[0])
-    viewer.remove_group("video")
+    viewer.remove("video")
     assert eager_image.removed and lazy_image.removed
 
 
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
-    viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"))
+    viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"), ground=False)
     ground, explicit = GroundLayer(), GroundLayer("explicit", plane="xy")
     viewer.add([ground, explicit])
     assert ground.plane == "xz" and explicit.plane == "xy"
-    assert GroundLayer().world_points(0) is None  # the grid never drives Viewer.record's camera fit
+    assert GroundLayer().bounds(0) is None  # the grid never drives the camera's framing
 
 
 def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
@@ -387,35 +388,29 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
         GroundLayer(normal=(0.0, 0.0, 0.0))
 
 
-def test_a_blocking_play_stops_playback_when_serving_ends() -> None:
+def test_serve_stops_playback_when_serving_ends() -> None:
     """Ctrl-C ends viser's serve; a playback thread left running dies inside torch at exit (SIGABRT)."""
     viewer = Viewer(server=FakeServer())  # the stand-in's serve returns at once
     viewer.add([_skeleton(10)])
-    viewer.play(block=True)
+    viewer.serve()
     assert not viewer.timeline.playing
 
 
 def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    viewer.add([GroundLayer()])
     viewer.add([_skeleton(1, "pose")])
     assert not {"Timeline", "Play", "Step", "Speed", "Loop"} & {control.name for control in server.gui.controls}
-    viewer.play(block=False)  # single step: nothing to play, the viewer just serves
+    viewer.timeline.play()  # single step: nothing to play
     assert not viewer.timeline.playing
-    viewer.add([_skeleton(10, "clip")], group="motion")
+    viewer.add([_skeleton(10, "clip")], tags="motion")
     assert server.gui.control("Step").props["max"] == 9
     assert [control.name for control in server.gui.controls].count("Timeline") == 1
 
 
-def test_layers_folder_checkboxes_follow_set_visible_and_survive_rebuild() -> None:
+def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_set_visible() -> None:
     server = FakeServer()
-    viewer = Viewer(server=server)
-    viewer.add([GroundLayer()])  # not listed
-    skel = _skeleton(10, "skel")
-    viewer.add([skel])
-    arm = _skeleton(10, "arm")
-    viewer.add([arm], group="robot")
+    viewer = Viewer(server=server)  # the ground's tag is never listed
 
     def boxes() -> dict[str, object]:
         return {
@@ -424,39 +419,42 @@ def test_layers_folder_checkboxes_follow_set_visible_and_survive_rebuild() -> No
             if c.kind == "GuiCheckboxHandle" and c.name != "Loop" and not c.removed
         }
 
-    assert list(boxes()) == ["skel", "robot/arm"]
+    skel = _skeleton(10, "skel")
+    viewer.add([skel])
+    assert boxes() == {} and "Layers" not in [c.name for c in server.gui.controls]  # one tag: nothing to toggle
+    arm, hand = _skeleton(10, "arm"), PointsLayer("hand", np.zeros((1, 3)))
+    viewer.add([arm, hand], tags="robot")
+    assert list(boxes()) == ["skel", "robot"]
     assert [control.name for control in server.gui.controls].count("Layers") == 1
     viewer.set_visible(arm, False)
-    assert arm.visible is False and boxes()["robot/arm"].value is False
+    assert arm.visible is False and boxes()["robot"].value is True  # the hand still shows
+    viewer.set_visible(hand, False)
+    assert boxes()["robot"].value is False
     boxes()["skel"].value = False
     boxes()["skel"].fire()
     assert skel.visible is False
 
     viewer.show(4)
-    old_box = boxes()["robot/arm"]
-    viewer.rebuild(arm)
-    assert old_box.removed and boxes()["robot/arm"] is not old_box
-    assert arm.visible is False and boxes()["robot/arm"].value is False
-    viewer.set_visible(skel, True)
-    viewer.rebuild(skel)
-    assert skel.visible is True and viewer._entry(skel).step == 4
-    viewer.set_visible(arm, True)
-    assert viewer._entry(arm).step == 4
+    boxes()["robot"].value = True
+    boxes()["robot"].fire()
+    assert arm.visible and hand.visible and viewer._entry(arm).step == 4
+    folder = server.gui.control("Layers")
+    viewer.remove("robot")
+    assert boxes() == {} and folder.removed  # one tag left
 
 
 def test_replace_puts_the_new_layer_in_the_old_ones_place_and_visibility() -> None:
     server = FakeServer()
-    viewer = Viewer(server=server)
+    viewer = Viewer(server=server, ground=False)
     old = _skeleton(10, "body")
-    viewer.add([old], group="human")
-    viewer.add([PointsLayer("cloud", np.zeros((3, 2, 3)))], group="human")
+    viewer.add([old], tags="human")
+    viewer.add([PointsLayer("cloud", np.zeros((3, 2, 3)))], tags="human")
     viewer.set_visible(old, False)
     viewer.show(2)
-    box = next(c for c in server.gui.controls if c.name == "human/body")
     new = _skeleton(5, "body2")
     viewer.replace(old, new)
     assert server.scene.nodes["/human/body"].removed and server.scene.nodes["/human/body/joints"].removed
-    assert box.removed and [layer.name for layer in viewer.layers] == ["body2", "cloud"]
+    assert new.tags == ("human",) and [layer.name for layer in viewer.layers] == ["body2", "cloud"]
     assert new.visible is False and server.scene.nodes["/human/body2/joints"].visible is False
     assert viewer.timeline.nsteps == 5  # fitted to the layers now present
     viewer.set_visible(new, True)
@@ -486,21 +484,20 @@ class _Broken(Layer):
 @pytest.mark.parametrize("fails_in", ["build", "set_step"])
 def test_a_layer_that_fails_in_add_or_replace_leaves_the_viewer_as_it_was(fails_in: str) -> None:
     server = FakeServer()
-    viewer = Viewer(server=server)
+    viewer = Viewer(server=server, ground=False)
     kept = _skeleton(4, "kept")
     viewer.add([kept])
     with pytest.raises(RuntimeError, match="broken"):
-        viewer.add([_skeleton(8, "fine"), _Broken("bad", fails_in=fails_in)], group="new")
-    assert viewer.layers == [kept] and viewer.timeline.nsteps == 4
+        viewer.add([_skeleton(8, "fine"), _Broken("bad", fails_in=fails_in)], tags="new")
+    assert viewer.layers == [kept] and viewer.timeline.nsteps == 4 and viewer.tags == ["kept"]
     assert all(node.removed for name, node in server.scene.nodes.items() if name.startswith("/new"))
-    assert [c.name for c in server.gui.controls if c.name.startswith("new/") and not c.removed] == []
+    assert [c.name for c in server.gui.controls if c.name == "new" and not c.removed] == []
     with pytest.raises(RuntimeError, match="broken"):
         viewer.replace(kept, _Broken("kept", fails_in=fails_in))
     assert viewer.layers == [kept] and viewer.timeline.nsteps == 4
-    assert not server.scene.nodes["/scene/kept/joints"].removed
-    assert [c.name for c in server.gui.controls if c.name == "kept" and not c.removed] == ["kept"]
+    assert not server.scene.nodes["/kept/kept/joints"].removed and viewer.tags == ["kept"]
     viewer.show(2)
-    np.testing.assert_array_equal(server.scene.nodes["/scene/kept/joints"].batched_positions, kept.joints[2])
+    np.testing.assert_array_equal(server.scene.nodes["/kept/kept/joints"].batched_positions, kept.joints[2])
 
 
 def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None:
@@ -512,12 +509,14 @@ def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None
     viewer.add([spheres])
     mesh.set_opacity(0.4)
     spheres.set_opacity(0.4)
-    assert server.scene.nodes["/scene/mesh/mesh"].opacity == 0.4 and mesh.opacity == 0.4
-    assert server.scene.nodes["/scene/balls/spheres"].opacity == 0.4
+    assert server.scene.nodes["/mesh/mesh/mesh"].opacity == 0.4 and mesh.opacity == 0.4
+    assert server.scene.nodes["/balls/balls/spheres"].opacity == 0.4
     mesh.set_opacity(1.0)
-    assert server.scene.nodes["/scene/mesh/mesh"].opacity is None  # viser's opaque
-    viewer.rebuild(mesh)
-    assert server.scene.nodes["/scene/mesh/mesh"].props["opacity"] is None
+    assert server.scene.nodes["/mesh/mesh/mesh"].opacity is None  # viser's opaque
+    mesh.set_opacity(0.6)
+    viewer.remove(mesh)
+    viewer.add(mesh)  # built again with the opacity it keeps
+    assert server.scene.nodes["/mesh/mesh/mesh"].props["opacity"] == 0.6
     with pytest.raises(ArgumentError, match=r"\(0, 1\]"):
         mesh.set_opacity(0.0)
     with pytest.raises(ArgumentError, match="draws no surface"):
@@ -544,3 +543,85 @@ def test_mesh_layers_check_opacity_at_construction_as_set_opacity_does() -> None
         assert layer.opacity == 0.5
         with pytest.raises(ArgumentError, match=r"opacity must be in \(0, 1\]"):
             layer.set_opacity(1.5)
+
+
+class _Box(Layer):
+    """A layer that only reports a box per step, ``(step, 0, 0)`` to ``(step, 1, 1)``, and counts the reads."""
+
+    def __init__(self, name: str, nsteps: int) -> None:
+        super().__init__(name, nsteps)
+        self.read: list[int] = []
+
+    def build(self, scene: Any, root: str) -> None:
+        pass
+
+    def set_step(self, step: int) -> None:
+        pass
+
+    def bounds(self, step: int) -> tuple[np.ndarray, np.ndarray]:
+        self.read.append(step)
+        return np.array([step, 0.0, 0.0]), np.array([step, 1.0, 1.0])
+
+
+def _inside_view(points: np.ndarray, position: np.ndarray, look_at: np.ndarray, fov: float) -> bool:
+    """Whether every point lies inside the cone of half-angle ``fov / 2`` around the line of sight."""
+    sight = (look_at - position) / np.linalg.norm(look_at - position)
+    rays = points - position
+    cosines = rays @ sight / np.linalg.norm(rays, axis=-1)
+    return bool((cosines >= np.cos(fov / 2)).all())
+
+
+def test_aim_frames_the_bounding_sphere_of_the_visible_layers_in_new_and_connected_browsers() -> None:
+    server = FakeServer()
+    server.clients[0] = FakeClient()
+    viewer = Viewer(server=server)  # the ground has no bounds: never framed
+    points = np.zeros((3, 2, 3))
+    points[:, 1, 2] = 1.0
+    points[2, :, 0] = 5.0  # the last step moves away
+    viewer.add(PointsLayer("pts", points), tags="g", offset=(0.0, 2.0, 0.0))
+    hidden = viewer.add(PointsLayer("far", np.full((1, 3), 50.0)))
+    viewer.set_visible(hidden, False)
+    fov = np.radians(30.0)
+    position, look_at = viewer.aim(steps=[0], fov=fov)
+    for camera in (server.initial_camera, server.clients[0].camera):
+        assert camera.fov == fov
+        np.testing.assert_allclose(camera.position, position)
+        np.testing.assert_allclose(camera.look_at, look_at)
+        assert camera.writes.index("position") < camera.writes.index("look_at")
+    np.testing.assert_allclose(look_at, [0.0, 2.0, 0.5])  # the box of step 0, moved by the tag's offset
+    # The sphere around that box (radius 0.5) fills the field of view with a 15 % margin.
+    np.testing.assert_allclose(np.linalg.norm(position - look_at), 0.5 / np.sin(fov / 2) * 1.15)
+    up = viewer.theme.up_vector
+    assert np.dot(position - look_at, up) > 0.0  # seen from above
+    position, look_at = viewer.aim()  # the whole clip: the last step is in view too
+    clip = points.reshape(-1, 3) + [0.0, 2.0, 0.0]
+    assert _inside_view(clip, position, look_at, np.radians(40.0))
+    np.testing.assert_allclose(look_at, [2.5, 2.0, 0.5])
+
+
+def test_aim_reads_only_bounds_of_at_most_32_steps_and_skips_invalid_ones() -> None:
+    viewer = Viewer(server=FakeServer())
+    layer = viewer.add(_Box("box", 100))
+    layer.read.clear()
+    viewer.aim()
+    assert len(layer.read) == 32 and layer.read[0] == 0 and layer.read[-1] == 99
+    hidden = viewer.add(_Box("hidden", 3), valid=np.array([True, False, True]))
+    viewer.remove(layer)
+    hidden.read.clear()
+    np.testing.assert_allclose(viewer.aim(steps=range(3)), viewer.aim(steps=[0, 2]))  # step 1 does not count
+    assert 1 not in hidden.read
+    empty = viewer.aim(steps=[1])  # nothing visible at all: a 2 x 2 x 1 m box on the origin
+    np.testing.assert_allclose(empty[1], [0.0, 0.0, 0.5])
+
+
+def test_the_viewer_aims_after_each_add_until_aim_is_called() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    viewer.add(_Box("first", 1))
+    first = np.asarray(server.initial_camera.position)
+    viewer.add(_Box("second", 4))
+    np.testing.assert_allclose(server.initial_camera.look_at, [1.5, 0.5, 0.5])  # both boxes, over the clip
+    assert not np.allclose(server.initial_camera.position, first)
+    chosen = viewer.aim(steps=[0])
+    viewer.add(_Box("third", 1))
+    np.testing.assert_allclose(server.initial_camera.position, chosen[0])  # the user's aim holds

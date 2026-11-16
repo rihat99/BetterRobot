@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer
+from better_robot.viewer.layers import ArrowsLayer, FramesLayer, PointsLayer, SkeletonLayer
 from better_robot.viewer.layer import Layer
 from better_robot.viewer.tools import PoseGizmo
 from better_robot.viewer.viewer import Viewer
@@ -31,18 +31,17 @@ def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None
         poses = np.zeros((50, 24, 7), dtype=np.float32)
         poses[..., :3] = joints
         poses[..., 6] = 1.0
-        viewer.add([GroundLayer()])
         viewer.add([SkeletonLayer("skeleton", joints, parent_ids=parent_ids)])
         viewer.add([ArrowsLayer("forces", joints[:, :4], vectors=rng.normal(size=(50, 4, 3)) * 0.2)])
         viewer.add([FramesLayer("frames", poses)])
-        viewer.add([PointsLayer("cloud", rng.normal(size=(50, 1000, 3)))], group="scan")
+        viewer.add([PointsLayer("cloud", rng.normal(size=(50, 1000, 3)))], tags="scan")
         start = time.perf_counter()
         for step in range(50):
             viewer.show(step)
         per_frame = (time.perf_counter() - start) / 50
         assert viewer.timeline.step == 49
         assert per_frame < 2e-3, f"{per_frame * 1e3:.2f} ms per frame"
-        viewer.remove_group("scan")
+        viewer.remove("scan")
         assert len(viewer.layers) == 4
         path = viewer.save(tmp_path / "clip.viser")
         assert path.stat().st_size > 50 * 4 * 24 * 4  # at least the per-frame skeleton arrays
@@ -77,13 +76,13 @@ class _BrokenPush(Layer):
 
 @pytest.mark.slow
 def test_a_layer_that_fails_on_a_real_server_leaves_the_scene_as_it_was() -> None:
-    viewer = Viewer(port=_free_port())
+    viewer = Viewer(port=_free_port(), ground=False)
     try:
         kept = PointsLayer("kept", np.random.default_rng(0).normal(size=(5, 4, 3)))
         viewer.add([kept])
         nodes = set(viewer.server.scene._handle_from_node_name)
         with pytest.raises(RuntimeError, match="broken push"):
-            viewer.add([PointsLayer("fine", np.zeros((3, 4, 3))), _BrokenPush("bad", 9)], group="new")
+            viewer.add([PointsLayer("fine", np.zeros((3, 4, 3))), _BrokenPush("bad", 9)], tags="new")
         with pytest.raises(RuntimeError, match="broken push"):
             viewer.replace(kept, _BrokenPush("kept", 9))
         assert viewer.layers == [kept] and viewer.timeline.nsteps == 5
@@ -91,7 +90,7 @@ def test_a_layer_that_fails_on_a_real_server_leaves_the_scene_as_it_was() -> Non
         viewer.show(3)
         viewer.set_fps(10.0)
         np.testing.assert_array_equal(
-            viewer.server.scene._handle_from_node_name["/scene/kept/points"].points, kept.points[3]
+            viewer.server.scene._handle_from_node_name["/kept/kept/points"].points, kept.points[3]
         )
     finally:
         viewer.server.stop()
