@@ -36,7 +36,7 @@ from .phases import Phase, Result, run, solve, solve_layer
 from .linearization import check_jacobian
 from .problem import Problem, Term, TermFn
 from .qp import QPSolution, solve_qp
-from .solvers import LBFGS, GaussNewton, LevenbergMarquardt, Solver, State, TorchOptim
+from .solvers import LBFGS, GaussNewton, LevenbergMarquardt, SequentialQP, Solver, State, TorchOptim
 
 __all__ = [
     "ArrowNormal",
@@ -55,6 +55,7 @@ __all__ = [
     "QPSolution",
     "Result",
     "RobustKernel",
+    "SequentialQP",
     "Solver",
     "State",
     "Term",

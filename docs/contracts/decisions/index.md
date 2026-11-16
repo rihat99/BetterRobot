@@ -72,3 +72,5 @@ sections. `tests/contract/test_decision_records.py` checks all of this.
 | [0052](0052-memo-under-inference-mode.md) | The memos keep inference-mode values under a key of their own | Proposed (integrator, awaiting owner); amendment proposed in [0053](0053-compiled-entry-point.md) |
 | [0053](0053-compiled-entry-point.md) | The library compiles on request, through one entry point | Proposed (integrator, awaiting owner) |
 | [0054](0054-quadratic-programs-by-admm-and-one-active-set-step.md) | Quadratic programs are solved by warm-started ADMM steps and one active-set step | Proposed (integrator, awaiting owner) |
+| [0055](0055-constraint-terms-and-sequential-qp.md) | Constraint terms are kinds on `Problem`, held by one solver, `SequentialQP` | Proposed (integrator, awaiting owner) |
+| [0056](0056-sequential-qp-reports-its-last-point-within-tolerance.md) | `SequentialQP` reports its last point within the tolerance, not its iterate | Proposed (integrator, awaiting owner) |

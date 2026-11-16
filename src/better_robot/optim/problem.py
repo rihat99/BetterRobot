@@ -19,7 +19,7 @@ from typing import Any, final, override
 import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError, UnknownNameError
-from .evaluation import Values, evaluate, residuals
+from .evaluation import CONSTRAINTS, Values, evaluate, residuals
 from .kernels import RobustKernel
 from .linear import ArrowNormal, BandedNormal, Normal
 from .linearization import gradient, linearize
@@ -53,20 +53,30 @@ class Term:
     name: str
     fn: Callable[..., torch.Tensor]
     _: KW_ONLY
-    kind: str  #: ``"residual"`` or ``"scalar"``.
+    kind: str  #: ``"residual"`` or ``"scalar"`` (cost), ``"equality"`` or ``"inequality"`` (constraint).
     reads: tuple[str, ...]
     weight: float | torch.Tensor
     kernel: RobustKernel | None
     jacobian: Callable[..., dict[str, torch.Tensor]] | None
     window: int | None = None  #: time-local term: row ``t`` reads knots ``t .. t + window - 1``.
+    lower: float | torch.Tensor | None = None  #: constraint terms: ``lower <= value``; ``None`` is no bound.
+    upper: float | torch.Tensor | None = None  #: constraint terms: ``value <= upper``; ``None`` is no bound.
+
+
+def _require_row_weight(name: str, kind: str, weight: float | torch.Tensor) -> None:
+    """Refuse a negative number as the weight of a constraint term: it would turn the row around."""
+    if kind in CONSTRAINTS and not isinstance(weight, torch.Tensor) and weight < 0:
+        raise ArgumentError(f"{kind} term {name!r}: weight must be at least 0 (0 switches the term off), got {weight}")
 
 
 @final
 class Problem:
     """A batch of independent optimization problems over named tensors, read-only once built.
 
-    Register terms with ``residual`` (least squares) or ``scalar`` (any ``(B,)`` loss) and shared
-    intermediates with ``cached``; then minimize with ``solve`` or ``run``. A term may return
+    Register cost terms with ``residual`` (least squares) or ``scalar`` (any ``(B,)`` loss), constraint terms with
+    ``equality`` (``value = 0``) or ``inequality`` (``lower <= value <= upper``) and shared
+    intermediates with ``cached``; then minimize with ``solve`` or ``run``. The loss is that of the cost terms; a
+    problem with constraint terms is solved by ``SequentialQP``. A term may return
     ``(value, info)`` to report diagnostics beside its value (see ``evaluate``). Registration only adds
     new names to the problem it is called on; everything else, and every field of a registered term, is
     fixed and read through read-only mappings. ``with_`` returns a new problem with other data, weights or
@@ -302,6 +312,52 @@ class Problem:
             fn, reads = fn.fn, reads if reads is not None else fn.reads
         self._add(name, fn, "scalar", weight, None, None, reads, None)
 
+    def equality(
+        self,
+        name: str,
+        fn: Callable[..., torch.Tensor] | TermFn,
+        *,
+        weight: float | torch.Tensor = 1.0,
+        reads: tuple[str, ...] | None = None,
+        jacobian: Callable[..., dict[str, torch.Tensor]] | None = None,
+    ) -> None:
+        """Add the constraint ``fn(...) = 0``, ``fn(...) -> (B, ..., k)``: one row per entry.
+
+        A constraint term is no part of the loss; ``SequentialQP`` holds its rows at every step. ``weight``, a
+        positive number or a tensor of the output's shape (with or without the batch axis) without a negative entry,
+        scales the rows: where the rows of a step cannot all hold, a row's violation counts ``weight`` times. The
+        number 0 switches the term off, as for a cost term, and an entry 0 of a tensor switches its row off; a
+        negative number is refused (``ArgumentError``). A negative entry of a tensor is not checked, since that would
+        read its values back, and turns its row around. Rows whose weighted Jacobian entries are a hundredth or less
+        (against variables in natural units) can give way where they could hold, by `solve_qp`'s elastic cap: scale
+        such a term up. ``reads`` and ``jacobian`` are those of ``residual``; a ``TermFn`` brings its own, and may not
+        carry a ``window``.
+        """
+        self._add_constraint(name, fn, "equality", weight, jacobian, reads, 0.0, 0.0)
+
+    def inequality(
+        self,
+        name: str,
+        fn: Callable[..., torch.Tensor] | TermFn,
+        *,
+        lower: float | torch.Tensor | None = None,
+        upper: float | torch.Tensor | None = None,
+        weight: float | torch.Tensor = 1.0,
+        reads: tuple[str, ...] | None = None,
+        jacobian: Callable[..., dict[str, torch.Tensor]] | None = None,
+    ) -> None:
+        """Add the constraint ``lower <= fn(...) <= upper``, ``fn(...) -> (B, ..., k)``: one row per entry.
+
+        A bound is a number or a tensor of the output's shape (with or without the batch axis), in the output's unit;
+        ``None`` leaves that side open, and at least one side is given (``ArgumentError``). The function is the one a
+        cost term would take: ``inequality("clear", terms.self_clearance(..., hinge=False), upper=0.0)`` holds
+        ``margin - distance <= 0`` with the residual and Jacobian that the hinged cost is made of. ``weight``
+        ``(B, ..., k)`` or ``(..., k)``, ``reads`` and ``jacobian`` are those of ``equality``.
+        """
+        if lower is None and upper is None:
+            raise ArgumentError(f"inequality term {name!r} needs a bound: give lower=, upper= or both")
+        self._add_constraint(name, fn, "inequality", weight, jacobian, reads, lower, upper)
+
     def with_(
         self,
         *,
@@ -324,9 +380,10 @@ class Problem:
                     self._require_new_name(name)
             problem._data = {**self._data, **data}
         if weights is not None:
-            for name in weights:
+            for name, weight in weights.items():
                 if name not in self._terms:
                     raise UnknownNameError("term", name, valid=list(self._terms))
+                _require_row_weight(name, self._terms[name].kind, weight)
             problem._weights = {**self._weights, **weights}
         if free is not None:
             problem._free = {}
@@ -432,14 +489,45 @@ class Problem:
         jacobian: Callable[..., dict[str, torch.Tensor]] | None,
         reads: tuple[str, ...] | None,
         window: int | None,
+        lower: float | torch.Tensor | None = None,
+        upper: float | torch.Tensor | None = None,
     ) -> None:
         self._require_unsealed(name)
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")
         reads = self._resolve_reads(name, fn, reads)
         self._terms[name] = Term(
-            name, fn, kind=kind, reads=reads, weight=weight, kernel=kernel, jacobian=jacobian, window=window
+            name,
+            fn,
+            kind=kind,
+            reads=reads,
+            weight=weight,
+            kernel=kernel,
+            jacobian=jacobian,
+            window=window,
+            lower=lower,
+            upper=upper,
         )
+
+    def _add_constraint(
+        self,
+        name: str,
+        fn: Callable[..., torch.Tensor] | TermFn,
+        kind: str,
+        weight: float | torch.Tensor,
+        jacobian: Callable[..., dict[str, torch.Tensor]] | None,
+        reads: tuple[str, ...] | None,
+        lower: float | torch.Tensor | None,
+        upper: float | torch.Tensor | None,
+    ) -> None:
+        if isinstance(fn, TermFn):
+            if fn.window is not None:
+                raise ArgumentError(f"{kind} term {name!r}: a constraint term takes no window")
+            reads = reads if reads is not None else fn.reads
+            jacobian = jacobian if jacobian is not None else fn.jacobian
+            fn = fn.fn
+        _require_row_weight(name, kind, weight)
+        self._add(name, fn, kind, weight, None, jacobian, reads, None, lower, upper)
 
     def _copy(self) -> Problem:
         """A sealed problem sharing this one's tensors, with registries of its own."""

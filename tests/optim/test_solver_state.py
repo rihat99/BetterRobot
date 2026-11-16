@@ -280,3 +280,19 @@ def test_lbfgs_gradient_step_backtracks_below_a_stiff_term_with_no_gradient() ->
     result = optim.solve(problem, optim.LBFGS(), iterations=50)
     x1 = -(70.71**2) / (1 + 2 * 70.71**2)  # stationary point: x0 = 1 + x1
     torch.testing.assert_close(result.x["x"], torch.tensor([[1 + x1, x1]], dtype=torch.float64), atol=1e-8, rtol=0)
+
+
+def test_sequential_qp_reads_nothing_back_and_warm_starts_from_its_last_program() -> None:
+    """The fixed budget of ``SequentialQP`` is a path a CUDA graph replays too; a warm start keeps the damping and
+    the quadratic program of a state, so a solve resumed at a solution stays there and is done after one step."""
+    target = torch.tensor([[2.0, 1.0, -1.0], [0.3, 0.2, 0.1]], dtype=torch.float64)
+    problem = optim.Problem({"x": torch.zeros(2, 3, dtype=torch.float64)}, data={"target": target})
+    problem.residual("fit", lambda x, target: x - target)
+    problem.inequality("ball", lambda x: (x * x).sum(-1, keepdim=True), upper=1.0)
+    solver = optim.SequentialQP()
+    reads, result = _host_reads(lambda: optim.run(problem, [optim.Phase(solver, 60, stop_every=0)]))
+    assert reads == 0 and result.iterations == 60 and bool(result.done.all())
+    assert result.state is not None and float(result.state.extra["damping"].max()) < 1.0  # not run up once done
+    resumed = optim.solve(problem, solver, iterations=1, state=result.state)
+    torch.testing.assert_close(resumed.x["x"], result.x["x"], rtol=0.0, atol=1e-9)
+    assert bool(resumed.done.all())

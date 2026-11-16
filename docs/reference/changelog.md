@@ -10,6 +10,18 @@ that 0.3.0 renames or removes, one table row each.
 ## v0.3.0 (2026-11-10)
 
 ### Added
+- Constraint terms: `Problem.equality(name, fn)` holds `fn = 0` and `Problem.inequality(name, fn, lower=, upper=)`
+  holds `lower <= fn <= upper`, with the function, `reads` and `jacobian` of a residual term; `Term.kind` gains
+  `"equality"` and `"inequality"`, and `Term.lower` and `Term.upper` carry the bounds. A constraint term is no part
+  of the loss. `optim.SequentialQP(damping=, gain=0.5, tolerance=1e-4, gradient_tolerance=, step_tolerance=)` holds
+  them: each step is one `solve_qp` program (the damped Gauss-Newton model under the linearized constraint terms
+  and the box of the bounds), scaled back to a step radius and taken where it lowers an L1 merit (record 0055).
+  `State.x` is the last iterate within `tolerance` of every bound, the iterate is `State.extra["iterate"]`, and the
+  `violation` diagnostic reports the distance of `State.x` per step (record 0056). `tolerance` must be above 0;
+  `State.extra["radius"]` is new and a warm key with `damping`, `growth` and `qp`. A constraint term's weight is
+  a number at least 0 (0 switches the term off, a negative number raises `ArgumentError`) or a tensor whose entry 0
+  switches its row off. The other solvers, `solve_constrained` and `solve_layer` raise `ArgumentError` on a problem
+  with an active constraint term ([Constrained inverse kinematics](../guides/constrained-ik.md)).
 - `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None) -> QPSolution`:
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
   fixed number of ADMM steps and one active-set step, in float64, with no host read (record 0054). Accuracy comes

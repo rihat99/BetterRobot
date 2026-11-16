@@ -175,14 +175,15 @@ def solve_layer(
     w.r.t. the data. Valid when the solve has converged; coordinates on an active bound get
     zero sensitivity; with large residuals at the optimum the Gauss-Newton ``H`` is approximate.
     ``damping`` keeps the step finite along directions the residuals do not constrain (a
-    redundant arm), where the sensitivity is zero. Problems with scalar terms are rejected:
-    their curvature is not in ``H``, so the derivative would be wrong.
+    redundant arm), where the sensitivity is zero. Problems with scalar or constraint terms are rejected:
+    a scalar's curvature is not in ``H`` and a constraint's rows are not in the step, so the derivative
+    would be wrong.
     """
     if damping < 0:
         raise ArgumentError(f"damping must be at least 0, got {damping}")
-    scalars = [term.name for term in active_terms(problem) if term.kind == "scalar"]
-    if scalars:
-        raise ArgumentError(f"solve_layer supports residual terms only; active scalar terms: {scalars}")
+    others = [term.name for term in active_terms(problem) if term.kind != "residual"]
+    if others:
+        raise ArgumentError(f"solve_layer supports residual terms only; active scalar or constraint terms: {others}")
     result = solve(problem, solver, iterations=iterations, x=x)
     normal, _ = problem.linearize(result.x)
     _, g, _ = problem.gradient(result.x, create_graph=True)

@@ -38,6 +38,7 @@ Counter rows are fixed functions; their counters gate (below). `state` is `forwa
 | `crba/{panda,g1}/B1` | `mass_matrix(model, state)` |
 | `aba/{panda,g1}/B1` | `forward_dynamics(model, state, v=v, tau=tau)` |
 | `ik/panda/B64` | `solve_ik` to 64 reachable `panda_hand` poses, 5 seeds; also `success_fraction` and `worst_position_error_m` |
+| `ik_constrained/panda/B64` | 20 steps of `SequentialQP` to the same poses, clear of a sphere and of the arm's own sphere pairs; also `success_fraction` and `worst_violation_m` |
 | `qp/n7m30/B1`, `qp/n35m150/B1024` | one cold `optim.solve_qp` of seeded random programs with 7 or 35 variables and 30 or 150 rows |
 
 Each counter row has four counters, the same for every run with one torch version and device:
@@ -93,6 +94,7 @@ rnea/g1/B1                        0            1          188            0
 crba/g1/B1                        0            1          154            0
 aba/g1/B1                         0            1          255            0
 ik/panda/B64                      5           12        30446            0
+ik_constrained/panda/B64            3           11        31393            0
 qp/n7m30/B1                       0            1          561            0
 qp/n35m150/B1024                  0            2          561            0
 ```
@@ -154,6 +156,8 @@ computes, so compiled code cannot drop it.
 | `ik_step` | one `LevenbergMarquardt.step` on `terms.ik_problem`, from `init` at the start |
 | `solve_ik` | `solve_ik(model, targets, q0=start)`: the default call, one start |
 | `solve_ik_multistart` | the same with `seeds=32, iterations=16`; a library before `seeds=` runs `restarts=4`, five starts in sequence |
+| `ik_step_constrained` | one `SequentialQP.step` on the same problem with an obstacle sphere and the robot's own sphere pairs as clearance rows |
+| `solve_ik_constrained` | 50 such steps (`Phase(stop_every=0)`); also `max_violation_m` and `within_1e-4`, over every sphere pair |
 
 With `--grad`, a row of each kinematics and dynamics function also times
 `torch.autograd.grad(sum(output.sum()), q)` (`grad` true in the row).

@@ -12,7 +12,9 @@ Wall time across functions, robots, compile modes and batch sizes, with Pinocchi
 Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Panda and G1 (``tests/fixtures/robots``):
 ``fk_joints/{panda,g1}/B{1,1024}`` (``forward_kinematics(model, q).joint_transforms``), ``ik/panda/B64``
 (``solve_ik`` to 64 ``panda_hand`` poses, 5 seeds, fixed generators; it also records ``success_fraction`` and
-``worst_position_error_m``), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
+``worst_position_error_m``), ``ik_constrained/panda/B64`` (20 steps of ``SequentialQP`` to the same poses with an
+obstacle sphere and the arm's own sphere pairs as clearance rows; it also records ``success_fraction`` and
+``worst_violation_m``, over every pair), ``{jacobian,rnea,crba,aba}/{panda,g1}/B1`` and ``qp/n7m30/B1``, ``qp/n35m150/B1024``
 (one cold ``optim.solve_qp`` of seeded random programs with that many variables and rows). Each has four counters, deterministic for
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
 ``torch.compile(fn, backend="eager")``, first called at the row's batch, is called at each batch of ``SWEEP``),
@@ -141,6 +143,7 @@ def counter_cases(device: torch.device) -> list[Case]:
         for algo in ("jacobian", "rnea", "crba", "aba"):
             cases.append(counter_case(f"{algo}/{name}/B1", partial(ALGORITHMS[algo], model), (pool, v, u), 1))
     cases.append(ik_case(device))
+    cases.append(constrained_ik_case(device))
     for size, count, batch in ((7, 30, 1), (35, 150, LARGE_BATCH)):
         generator = torch.Generator().manual_seed(0)
         root = torch.randn(LARGE_BATCH, size, size, generator=generator)
@@ -194,6 +197,48 @@ def ik_case(device: torch.device) -> Case:
     sweep = tuple((q0[:size], targets[:size]) for size in SWEEP)
     call = partial(ik, q0, targets)
     return Case("ik/panda/B64", 64, call, ik, (q0, targets), sweep, report=accuracy)
+
+
+def constrained_ik_case(device: torch.device) -> Case:
+    """``ik_constrained/panda/B64``: ``SequentialQP`` for 20 steps to the poses of ``ik/panda/B64``, clear by 2 cm of
+    a sphere beside the arm and of itself (the 8 closest sphere pairs as rows)."""
+    model = load_model("panda")
+    generator = torch.Generator().manual_seed(0)
+    q_target = torch.stack([model.random_configuration(generator=generator) for _ in range(64)])
+    model, q_target = model.to(device=device), q_target.to(device)
+    frame = model.frame_id(IK_FRAME)
+    targets = br.forward_kinematics(model, q_target).frame_poses[:, frame]
+    q0 = model.q_neutral.expand(64, model.nq).clone()
+    spheres, ignore = br.collision.load_spheres(br.collision.SPHERE_SETS / "panda.json", model)
+    pairs = br.collision.self_collision_pairs(model, spheres, ignore=ignore)
+    centre = torch.tensor([0.45, 0.25, 0.45], dtype=DTYPE, device=device)
+
+    def to_obstacle(centers: torch.Tensor, radii: torch.Tensor) -> torch.Tensor:
+        return (centers - centre).norm(dim=-1) - radii - 0.10
+
+    # Built outside the measured call: a clearance term reads its frame ids back to the host once, which costs an
+    # `aten::to` on CUDA and none on CPU, and the release tier checks both devices against one threshold.
+    avoid = br.terms.sphere_clearance(spheres, to_obstacle, margin=0.02, hinge=False)
+    apart = br.terms.self_clearance(spheres, pairs=pairs, margin=0.02, hinge=False, closest=8)
+
+    def ik(q0: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        problem = br.terms.ik_problem(model, {IK_FRAME: targets}, q0=q0)
+        problem.inequality("obstacle", avoid, upper=0.0)
+        problem.inequality("self", apart, upper=0.0)
+        return br.optim.run(problem, [br.optim.Phase(br.optim.SequentialQP(), 20, stop_every=0)]).x["q"]
+
+    def accuracy(q: torch.Tensor) -> dict[str, float]:
+        state = br.forward_kinematics(model, q)
+        error = (state.frame_poses[:, frame, :3] - targets[:, :3]).norm(dim=-1)
+        distances = [to_obstacle(spheres.centers(state), spheres.radii)]
+        distances.append(br.collision.self_distances(spheres, state, pairs=pairs))
+        return {
+            "success_fraction": (error < IK_SUCCESS_M).double().mean().item(),
+            "worst_violation_m": (0.02 - torch.cat(distances, dim=-1)).amax().clamp_min(0.0).item(),
+        }
+
+    sweep = tuple((q0[:size], targets[:size]) for size in SWEEP)
+    return Case("ik_constrained/panda/B64", 64, partial(ik, q0, targets), ik, (q0, targets), sweep, report=accuracy)
 
 
 def profile_counts(call: Callable[[], object]) -> tuple[int, int]:

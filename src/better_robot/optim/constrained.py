@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 import torch
 
 from ..exceptions import ArgumentError, UnknownNameError
-from .evaluation import zero_loss
+from .evaluation import CONSTRAINTS, active_terms, zero_loss
 from .phases import Result, solve
 from .problem import Problem, Term
 from .solvers import Solver
@@ -31,7 +31,7 @@ def _augmented(problem: Problem, terms: Mapping[str, Term], shifts: Mapping[str,
     """``problem`` with ``terms`` in place of the terms of their names and ``shifts`` added to its data, sealed.
 
     Built from the public fields: the same variables, cached values and terms in the same order, and the same
-    weight overrides and free masks.
+    weight overrides and free masks. A constraint term that is switched off is left out; an active one is refused.
     """
     out = Problem(
         problem.variables,
@@ -43,8 +43,16 @@ def _augmented(problem: Problem, terms: Mapping[str, Term], shifts: Mapping[str,
     )
     for name, cached in problem.cached_values.items():
         out.cached(cached, name=name)
+    active = {term.name for term in active_terms(problem)}
     for name in problem.terms:
         term = terms.get(name, problem.terms[name])
+        if term.kind in CONSTRAINTS:
+            if name in active:
+                raise ArgumentError(
+                    f"solve_constrained holds residual terms named in its arguments, and {name!r} is registered as "
+                    f"{term.kind}; solve the problem with SequentialQP, or register the term as a residual"
+                )
+            continue
         if term.kind == "scalar":
             out.scalar(name, term.fn, weight=term.weight, reads=term.reads)
         else:
@@ -57,7 +65,8 @@ def _augmented(problem: Problem, terms: Mapping[str, Term], shifts: Mapping[str,
                 jacobian=term.jacobian,
                 window=term.window,
             )
-    return out.with_(weights=problem.weights, free=problem.free)
+    weights = {name: weight for name, weight in problem.weights.items() if name in out.terms}
+    return out.with_(weights=weights, free=problem.free)
 
 
 def solve_constrained(

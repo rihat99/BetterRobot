@@ -129,7 +129,8 @@ treat it as a first-order term.
 
 A solver subclasses the abstract `Solver`: `init(problem, x) -> State` and
 `step(problem, state) -> State`, and `warm_keys` names the `State.extra` entries a warm start keeps. After each step a solver writes fixed diagnostic keys into `State.extra`,
-each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS) and `damping` (LM); the
+each `(B,)`: `grad_norm`, `step_norm` and `accepted` (LM, Gauss-Newton, L-BFGS, `SequentialQP`), `damping` (LM,
+`SequentialQP`) and `violation` (`SequentialQP`); the
 `State` docstring is the reference for the key set. `State` holds `x`, the `(B,)` `loss`, the `(B,)` bool `done`,
 `solver` (the class of the solver that made it), the step count `iteration`, and `extra` for solver-owned values
 (damping, moments). LM and Gauss-Newton keep `extra["normal"]`, the normal equations at `x`: a step linearizes
@@ -142,6 +143,7 @@ writes
 |---|---|---|
 | `LevenbergMarquardt(damping=, gradient_tolerance=, loss_tolerance=, step_tolerance=)` | `linearize` | per-problem damping, Marquardt scaling; the default choice |
 | `GaussNewton(damping=0.0)` | `linearize` | full step, optional fixed damping; fast near a good start |
+| `SequentialQP(damping=, gain=0.5, tolerance=1e-4, gradient_tolerance=, step_tolerance=)` | `linearize` and the constraint terms' rows | LM whose step is a quadratic program; the one solver that holds [constraint terms](#constraint-terms) |
 | `LBFGS(history=10, line_search=20, stop_search=True)` | `loss` gradient | tangent coordinates, per-problem history; Armijo backtracking: each problem takes its first accepted step, the search stops once every problem has one (`stop_search=False` runs every trial and reads nothing back); the first trial carries its gradient, so a step that every problem takes there costs one evaluation; bounds by projection |
 | `TorchOptim(lambda params: torch.optim.Adam(params, lr=...))` | `loss` | any `torch.optim` optimizer; projects onto manifolds and bounds after each step |
 
@@ -172,13 +174,14 @@ print(state.iteration, state.loss)
 - `run(problem, phases, *, x=None)` chains `Phase`s, each with its own solver, weight overrides and frozen
   coordinates ([Fit a clip](../guides/fit-a-clip.md)). `Phase(stop_every=0)` runs exactly `iterations` steps and
   reads nothing back to the host, so the device never waits for Python (LM, Gauss-Newton,
-  `LBFGS(stop_search=False)`); `solve_ik` runs this way.
+  `LBFGS(stop_search=False)`, `SequentialQP`); `solve_ik` runs this way.
 - `solve_layer(problem, solver, *, iterations=50, x=None, damping=1e-6)` returns the solution attached to the autograd graph of the data
   ([Own the loop](../guides/own-the-loop.md)).
 - `solve_constrained(problem, solver, equalities=, inequalities=)` turns named terms into hard
-  constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)).
+  constraints with an augmented Lagrangian ([Hard constraints](../guides/hard-constraints.md)). Terms registered
+  as [constraint terms](#constraint-terms) are held by `SequentialQP` instead, inside one solve.
 
-Registration (`residual`, `scalar`, `cached`) only adds names to the problem it is called on, and every field
+Registration (`residual`, `scalar`, `equality`, `inequality`, `cached`) only adds names to the problem it is called on, and every field
 of a registered term is fixed; changes go through `with_`. `problem.with_(data=, weights=, free=)` returns a
 new problem with data entries added or replaced, term weights overridden (`0` switches a term off) and tangent
 coordinates frozen by a bool mask `(n,)` or `(B, n)`; the original stays as it was. The new problem is sealed:
@@ -196,6 +199,91 @@ print(result.loss)
 ```output
 tensor([2.3851e-07, 3.0286e-06, 1.1951e-06, 5.3854e-07])
 ```
+
+## Constraint terms
+
+`problem.equality(name, fn)` holds `fn(...) = 0` and `problem.inequality(name, fn, lower=, upper=)` holds
+`lower <= fn(...) <= upper`, entry by entry of the output `(B, ..., k)`. Both take the function a `residual` takes,
+a `TermFn` with its analytic Jacobian included, so one function serves as a cost or as a constraint:
+`terms.self_clearance(..., hinge=False)` is a penalty under `residual` and the rows `margin - distance <= 0` under
+`inequality(..., upper=0.0)`. A constraint term is no part of the loss. `SequentialQP` holds it; every other solver
+raises `ArgumentError` on a problem with an active one, as `solve_layer` does.
+
+```python
+from better_robot.optim import SequentialQP
+
+target = torch.tensor([[2.0, 0.0], [0.0, 3.0], [0.2, 0.1], [-1.0, -1.0]], dtype=torch.float64)
+held = Problem({"x": torch.zeros(4, 2, dtype=torch.float64)}, data={"target": target})
+held.residual("fit", lambda x, target: x - target)
+held.inequality("disc", lambda x: (x * x).sum(-1, keepdim=True), upper=1.0)
+result = solve(held, SequentialQP(), iterations=60)
+print(result.x["x"])                                                        # the targets, pulled back onto the disc
+print(bool((result.diagnostics["phase"]["violation"][-1] < 1e-6).all()))
+```
+```output
+tensor([[ 1.0000,  0.0000],
+        [ 0.0000,  1.0000],
+        [ 0.2000,  0.1000],
+        [-0.7071, -0.7071]], dtype=torch.float64)
+True
+```
+
+Each step of `SequentialQP` is a [quadratic program](#a-quadratic-program-per-step): the damped Gauss-Newton model of
+the loss, under the constraint terms linearized at the iterate and the problem's bounds as a box on the step. A term
+with value $c$ and Jacobian $J$ gives the rows
+
+$$\text{gain} \cdot (\text{lower} - c) \;\le\; J\,\delta \;\le\; \text{gain} \cdot (\text{upper} - c),$$
+
+so one step uses at most `gain` of a row's distance to its bound and repairs `gain` of a violation. The number of
+rows must stay fixed between steps, because each program starts from the solution of the last one
+(`State.extra["qp"]`, which a warm start keeps too): a clearance term picks its `closest=k` pairs.
+
+A term's `weight` scales its rows and bounds; leave it at 1 unless rows are in conflict and one of them must win.
+The rows of `solve_qp` are [elastic](#a-quadratic-program-per-step): a row gives way once holding it would take a
+multiplier over the cap, 100 times the larger of $\lVert g\rVert_\infty$ and the largest diagonal entry of $H$. The
+multiplier a row needs is about the loss's pull along it divided by the size of its coefficients, so rows whose
+coefficients are of order one hold with a margin of about 100, and a row scaled down to a hundredth or less can give
+way although it could hold. On the unit ball, 64 targets drawn as twice a standard normal in three variables and
+100 steps, every problem reached the optimum at weights 0.01 to 10000; at 0.001 the ball gave way, and 61 of 64
+problems returned the start, not done, with `violation` 0, while their iterates sat up to 31 outside. Rows in
+metres against joint angles in radians are of order one; a row in other units is scaled with `weight` until its
+coefficients are.
+
+A step is taken where it lowers the merit, the loss plus the summed violation of the rows times a price. The price
+is the largest multiplier of the step's program, capped by the larger of two prices that multipliers drifting
+apart on redundant rows do not raise: the multipliers' pull along one row, and the loss the step gives up per unit
+of violation it repairs. The damping follows the ratio of the merit's decrease to the predicted one by Nielsen's
+rule; it stands in for the curvature of the constraint terms, which linear rows do not carry. The damping cannot
+shorten a step that a row forces, so the step is also scaled back to a radius on its largest entry: there is none at
+first, a taken step doubles it, and once the damping has reached 1 a refused step leaves its length as the radius
+(a quarter of it where it had been scaled back or was no shorter than 0.9 of the radius). A problem is also done
+when its radius reaches `1e-12`.
+
+The merit charges the rows of the `closest` pairs selected again at the trial point. A pair outside them is not
+charged, which happens only where more than `closest` pairs are broken at once: on the benchmark's scenes 3.5 to
+3.7 % of the accepted Panda iterates at `closest=8` and 0.7 to 1.2 % of the G1 ones at 64. The `violation` is
+exact over every pair, since a clearance term keeps its pairs nearest first. Raise `closest` where many pairs can
+break at once.
+
+The iterate leaves a curved constraint by what its rows do not see, and later steps bring it back. On the
+benchmark's IK scenes (1024 targets, 50 steps, float64, margin 0.02 m) accepted iterates left the clearances by up
+to 0.37 m (Panda floor) and 0.05 to 0.19 m on the other scenes with clearances. `State.x` is therefore the last
+iterate that was within `tolerance` of every bound, in the terms' own units, or the closest one before any was
+([record 0056](../contracts/decisions/0056-sequential-qp-reports-its-last-point-within-tolerance.md)). A solve that
+starts within `tolerance` returns a point within it after any number of steps; where no later iterate comes back
+within it, that point is the unmoved start (G1 self-collision: 104 of 1024 targets, G1 all: 155).
+`Result.diagnostics[phase]["violation"]` is the largest distance of that point from the bounds per step, and
+`State.extra["iterate"]` holds the iterate itself. A problem can be done with `violation` over `tolerance`, where
+no point was ever within it, as with rows that cannot all hold: `violation`, not `done`, says whether they held.
+
+Measured on 8 draws of 256 problems of three variables pulled to targets outside the constraint, in float64: every
+problem is within `1e-6` of the closed-form optimum after 2 steps under a box, 20 to 22 on a plane (an equality; 3
+with `gain=1.0`), 36 to 44 on the unit ball and 35 to 65 on the unit sphere, whose curvature the damping has to
+find. In float32 a problem whose loss stays large at the optimum stops where a step's decrease drops under the
+rounding of that loss.
+[Constrained inverse kinematics](../guides/constrained-ik.md) uses the solver on a robot and compares it with the
+hinged cost and with `solve_constrained`;
+[record 0055](../contracts/decisions/0055-constraint-terms-and-sequential-qp.md) has the alternatives.
 
 ## A quadratic program per step
 
@@ -278,8 +366,7 @@ Every variable has exactly one batch axis `(B, *event)` ([C-TENS-5](../contracts
 `time=` problem whose time-local terms are mixed with a term that reads a time variable without `window=`
 falls back to dense normal equations and warns; declare `window=` or pass `dense=True`.
 
-The term kinds are `residual` and `scalar`. The names `equality` and `inequality` are reserved for future
-constraint term kinds; they are vocabulary only. Hard constraints today go through `solve_constrained`.
+The term kinds are `residual`, `scalar`, `equality` and `inequality`.
 
 ## Where next
 

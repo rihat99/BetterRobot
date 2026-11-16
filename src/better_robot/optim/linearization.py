@@ -2,8 +2,8 @@
 
 A term's Jacobian comes from its analytic ``jacobian``, from autodiff by knot colours for a time-local term
 (``window=``), or from one batched backward pass shared by every other term. ``linearize`` adds each
-block's ``JᵀJ`` and ``Jᵀr`` to a dense, banded or arrowhead sink; ``check_jacobian`` compares each route
-with plain autodiff.
+block's ``JᵀJ`` and ``Jᵀr`` to a dense, banded or arrowhead sink and returns, from the same evaluation, the
+constraint terms as dense ``Rows``; ``check_jacobian`` compares each route with plain autodiff.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ import torch
 from ..exceptions import ArgumentError, ShapeError
 
 from .evaluation import (
+    CONSTRAINTS,
     Evaluation,
     Values,
     active_terms,
@@ -50,6 +51,20 @@ class _Piece:
     shared: bool  #: whether the columns belong to variables without a time axis (the border of an arrow layout)
 
 
+@final
+@dataclass(frozen=True)
+class Rows:
+    """The active constraint terms linearized at one point: ``lower <= value + jacobian · delta <= upper`` holds
+    them to first order after a tangent step ``delta``. Each row is scaled by its term's weight; ``violation`` is
+    not: it is in the terms' own units."""
+
+    value: torch.Tensor  #: ``(B, M)`` the terms' outputs, flattened and stacked in registration order.
+    jacobian: torch.Tensor  #: ``(B, M, N)`` in tangent coordinates, frozen coordinates zeroed.
+    lower: torch.Tensor  #: ``(B, M)``; ``-inf`` where a row has no lower bound.
+    upper: torch.Tensor  #: ``(B, M)``; ``inf`` where a row has no upper bound.
+    violation: torch.Tensor  #: ``(B,)`` largest distance of an output from its bounds, 0 where every row holds.
+
+
 def _accumulate(
     sink: DenseSink | BandSink | ArrowSink, g: torch.Tensor, pieces: list[_Piece], rows: torch.Tensor
 ) -> None:
@@ -75,17 +90,25 @@ def _stepped(problem: Problem, x: Values, delta: torch.Tensor) -> dict[str, torc
 
 def linearize(
     problem: Problem, x: Values | None = None
-) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor]]:
-    """Gauss-Newton normal equations, the loss ``(B,)`` and the detached loss of every active term ``{name: (B,)}``
-    at ``x`` (default: the problem's variables), from one evaluation."""
+) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor], Rows | None]:
+    """Gauss-Newton normal equations, the loss ``(B,)``, the detached loss of every active cost term ``{name: (B,)}``
+    and the active constraint terms as `Rows` (``None`` without one) at ``x`` (default: the problem's variables),
+    from one evaluation."""
     return _normal_equations(problem, x, active_terms(problem))
+
+
+def _side(bound: float | torch.Tensor | None, weight: float | torch.Tensor, value: torch.Tensor, open: float):
+    """Bound ``(B, M)`` of a constraint term's weighted ``value: (B, ..., k)``: ``open``, an infinity, without one."""
+    if bound is None:
+        return value.new_full(value.shape, open).flatten(1)
+    return (torch.zeros_like(value) + bound * weight).flatten(1)
 
 
 def _normal_equations(
     problem: Problem, x: Values | None, terms: list[Term]
-) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor]]:
-    """Normal equations of ``terms`` (registered on ``problem``, or derived from its terms), their loss and the loss
-    of each."""
+) -> tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor, dict[str, torch.Tensor], Rows | None]:
+    """Normal equations of the cost terms among ``terms`` (registered on ``problem``, or derived from its terms),
+    their loss, the loss of each, and the constraint terms among them as rows."""
     x = {name: value.detach() for name, value in checked_values(problem, x).items()}
     traced = [t for t in terms if t.kind == "scalar" or t.jacobian is None]
     loss = zero_loss(problem)
@@ -103,8 +126,9 @@ def _normal_equations(
         else:
             delta = None
             evaluation = Evaluation(problem, x)
+        held = _rows(problem, [term for term in terms if term.kind in CONSTRAINTS], evaluation, delta)
         dense_rows, scalar_total, losses = [], None, {}
-        for term in terms:
+        for term in [term for term in terms if term.kind not in CONSTRAINTS]:
             value = weighted(problem, term, evaluation)
             if term.kind == "scalar":
                 losses[term.name] = value.detach()
@@ -139,9 +163,51 @@ def _normal_equations(
             columns = torch.arange(size, device=g.device) if layout is None else layout.shared_columns
             block = jacobian.permute(1, 0, 2)[:, None, :, columns]
             _accumulate(sink, g, [_Piece(columns[None], block, layout is not None)], stacked.detach()[:, None])
-    normal = sink.finish(g)
-    mask = free_mask(problem)
-    return (normal if mask is None else normal.masked(mask)), loss, losses
+    normal, mask = sink.finish(g), free_mask(problem)
+    return (normal if mask is None else normal.masked(mask)), loss, losses, held
+
+
+def _rows(problem: Problem, terms: list[Term], evaluation: Evaluation, delta: torch.Tensor | None) -> Rows | None:
+    """The constraint terms ``terms`` as dense rows at the point of ``evaluation``; ``None`` without one.
+
+    A term without a ``jacobian`` is differentiated through ``delta``, the tangent step the evaluation was traced
+    with: one batched backward pass shared by all such terms.
+    """
+    if not terms:
+        return None
+    batch, size, slices = evaluation.batch, problem.tangent_dim, problem.slices()
+    values, blocks, lowers, uppers, violations = [], [], [], [], []
+    for term in terms:
+        value, weight = weighted(problem, term, evaluation), weight_of(problem, term)
+        flat = value.flatten(1)
+        lower, upper = _side(term.lower, weight, value, -torch.inf), _side(term.upper, weight, value, torch.inf)
+        scale = weight.expand_as(value).flatten(1) if isinstance(weight, torch.Tensor) else weight
+        excess = torch.maximum(flat - upper, lower - flat).clamp_min(0.0) / scale
+        # An entry of weight 0 switches its row off: a zero row in the step, and no violation rather than 0 / 0.
+        violations.append((torch.where(scale > 0, excess, 0.0) if isinstance(scale, torch.Tensor) else excess).amax(-1))
+        block = None
+        if term.jacobian is not None:
+            block = value.new_zeros(batch, flat.shape[1], size)
+            for name, part in term.jacobian(*evaluation.args(term.reads)).items():
+                block[:, :, slices[name]] = part.detach().reshape(batch, flat.shape[1], -1)
+            block = block * (scale.unsqueeze(-1) if isinstance(scale, torch.Tensor) else scale)
+        values.append(flat), blocks.append(block), lowers.append(lower), uppers.append(upper)
+    traced = [value for value, block in zip(values, blocks) if block is None]
+    if traced and delta is not None:
+        stacked = torch.cat(traced, dim=1)
+        seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
+        seeds = seeds.unsqueeze(1).expand(-1, batch, -1)
+        (jacobian,) = torch.autograd.grad(stacked, delta, seeds, is_grads_batched=True, retain_graph=True)
+        pieces = iter(jacobian.permute(1, 0, 2).split([value.shape[1] for value in traced], dim=1))
+        blocks = [next(pieces) if block is None else block for block in blocks]
+    jacobian, mask = torch.cat(blocks, dim=1).detach(), free_mask(problem)
+    return Rows(
+        value=torch.cat(values, dim=1).detach(),
+        jacobian=jacobian if mask is None else jacobian * mask.unsqueeze(-2),
+        lower=torch.cat(lowers, dim=1).detach(),
+        upper=torch.cat(uppers, dim=1).detach(),
+        violation=torch.stack(violations).amax(0).detach(),
+    )
 
 
 def gradient(
@@ -353,16 +419,21 @@ def _windowed_pieces(
 def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float]:
     """Largest absolute difference between each term's own Jacobian route and plain autodiff.
 
-    Checks every residual term that has an analytic ``jacobian`` or a ``window``; the reference
-    differentiates the same term row by row with no assumption. Returns ``{term name: error}``
-    measured on ``H`` and ``g``, relative to the largest entry of ``H``.
+    Checks every residual term that has an analytic ``jacobian`` or a ``window`` and every constraint term that
+    has a ``jacobian``; the reference differentiates the same term row by row with no assumption. Returns
+    ``{term name: error}`` measured on ``H`` and ``g``, relative to the largest entry of ``H`` (a constraint term: on
+    its rows, relative to their largest entry).
     """
     x, errors = checked_values(problem, x), {}
     for term in active_terms(problem):
-        if term.kind != "residual" or (term.jacobian is None and term.window is None):
+        if term.kind == "scalar" or (term.jacobian is None and term.window is None):
             continue
-        normal_a, _, _ = _normal_equations(problem, x, [term])
-        normal_b, _, _ = _normal_equations(problem, x, [replace(term, jacobian=None, window=None)])
+        normal_a, _, _, rows_a = _normal_equations(problem, x, [term])
+        normal_b, _, _, rows_b = _normal_equations(problem, x, [replace(term, jacobian=None, window=None)])
+        if rows_a is not None and rows_b is not None:
+            scale = max(float(rows_b.jacobian.abs().max()), 1e-300)
+            errors[term.name] = float((rows_a.jacobian - rows_b.jacobian).abs().max()) / scale
+            continue
         H_a = normal_a.H if isinstance(normal_a, Normal) else normal_a.dense()
         H_b = normal_b.H if isinstance(normal_b, Normal) else normal_b.dense()
         scale = max(float(H_b.abs().max()), 1e-300)
@@ -370,4 +441,4 @@ def check_jacobian(problem: Problem, x: Values | None = None) -> dict[str, float
     return errors
 
 
-__all__ = ["check_jacobian", "free_mask", "gradient", "linearize"]
+__all__ = ["Rows", "check_jacobian", "free_mask", "gradient", "linearize"]
