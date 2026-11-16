@@ -14,9 +14,10 @@ Everything the tick needs is already on a `Problem`: the cost terms give the Gau
 terms the rows, `bounds` the box, the manifolds the retraction. Nothing in it is about robots.
 
 ## Decision
-1. **One function in `optim`.** `optim.track(problem, x, *, warm=None, gain=0.5, damping=1e-3, step=None,
+1. **One function in `optim`.** `optim.track(problem, x, *, step, warm=None, gain=0.5, damping=1e-3,
    iterations=20) -> (x, QPSolution)`: one `linearize` at `x`, one `solve_qp` of `iterations` started from `warm`,
-   one `retract`. The new point and the
+   one `retract`. `step` is required: without it a far target gives a long step, and the curved rows were left by
+   0.10 to 0.18 m on the Panda. The new point and the
    program's solution are the whole state a loop carries; the targets move between calls through
    `problem.with_(data=)` and the rows keep their count (`closest=`), so the warm start fits.
 2. **The program.** Minimize `½ δᵀ(H + damping·I) δ + gᵀδ`, the Gauss-Newton model of the cost terms with an
@@ -25,11 +26,16 @@ terms the rows, `bounds` the box, the manifolds the retraction. Nothing in it is
    damper of the joint limits), each entry of that box clamped to `±step` (a number or `(nv,)`: velocity limits
    times the tick period). `SequentialQP` and `track` build the rows with one private function; `SequentialQP`
    keeps its full box (`box=1`).
-3. **No acceptance.** The step is taken. Where the program's step is not its exact solution it is clamped to the
-   box and scaled back until it leaves no row by more than 1e-6 and takes no violated row further out.
+3. **No acceptance.** The step is taken. The program holds each constraint row with a reserve, a tenth of what a
+   step as long as the last program's can change that row by (at most half the row's width; none on a first call).
+   The step taken is the program's clamped to the box, moved back onto the rows it leaves by the least change the
+   box allows (one least-squares solve), then scaled back until it leaves no row that held by more than 1e-6 and
+   takes no violated row further out. A row that starts violated is repaired at `gain` per call, not all at once.
 4. **Row forms of the behaviours.** Each behaviour's row is its cost term with `hinge=False`:
    `terms.manipulability(..., hinge=False)` (`threshold - w`, new) and `terms.sphere_clearance(..., closest=k)` (the
    `k` smallest distances, new, as `self_clearance` already had); the joint limits are the bounds.
+   `terms.self_clearance(margin=)` takes one margin per pair, so that a pair closer than the common margin in the
+   rest pose keeps a row of its own (margin = its rest distance less 1 mm) instead of being left out.
 5. **No posture term, no task gain by default.** A posture term is the caller's `terms.rest` (`ik_problem(
    rest_weight=)`); the task error enters at full weight.
 6. **A moving obstacle needs no new argument.** Its distance function reads a tensor the loop moves in place
