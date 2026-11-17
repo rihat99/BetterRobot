@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from functools import partial
 from pathlib import Path
 from typing import ClassVar, final
 
@@ -11,10 +12,12 @@ import pytest
 import torch
 
 import better_robot as br
+from better_robot.lie import so3
 from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
+from better_robot.viewer.skeleton import MAXIMAL
 from better_robot.viewer.theme import DARK, Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
@@ -141,23 +144,83 @@ def _drawn(server: FakeServer) -> dict[str, object]:
     return {name: node for name, node in nodes if name.startswith("/g1_29dof/") and node.kind != "FrameHandle"}
 
 
-def _positions(node: object) -> np.ndarray:
+def _positions(node: object, key: str = "batched_positions") -> np.ndarray:
     """What a batched node shows: its last write, or what it was created with."""
-    return vars(node).get("batched_positions", node.props["batched_positions"])  # type: ignore[attr-defined]
+    return vars(node).get(key, node.props[key])  # type: ignore[attr-defined]
 
 
-def test_robot_visual_maximal_with_every_overlay_stays_within_six_nodes_and_two_writes_each() -> None:
-    robot, server, viewer = _g1_visual(collision=True, frames=True)
+def _matrices(wxyz: np.ndarray) -> np.ndarray:
+    """Rotation matrices ``(N, 3, 3)`` of viser's scalar-first quaternions ``(N, 4)``."""
+    return so3.to_matrix(torch.from_numpy(np.asarray(wxyz, dtype=np.float64)[:, [1, 2, 3, 0]])).numpy()
+
+
+def test_robot_visual_maximal_with_every_overlay_is_six_nodes_that_a_step_writes_once() -> None:
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    robot, server, viewer = _g1_visual(
+        model.q_neutral.repeat(2, 1), collision=True, frames=True, maximal=replace(MAXIMAL, limits=True)
+    )
     assert robot.style == "maximal" and robot.styles == ("minimal", "maximal")  # no geometry: no meshes
-    drawn = _drawn(server)
-    assert sorted(name.rsplit("/", 2)[-2] + "/" + name.rsplit("/", 1)[-1] for name in drawn) == [
-        "collision/spheres", "frames/axes", "maximal/balls", "maximal/boxes", "maximal/cylinders",
-    ]  # fmt: skip
-    assert len(drawn) <= 6
+    path, moved = "/g1_29dof/g1_29dof", ["batched_positions", "batched_wxyzs"]
     server.scene.log.clear()
-    viewer.show(0)
-    writes = [name for name, _ in server.scene.log if name in drawn]
-    assert writes and max(writes.count(name) for name in drawn) <= 2
+    viewer.show(1)
+    writes = {name: sorted(event for node, event in server.scene.log if node == name) for name in _drawn(server)}
+    assert writes == {
+        **{f"{path}/maximal/{mesh}": moved for mesh in ("balls", "boxes", "cylinders")},
+        f"{path}/maximal/limits": ["points"],  # the arcs and ticks
+        f"{path}/frames/axes": moved,
+        f"{path}/collision/spheres": ["batched_positions"],  # a ball needs no rotation
+    }
+
+
+@pytest.mark.parametrize("style", ["maximal", "minimal"])
+def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> None:
+    """A step writes rotations that follow forward kinematics, here far from the neutral configuration the skeleton is
+    laid out at: a block rigid in a joint keeps its pose in that joint's frame, a drum's axis is its joint's axis,
+    and each end of a stick is the centre of a ball or a point rigid in a joint."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    velocity = 0.8 * torch.randn(model.nv, generator=torch.Generator().manual_seed(5), dtype=model.q_neutral.dtype)
+    q = torch.stack([model.q_neutral, br.kinematics.integrate(model, model.q_neutral, velocity)])
+    robot, server, viewer = _g1_visual(q, style=style)
+    viewer.show(1)
+    poses = br.forward_kinematics(model, q).joint_poses.numpy().astype(np.float64)  # (2, njoints, 7)
+    joints = [_matrices(poses[step][:, [6, 3, 4, 5]]) for step in range(2)]  # (njoints, 3, 3) per step
+    skeleton, nodes = robot._skeleton(style), server.scene.nodes
+    shown = {}  # mesh -> at steps 0 (as built) and 1: positions (N, 3), rotations (N, 3, 3), scales (N, 3)
+    for mesh in ("cylinders", "balls", "boxes"):
+        node, blocks = nodes[f"/g1_29dof/g1_29dof/{style}/{mesh}"], getattr(skeleton, mesh)
+        shown[mesh] = [
+            tuple(read(f"batched_{key}") for key in ("positions", "wxyzs", "scales"))
+            for read in (node.props.__getitem__, partial(_positions, node))
+        ]
+        shown[mesh] = [(position, _matrices(wxyz), scale) for position, wxyz, scale in shown[mesh]]
+        rigid = blocks.anchors[:, 0] < 0
+        body = blocks.body[rigid]
+        local = [
+            (
+                np.einsum("nki,nk->ni", joints[step][body], position[rigid] - poses[step, body, :3]),
+                joints[step][body].transpose(0, 2, 1) @ rotation[rigid],
+            )
+            for step, (position, rotation, _) in enumerate(shown[mesh])
+        ]
+        np.testing.assert_allclose(local[1][0], local[0][0], atol=1e-5, err_msg=mesh)
+        np.testing.assert_allclose(local[1][1], local[0][1], atol=1e-5, err_msg=mesh)
+    blocks, rotation = skeleton.cylinders, shown["cylinders"][1][1]
+    if style == "maximal":
+        drums = [i for i, part in enumerate(blocks.part) if part == "drum"]
+        axes = [joints[1][j] @ np.asarray(model.joints[j].axis) for j in blocks.owner[drums]]
+        assert len(drums) == 29
+        np.testing.assert_allclose(rotation[drums, :, 2], np.stack(axes), atol=1e-5)
+        return
+    sticks = blocks.anchors[:, 0] >= 0
+    ends = [  # (2 N, 3) per step: both ends of each stick
+        np.concatenate([p[sticks] + sign * 0.5 * s[sticks, 2:] * r[sticks, :, 2] for sign in (-1.0, 1.0)])
+        for p, r, s in shown["cylinders"]
+    ]
+    in_joints = np.einsum("jki,njk->nji", joints[0], ends[0][:, None] - poses[0, None, :, :3])  # (2 N, njoints, 3)
+    carried = np.einsum("jik,njk->nji", joints[1], in_joints) + poses[1, None, :, :3]
+    rigid = np.linalg.norm(carried - ends[1][:, None], axis=-1).min(axis=1) < 1e-5
+    balls = np.linalg.norm(ends[1][:, None] - shown["balls"][1][0][None], axis=-1).min(axis=1) < 1e-5
+    assert sticks.sum() >= 12 and (rigid | balls).all(), np.flatnonzero(~(rigid | balls))
 
 
 def test_robot_visual_builds_a_style_once_and_switches_by_visibility() -> None:

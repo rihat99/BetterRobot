@@ -64,15 +64,17 @@ def _at(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
 _HINGE = {"axis": (0.0, 1.0, 0.0), "lower": -1.5, "upper": 1.5}
 
 
-def _arm(builder: br.io.ModelBuilder, *, thin: bool = False) -> None:
+def _arm(builder: br.io.ModelBuilder, *, thin: bool = False, boxes: bool = False) -> None:
     """A fixed base and four revolute joints 25 cm apart along z, no axis along the line; ``thin``: the leaf's one
-    shape is a 2 mm placeholder box."""
+    shape is a 2 mm placeholder box; ``boxes``: the base and each link carry a box from their joint to the next."""
     builder.add_body("base", mass=1.0)
     builder.add_fixed("mount", parent="world", child="base")
     for k, axis in enumerate(((0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))):
         builder.add_body(f"l{k}", mass=1.0)
         builder.add_revolute(f"j{k}", parent=f"l{k - 1}" if k else "base", child=f"l{k}", axis=axis,
                              origin=_at(z=0.25), lower=-2.0, upper=2.0)  # fmt: skip
+    for body in ("base", "l0", "l1", "l2", "l3") if boxes else ():
+        builder.add_shape(body, Box(size=(0.06, 0.06, 0.25), placement=(0, 0, 0.125, 0, 0, 0, 1.0)))
     if thin:
         builder.add_shape("l3", Box(size=(0.002, 0.002, 0.002), placement=(0, 0, 0.1, 0, 0, 0, 1.0)))
 
@@ -152,7 +154,8 @@ def _servo(builder: br.io.ModelBuilder) -> None:
 
 #: Small models at the edges of the layout.
 _SYNTHETIC: dict[str, Callable[[br.io.ModelBuilder], None]] = {
-    "arm": _arm, "thin_tip": partial(_arm, thin=True), "world_hinge": partial(_on_world, slider=False),
+    "arm": _arm, "thin_tip": partial(_arm, thin=True), "boxed_arm": partial(_arm, boxes=True),
+    "world_hinge": partial(_on_world, slider=False),
     "world_slider": partial(_on_world, slider=True), "gantry": _gantry, "planar": _planar, "hand": _hand,
     "fixed": _fixed, "box": _box, "servo": _servo,
 }  # fmt: skip
@@ -581,3 +584,63 @@ def test_colors_shade_each_part_and_tint_the_sides() -> None:
     np.testing.assert_allclose(drums["left_elbow_joint"], LIGHT.shade(lighter, "joint"), atol=1e-6)
     np.testing.assert_allclose(drums["right_elbow_joint"], LIGHT.shade(darker, "joint"), atol=1e-6)
     np.testing.assert_allclose(drums["waist_yaw_joint"], LIGHT.shade(hue, "joint"), atol=1e-6)
+
+
+_AUTO = {("hull", "base"), ("end", "l3"), ("tip", "l3")}  # the boxed arm's trunk, then its last link's limb and ball
+
+
+@pytest.mark.parametrize(
+    ("hulls", "body_hull", "expected"),
+    [
+        ("auto", {}, _AUTO),
+        ("all", {}, _AUTO | {("hull", "l0"), ("hull", "l1"), ("hull", "l2")}),
+        ("none", {}, set()),
+        ("auto", {"l1": True}, _AUTO | {("hull", "l1")}),
+        ("none", {"l1": True}, {("hull", "l1")}),
+        ("auto", {"base": False, "l3": False}, set()),
+    ],
+)
+def test_hulls_and_body_hull_choose_the_bodies_drawn(hulls: str, body_hull: dict, expected: set) -> None:
+    """``hulls`` gives a trunk to the root and the branching bodies (``"all"``: also a body with one child joint, the
+    links) and an end to the leaf, ``"none"`` neither; ``body_hull`` then adds or removes one body."""
+    model, geometry = _synthetic("boxed_arm")
+    skeleton = build_skeleton(model, replace(MAXIMAL, hulls=hulls, body_hull=body_hull), geometry=geometry)
+    drawn = {
+        (part, model.body_names[body])
+        for blocks in (skeleton.boxes, skeleton.balls)
+        for part, body in zip(blocks.part, blocks.body, strict=True)
+        if part in ("hull", "end", "tip")
+    }
+    assert drawn == expected
+
+
+def test_a_limit_arc_spans_its_joint_s_limits_and_its_tick_sits_at_the_joint_s_angle() -> None:
+    """Each bounded revolute joint gets 24 segments rigid in its parent, round the joint's axis about its drum's
+    centre, from its lower to its upper limit, and a tick rigid in its child at the joint's angle."""
+    model, _ = _synthetic("arm")
+    skeleton = build_skeleton(model, replace(MAXIMAL, limits=True))
+    q = torch.tensor([0.3, -1.0, 1.1, -0.6], dtype=model.q_neutral.dtype)  # each within pi of both limits
+    poses = _poses(model, q)
+    lines, drums, anchor = skeleton.lines(poses), _drums(skeleton, poses), _anchors(model)
+    joints = [j for j in range(model.njoints) if not isinstance(model.joints[j], JointFixed)]
+    assert lines.shape == (25 * len(joints), 2, 3)
+    for k, j in enumerate(joints):  # per joint, in order: its arc, then its tick
+        arc, tick = lines[25 * k : 25 * k + 24], lines[25 * k + 24]
+        assert (skeleton.line_body[25 * k : 25 * k + 24] == anchor[model.parent_joint_ids[j]]).all()
+        assert skeleton.line_body[25 * k + 24] == j
+        center, axis = drums[j][0], _rotations(poses[j : j + 1, 3:])[0] @ np.asarray(model.joints[j].axis)
+        points = np.concatenate([arc[:, 0], arc[-1:, 1]]) - center
+        np.testing.assert_allclose(arc[1:, 0], arc[:-1, 1], atol=1e-6)  # one unbroken arc
+        np.testing.assert_allclose(points @ axis, 0.0, atol=1e-6)  # round the axis, in the drum's middle plane
+        np.testing.assert_allclose(np.linalg.norm(points, axis=1), np.linalg.norm(points[0]), atol=1e-6)
+        assert np.linalg.norm(points[0]) > drums[j][2][0]  # outside the drum
+
+        def turn(start: np.ndarray, end: np.ndarray) -> np.ndarray:  # signed angles about the axis
+            return np.arctan2(np.cross(start, end) @ axis, np.sum(start * end, axis=-1))
+
+        lower, upper = float(model.lower_position_limit[k]), float(model.upper_position_limit[k])
+        assert turn(points[:-1], points[1:]).sum() == pytest.approx(upper - lower, abs=1e-5)
+        pointer = tick[1] - tick[0]
+        np.testing.assert_allclose(np.cross(tick[0] - center, pointer), 0.0, atol=1e-6)  # radial
+        assert turn(points[0], pointer) == pytest.approx(float(q[k]) - lower, abs=1e-5)
+        assert turn(pointer, points[-1]) == pytest.approx(upper - float(q[k]), abs=1e-5)
