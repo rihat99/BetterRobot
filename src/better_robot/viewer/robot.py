@@ -83,7 +83,7 @@ class _Blocks(Layer):
     @override
     def build(self, scene: Any, root: str) -> None:
         meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(taper=self.skeleton.taper)}
-        colors = self.skeleton.colors(self.hue, self.theme.shade)
+        colors = self.skeleton.colors(self.hue, self.theme)
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
                 vertices, faces = meshes[mesh]
@@ -114,7 +114,7 @@ class _Blocks(Layer):
     def recolor(self, hue: RGB, theme: Theme) -> None:
         """Draw the blocks in ``theme``'s shades of ``hue``."""
         self.hue, self.theme = hue, theme
-        colors = self.skeleton.colors(hue, theme.shade)
+        colors = self.skeleton.colors(hue, theme)
         for mesh, node in self._nodes.items():
             node.batched_colors = linear_uint8(colors[mesh])
         if self._lines is not None:

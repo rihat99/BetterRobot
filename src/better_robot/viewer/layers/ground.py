@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING, final, override
 
 import numpy as np
-import torch
 
 from ...exceptions import ArgumentError
-from ...lie import so3
-from ..theme import LIGHT, RGB, rgb_uint8
+from ..skeleton import _from_z
+from ..theme import LIGHT, RGB, _uint8
 from ..layer import Layer
 
 if TYPE_CHECKING:
@@ -99,13 +97,7 @@ class GroundLayer(Layer):
             plane = "xy"  # the grid's own normal is +z; rotate it onto ``normal``
             axis = np.asarray(self.normal, dtype=np.float64).reshape(3)
             axis = axis / np.linalg.norm(axis)
-            turn = np.cross((0.0, 0.0, 1.0), axis)  # the shortest turn of +z onto the normal; a half turn about x
-            sine = float(np.linalg.norm(turn))
-            unit = turn / sine if sine > 1e-9 else np.array([1.0, 0.0, 0.0])
-            xyzw = so3.from_axis_angle(
-                torch.from_numpy(unit), torch.tensor(math.atan2(sine, axis[2]), dtype=torch.float64)
-            ).numpy()
-            wxyz = xyzw[[3, 0, 1, 2]]
+            wxyz = _from_z(axis)[[3, 0, 1, 2]]  # the shortest turn of +z onto the normal
         origin = np.zeros(3) if self.origin is None else np.asarray(self.origin, dtype=np.float64).reshape(3)
         self._grid = self._track(
             scene.add_grid(
@@ -132,8 +124,3 @@ class GroundLayer(Layer):
     @override
     def set_step(self, step: int) -> None:
         pass
-
-
-def _uint8(color: RGB) -> tuple[int, int, int]:
-    red, green, blue = (int(c) for c in rgb_uint8(color))
-    return red, green, blue

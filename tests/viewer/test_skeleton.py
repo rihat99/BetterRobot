@@ -15,7 +15,7 @@ import torch
 import better_robot as br
 from better_robot import collision
 from better_robot.model import Box, Geometry, JointFixed, JointPrismatic, Model
-from better_robot.viewer import RobotVisual
+from better_robot.viewer import LIGHT, RobotVisual
 from better_robot.viewer.skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton
 
 from better_robot.exceptions import ArgumentError, UnknownNameError
@@ -564,29 +564,20 @@ def test_a_robot_whose_joints_share_one_point_takes_its_size_from_its_bodies(nam
 def test_colors_shade_each_part_and_tint_the_sides() -> None:
     model, spheres = _g1()
     hue = (0.2, 0.6, 0.4)
-    roles = {"joint": 0.0, "face": -0.5, "bone": 0.5, "stick": 1.0}  # towards black below 0, towards white above
-
-    def shade(color: tuple[float, float, float], role: str) -> tuple[float, float, float]:
-        mix, target = abs(roles[role]), float(roles[role] > 0.0)
-        red, green, blue = (channel + mix * (target - channel) for channel in color)
-        return red, green, blue
-
     plain = build_skeleton(model, MAXIMAL, spheres=spheres)
-    colors = plain.colors(hue, shade)
-    parts = np.array(plain.cylinders.part)
-    np.testing.assert_allclose(colors["cylinders"][parts == "drum"], np.broadcast_to(hue, (29, 3)), atol=1e-6)
-    np.testing.assert_allclose(colors["cylinders"][parts == "face"][0], shade(hue, "face"), atol=1e-6)
-    np.testing.assert_allclose(colors["boxes"][np.array(plain.boxes.part) == "hull"][0], shade(hue, "bone"), atol=1e-6)
+    colors = plain.colors(hue, LIGHT)
+    parts, boxes = np.array(plain.cylinders.part), np.array(plain.boxes.part)
+    np.testing.assert_allclose(
+        colors["cylinders"][parts == "drum"], np.broadcast_to(LIGHT.shade(hue, "joint"), (29, 3))
+    )
+    np.testing.assert_allclose(colors["cylinders"][parts == "face"][0], LIGHT.shade(hue, "face"), atol=1e-6)
+    np.testing.assert_allclose(colors["boxes"][boxes == "hull"][0], LIGHT.shade(hue, "bone"), atol=1e-6)
     red = (1.0, 0.0, 0.0)
-    recipe = SkeletonRecipe(sides=True, color={"left_knee_joint": red})
-    sided = build_skeleton(model, recipe, spheres=spheres)
-    drums = {
-        model.joint_names[owner]: color
-        for owner, part, color in zip(
-            sided.cylinders.owner, sided.cylinders.part, sided.colors(hue, shade)["cylinders"]
-        )
-        if part == "drum"
-    }
+    sided = build_skeleton(model, SkeletonRecipe(sides=True, color={"left_knee_joint": red}), spheres=spheres)
+    rows = zip(sided.cylinders.owner, sided.cylinders.part, sided.colors(hue, LIGHT)["cylinders"], strict=True)
+    drums = {model.joint_names[owner]: color for owner, part, color in rows if part == "drum"}
     np.testing.assert_allclose(drums["left_knee_joint"], red, atol=1e-6)  # a recipe colour wins over hue and side
-    assert drums["left_elbow_joint"].sum() > drums["waist_yaw_joint"].sum() > drums["right_elbow_joint"].sum()
-    np.testing.assert_allclose(drums["waist_yaw_joint"], hue, atol=1e-6)
+    lighter, darker = tuple(c + 0.35 * (1.0 - c) for c in hue), tuple(0.75 * c for c in hue)  # left, right
+    np.testing.assert_allclose(drums["left_elbow_joint"], LIGHT.shade(lighter, "joint"), atol=1e-6)
+    np.testing.assert_allclose(drums["right_elbow_joint"], LIGHT.shade(darker, "joint"), atol=1e-6)
+    np.testing.assert_allclose(drums["waist_yaw_joint"], LIGHT.shade(hue, "joint"), atol=1e-6)

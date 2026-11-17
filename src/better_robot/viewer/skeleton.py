@@ -41,9 +41,7 @@ from ..model import (
     Model,
     Sphere,
 )
-
-#: A colour as the viewer takes it everywhere: red, green and blue in ``[0, 1]``.
-RGB = tuple[float, float, float]
+from .theme import RGB, Theme
 
 _TWIST = float(np.cos(np.radians(35.0)))  # a joint axis within 35 degrees of its limb twists the limb
 _HALF = 0.8  # half length of a drum over its radius
@@ -242,21 +240,19 @@ class Skeleton:
         local = torch.from_numpy(self.line_local).to(poses.dtype)
         return se3.act(poses[..., self.line_body, None, :], local).numpy()
 
-    def colors(self, hue: RGB, shade: Callable[[RGB, _Shade], RGB]) -> dict[str, np.ndarray]:
-        """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``shade(hue, role)`` per part, tinted by side, or its
-        override.
-
-        ``shade`` is ``Theme.shade``. A left block takes the hue 35 % towards white, a right one 25 % towards black.
-        """
-        left, right = _mix(hue, (1.0, 1.0, 1.0), 0.35), _mix(hue, (0.0, 0.0, 0.0), 0.25)
+    def colors(self, hue: RGB, theme: Theme) -> dict[str, np.ndarray]:
+        """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``theme.shade`` of ``hue`` for its part and side, or the
+        recipe's colour for it (a drum face takes that colour's shade)."""
         colors = {}
         for name in _MESHES:
             blocks: Blocks = getattr(self, name)
             rows = np.zeros((len(blocks), 3), dtype=np.float32)
             for i, (part, side, own) in enumerate(zip(blocks.part, blocks.side, blocks.color, strict=True)):
                 role = _ROLE[part]
-                base = own if own is not None else left if side > 0 else right if side < 0 else hue
-                rows[i] = base if own is not None and role != "face" else shade(base, role)
+                if own is None:
+                    rows[i] = theme.shade(hue, role, side=int(side))
+                else:
+                    rows[i] = theme.shade(own, role) if role == "face" else own
             colors[name] = rows
         return colors
 
@@ -321,16 +317,17 @@ def _matrix(quaternion: np.ndarray) -> np.ndarray:
 
 
 def _from_z(direction: np.ndarray) -> np.ndarray:
-    """Shortest-arc ``xyzw`` rotations ``(..., 4)`` taking ``+z`` onto each ``direction (..., 3)``.
+    """Shortest-arc ``xyzw`` rotations ``(..., 4)`` taking ``+z`` onto each ``direction (..., 3)`` (``so3.exp``).
 
     A zero direction gives the identity, one opposite ``+z`` a half turn about ``x``.
     """
-    norm = np.linalg.norm(direction, axis=-1, keepdims=True)
-    unit = np.where(norm > 1e-12, direction / np.where(norm > 1e-12, norm, 1.0), [0.0, 0.0, 1.0])
-    # the axis z x d with the half-angle form (sin(t) n, 1 + cos(t)), then normalised
-    turn = np.stack([-unit[..., 1], unit[..., 0], np.zeros_like(unit[..., 0]), 1.0 + unit[..., 2]], axis=-1)
-    length = np.linalg.norm(turn, axis=-1, keepdims=True)
-    return np.where(length > 1e-9, turn / np.where(length > 1e-9, length, 1.0), [1.0, 0.0, 0.0, 0.0])
+    unit = torch.from_numpy(np.asarray(direction, dtype=np.float64))
+    norm = torch.linalg.norm(unit, dim=-1, keepdim=True)
+    unit = torch.where(norm > 1e-12, unit / norm.clamp_min(1e-12), unit.new_tensor([0.0, 0.0, 1.0]))
+    turn = torch.stack([-unit[..., 1], unit[..., 0], torch.zeros_like(unit[..., 0])], dim=-1)  # z x unit
+    sine = torch.linalg.norm(turn, dim=-1, keepdim=True)
+    axis = torch.where(sine > 1e-9, turn / sine.clamp_min(1e-9), unit.new_tensor([1.0, 0.0, 0.0]))
+    return so3.exp(axis * torch.atan2(sine, unit[..., 2:])).numpy()
 
 
 def _limb_frame(direction: np.ndarray, across: np.ndarray | None) -> np.ndarray:
@@ -341,11 +338,6 @@ def _limb_frame(direction: np.ndarray, across: np.ndarray | None) -> np.ndarray:
         return _matrix(_from_z(direction))
     side = side / np.linalg.norm(side)
     return np.stack([side, np.cross(direction, side), direction], axis=1)
-
-
-def _mix(color: RGB, other: RGB, share: float) -> RGB:
-    red, green, blue = (a + (b - a) * share for a, b in zip(color, other, strict=True))
-    return red, green, blue
 
 
 _OrientedBox = tuple[np.ndarray, np.ndarray, np.ndarray]  # centre (3,), rotation (3, 3), half extents (3,)

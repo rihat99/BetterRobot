@@ -13,6 +13,8 @@ RGB = tuple[float, float, float]
 _UP_AXES = ("+x", "-x", "+y", "-y", "+z", "-z")  # what viser's set_up_direction takes as a word
 #: How far ``shade`` mixes a hue towards black (negative) or white (positive) per role.
 _SHADE_MIX = {"joint": -0.10, "face": -0.32, "body": 0.0, "bone": 0.45, "stick": 0.10}
+#: How far ``shade`` first mixes the hue of a part on the left (1) or the right (-1) side, the same way.
+_SIDE_MIX = {1: 0.35, 0: 0.0, -1: -0.25}
 #: Directions the key and fill lights shine from, for a z-up scene; ``apply`` turns them to the theme's ``up``.
 _KEY_LIGHT = (-2.0, -3.0, 4.0)
 _FILL_LIGHT = (3.0, -1.5, 1.0)
@@ -44,16 +46,6 @@ def linear_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.nda
     srgb = rgb_uint8(color, shape) / 255.0
     linear = np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
     return (linear * 255.0 + 0.5).astype(np.uint8)
-
-
-def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:
-    """Piecewise-linear colours ``(..., 3)`` through evenly spaced ``stops`` (at least two) for ``values`` in
-    ``[0, 1]`` (clamped); two stops are a plain blend from the first to the second."""
-    stops_array = np.asarray(stops, dtype=np.float32)
-    position = np.clip(np.asarray(values, dtype=np.float32), 0.0, 1.0) * (len(stops_array) - 1)
-    segment = np.minimum(position.astype(np.int64), len(stops_array) - 2)
-    t = (position - segment)[..., None]
-    return (1.0 - t) * stops_array[segment] + t * stops_array[segment + 1]
 
 
 def _uint8(color: RGB) -> tuple[int, int, int]:
@@ -118,15 +110,17 @@ class Theme:
         """The colour of the ``index``-th robot: ``hues[index % len(hues)]``."""
         return self.hues[index % len(self.hues)]
 
-    def shade(self, hue: RGB, role: Literal["joint", "face", "body", "bone", "stick"]) -> RGB:
+    def shade(self, hue: RGB, role: Literal["joint", "face", "body", "bone", "stick"], *, side: int = 0) -> RGB:
         """``hue`` as a part of ``role`` draws it: ``joint`` 10 % towards black, ``face`` 32 % towards black (drum
         faces), ``body`` the hue itself (meshes), ``bone`` 45 % towards white (the bodies of the maximal skeleton),
-        ``stick`` 10 % towards white (thin bones)."""
-        if role not in _SHADE_MIX:
-            raise ArgumentError(f"role must be one of {list(_SHADE_MIX)}, got {role!r}")
-        mix = _SHADE_MIX[role]
-        target = 1.0 if mix > 0.0 else 0.0
-        red, green, blue = (channel + abs(mix) * (target - channel) for channel in hue)
+        ``stick`` 10 % towards white (thin bones). A part on the left (``side=1``) takes the hue 35 % towards white
+        first, one on the right (``side=-1``) 25 % towards black (``SkeletonRecipe(sides=True)``)."""
+        if role not in _SHADE_MIX or side not in _SIDE_MIX:
+            raise ArgumentError(f"role must be one of {list(_SHADE_MIX)} and side -1, 0 or 1, got {role!r}, {side!r}")
+        red, green, blue = hue
+        for mix in (_SIDE_MIX[side], _SHADE_MIX[role]):
+            target = 1.0 if mix > 0.0 else 0.0
+            red, green, blue = (channel + abs(mix) * (target - channel) for channel in (red, green, blue))
         return red, green, blue
 
     def apply(self, server: Any) -> None:
