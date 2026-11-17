@@ -132,11 +132,13 @@ def test_g1_glyphs_of_one_rigid_group_do_not_overlap() -> None:
 def test_g1_slides_are_mirror_images() -> None:
     model, spheres = _g1()
     skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
-    assert len(skeleton.slides) == 16
+    assert len(skeleton.slides) == 14
     for name, slide in skeleton.slides.items():
         if name.startswith("left_"):
             assert abs(skeleton.slides[name.replace("left_", "right_")]) == pytest.approx(abs(slide), abs=1e-9)
-    assert dict(skeleton.shrinks) == pytest.approx({"left_hip_pitch_joint": 0.85, "right_hip_pitch_joint": 0.85})
+    hips = dict.fromkeys(("left_hip_pitch_joint", "right_hip_pitch_joint"), 0.85)
+    wrists = dict.fromkeys(("left_wrist_yaw_joint", "right_wrist_yaw_joint"), 0.85**4)  # a leaf shrinks in place
+    assert dict(skeleton.shrinks) == pytest.approx(hips | wrists)
     poses = _poses(model)
     drums = _drums(skeleton, poses)
     mirror = np.array([1.0, -1.0, 1.0])  # the neutral root frame is the world: left is positive y
@@ -147,6 +149,27 @@ def test_g1_slides_are_mirror_images() -> None:
         offset, mirrored = drums[j][0] - poses[j, :3], drums[other][0] - poses[other, :3]
         np.testing.assert_allclose(offset * mirror, mirrored, atol=1e-6)
         np.testing.assert_allclose(drums[j][2], drums[other][2], atol=1e-9)
+
+
+def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
+    model, spheres = _g1()
+    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    drums, anchor = _drums(skeleton, _poses(model)), _anchors(model)
+    size = {j: half[0] / skeleton.shrinks.get(model.joint_names[j], 1.0) for j, (_, _, half) in drums.items()}
+    pairs = [(anchor[model.parent_joint_ids[j]], j) for j in drums if anchor[model.parent_joint_ids[j]] in drums]
+    assert len(pairs) == 26  # every drum but the three on the free-flyer base
+    for parent, child in pairs:
+        assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
+
+
+def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_each_other() -> None:
+    model, spheres = _panda()
+    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    cylinders = skeleton.cylinders
+    rails = [i for i, part in enumerate(cylinders.part) if part == "rail"]
+    assert len(rails) == 2 and {int(cylinders.body[i]) for i in rails} == {model.joint_names.index("panda_joint7")}
+    np.testing.assert_allclose(cylinders.scale[rails, 2], 0.04, atol=1e-6)  # the 4 cm each finger travels
+    assert skeleton.slides["panda_finger_joint1"] == pytest.approx(skeleton.slides["panda_finger_joint2"], abs=1e-9)
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
@@ -162,15 +185,21 @@ def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: Skel
             (world[i, :3], per_scale * scale[i, 0]) for i in range(len(blocks)) if blocks.part[i] in _GLYPH_PARTS
         ]
     centers, radii = np.stack([center for center, _ in glyphs]), np.array([radius for _, radius in glyphs])
-    world, scale = placed["cylinders"]
-    axes = _rotations(world[:, 3:])[:, :, 2]
-    joined = np.zeros(len(glyphs), dtype=bool)
-    bones = [i for i, part in enumerate(skeleton.cylinders.part) if part in ("bone", "stick")]
+    bones = []  # (centre, axis, length, half thickness): a stick is a cylinder, a limb a box at its wide end
+    for mesh, per_scale in (("cylinders", 1.0), ("boxes", 0.5)):
+        blocks, (world, scale) = getattr(skeleton, mesh), placed[mesh]
+        axes = _rotations(world[:, 3:])[:, :, 2]
+        bones += [
+            (world[i, :3], axes[i], scale[i, 2], per_scale * scale[i, 0])
+            for i in range(len(blocks))
+            if blocks.part[i] in ("bone", "stick")
+        ]
     assert bones
-    for i in bones:
-        for end in (world[i, :3] - 0.5 * scale[i, 2] * axes[i], world[i, :3] + 0.5 * scale[i, 2] * axes[i]):
+    joined = np.zeros(len(glyphs), dtype=bool)
+    for center, axis, length, half in bones:
+        for end in (center - 0.5 * length * axis, center + 0.5 * length * axis):
             inside = np.linalg.norm(centers - end, axis=1) < 0.5 * radii  # the bone's cap is in these glyphs
-            assert (scale[i, 0] <= radii[inside] + 1e-12).all(), (skeleton.cylinders.owner[i], scale[i], radii[inside])
+            assert (half <= radii[inside] + 1e-12).all(), (center, half, radii[inside])
             joined |= inside
     assert joined.sum() >= len(glyphs) - 1  # every glyph but a free-flyer's cube inside its hull holds a bone end
 
@@ -222,7 +251,7 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
 def test_colors_shade_each_part_and_tint_the_sides() -> None:
     model, spheres = _g1()
     hue = (0.2, 0.6, 0.4)
-    roles = {"joint": 0.0, "face": -0.5, "body": 0.5, "stick": 1.0}  # towards black below 0, towards white above
+    roles = {"joint": 0.0, "face": -0.5, "bone": 0.5, "stick": 1.0}  # towards black below 0, towards white above
 
     def shade(color: tuple[float, float, float], role: str) -> tuple[float, float, float]:
         mix, target = abs(roles[role]), float(roles[role] > 0.0)
@@ -234,7 +263,7 @@ def test_colors_shade_each_part_and_tint_the_sides() -> None:
     parts = np.array(plain.cylinders.part)
     np.testing.assert_allclose(colors["cylinders"][parts == "drum"], np.broadcast_to(hue, (29, 3)), atol=1e-6)
     np.testing.assert_allclose(colors["cylinders"][parts == "face"][0], shade(hue, "face"), atol=1e-6)
-    np.testing.assert_allclose(colors["boxes"][np.array(plain.boxes.part) == "hull"][0], shade(hue, "body"), atol=1e-6)
+    np.testing.assert_allclose(colors["boxes"][np.array(plain.boxes.part) == "hull"][0], shade(hue, "bone"), atol=1e-6)
     red = (1.0, 0.0, 0.0)
     recipe = SkeletonRecipe(sides=True, color={"left_knee_joint": red})
     sided = build_skeleton(model, recipe, spheres=spheres)
