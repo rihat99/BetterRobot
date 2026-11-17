@@ -39,13 +39,14 @@ def main() -> None:
     # PoseGizmo calls ``follow`` on its own worker thread with only the newest pose, one call at a
     # time, so ``robot.q`` has a single writer. A short warm-started solve keeps up with the mouse.
     def follow(target: np.ndarray) -> None:
-        robot.update(solve_ik(model, {FRAME: torch.from_numpy(target)[None]}, q0=robot.q, iterations=15).x["q"])
+        robot.update(solve_ik(model, {FRAME: torch.from_numpy(target).to(q)[None]}, q0=robot.q, iterations=15).x["q"])
 
     gizmo = PoseGizmo(viewer, "hand target", pose=pose.numpy(), on_change=follow)
     if args.check:
         moved = pose.clone()
         moved[0] += 0.1
-        follow(moved.numpy())
+        gizmo.pose = moved.numpy()
+        follow(gizmo.pose)  # what a drag hands over: float32
         reached = forward_kinematics(model, robot.q).frame_poses[0, model.frame_id(FRAME)]
         print(f"target moved 10 cm, residual {float((reached[:3] - moved[:3]).norm()):.1e} m")
         return

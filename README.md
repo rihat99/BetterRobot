@@ -5,7 +5,7 @@ dynamics with autograd through every step, and solve inverse kinematics, traject
 least-squares problems over named tensors. Fixed- and floating-base robots share one API, and a browser viewer
 plays whole clips.
 
-![64 Panda IK problems solved in one batch](docs/images/readme_ik.gif)
+![16 Panda IK problems solved in one batch](docs/images/readme_ik.gif)
 
 Documentation: [docs/](docs/index.md), served as a site by `uv run mkdocs serve`.
 
