@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import itertools
+from collections.abc import Callable
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -59,83 +61,112 @@ def _at(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
     return torch.tensor([x, y, z, 0.0, 0.0, 0.0, 1.0])
 
 
-def _arm() -> Model:
-    """A fixed base and four revolute joints in a line along z, 25 cm apart, none along the line; no geometry."""
-    builder = br.io.ModelBuilder("arm")
+_HINGE = {"axis": (0.0, 1.0, 0.0), "lower": -1.5, "upper": 1.5}
+
+
+def _arm(builder: br.io.ModelBuilder, *, thin: bool = False) -> None:
+    """A fixed base and four revolute joints 25 cm apart along z, no axis along the line; ``thin``: the leaf's one
+    shape is a 2 mm placeholder box."""
     builder.add_body("base", mass=1.0)
     builder.add_fixed("mount", parent="world", child="base")
     for k, axis in enumerate(((0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))):
         builder.add_body(f"l{k}", mass=1.0)
-        builder.add_revolute(
-            f"j{k}", parent=f"l{k - 1}" if k else "base", child=f"l{k}", axis=axis, origin=_at(z=0.25), lower=-2.0,
-            upper=2.0,
-        )  # fmt: skip
-    return br.io.build_model(builder.finalize())
+        builder.add_revolute(f"j{k}", parent=f"l{k - 1}" if k else "base", child=f"l{k}", axis=axis,
+                             origin=_at(z=0.25), lower=-2.0, upper=2.0)  # fmt: skip
+    if thin:
+        builder.add_shape("l3", Box(size=(0.002, 0.002, 0.002), placement=(0, 0, 0.1, 0, 0, 0, 1.0)))
+
+
+def _on_world(builder: br.io.ModelBuilder, *, slider: bool) -> None:
+    """A hinge or a slider that hangs from the world itself, not from a fixed base, and a hinge on it."""
+    builder.add_body("cart", mass=1.0, com=torch.tensor([0.2, 0.0, 0.0]))
+    builder.add_body("pole", mass=0.2)
+    add, axis = (builder.add_prismatic, (1.0, 0.0, 0.0)) if slider else (builder.add_revolute, (0.0, 0.0, 1.0))
+    add("rider", parent="world", child="cart", axis=axis, lower=-1.0, upper=1.0)
+    builder.add_revolute("tip", parent="cart", child="pole", origin=_at(z=0.1), **_HINGE)
+
+
+def _gantry(builder: br.io.ModelBuilder) -> None:
+    """Three sliders from the world at one point: the joint origins span nothing."""
+    for body, parent, axis in (
+        ("x", "world", (1.0, 0.0, 0.0)),
+        ("y", "x", (0.0, 1.0, 0.0)),
+        ("z", "y", (0.0, 0.0, 1.0)),
+    ):
+        builder.add_body(body, mass=1.0, inertia=0.01 * torch.eye(3))
+        builder.add_prismatic(f"p{body}", parent=parent, child=body, axis=axis, lower=-1.0, upper=1.0)
+
+
+def _planar(builder: br.io.ModelBuilder) -> None:
+    """A planar root, then a spherical, a helical and a revolute joint."""
+    for body in ("base", "a", "b", "c"):
+        builder.add_body(body, mass=1.0)
+    builder.add_planar("slide", parent="world", child="base")
+    builder.add_spherical("ball", parent="base", child="a", origin=_at(z=0.3))
+    builder.add_helical("screw", parent="a", child="b", axis=(0.0, 0.0, 1.0), pitch=0.01, origin=_at(z=0.3),
+                        lower=-3.0, upper=3.0)  # fmt: skip
+    builder.add_revolute("tip", parent="b", child="c", origin=_at(z=0.3), **_HINGE)
+
+
+def _hand(builder: br.io.ModelBuilder) -> None:
+    """A floating palm, five fingers of three joints, and a gripper whose second jaw mimics the first."""
+    builder.add_body("palm", mass=1.0)
+    builder.add_free_flyer_root(child="palm")
+    for finger, k in itertools.product(range(5), range(3)):
+        builder.add_body(f"f{finger}{k}", mass=0.05)
+        origin = _at(0.08, 0.02 * (finger - 2)) if k == 0 else _at(0.03)
+        builder.add_revolute(f"f{finger}{k}_joint", parent=f"f{finger}{k - 1}" if k else "palm", child=f"f{finger}{k}",
+                             origin=origin, axis=(0.0, 1.0, 0.0), lower=0.0, upper=1.5)  # fmt: skip
+    for jaw in ("jaw_a", "jaw_b"):
+        builder.add_body(jaw, mass=0.02)
+        builder.add_shape(jaw, Box(size=(0.01, 0.01, 0.04), placement=(0, 0, 0.02, 0, 0, 0, 1.0)))
+    builder.add_prismatic("grip", parent="palm", child="jaw_a", axis=(0.0, 1.0, 0.0), origin=_at(-0.05, 0.01),
+                          lower=0.0, upper=0.04)  # fmt: skip
+    builder.add_joint("grip_mimic", kind=JointPrismatic(axis=(0.0, 1.0, 0.0)), parent="palm", child="jaw_b",
+                      origin=_at(-0.05, -0.01), mimic_source="grip", mimic_multiplier=-1.0)  # fmt: skip
+
+
+def _fixed(builder: br.io.ModelBuilder) -> None:
+    """Nothing moves."""
+    builder.add_body("a", mass=1.0)
+    builder.add_body("b", mass=1.0)
+    builder.add_fixed("mount", parent="world", child="a")
+    builder.add_fixed("weld", parent="a", child="b", origin=_at(z=0.5))
+
+
+def _box(builder: br.io.ModelBuilder) -> None:
+    """A lone floating body."""
+    builder.add_body("box", mass=1.0)
+    builder.add_shape("box", Box(size=(0.1, 0.2, 0.3), placement=(0, 0, 0, 0, 0, 0, 1.0)))
+    builder.add_free_flyer_root(child="box")
+
+
+def _servo(builder: br.io.ModelBuilder) -> None:
+    """A 2 cm servo and its horn."""
+    builder.add_body("case", mass=0.05)
+    builder.add_body("horn", mass=0.01)
+    builder.add_shape("horn", Box(size=(0.04, 0.008, 0.004), placement=(0.015, 0, 0, 0, 0, 0, 1.0)))
+    builder.add_fixed("mount", parent="world", child="case")
+    builder.add_revolute("spin", parent="case", child="horn", origin=_at(z=0.02), **_HINGE)
+
+
+#: Small models at the edges of the layout.
+_SYNTHETIC: dict[str, Callable[[br.io.ModelBuilder], None]] = {
+    "arm": _arm, "thin_tip": partial(_arm, thin=True), "world_hinge": partial(_on_world, slider=False),
+    "world_slider": partial(_on_world, slider=True), "gantry": _gantry, "planar": _planar, "hand": _hand,
+    "fixed": _fixed, "box": _box, "servo": _servo,
+}  # fmt: skip
 
 
 def _synthetic(name: str) -> tuple[Model, Geometry]:
-    """Small models at the edges of the layout, each with the geometry its builder attached."""
+    """The model ``name`` of ``_SYNTHETIC`` and the geometry its builder attached."""
     builder = br.io.ModelBuilder(name)
-    hinge = {"axis": (0.0, 1.0, 0.0), "lower": -1.5, "upper": 1.5}
-    if name in ("world_hinge", "world_slider"):  # a joint that hangs from the world itself, not from a fixed base
-        builder.add_body("cart", mass=1.0, com=torch.tensor([0.2, 0.0, 0.0]))
-        builder.add_body("pole", mass=0.2)
-        add, axis = (
-            (builder.add_revolute, (0.0, 0.0, 1.0))
-            if name == "world_hinge"
-            else (builder.add_prismatic, (1.0, 0.0, 0.0))
-        )
-        add("rider", parent="world", child="cart", axis=axis, lower=-1.0, upper=1.0)
-        builder.add_revolute("tip", parent="cart", child="pole", origin=_at(z=0.1), **hinge)
-    elif name == "gantry":  # three sliders from the world at one point: the joint origins span nothing
-        for body, axis in (("x", (1.0, 0.0, 0.0)), ("y", (0.0, 1.0, 0.0)), ("z", (0.0, 0.0, 1.0))):
-            builder.add_body(body, mass=1.0, inertia=0.01 * torch.eye(3))
-            builder.add_prismatic(f"p{body}", parent={"x": "world", "y": "x", "z": "y"}[body], child=body, axis=axis,
-                                  lower=-1.0, upper=1.0)  # fmt: skip
-    elif name == "planar":  # a planar root, then a spherical, a helical and a revolute joint
-        for body in ("base", "a", "b", "c"):
-            builder.add_body(body, mass=1.0)
-        builder.add_planar("slide", parent="world", child="base")
-        builder.add_spherical("ball", parent="base", child="a", origin=_at(z=0.3))
-        builder.add_helical("screw", parent="a", child="b", axis=(0.0, 0.0, 1.0), pitch=0.01, origin=_at(z=0.3),
-                            lower=-3.0, upper=3.0)  # fmt: skip
-        builder.add_revolute("tip", parent="b", child="c", origin=_at(z=0.3), **hinge)
-    elif name == "hand":  # a floating palm, five fingers of three joints, a gripper whose second finger mimics
-        builder.add_body("palm", mass=1.0)
-        builder.add_free_flyer_root(child="palm")
-        for finger, k in itertools.product(range(5), range(3)):
-            builder.add_body(f"f{finger}{k}", mass=0.05)
-            origin = _at(0.08, 0.02 * (finger - 2)) if k == 0 else _at(0.03)
-            builder.add_revolute(f"f{finger}{k}_joint", parent=f"f{finger}{k - 1}" if k else "palm",
-                                 child=f"f{finger}{k}", origin=origin, axis=(0.0, 1.0, 0.0), lower=0.0, upper=1.5)  # fmt: skip
-        for side in (1.0, -1.0):
-            builder.add_body(f"jaw{side:+.0f}", mass=0.02)
-            builder.add_shape(f"jaw{side:+.0f}", Box(size=(0.01, 0.01, 0.04), placement=(0, 0, 0.02, 0, 0, 0, 1.0)))
-        builder.add_prismatic("grip", parent="palm", child="jaw+1", axis=(0.0, 1.0, 0.0), origin=_at(-0.05, 0.01),
-                              lower=0.0, upper=0.04)  # fmt: skip
-        builder.add_joint("grip_mimic", kind=JointPrismatic(axis=(0.0, 1.0, 0.0)), parent="palm", child="jaw-1",
-                          origin=_at(-0.05, -0.01), mimic_source="grip", mimic_multiplier=-1.0)  # fmt: skip
-    elif name == "fixed":  # nothing moves
-        builder.add_body("a", mass=1.0)
-        builder.add_body("b", mass=1.0)
-        builder.add_fixed("mount", parent="world", child="a")
-        builder.add_fixed("weld", parent="a", child="b", origin=_at(z=0.5))
-    elif name == "box":  # a lone floating body
-        builder.add_body("box", mass=1.0)
-        builder.add_shape("box", Box(size=(0.1, 0.2, 0.3), placement=(0, 0, 0, 0, 0, 0, 1.0)))
-        builder.add_free_flyer_root(child="box")
-    elif name == "servo":  # a 2 cm servo and its horn
-        builder.add_body("case", mass=0.05)
-        builder.add_body("horn", mass=0.01)
-        builder.add_shape("horn", Box(size=(0.04, 0.008, 0.004), placement=(0.015, 0, 0, 0, 0, 0, 1.0)))
-        builder.add_fixed("mount", parent="world", child="case")
-        builder.add_revolute("spin", parent="case", child="horn", origin=_at(z=0.02), **hinge)
+    _SYNTHETIC[name](builder)
     ir = builder.finalize()
     model = br.io.build_model(ir)
     return model, br.io.build_geometry(ir, model)
 
 
-_SYNTHETIC = ("world_hinge", "world_slider", "gantry", "planar", "hand", "fixed", "box", "servo")
 _ROBOTS = {"g1": _g1, "panda": _panda, "mixed": _mixed}
 
 
@@ -436,7 +467,7 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
 def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRecipe, factors: dict) -> None:
     """A factor scales one glyph after the size rules, so the glyphs after it keep theirs (a 2 at the tip wins over
     the narrowing towards it), and a glyph of factor 0 goes while every bone and stick stays."""
-    model = _arm()
+    model, _ = _synthetic("arm")
     mesh, glyph = ("cylinders", "drum") if recipe is MAXIMAL else ("balls", "ball")
 
     def glyphs(skeleton: Skeleton) -> dict[int, float]:  # joint -> radius of its drum or of its cluster's ball
@@ -459,7 +490,7 @@ def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRe
     assert bones(sized) == bones(plain)
 
 
-@pytest.mark.parametrize("name", [*_SYNTHETIC, "arm", "mixed", "g1", "panda"])
+@pytest.mark.parametrize("name", [*_SYNTHETIC, "mixed", "g1", "panda"])
 def test_every_block_line_and_bound_is_finite(name: str) -> None:
     """Both styles of the presets and of a recipe that hides every glyph, with limit arcs, sides and every hull, place
     finite blocks and lines and give finite bounds at two configurations: a hidden leaf whose centre of mass is on
@@ -470,7 +501,7 @@ def test_every_block_line_and_bound_is_finite(name: str) -> None:
         model, root = br.load(panda_urdf()), panda_urdf()
         geometry = br.io.load_geometry(root, model)
     else:
-        model, geometry, root = (_arm() if name == "arm" else _ROBOTS[name]()[0]), None, None
+        model, geometry, root = _ROBOTS[name]()[0], None, None
     moving = [name for j, name in enumerate(model.joint_names) if j and not isinstance(model.joints[j], JointFixed)]
     hidden = dict.fromkeys(moving, 0.0)
     velocity = torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=model.q_neutral.dtype)
@@ -511,6 +542,16 @@ def test_a_joint_on_the_world_keeps_its_parent_side_in_the_world(name: str, stil
     assert arc.sum() == (24 if name == "world_hinge" else 0)  # the hinge's arc in the world, the tip's in the rider
     np.testing.assert_allclose(lines[0, arc], lines[1, arc], atol=1e-6)
     assert not np.allclose(lines[0], lines[1])
+
+
+def test_a_thin_placeholder_shape_does_not_shrink_a_leaf_glyph_to_nothing() -> None:
+    """A leaf glyph is capped by the body it moves, but a 2 mm placeholder box (Tiago's actuated finger joints carry
+    them) leaves it at 0.2 reference radii, not 1.25 times 1 mm."""
+    model, geometry = _synthetic("thin_tip")
+    skeleton = build_skeleton(model, MAXIMAL, geometry=geometry)
+    blocks, tip = skeleton.cylinders, model.joint_names.index("j3")
+    drum = next(i for i, (owner, part) in enumerate(zip(blocks.owner, blocks.part)) if owner == tip and part == "drum")
+    assert blocks.scale[drum, 0] == pytest.approx(0.2 * skeleton.radius)
 
 
 def test_colors_shade_each_part_and_tint_the_sides() -> None:

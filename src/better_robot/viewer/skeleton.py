@@ -58,6 +58,7 @@ _FLAT = 0.3  # a leaf's geometry is a sole when its thinnest extent is under thi
 _TIP = 0.55  # the smallest ball that ends a leaf, over the leaf joint's radius
 _PLATE = 0.45  # a sole is this many joint radii thick
 _LEAF_CAP = 1.25  # a leaf glyph is at most this share of the half thickness of the body it moves
+_LEAF_FLOOR = 0.2  # and at least this share of the reference radius: a thin placeholder shape is not a body
 _FIXED_CAP = 0.4  # a glyph that cannot slide is at most this share of its shortest bone
 _ARC = 24  # segments of a limit arc
 _KINDS = {
@@ -461,7 +462,7 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
 def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool) -> _Tree:
     """``tree`` with each leaf glyph no thicker than the body it moves: at most 1.25 times the median radius of the
     spheres it carries or, in the ``maximal`` layout, of the middle half extent of its collision points in its own
-    frame.
+    frame, but never under 0.2 reference radii (Tiago's actuated finger joints carry 2 mm placeholder boxes).
 
     The ``maximal`` layout also narrows towards the tips: a glyph is no wider than the glyph before it (a
     free-flyer's cube does not count)."""
@@ -477,7 +478,7 @@ def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool
         else:
             points = np.concatenate([cloud.origin + cloud.points @ cloud.rotation.T for cloud in clouds[j]])
             size = float(np.sort(np.ptp((points - tree.origin[j]) @ tree.rotation[j], axis=0))[1]) / 2
-        radius[j] = min(radius[j], _LEAF_CAP * size)
+        radius[j] = min(radius[j], max(_LEAF_CAP * size, _LEAF_FLOOR * tree.reference))
     for j in tree.glyphs if maximal else ():  # in index order, a parent before its children
         parent = tree.group[j]
         if parent and tree.kind[parent] != "free":
