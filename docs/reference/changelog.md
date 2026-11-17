@@ -39,10 +39,12 @@ that 0.3.0 renames or removes, one table row each.
   collision overlay (the sphere set, else the collision shapes) and frame triads. Each part is built the first time
   it is shown; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
   viewer runs, and `update(q)` shows new configurations. Every robot takes the theme's next hue (record 0058).
-- `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, bones, body hulls and end
-  blocks; glyphs that share a point slide apart along their own axes, then shrink) and `viewer.MINIMAL` (one ball
-  per cluster of close joints, sticks between): `glyphs`, `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`,
-  `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is three batched nodes.
+- `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs, trunks
+  for the bodies that branch, a sole, a hand or a paw where a chain ends, in two tones; glyphs that share a point
+  slide apart along their own axes, then shrink, and a chain narrows towards its tip) and `viewer.MINIMAL` (one
+  ball per cluster of close joints, sticks between): `glyphs`, `bones` (0.6 of the glyph radius by default), `hulls`,
+  `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is
+  three batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
