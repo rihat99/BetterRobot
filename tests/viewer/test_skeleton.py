@@ -492,6 +492,27 @@ def test_every_block_line_and_bound_is_finite(name: str) -> None:
             assert np.isfinite(np.concatenate(visual.bounds(step))).all(), step
 
 
+@pytest.mark.parametrize(("name", "still"), [("world_slider", "rail"), ("world_hinge", "drum")])
+def test_a_joint_on_the_world_keeps_its_parent_side_in_the_world(name: str, still: str) -> None:
+    """ModelBuilder's ``parent="world"`` and a top-level MJCF joint hang a joint from the world itself, not from a
+    fixed base: what the layout makes rigid in the parent (a slider's rail, a drum and its faces, a limit arc) stays
+    put while the joint moves, and the ticks turn with their joints."""
+    model, _ = _synthetic(name)
+    skeleton = build_skeleton(model, replace(MAXIMAL, limits=True))
+    poses = _poses(model, torch.tensor([[-0.5, 0.0], [0.5, 1.0]], dtype=model.q_neutral.dtype))
+    rider, blocks = model.joint_names.index("rider"), skeleton.cylinders
+    world = skeleton.place(poses)["cylinders"][0]
+    parent = [
+        i for i, (owner, part) in enumerate(zip(blocks.owner, blocks.part)) if owner == rider and part != "sleeve"
+    ]
+    assert [blocks.part[i] for i in parent] == [still, "face"][: len(parent)] and parent
+    np.testing.assert_allclose(world[0, parent], world[1, parent], atol=1e-6)
+    lines, arc = skeleton.lines(poses), skeleton.line_body == 0
+    assert arc.sum() == (24 if name == "world_hinge" else 0)  # the hinge's arc in the world, the tip's in the rider
+    np.testing.assert_allclose(lines[0, arc], lines[1, arc], atol=1e-6)
+    assert not np.allclose(lines[0], lines[1])
+
+
 def test_colors_shade_each_part_and_tint_the_sides() -> None:
     model, spheres = _g1()
     hue = (0.2, 0.6, 0.4)

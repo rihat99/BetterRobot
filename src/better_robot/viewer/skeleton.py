@@ -380,9 +380,10 @@ def _gaps(centers: np.ndarray, rotation: np.ndarray, half: np.ndarray, others: S
 class _Tree:
     """What every stage of the layout reads: the joint tree, the neutral poses and the sizes.
 
-    A rigid group is a moving joint plus the bodies welded to it by fixed joints; group 0 is the world. ``anchor[j]``
-    is the group of joint ``j``, ``glyphs`` the moving joints, ``group[j]`` the parent group of glyph ``j`` and
-    ``children[g]`` the glyphs whose parent group is ``g``.
+    A rigid group is a moving joint plus the bodies welded to it by fixed joints; group 0 is the world, and what is
+    rigid in group ``g`` is rigid in joint ``g``'s frame (the universe's for the world, also for a joint that hangs
+    from the world itself). ``anchor[j]`` is the group of joint ``j``, ``glyphs`` the moving joints, ``group[j]`` the
+    parent group of glyph ``j`` and ``children[g]`` the glyphs whose parent group is ``g``.
     """
 
     model: Model
@@ -399,11 +400,6 @@ class _Tree:
     scale: float  # the robot's size
     reference: float  # the reference glyph radius
     radius: Mapping[int, float]  # per glyph
-
-    def body(self, group: int, joint: int) -> int:
-        """The joint whose frame carries what is rigid in ``group``: the group itself, or for the world the root
-        body that ``joint`` hangs from."""
-        return group if group else self.root[joint]
 
     def bones(self, joint: int) -> list[float]:
         """Distances from glyph ``joint`` to its parent and child glyphs, those under 1 % of the robot ignored."""
@@ -1069,7 +1065,7 @@ def _maximal(
             trunk.setdefault(hull.group, hull)
     for j in tree.glyphs:
         for mesh, part, in_parent, scale in _GLYPHS[tree.kind[j]] if reach[j] > 0.0 else ():
-            body = tree.body(tree.group[j], j) if in_parent else j
+            body = tree.group[j] if in_parent else j
             place, size = center[j], reach[j] * np.array(scale)
             travel = _travel(tree, j) if part == "rail" else None
             if travel is not None:  # the rail spans where the sleeve can be, so it never leaves its parent
@@ -1085,7 +1081,7 @@ def _maximal(
             if group in trunk:  # a limb leaves its trunk from the trunk's centre
                 body, start = trunk[group].body, trunk[group].center
             else:
-                body, start = tree.body(group, j), center[group] if group else origin[tree.root[j]]
+                body, start = group, center[group] if group else origin[tree.root[j]]
             rows.bone(body, start, center[j], thickness(group, j), j, across=tree.axis.get(j, tree.axis.get(group)))
     for hull in hulls:
         rows.hull(hull)
@@ -1126,7 +1122,7 @@ def _limit_arc(tree: _Tree, rows: _Rows, joint: int, center: np.ndarray, radius:
         return center + reach * radius * (np.cos(angle - zero) * frame[:, 0] + np.sin(angle - zero) * frame[:, 1])
 
     angles = np.linspace(lower, upper, _ARC + 1)
-    parent = tree.body(tree.group[joint], joint)
+    parent = tree.group[joint]
     rows.lines += [(parent, spoke(a, 1.15), spoke(b, 1.15)) for a, b in zip(angles[:-1], angles[1:], strict=True)]
     rows.lines.append((joint, spoke(zero, 1.0), spoke(zero, 1.3)))
 
