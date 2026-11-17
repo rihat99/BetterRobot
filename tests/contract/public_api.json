@@ -617,6 +617,7 @@
   "better_robot.viewer.Sidebar.dropdown": "function(self, section: 'str', label: 'str', *, options: 'Sequence[str]', value: 'str', on_change: 'Callable[[str], None]') -> 'Any'",
   "better_robot.viewer.Sidebar.remove": "function(self, target: 'str | Layer', label: 'str | None' = None) -> 'None'",
   "better_robot.viewer.Sidebar.section": "function(self, name: 'str') -> 'Any'",
+  "better_robot.viewer.Sidebar.set_value": "function(self, section: 'str', label: 'str', *, value: 'Any') -> 'None'",
   "better_robot.viewer.Sidebar.slider": "function(self, section: 'str', label: 'str', *, low: 'float', high: 'float', step: 'float', value: 'float', on_change: 'Callable[[float], None]') -> 'Any'",
   "better_robot.viewer.SkeletonRecipe": "class(object)(*, glyphs: \"Literal['kind', 'ball', 'none']\" = 'kind', bones: 'float' = 0.65, hulls: \"Literal['auto', 'all', 'none']\" = 'auto', limits: 'bool' = False, cluster: 'float' = 0.0, twists: 'bool' = True, sides: 'bool' = False, size: 'float' = 1.0, joint_size: 'Mapping[str, float]' = <factory>, body_hull: 'Mapping[str, bool]' = <factory>, color: 'Mapping[str, RGB]' = <factory>) -> None",
   "better_robot.viewer.SkeletonRecipe.bones": "value: float",

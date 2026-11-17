@@ -130,7 +130,8 @@ class RobotVisual(Layer):
     show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without them the collision
     shapes of ``geometry``; ``frames`` draws a triad per moving joint (``True``) or per frame given, by id or name.
     Every part is built the first time it is shown; ``set_style``, ``set_collision`` and ``set_frames`` switch them
-    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer.
+    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer: a
+    switch from code moves the control and leaves the other robots as they are.
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the theme's next
     hue, one per robot. ``name`` defaults to the model's name.
@@ -329,6 +330,7 @@ class RobotVisual(Layer):
             raise ArgumentError(f"style must be one of {list(self.styles)} for robot {self.name!r}, got {style!r}")
         self.style = style
         self._apply()
+        self._show("Style", style)
 
     def set_collision(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Show or hide the collision overlay: the spheres, or the collision shapes of the geometry."""
@@ -336,6 +338,7 @@ class RobotVisual(Layer):
             raise ArgumentError(f"robot {self.name!r} has no spheres and no collision shapes to overlay")
         self._collision = visible
         self._apply()
+        self._show("Collision", visible)
 
     def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
         """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
@@ -345,6 +348,12 @@ class RobotVisual(Layer):
             self._triads = chosen
         self._frames = chosen
         self._apply()
+        self._show("Frames", bool(chosen))
+
+    def _show(self, label: str, value: Any) -> None:
+        """Move the Robot section's control, shared by every robot, to what code set; no robot's callback runs."""
+        if self.viewer is not None:
+            self.viewer.sidebar.set_value("Robot", label, value=value)
 
     # ------------------------------------------------------------------ the Layer contract
 

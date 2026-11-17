@@ -83,7 +83,9 @@ clips side by side; `set_offset(tag, (x, y, z))` moves a tag again later, such a
 an application creates, Info last. The Timeline section, shown once the timeline has more than one step, holds a
 Play box, the Step slider, a Speed choice (0.25x to 2x, taken while playing) and Loop. `sidebar.checkbox`, `dropdown`, `slider` and `button` take a section and a label
 and return viser's control; asking again for the same section and label returns the same control and adds the
-callback, so one control drives every layer that asked for it, and it goes when the last of them is removed. Every
+callback, so one control drives every layer that asked for it, and it goes when the last of them is removed.
+`sidebar.set_value(section, label, value=)` shows a value on a control without running its callbacks, for a layer
+whose state code changed. Every
 callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps. A callback that raises a
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
@@ -176,7 +178,7 @@ maximal ('meshes', 'minimal', 'maximal') ('minimal', 'maximal')
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
 that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
-shared by every robot in the viewer, so a switch from code does not move them. `update(q)` shows new configurations of the same number of steps, for a live
+shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are. `update(q)` shows new configurations of the same number of steps, for a live
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the theme's next
 hue, in the order the robots are added, unless `hue=` names one. The name defaults to the model's, so two robots of
 one model need a `name=` each.

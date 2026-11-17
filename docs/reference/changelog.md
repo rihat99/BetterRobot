@@ -12,6 +12,9 @@ that 0.3.0 renames or removes, one table row each.
   sections in creation order, Info). A control is shared by `(section, label)`, so one control drives every layer
   that asks for it; every callback runs under `Viewer.lock`, and a `BetterRobotError` raised in one returns the
   control to its previous value and shows a red notification in the browser. `Viewer.sidebar` is the viewer's one.
+- `Sidebar.set_value(section, label, *, value)` shows a value on a control without running its callbacks;
+  `RobotVisual.set_style`, `set_collision` and `set_frames` called from code move the Robot section's shared control
+  with it and leave the other robots as they are.
 - Tags: `Layer(name, nsteps, *, tags=)` (default: the layer's name; the first tag is the scene parent
   `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_offset` and
   `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
