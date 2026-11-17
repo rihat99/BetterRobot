@@ -267,6 +267,64 @@ def test_go2_minimal_legs_run_on_to_the_feet() -> None:
         )
 
 
+def _described(name: str, *, spheres: bool = False) -> tuple[Model, dict]:
+    """A robot of the examples from the ``robot_descriptions`` cache with what ``RobotVisual`` gives its skeleton:
+    the geometry, the collision mesh loader and, when asked, the robot's sphere set."""
+    import importlib  # noqa: PLC0415 - the examples' robots, not a fixture
+
+    from better_robot.viewer import RobotVisual  # noqa: PLC0415 - its collision mesh loader
+
+    urdf = importlib.import_module(f"robot_descriptions.{name}_description").URDF_PATH
+    model = br.load(urdf, root_joint=br.JointFreeFlyer())
+    geometry = br.io.load_geometry(urdf, model)
+    vertices = RobotVisual(model, model.q_neutral[None], geometry=geometry, root=urdf)._collision_vertices
+    sources = {"geometry": geometry, "mesh_vertices": vertices}
+    if spheres:
+        sources["spheres"] = collision.load_spheres(collision.SPHERE_SETS / f"{name}.json", model)[0]
+    return model, sources
+
+
+def test_g1_layout_does_not_change_with_a_sphere_set() -> None:
+    """A sphere set given to show as the collision overlay leaves the layout alone: the G1's bodies are sized from
+    its collision meshes either way, so its feet stay soles (sized from the spheres they were limbs with toe balls)."""
+    model, sources = _described("g1", spheres=True)
+    plain = {key: value for key, value in sources.items() if key != "spheres"}
+    for recipe in (MAXIMAL, MINIMAL):
+        first, second = build_skeleton(model, recipe, **plain), build_skeleton(model, recipe, **sources)
+        for mesh in ("cylinders", "balls", "boxes"):
+            np.testing.assert_array_equal(getattr(first, mesh).local, getattr(second, mesh).local)
+            np.testing.assert_array_equal(getattr(first, mesh).scale, getattr(second, mesh).scale)
+    maximal = build_skeleton(model, MAXIMAL, **sources)
+    for side in ("left", "right"):
+        ankle = model.joint_names.index(f"{side}_ankle_roll_joint")
+        blocks = zip(maximal.boxes.part, maximal.boxes.owner, strict=True)
+        assert [part for part, owner in blocks if owner == ankle and part != "bone"] == ["end"]  # one sole
+        assert ankle not in maximal.balls.owner  # and no toe ball
+
+
+@pytest.mark.parametrize("name", ["g1", "go2"])
+def test_minimal_follows_the_maximal_size_rule_and_draws_the_head(name: str) -> None:
+    """Both styles share one size rule (a reference radius between 2 % and 4 % of the robot's size, the minimal one
+    at ``MINIMAL.size`` of it: the Go2's minimal balls were 3.7 % of its size), and the minimal skeleton draws the
+    trunk's head that the maximal one finds as one ball of the reference radius, rigid in the trunk, on a stick."""
+    model, sources = _described(name)
+    maximal, minimal = build_skeleton(model, MAXIMAL, **sources), build_skeleton(model, MINIMAL, **sources)
+    assert 0.02 <= maximal.radius / maximal.scale <= 0.04
+    assert minimal.radius == pytest.approx(MINIMAL.size * maximal.radius)
+    trunk = model.joint_names.index("waist_pitch_joint" if name == "g1" else "root_joint")
+    heads = [i for i, owner in enumerate(minimal.balls.owner) if owner == trunk and minimal.balls.anchors[i, 0] < 0]
+    assert len(heads) == 1
+    assert _anchors(model)[minimal.balls.body[heads[0]]] == trunk
+    np.testing.assert_allclose(minimal.balls.scale[heads[0]], minimal.radius)
+    placed = minimal.place(_poses(model))
+    (balls, _), (sticks, scale) = placed["balls"], placed["cylinders"]
+    axes = _rotations(sticks[:, 3:])[:, :, 2]
+    ends = np.concatenate([sticks[:, :3] + sign * 0.5 * scale[:, 2:] * axes for sign in (-1.0, 1.0)])
+    assert np.linalg.norm(ends - balls[heads[0], :3], axis=1).min() < 1e-5  # a stick ends in the head
+    if name == "g1":  # above every other ball
+        assert balls[heads[0], 2] == balls[:, 2].max()
+
+
 @pytest.mark.parametrize("recipe", [MAXIMAL, MINIMAL], ids=["maximal", "minimal"])
 def test_place_on_a_clip_equals_place_per_step(recipe: SkeletonRecipe) -> None:
     model, spheres = _g1()
