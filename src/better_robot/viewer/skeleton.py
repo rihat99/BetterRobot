@@ -503,8 +503,9 @@ def _solve(
 ) -> tuple[dict[int, float], dict[int, float]]:
     """Slide ``s`` along its own axis and shrink ``k`` of every glyph, so that neighbours do not overlap.
 
-    A sleeve of a prismatic leaf starts over the middle of the leaf's geometry along its axis: a finger rides on
-    its own carriage. One deterministic pass. Joints with a child joint are placed in reverse index order, then the leaf joints, so a
+    A sleeve of a prismatic leaf starts over the middle of the leaf's geometry along its axis, and on the same side
+    of the joint's zero place when the geometry is: a finger rides on its own carriage, and two fingers that close
+    on each other have their carriages meet there. One deterministic pass. Joints with a child joint are placed in reverse index order, then the leaf joints, so a
     distal glyph keeps its place and a proximal one gives way; a leaf gives way last because its drum sits against
     its own end block. A glyph is tested against the placed glyphs of its rigid groups (parent, siblings, children:
     clearance that holds for every configuration) and, where it can, against those two hops away (at neutral only).
@@ -523,6 +524,8 @@ def _solve(
         if tree.kind[j] == "prismatic" and not tree.children[j] and clouds.get(j):
             reach = np.concatenate([(c.origin + c.points @ c.rotation.T - origin[j]) @ tree.axis[j] for c in clouds[j]])
             slide[j] = float(reach.min() + reach.max()) / 2
+            if reach.min() * reach.max() >= 0.0:  # a finger on one side of its zero place: its sleeve stays there too
+                slide[j] = float(np.sign(slide[j])) * max(abs(slide[j]), (_SLEEVE + 0.05) * tree.radius[j])
 
     def box(j: int) -> _OrientedBox:
         center = origin[j] + slide[j] * tree.axis[j] if j in tree.axis else origin[j]
