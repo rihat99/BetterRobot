@@ -17,8 +17,8 @@ uv run python examples/viewer/09_avoid_self_collision.py --robot g1
 ```
 
 Each starts a viewer at `http://127.0.0.1:8080` (forward the port to view it from another machine) and tracks the
-transform handle named "target": drag it, or turn it by its rings. The GUI holds a switch with three choices and a
-readout:
+transform handle named "target": drag it, or turn it by its rings. The sidebar's last section, named after the
+behaviour, holds the switch Form with three choices and a readout:
 
 | Choice | What `track` gets |
 |---|---|

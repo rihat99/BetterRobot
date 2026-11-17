@@ -156,8 +156,9 @@ def follow(
 ) -> None:
     """Track a target gizmo that starts at ``start (7,)`` and an obstacle gizmo at ``center (3,)`` until Ctrl-C, with
     the form the GUI selects, and redraw ``robot``'s layers after every tick."""
-    form = viewer.server.gui.add_dropdown("obstacle", FORMS)
-    readout = viewer.server.gui.add_markdown("")
+    with viewer.sidebar.section("Obstacle"):  # after the Robot and Layers sections
+        form = viewer.sidebar.gui.add_dropdown("Form", FORMS)
+        readout = viewer.sidebar.gui.add_markdown("")
     gizmo = PoseGizmo(viewer, "target", pose=start.numpy(), scale=0.2)
     mover = PoseGizmo(viewer, "obstacle", pose=np.concatenate([center.numpy(), [0.0, 0.0, 0.0, 1.0]]), scale=0.2)
     warm, last = None, form.value

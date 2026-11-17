@@ -30,10 +30,9 @@ def main() -> None:
     args = parser.parse_args()
 
     model = br.load(panda_description.URDF_PATH)
-    phase = torch.linspace(0.0, 2 * torch.pi, 150)[:, None]  # 5 s at 30 fps; every joint swings about its middle
-    middle = (model.lower_position_limit + model.upper_position_limit) / 2
-    half = (model.upper_position_limit - model.lower_position_limit) / 2
-    q = middle + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)  # (T, nq)
+    phase = torch.linspace(0.0, 2 * torch.pi, 150)[:, None]  # 5 s at 30 fps, one slow wave about the ready pose
+    ready = torch.tensor([0.0, -0.8, 0.0, -2.4, 0.0, 1.6, 0.8, 0.04])
+    q = ready + torch.tensor([0.8, 0.3, 0.0, 0.3, 0.0, 0.3, 0.0, 0.0]) * torch.sin(phase)  # (T, nq)
     geometry = br.io.load_geometry(panda_description.URDF_PATH, model)
     viewer = Viewer(fps=30.0, server=FakeServer() if args.check else None)
     viewer.add(RobotVisual(model, q, geometry=geometry, root=panda_description.URDF_PATH, frames=["panda_hand"]))
