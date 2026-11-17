@@ -134,8 +134,8 @@ class RobotVisual(Layer):
     while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer: a
     switch from code moves the control and leaves the other robots as they are.
 
-    ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the theme's next
-    hue, one per robot. ``name`` defaults to the model's name.
+    ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
+    theme's hues that no other robot of the viewer is drawn in (``hue``). ``name`` defaults to the model's name.
     """
 
     def __init__(
@@ -253,19 +253,22 @@ class RobotVisual(Layer):
         loaded = trimesh.load(path, force="mesh")
         return np.asarray(loaded.vertices) if isinstance(loaded, trimesh.Trimesh) else None
 
-    def _color(self) -> RGB:
+    @property
+    def hue(self) -> RGB:
+        """The colour the robot is drawn in: the ``hue`` it was given, else its theme's hue for it, the first one no
+        other robot of its viewer is drawn in when it was added."""
         return self._hue if self._hue is not None else self._theme.hue(self._index or 0)
 
     def _make(self, part: str) -> list[Layer]:
         """The layers of ``part``, not yet built."""
         if part in ("minimal", "maximal"):
-            return [_Blocks(part, self._skeleton(part), self._poses, self._color(), self._theme)]
+            return [_Blocks(part, self._skeleton(part), self._poses, self.hue, self._theme)]
         if part == "meshes" and self.skin is not None:
             bind = self._solve(self.skin.bind)[1][0]
             return [
                 SkinnedMeshLayer(
                     part, self.skin.vertices, faces=self.skin.faces, weights=self.skin.weights, bind_poses=bind,
-                    bone_poses=self._poses, color=self._theme.shade(self._color(), "body"),
+                    bone_poses=self._poses, color=self._theme.shade(self.hue, "body"),
                 )
             ]  # fmt: skip
         if part == "frames":
@@ -281,7 +284,7 @@ class RobotVisual(Layer):
             return [self._derive(part, layer)]
         shapes = self.geometry.shapes if self.geometry is not None else ()
         collision = part == "collision"
-        color = self._theme.collision if collision else self._theme.shade(self._color(), "body")
+        color = self._theme.collision if collision else self._theme.shade(self.hue, "body")
         specs = [
             _shape_spec(attached.body, attached.shape, self._root_folder, color, own_colors=not collision)
             for attached in shapes
@@ -402,16 +405,18 @@ class RobotVisual(Layer):
 
     @override
     def apply_theme(self, theme: Theme) -> None:
-        if self._index is None:  # the robot's place among the robots of its viewer picks its hue
+        if self._index is None:  # the first hue no other robot has: a robot that replaces one takes its hue back
             others = self.viewer.layers if self.viewer is not None else ()
-            self._index = sum(isinstance(layer, RobotVisual) and layer is not self for layer in others)
-        body, overlay = self._theme.shade(self._color(), "body"), (self._theme.collision, self._theme.collision_opacity)
+            taken = {layer.hue for layer in others if isinstance(layer, RobotVisual) and layer is not self}
+            free = [k for k in range(len(theme.hues)) if theme.hue(k) not in taken]
+            self._index = free[0] if free else len(taken)
+        body, overlay = self._theme.shade(self.hue, "body"), (self._theme.collision, self._theme.collision_opacity)
         self._theme = theme
         for part in ("minimal", "maximal"):
             if part in self._parts:
-                self._parts[part][1][0].recolor(self._color(), theme)  # type: ignore[attr-defined]
+                self._parts[part][1][0].recolor(self.hue, theme)  # type: ignore[attr-defined]
         stale = {
-            "meshes": body != theme.shade(self._color(), "body"),
+            "meshes": body != theme.shade(self.hue, "body"),
             "collision": overlay != (theme.collision, theme.collision_opacity),
         }
         for part, old in stale.items():

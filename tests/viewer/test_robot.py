@@ -204,7 +204,7 @@ def test_robot_visual_update_equals_building_with_that_configuration() -> None:
         updated.update(torch.stack([q, q]))
 
 
-def test_robot_visuals_take_one_hue_each_and_share_the_sidebar_controls() -> None:
+def test_robot_visuals_take_one_hue_each_also_after_a_replace_and_share_the_sidebar_controls() -> None:
     model = br.load(panda_urdf())
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)
@@ -219,6 +219,9 @@ def test_robot_visuals_take_one_hue_each_and_share_the_sidebar_controls() -> Non
     styles[0].value = "minimal"
     styles[0].fire(None)
     assert first.style == second.style == "minimal"
+    third = RobotVisual(model, model.q_neutral.repeat(3, 1), name="left")  # a clip of another length replaces one
+    viewer.replace(first, third)
+    assert third.hue == first.hue != second.hue
 
 
 def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:

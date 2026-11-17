@@ -179,8 +179,9 @@ Each part (a style, the collision overlay, the frames) is built the first time i
 that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
 shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are. `update(q)` shows new configurations of the same number of steps, for a live
-solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the theme's next
-hue, in the order the robots are added, unless `hue=` names one. The name defaults to the model's, so two robots of
+solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
+theme's hues that no other robot of the viewer is drawn in, unless `hue=` names one, so a robot that replaces
+another takes its hue back; `robot.hue` is the colour it is drawn in. The name defaults to the model's, so two robots of
 one model need a `name=` each.
 
 ### The skeleton
