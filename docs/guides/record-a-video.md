@@ -31,6 +31,7 @@ print(viewer.timeline.nsteps)
 
 ```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_record.py runs record" }
 import tempfile
+from pathlib import Path
 
 out = viewer.record(Path(tempfile.mkdtemp()) / "panda.mp4")   # 1920 x 1080, every step, at the timeline's fps
 print(out.name)
