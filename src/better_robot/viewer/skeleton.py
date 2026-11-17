@@ -54,6 +54,7 @@ _END_PAD = 0.4  # an end block pads its points by this share of min(joint radius
 _END_FLOOR = 0.35  # smallest half extent of an end block over the joint radius
 _PLATE = 0.5  # an end block cut back by a glyph stays at least this many joint radii thick
 _LEAF_CAP = 1.25  # a leaf glyph is at most this many median radii of the spheres it carries
+_TIP = 0.6  # radius of the ball that ends a leaf's stick over the leaf's ball, at most
 _FIXED_CAP = 0.4  # a glyph that cannot slide is at most this share of its shortest bone
 _ARC = 24  # segments of a limit arc
 _KINDS = {
@@ -721,16 +722,12 @@ def _end(
     slides through it.
     """
     origin, rotation, name = tree.origin[group], tree.rotation[group], tree.model.body_names[group]
+    points = _extent(tree, recipe, group, clouds)
+    if points is None or (not clouds and np.linalg.norm(points[1] - origin) < 0.5 * radius):
+        return []
     pad = _END_PAD * radius
-    if clouds:
-        points = np.concatenate([cloud.origin + cloud.points @ cloud.rotation.T for cloud in clouds])
-        radii = [cloud.radii for cloud in clouds if cloud.radii is not None]
-        pad = min(pad, _END_PAD * float(np.median(np.concatenate(radii)))) if radii else pad
-    else:
-        solid = _inertia(tree, group) if recipe.body_hull.get(name, True) else None
-        if solid is None or np.linalg.norm(solid[1] - origin) < 0.25 * radius:
-            return []
-        points = np.stack([origin, 2.0 * solid[1] - origin])
+    radii = [cloud.radii for cloud in clouds if cloud.radii is not None]
+    pad = min(pad, _END_PAD * float(np.median(np.concatenate(radii)))) if radii else pad
     local = (points - origin) @ rotation
     middle = (local.min(axis=0) + local.max(axis=0)) / 2
     half = np.maximum((local.max(axis=0) - local.min(axis=0)) / 2 + pad, _END_FLOOR * radius)
@@ -747,6 +744,54 @@ def _end(
             end = max(sign * middle[axis] + half[axis], start + _PLATE * radius)
             middle[axis], half[axis] = sign * (start + end) / 2, (end - start) / 2
     return [_Hull(name, "end", group, group, origin + rotation @ middle, rotation, half)]
+
+
+def _extent(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cloud]) -> np.ndarray | None:
+    """World points ``(n, 3)`` at neutral that span the body of leaf ``group``: the points of its frames' geometry,
+    else the joint and twice its centre of mass (``body_hull`` can leave that out); ``None`` without either."""
+    if clouds:
+        return np.concatenate([cloud.origin + cloud.points @ cloud.rotation.T for cloud in clouds])
+    solid = _inertia(tree, group) if recipe.body_hull.get(tree.model.body_names[group], True) else None
+    return None if solid is None else np.stack([tree.origin[group], 2.0 * solid[1] - tree.origin[group]])
+
+
+def _tip(
+    tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, group: int, clouds: Sequence[_Cloud], *, start: int,
+    radius: float,
+) -> list[tuple[int, int, int]]:  # fmt: skip
+    """The stick from the ball of leaf ``group`` (anchor ``start``, drawn radius ``radius``) on to the end of its
+    body, and the small ball that ends it, both rigid in the leaf's frame; the stick is returned, the ball added.
+
+    The end is the leaf's frame farthest from the joint when that frame lies past the middle of the body (a foot, a
+    tool tip): the ball is centred on it. Else it is the middle of the points of the leaf's ``_extent`` farthest
+    from the joint (the toe of a sole, the end of a hand): the ball ends there. Nothing when the end is inside the
+    leaf's ball. The ball's radius is 0.6 of the leaf's ball, or less to stay clear of it, and at least 1.25 times the
+    stick's.
+    """
+    origin, model = tree.origin[group], tree.model
+    placements = _numpy(model.frame_placements)
+    frames = [
+        tree.origin[joint] + tree.rotation[joint] @ placements[f, :3]
+        for f, joint in enumerate(model.frame_parent_joint_ids)
+        if tree.anchor[joint] == group
+    ]
+    frame = max(frames, key=lambda where: float(np.linalg.norm(where - origin)), default=origin)
+    points = _extent(tree, recipe, group, clouds)
+    reach = np.linalg.norm(points - origin, axis=1) if points is not None else np.zeros(1)
+    far = points[reach >= reach.max() - 0.01 * tree.scale].mean(axis=0) if points is not None else origin
+    end = frame if np.linalg.norm(frame - origin) > 0.5 * np.linalg.norm(far - origin) else far
+    toward = end - rows.where[start]
+    length = float(np.linalg.norm(toward))
+    if length <= radius:
+        return []
+    clear = min(_TIP * radius, (length - radius) / 2.0)  # clear of the leaf's ball: no blob round a short finger
+    stick = min(recipe.bones * tree.reference, radius)
+    ball = max(1.25 * stick, clear) if recipe.glyphs == "ball" else 0.0  # a knob, wider than its stick
+    if end is far:  # the ball ends at the surface point
+        end = end - ball * toward / length
+    if ball > 0.0:
+        rows.add("balls", "ball", group, end, (ball, ball, ball), owner=group)
+    return [(start, rows.point(group, end), group)]
 
 
 # ------------------------------------------------------------------------------------------------ the blocks being built
@@ -971,7 +1016,8 @@ def _minimal(
 
     A ball sits at the mean of its member origins at every step; the cluster of a free-flyer root is rigid in the
     root body and drawn as a cube. A ball is at most 0.4 of its shortest stick, and a stick never thicker than the
-    balls it joins.
+    balls it joins. A leaf joint without an end block gets a stick on to the end of its body (``_tip``) and a ball
+    of 0.6 of its own there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length.
     """
     members, cluster, skipped = _clusters(tree, recipe)
     radius, anchor, base = {}, {}, {}
@@ -993,6 +1039,10 @@ def _minimal(
         for a in (start, end) if length > 0.01 * tree.scale else ():
             ends.setdefault(a, []).append(length)
     drawn = {anchor[c]: min(radius[c], _FIXED_CAP * min(ends.get(anchor[c], [np.inf]))) for c in radius}
+    ended = {hull.group for hull in hulls if hull.part == "end"}
+    for j in (j for j in tree.glyphs if not tree.children[j] and j not in ended):
+        a = anchor[cluster[j]]
+        sticks += _tip(tree, recipe, rows, j, clouds.get(j, []), start=a, radius=drawn[a])
     for c, a in anchor.items():
         r, joint = drawn[a], members[c][0]
         if c in base:

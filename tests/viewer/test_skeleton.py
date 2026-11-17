@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -194,6 +195,47 @@ def test_end_blocks_are_no_larger_than_the_root_hull(robot: str) -> None:
     ends = [volume[i] for i, part in enumerate(boxes.part) if part == "end"]
     assert root and ends
     assert max(ends) <= max(root)
+
+
+def test_go2_minimal_legs_run_on_to_the_feet() -> None:
+    """The Go2's knees are its leaf joints: the minimal skeleton runs a stick from each knee to its foot, and the
+    ball that ends it reaches the lowest point of that leg's meshes within 1 cm (the foot's ball is 1.8 cm wide).
+    The Go2 comes from the ``robot_descriptions`` cache, as in the examples."""
+    import trimesh  # noqa: PLC0415 - optional dependency of the viewer
+    from robot_descriptions import go2_description  # noqa: PLC0415 - the examples' robots, not a fixture
+
+    from better_robot.viewer.robot import _mesh_file  # noqa: PLC0415 - the viewer's own mesh lookup
+
+    urdf = go2_description.URDF_PATH
+    model = br.load(urdf, root_joint=br.JointFreeFlyer())
+    geometry = br.io.load_geometry(urdf, model)
+    skeleton = build_skeleton(model, MINIMAL, geometry=geometry)
+    poses = _poses(model)
+    placed = skeleton.place(poses)
+    (balls, ball_scale), (sticks, stick_scale) = placed["balls"], placed["cylinders"]
+    axes = _rotations(sticks[:, 3:])[:, :, 2]
+    stick_ends = np.concatenate([sticks[:, :3] + sign * 0.5 * stick_scale[:, 2:] * axes for sign in (-1.0, 1.0)])
+    anchor = _anchors(model)
+    for leg in ("FL", "FR", "RL", "RR"):
+        knee = model.joint_names.index(f"{leg}_calf_joint")
+        tips = [i for i, owner in enumerate(skeleton.balls.owner) if owner == knee and skeleton.balls.anchors[i, 0] < 0]
+        assert len(tips) == 1, leg
+        tip = tips[0]
+        assert np.linalg.norm(stick_ends - balls[tip, :3], axis=1).min() < 1e-5  # a stick ends in the ball
+        lowest = np.inf
+        for attached in geometry.shapes:
+            if attached.collision or anchor[attached.body] != knee:
+                continue
+            vertices = trimesh.load(_mesh_file(attached.body, attached.shape.uri, Path(urdf)), force="mesh").vertices
+            world = torch.from_numpy(poses[attached.body]).double()
+            world = br.lie.se3.compose(world, torch.tensor(attached.shape.placement, dtype=torch.float64))
+            points = br.lie.se3.act(world[None], torch.from_numpy(vertices * np.asarray(attached.shape.scale)))
+            lowest = min(lowest, float(points[:, 2].min()))
+        assert abs(balls[tip, 2] - ball_scale[tip, 2] - lowest) < 0.01, (
+            leg,
+            balls[tip, 2] - ball_scale[tip, 2],
+            lowest,
+        )
 
 
 @pytest.mark.parametrize("recipe", [MAXIMAL, MINIMAL], ids=["maximal", "minimal"])
