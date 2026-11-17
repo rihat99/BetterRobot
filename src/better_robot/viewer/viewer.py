@@ -32,6 +32,8 @@ _FOV = math.radians(40.0)  # the vertical field of view of the browsers' camera
 _AIM_STEPS = 32  # at most this many evenly spaced steps are framed by ``aim``
 _AIM_FILL = 0.8  # share of a 16:9 view's height (or width) the framed box spans
 _AIM_ASPECT = 16.0 / 9.0
+#: The default view of ``aim``: from the front-right of an x-forward robot, 30 degrees off its front, and from above.
+_AZIMUTH, _ELEVATION = math.radians(60.0), math.radians(25.0)
 
 
 def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
@@ -186,7 +188,7 @@ class Viewer:
             self._timeline_gui()
             self._sync_layers_section()
             if not self._aimed:
-                self._point_cameras(*self._framing(None, math.radians(35.0), math.radians(25.0), _FOV), _FOV)
+                self._point_cameras(*self._framing(None, _AZIMUTH, _ELEVATION, _FOV), _FOV)
         return layers
 
     def _check_layers(
@@ -411,18 +413,20 @@ class Viewer:
         self,
         *,
         steps: Sequence[int] | None = None,
-        azimuth: float = math.radians(35.0),
-        elevation: float = math.radians(25.0),
+        azimuth: float = _AZIMUTH,
+        elevation: float = _ELEVATION,
         fov: float = _FOV,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Point the connected browsers and every new one (viser's initial camera, also "Reset View") at the visible
         layers, and stop aiming by itself after each ``add``.
 
-        The view is the box of the visible layers' ``Layer.bounds`` over ``steps`` (default: every step; at most 32
-        evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and ``elevation``
-        (radians) about the theme's ``up`` axis at the distance where the box spans 80 % of a 16:9 view's height or
-        width, whichever is reached first, in the vertical field of view ``fov``; the browsers take ``fov``. Returns
-        ``(position, look_at)``.
+        The view holds the boxes of the visible layers' ``Layer.bounds`` over ``steps`` (default: every step; at most
+        32 evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and
+        ``elevation`` (radians) about the theme's ``up`` axis: the boxes are centred in the view, at the nearest
+        distance where every corner of every box lies inside 80 % of a 16:9 view's height and width, in the vertical
+        field of view ``fov``; the browsers take ``fov``. Returns ``(position, look_at)``. Under ``+z`` up, azimuth 0
+        looks from ``-y`` (the right side of a robot facing ``+x``, the usual convention) and 90 degrees from ``+x``:
+        the default 60 degrees is a front three-quarter view.
         """
         with self.lock:
             self._aimed = True
@@ -437,11 +441,13 @@ class Viewer:
         steps = list(range(self.timeline.nsteps)) if steps is None else list(steps)
         if len(steps) > _AIM_STEPS:
             steps = [steps[int(index)] for index in np.linspace(0, len(steps) - 1, _AIM_STEPS).round()]
-        boxes = [box for step in steps for box in self._boxes_at(step)]
-        lo, hi = (
-            (np.min([b[0] for b in boxes], axis=0), np.max([b[1] for b in boxes], axis=0)) if boxes else _EMPTY_SCENE
+        boxes = [box for step in steps for box in self._boxes_at(step)] or [_EMPTY_SCENE]
+        # Every corner of every box, not the corners of one box round them all: seen from above, the far and near
+        # corners of that box lie far outside what a thin moving robot covers, and the robot came out half the size.
+        ends = np.array([[x, y, z] for x in (0, 1) for y in (0, 1) for z in (0, 1)], dtype=bool)  # (8, 3)
+        corners = np.concatenate(
+            [np.where(ends, hi.reshape(-1, 1, 3), lo.reshape(-1, 1, 3)).reshape(-1, 3) for lo, hi in boxes]
         )
-        center = (lo + hi) / 2.0
         up = np.asarray(self.theme.up_vector)
         side = np.cross(np.array([0.0, 0.0, 1.0]) if abs(up[2]) < 0.9 else np.array([1.0, 0.0, 0.0]), up)
         side /= np.linalg.norm(side)
@@ -451,8 +457,12 @@ class Viewer:
         right = np.cross(up, direction)
         right /= np.linalg.norm(right)
         screen_up = np.cross(direction, right)
-        # The nearest distance at which every corner of the box projects inside the filled part of a 16:9 view.
-        corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+        # Centred along the view's own axes (measured from the middle of the corners, which keeps one box exactly on
+        # its centre); then the nearest distance at which every corner projects inside the filled part of a 16:9 view.
+        axes = np.stack([right, screen_up, direction])
+        middle = (corners.min(axis=0) + corners.max(axis=0)) / 2.0
+        seen = (corners - middle) @ axes.T
+        center = middle + (seen.min(axis=0) + seen.max(axis=0)) / 2.0 @ axes
         offsets = corners - center
         tan_y = _AIM_FILL * math.tan(fov / 2.0)
         reach = np.maximum(np.abs(offsets @ screen_up) / tan_y, np.abs(offsets @ right) / (tan_y * _AIM_ASPECT))
@@ -460,7 +470,8 @@ class Viewer:
         return center + distance * direction, center
 
     def _boxes_at(self, step: int) -> list[tuple[np.ndarray, np.ndarray]]:
-        """``Layer.bounds`` of the visible layers at timeline ``step``, offsets of their first tags applied."""
+        """``Layer.bounds`` of the visible layers at timeline ``step`` (each one box or a stack of boxes), offsets of
+        their first tags applied."""
         boxes = []
         for entry in self._entries:
             layer = entry.layer

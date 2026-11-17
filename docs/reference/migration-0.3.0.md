@@ -213,7 +213,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `Viewer.remove_group(group)`, `Viewer.set_offset(group, offset)`, `Viewer.set_visible(layer, visible)` | `Viewer.remove(target)`, `Viewer.set_offset(tag, offset)`, `Viewer.set_visible(target, visible)` | `remove` and `set_visible` take a layer or a tag |
 | `Viewer.play(block=True)` | `Viewer.serve()` | plays and serves the page until interrupted; `viewer.timeline.play()` plays without blocking |
 | `Viewer.rebuild(layer)` | `Layer.redraw`, `Viewer.replace` | `layer.redraw()` pushes the current step after an in-place edit; `replace(old, new)` swaps in a new layer |
-| `Viewer.aim(*, steps, azimuth, elevation)` | `Viewer.aim(*, steps, azimuth, elevation, fov)` | frames the bounding sphere of the layers' `Layer.bounds` over at most 32 steps; until it is called the viewer aims after each `add` |
+| `Viewer.aim(*, steps, azimuth, elevation)` | `Viewer.aim(*, steps, azimuth, elevation, fov)` | frames the boxes of the layers' `Layer.bounds` over at most 32 steps; until it is called the viewer aims after each `add` |
 | `world_points` of `Layer` and every layer | `Layer.bounds` | the world box `(lo, hi)` of a step, which `Viewer.aim` and `Viewer.record` frame |
 | `Layer(name, nsteps)`, `Layer.listed`, `GroundLayer.listed` | `Layer(name, nsteps, *, tags=)` | the sidebar's Layers section has one checkbox per tag once there are two; the ground is never listed |
 | `Layer.build_gui(gui)`, `PlotPanel.build_gui`, `ImagePanel.build_gui` | `Layer.build_gui(sidebar)`, `Sidebar` | a layer adds its controls through the viewer's `Sidebar`; viser's GUI API is `sidebar.gui` |

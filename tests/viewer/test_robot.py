@@ -14,7 +14,7 @@ from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
-from better_robot.viewer.theme import Theme, rgb_uint8
+from better_robot.viewer.theme import Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
 from better_robot import collision
@@ -281,7 +281,8 @@ def test_robot_visual_bounds_are_the_box_of_the_robot_at_the_step() -> None:
     joints, centers = state.joint_poses[:, 1:, :3].numpy(), spheres.centers(state).numpy()
     radii = spheres.radii.numpy()[:, None]
     for step in range(2):
-        low, high = robot.bounds(step)
+        lows, highs = robot.bounds(step)  # a box per joint and per block
+        low, high = lows.min(axis=0), highs.max(axis=0)
         assert (low <= joints[step].min(axis=0)).all() and (joints[step].max(axis=0) <= high).all()
         assert (low >= (centers[step] - radii).min(axis=0) - 0.05).all()
         assert (high <= (centers[step] + radii).max(axis=0) + 0.05).all()
@@ -310,7 +311,7 @@ def test_robot_visual_follows_a_theme_with_other_hues_and_another_overlay_colour
     after = server.scene.nodes[f"{path}/maximal/cylinders"].batched_colors
     assert not np.array_equal(before, after) and (after[:, 0] >= after[:, 2]).all()  # shades of red
     spheres = server.scene.nodes[f"{path}/collision/spheres"]
-    assert not spheres.removed and (spheres.props["batched_colors"] == rgb_uint8(blue)).all()
+    assert not spheres.removed and (spheres.props["batched_colors"] == linear_uint8(blue)).all()
     assert robot.style == "maximal"
 
 
@@ -329,3 +330,28 @@ def test_robot_visual_minimal_writes_lengths_to_the_stick_node_only() -> None:
     server.scene.log.clear()
     viewer.show(0)
     assert [name.rsplit("/", 1)[-1] for name, event in server.scene.log if event == "batched_scales"] == ["cylinders"]
+
+
+def test_aim_frames_a_moving_robot_by_what_it_covers() -> None:
+    """A fixed-base G1 sweeps its joints: over the clip the robot spans 60 to 80 % of the view's limiting side.
+
+    One box round the clip, seen from above, put it at 45 %: the far and near corners of that box lie far outside
+    what a thin robot covers.
+    """
+    model = br.load(g1_urdf())
+    phase = torch.linspace(0.0, 2.0 * torch.pi, 60)[:, None]
+    middle = (model.lower_position_limit + model.upper_position_limit) / 2.0
+    half = (model.upper_position_limit - model.lower_position_limit) / 2.0
+    q = middle + 0.4 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)
+    viewer = Viewer(server=FakeServer())
+    robot = viewer.add(RobotVisual(model, q))
+    position, look_at = viewer.aim()
+    points = np.concatenate([end for step in range(60) for end in robot.bounds(step)])  # two corners of every box
+    sight = (look_at - position) / np.linalg.norm(look_at - position)
+    right = np.cross(sight, [0.0, 0.0, 1.0])
+    right /= np.linalg.norm(right)
+    rays = points - position
+    depth, tan = rays @ sight, np.tan(np.radians(20.0))  # the browsers' vertical field of view is 40 degrees
+    tall, wide = rays @ np.cross(right, sight) / depth / tan, rays @ right / depth / (tan * 16.0 / 9.0)
+    assert max(np.abs(tall).max(), np.abs(wide).max()) < 1.0  # every step inside the view, sampled or not
+    assert 0.6 < max(np.ptp(tall), np.ptp(wide)) / 2.0 <= 0.8

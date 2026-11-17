@@ -118,14 +118,13 @@ def main() -> None:
         (T, 3)``, under ``group``."""
         robot, clearance = look(q, centers)
         layers = [
-            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH, spheres=spheres,
+                        collision=True),  # the Robot section's Collision box shows the spheres
             SpheresLayer("obstacle", centers[:, None].numpy(), radii=np.array([RADIUS]), colors=GREY, opacity=0.9),
-            SpheresLayer("spheres", robot, radii=radii, opacity=0.15),
             SpheresLayer("inside the margin", robot, radii=radii, colors=RED, opacity=0.8),
-        ]
+        ]  # fmt: skip
         viewer.add(layers[:2], tags=group, offset=offset)
-        viewer.add(layers[2:3], tags=(group, "spheres"), offset=offset)  # the Layers section switches the tag
-        viewer.add(layers[3:], tags=(group, "spheres"), offset=offset, valid=clearance < MARGIN - 1e-3)
+        viewer.add(layers[2:], tags=group, offset=offset, valid=clearance < MARGIN - 1e-3)
         return layers
 
     if not (args.check or args.record):
@@ -156,8 +155,9 @@ def follow(
 ) -> None:
     """Track a target gizmo that starts at ``start (7,)`` and an obstacle gizmo at ``center (3,)`` until Ctrl-C, with
     the form the GUI selects, and redraw ``robot``'s layers after every tick."""
-    form = viewer.server.gui.add_dropdown("obstacle", FORMS)
-    readout = viewer.server.gui.add_markdown("")
+    with viewer.sidebar.section("Obstacle"):  # after the Robot and Layers sections
+        form = viewer.sidebar.gui.add_dropdown("Form", FORMS)
+        readout = viewer.sidebar.gui.add_markdown("")
     gizmo = PoseGizmo(viewer, "target", pose=start.numpy(), scale=0.2)
     mover = PoseGizmo(viewer, "obstacle", pose=np.concatenate([center.numpy(), [0.0, 0.0, 0.0, 1.0]]), scale=0.2)
     warm, last = None, form.value
@@ -172,10 +172,10 @@ def follow(
         centers, clearance = look(x["q"], center[None])
         robot[0].update(x["q"])
         robot[1].centers[:] = center.numpy()
-        robot[2].centers[:] = robot[3].centers[:] = centers
-        robot[3].valid[:] = clearance < MARGIN - 1e-3
+        robot[2].centers[:] = centers
+        robot[2].valid[:] = clearance < MARGIN - 1e-3
         robot[1].redraw()
-        viewer.redraw("spheres")
+        robot[2].redraw()
         readout.content = (
             f"closest sphere **{1e3 * clearance.min():.1f} mm** from the obstacle (margin {1e3 * MARGIN:.0f})  \n"
             f"tick {1e3 * seconds:.1f} ms"

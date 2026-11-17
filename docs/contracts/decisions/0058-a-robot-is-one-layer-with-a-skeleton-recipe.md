@@ -21,12 +21,16 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    dropdown, one Collision box and one Frames box for every robot in the viewer.
 3. **The skeleton is a recipe.** `viewer.SkeletonRecipe` (frozen, keyword-only) holds the choices: `glyphs`,
    `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, and the per-name overrides `joint_size`,
-   `body_hull`, `color`. `MAXIMAL` draws a glyph per joint kind (a drum for a revolute joint, a sleeve on a rail
-   for a prismatic one, a ball for a spherical one, a cube for a free base), bones, body hulls and end blocks;
-   `MINIMAL` draws one ball per cluster of close joints and sticks. `RobotVisual(minimal=, maximal=)` takes others.
+   `body_hull`, `color`. `MAXIMAL` draws a glyph per joint kind (a drum for a revolute joint, a sleeve riding on
+   a rail that spans the travel for a prismatic one, a ball for a spherical one, a cube for a free base), slim
+   tapered limbs, trunks for the bodies that branch and the ends of the chains (a sole, a finger block, a limb with
+   a ball), in two tones: joints in the hue, bodies pale (`Theme.shade` role `bone`). `MINIMAL` draws one ball per
+   cluster of close joints and sticks. `RobotVisual(minimal=, maximal=)` takes others.
 4. **Sizes come from the robot, positions stay true.** Every radius is a fraction of the robot's size. Glyphs that
    would overlap slide along their own axis, so each stays on its true axis line, and shrink only when sliding is
-   not enough. Hull sizes come from the sphere set, else the collision shapes, else the inertias.
+   not enough; in the maximal layout no glyph is wider than the one before it, and a glyph that ends a chain
+   shrinks at its place before it slides, so a chain gets smaller towards its tip. Body sizes come from the sphere
+   set, else the collision shapes, else the inertias.
 5. **The layout is rigid.** It is computed once at `model.q_neutral`; every block is rigid in one joint frame, so
    a skeleton is at most three batched nodes (cylinders, balls, boxes) and one line node for limit arcs, whatever
    the robot.
@@ -68,10 +72,11 @@ server with no browser, at host load average 40 to 66 (the times are upper bound
   kinematics and redraw 1.3 ms.
 - A step writes positions and rotations to each node; the stick node of a minimal skeleton also writes its
   lengths, because a stick between two moving balls stretches.
-- The G1's maximal layout: 16 glyphs slide, 661.5 mm in total, and two shrink (the hip pitch drums, to 0.85); it is
-  94 cylinders (29 drums, 29 faces, 36 bones), one ball (the head) and 7 boxes. Its minimal layout is 13 clusters:
-  12 balls, 14 sticks and the base cube. The Panda slides 5 glyphs and shrinks none. Building the G1's layout takes
-  about 40 ms.
+- The G1's maximal layout (with its sphere set): 14 glyphs slide, 557.2 mm in total, and four shrink (the hip pitch
+  drums to 0.85, the wrist yaw drums at their place to 0.52); it is 58 cylinders (29 drums, 29 faces), 5 balls
+  (four tips and the head) and 39 boxes (32 limbs, 4 ends, 2 trunks and the base). Its minimal layout is 13
+  clusters: 12 balls, 14 sticks and the base cube. The Panda slides 5 glyphs and shrinks none. Building the G1's
+  layout takes about 20 ms.
 - `bounds` is the box of the joints and of the maximal skeleton's blocks in every style, so the camera does not
   jump on a style switch.
 - A switch from code does not move the sidebar's control: the control is shared by every robot, and moving it
@@ -99,8 +104,9 @@ unreleased 0.3.0. The changelog and `docs/reference/migration-0.3.0.md` name the
 ## Enforcement
 `tests/viewer/test_robot.py` (styles, the overlay, triads by id or name, a skin, `bounds`, remove and add again, a
 theme switch, a name clash, a joint kind from outside the library, one Style control for two robots, a second
-switch creates no node), `tests/viewer/test_skeleton.py` (the layout: no overlap inside a rigid group, mirrored slides, bone
-thickness, the G1's 13 clusters, end block sizes, a clip equals its steps, the shades), `tests/viewer/test_fake_server.py` (the sidebar handles against viser), `tests/contract/test_api_snapshot.py`
+switch creates no node), `tests/viewer/test_skeleton.py` (the layout: no overlap inside a rigid group, mirrored slides, glyphs that narrow
+towards the tips, the Panda's rails over the fingers' travel, bone thickness, the G1's 13 clusters, end block
+sizes, a clip equals its steps, the shades), `tests/viewer/test_fake_server.py` (the sidebar handles against viser), `tests/contract/test_api_snapshot.py`
 (the five names), `tests/contract/test_keyword_only.py` and `tests/contract/test_identifiers.py` (the signatures),
 `tests/contract/test_name_words.py` (rule C-NAME-4 lets `RobotVisual` say frames).
 

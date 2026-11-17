@@ -11,7 +11,7 @@ import torch
 from ...exceptions import ArgumentError, ShapeError
 from ...lie import se3, so3
 from ..layer import Bounds, Layer, as_frames, as_triangles, box
-from ..theme import RGB, rgb_uint8
+from ..theme import RGB, linear_uint8, rgb_uint8
 
 #: The most colours a deforming ``MeshLayer`` takes: one scene node per colour.
 _MAX_COLOURS = 64
@@ -64,7 +64,7 @@ class MeshLayer(Layer):
             # the plain meshes. glTF's vertex colours are linear, the plain meshes' sRGB; without normals the mesh is
             # drawn faceted.
             visual = TextureVisuals(material=PBRMaterial(metallicFactor=0.0, roughnessFactor=1.0))
-            linear = rgb_uint8(_srgb_to_linear(self.colors / 255.0))
+            linear = linear_uint8(self.colors / 255.0)
             visual.vertex_attributes["color"] = np.concatenate([linear, np.full_like(linear[:, :1], 255)], 1)
             mesh = Trimesh(self.vertices[0], self.faces, visual=visual, process=False)
             self._track(
@@ -95,11 +95,6 @@ class MeshLayer(Layer):
         """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a static mesh with
         ``colors`` stays opaque."""
         self._fade(opacity, [node for node, _ in self._nodes])
-
-
-def _srgb_to_linear(color: np.ndarray) -> np.ndarray:
-    """sRGB colours in ``[0, 1]`` as linear ones (the sRGB transfer curve), ``(..., 3)``."""
-    return np.where(color <= 0.04045, color / 12.92, ((color + 0.055) / 1.055) ** 2.4)
 
 
 def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.ndarray, np.ndarray | slice, np.ndarray]]:
@@ -243,7 +238,7 @@ class SpheresLayer(Layer):
         if self.radii.shape != (self.centers.shape[1],):
             raise ShapeError(f"radii must be (S,) = ({self.centers.shape[1]},), one per sphere, got {self.radii.shape}")
         colors = np.asarray(colors, dtype=np.float32)
-        self._colors = rgb_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
+        self._colors = linear_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else linear_uint8(colors)
         if self._colors.ndim == 3 and self._colors.shape != self.centers.shape:
             raise ShapeError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
         self._store_opacity(opacity)

@@ -296,14 +296,14 @@ def test_image_panel_shows_the_image_of_the_current_step_eager_or_lazy() -> None
     assert eager_image.removed and lazy_image.removed
 
 
-def test_theme_shades_run_from_dark_drum_faces_to_pale_sticks_with_bodies_in_the_hue() -> None:
+def test_theme_shades_run_from_dark_drum_faces_to_pale_bones_with_bodies_in_the_hue() -> None:
     theme = Theme()
     hue = theme.hue(0)
-    brightness = {role: sum(theme.shade(hue, role)) for role in ("face", "joint", "body", "stick")}
-    assert brightness["face"] < brightness["joint"] < brightness["body"] < brightness["stick"]
+    brightness = {role: sum(theme.shade(hue, role)) for role in ("face", "joint", "body", "stick", "bone")}
+    assert brightness["face"] < brightness["joint"] < brightness["body"] < brightness["stick"] < brightness["bone"]
     assert theme.shade(hue, "body") == hue
     with pytest.raises(ArgumentError, match="role must be one of"):
-        theme.shade(hue, "bone")  # pyright: ignore[reportArgumentType]
+        theme.shade(hue, "hull")  # pyright: ignore[reportArgumentType]
 
 
 def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow() -> None:

@@ -53,8 +53,9 @@ The options:
 - `steps`: frame `k` of the file shows `steps[k]`; every step by default.
 - `fps`: the timeline's by default; `bitrate`: bits per second, 8 Mbit/s at 1920 x 1080 scaled by the pixel count.
 - `camera=(position, look_at)`: each `(3,)` for a fixed view or `(len(steps), 3)` for one that moves with the steps;
-  without it, the view `viewer.aim(steps=steps, fov=fov)` chooses (the bounding sphere of the visible layers'
-  `Layer.bounds`, upright along the theme's `up` axis). `fov` is the vertical field of view in radians.
+  without it, the view `viewer.aim(steps=steps, fov=fov)` chooses (the boxes of the visible layers' `Layer.bounds`
+  over `steps`, inside four fifths of the view, upright along the theme's `up` axis). `fov` is the vertical field of
+  view in radians.
 - `gpu`: the `nvidia-smi` index of the GPU to draw on, through Vulkan; `None`, the default, draws on the CPU
   (SwiftShader, which ships with Chromium). A full-HD frame of a Panda takes about 130 ms on the CPU and 5 to 8 ms
   on a GPU.

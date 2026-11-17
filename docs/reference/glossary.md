@@ -270,10 +270,10 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **bind pose, bind** | The pose in which a skinned mesh's vertices are given (`SkinnedMeshLayer(bind_poses=)`); for a `Skin`, the configuration `bind (nq,)` of its rest surface. |
 | **visual** | A robot as one layer of the viewer (`RobotVisual`): its meshes or a skeleton, with a collision overlay and frames. |
 | **style** | How a robot visual draws its robot: `"meshes"`, `"minimal"` or `"maximal"` (`RobotVisual(style=)`, `RobotVisual.set_style`). |
-| **minimal, maximal** | The two skeleton styles and their recipes: `MINIMAL` is a stick figure with one ball per cluster of joints, `MAXIMAL` one glyph per joint with bones, hulls and end blocks. |
+| **minimal, maximal** | The two skeleton styles and their recipes: `MINIMAL` is a stick figure with one ball per cluster of joints, `MAXIMAL` one glyph per joint with limbs, trunks and the ends of the chains, in two tones. |
 | **recipe** | The choices that lay out a skeleton (`SkeletonRecipe`): glyphs, bones, hulls, limit arcs, clusters. Its `twists=False` leaves out the glyph of a joint that only turns its limb about the limb's own line, which is not the six-number twist. |
 | **glyph** | The shape that stands for one joint in a skeleton: a drum for a revolute joint, a sleeve on a rail for a prismatic one, a ball otherwise (`SkeletonRecipe(glyphs=)`). |
-| **hull** | A rounded box that stands for a body in a skeleton: the root, a body where the tree branches, and as an end block the last body of a chain (`SkeletonRecipe(hulls=, body_hull=)`). |
+| **hull** | A faceted block that stands for a body in a skeleton: a trunk for the root and for a body where the tree branches, narrowing towards the joint it hangs from, and the end of a chain (a sole, a finger block, a limb with a ball) for its last body (`SkeletonRecipe(hulls=, body_hull=)`). |
 | **cluster** | Joints close enough to share one ball in the minimal skeleton (`SkeletonRecipe(cluster=)`, a fraction of the robot's size). |
 | **trimesh** | The mesh library; `MeshSpec.trimesh` holds one of its meshes, with textures or vertex colours. |
 | **bitrate** | Bits per second of an encoded video; `Viewer.record(bitrate=)` trades file size for detail. |

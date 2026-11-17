@@ -9,7 +9,7 @@ import numpy as np
 
 from ...exceptions import ShapeError
 from ..layer import Bounds, Layer, as_frames, box
-from ..theme import LIGHT, RGB, Theme, rgb_uint8
+from ..theme import LIGHT, RGB, Theme, linear_uint8
 
 
 @final
@@ -62,7 +62,7 @@ class CameraLayer(Layer):
     def apply_theme(self, theme: Theme) -> None:
         self._ink = theme.text
         if self.color is None and self._lines is not None:
-            self._lines.colors = rgb_uint8(self._ink)
+            self._lines.colors = linear_uint8(self._ink)
 
     @override
     def build(self, scene: Any, root: str) -> None:
@@ -71,7 +71,9 @@ class CameraLayer(Layer):
         ring = np.roll(self._corners, -1, axis=0)
         edges = np.concatenate([np.stack([apex, self._corners], 1), np.stack([self._corners, ring], 1)])  # (8, 2, 3)
         self._lines = self._track(
-            scene.add_line_segments(f"{root}/camera/edges", edges, rgb_uint8(self.color or self._ink), line_width=2.0)
+            scene.add_line_segments(
+                f"{root}/camera/edges", edges, linear_uint8(self.color or self._ink), line_width=2.0
+            )
         )
         image = self.image_at(0)
         if image is not None:

@@ -12,7 +12,7 @@ from ..exceptions import ArgumentError, ShapeError
 RGB = tuple[float, float, float]
 _UP_AXES = ("+x", "-x", "+y", "-y", "+z", "-z")  # what viser's set_up_direction takes as a word
 #: How far ``shade`` mixes a hue towards black (negative) or white (positive) per role.
-_SHADE_MIX = {"joint": -0.22, "face": -0.58, "body": 0.0, "stick": 0.25}
+_SHADE_MIX = {"joint": -0.10, "face": -0.32, "body": 0.0, "bone": 0.45, "stick": 0.10}
 #: Directions the key and fill lights shine from, for a z-up scene; ``apply`` turns them to the theme's ``up``.
 _KEY_LIGHT = (-2.0, -3.0, 4.0)
 _FILL_LIGHT = (3.0, -1.5, 1.0)
@@ -34,6 +34,16 @@ def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarra
         expected = f"one RGB or {(*shape, 3)}, one per element" if shape else "RGB triples (..., 3)"
         raise ShapeError(f"colors must be {expected}, got shape {np.shape(color)}")
     return (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+
+
+def linear_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
+    """``rgb_uint8`` for the calls of viser that read a colour as linear: the per-instance colours of batched meshes
+    and arrows, the per-vertex ones of line segments and of a glTF. The sRGB curve is undone here, so that the colour
+    drawn is the one given, as for a plain mesh's ``color``; a point cloud is drawn as given and takes ``rgb_uint8``.
+    In 8 bits the darkest values land up to 6 levels off (sRGB 8 is drawn as 13)."""
+    srgb = rgb_uint8(color, shape) / 255.0
+    linear = np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
+    return (linear * 255.0 + 0.5).astype(np.uint8)
 
 
 def colormap(values: np.ndarray, *stops: RGB) -> np.ndarray:
@@ -71,13 +81,14 @@ class Theme:
     up: str = "+z"
     lights: tuple[float, float, float, float] = (0.25, 0.5, 2.6, 0.3)  # little ambient: white meshes keep their form
     hues: tuple[RGB, ...] = (
-        _srgb(82, 160, 104),  # green
-        _srgb(238, 130, 50),  # orange; (221, 132, 82) turned brown under the rig
-        _srgb(72, 124, 200),  # blue
-        _srgb(142, 112, 192),  # purple
-        _srgb(60, 160, 170),  # teal
-        _srgb(205, 95, 120),  # rose
-        _srgb(110, 115, 125),  # graphite
+        # Light mid-tones: the rig draws a side away from the key light at about half the colour given.
+        _srgb(116, 190, 140),  # green
+        _srgb(245, 166, 92),  # orange; a darker or redder one turns brown in its own shade
+        _srgb(104, 152, 222),  # blue
+        _srgb(162, 138, 212),  # purple
+        _srgb(96, 184, 192),  # teal
+        _srgb(224, 128, 150),  # rose
+        _srgb(146, 150, 158),  # graphite
     )
     accent: RGB = _srgb(72, 124, 200)
     collision: RGB = _srgb(140, 150, 165)  # a quiet grey: the body under the overlay stays the subject
@@ -107,9 +118,10 @@ class Theme:
         """The colour of the ``index``-th robot: ``hues[index % len(hues)]``."""
         return self.hues[index % len(self.hues)]
 
-    def shade(self, hue: RGB, role: Literal["joint", "face", "body", "stick"]) -> RGB:
-        """``hue`` as a part of ``role`` draws it: ``joint`` 22 % towards black, ``face`` 58 % towards black (drum
-        faces), ``body`` the hue itself (bones, hulls), ``stick`` 25 % towards white (thin bones)."""
+    def shade(self, hue: RGB, role: Literal["joint", "face", "body", "bone", "stick"]) -> RGB:
+        """``hue`` as a part of ``role`` draws it: ``joint`` 10 % towards black, ``face`` 32 % towards black (drum
+        faces), ``body`` the hue itself (meshes), ``bone`` 45 % towards white (the bodies of the maximal skeleton),
+        ``stick`` 10 % towards white (thin bones)."""
         if role not in _SHADE_MIX:
             raise ArgumentError(f"role must be one of {list(_SHADE_MIX)}, got {role!r}")
         mix = _SHADE_MIX[role]
@@ -161,5 +173,7 @@ DARK = Theme(
     backdrop=(_srgb(44, 45, 50), _srgb(22, 22, 25)),
     grid=(_srgb(58, 59, 64), _srgb(86, 88, 95)),
     shadow=0.45,
+    collision=_srgb(170, 180, 196),  # the light theme's grey turns to a dim ghost on dark; lighter, a little denser
+    collision_opacity=0.22,
     text=_srgb(228, 229, 233),
 )

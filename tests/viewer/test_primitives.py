@@ -11,7 +11,7 @@ import trimesh
 from better_robot.exceptions import ArgumentError
 from better_robot.testing import FakeServer
 from better_robot.viewer import DARK, LIGHT, CameraLayer, LinesLayer, MeshLayer, PointsLayer, Viewer
-from better_robot.viewer.theme import rgb_uint8
+from better_robot.viewer.theme import linear_uint8
 
 
 def test_lines_step_their_segments_and_take_the_theme_ink_unless_coloured() -> None:
@@ -26,9 +26,9 @@ def test_lines_step_their_segments_and_take_the_theme_ink_unless_coloured() -> N
     viewer.show(2)
     np.testing.assert_allclose(lines.points[:, 1, 2], [3.0, 3.0])
     np.testing.assert_allclose(plain.bounds(2), [[0.0] * 3, [0.0, 0.0, 3.0]])
-    np.testing.assert_array_equal(lines.props["colors"], np.full((2, 2, 3), rgb_uint8(LIGHT.text)))
+    np.testing.assert_array_equal(lines.props["colors"], np.full((2, 2, 3), linear_uint8(LIGHT.text)))
     viewer.set_theme(DARK)
-    np.testing.assert_array_equal(lines.colors, np.full((2, 2, 3), rgb_uint8(DARK.text)))
+    np.testing.assert_array_equal(lines.colors, np.full((2, 2, 3), linear_uint8(DARK.text)))
     np.testing.assert_array_equal(red.props["colors"], np.full((2, 2, 3), [255, 0, 0]))
 
 

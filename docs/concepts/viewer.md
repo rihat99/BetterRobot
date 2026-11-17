@@ -83,13 +83,16 @@ clips side by side; `set_offset(tag, (x, y, z))` moves a tag again later, such a
 an application creates, Info last. The Timeline section, shown once the timeline has more than one step, holds a
 Play box, the Step slider, a Speed choice (0.25x to 2x, taken while playing) and Loop. `sidebar.checkbox`, `dropdown`, `slider` and `button` take a section and a label
 and return viser's control; asking again for the same section and label returns the same control and adds the
-callback, so one control drives every layer that asked for it, and it goes when the last of them is removed. Every
+callback, so one control drives every layer that asked for it, and it goes when the last of them is removed.
+`sidebar.set_value(section, label, value=)` shows a value on a control without running its callbacks, for a layer
+whose state code changed. Every
 callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps. A callback that raises a
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
-Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the box of the visible
-layers' `Layer.bounds` over the clip (at most 32 steps are read), seen from a 3/4 view at the distance where the box
-spans four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself.
+Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the boxes of the visible
+layers' `Layer.bounds` over the clip (at most 32 steps are read), centred in a front three-quarter view of a robot
+facing `+x` at the nearest distance where every corner of every box lies inside four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses
+the view yourself.
 
 ## One timeline drives every layer
 
@@ -139,7 +142,7 @@ clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of thr
 | Style | Draws | Needs |
 |---|---|---|
 | `"meshes"` | the display shapes of a `Geometry` (`io.load_geometry`), or a `Skin` | `geometry=` with display shapes, or `skin=` |
-| `"maximal"` | a skeleton with one glyph per joint, bones, body hulls and end blocks | nothing but the model |
+| `"maximal"` | a skeleton with one glyph per joint, limbs, trunks and the ends of the chains | nothing but the model |
 | `"minimal"` | a stick figure: one ball per cluster of close joints, sticks between | nothing but the model |
 
 `style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
@@ -175,7 +178,7 @@ maximal ('meshes', 'minimal', 'maximal') ('minimal', 'maximal')
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
 that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
-shared by every robot in the viewer, so a switch from code does not move them. `update(q)` shows new configurations of the same number of steps, for a live
+shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are. `update(q)` shows new configurations of the same number of steps, for a live
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the theme's next
 hue, in the order the robots are added, unless `hue=` names one. The name defaults to the model's, so two robots of
 one model need a `name=` each.
@@ -187,22 +190,34 @@ The two skeleton styles are laid out by a `SkeletonRecipe`; `MAXIMAL` and `MINIM
 robot's size, so a hand and a humanoid read the same on screen. The layout is computed once, at `model.q_neutral`,
 and every block is rigid in one joint frame, so a step only moves blocks.
 
-`MAXIMAL` draws what the joints are:
+`MAXIMAL` draws what the joints are, in two tones of the robot's hue: joints in the hue, bodies pale.
 
 - a revolute joint is a drum along its axis, with dark end faces that show which way the axis points; a prismatic
-  joint is a sleeve with a rail sliding through it; a spherical joint is a ball; any other kind is a small ball,
-  and a free base is a cube;
+  joint is a sleeve that rides with its child on a rail that spans the joint's travel in the parent; a spherical
+  joint is a ball; any other kind is a small ball, and a free base is a cube;
 - joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart: each drum that would overlap
-  another slides along its own axis, so it stays on its true axis line, and only then shrinks;
-- a bone joins each joint to its parent, thinner than either glyph (`bones`, the ratio; 0 draws none);
-- a hull, a rounded box, stands for the root body and for every body where the tree branches, and an end block
-  for every body that ends a chain (hands, feet, fingers). Their sizes come from the sphere set when the visual
-  has one, else from the collision shapes of the geometry, else from the inertias. `hulls="all"` also boxes the
-  bodies with one child joint, `"none"` draws neither; `body_hull={frame: bool}` decides one body.
+  another slides along its own axis, so it stays on its true axis line, and only then shrinks; a joint that ends
+  a chain shrinks at its place first, so a chain gets smaller towards its tip, as no glyph is wider than the one
+  before it;
+- a limb, a slim faceted block that narrows towards the child, joins each joint to its parent (`bones`, its half
+  width over the glyph radius; 0 draws none);
+- a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
+  the tree branches (a torso, a pelvis, a palm), with a ball for a head; a body that ends a chain is a sole when
+  it is flat, a block when a prismatic joint moves it (a finger), else a limb with a ball at its tip (a hand, a
+  paw). Their sizes come from the collision shapes of the geometry, else from the sphere set, else from the
+  inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes.
+  `hulls="all"` also gives a trunk to the bodies with one child joint, `"none"` draws neither;
+  `body_hull={frame: bool}` decides one body.
 
 `MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
 one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and
-sticks join the balls.
+sticks join the balls. A leaf joint's stick runs on to the end of its body and ends in a small ball, rigid in the
+leaf's frame: to the far end of its geometry (the paw of a Go2, the toe of a G1's sole, a hand, a finger), so
+the figure stands on its feet; without geometry, to its farthest frame when that frame lies past the middle of the
+body its inertia spans (a foot, a tool tip). The maximal limb of a hand or a paw ends at the same place. A
+trunk's head is a ball as small as a joint's, on a stick from the trunk. Balls and drums follow one size rule: the
+reference radius is a third of the mean bone, kept between 2 % and 4 % of the robot's size, and `MINIMAL` draws
+it at 0.62.
 
 Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
@@ -222,8 +237,11 @@ kind auto True
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
 limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, and a step writes
 positions and rotations to each node on screen (the sticks of a minimal skeleton also their lengths). `bounds` is
-the box of the joints and of the maximal skeleton's blocks in every style, so `Viewer.aim` frames a robot the same
-way whatever it is drawn as.
+a box per joint, per collision sphere and collision shape that is not a mesh (exact), and per block of the maximal
+skeleton on a body without one, in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
+and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest
+point of a sole or a foot with a collision shape: `examples/viewer/00_showcase.py` lifts a floating base by it, step
+by step, to stand the robot on the ground.
 
 ### A skinned surface
 
@@ -274,7 +292,7 @@ direction of the browser scene and of the `record` camera, and a `GroundLayer` a
 `plane` lies in the plane perpendicular to it (`"xz"` for `+y`). The default grid has no edges and fades out with
 the distance from the camera; `GroundLayer(size=4.0)` draws a square 4 m wide. `GroundLayer(origin=p, normal=n, fill=0.3)`
 instead tilts the grid onto the plane through `p` with normal `n`, such as a fitted floor, over a translucent fill
-(`fill` is its opacity; 0, the default, draws lines only).
+(`fill` is its opacity; 0, the default, draws lines only) in the theme's grid colour unless `fill_color=` names one.
 
 ```python
 from better_robot.viewer import DARK, Theme
@@ -311,6 +329,7 @@ Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames
 
 - [Visualize a robot](../getting-started/visualize.md) walks through a first scene and a recording.
 - [Record a video of a scene](../guides/record-a-video.md): `record`'s formats, options and camera.
-- `examples/viewer/` has runnable scripts: a robot pose, an IK gizmo, recording a clip, and five demos of
+- `examples/viewer/` has runnable scripts: a showcase of three robots in every style
+  (`uv run python examples/viewer/00_showcase.py`), a robot pose, an IK gizmo, recording a clip, and five demos of
   avoidance while tracking a dragged target ([Try the avoidance demos](../guides/avoidance-demos.md)).
 - [API reference: viewer](../reference/api/viewer.md).

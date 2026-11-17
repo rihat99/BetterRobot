@@ -115,13 +115,12 @@ def main() -> None:
         centers, red, _ = look(q)
         radii = spheres.radii.numpy()
         layers = [
-            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH),
-            SpheresLayer("spheres", centers, radii=radii, opacity=0.15),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH, spheres=spheres,
+                        collision=True),  # the Robot section's Collision box shows the spheres
             SpheresLayer("inside the margin", centers, radii=radii, colors=RED, opacity=0.8),
-        ]
+        ]  # fmt: skip
         viewer.add(layers[:1], tags=group, offset=offset)
-        viewer.add(layers[1:2], tags=(group, "spheres"), offset=offset)  # the Layers section switches the tag
-        viewer.add(layers[2:], tags=(group, "spheres"), offset=offset, valid=red)
+        viewer.add(layers[1:], tags=group, offset=offset, valid=red)
         return layers
 
     if not (args.check or args.record):
@@ -148,8 +147,9 @@ def main() -> None:
 def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: dict, start: torch.Tensor) -> None:
     """Track a gizmo that starts at ``start (7,)`` until Ctrl-C, with the form the GUI selects, and redraw
     ``robot``'s layers after every tick."""
-    form = viewer.server.gui.add_dropdown("self-collision", FORMS)
-    readout = viewer.server.gui.add_markdown("")
+    with viewer.sidebar.section("Self-collision"):  # after the Robot and Layers sections
+        form = viewer.sidebar.gui.add_dropdown("Form", FORMS)
+        readout = viewer.sidebar.gui.add_markdown("")
     gizmo = PoseGizmo(viewer, "target", pose=start.numpy(), scale=0.2)
     warm, last = None, form.value
     print(f"drag the target through the robot at {viewer.url}; Ctrl-C to exit")
@@ -161,9 +161,9 @@ def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: di
         seconds = time.perf_counter() - began
         centers, red, clearance = look(x["q"])
         robot[0].update(x["q"])
-        robot[1].centers[:] = robot[2].centers[:] = centers
-        robot[2].valid[:] = red
-        viewer.redraw("spheres")
+        robot[1].centers[:] = centers
+        robot[1].valid[:] = red
+        robot[1].redraw()
         readout.content = (
             f"deepest pair **{1e3 * clearance.min():.1f} mm** outside its margin  \ntick {1e3 * seconds:.1f} ms"
         )

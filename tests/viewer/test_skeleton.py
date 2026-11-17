@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -132,11 +133,13 @@ def test_g1_glyphs_of_one_rigid_group_do_not_overlap() -> None:
 def test_g1_slides_are_mirror_images() -> None:
     model, spheres = _g1()
     skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
-    assert len(skeleton.slides) == 16
+    assert len(skeleton.slides) == 14
     for name, slide in skeleton.slides.items():
         if name.startswith("left_"):
             assert abs(skeleton.slides[name.replace("left_", "right_")]) == pytest.approx(abs(slide), abs=1e-9)
-    assert dict(skeleton.shrinks) == pytest.approx({"left_hip_pitch_joint": 0.85, "right_hip_pitch_joint": 0.85})
+    hips = dict.fromkeys(("left_hip_pitch_joint", "right_hip_pitch_joint"), 0.85)
+    wrists = dict.fromkeys(("left_wrist_yaw_joint", "right_wrist_yaw_joint"), 0.85**4)  # a leaf shrinks in place
+    assert dict(skeleton.shrinks) == pytest.approx(hips | wrists)
     poses = _poses(model)
     drums = _drums(skeleton, poses)
     mirror = np.array([1.0, -1.0, 1.0])  # the neutral root frame is the world: left is positive y
@@ -147,6 +150,27 @@ def test_g1_slides_are_mirror_images() -> None:
         offset, mirrored = drums[j][0] - poses[j, :3], drums[other][0] - poses[other, :3]
         np.testing.assert_allclose(offset * mirror, mirrored, atol=1e-6)
         np.testing.assert_allclose(drums[j][2], drums[other][2], atol=1e-9)
+
+
+def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
+    model, spheres = _g1()
+    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    drums, anchor = _drums(skeleton, _poses(model)), _anchors(model)
+    size = {j: half[0] / skeleton.shrinks.get(model.joint_names[j], 1.0) for j, (_, _, half) in drums.items()}
+    pairs = [(anchor[model.parent_joint_ids[j]], j) for j in drums if anchor[model.parent_joint_ids[j]] in drums]
+    assert len(pairs) == 26  # every drum but the three on the free-flyer base
+    for parent, child in pairs:
+        assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
+
+
+def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_each_other() -> None:
+    model, spheres = _panda()
+    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    cylinders = skeleton.cylinders
+    rails = [i for i, part in enumerate(cylinders.part) if part == "rail"]
+    assert len(rails) == 2 and {int(cylinders.body[i]) for i in rails} == {model.joint_names.index("panda_joint7")}
+    np.testing.assert_allclose(cylinders.scale[rails, 2], 0.04, atol=1e-6)  # the 4 cm each finger travels
+    assert skeleton.slides["panda_finger_joint1"] == pytest.approx(skeleton.slides["panda_finger_joint2"], abs=1e-9)
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
@@ -162,15 +186,21 @@ def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: Skel
             (world[i, :3], per_scale * scale[i, 0]) for i in range(len(blocks)) if blocks.part[i] in _GLYPH_PARTS
         ]
     centers, radii = np.stack([center for center, _ in glyphs]), np.array([radius for _, radius in glyphs])
-    world, scale = placed["cylinders"]
-    axes = _rotations(world[:, 3:])[:, :, 2]
-    joined = np.zeros(len(glyphs), dtype=bool)
-    bones = [i for i, part in enumerate(skeleton.cylinders.part) if part in ("bone", "stick")]
+    bones = []  # (centre, axis, length, half thickness): a stick is a cylinder, a limb a box at its wide end
+    for mesh, per_scale in (("cylinders", 1.0), ("boxes", 0.5)):
+        blocks, (world, scale) = getattr(skeleton, mesh), placed[mesh]
+        axes = _rotations(world[:, 3:])[:, :, 2]
+        bones += [
+            (world[i, :3], axes[i], scale[i, 2], per_scale * scale[i, 0])
+            for i in range(len(blocks))
+            if blocks.part[i] in ("bone", "stick")
+        ]
     assert bones
-    for i in bones:
-        for end in (world[i, :3] - 0.5 * scale[i, 2] * axes[i], world[i, :3] + 0.5 * scale[i, 2] * axes[i]):
+    joined = np.zeros(len(glyphs), dtype=bool)
+    for center, axis, length, half in bones:
+        for end in (center - 0.5 * length * axis, center + 0.5 * length * axis):
             inside = np.linalg.norm(centers - end, axis=1) < 0.5 * radii  # the bone's cap is in these glyphs
-            assert (scale[i, 0] <= radii[inside] + 1e-12).all(), (skeleton.cylinders.owner[i], scale[i], radii[inside])
+            assert (half <= radii[inside] + 1e-12).all(), (center, half, radii[inside])
             joined |= inside
     assert joined.sum() >= len(glyphs) - 1  # every glyph but a free-flyer's cube inside its hull holds a bone end
 
@@ -194,6 +224,105 @@ def test_end_blocks_are_no_larger_than_the_root_hull(robot: str) -> None:
     ends = [volume[i] for i, part in enumerate(boxes.part) if part == "end"]
     assert root and ends
     assert max(ends) <= max(root)
+
+
+def test_go2_minimal_legs_run_on_to_the_feet() -> None:
+    """The Go2's knees are its leaf joints: the minimal skeleton runs a stick from each knee to its foot, and the
+    ball that ends it reaches the lowest point of that leg's meshes within 1 cm (the foot's ball is 2.2 cm wide).
+    The Go2 comes from the ``robot_descriptions`` cache, as in the examples."""
+    import trimesh  # noqa: PLC0415 - optional dependency of the viewer
+    from robot_descriptions import go2_description  # noqa: PLC0415 - the examples' robots, not a fixture
+
+    from better_robot.viewer.robot import _mesh_file  # noqa: PLC0415 - the viewer's own mesh lookup
+
+    urdf = go2_description.URDF_PATH
+    model = br.load(urdf, root_joint=br.JointFreeFlyer())
+    geometry = br.io.load_geometry(urdf, model)
+    skeleton = build_skeleton(model, MINIMAL, geometry=geometry)
+    poses = _poses(model)
+    placed = skeleton.place(poses)
+    (balls, ball_scale), (sticks, stick_scale) = placed["balls"], placed["cylinders"]
+    axes = _rotations(sticks[:, 3:])[:, :, 2]
+    stick_ends = np.concatenate([sticks[:, :3] + sign * 0.5 * stick_scale[:, 2:] * axes for sign in (-1.0, 1.0)])
+    anchor = _anchors(model)
+    for leg in ("FL", "FR", "RL", "RR"):
+        knee = model.joint_names.index(f"{leg}_calf_joint")
+        tips = [i for i, owner in enumerate(skeleton.balls.owner) if owner == knee and skeleton.balls.anchors[i, 0] < 0]
+        assert len(tips) == 1, leg
+        tip = tips[0]
+        assert np.linalg.norm(stick_ends - balls[tip, :3], axis=1).min() < 1e-5  # a stick ends in the ball
+        lowest = np.inf
+        for attached in geometry.shapes:
+            if attached.collision or anchor[attached.body] != knee:
+                continue
+            vertices = trimesh.load(_mesh_file(attached.body, attached.shape.uri, Path(urdf)), force="mesh").vertices
+            world = torch.from_numpy(poses[attached.body]).double()
+            world = br.lie.se3.compose(world, torch.tensor(attached.shape.placement, dtype=torch.float64))
+            points = br.lie.se3.act(world[None], torch.from_numpy(vertices * np.asarray(attached.shape.scale)))
+            lowest = min(lowest, float(points[:, 2].min()))
+        assert abs(balls[tip, 2] - ball_scale[tip, 2] - lowest) < 0.01, (
+            leg,
+            balls[tip, 2] - ball_scale[tip, 2],
+            lowest,
+        )
+
+
+def _described(name: str, *, spheres: bool = False) -> tuple[Model, dict]:
+    """A robot of the examples from the ``robot_descriptions`` cache with what ``RobotVisual`` gives its skeleton:
+    the geometry, the collision mesh loader and, when asked, the robot's sphere set."""
+    import importlib  # noqa: PLC0415 - the examples' robots, not a fixture
+
+    from better_robot.viewer import RobotVisual  # noqa: PLC0415 - its collision mesh loader
+
+    urdf = importlib.import_module(f"robot_descriptions.{name}_description").URDF_PATH
+    model = br.load(urdf, root_joint=br.JointFreeFlyer())
+    geometry = br.io.load_geometry(urdf, model)
+    vertices = RobotVisual(model, model.q_neutral[None], geometry=geometry, root=urdf)._collision_vertices
+    sources = {"geometry": geometry, "mesh_vertices": vertices}
+    if spheres:
+        sources["spheres"] = collision.load_spheres(collision.SPHERE_SETS / f"{name}.json", model)[0]
+    return model, sources
+
+
+def test_g1_layout_does_not_change_with_a_sphere_set() -> None:
+    """A sphere set given to show as the collision overlay leaves the layout alone: the G1's bodies are sized from
+    its collision meshes either way, so its feet stay soles (sized from the spheres they were limbs with toe balls)."""
+    model, sources = _described("g1", spheres=True)
+    plain = {key: value for key, value in sources.items() if key != "spheres"}
+    for recipe in (MAXIMAL, MINIMAL):
+        first, second = build_skeleton(model, recipe, **plain), build_skeleton(model, recipe, **sources)
+        for mesh in ("cylinders", "balls", "boxes"):
+            np.testing.assert_array_equal(getattr(first, mesh).local, getattr(second, mesh).local)
+            np.testing.assert_array_equal(getattr(first, mesh).scale, getattr(second, mesh).scale)
+    maximal = build_skeleton(model, MAXIMAL, **sources)
+    for side in ("left", "right"):
+        ankle = model.joint_names.index(f"{side}_ankle_roll_joint")
+        blocks = zip(maximal.boxes.part, maximal.boxes.owner, strict=True)
+        assert [part for part, owner in blocks if owner == ankle and part != "bone"] == ["end"]  # one sole
+        assert ankle not in maximal.balls.owner  # and no toe ball
+
+
+@pytest.mark.parametrize("name", ["g1", "go2"])
+def test_minimal_follows_the_maximal_size_rule_and_draws_the_head(name: str) -> None:
+    """Both styles share one size rule (a reference radius between 2 % and 4 % of the robot's size, the minimal one
+    at ``MINIMAL.size`` of it: the Go2's minimal balls were 3.7 % of its size), and the minimal skeleton draws the
+    trunk's head that the maximal one finds as one ball of the reference radius, rigid in the trunk, on a stick."""
+    model, sources = _described(name)
+    maximal, minimal = build_skeleton(model, MAXIMAL, **sources), build_skeleton(model, MINIMAL, **sources)
+    assert 0.02 <= maximal.radius / maximal.scale <= 0.04
+    assert minimal.radius == pytest.approx(MINIMAL.size * maximal.radius)
+    trunk = model.joint_names.index("waist_pitch_joint" if name == "g1" else "root_joint")
+    heads = [i for i, owner in enumerate(minimal.balls.owner) if owner == trunk and minimal.balls.anchors[i, 0] < 0]
+    assert len(heads) == 1
+    assert _anchors(model)[minimal.balls.body[heads[0]]] == trunk
+    np.testing.assert_allclose(minimal.balls.scale[heads[0]], minimal.radius)
+    placed = minimal.place(_poses(model))
+    (balls, _), (sticks, scale) = placed["balls"], placed["cylinders"]
+    axes = _rotations(sticks[:, 3:])[:, :, 2]
+    ends = np.concatenate([sticks[:, :3] + sign * 0.5 * scale[:, 2:] * axes for sign in (-1.0, 1.0)])
+    assert np.linalg.norm(ends - balls[heads[0], :3], axis=1).min() < 1e-5  # a stick ends in the head
+    if name == "g1":  # above every other ball
+        assert balls[heads[0], 2] == balls[:, 2].max()
 
 
 @pytest.mark.parametrize("recipe", [MAXIMAL, MINIMAL], ids=["maximal", "minimal"])
@@ -222,7 +351,7 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
 def test_colors_shade_each_part_and_tint_the_sides() -> None:
     model, spheres = _g1()
     hue = (0.2, 0.6, 0.4)
-    roles = {"joint": 0.0, "face": -0.5, "body": 0.5, "stick": 1.0}  # towards black below 0, towards white above
+    roles = {"joint": 0.0, "face": -0.5, "bone": 0.5, "stick": 1.0}  # towards black below 0, towards white above
 
     def shade(color: tuple[float, float, float], role: str) -> tuple[float, float, float]:
         mix, target = abs(roles[role]), float(roles[role] > 0.0)
@@ -234,7 +363,7 @@ def test_colors_shade_each_part_and_tint_the_sides() -> None:
     parts = np.array(plain.cylinders.part)
     np.testing.assert_allclose(colors["cylinders"][parts == "drum"], np.broadcast_to(hue, (29, 3)), atol=1e-6)
     np.testing.assert_allclose(colors["cylinders"][parts == "face"][0], shade(hue, "face"), atol=1e-6)
-    np.testing.assert_allclose(colors["boxes"][np.array(plain.boxes.part) == "hull"][0], shade(hue, "body"), atol=1e-6)
+    np.testing.assert_allclose(colors["boxes"][np.array(plain.boxes.part) == "hull"][0], shade(hue, "bone"), atol=1e-6)
     red = (1.0, 0.0, 0.0)
     recipe = SkeletonRecipe(sides=True, color={"left_knee_joint": red})
     sided = build_skeleton(model, recipe, spheres=spheres)

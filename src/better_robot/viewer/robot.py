@@ -39,7 +39,7 @@ from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
 from .sidebar import Sidebar
 from .skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder
-from .theme import LIGHT, RGB, Theme, rgb_uint8
+from .theme import LIGHT, RGB, Theme, linear_uint8
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -82,7 +82,7 @@ class _Blocks(Layer):
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box()}
+        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(taper=self.skeleton.taper)}
         colors = self.skeleton.colors(self.hue, self.theme.shade)
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
@@ -91,12 +91,13 @@ class _Blocks(Layer):
                     scene.add_batched_meshes_simple(
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
-                        batched_colors=rgb_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
+                        batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
+                        receive_shadow=self.skeleton.taper == 1.0,  # a tapered block's own shadow streaks its faces
                     )
                 )  # fmt: skip
         if len(self.skeleton.line_body):
             points = self.skeleton.lines(self.poses[0])
-            color = rgb_uint8(self.theme.shade(self.hue, "face"))
+            color = linear_uint8(self.theme.shade(self.hue, "face"))
             self._lines = self._track(scene.add_line_segments(f"{root}/limits", points, color, line_width=2.5))
 
     @override
@@ -115,9 +116,9 @@ class _Blocks(Layer):
         self.hue, self.theme = hue, theme
         colors = self.skeleton.colors(hue, theme.shade)
         for mesh, node in self._nodes.items():
-            node.batched_colors = rgb_uint8(colors[mesh])
+            node.batched_colors = linear_uint8(colors[mesh])
         if self._lines is not None:
-            self._lines.colors = rgb_uint8(theme.shade(hue, "face"))
+            self._lines.colors = linear_uint8(theme.shade(hue, "face"))
 
 
 @final
@@ -130,7 +131,8 @@ class RobotVisual(Layer):
     show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without them the collision
     shapes of ``geometry``; ``frames`` draws a triad per moving joint (``True``) or per frame given, by id or name.
     Every part is built the first time it is shown; ``set_style``, ``set_collision`` and ``set_frames`` switch them
-    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer.
+    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer: a
+    switch from code moves the control and leaves the other robots as they are.
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the theme's next
     hue, one per robot. ``name`` defaults to the model's name.
@@ -230,9 +232,26 @@ class RobotVisual(Layer):
     def _skeleton(self, part: str) -> Skeleton:
         if part not in self._skeletons:
             self._skeletons[part] = build_skeleton(
-                self.model, self._recipes[part], spheres=self.spheres, geometry=self.geometry
+                self.model,
+                self._recipes[part],
+                spheres=self.spheres,
+                geometry=self.geometry,
+                mesh_vertices=self._collision_vertices,
             )
         return self._skeletons[part]
+
+    def _collision_vertices(self, mesh: Mesh) -> np.ndarray | None:
+        """The vertices ``(V, 3)`` of a collision mesh file, which size the skeleton's bodies; ``None`` when the
+        file is not found or holds no mesh, and the body is sized from its inertia."""
+        with needs_extra("meshes"):
+            import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+
+        try:
+            path = _mesh_file(-1, mesh.uri, self._root_folder)
+        except ModelError:
+            return None
+        loaded = trimesh.load(path, force="mesh")
+        return np.asarray(loaded.vertices) if isinstance(loaded, trimesh.Trimesh) else None
 
     def _color(self) -> RGB:
         return self._hue if self._hue is not None else self._theme.hue(self._index or 0)
@@ -288,10 +307,7 @@ class RobotVisual(Layer):
                 parents = [model.frame_parent_joint_ids[f] for f in ids]
                 layer.poses[...] = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses)).numpy()
         elif self.spheres is not None:
-            ids = self.spheres.frame_ids.tolist()
-            parents = [model.frame_parent_joint_ids[f] for f in ids]
-            frames = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses))
-            layer.centers[...] = se3.act(frames, self.spheres.offsets.to(poses)).numpy()
+            layer.centers[...] = _centers(model, self.spheres, poses)
         return layer
 
     def _drop(self, part: str) -> None:
@@ -329,6 +345,7 @@ class RobotVisual(Layer):
             raise ArgumentError(f"style must be one of {list(self.styles)} for robot {self.name!r}, got {style!r}")
         self.style = style
         self._apply()
+        self._show("Style", style)
 
     def set_collision(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Show or hide the collision overlay: the spheres, or the collision shapes of the geometry."""
@@ -336,6 +353,7 @@ class RobotVisual(Layer):
             raise ArgumentError(f"robot {self.name!r} has no spheres and no collision shapes to overlay")
         self._collision = visible
         self._apply()
+        self._show("Collision", visible)
 
     def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
         """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
@@ -345,6 +363,12 @@ class RobotVisual(Layer):
             self._triads = chosen
         self._frames = chosen
         self._apply()
+        self._show("Frames", bool(chosen))
+
+    def _show(self, label: str, value: Any) -> None:
+        """Move the Robot section's control, shared by every robot, to what code set; no robot's callback runs."""
+        if self.viewer is not None:
+            self.viewer.sidebar.set_value("Robot", label, value=value)
 
     # ------------------------------------------------------------------ the Layer contract
 
@@ -397,17 +421,43 @@ class RobotVisual(Layer):
 
     @override
     def bounds(self, step: int) -> Bounds | None:
-        """The box round the joints and the blocks of the maximal skeleton: the robot's extent in any style."""
-        joints = self._poses[step, min(1, self.model.njoints - 1) :, :3]  # not the universe, unless it is all there is
+        """A box per joint (a point), per collision sphere and per collision shape that is not a mesh (each exact),
+        and per block of the maximal skeleton on a rigid body without one of those, ``(lo (N, 3), hi (N, 3))``: the
+        robot's extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
+        """
+        model, poses = self.model, torch.from_numpy(self._poses[step])
+        joints = self._poses[step, min(1, model.njoints - 1) :, :3]  # not the universe, unless it is all there is
         lows, highs = [joints], [joints]
-        for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
-            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
-            rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
-            axes = np.abs(so3.act(rotations, eye).numpy())  # (N, 3, 3): each block's axes
-            reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box
+        anchor = list(range(model.njoints))  # the joint each body is welded to
+        for j in range(1, model.njoints):
+            anchor[j] = anchor[model.parent_joint_ids[j]] if isinstance(model.joints[j], JointFixed) else j
+        covered = set()
+        if self.spheres is not None:
+            radii, centers = self.spheres.radii.detach().cpu().numpy()[:, None], _centers(model, self.spheres, poses)
+            lows.append(centers - radii)
+            highs.append(centers + radii)
+            covered |= {anchor[model.frame_parent_joint_ids[f]] for f in self.spheres.frame_ids.tolist()}
+        shapes = [shape for shape in self.geometry.shapes if shape.collision] if self.geometry is not None else []
+        shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
+        if shapes:
+            placements = torch.tensor([attached.shape.placement for attached in shapes], dtype=poses.dtype)
+            world = se3.compose(poses[[attached.body for attached in shapes]], placements).numpy()
+            sizes = np.array([_sizes(attached.shape) for attached in shapes], dtype=world.dtype)
+            axes = _axes(world)
+            axis = axes[:, 2]  # each shape's own z
+            reach = np.einsum("nk,nkc->nc", sizes[:, :3], axes) + sizes[:, 3:4] * axis
+            reach += sizes[:, 4:5] * np.sqrt(np.clip(1.0 - axis**2, 0.0, None)) + sizes[:, 5:]
             lows.append(world[:, :3] - reach)
             highs.append(world[:, :3] + reach)
-        return np.concatenate(lows).min(axis=0), np.concatenate(highs).max(axis=0)
+            covered |= {anchor[attached.body] for attached in shapes}
+        skeleton = self._skeleton("maximal")
+        for mesh, (world, scale) in skeleton.place(self._poses[step]).items():
+            keep = np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
+            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
+            reach = np.einsum("nk,nkc->nc", half[keep], _axes(world[keep]))  # the half extent of its world box
+            lows.append(world[keep, :3] - reach)
+            highs.append(world[keep, :3] + reach)
+        return np.concatenate(lows), np.concatenate(highs)
 
     @override
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
@@ -441,6 +491,32 @@ def _mesh_file(body: int, uri: str, root: Path | None) -> Path:
     raise ModelError(
         f"body {body}: mesh {uri!r} is not a file under {start} or a folder above it; pass root=, the description file"
     )
+
+
+def _centers(model: Model, spheres: RobotSpheres, poses: torch.Tensor) -> np.ndarray:
+    """World centres ``(..., S, 3)`` of ``spheres`` at joint poses ``(..., njoints, 7)``."""
+    ids = spheres.frame_ids.tolist()
+    parents = [model.frame_parent_joint_ids[f] for f in ids]
+    frames = se3.compose(poses[..., parents, :], model.frame_placements[ids].to(poses))
+    return se3.act(frames, spheres.offsets.to(poses)).numpy()
+
+
+def _axes(world: np.ndarray) -> np.ndarray:
+    """``(N, 3, 3)``: row ``k`` holds the absolute world components of axis ``k`` of each pose of ``world (N, 7)``."""
+    rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
+    return np.abs(so3.act(rotations, eye).numpy())
+
+
+def _sizes(shape: Any) -> list[float]:
+    """What the world box of a primitive needs: its half extents (3), the half length and radius of a round side
+    along its z, and the radius of a ball swept round it."""
+    if isinstance(shape, Box):
+        return [*(np.asarray(shape.size, dtype=np.float64) / 2.0), 0.0, 0.0, 0.0]
+    if isinstance(shape, Sphere):
+        return [0.0, 0.0, 0.0, 0.0, 0.0, shape.radius]
+    if isinstance(shape, Cylinder):
+        return [0.0, 0.0, 0.0, shape.length / 2.0, shape.radius, 0.0]
+    return [0.0, 0.0, 0.0, shape.length / 2.0, 0.0, shape.radius]  # a capsule: a ball swept along a segment
 
 
 def _shape_spec(body: int, shape: Any, root: Path | None, color: RGB, *, own_colors: bool) -> MeshSpec:
