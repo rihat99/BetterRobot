@@ -142,7 +142,7 @@ clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of thr
 | Style | Draws | Needs |
 |---|---|---|
 | `"meshes"` | the display shapes of a `Geometry` (`io.load_geometry`), or a `Skin` | `geometry=` with display shapes, or `skin=` |
-| `"maximal"` | a skeleton with one glyph per joint, bones, body hulls and end blocks | nothing but the model |
+| `"maximal"` | a skeleton with one glyph per joint, limbs, trunks and the ends of the chains | nothing but the model |
 | `"minimal"` | a stick figure: one ball per cluster of close joints, sticks between | nothing but the model |
 
 `style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
@@ -190,18 +190,23 @@ The two skeleton styles are laid out by a `SkeletonRecipe`; `MAXIMAL` and `MINIM
 robot's size, so a hand and a humanoid read the same on screen. The layout is computed once, at `model.q_neutral`,
 and every block is rigid in one joint frame, so a step only moves blocks.
 
-`MAXIMAL` draws what the joints are:
+`MAXIMAL` draws what the joints are, in two tones of the robot's hue: joints in the hue, bodies pale.
 
 - a revolute joint is a drum along its axis, with dark end faces that show which way the axis points; a prismatic
-  joint is a sleeve with a rail sliding through it; a spherical joint is a ball; any other kind is a small ball,
-  and a free base is a cube;
+  joint is a sleeve that rides with its child on a rail that spans the joint's travel in the parent; a spherical
+  joint is a ball; any other kind is a small ball, and a free base is a cube;
 - joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart: each drum that would overlap
-  another slides along its own axis, so it stays on its true axis line, and only then shrinks;
-- a bone joins each joint to its parent, thinner than either glyph (`bones`, the ratio; 0 draws none);
-- a hull, a rounded box, stands for the root body and for every body where the tree branches, and an end block
-  for every body that ends a chain (hands, feet, fingers). Their sizes come from the sphere set when the visual
-  has one, else from the collision shapes of the geometry, else from the inertias. `hulls="all"` also boxes the
-  bodies with one child joint, `"none"` draws neither; `body_hull={frame: bool}` decides one body.
+  another slides along its own axis, so it stays on its true axis line, and only then shrinks; a joint that ends
+  a chain shrinks at its place first, so a chain gets smaller towards its tip, as no glyph is wider than the one
+  before it;
+- a limb, a slim faceted block that narrows towards the child, joins each joint to its parent (`bones`, its half
+  width over the glyph radius; 0 draws none);
+- a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
+  the tree branches (a torso, a pelvis, a palm), with a ball for a head; a body that ends a chain is a sole when
+  it is flat, a block when a prismatic joint moves it (a finger), else a limb with a ball at its tip (a hand, a
+  paw). Their sizes come from the sphere set when the visual has one, else from the collision shapes of the
+  geometry, else from the inertias. `hulls="all"` also gives a trunk to the bodies with one child joint, `"none"`
+  draws neither; `body_hull={frame: bool}` decides one body.
 
 `MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
 one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and
