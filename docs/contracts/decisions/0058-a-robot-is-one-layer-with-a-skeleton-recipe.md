@@ -29,17 +29,20 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
 4. **Sizes come from the robot, positions stay true.** Every radius is a fraction of the robot's size. Glyphs that
    would overlap slide along their own axis, so each stays on its true axis line, and shrink only when sliding is
    not enough; in the maximal layout no glyph is wider than the one before it, and a glyph that ends a chain
-   shrinks at its place before it slides, so a chain gets smaller towards its tip. Body sizes come from the sphere
-   set, else the collision shapes, else the inertias.
+   shrinks at its place before it slides, so a chain gets smaller towards its tip. Body sizes come from the
+   collision shapes, else the sphere set, else the inertias; a collision mesh file that cannot be read is left out
+   with a warning, since only the collision overlay and the meshes style, which draw it, need it.
 5. **The layout is rigid.** It is computed once at `model.q_neutral`; every block is rigid in one joint frame, so
    a skeleton is at most three batched nodes (cylinders, balls, boxes) and one line node for limit arcs, whatever
    the robot.
-6. **Colour is the theme's.** A robot takes the theme's next hue (or `hue=`), and the skeleton's parts take
-   `theme.shade(hue, role)`; the overlay takes `theme.collision` and `theme.collision_opacity`.
+6. **Colour is the theme's.** A robot takes the first of the theme's hues that no other robot of its viewer is
+   drawn in (or `hue=`; `RobotVisual.hue`), and the skeleton's parts take `theme.shade(hue, role, side=)`; the
+   overlay takes `theme.collision` and `theme.collision_opacity`.
 7. **A skin is a mesh style.** `viewer.Skin(vertices, faces, *, weights, bind=None)` is shown as `"meshes"`, skinned
    in the browser.
 8. **The old adapters go.** `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer` are removed,
-   with the theme fields `joint`, `link`, `torque_ramp` and `over_limit`.
+   with the theme fields `joint`, `link`, `torque_ramp` and `over_limit`, and `theme.colormap`, which nothing
+   called once the torque colours went.
 
 ## Example
 ```python { .no-run }
@@ -103,11 +106,13 @@ unreleased 0.3.0. The changelog and `docs/reference/migration-0.3.0.md` name the
 
 ## Enforcement
 `tests/viewer/test_robot.py` (styles, the overlay, triads by id or name, a skin, `bounds`, remove and add again, a
-theme switch, a name clash, a joint kind from outside the library, one Style control for two robots, a second
-switch creates no node), `tests/viewer/test_skeleton.py` (the layout: no overlap inside a rigid group, mirrored slides, glyphs that narrow
-towards the tips, the Panda's rails over the fingers' travel, bone thickness, the G1's 13 clusters, end block
-sizes, a clip equals its steps, the shades), `tests/viewer/test_fake_server.py` (the sidebar handles against viser), `tests/contract/test_api_snapshot.py`
-(the five names), `tests/contract/test_keyword_only.py` and `tests/contract/test_identifiers.py` (the signatures),
+theme switch, a name clash, a joint kind from outside the library, one Style control for two robots, a second switch
+creates no node, the rotations of a step against forward kinematics and its exact writes, a collision mesh that does
+not load), `tests/viewer/test_skeleton.py` (the layout: no overlap inside a rigid group, mirrored slides, glyphs that
+narrow towards the tips, the Panda's rails over the fingers' travel, bone thickness, the G1's 13 clusters, end block
+sizes, a clip equals its steps, the shades, `hulls` and `body_hull`, limit arcs over the joint's range),
+`tests/viewer/test_fake_server.py` (the sidebar handles against viser), `tests/contract/test_api_snapshot.py` (the
+five names), `tests/contract/test_keyword_only.py` and `tests/contract/test_identifiers.py` (the signatures),
 `tests/contract/test_name_words.py` (rule C-NAME-4 lets `RobotVisual` say frames).
 
 ## Open questions
@@ -115,5 +120,3 @@ sizes, a clip equals its steps, the shades), `tests/viewer/test_fake_server.py` 
   its callbacks, or one control per robot.
 - A triad of a named frame is sized like a joint's (two glyph radii long), so one inside a hull or a mesh shows
   only the axes that leave it. A size of its own for named frames would be one more constant.
-- `theme.colormap` has no caller in `src` now that torque colouring is gone: remove it, or keep it for
-  applications.
