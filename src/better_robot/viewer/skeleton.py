@@ -690,8 +690,10 @@ def _shape_points(
         ring = np.stack([np.cos(angles), np.sin(angles), np.zeros(8)], axis=1) * shape.radius
         tip = np.array([[0.0, 0.0, shape.length / 2 + (shape.radius if isinstance(shape, Capsule) else 0.0)]])
         return np.concatenate([ring + [0.0, 0.0, shape.length / 2], ring - [0.0, 0.0, shape.length / 2], tip, -tip])
-    vertices = mesh_vertices(body, shape) if isinstance(shape, Mesh) and mesh_vertices is not None else None
-    return None if vertices is None else np.asarray(vertices, dtype=np.float64) * shape.scale
+    if isinstance(shape, Mesh) and mesh_vertices is not None:
+        vertices = mesh_vertices(body, shape)
+        return None if vertices is None else np.asarray(vertices, dtype=np.float64) * shape.scale
+    return None
 
 
 def _inertia(tree: _Tree, group: int) -> tuple[float, np.ndarray, np.ndarray] | None:
