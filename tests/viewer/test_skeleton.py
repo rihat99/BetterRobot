@@ -228,7 +228,7 @@ def test_end_blocks_are_no_larger_than_the_root_hull(robot: str) -> None:
 
 def test_go2_minimal_legs_run_on_to_the_feet() -> None:
     """The Go2's knees are its leaf joints: the minimal skeleton runs a stick from each knee to its foot, and the
-    ball that ends it reaches the lowest point of that leg's meshes within 1 cm (the foot's ball is 1.8 cm wide).
+    ball that ends it reaches the lowest point of that leg's meshes within 1 cm (the foot's ball is 2.2 cm wide).
     The Go2 comes from the ``robot_descriptions`` cache, as in the examples."""
     import trimesh  # noqa: PLC0415 - optional dependency of the viewer
     from robot_descriptions import go2_description  # noqa: PLC0415 - the examples' robots, not a fixture

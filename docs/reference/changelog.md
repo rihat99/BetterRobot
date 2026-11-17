@@ -42,11 +42,12 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs, trunks
   for the bodies that branch, a sole, a hand or a paw where a chain ends, in two tones; glyphs that share a point
   slide apart along their own axes, then shrink, and a chain narrows towards its tip) and `viewer.MINIMAL` (one
-  ball per cluster of close joints, sticks between, and from each leaf joint a stick on to the end of its body with a
-  small ball: a foot frame such as the Go2's, else the far end of its geometry, so a quadruped stands on its feet and
-  a humanoid has feet and hands): `glyphs`, `bones` (0.6 of the glyph radius by default), `hulls`, `limits`,
-  `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is three batched
-  nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies.
+  ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
+  joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid
+  has feet and hands; both styles share one size rule, a reference radius between 2 % and 4 % of the robot's size,
+  and size bodies from the collision shapes before a sphere set): `glyphs`, `bones` (0.6 of the glyph radius by
+  default), `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A
+  maximal skeleton is three batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.

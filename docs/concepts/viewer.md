@@ -204,15 +204,20 @@ and every block is rigid in one joint frame, so a step only moves blocks.
 - a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
   the tree branches (a torso, a pelvis, a palm), with a ball for a head; a body that ends a chain is a sole when
   it is flat, a block when a prismatic joint moves it (a finger), else a limb with a ball at its tip (a hand, a
-  paw). Their sizes come from the sphere set when the visual has one, else from the collision shapes of the
-  geometry, else from the inertias. `hulls="all"` also gives a trunk to the bodies with one child joint, `"none"`
-  draws neither; `body_hull={frame: bool}` decides one body.
+  paw). Their sizes come from the collision shapes of the geometry, else from the sphere set, else from the
+  inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes.
+  `hulls="all"` also gives a trunk to the bodies with one child joint, `"none"` draws neither;
+  `body_hull={frame: bool}` decides one body.
 
 `MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
 one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and
 sticks join the balls. A leaf joint's stick runs on to the end of its body and ends in a small ball, rigid in the
-leaf's frame: to its farthest frame when that frame lies past the middle of the body (the foot of a Go2), else to
-the far end of its geometry (the toe of a G1's sole, a hand, a finger), so the figure stands on its feet.
+leaf's frame: to the far end of its geometry (the paw of a Go2, the toe of a G1's sole, a hand, a finger), so
+the figure stands on its feet; without geometry, to its farthest frame when that frame lies past the middle of the
+body its inertia spans (a foot, a tool tip). The maximal limb of a hand or a paw ends at the same place. A
+trunk's head is a ball as small as a joint's, on a stick from the trunk. Balls and drums follow one size rule: the
+reference radius is a third of the mean bone, kept between 2 % and 4 % of the robot's size, and `MINIMAL` draws
+it at 0.62.
 
 Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
