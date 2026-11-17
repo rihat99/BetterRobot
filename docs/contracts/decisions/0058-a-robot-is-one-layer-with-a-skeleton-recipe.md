@@ -16,25 +16,31 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    overlay (the sphere set, else the collision shapes of the geometry) and frame triads (every moving joint, or
    frames by id or name). `update(q)` shows new configurations of the same number of steps.
 2. **Parts are built once and then hidden.** A style, the overlay and the triads are each built the first time
-   they are shown; a switch only shows and hides them, and a step is written only to the parts on screen.
-   `set_style`, `set_collision` and `set_frames` switch from code, and the sidebar's Robot section holds one Style
-   dropdown, one Collision box and one Frames box for every robot in the viewer.
+   they are shown; a switch only shows and hides them (another set of named frames is another triad node), and a
+   step is written only to the parts on screen. `set_style`, `set_collision` and `set_frames` switch from code, and
+   the sidebar's Robot section holds one Style dropdown, one Collision box and one Frames box for every robot in the
+   viewer: a choice there switches every robot, and a switch from code moves the control through
+   `Sidebar.set_value`, which runs no callback, so the other robots stay as they are.
 3. **The skeleton is a recipe.** `viewer.SkeletonRecipe` (frozen, keyword-only) holds the choices: `glyphs`,
    `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, and the per-name overrides `joint_size`,
    `body_hull`, `color`. `MAXIMAL` draws a glyph per joint kind (a drum for a revolute joint, a sleeve riding on
    a rail that spans the travel for a prismatic one, a ball for a spherical one, a cube for a free base), slim
-   tapered limbs, trunks for the bodies that branch and the ends of the chains (a sole, a finger block, a limb with
-   a ball), in two tones: joints in the hue, bodies pale (`Theme.shade` role `bone`). `MINIMAL` draws one ball per
-   cluster of close joints and sticks. `RobotVisual(minimal=, maximal=)` takes others.
-4. **Sizes come from the robot, positions stay true.** Every radius is a fraction of the robot's size. Glyphs that
-   would overlap slide along their own axis, so each stays on its true axis line, and shrink only when sliding is
-   not enough; in the maximal layout no glyph is wider than the one before it, and a glyph that ends a chain
-   shrinks at its place before it slides, so a chain gets smaller towards its tip. Body sizes come from the
-   collision shapes, else the sphere set, else the inertias; a collision mesh file that cannot be read is left out
-   with a warning, since only the collision overlay and the meshes style, which draw it, need it.
-5. **The layout is rigid.** It is computed once at `model.q_neutral`; every block is rigid in one joint frame, so
-   a skeleton is at most three batched nodes (cylinders, balls, boxes) and one line node for limit arcs, whatever
-   the robot.
+   tapered limbs, trunks for the root body and the bodies that branch, and the ends of the chains (a sole, a finger
+   block, a limb with a ball), in two tones: joints in the hue, bodies pale (`Theme.shade` role `bone`). `MINIMAL`
+   draws one ball per cluster of close joints (a cube for a free base) and sticks between them, a stick and a small
+   ball on to the end of each body that ends a chain, and a ball for a trunk's head. `RobotVisual(minimal=,
+   maximal=)` takes others.
+4. **Sizes come from the robot, positions stay true.** Every glyph radius is a reference radius (a third of the
+   mean bone, kept between 2 % and 4 % of the robot's size) times 0.8 to 1.2 by the joint's effort limit. Glyphs
+   that would overlap slide along their own axis, so each stays on its true axis line, and shrink only when sliding
+   is not enough; in the maximal layout no glyph is wider than the one before it (unless `joint_size` makes it so),
+   and a glyph that ends a chain shrinks at its place before it slides, so a chain gets smaller towards its tip.
+   Body sizes come from the collision shapes, else the sphere set, else the inertias; a collision mesh file that
+   cannot be read is left out with a warning, since only the collision overlay draws it (and raises for it).
+5. **The layout is rigid.** It is computed once at `model.q_neutral`; every block is rigid in one joint frame,
+   except the minimal skeleton's cluster balls, each at the mean of its joints, and its sticks, whose two ends
+   move apart and together with the joints; a skeleton is at most three batched nodes (cylinders, balls, boxes) and one line node for limit arcs,
+   whatever the robot.
 6. **Colour is the theme's.** A robot takes the first of the theme's hues that no other robot of its viewer is
    drawn in (or `hue=`; `RobotVisual.hue`), and the skeleton's parts take `theme.shade(hue, role, side=)`; the
    overlay takes `theme.collision` and `theme.collision_opacity`.
@@ -73,17 +79,20 @@ server with no browser, at host load average 40 to 66 (the times are upper bound
 - Each part adds one grouping frame node; the message counts include one timeline message. A second switch to a
   style creates no node. `update` of a `(300, nq)` clip takes 14.5 ms, a live `update` of one configuration with
   kinematics and redraw 1.3 ms.
-- A step writes positions and rotations to each node; the stick node of a minimal skeleton also writes its
-  lengths, because a stick between two moving balls stretches.
+- A step writes positions and rotations to each skeleton and triad node (positions only to the overlay's spheres,
+  points to the limit arcs); the stick node of a minimal skeleton also writes its lengths, because a stick between
+  two moving balls stretches.
 - The G1's maximal layout (with its sphere set): 14 glyphs slide, 557.2 mm in total, and four shrink (the hip pitch
   drums to 0.85, the wrist yaw drums at their place to 0.52); it is 58 cylinders (29 drums, 29 faces), 5 balls
   (four tips and the head) and 39 boxes (32 limbs, 4 ends, 2 trunks and the base). Its minimal layout is 13
-  clusters: 12 balls, 14 sticks and the base cube. The Panda slides 5 glyphs and shrinks none. Building the G1's
-  layout takes about 20 ms.
-- `bounds` is the box of the joints and of the maximal skeleton's blocks in every style, so the camera does not
-  jump on a style switch.
-- A switch from code does not move the sidebar's control: the control is shared by every robot, and moving it
-  would switch them all.
+  clusters (12 balls and the base cube) with 14 sticks between them, and a stick and a ball each for the two feet,
+  the two hands and the head: 17 balls and 19 sticks. The Panda slides 5 glyphs and shrinks none. Building the
+  G1's layout takes about 20 ms.
+- `bounds` is the same in every style, so the camera does not jump on a style switch: a box per joint, per
+  collision sphere and per collision shape that is not a mesh, and per block of the maximal skeleton on a body
+  without one of those.
+- A switch from code moves the shared sidebar control and switches no other robot, so the control shows the robot
+  switched last, and the other robots may show another style, overlay or triads than it does.
 - Torque colouring (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
 
 ## Alternatives
@@ -111,12 +120,11 @@ creates no node, the rotations of a step against forward kinematics and its exac
 not load), `tests/viewer/test_skeleton.py` (the layout: no overlap inside a rigid group, mirrored slides, glyphs that
 narrow towards the tips, the Panda's rails over the fingers' travel, bone thickness, the G1's 13 clusters, end block
 sizes, a clip equals its steps, the shades, `hulls` and `body_hull`, limit arcs over the joint's range),
-`tests/viewer/test_fake_server.py` (the sidebar handles against viser), `tests/contract/test_api_snapshot.py` (the
-five names), `tests/contract/test_keyword_only.py` and `tests/contract/test_identifiers.py` (the signatures),
+`tests/viewer/test_fake_server.py` (the sidebar handles against viser), `tests/viewer/test_server_smoke.py` (on a
+real server, a switch from code moves the shared control and no other robot), `tests/contract/test_api_snapshot.py`
+(the five names), `tests/contract/test_keyword_only.py` and `tests/contract/test_identifiers.py` (the signatures),
 `tests/contract/test_name_words.py` (rule C-NAME-4 lets `RobotVisual` say frames).
 
 ## Open questions
-- Should a switch from code move the shared sidebar control? It would need a way to set a control without running
-  its callbacks, or one control per robot.
 - A triad of a named frame is sized like a joint's (two glyph radii long), so one inside a hull or a mesh shows
   only the axes that leave it. A size of its own for named frames would be one more constant.
