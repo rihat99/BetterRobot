@@ -38,7 +38,9 @@ from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
 from .sidebar import Sidebar
-from .skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder
+from .skeleton import (
+    MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder, unit_limb, unit_trunk,
+)  # fmt: skip
 from .theme import LIGHT, RGB, Theme, linear_uint8
 
 if TYPE_CHECKING:
@@ -82,7 +84,10 @@ class _Blocks(Layer):
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box()}
+        meshes = {
+            "cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(), "limbs": unit_limb(),
+            "trunks": unit_trunk(),
+        }  # fmt: skip
         colors = self.skeleton.colors(self.hue, self.theme.shade)
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
@@ -91,7 +96,8 @@ class _Blocks(Layer):
                     scene.add_batched_meshes_simple(
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
-                        batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
+                        batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh in ("boxes", "trunks"),
+                        receive_shadow=False,  # a block's own shadow map streaks its faces; the ground keeps them
                     )
                 )  # fmt: skip
         if len(self.skeleton.line_body):
@@ -231,9 +237,25 @@ class RobotVisual(Layer):
     def _skeleton(self, part: str) -> Skeleton:
         if part not in self._skeletons:
             self._skeletons[part] = build_skeleton(
-                self.model, self._recipes[part], spheres=self.spheres, geometry=self.geometry
+                self.model,
+                self._recipes[part],
+                spheres=self.spheres,
+                geometry=self.geometry,
+                mesh_vertices=self._collision_vertices,
             )
         return self._skeletons[part]
+
+    def _collision_vertices(self, mesh: Mesh) -> np.ndarray | None:
+        """The vertices ``(V, 3)`` of a collision mesh file, which size the skeleton's bodies; ``None`` when the
+        file is not found, and the body is sized from its inertia."""
+        with needs_extra("meshes"):
+            import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+
+        try:
+            path = _mesh_file(-1, mesh.uri, self._root_folder)
+        except ModelError:
+            return None
+        return np.asarray(trimesh.load(path, force="mesh").vertices)
 
     def _color(self) -> RGB:
         return self._hue if self._hue is not None else self._theme.hue(self._index or 0)
@@ -411,7 +433,9 @@ class RobotVisual(Layer):
         joints = self._poses[step, min(1, self.model.njoints - 1) :, :3]  # not the universe, unless it is all there is
         lows, highs = [joints], [joints]
         for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
-            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
+            half = scale * {"cylinders": (1.0, 1.0, 0.5), "limbs": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(
+                mesh, (0.5, 0.5, 0.5)
+            )
             rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
             axes = np.abs(so3.act(rotations, eye).numpy())  # (N, 3, 3): each block's axes
             reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box

@@ -12,7 +12,7 @@ from ..exceptions import ArgumentError, ShapeError
 RGB = tuple[float, float, float]
 _UP_AXES = ("+x", "-x", "+y", "-y", "+z", "-z")  # what viser's set_up_direction takes as a word
 #: How far ``shade`` mixes a hue towards black (negative) or white (positive) per role.
-_SHADE_MIX = {"joint": -0.10, "face": -0.32, "body": 0.0, "stick": 0.10}
+_SHADE_MIX = {"joint": -0.10, "face": -0.45, "body": 0.0, "bone": 0.45, "stick": 0.10}
 #: Directions the key and fill lights shine from, for a z-up scene; ``apply`` turns them to the theme's ``up``.
 _KEY_LIGHT = (-2.0, -3.0, 4.0)
 _FILL_LIGHT = (3.0, -1.5, 1.0)
@@ -118,7 +118,7 @@ class Theme:
         """The colour of the ``index``-th robot: ``hues[index % len(hues)]``."""
         return self.hues[index % len(self.hues)]
 
-    def shade(self, hue: RGB, role: Literal["joint", "face", "body", "stick"]) -> RGB:
+    def shade(self, hue: RGB, role: Literal["joint", "face", "body", "bone", "stick"]) -> RGB:
         """``hue`` as a part of ``role`` draws it: ``joint`` 10 % towards black, ``face`` 32 % towards black (drum
         faces), ``body`` the hue itself (bones, hulls), ``stick`` 10 % towards white (thin bones)."""
         if role not in _SHADE_MIX:
