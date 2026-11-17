@@ -16,7 +16,8 @@ that 0.3.0 renames or removes, one table row each.
   `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_offset` and
   `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
   are two.
-- `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, which `Viewer.aim` and `Viewer.record` frame
+- `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, or one box per part `(lo (N, 3), hi (N, 3))`
+  for a layer of thin, spread-out parts, which `Viewer.aim` and `Viewer.record` frame
   (over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
   the camera after each `add`.
 - `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
@@ -77,8 +78,10 @@ that 0.3.0 renames or removes, one table row each.
   playing becomes where playback goes on.
 - The Layers section does not list tags that hold only sidebar panels (`PlotPanel`, `ImagePanel`) and labels its
   checkboxes in sentence case; a `PlotPanel`'s time axis shows seconds instead of a date.
-- `Viewer.aim` and `Viewer.record` frame the box of the bounds so that it spans 80 % of a 16:9 view (was the
-  bounding sphere with a 15 % margin, which left the robot a fifth of the height).
+- `Viewer.aim` and `Viewer.record` centre the boxes of the bounds in the view, at the nearest distance where every
+  corner of every box lies inside 80 % of a 16:9 view (was the bounding sphere with a 15 % margin, which left the
+  robot a fifth of the height). `RobotVisual.bounds` is a box per joint and per block, so a clip of a G1 sweeping
+  its joints fills 73 % of the frame's height; one box round the clip left it at 42 %.
 - `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
   frustum's edges from the intrinsics `K` of a `(W, H)` image, an off-centre principal point included, and the image
   on its cut; viser's own frustum has no principal point. It frames `Viewer.aim` too (`bounds`).

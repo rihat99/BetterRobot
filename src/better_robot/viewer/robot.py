@@ -397,7 +397,8 @@ class RobotVisual(Layer):
 
     @override
     def bounds(self, step: int) -> Bounds | None:
-        """The box round the joints and the blocks of the maximal skeleton: the robot's extent in any style."""
+        """A box per joint (a point) and per block of the maximal skeleton, ``(lo (N, 3), hi (N, 3))``: the robot's
+        extent in any style."""
         joints = self._poses[step, min(1, self.model.njoints - 1) :, :3]  # not the universe, unless it is all there is
         lows, highs = [joints], [joints]
         for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
@@ -407,7 +408,7 @@ class RobotVisual(Layer):
             reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box
             lows.append(world[:, :3] - reach)
             highs.append(world[:, :3] + reach)
-        return np.concatenate(lows).min(axis=0), np.concatenate(highs).max(axis=0)
+        return np.concatenate(lows), np.concatenate(highs)
 
     @override
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand

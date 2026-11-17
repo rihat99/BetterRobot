@@ -87,9 +87,10 @@ callback, so one control drives every layer that asked for it, and it goes when 
 callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps. A callback that raises a
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
-Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the box of the visible
-layers' `Layer.bounds` over the clip (at most 32 steps are read), seen from a 3/4 view at the distance where the box
-spans four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself.
+Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the boxes of the visible
+layers' `Layer.bounds` over the clip (at most 32 steps are read), centred in a 3/4 view at the nearest distance where
+every corner of every box lies inside four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses
+the view yourself.
 
 ## One timeline drives every layer
 
@@ -222,8 +223,8 @@ kind auto True
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
 limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, and a step writes
 positions and rotations to each node on screen (the sticks of a minimal skeleton also their lengths). `bounds` is
-the box of the joints and of the maximal skeleton's blocks in every style, so `Viewer.aim` frames a robot the same
-way whatever it is drawn as.
+a box per joint and per block of the maximal skeleton in every style, so `Viewer.aim` frames a robot the same way
+whatever it is drawn as, and by what it covers: one box round a moving robot is about twice that on screen.
 
 ### A skinned surface
 
