@@ -300,7 +300,8 @@ def build_skeleton(
         slides = {model.joint_names[j]: s for j, s in slide.items() if abs(s) > 1e-9}
         shrinks = {model.joint_names[j]: k for j, k in shrink.items() if k < 1.0}
         reach = {j: 0.0 if j in hidden else shrink[j] * drawn.radius[j] for j in tree.glyphs}
-        _maximal(tree, recipe, rows, clouds, reach=reach, slide=slide)
+        ends = {j: shrink[j] * tree.radius[j] for j in tree.glyphs}  # an end block is the body's: never 0
+        _maximal(tree, recipe, rows, clouds, reach=reach, slide=slide, ends=ends)
     else:
         clusters = _minimal(tree, recipe, rows, clouds, factor=factor)
     return rows.pack(slides=slides, shrinks=shrinks, clusters=clusters)
@@ -708,11 +709,12 @@ def _hulls(
     tree: _Tree,
     recipe: SkeletonRecipe,
     clouds: Mapping[int, list[_Cloud]],
-    reach: Mapping[int, float],
+    radius: Mapping[int, float],
     glyphs: Mapping[int, _OrientedBox],
 ) -> list[_Hull]:
-    """The hulls and end blocks of ``recipe``; ``reach[g]`` is the drawn radius of the glyph of group ``g`` and
-    ``glyphs`` the boxes of the glyphs an end block gives way to.
+    """The hulls and end blocks of ``recipe``; ``radius[g]`` is the radius the end block of leaf group ``g`` is
+    sized by, its glyph's before ``joint_size`` (above 0, so a hidden glyph does not collapse its body), and
+    ``glyphs`` the boxes of the drawn glyphs an end block gives way to.
 
     A trunk group (the root, or two or more child joints; with ``hulls="all"`` also one child joint) gets its trunk
     hulls, a leaf group (no child joint) its end block; ``body_hull`` adds or removes single frames.
@@ -727,7 +729,7 @@ def _hulls(
             hulls += _trunk(tree, recipe, g, wanted, inertia=not clouds.get(g))
         elif recipe.hulls != "none" and kids == 0:
             near = (*(() if tree.kind[g] == "prismatic" else (g,)), tree.group[g])  # a sleeve stays behind its block
-            hulls += _end(tree, recipe, g, wanted, reach[g], [glyphs[j] for j in near if j in glyphs])
+            hulls += _end(tree, recipe, g, wanted, radius[g], [glyphs[j] for j in near if j in glyphs])
         else:
             hulls += _trunk(tree, recipe, g, forced, inertia=False)
     return hulls
@@ -1041,7 +1043,7 @@ class _Rows:
 
 def _maximal(
     tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]], *,
-    reach: Mapping[int, float], slide: Mapping[int, float],
+    reach: Mapping[int, float], slide: Mapping[int, float], ends: Mapping[int, float],
 ) -> None:  # fmt: skip
     """Glyphs per joint kind, bones from glyph centre to glyph centre, hulls and end blocks tied to their glyph.
 
@@ -1049,7 +1051,7 @@ def _maximal(
     of a group and the glyphs of its child joints are all rigid in that group, and the layout holds for every
     configuration. Every glyph contains the ball of 0.8 of its radius about its centre and a bone is thinner, so a
     bone that runs centre to centre has both caps inside the glyphs. ``reach[j]`` is the drawn radius of glyph
-    ``j``, 0 for a hidden one.
+    ``j``, 0 for a hidden one, and ``ends[j]`` the radius of the end block of leaf ``j`` (``_hulls``).
     """
     origin = tree.origin
     center = {j: origin[j] + slide[j] * tree.axis[j] if j in tree.axis else origin[j] for j in tree.glyphs}
@@ -1060,7 +1062,7 @@ def _maximal(
         return recipe.bones * (min(shown) if shown else tree.reference)
 
     solid = {j: (center[j], frame[j], _half(tree, j, reach[j])) for j in tree.glyphs if tree.kind[j] != "free"}
-    hulls = _hulls(tree, recipe, clouds, reach, {j: box for j, box in solid.items() if reach[j] > 0.0})
+    hulls = _hulls(tree, recipe, clouds, ends, {j: box for j, box in solid.items() if reach[j] > 0.0})
     trunk: dict[int, _Hull] = {}
     for hull in hulls:
         if hull.part == "hull" and hull.mesh != "balls":
@@ -1185,7 +1187,7 @@ def _minimal(
             anchor[c], base[c] = rows.point(floating[0], where), floating[0]
         else:
             anchor[c] = rows.anchor({j: 1.0 / len(joints) for j in joints}, where)
-    hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], 0.0) for j in tree.glyphs}, {})
+    hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], tree.radius[j]) for j in tree.glyphs}, {})
     heads = _heads(tree, recipe, rows, clouds) if recipe.glyphs == "ball" else []
     sticks = _sticks(tree, rows, [*hulls, *heads], members=members, cluster=cluster, anchor=anchor)
     ends: dict[int, list[float]] = {}
