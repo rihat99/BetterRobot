@@ -111,7 +111,10 @@ class SkeletonRecipe:
     size
         Multiplies every glyph radius.
     joint_size
-        Joint name to a multiplier of its glyph radius; 0 hides the glyph.
+        Joint name to a multiplier of its glyph's radius, applied after the layout's size rules, so it changes that
+        glyph only: 0 hides it and the bones run on through its place, and the glyphs after it keep their size. The
+        factor wins over the maximal layout's narrowing towards the tips, so above 1 a glyph may be wider than the
+        one before it. A ball of the stick figure takes the mean factor of the joints it stands for.
     body_hull
         Frame name to ``True`` (draw the hull of its geometry) or ``False`` (leave it out).
     color
@@ -283,21 +286,23 @@ def build_skeleton(
     tree = _tree(model, recipe)
     clouds = _clouds(tree, spheres, geometry, mesh_vertices)
     tree = _leaf_caps(tree, clouds, maximal=recipe.glyphs == "kind")
+    factor = {j: recipe.joint_size.get(model.joint_names[j], 1.0) for j in tree.glyphs}
     rows = _Rows(tree, recipe)
     slides: dict[str, float] = {}
     shrinks: dict[str, float] = {}
     clusters: tuple[tuple[str, ...], ...] = ()
-    if recipe.glyphs == "kind":
-        hidden = {j for j in tree.glyphs if tree.radius[j] <= 0.0}
+    if recipe.glyphs == "kind":  # joint_size scales a glyph after the size rules, so the glyphs after it keep theirs
+        drawn = replace(tree, radius={j: factor[j] * tree.radius[j] for j in tree.glyphs})
+        hidden = {j for j in tree.glyphs if drawn.radius[j] <= 0.0}
         if not recipe.twists:
             hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
-        slide, shrink = _solve(tree, hidden, clouds)
+        slide, shrink = _solve(drawn, hidden, clouds)
         slides = {model.joint_names[j]: s for j, s in slide.items() if abs(s) > 1e-9}
         shrinks = {model.joint_names[j]: k for j, k in shrink.items() if k < 1.0}
-        reach = {j: 0.0 if j in hidden else shrink[j] * tree.radius[j] for j in tree.glyphs}
+        reach = {j: 0.0 if j in hidden else shrink[j] * drawn.radius[j] for j in tree.glyphs}
         _maximal(tree, recipe, rows, clouds, reach=reach, slide=slide)
     else:
-        clusters = _minimal(tree, recipe, rows, clouds)
+        clusters = _minimal(tree, recipe, rows, clouds, factor=factor)
     return rows.pack(slides=slides, shrinks=shrinks, clusters=clusters)
 
 
@@ -450,8 +455,7 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
         known = [value for i, value in torque.items() if np.isfinite(value) and kind[i] == kind[j]]
         ratio = torque[j] / np.median(known) if torque[j] > 0.0 else 1.0
         factor = float(np.clip(ratio ** (1.0 / 6.0), 0.8, 1.2))
-        radius[j] = reference * factor * recipe.joint_size.get(model.joint_names[j], 1.0)
-        radius[j] *= _MARKER if kind[j] == "other" else 1.0
+        radius[j] = reference * factor * (_MARKER if kind[j] == "other" else 1.0)
         if kind[j] in ("spherical", "other") and tree.bones(j):
             radius[j] = min(radius[j], _FIXED_CAP * min(tree.bones(j)))
     return replace(tree, radius=radius)
@@ -1156,23 +1160,26 @@ def _clusters(tree: _Tree, recipe: SkeletonRecipe) -> tuple[dict[int, list[int]]
 
 
 def _minimal(
-    tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]]
-) -> tuple[tuple[str, ...], ...]:
+    tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]], *,
+    factor: Mapping[int, float],
+) -> tuple[tuple[str, ...], ...]:  # fmt: skip
     """A ball per cluster of close joints and sticks between the balls; returns the joint names behind each ball.
 
     A ball sits at the mean of its member origins at every step; the cluster of a free-flyer root is rigid in the
     root body and drawn as a cube. A ball is at most 0.4 of its shortest stick, and a stick never thicker than the
     balls it joins. A leaf joint without an end block gets a stick on to the end of its body (``_knob``) and a small
     ball there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length. A trunk's
-    head (``_heads``) is a ball as small as a joint's on a stick from the trunk.
+    head (``_heads``) is a ball as small as a joint's on a stick from the trunk. Then a ball takes the mean
+    ``factor`` (``joint_size``) of its joints; a ball of factor 0 is not drawn, and its sticks keep their thickness.
     """
     members, cluster, skipped = _clusters(tree, recipe)
-    radius, anchor, base = {}, {}, {}
+    radius, share, anchor, base = {}, {}, {}, {}
     for c, joints in members.items():
         if c in skipped:
             continue
         where = tree.origin[joints].mean(axis=0)
         radius[c] = float(np.mean([tree.radius[j] for j in joints]))
+        share[c] = float(np.mean([factor[j] for j in joints]))
         floating = [j for j in joints if tree.kind[j] == "free" and tree.group[j] == 0]
         if floating:
             anchor[c], base[c] = rows.point(floating[0], where), floating[0]
@@ -1191,8 +1198,9 @@ def _minimal(
     for j in (j for j in tree.glyphs if not tree.children[j] and j not in ended):
         a = anchor[cluster[j]]
         sticks += _knob(tree, recipe, rows, j, clouds.get(j, []), start=a, radius=drawn[a])
-    for c, a in anchor.items():
-        r, joint = drawn[a], members[c][0]
+    ball = {anchor[c]: share[c] * drawn[anchor[c]] for c in radius}
+    for c, a in ((c, a) for c, a in anchor.items() if ball[a] > 0.0):
+        r, joint = ball[a], members[c][0]
         if c in base:
             rows.add(
                 "boxes",
@@ -1208,7 +1216,7 @@ def _minimal(
     for hull in hulls:
         rows.hull(hull)
     for start, end, owner in sticks:
-        balls = [drawn[a] for a in (start, end) if a in drawn and recipe.glyphs == "ball"]
+        balls = [ball[a] for a in (start, end) if ball.get(a, 0.0) > 0.0 and recipe.glyphs == "ball"]
         rows.stick(start, end, min([recipe.bones * tree.reference, *balls]), owner)
     return tuple(tuple(tree.model.joint_names[j] for j in members[c]) for c in anchor)
 

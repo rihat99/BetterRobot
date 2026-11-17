@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -51,6 +52,24 @@ def _mixed() -> tuple[Model, None]:
     )  # fmt: skip
     builder.add_planar("table", parent="base", child="puck", origin=at(0.05, 0.25, 0.1))
     return br.io.build_model(builder.finalize()), None
+
+
+def _at(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
+    return torch.tensor([x, y, z, 0.0, 0.0, 0.0, 1.0])
+
+
+def _arm() -> Model:
+    """A fixed base and four revolute joints in a line along z, 25 cm apart, none along the line; no geometry."""
+    builder = br.io.ModelBuilder("arm")
+    builder.add_body("base", mass=1.0)
+    builder.add_fixed("mount", parent="world", child="base")
+    for k, axis in enumerate(((0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))):
+        builder.add_body(f"l{k}", mass=1.0)
+        builder.add_revolute(
+            f"j{k}", parent=f"l{k - 1}" if k else "base", child=f"l{k}", axis=axis, origin=_at(z=0.25), lower=-2.0,
+            upper=2.0,
+        )  # fmt: skip
+    return br.io.build_model(builder.finalize())
 
 
 _ROBOTS = {"g1": _g1, "panda": _panda, "mixed": _mixed}
@@ -346,6 +365,34 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
     model, _ = _mixed()
     with pytest.raises(UnknownNameError, match="knee"):
         build_skeleton(model, SkeletonRecipe(joint_size={"knee": 2.0}))
+
+
+@pytest.mark.parametrize("recipe", [MAXIMAL, MINIMAL], ids=["maximal", "minimal"])
+@pytest.mark.parametrize("factors", [{"j1": 0.0}, {"j1": 0.5}, {"j3": 2.0}, {"j0": 0.0, "j2": 0.0}], ids=str)
+def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRecipe, factors: dict) -> None:
+    """A factor scales one glyph after the size rules, so the glyphs after it keep theirs (a 2 at the tip wins over
+    the narrowing towards it), and a glyph of factor 0 goes while every bone and stick stays."""
+    model = _arm()
+    mesh, glyph = ("cylinders", "drum") if recipe is MAXIMAL else ("balls", "ball")
+
+    def glyphs(skeleton: Skeleton) -> dict[int, float]:  # joint -> radius of its drum or of its cluster's ball
+        blocks = getattr(skeleton, mesh)
+        rows = zip(blocks.owner, blocks.part, blocks.scale, blocks.anchors[:, 0], strict=True)
+        drawn = [
+            (owner, scale) for owner, part, scale, moving in rows if part == glyph and (moving >= 0 or mesh != "balls")
+        ]
+        return {int(owner): float(scale[0]) for owner, scale in drawn}
+
+    def bones(skeleton: Skeleton) -> list[tuple[str, int]]:
+        rows = [(name, getattr(skeleton, name)) for name in ("cylinders", "boxes")]
+        return sorted((name, int(o)) for name, b in rows for o, p in zip(b.owner, b.part) if p in ("bone", "stick"))
+
+    plain = build_skeleton(model, recipe)
+    sized = build_skeleton(model, replace(recipe, joint_size=factors))
+    expected = {j: factors.get(model.joint_names[j], 1.0) * radius for j, radius in glyphs(plain).items()}
+    assert len(expected) == 4
+    assert glyphs(sized) == pytest.approx({j: radius for j, radius in expected.items() if radius > 0.0})
+    assert bones(sized) == bones(plain)
 
 
 def test_colors_shade_each_part_and_tint_the_sides() -> None:

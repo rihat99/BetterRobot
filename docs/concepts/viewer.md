@@ -198,7 +198,7 @@ and every block is rigid in one joint frame, so a step only moves blocks.
 - joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart: each drum that would overlap
   another slides along its own axis, so it stays on its true axis line, and only then shrinks; a joint that ends
   a chain shrinks at its place first, so a chain gets smaller towards its tip, as no glyph is wider than the one
-  before it;
+  before it unless `joint_size` makes it so;
 - a limb, a slim faceted block that narrows towards the child, joins each joint to its parent (`bones`, its half
   width over the glyph radius; 0 draws none);
 - a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
@@ -221,7 +221,9 @@ it at 0.62.
 
 Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
-multiplier}` (0 hides a glyph) and `color={joint or frame: rgb}`.
+multiplier}` and `color={joint or frame: rgb}`. A `joint_size` factor scales that one glyph after the size rules:
+0 hides it and the bones run on through its place, the glyphs after it keep their size, and above 1 it may be wider
+than the glyph before it; a minimal ball takes the mean factor of its joints.
 
 ```python
 from better_robot.viewer import MAXIMAL, SkeletonRecipe
