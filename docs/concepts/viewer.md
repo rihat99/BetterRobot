@@ -238,8 +238,10 @@ kind auto True
 ```
 
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
-limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, and a step writes
-positions and rotations to each node on screen (the sticks of a minimal skeleton also their lengths). `bounds` is
+limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, while an overlay of
+collision shapes is one node per shape (17 on the Panda), and a step writes positions and rotations to each node on
+screen (the sticks of a minimal skeleton also their lengths). Each mesh file is read once per robot, however often
+its style, overlay or theme is switched. `bounds` is
 a box per joint, per collision sphere and collision shape that is not a mesh (exact), and per block of the maximal
 skeleton on a body without one, in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
 and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest

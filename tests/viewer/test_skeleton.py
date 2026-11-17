@@ -386,13 +386,11 @@ def _described(name: str, *, spheres: bool = False) -> tuple[Model, dict]:
     the geometry, the collision mesh loader and, when asked, the robot's sphere set."""
     import importlib  # noqa: PLC0415 - the examples' robots, not a fixture
 
-    from better_robot.viewer import RobotVisual  # noqa: PLC0415 - its collision mesh loader
-
     urdf = importlib.import_module(f"robot_descriptions.{name}_description").URDF_PATH
     model = br.load(urdf, root_joint=br.JointFreeFlyer())
     geometry = br.io.load_geometry(urdf, model)
-    vertices = RobotVisual(model, model.q_neutral[None], geometry=geometry, root=urdf)._collision_vertices
-    sources = {"geometry": geometry, "mesh_vertices": vertices}
+    visual = RobotVisual(model, model.q_neutral[None], geometry=geometry, root=urdf)
+    sources = {"geometry": geometry, "mesh_vertices": lambda body, mesh: visual._mesh(body, mesh).vertices}
     if spheres:
         sources["spheres"] = collision.load_spheres(collision.SPHERE_SETS / f"{name}.json", model)[0]
     return model, sources

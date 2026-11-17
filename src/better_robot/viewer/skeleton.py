@@ -267,12 +267,12 @@ def build_skeleton(
     *,
     spheres: RobotSpheres | None = None,
     geometry: Geometry | None = None,
-    mesh_vertices: Callable[[Mesh], np.ndarray | None] | None = None,
+    mesh_vertices: Callable[[int, Mesh], np.ndarray] | None = None,
 ) -> Skeleton:
     """Lay out the skeleton of ``model`` under ``recipe``, from one forward-kinematics pass at ``q_neutral``.
 
     Hulls and end blocks are sized from the first source a body has: the collision shapes of ``geometry`` (a mesh
-    only through ``mesh_vertices``, which returns the vertices ``(V, 3)`` of a mesh file or ``None``), the
+    only through ``mesh_vertices(body, mesh)``, which returns the vertices ``(V, 3)`` of its file or raises), the
     ``spheres`` on its frames, its inertia. A name of ``recipe`` that the model does not have raises ``UnknownNameError``.
     """
     for name in recipe.joint_size:
@@ -652,7 +652,7 @@ def _clouds(
     tree: _Tree,
     spheres: RobotSpheres | None,
     geometry: Geometry | None,
-    mesh_vertices: Callable[[Mesh], np.ndarray | None] | None,
+    mesh_vertices: Callable[[int, Mesh], np.ndarray] | None,
 ) -> dict[int, list[_Cloud]]:
     """Per rigid group, the geometry its hulls are sized from: its collision shapes, else its sphere set. A sphere set
     is an overlay first: the look of a body with collision shapes does not change with it."""
@@ -660,7 +660,7 @@ def _clouds(
     found: dict[int, list[_Cloud]] = {}
     shapes: dict[int, list[np.ndarray]] = {}
     for attached in geometry.shapes if geometry is not None else ():
-        points = _shape_points(attached.shape, mesh_vertices) if attached.collision else None
+        points = _shape_points(attached.body, attached.shape, mesh_vertices) if attached.collision else None
         if points is not None:
             placement = np.array(attached.shape.placement)
             shapes.setdefault(attached.body, []).append(points @ _matrix(placement[3:]).T + placement[:3])
@@ -684,8 +684,11 @@ def _clouds(
     return found
 
 
-def _shape_points(shape: object, mesh_vertices: Callable[[Mesh], np.ndarray | None] | None) -> np.ndarray | None:
-    """Points ``(n, 3)`` on the surface of a shape, in the shape's own frame; ``None`` for a mesh that does not load."""
+def _shape_points(
+    body: int, shape: object, mesh_vertices: Callable[[int, Mesh], np.ndarray] | None
+) -> np.ndarray | None:
+    """Points ``(n, 3)`` on the surface of a shape on ``body``, in the shape's own frame; ``None`` for a mesh without
+    ``mesh_vertices``."""
     if isinstance(shape, Box):
         return np.array([[x, y, z] for x in (-0.5, 0.5) for y in (-0.5, 0.5) for z in (-0.5, 0.5)]) * shape.size
     if isinstance(shape, Sphere):
@@ -696,8 +699,7 @@ def _shape_points(shape: object, mesh_vertices: Callable[[Mesh], np.ndarray | No
         tip = np.array([[0.0, 0.0, shape.length / 2 + (shape.radius if isinstance(shape, Capsule) else 0.0)]])
         return np.concatenate([ring + [0.0, 0.0, shape.length / 2], ring - [0.0, 0.0, shape.length / 2], tip, -tip])
     if isinstance(shape, Mesh) and mesh_vertices is not None:
-        vertices = mesh_vertices(shape)
-        return None if vertices is None else np.asarray(vertices, dtype=np.float64) * shape.scale
+        return np.asarray(mesh_vertices(body, shape), dtype=np.float64) * shape.scale
     return None
 
 

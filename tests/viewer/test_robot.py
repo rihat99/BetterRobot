@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import ClassVar, final
 
 import numpy as np
@@ -14,11 +15,11 @@ from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
-from better_robot.viewer.theme import Theme, linear_uint8
+from better_robot.viewer.theme import DARK, Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
 from better_robot import collision
-from better_robot.exceptions import ArgumentError, ShapeError, UnknownNameError
+from better_robot.exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from better_robot.testing import FakeServer
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -316,6 +317,38 @@ def test_robot_visual_follows_a_theme_with_other_hues_and_another_overlay_colour
     spheres = server.scene.nodes[f"{path}/collision/spheres"]
     assert not spheres.removed and (spheres.props["batched_colors"] == linear_uint8(blue)).all()
     assert robot.style == "maximal"
+
+
+def test_robot_visual_reads_each_mesh_file_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both skeletons size the Panda's bodies from its nine collision meshes, the overlay draws them, and a theme
+    switch rebuilds the overlay in its new colour: each file is read once."""
+    import trimesh  # noqa: PLC0415 - optional dependency of the viewer
+
+    reads: list[str] = []
+    load = trimesh.load
+    monkeypatch.setattr(trimesh, "load", lambda path, **options: reads.append(str(path)) or load(path, **options))
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    viewer = Viewer(server=FakeServer(), ground=False)
+    robot = viewer.add(RobotVisual(model, geometry=geometry, root=panda_urdf(), style="maximal", collision=True))
+    robot.set_style("minimal")
+    viewer.set_theme(DARK)
+    assert len(reads) == len(set(reads)) == 9
+
+
+@pytest.mark.parametrize("content", [None, b"solid empty\nendsolid empty\n"], ids=["missing", "empty"])
+def test_a_collision_mesh_that_does_not_load_raises_for_the_skeleton_too(tmp_path: Path, content: bytes | None) -> None:
+    """The skeleton sizes a body from its collision mesh: a file that is missing or holds no mesh raises the
+    ``ModelError`` the meshes style raises, naming the body and the file, rather than falling back to the inertia."""
+    if content is not None:
+        (tmp_path / "part.stl").write_bytes(content)
+    collision = '<collision><geometry><mesh filename="part.stl"/></geometry></collision>'
+    urdf = tmp_path / "r.urdf"
+    urdf.write_text(f'<robot name="r"><link name="base">{collision}</link></robot>')
+    model = br.load(urdf)
+    robot = RobotVisual(model, geometry=br.io.load_geometry(urdf, model), root=urdf, style="maximal")
+    with pytest.raises(ModelError, match=r"body \d+: mesh 'part.stl' (is not a file|does not load|has no faces)"):
+        Viewer(server=FakeServer(), ground=False).add(robot)
 
 
 def test_two_robots_of_one_model_need_a_name_each() -> None:

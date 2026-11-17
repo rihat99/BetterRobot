@@ -17,7 +17,7 @@ model again. The skeleton's layout is ``src/better_robot/viewer/skeleton.py``.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import KW_ONLY, dataclass
 from pathlib import Path
@@ -162,6 +162,7 @@ class RobotVisual(Layer):
         self._root_folder = None if root is None else Path(root)
         self._recipes = {"minimal": minimal, "maximal": maximal}
         self._skeletons: dict[str, Skeleton] = {}
+        self._meshes: dict[str, Any] = {}  # mesh file name -> its trimesh, read once: a theme or style switch reuses it
         visual = geometry is not None and any(not attached.collision for attached in geometry.shapes)
         self.styles: tuple[Style, ...] = _STYLES if visual or skin is not None else _STYLES[1:]
         self.style: Style = style or ("meshes" if "meshes" in self.styles else "maximal")
@@ -236,22 +237,26 @@ class RobotVisual(Layer):
                 self._recipes[part],
                 spheres=self.spheres,
                 geometry=self.geometry,
-                mesh_vertices=self._collision_vertices,
+                mesh_vertices=lambda body, mesh: np.asarray(self._mesh(body, mesh).vertices),
             )
         return self._skeletons[part]
 
-    def _collision_vertices(self, mesh: Mesh) -> np.ndarray | None:
-        """The vertices ``(V, 3)`` of a collision mesh file, which size the skeleton's bodies; ``None`` when the
-        file is not found or holds no mesh, and the body is sized from its inertia."""
-        with needs_extra("meshes"):
-            import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+    def _mesh(self, body: int, mesh: Mesh) -> Any:
+        """The ``trimesh.Trimesh`` of the mesh file of ``mesh`` on ``body``, before its scale; read once per visual.
+        ``ModelError`` names the body and the file when it is not found, does not load or has no faces."""
+        if mesh.uri not in self._meshes:
+            with needs_extra("meshes"):
+                import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
-        try:
-            path = _mesh_file(-1, mesh.uri, self._root_folder)
-        except ModelError:
-            return None
-        loaded = trimesh.load(path, force="mesh")
-        return np.asarray(loaded.vertices) if isinstance(loaded, trimesh.Trimesh) else None
+            path = _mesh_file(body, mesh.uri, self._root_folder)
+            try:
+                loaded = trimesh.load(path, force="mesh")
+            except Exception as exc:  # noqa: BLE001 - trimesh raises many loader-specific errors
+                raise ModelError(f"body {body}: mesh {mesh.uri!r} does not load: {exc}") from exc
+            if not isinstance(loaded, trimesh.Trimesh) or loaded.faces.shape[0] == 0:
+                raise ModelError(f"body {body}: mesh {mesh.uri!r} has no faces")
+            self._meshes[mesh.uri] = loaded
+        return self._meshes[mesh.uri]
 
     @property
     def hue(self) -> RGB:
@@ -286,7 +291,7 @@ class RobotVisual(Layer):
         collision = part == "collision"
         color = self._theme.collision if collision else self._theme.shade(self.hue, "body")
         specs = [
-            _shape_spec(attached.body, attached.shape, self._root_folder, color, own_colors=not collision)
+            _shape_spec(attached.body, attached.shape, self._mesh, color, own_colors=not collision)
             for attached in shapes
             if attached.collision == collision
         ]
@@ -524,20 +529,15 @@ def _sizes(shape: Any) -> list[float]:
     return [0.0, 0.0, 0.0, shape.length / 2.0, 0.0, shape.radius]  # a capsule: a ball swept along a segment
 
 
-def _shape_spec(body: int, shape: Any, root: Path | None, color: RGB, *, own_colors: bool) -> MeshSpec:
-    """One shape as a ``MeshSpec``: a mesh file loaded with trimesh, a primitive tessellated by it."""
+def _shape_spec(body: int, shape: Any, load: Callable[[int, Mesh], Any], color: RGB, *, own_colors: bool) -> MeshSpec:
+    """One shape as a ``MeshSpec``: a mesh file's trimesh from ``load`` (``RobotVisual._mesh``), a primitive
+    tessellated by trimesh."""
     with needs_extra("meshes"):
         import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
     source = None
     if isinstance(shape, Mesh):
-        path = _mesh_file(body, shape.uri, root)
-        try:
-            mesh = trimesh.load(path, force="mesh")
-        except Exception as exc:  # noqa: BLE001 - trimesh raises many loader-specific errors
-            raise ModelError(f"body {body}: mesh {shape.uri!r} does not load: {exc}") from exc
-        if not isinstance(mesh, trimesh.Trimesh) or mesh.faces.shape[0] == 0:
-            raise ModelError(f"body {body}: mesh {shape.uri!r} has no faces")
+        mesh = load(body, shape).copy()  # the loaded one stays unscaled for the next shape that names its file
         mesh.apply_scale(shape.scale)
         visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look
         kind = None if visual is None else visual.kind
