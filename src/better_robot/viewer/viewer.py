@@ -404,13 +404,13 @@ class Viewer:
         ``(0, pi)``. ``gpu`` is the ``nvidia-smi`` index of the GPU to render on, ``None`` the CPU; an unreachable GPU
         raises. ``bitrate`` in bits per second defaults to 8 Mbit/s scaled by the pixel count over full HD. When
         ffmpeg fails, the encoded video is kept beside ``path`` (``.h264``, or ``.webm`` when the browser had no H.264
-        encoder) and the error names it. The frames are what a browser shows of this scene, background included. Playback pauses while recording and the
-        step shown before comes back; a sidebar callback may call it. Needs a Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see
-        ``better_robot.viewer.record``.
+        encoder) and the error names it. The frames are what a browser shows of this scene, background included.
+        Playback pauses while recording and the step shown before comes back; a sidebar callback may call it. Needs a
+        Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see ``better_robot.viewer.record``.
         """
-        from .record import record  # noqa: PLC0415 - the browser path is opt-in
+        from .record import _record  # noqa: PLC0415 - the browser path is opt-in
 
-        return record(self, path, size=size, fps=fps, steps=steps, camera=camera, fov=fov, gpu=gpu, bitrate=bitrate)
+        return _record(self, path, size=size, fps=fps, steps=steps, camera=camera, fov=fov, gpu=gpu, bitrate=bitrate)
 
     def aim(
         self,

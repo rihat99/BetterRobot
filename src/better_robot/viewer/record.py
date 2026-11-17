@@ -168,7 +168,7 @@ _RECORDER = r"""
 """.replace("__MARKER__", _MARKER)
 
 
-def record(
+def _record(
     viewer: Viewer,
     path: str | Path,
     *,
