@@ -46,16 +46,17 @@ The suffix of the path picks the output:
 | none | `.mp4` when ffmpeg is found, else `.webm`; `record` returns the path it wrote | |
 
 A browser without an H.264 encoder records VP9 and ffmpeg transcodes it, which takes longer than the rendering.
-The options:
+When ffmpeg fails, `record` keeps the encoded video beside the path (`.h264`, or `.webm` after VP9) and its error
+names that file. The options:
 
 - `size=(width, height)`: the pixels of the file, both even for a video, up to 3840 x 2160 and beyond to the
   renderer's limit. The page draws at a pixel ratio of 1, so one canvas pixel is one pixel of the file.
 - `steps`: frame `k` of the file shows `steps[k]`; every step by default.
 - `fps`: the timeline's by default; `bitrate`: bits per second, 8 Mbit/s at 1920 x 1080 scaled by the pixel count.
 - `camera=(position, look_at)`: each `(3,)` for a fixed view or `(len(steps), 3)` for one that moves with the steps;
-  without it, the view `viewer.aim(steps=steps, fov=fov)` chooses (the boxes of the visible layers' `Layer.bounds`
-  over `steps`, inside four fifths of the view, upright along the theme's `up` axis). `fov` is the vertical field of
-  view in radians.
+  without it, the view `viewer.aim(steps=steps, fov=fov)` would choose (the boxes of the visible layers'
+  `Layer.bounds` over `steps`, inside four fifths of the view, upright along the theme's `up` axis), while the live
+  browsers' cameras stay where they are. `fov` is the vertical field of view in radians, between 0 and pi.
 - `gpu`: the `nvidia-smi` index of the GPU to draw on, through Vulkan; `None`, the default, draws on the CPU
   (SwiftShader, which ships with Chromium). A full-HD frame of a Panda takes about 130 ms on the CPU and 5 to 8 ms
   on a GPU.

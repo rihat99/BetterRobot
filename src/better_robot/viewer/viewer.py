@@ -399,10 +399,12 @@ class Viewer:
         found, else ``.webm``. Frame ``k`` shows ``steps[k]`` (default: every step; for a still, the current step).
         ``size`` is the output's ``(width, height)`` in pixels, both even for a video, up to the renderer's limit
         (3840 x 2160 is fine); ``fps`` defaults to the timeline's. ``camera`` is ``(position, look_at)``, each ``(3,)``
-        or ``(len(steps), 3)`` to move per step; ``None`` is ``aim(steps=steps)``. ``fov`` is the vertical field of
-        view in radians. ``gpu`` is the ``nvidia-smi`` index of the GPU to render on, ``None`` the CPU; an unreachable
-        GPU raises. ``bitrate`` in bits per second defaults to 8 Mbit/s scaled by the pixel count over full HD. The
-        frames are what a browser shows of this scene, background included. Playback pauses while recording and the
+        or ``(len(steps), 3)`` to move per step; ``None`` is the view ``aim(steps=steps, fov=fov)`` would choose, and
+        the live browsers' cameras stay where they are. ``fov`` is the vertical field of view in radians, in
+        ``(0, pi)``. ``gpu`` is the ``nvidia-smi`` index of the GPU to render on, ``None`` the CPU; an unreachable GPU
+        raises. ``bitrate`` in bits per second defaults to 8 Mbit/s scaled by the pixel count over full HD. When
+        ffmpeg fails, the encoded video is kept beside ``path`` (``.h264``, or ``.webm`` when the browser had no H.264
+        encoder) and the error names it. The frames are what a browser shows of this scene, background included. Playback pauses while recording and the
         step shown before comes back; a sidebar callback may call it. Needs a Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see
         ``better_robot.viewer.record``.
         """
@@ -429,6 +431,8 @@ class Viewer:
         looks from ``-y`` (the right side of a robot facing ``+x``, the usual convention) and 90 degrees from ``+x``:
         the default 60 degrees is a front three-quarter view.
         """
+        if not 0.0 < fov < math.pi:
+            raise ArgumentError(f"fov must lie in (0, pi) radians, got {fov}")
         with self.lock:
             self._aimed = True
             position, look_at = self._framing(steps, azimuth, elevation, fov)

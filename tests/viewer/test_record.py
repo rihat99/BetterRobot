@@ -26,6 +26,7 @@ from PIL import Image
 
 from better_robot.exceptions import ArgumentError, OptionalDependencyError
 from better_robot.testing import FakeServer
+from better_robot.testing.fake_server import FakeClient
 from better_robot.viewer import (
     DARK,
     LIGHT,
@@ -70,20 +71,69 @@ def _viewer(nsteps: int = 3) -> Viewer:
     return viewer
 
 
-def test_record_refuses_bad_paths_steps_sizes_and_cameras_before_a_browser_starts(tmp_path: Path) -> None:
+def test_record_refuses_bad_paths_steps_sizes_and_cameras_before_a_browser_starts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(recorder, "_Page", FakePage)
+    FakePage.calls = []
     viewer = _viewer()
     cases = [
         (dict(path=tmp_path / "a.gif"), "writes .mp4, .webm or .png"),
         (dict(path=tmp_path / "a.webm", steps=[]), "at least one step"),
         (dict(path=tmp_path / "a.webm", steps=[0, 3]), r"steps must lie in \[0, 3\)"),
+        (dict(path=tmp_path / "a.webm", steps=[0, 1.9]), r"steps must be integers, got \[0, 1.9\]"),
         (dict(path=tmp_path / "a.png", steps=[0, 1]), "one step"),
         (dict(path=tmp_path / "a.webm", size=(641, 360)), "both even"),
         (dict(path=tmp_path / "a.webm", camera=(np.zeros((2, 3)), np.zeros((2, 3)))), r"\(3, 3\) per step"),
+        (
+            dict(path=tmp_path / "a.webm", camera=(np.zeros(3), np.zeros(3), np.zeros(3))),
+            r"a pair \(position, look_at\), got 3 items",
+        ),
+        (dict(path=tmp_path / "a.webm", fps=0.0), r"fps must be positive \(None: the timeline's\), got 0.0"),
+        (dict(path=tmp_path / "a.webm", fps=-5.0), "fps must be positive"),
+        (dict(path=tmp_path / "a.webm", bitrate=-1.0), r"bitrate must be positive \(None: .*\), got -1.0"),
+        (dict(path=tmp_path / "a.webm", fov=0.0), r"fov must lie in \(0, pi\) radians, got 0.0"),
+        (dict(path=tmp_path / "a.png", fov=math.pi), r"fov must lie in \(0, pi\)"),
     ]
     for kwargs, message in cases:
         kwargs.setdefault("camera", _CAMERA)
         with pytest.raises(ArgumentError, match=message):
             viewer.record(**kwargs)
+    with pytest.raises(ArgumentError, match=r"fov must lie in \(0, pi\)"):
+        viewer.aim(fov=0.0)
+    assert FakePage.calls == []
+
+
+def test_record_without_a_camera_leaves_the_live_cameras_and_auto_aim_alone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(recorder, "_Page", FakePage)
+    FakePage.calls = []
+    viewer = _viewer()
+    viewer.add(SpheresLayer("ball", np.zeros((3, 1, 3)), radii=np.array([0.5])))
+    framed = np.asarray(viewer.server.initial_camera.position)  # where add aimed the cameras: the view of aim()
+    viewer.server.clients[0] = FakeClient()
+    user = ((4.0, 5.0, 6.0), (1.0, 1.0, 1.0))  # where a user turned the browser's camera
+    cameras = (viewer.server.initial_camera, viewer.server.clients[0].camera)
+    for camera in cameras:
+        camera.position, camera.look_at = user
+    viewer.record(tmp_path / "clip.webm")
+    for camera in cameras:
+        assert (camera.position, camera.look_at) == user
+    np.testing.assert_allclose(FakePage.calls[-1]["camera"][0], framed)
+    viewer.add(SpheresLayer("far", np.full((1, 1, 3), 5.0), radii=np.array([0.5])))
+    moved = np.asarray(viewer.server.clients[0].camera.position)
+    np.testing.assert_allclose(moved, viewer.aim()[0])  # add still aims the cameras: record did not call aim
+
+
+def test_a_failing_ffmpeg_keeps_the_encoded_video_and_names_it(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(recorder, "_Page", FakePage)
+    monkeypatch.setenv("BETTER_ROBOT_FFMPEG", "/opt/ffmpeg")
+    failed = SimpleNamespace(returncode=1, stderr=b"pipe:0: Invalid data found when processing input\n")
+    monkeypatch.setattr(subprocess, "run", lambda command, **kwargs: failed)
+    with pytest.raises(OptionalDependencyError, match=r"exited with code 1: pipe:0: Invalid data.*clip\.h264"):
+        _viewer().record(tmp_path / "clip.mp4", camera=_CAMERA)
+    assert (tmp_path / "clip.h264").read_bytes() == b"frames"
 
 
 def test_mp4_needs_ffmpeg_and_copies_the_pages_h264_stream(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -98,7 +148,11 @@ def test_mp4_needs_ffmpeg_and_copies_the_pages_h264_stream(monkeypatch: pytest.M
     assert (tmp_path / "clip.webm").read_bytes() == b"frames"
     monkeypatch.setenv("BETTER_ROBOT_FFMPEG", "/opt/ffmpeg")
     commands = []
-    monkeypatch.setattr(subprocess, "run", lambda command, **kwargs: commands.append((command, kwargs["input"])))
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda command, **kwargs: commands.append((command, kwargs["input"])) or SimpleNamespace(returncode=0),
+    )
     assert viewer.record(tmp_path / "clip", camera=_CAMERA, fps=25.0) == tmp_path / "clip.mp4"
     ((command, data),) = commands
     assert FakePage.calls[-1]["codecs"][0].startswith("avc1") and data == b"frames"
