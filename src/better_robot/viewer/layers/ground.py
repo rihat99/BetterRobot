@@ -33,7 +33,8 @@ class GroundLayer(Layer):
     ``normal`` ``(3,)`` tilts the grid to the plane with that normal (a fitted floor), replacing ``plane``;
     ``origin`` ``(3,)`` is the point the grid is centred on before ``height`` moves it along the normal.
     ``fill`` is the opacity of a solid ``fill_color`` plane under the lines; 0 (the default) draws lines only.
-    ``cell_color`` and ``section_color`` default to the theme's ``grid`` and follow ``Viewer.set_theme``.
+    ``cell_color``, ``section_color`` and ``fill_color`` default to the theme's ``grid`` (the fill to its cell colour)
+    and follow ``Viewer.set_theme``.
     """
 
     def __init__(
@@ -50,7 +51,7 @@ class GroundLayer(Layer):
         fill: float = 0.0,
         cell_color: RGB | None = None,
         section_color: RGB | None = None,
-        fill_color: RGB = (0.80, 0.80, 0.80),
+        fill_color: RGB | None = None,
     ) -> None:
         super().__init__(name, 1)
         if plane not in (None, "xy", "xz", "yz"):
@@ -68,7 +69,7 @@ class GroundLayer(Layer):
         self.cell_color = cell_color
         self.section_color = section_color
         self.fill_color = fill_color
-        self._colors = (cell_color or LIGHT.grid[0], section_color or LIGHT.grid[1])  # (cell, section) drawn
+        self._colors = (cell_color or LIGHT.grid[0], section_color or LIGHT.grid[1], fill_color or LIGHT.grid[0])
         self._shadow = LIGHT.shadow
         self._grid: Any = None
 
@@ -76,11 +77,16 @@ class GroundLayer(Layer):
     def apply_theme(self, theme: Theme) -> None:
         if self.plane is None:
             self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
-        self._colors = (self.cell_color or theme.grid[0], self.section_color or theme.grid[1])
+        self._colors = (
+            self.cell_color or theme.grid[0],
+            self.section_color or theme.grid[1],
+            self.fill_color or theme.grid[0],
+        )
         self._shadow = theme.shadow
         if self._grid is not None:
             self._grid.cell_color = _uint8(self._colors[0])
             self._grid.section_color = _uint8(self._colors[1])
+            self._grid.plane_color = _uint8(self._colors[2])
             self._grid.shadow_opacity = theme.shadow
 
     @override
@@ -116,7 +122,7 @@ class GroundLayer(Layer):
                 section_size=self.section_size,
                 cell_color=_uint8(self._colors[0]),
                 section_color=_uint8(self._colors[1]),
-                plane_color=_uint8(self.fill_color),
+                plane_color=_uint8(self._colors[2]),
                 plane_opacity=self.fill,
                 wxyz=tuple(float(c) for c in wxyz),
                 position=tuple(float(c) for c in origin + self.height * axis),

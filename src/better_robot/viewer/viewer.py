@@ -32,6 +32,8 @@ _FOV = math.radians(40.0)  # the vertical field of view of the browsers' camera
 _AIM_STEPS = 32  # at most this many evenly spaced steps are framed by ``aim``
 _AIM_FILL = 0.8  # share of a 16:9 view's height (or width) the framed box spans
 _AIM_ASPECT = 16.0 / 9.0
+#: The default view of ``aim``: from the front-right of an x-forward robot, 30 degrees off its front, and from above.
+_AZIMUTH, _ELEVATION = math.radians(60.0), math.radians(25.0)
 
 
 def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
@@ -186,7 +188,7 @@ class Viewer:
             self._timeline_gui()
             self._sync_layers_section()
             if not self._aimed:
-                self._point_cameras(*self._framing(None, math.radians(35.0), math.radians(25.0), _FOV), _FOV)
+                self._point_cameras(*self._framing(None, _AZIMUTH, _ELEVATION, _FOV), _FOV)
         return layers
 
     def _check_layers(
@@ -411,8 +413,8 @@ class Viewer:
         self,
         *,
         steps: Sequence[int] | None = None,
-        azimuth: float = math.radians(35.0),
-        elevation: float = math.radians(25.0),
+        azimuth: float = _AZIMUTH,
+        elevation: float = _ELEVATION,
         fov: float = _FOV,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Point the connected browsers and every new one (viser's initial camera, also "Reset View") at the visible
@@ -422,7 +424,9 @@ class Viewer:
         32 evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and
         ``elevation`` (radians) about the theme's ``up`` axis: the boxes are centred in the view, at the nearest
         distance where every corner of every box lies inside 80 % of a 16:9 view's height and width, in the vertical
-        field of view ``fov``; the browsers take ``fov``. Returns ``(position, look_at)``.
+        field of view ``fov``; the browsers take ``fov``. Returns ``(position, look_at)``. Under ``+z`` up, azimuth 0
+        looks from ``-y`` (the right side of a robot facing ``+x``, the usual convention) and 90 degrees from ``+x``:
+        the default 60 degrees is a front three-quarter view.
         """
         with self.lock:
             self._aimed = True

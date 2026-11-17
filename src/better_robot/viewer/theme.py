@@ -173,5 +173,7 @@ DARK = Theme(
     backdrop=(_srgb(44, 45, 50), _srgb(22, 22, 25)),
     grid=(_srgb(58, 59, 64), _srgb(86, 88, 95)),
     shadow=0.45,
+    collision=_srgb(170, 180, 196),  # the light theme's grey turns to a dim ghost on dark; lighter, a little denser
+    collision_opacity=0.22,
     text=_srgb(228, 229, 233),
 )
