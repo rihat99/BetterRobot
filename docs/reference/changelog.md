@@ -51,6 +51,8 @@ that 0.3.0 renames or removes, one table row each.
 - `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
   one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
 - `testing.FakeServer.scene.add_glb`.
+- `examples/viewer/00_showcase.py`: one page that shows the G1, the Panda and the Go2 as meshes or as the minimal
+  or maximal skeleton, with the collision overlay, the frame triads, the light or dark theme and a looping motion.
 
 ### Changed
 - `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns

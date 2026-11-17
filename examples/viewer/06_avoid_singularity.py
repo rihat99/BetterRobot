@@ -117,8 +117,9 @@ def main() -> None:
 def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: dict, start: torch.Tensor) -> None:
     """Track a gizmo that starts at ``start (7,)`` until Ctrl-C, with the form the GUI selects, and redraw
     ``robot``'s layers after every tick."""
-    form = viewer.server.gui.add_dropdown("singular poses", FORMS)
-    readout = viewer.server.gui.add_markdown("")
+    with viewer.sidebar.section("Singular poses"):  # after the Robot and Layers sections
+        form = viewer.sidebar.gui.add_dropdown("Form", FORMS)
+        readout = viewer.sidebar.gui.add_markdown("")
     gizmo = PoseGizmo(viewer, "target", pose=start.numpy(), scale=0.2)
     warm, last = None, form.value
     print(f"pull the target out of reach at {viewer.url}; Ctrl-C to exit")

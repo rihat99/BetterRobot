@@ -7,6 +7,7 @@ uv run python examples/viewer/03_ik_gizmo.py --check
 from __future__ import annotations
 
 import argparse
+import math
 
 import numpy as np
 import torch
@@ -20,6 +21,7 @@ from better_robot.viewer.tools import PoseGizmo
 
 URDF = panda_description.URDF_PATH
 FRAME = "panda_hand"
+READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4, 0.04]
 
 
 def main() -> None:
@@ -28,10 +30,11 @@ def main() -> None:
     args = parser.parse_args()
 
     model = br.load(URDF, dtype=torch.float64)
-    pose = forward_kinematics(model, model.q_neutral).frame_poses[model.frame_id(FRAME)]
+    q = torch.tensor(READY, dtype=torch.float64)
+    pose = forward_kinematics(model, q).frame_poses[model.frame_id(FRAME)]
 
     viewer = Viewer(server=FakeServer() if args.check else None)
-    robot = viewer.add(RobotVisual(model, geometry=br.io.load_geometry(URDF, model), root=URDF, frames=[FRAME]))
+    robot = viewer.add(RobotVisual(model, q, geometry=br.io.load_geometry(URDF, model), root=URDF, frames=[FRAME]))
 
     # PoseGizmo calls ``follow`` on its own worker thread with only the newest pose, one call at a
     # time, so ``robot.q`` has a single writer. A short warm-started solve keeps up with the mouse.
