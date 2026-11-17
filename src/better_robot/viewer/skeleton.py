@@ -262,13 +262,14 @@ def build_skeleton(
     *,
     spheres: RobotSpheres | None = None,
     geometry: Geometry | None = None,
-    mesh_vertices: Callable[[int, Mesh], np.ndarray] | None = None,
+    mesh_vertices: Callable[[int, Mesh], np.ndarray | None] | None = None,
 ) -> Skeleton:
     """Lay out the skeleton of ``model`` under ``recipe``, from one forward-kinematics pass at ``q_neutral``.
 
     Hulls and end blocks are sized from the first source a body has: the collision shapes of ``geometry`` (a mesh
-    only through ``mesh_vertices(body, mesh)``, which returns the vertices ``(V, 3)`` of its file or raises), the
-    ``spheres`` on its frames, its inertia. A name of ``recipe`` that the model does not have raises ``UnknownNameError``.
+    only through ``mesh_vertices(body, mesh)``, which returns the vertices ``(V, 3)`` of its file, or ``None`` to
+    leave it out), the ``spheres`` on its frames, its inertia. A name of ``recipe`` that the model does not have
+    raises ``UnknownNameError``.
     """
     for name in recipe.joint_size:
         if name not in model.joint_names:
@@ -643,7 +644,7 @@ def _clouds(
     tree: _Tree,
     spheres: RobotSpheres | None,
     geometry: Geometry | None,
-    mesh_vertices: Callable[[int, Mesh], np.ndarray] | None,
+    mesh_vertices: Callable[[int, Mesh], np.ndarray | None] | None,
 ) -> dict[int, list[_Cloud]]:
     """Per rigid group, the geometry its hulls are sized from: its collision shapes, else its sphere set. A sphere set
     is an overlay first: the look of a body with collision shapes does not change with it."""
@@ -676,10 +677,10 @@ def _clouds(
 
 
 def _shape_points(
-    body: int, shape: object, mesh_vertices: Callable[[int, Mesh], np.ndarray] | None
+    body: int, shape: object, mesh_vertices: Callable[[int, Mesh], np.ndarray | None] | None
 ) -> np.ndarray | None:
     """Points ``(n, 3)`` on the surface of a shape on ``body``, in the shape's own frame; ``None`` for a mesh without
-    ``mesh_vertices``."""
+    ``mesh_vertices`` or whose vertices it does not give."""
     if isinstance(shape, Box):
         return np.array([[x, y, z] for x in (-0.5, 0.5) for y in (-0.5, 0.5) for z in (-0.5, 0.5)]) * shape.size
     if isinstance(shape, Sphere):
@@ -689,9 +690,8 @@ def _shape_points(
         ring = np.stack([np.cos(angles), np.sin(angles), np.zeros(8)], axis=1) * shape.radius
         tip = np.array([[0.0, 0.0, shape.length / 2 + (shape.radius if isinstance(shape, Capsule) else 0.0)]])
         return np.concatenate([ring + [0.0, 0.0, shape.length / 2], ring - [0.0, 0.0, shape.length / 2], tip, -tip])
-    if isinstance(shape, Mesh) and mesh_vertices is not None:
-        return np.asarray(mesh_vertices(body, shape), dtype=np.float64) * shape.scale
-    return None
+    vertices = mesh_vertices(body, shape) if isinstance(shape, Mesh) and mesh_vertices is not None else None
+    return None if vertices is None else np.asarray(vertices, dtype=np.float64) * shape.scale
 
 
 def _inertia(tree: _Tree, group: int) -> tuple[float, np.ndarray, np.ndarray] | None:

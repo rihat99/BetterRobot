@@ -17,7 +17,7 @@ from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
-from better_robot.viewer.skeleton import MAXIMAL
+from better_robot.viewer.skeleton import MAXIMAL, build_skeleton
 from better_robot.viewer.theme import DARK, Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
@@ -411,18 +411,39 @@ def test_robot_visual_reads_each_mesh_file_once(monkeypatch: pytest.MonkeyPatch)
 
 
 @pytest.mark.parametrize("content", [None, b"solid empty\nendsolid empty\n"], ids=["missing", "empty"])
-def test_a_collision_mesh_that_does_not_load_raises_for_the_skeleton_too(tmp_path: Path, content: bytes | None) -> None:
-    """The skeleton sizes a body from its collision mesh: a file that is missing or holds no mesh raises the
-    ``ModelError`` the meshes style raises, naming the body and the file, rather than falling back to the inertia."""
+def test_a_collision_mesh_that_does_not_load_raises_for_the_overlay_and_the_skeleton_sizes_its_body_without_it(
+    tmp_path: Path, content: bytes | None
+) -> None:
+    """The collision overlay draws the file: one that is missing or holds no mesh raises ``ModelError``, naming the
+    body and the file. A skeleton only sizes the body by it: it gives the same words as a warning and sizes the body
+    from its inertia, as for a body without a collision shape."""
     if content is not None:
         (tmp_path / "part.stl").write_bytes(content)
+    inertial = (
+        '<inertial><mass value="2"/><origin xyz="0 0 0.1"/>'
+        '<inertia ixx="0.02" iyy="0.02" izz="0.01" ixy="0" ixz="0" iyz="0"/></inertial>'
+    )
     collision = '<collision><geometry><mesh filename="part.stl"/></geometry></collision>'
     urdf = tmp_path / "r.urdf"
-    urdf.write_text(f'<robot name="r"><link name="base">{collision}</link></robot>')
+    urdf.write_text(
+        f'<robot name="r"><link name="base">{inertial}{collision}</link><link name="arm">{inertial}</link>'
+        '<joint name="hinge" type="revolute"><parent link="base"/><child link="arm"/><origin xyz="0 0 0.3"/>'
+        '<axis xyz="0 1 0"/><limit lower="-1" upper="1" effort="10" velocity="1"/></joint></robot>'
+    )
     model = br.load(urdf)
     robot = RobotVisual(model, geometry=br.io.load_geometry(urdf, model), root=urdf, style="maximal")
-    with pytest.raises(ModelError, match=r"body \d+: mesh 'part.stl' (is not a file|does not load|has no faces)"):
+    words = r"body \d+: mesh 'part.stl' (is not a file|does not load|has no faces)"
+    with pytest.warns(UserWarning, match=words + ".*the skeleton sizes body"):
         Viewer(server=FakeServer(), ground=False).add(robot)
+    inertia = build_skeleton(model, MAXIMAL)  # no geometry: every body from its inertia
+    for mesh in ("cylinders", "balls", "boxes"):
+        for array in ("local", "scale"):
+            np.testing.assert_array_equal(
+                getattr(getattr(robot._skeleton("maximal"), mesh), array), getattr(getattr(inertia, mesh), array)
+            )
+    assert any(part == "hull" for part in inertia.boxes.part)  # the base's trunk, from its inertia
+    with pytest.raises(ModelError, match=words):
+        robot.set_collision(visible=True)
 
 
 def test_two_robots_of_one_model_need_a_name_each() -> None:

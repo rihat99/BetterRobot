@@ -206,9 +206,10 @@ and every block is rigid in one joint frame, so a step only moves blocks.
   the tree branches (a torso, a pelvis, a palm), with a ball for a head; a body that ends a chain is a sole when
   it is flat, a block when a prismatic joint moves it (a finger), else a limb with a ball at its tip (a hand, a
   paw). Their sizes come from the collision shapes of the geometry, else from the sphere set, else from the
-  inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes.
-  `hulls="all"` also gives a trunk to the bodies with one child joint, `"none"` draws neither;
-  `body_hull={frame: bool}` decides one body.
+  inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes. A
+  collision mesh file that cannot be read is left out with a warning that names it, while the collision overlay,
+  which draws the file, raises `ModelError`. `hulls="all"` also gives a trunk to the bodies with one child joint,
+  `"none"` draws neither; `body_hull={frame: bool}` decides one body.
 
 `MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
 one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and

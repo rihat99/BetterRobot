@@ -17,6 +17,7 @@ model again. The skeleton's layout is ``src/better_robot/viewer/skeleton.py``.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import KW_ONLY, dataclass
@@ -238,9 +239,22 @@ class RobotVisual(Layer):
                 self._recipes[part],
                 spheres=self.spheres,
                 geometry=self.geometry,
-                mesh_vertices=lambda body, mesh: np.asarray(self._mesh(body, mesh).vertices),
+                mesh_vertices=self._vertices,
             )
         return self._skeletons[part]
+
+    def _vertices(self, body: int, mesh: Mesh) -> np.ndarray | None:
+        """The vertices ``(V, 3)`` of the collision mesh file of ``mesh`` on ``body``, which a skeleton sizes the body
+        by. A file that ``_mesh`` cannot read gives ``None`` and a warning, and the skeleton sizes the body without
+        it: a skeleton does not need the file, while the collision overlay, which draws it, raises."""
+        try:
+            return np.asarray(self._mesh(body, mesh).vertices)
+        except ModelError as error:
+            warnings.warn(  # Python's default filter shows it once, however many skeletons and steps read the file
+                f"{error}; the skeleton sizes body {body} without it, from its other shapes, spheres or inertia",
+                stacklevel=2,
+            )
+            return None
 
     def _mesh(self, body: int, mesh: Mesh) -> Any:
         """The ``trimesh.Trimesh`` of the mesh file of ``mesh`` on ``body``, before its scale; read once per visual.
