@@ -200,6 +200,13 @@ def test_a_sidebar_button_records_while_playing(monkeypatch: pytest.MonkeyPatch,
         viewer.timeline._halt()  # never join: after a deadlock the thread would never end
 
 
+def test_the_page_reaches_a_server_bound_to_every_interface_through_loopback() -> None:
+    for host, origin in (("0.0.0.0", "http://127.0.0.1:8123"), ("localhost", "http://localhost:8123")):
+        page = recorder._Page(Viewer(server=FakeServer(), host=host, port=8123), (320, 180), _CAMERA, 0.7, None)
+        page.__exit__()  # removes the browser profile; no browser started
+        assert page.origin == origin
+
+
 def test_gpu_index_maps_to_its_pci_bus_and_the_browser_is_found_on_it(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(recorder, "glob", lambda pattern: ["VkLayer_MESA_device_select.json"])
     monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/nvidia-smi")

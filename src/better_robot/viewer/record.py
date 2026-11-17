@@ -318,6 +318,9 @@ class _Page:
         self, viewer: Viewer, size: tuple[int, int], camera: tuple[np.ndarray, np.ndarray], fov: float, gpu: int | None
     ) -> None:
         self.viewer, self.size, self.camera, self.fov, self.gpu = viewer, size, camera, fov, gpu
+        # A server bound to every interface is reached through loopback: 0.0.0.0 is no destination on every system,
+        # and Chromium is closing it.
+        self.origin = f"http://{'127.0.0.1' if viewer.host == '0.0.0.0' else viewer.host}:{viewer.port}"
         self._profile = tempfile.TemporaryDirectory(prefix="better_robot_record_")
         self._process: subprocess.Popen | None = None
         self._pipes: tuple[int, int] | None = None  # (write to Chromium, read from Chromium)
@@ -332,7 +335,7 @@ class _Page:
         position, look_at = (",".join(f"{value:.9g}" for value in vector.reshape(-1, 3)[0]) for vector in self.camera)
         up = ",".join(f"{value:g}" for value in self.viewer.theme.up_vector)
         url = (
-            f"{self.viewer.url}/?fixedDpr=1&initialCameraPosition={position}&initialCameraLookAt={look_at}"
+            f"{self.origin}/?fixedDpr=1&initialCameraPosition={position}&initialCameraLookAt={look_at}"
             f"&initialCameraUp={up}&initialCameraFov={self.fov:.9g}"
         )
         environment = dict(os.environ)
@@ -348,7 +351,7 @@ class _Page:
             "--remote-debugging-pipe",
             f"--user-data-dir={self._profile.name}",
             f"--window-size={width},{height}",
-            f"--unsafely-treat-insecure-origin-as-secure={self.viewer.url}",  # WebCodecs needs a secure origin
+            f"--unsafely-treat-insecure-origin-as-secure={self.origin}",  # WebCodecs needs a secure origin
             "--hide-scrollbars",
             "--mute-audio",
             "--disable-background-timer-throttling",
