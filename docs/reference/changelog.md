@@ -41,8 +41,10 @@ that 0.3.0 renames or removes, one table row each.
   viewer runs, and `update(q)` shows new configurations. Every robot takes the theme's next hue (record 0058).
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, bones, body hulls and end
   blocks; glyphs that share a point slide apart along their own axes, then shrink) and `viewer.MINIMAL` (one ball
-  per cluster of close joints, sticks between): `glyphs`, `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`,
-  `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is three batched nodes.
+  per cluster of close joints, sticks between, and from each leaf joint a stick on to the end of its body with a
+  small ball: a foot frame such as the Go2's, else the far end of its geometry, so a quadruped stands on its feet and
+  a humanoid has feet and hands): `glyphs`, `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`,
+  `joint_size`, `body_hull` and `color`. A maximal skeleton is three batched nodes.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
@@ -61,8 +63,8 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer(theme=LIGHT)` (was `None`); `Viewer.replace(old, new)` keeps `old`'s tags and sidebar rows.
 - `Layer.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API); `PlotPanel` and `ImagePanel` sit in
   the sidebar's Plots and Images sections.
-- `GroundLayer(cell_color=None, section_color=None)`: the grid takes `Theme.grid` unless given and follows
-  `Viewer.set_theme`.
+- `GroundLayer(cell_color=None, section_color=None, fill_color=None)`: the grid and its fill take `Theme.grid`
+  unless given (the fill its cell colour; was a fixed light grey) and follow `Viewer.set_theme`.
 - `Viewer.record(path, *, size=(1920, 1080), fps=None, steps=None, camera=None, fov=radians(40), gpu=None,
   bitrate=None) -> Path` draws each step once in a headless Chromium that runs viser's own client, with the canvas
   pinned to `size` at a pixel ratio of 1, and encodes in the page: `.mp4` is H.264 that ffmpeg only puts in its
@@ -85,8 +87,11 @@ that 0.3.0 renames or removes, one table row each.
   checkboxes in sentence case; a `PlotPanel`'s time axis shows seconds instead of a date.
 - `Viewer.aim` and `Viewer.record` centre the boxes of the bounds in the view, at the nearest distance where every
   corner of every box lies inside 80 % of a 16:9 view (was the bounding sphere with a 15 % margin, which left the
-  robot a fifth of the height). `RobotVisual.bounds` is a box per joint and per block, so a clip of a G1 sweeping
-  its joints fills 73 % of the frame's height; one box round the clip left it at 42 %.
+  robot a fifth of the height), seen from azimuth 60 degrees (was 35): a front three-quarter view of a robot facing
+  `+x`. `RobotVisual.bounds` is a box per joint, per collision sphere and collision shape that is not a mesh (exact),
+  and per block of the maximal skeleton on a body without one, so a clip of a G1 sweeping its joints fills 73 % of
+  the frame's height (one box round the clip left it at 42 %) and the lowest point of a G1 or a Go2 is its soles'
+  (within 1 mm of the meshes; the blocks reached 3 to 7 cm below).
 - `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
   frustum's edges from the intrinsics `K` of a `(W, H)` image, an off-centre principal point included, and the image
   on its cut; viser's own frustum has no principal point. It frames `Viewer.aim` too (`bounds`).
@@ -94,7 +99,8 @@ that 0.3.0 renames or removes, one table row each.
   and `CameraLayer` drew about 100 levels paler than a `MeshLayer` of the same colour, because viser reads their
   colours as linear values. With the true colours `Theme.hues` are lighter mid-tones (green `(116, 190, 140)`, was
   `(82, 160, 104)`) and `Theme.shade` mixes less: `joint` 10 % and `face` 32 % towards black (were 22 % and 58 %),
-  `stick` 10 % towards white (was 25 %).
+  `stick` 10 % towards white (was 25 %). `DARK.collision` is a lighter grey `(170, 180, 196)` at opacity 0.22: the
+  light theme's `(140, 150, 165)` at 0.18 was a dim ghost on the dark backdrop.
 - `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
   `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
 

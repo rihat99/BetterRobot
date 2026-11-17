@@ -90,8 +90,8 @@ callback runs under `viewer.lock`, the one lock of adding, removing and pushing 
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
 Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the boxes of the visible
-layers' `Layer.bounds` over the clip (at most 32 steps are read), centred in a 3/4 view at the nearest distance where
-every corner of every box lies inside four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses
+layers' `Layer.bounds` over the clip (at most 32 steps are read), centred in a front three-quarter view of a robot
+facing `+x` at the nearest distance where every corner of every box lies inside four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses
 the view yourself.
 
 ## One timeline drives every layer
@@ -205,7 +205,9 @@ and every block is rigid in one joint frame, so a step only moves blocks.
 
 `MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
 one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and
-sticks join the balls.
+sticks join the balls. A leaf joint's stick runs on to the end of its body and ends in a small ball, rigid in the
+leaf's frame: to its farthest frame when that frame lies past the middle of the body (the foot of a Go2), else to
+the far end of its geometry (the toe of a G1's sole, a hand, a finger), so the figure stands on its feet.
 
 Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
@@ -225,8 +227,11 @@ kind auto True
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
 limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, and a step writes
 positions and rotations to each node on screen (the sticks of a minimal skeleton also their lengths). `bounds` is
-a box per joint and per block of the maximal skeleton in every style, so `Viewer.aim` frames a robot the same way
-whatever it is drawn as, and by what it covers: one box round a moving robot is about twice that on screen.
+a box per joint, per collision sphere and collision shape that is not a mesh (exact), and per block of the maximal
+skeleton on a body without one, in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
+and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest
+point of a sole or a foot with a collision shape: `examples/viewer/00_showcase.py` lifts a floating base by it, step
+by step, to stand the robot on the ground.
 
 ### A skinned surface
 
@@ -277,7 +282,7 @@ direction of the browser scene and of the `record` camera, and a `GroundLayer` a
 `plane` lies in the plane perpendicular to it (`"xz"` for `+y`). The default grid has no edges and fades out with
 the distance from the camera; `GroundLayer(size=4.0)` draws a square 4 m wide. `GroundLayer(origin=p, normal=n, fill=0.3)`
 instead tilts the grid onto the plane through `p` with normal `n`, such as a fitted floor, over a translucent fill
-(`fill` is its opacity; 0, the default, draws lines only).
+(`fill` is its opacity; 0, the default, draws lines only) in the theme's grid colour unless `fill_color=` names one.
 
 ```python
 from better_robot.viewer import DARK, Theme

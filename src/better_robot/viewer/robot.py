@@ -289,10 +289,7 @@ class RobotVisual(Layer):
                 parents = [model.frame_parent_joint_ids[f] for f in ids]
                 layer.poses[...] = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses)).numpy()
         elif self.spheres is not None:
-            ids = self.spheres.frame_ids.tolist()
-            parents = [model.frame_parent_joint_ids[f] for f in ids]
-            frames = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses))
-            layer.centers[...] = se3.act(frames, self.spheres.offsets.to(poses)).numpy()
+            layer.centers[...] = _centers(model, self.spheres, poses)
         return layer
 
     def _drop(self, part: str) -> None:
@@ -406,17 +403,42 @@ class RobotVisual(Layer):
 
     @override
     def bounds(self, step: int) -> Bounds | None:
-        """A box per joint (a point) and per block of the maximal skeleton, ``(lo (N, 3), hi (N, 3))``: the robot's
-        extent in any style."""
-        joints = self._poses[step, min(1, self.model.njoints - 1) :, :3]  # not the universe, unless it is all there is
+        """A box per joint (a point), per collision sphere and per collision shape that is not a mesh (each exact),
+        and per block of the maximal skeleton on a rigid body without one of those, ``(lo (N, 3), hi (N, 3))``: the
+        robot's extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
+        """
+        model, poses = self.model, torch.from_numpy(self._poses[step])
+        joints = self._poses[step, min(1, model.njoints - 1) :, :3]  # not the universe, unless it is all there is
         lows, highs = [joints], [joints]
-        for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
-            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
-            rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
-            axes = np.abs(so3.act(rotations, eye).numpy())  # (N, 3, 3): each block's axes
-            reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box
+        anchor = list(range(model.njoints))  # the joint each body is welded to
+        for j in range(1, model.njoints):
+            anchor[j] = anchor[model.parent_joint_ids[j]] if isinstance(model.joints[j], JointFixed) else j
+        covered = set()
+        if self.spheres is not None:
+            radii, centers = self.spheres.radii.detach().cpu().numpy()[:, None], _centers(model, self.spheres, poses)
+            lows.append(centers - radii)
+            highs.append(centers + radii)
+            covered |= {anchor[model.frame_parent_joint_ids[f]] for f in self.spheres.frame_ids.tolist()}
+        shapes = [shape for shape in self.geometry.shapes if shape.collision] if self.geometry is not None else []
+        shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
+        if shapes:
+            placements = torch.tensor([attached.shape.placement for attached in shapes], dtype=poses.dtype)
+            world = se3.compose(poses[[attached.body for attached in shapes]], placements).numpy()
+            sizes = np.array([_sizes(attached.shape) for attached in shapes], dtype=world.dtype)
+            axes = _axes(world)
+            axis = axes[:, 2]  # each shape's own z
+            reach = np.einsum("nk,nkc->nc", sizes[:, :3], axes) + sizes[:, 3:4] * axis
+            reach += sizes[:, 4:5] * np.sqrt(np.clip(1.0 - axis**2, 0.0, None)) + sizes[:, 5:]
             lows.append(world[:, :3] - reach)
             highs.append(world[:, :3] + reach)
+            covered |= {anchor[attached.body] for attached in shapes}
+        skeleton = self._skeleton("maximal")
+        for mesh, (world, scale) in skeleton.place(self._poses[step]).items():
+            keep = np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
+            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
+            reach = np.einsum("nk,nkc->nc", half[keep], _axes(world[keep]))  # the half extent of its world box
+            lows.append(world[keep, :3] - reach)
+            highs.append(world[keep, :3] + reach)
         return np.concatenate(lows), np.concatenate(highs)
 
     @override
@@ -451,6 +473,32 @@ def _mesh_file(body: int, uri: str, root: Path | None) -> Path:
     raise ModelError(
         f"body {body}: mesh {uri!r} is not a file under {start} or a folder above it; pass root=, the description file"
     )
+
+
+def _centers(model: Model, spheres: RobotSpheres, poses: torch.Tensor) -> np.ndarray:
+    """World centres ``(..., S, 3)`` of ``spheres`` at joint poses ``(..., njoints, 7)``."""
+    ids = spheres.frame_ids.tolist()
+    parents = [model.frame_parent_joint_ids[f] for f in ids]
+    frames = se3.compose(poses[..., parents, :], model.frame_placements[ids].to(poses))
+    return se3.act(frames, spheres.offsets.to(poses)).numpy()
+
+
+def _axes(world: np.ndarray) -> np.ndarray:
+    """``(N, 3, 3)``: row ``k`` holds the absolute world components of axis ``k`` of each pose of ``world (N, 7)``."""
+    rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
+    return np.abs(so3.act(rotations, eye).numpy())
+
+
+def _sizes(shape: Any) -> list[float]:
+    """What the world box of a primitive needs: its half extents (3), the half length and radius of a round side
+    along its z, and the radius of a ball swept round it."""
+    if isinstance(shape, Box):
+        return [*(np.asarray(shape.size, dtype=np.float64) / 2.0), 0.0, 0.0, 0.0]
+    if isinstance(shape, Sphere):
+        return [0.0, 0.0, 0.0, 0.0, 0.0, shape.radius]
+    if isinstance(shape, Cylinder):
+        return [0.0, 0.0, 0.0, shape.length / 2.0, shape.radius, 0.0]
+    return [0.0, 0.0, 0.0, shape.length / 2.0, 0.0, shape.radius]  # a capsule: a ball swept along a segment
 
 
 def _shape_spec(body: int, shape: Any, root: Path | None, color: RGB, *, own_colors: bool) -> MeshSpec:
