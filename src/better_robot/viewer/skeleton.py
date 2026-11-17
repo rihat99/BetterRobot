@@ -90,8 +90,7 @@ class SkeletonRecipe:
     Parameters
     ----------
     glyphs
-        ``"kind"`` draws one glyph per joint kind, ``"ball"`` one ball per cluster of close joints, ``"none"`` bones
-        only.
+        ``"kind"`` draws one glyph per joint kind, ``"ball"`` one ball per cluster of close joints.
     bones
         Half width of a limb (``glyphs="kind"``) or radius of a stick over the glyph radius; 0 draws none.
     hulls
@@ -120,7 +119,7 @@ class SkeletonRecipe:
         Joint or frame name to the colour of its glyph or hull, in place of the robot's hue.
     """
 
-    glyphs: Literal["kind", "ball", "none"] = "kind"
+    glyphs: Literal["kind", "ball"] = "kind"
     bones: float = 0.6
     hulls: Literal["auto", "all", "none"] = "auto"
     limits: bool = False
@@ -134,8 +133,8 @@ class SkeletonRecipe:
 
     def __post_init__(self) -> None:
         """Raise ``ArgumentError`` for an unknown ``glyphs`` or ``hulls`` word or a size out of range."""
-        if self.glyphs not in ("kind", "ball", "none"):
-            raise ArgumentError(f"glyphs must be 'kind', 'ball' or 'none', got {self.glyphs!r}")
+        if self.glyphs not in ("kind", "ball"):
+            raise ArgumentError(f"glyphs must be 'kind' or 'ball', got {self.glyphs!r}")
         if self.hulls not in ("auto", "all", "none"):
             raise ArgumentError(f"hulls must be 'auto', 'all' or 'none', got {self.hulls!r}")
         if (
@@ -1196,7 +1195,7 @@ def _minimal(
         else:
             anchor[c] = rows.anchor({j: 1.0 / len(joints) for j in joints}, where)
     hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], tree.radius[j]) for j in tree.glyphs}, {})
-    heads = _heads(tree, recipe, rows, clouds) if recipe.glyphs == "ball" else []
+    heads = _heads(tree, recipe, rows, clouds)
     sticks = _sticks(tree, rows, [*hulls, *heads], members=members, cluster=cluster, anchor=anchor)
     ends: dict[int, list[float]] = {}
     for start, end, _ in sticks:
@@ -1221,12 +1220,12 @@ def _minimal(
                 rotation=tree.rotation[base[c]],
                 owner=joint,
             )
-        elif recipe.glyphs == "ball":
+        else:
             rows.add("balls", "ball", tree.root[joint], rows.where[a], (r, r, r), owner=joint, anchors=(a, a))
     for hull in hulls:
         rows.hull(hull)
     for start, end, owner in sticks:
-        balls = [ball[a] for a in (start, end) if ball.get(a, 0.0) > 0.0 and recipe.glyphs == "ball"]
+        balls = [ball[a] for a in (start, end) if ball.get(a, 0.0) > 0.0]
         rows.stick(start, end, min([recipe.bones * tree.reference, *balls]), owner)
     return tuple(tuple(tree.model.joint_names[j] for j in members[c]) for c in anchor)
 
@@ -1259,7 +1258,7 @@ def _knob(
     if length <= radius:
         return []
     clear = min(_TIP * radius, (length - radius) / 2.0)  # clear of the leaf's ball: no blob round a short finger
-    ball = max(1.25 * min(recipe.bones * tree.reference, radius), clear) if recipe.glyphs == "ball" else 0.0
+    ball = max(1.25 * min(recipe.bones * tree.reference, radius), clear)
     end = end if centred else end - ball * toward / length  # a surface end: the ball ends there
     if ball > 0.0:  # a knob, wider than its stick
         rows.add("balls", "ball", group, end, (ball, ball, ball), owner=group)
