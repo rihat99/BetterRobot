@@ -14,6 +14,8 @@ import os
 import shutil
 import socket
 import subprocess
+import threading
+import time
 from importlib.metadata import version
 from pathlib import Path
 from types import SimpleNamespace
@@ -120,6 +122,28 @@ def test_record_pauses_playback_and_restores_the_step(monkeypatch: pytest.Monkey
     assert clip["fps"] == viewer.timeline.fps and clip["bitrate"] == pytest.approx(8e6 / 9)
     assert clip["codecs"] == ["vp09.00.51.08", "vp8"]
     assert still["steps"] == [viewer.timeline.step] and still["codecs"] == [] and still["fov"] == math.radians(30.0)
+
+
+def test_a_sidebar_button_records_while_playing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(recorder, "_Page", FakePage)
+    FakePage.calls = []
+    viewer = _viewer(nsteps=300)
+
+    def on_click() -> None:
+        time.sleep(0.1)  # work under the lock: the playback thread comes to wait for it
+        viewer.record(tmp_path / "clip.webm", camera=_CAMERA)  # pauses playback, which waits for the thread
+
+    viewer.sidebar.button("Scene", "Record", on_click=on_click)
+    viewer.timeline.play()
+    time.sleep(0.2)
+    click = threading.Thread(target=viewer.server.gui.control("Record").fire, daemon=True)
+    click.start()
+    click.join(1.0)
+    try:
+        assert not click.is_alive(), "the callback waits for the playback thread, which waits for the callback's lock"
+        assert not FakePage.calls[-1]["playing"] and viewer.timeline.playing
+    finally:
+        viewer.timeline._halt()  # never join: after a deadlock the thread would never end
 
 
 def test_gpu_index_maps_to_its_pci_bus_and_the_browser_is_found_on_it(monkeypatch: pytest.MonkeyPatch) -> None:

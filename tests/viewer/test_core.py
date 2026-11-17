@@ -155,6 +155,27 @@ def test_timeline_controls_run_under_the_viewer_lock_without_waiting_for_playbac
     viewer.timeline.pause()  # outside the lock it waits for the thread to end
 
 
+def test_a_sidebar_button_may_change_the_fps_while_playing() -> None:
+    viewer = Viewer(server=FakeServer(), ground=False)
+    viewer.add(PointsLayer("cloud", np.zeros((300, 10, 3))))
+
+    def on_click() -> None:
+        time.sleep(0.1)  # work under the lock: the playback thread comes to wait for it
+        viewer.set_fps(60.0)  # pauses playback, which waits for the playback thread
+
+    viewer.sidebar.button("Scene", "60 fps", on_click=on_click)
+    viewer.timeline.play()
+    time.sleep(0.2)
+    click = threading.Thread(target=viewer.server.gui.control("60 fps").fire, daemon=True)
+    click.start()
+    click.join(1.0)
+    try:
+        assert not click.is_alive(), "the callback waits for the playback thread, which waits for the callback's lock"
+        assert viewer.timeline.fps == 60.0 and viewer.timeline.playing
+    finally:
+        viewer.timeline._halt()  # never join: after a deadlock the thread would never end
+
+
 def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
     scene = FakeServer().scene
     poses = np.zeros((2, 3, 7), dtype=np.float32)

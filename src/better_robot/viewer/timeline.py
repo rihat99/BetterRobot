@@ -24,9 +24,13 @@ class Timeline:
     (the viewer pushes the step from there). ``play`` starts a thread that advances by wall
     clock, so slow pushes drop steps instead of slowing playback; ``speed`` and ``loop`` take
     effect while it plays, and a step set meanwhile (the slider) becomes where playback goes on.
+    The thread advances under ``lock`` (the viewer passes its own), which it never waits for
+    without looking whether playback stopped, so ``pause`` is safe while holding it.
     """
 
-    def __init__(self, nsteps: int, *, fps: float = 30.0, loop: bool = True) -> None:
+    def __init__(
+        self, nsteps: int, *, fps: float = 30.0, loop: bool = True, lock: threading.RLock | None = None
+    ) -> None:
         if nsteps < 1 or fps <= 0.0:
             raise ArgumentError(f"Timeline needs nsteps >= 1 and fps > 0, got nsteps={nsteps}, fps={fps}")
         self.nsteps = nsteps
@@ -36,7 +40,7 @@ class Timeline:
         self._step = 0
         self._callbacks: list[Callable[[int], None]] = []
         self._playing = threading.Event()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock() if lock is None else lock
         self._thread: threading.Thread | None = None
         self._generation = 0  # which play() a playback thread belongs to: an older one stops by itself
         self._gui_slider: Any = None
@@ -110,8 +114,7 @@ class Timeline:
     def pause(self) -> None:
         """Stop playback and wait for the playback thread to exit; the current step is kept.
 
-        It waits, so never call it while holding the viewer's lock, as a sidebar callback does: the thread may be
-        waiting for that lock to push a step. The sidebar's Play box stops playback without waiting.
+        Safe while holding ``lock``, as a sidebar callback does: a thread waiting for it sees the stop and ends.
         """
         self._halt()
         thread, self._thread = self._thread, None
@@ -130,20 +133,28 @@ class Timeline:
     def _run(self, generation: int) -> None:
         position, shown, last = float(self._step), self._step, time.perf_counter()
         while self.playing and generation == self._generation:
-            if self._step != shown:  # moved by hand while playing: go on from there
-                position = float(self._step)
-            now = time.perf_counter()
-            position += (now - last) * self.speed * self.fps
-            last = now
-            if position >= self.nsteps:
-                if not self.loop:
-                    self.step = self.nsteps - 1
-                    self._halt()
+            # Never wait for the lock without looking up: pause() may hold it while it waits for this thread to end.
+            if not self._lock.acquire(timeout=0.05):
+                continue
+            try:
+                if not (self.playing and generation == self._generation):  # stopped while this thread waited
                     return
-                position %= self.nsteps
-            shown = int(position)
-            if shown != self._step:
-                self.step = shown
+                if self._step != shown:  # moved by hand while playing: go on from there
+                    position = float(self._step)
+                now = time.perf_counter()
+                position += (now - last) * self.speed * self.fps
+                last = now
+                if position >= self.nsteps:
+                    if not self.loop:
+                        self.step = self.nsteps - 1
+                        self._halt()
+                        return
+                    position %= self.nsteps
+                shown = int(position)
+                if shown != self._step:
+                    self.step = shown
+            finally:
+                self._lock.release()
             time.sleep(min(0.5 / (self.fps * self.speed), 0.05))
 
     def build_gui(self, sidebar: Sidebar) -> None:

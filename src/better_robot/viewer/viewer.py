@@ -107,7 +107,7 @@ class Viewer:
         self.theme.apply(server)
         self.lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes
         self.sidebar = Sidebar(server, self.lock)
-        self.timeline = Timeline(1, fps=fps)
+        self.timeline = Timeline(1, fps=fps, lock=self.lock)
         self._pointer: tuple[str, PointerCallback] | None = None  # (kind, callback) held by on_pointer
         self.timeline.on_step(lambda step: self._push_all(step, force=False))
         self._entries: list[_Entry] = []
@@ -311,12 +311,13 @@ class Viewer:
         """Play the timeline at ``fps`` steps per second, such as the frame rate of the clip on screen.
 
         The current step is kept and playback continues. Layers added with ``times`` are mapped onto the new
-        step length and the timeline is fitted to them; a `PlotPanel` keeps the time axis it was built with.
+        step length and the timeline is fitted to them; a `PlotPanel` keeps the time axis it was built with. A sidebar
+        callback may call it.
         """
         if not fps > 0.0:
             raise ArgumentError(f"fps must be positive, got {fps}")
         playing = self.timeline.playing
-        self.timeline.pause()  # outside the lock: the playback thread takes it to push steps
+        self.timeline.pause()
         with self.lock:
             self.timeline.fps = float(fps)
             self._fit_timeline()
@@ -402,7 +403,7 @@ class Viewer:
         view in radians. ``gpu`` is the ``nvidia-smi`` index of the GPU to render on, ``None`` the CPU; an unreachable
         GPU raises. ``bitrate`` in bits per second defaults to 8 Mbit/s scaled by the pixel count over full HD. The
         frames are what a browser shows of this scene, background included. Playback pauses while recording and the
-        step shown before comes back. Needs a Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see
+        step shown before comes back; a sidebar callback may call it. Needs a Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see
         ``better_robot.viewer.record``.
         """
         from .record import record  # noqa: PLC0415 - the browser path is opt-in

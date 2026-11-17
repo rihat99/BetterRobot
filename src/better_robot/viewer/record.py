@@ -208,7 +208,7 @@ def record(
     bits = 8e6 * width * height / (1920 * 1080) if bitrate is None else float(bitrate)
     fps = float(fps or viewer.timeline.fps)
     shown, playing = viewer.timeline.step, viewer.timeline.playing
-    viewer.timeline.pause()  # outside the lock: the playback thread takes it to push a step
+    viewer.timeline.pause()
     try:
         with viewer.lock, _Page(viewer, size, (position, look_at), fov, gpu) as page:
             data, codec = page.record(steps, codecs=codecs, fps=fps, bitrate=bits)
