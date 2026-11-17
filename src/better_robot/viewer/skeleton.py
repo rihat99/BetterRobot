@@ -47,6 +47,7 @@ RGB = tuple[float, float, float]
 
 _TWIST = float(np.cos(np.radians(35.0)))  # a joint axis within 35 degrees of its limb twists the limb
 _HALF = 0.8  # half length of a drum over its radius
+_SLEEVE = 0.6  # half length of a sleeve along its rail over the joint radius
 _MARKER = 0.6  # radius of the plain marker of an unlisted joint kind over the joint radius
 _TRUNK_PAD = 0.7  # a trunk hull pads its sphere centres by this share of their median radius
 _TRUNK = 0.8  # a trunk keeps this share of the half extents of its geometry: the skeleton is slimmer than the robot
@@ -66,7 +67,7 @@ _KINDS = {
 #: Per joint kind, its blocks: (unit mesh, part, rigid in the parent group or in the child, scale over the radius).
 _GLYPHS = {
     "revolute": (("cylinders", "drum", True, (1.0, 1.0, 2 * _HALF)), ("cylinders", "face", True, (0.8, 0.8, 2.2 * _HALF))),
-    "prismatic": (("boxes", "sleeve", False, (1.6, 1.6, 2 * _HALF)), ("cylinders", "rail", True, (0.5, 0.5, 4.4 * _HALF))),
+    "prismatic": (("boxes", "sleeve", False, (1.6, 1.6, 2 * _SLEEVE)), ("cylinders", "rail", True, (0.5, 0.5, 4.4 * _HALF))),
     "spherical": (("balls", "ball", False, (1.0, 1.0, 1.0)),),
     "free": (("boxes", "base", False, (1.5, 1.5, 1.5)),),
     "other": (("balls", "marker", False, (1.0, 1.0, 1.0)),),
@@ -278,7 +279,7 @@ def build_skeleton(
             raise UnknownNameError("joint or frame", name, valid=(*model.joint_names, *model.frame_names))
     tree = _tree(model, recipe)
     clouds = _clouds(tree, spheres, geometry, mesh_vertices)
-    tree = _leaf_caps(tree, clouds)
+    tree = _leaf_caps(tree, clouds, maximal=recipe.glyphs == "kind")
     rows = _Rows(tree, recipe)
     slides: dict[str, float] = {}
     shrinks: dict[str, float] = {}
@@ -451,9 +452,12 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
     return replace(tree, radius=radius)
 
 
-def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]]) -> _Tree:
+def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool) -> _Tree:
     """``tree`` with each leaf glyph no thicker than the body it moves: at most 1.25 times the median radius of the
-    spheres it carries, or of the middle half extent of its collision points in its own frame."""
+    spheres it carries, or of the middle half extent of its collision points in its own frame.
+
+    The ``maximal`` layout also narrows towards the tips: a glyph is no wider than the glyph before it (a
+    free-flyer's cube does not count)."""
     radius = dict(tree.radius)
     for j in tree.glyphs:
         if tree.children[j] or j not in clouds:
@@ -465,6 +469,10 @@ def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]]) -> _Tree:
             points = np.concatenate([cloud.origin + cloud.points @ cloud.rotation.T for cloud in clouds[j]])
             size = float(np.sort(np.ptp((points - tree.origin[j]) @ tree.rotation[j], axis=0))[1]) / 2
         radius[j] = min(radius[j], _LEAF_CAP * size)
+    for j in tree.glyphs if maximal else ():  # in index order, a parent before its children
+        parent = tree.group[j]
+        if parent and tree.kind[parent] != "free":
+            radius[j] = min(radius[j], radius[parent])
     return replace(tree, radius=radius)
 
 
@@ -527,7 +535,8 @@ def _solve(
 def _half(tree: _Tree, joint: int, reach: float) -> np.ndarray:
     """Half extents of the box around the glyph of ``joint`` drawn with radius ``reach``: a drum or a sleeve along z,
     else a ball."""
-    return reach * (np.array([1.0, 1.0, _HALF]) if joint in tree.axis else np.ones(3))
+    along = _SLEEVE if tree.kind[joint] == "prismatic" else _HALF
+    return reach * (np.array([1.0, 1.0, along]) if joint in tree.axis else np.ones(3))
 
 
 def _fit(
@@ -538,7 +547,9 @@ def _fit(
     Candidates step a quarter of the half length away from ``base``, alternating sides, first the side away from
     the root body (so left and right come out as mirror images). The first one clear of every box by 0.1 radius
     wins, else the first clear of ``hard``; with none the glyph shrinks by 0.85 and tries again, and at 0.5 keeps
-    the least penetration. A ball or a marker has the one candidate and only shrinks.
+    the least penetration. A ball or a marker has the one candidate and only shrinks. A leaf first shrinks at
+    ``base`` until it clears ``hard``, and only when even half its size does not, slides as any other glyph: the end
+    of a chain gets smaller instead of leaving its place.
     """
     radius, origin, axis = tree.radius[joint], tree.origin[joint], tree.axis.get(joint)
     sign = 1.0
@@ -549,6 +560,14 @@ def _fit(
             away = float(in_root[np.abs(in_root).argmax()])
         sign = 1.0 if away >= 0.0 else -1.0
     shrink = 1.0
+    while not tree.children[joint]:  # a leaf ends its chain smaller rather than away from its place
+        center = origin + base * (axis if axis is not None else np.zeros(3))
+        if _gaps(center[None], frame, _half(tree, joint, shrink * radius), hard)[0] >= 0.1 * shrink * radius:
+            return base, shrink
+        if shrink <= 0.5:
+            shrink = 1.0
+            break
+        shrink = max(0.5, 0.85 * shrink)
     while True:
         half, offsets = _half(tree, joint, shrink * radius), [0.0]
         if axis is not None:
@@ -785,7 +804,7 @@ def _end(
 
     A limb runs from the joint through the middle of the points' box to its side, as thick as a bone, and ends in a
     ball as wide as the box's middle half extent, between 0.55 and 1 joint radius (a hand, a paw), whose far side is
-    at the box's side unless that puts its centre inside ``glyphs``. A sole is the points' box, 0.45 joint radii
+    at the box's side unless that makes it touch ``glyphs``. A sole is the points' box, 0.45 joint radii
     thick; it gives way to ``glyphs``, the leaf's drum and the glyph before it: along the limb it starts where a
     glyph that it would swallow stops. A foot becomes a plate under its ankle drums instead of a block around them.
     """
@@ -812,7 +831,7 @@ def _end(
         side = min(float((high if u > 0.0 else low)[k] / u) for k, u in enumerate(unit) if abs(u) > 1e-9)
         direction = rotation @ unit
         clear = max((float((c - origin) @ direction + np.abs(direction @ f) @ e) for c, f, e in glyphs), default=0.0)
-        length = max(side - tip, clear + 0.5 * tip)
+        length = max(side - tip, clear + tip)
         end = origin + length * direction
         frame = _limb_frame(direction, tree.axis.get(group))
         limb = np.array([recipe.bones * radius, recipe.bones * radius, length / 2])
