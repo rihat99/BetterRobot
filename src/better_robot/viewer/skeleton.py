@@ -50,8 +50,7 @@ _HALF = 0.8  # half length of a drum over its radius
 _MARKER = 0.6  # radius of the plain marker of an unlisted joint kind over the joint radius
 _TRUNK_PAD = 0.7  # a trunk hull pads its sphere centres by this share of their median radius
 _TRUNK = 0.8  # a trunk keeps this share of the half extents of its geometry: the skeleton is slimmer than the robot
-_TAPER = 0.72  # a limb's radius at its far end over its radius at its near end (the unit limb)
-_TRUNK_TAPER = 0.78  # a trunk's side away from its child joints over the side at them (the unit trunk)
+_TAPER = 0.8  # a block's side at z = 0.5 over its side at z = -0.5: every body narrows towards +z (the unit box)
 _HEAD_CAP = 0.8  # a second frame of a body is a ball of at most this share of the body hull's smallest half extent
 _END_PAD = 0.4  # an end block pads its points by this share of min(joint radius, median sphere radius)
 _FLAT = 0.3  # a leaf's geometry is a sole when its thinnest extent is under this share of its middle one
@@ -80,7 +79,7 @@ _ROLE: dict[str, _Shade] = {
     "bone": "bone", "fill": "bone", "hull": "bone", "end": "bone",
     "stick": "stick",
 }  # fmt: skip
-_MESHES = ("cylinders", "balls", "boxes", "limbs", "trunks")
+_MESHES = ("cylinders", "balls", "boxes")
 
 
 @final
@@ -118,7 +117,7 @@ class SkeletonRecipe:
     """
 
     glyphs: Literal["kind", "ball", "none"] = "kind"
-    bones: float = 0.5
+    bones: float = 0.6
     hulls: Literal["auto", "all", "none"] = "auto"
     limits: bool = False
     cluster: float = 0.0
@@ -191,8 +190,6 @@ class Skeleton:
     cylinders: Blocks
     balls: Blocks
     boxes: Blocks
-    limbs: Blocks  # tapered round bodies from a near end (z = -0.5) to a far one
-    trunks: Blocks  # tapered blocks, wide at z = -0.5
     points_body: np.ndarray  # (P,) the joint each anchor point is rigid in
     points_local: np.ndarray  # (P, 3)
     weights: np.ndarray  # (K, P): anchor k is the weighted mean of the points
@@ -205,9 +202,8 @@ class Skeleton:
     def place(self, joint_poses: np.ndarray) -> dict[str, tuple[np.ndarray, np.ndarray]]:
         """World poses and scales of every block at ``joint_poses (..., njoints, 7)``.
 
-        Returns ``{"cylinders" | "balls" | "boxes" | "limbs" | "trunks": (poses (..., N, 7), scales)}``; ``scales``
-        is ``(N, 3)``, or ``(..., N, 3)`` for the cylinders of a skeleton with moving sticks, whose lengths follow the
-        pose.
+        Returns ``{"cylinders" | "balls" | "boxes": (poses (..., N, 7), scales)}``; ``scales`` is ``(N, 3)``, or
+        ``(..., N, 3)`` for the cylinders of a skeleton with moving sticks, whose lengths follow the pose.
         """
         poses = torch.from_numpy(np.ascontiguousarray(joint_poses))
         anchors = None
@@ -324,6 +320,16 @@ def _from_z(direction: np.ndarray) -> np.ndarray:
     turn = np.stack([-unit[..., 1], unit[..., 0], np.zeros_like(unit[..., 0]), 1.0 + unit[..., 2]], axis=-1)
     length = np.linalg.norm(turn, axis=-1, keepdims=True)
     return np.where(length > 1e-9, turn / np.where(length > 1e-9, length, 1.0), [1.0, 0.0, 0.0, 0.0])
+
+
+def _limb_frame(direction: np.ndarray, across: np.ndarray | None) -> np.ndarray:
+    """The rotation ``(3, 3)`` of a limb along the unit ``direction``: its z is ``direction`` and its x the part of
+    ``across`` square to it (a drum's axis, so that the limb's sides face the way the drum's faces do)."""
+    side = np.zeros(3) if across is None else across - (across @ direction) * direction
+    if np.linalg.norm(side) < 1e-6:
+        return _matrix(_from_z(direction))
+    side = side / np.linalg.norm(side)
+    return np.stack([side, np.cross(direction, side), direction], axis=1)
 
 
 def _mix(color: RGB, other: RGB, share: float) -> RGB:
@@ -584,7 +590,7 @@ class _Hull:
     center: np.ndarray
     rotation: np.ndarray
     half: np.ndarray
-    mesh: str = "boxes"  # "boxes", "trunks", "limbs" or "balls"
+    mesh: str = "boxes"  # "boxes" or "balls"
 
 
 def _clouds(
@@ -749,7 +755,7 @@ def _tapered(tree: _Tree, hull: _Hull) -> _Hull:
         first, second = second, first
     columns = [first, second, axis]
     rotation = hull.rotation[:, columns] * np.array([1.0, 1.0, -np.sign(toward[axis])])
-    return replace(hull, rotation=rotation, half=hull.half[columns], mesh="trunks")
+    return replace(hull, rotation=rotation, half=hull.half[columns])
 
 
 def _end(
@@ -799,10 +805,10 @@ def _end(
         clear = max((float((c - origin) @ direction + np.abs(direction @ f) @ e) for c, f, e in glyphs), default=0.0)
         length = max(side - tip, clear + 0.5 * tip)
         end = origin + length * direction
-        frame = _matrix(_from_z(direction))
+        frame = _limb_frame(direction, tree.axis.get(group))
         limb = np.array([recipe.bones * radius, recipe.bones * radius, length / 2])
         return [
-            _Hull(name, "end", group, group, (origin + end) / 2, frame, limb, "limbs"),
+            _Hull(name, "end", group, group, (origin + end) / 2, frame, limb),
             _Hull(name, "end", group, group, end, frame, np.full(3, tip), "balls"),
         ]
     if thin < _FLAT * mid:  # a sole: a plate on the far side of the points, its underside where theirs is
@@ -810,6 +816,15 @@ def _end(
         side = high[axis] if abs(high[axis]) >= abs(low[axis]) else low[axis]
         half[axis] = _PLATE * radius / 2
         middle[axis] = side - np.sign(side) * half[axis]
+        long = int(half.argmax())  # it narrows along its length towards its joint: a heel, then a wider toe
+        first, second = (long + 1) % 3, (long + 2) % 3
+        toward = -middle[long]  # from the plate's middle to the joint
+        if toward < 0.0:  # +z runs to the joint; the columns stay right-handed
+            first, second = second, first
+        columns = [first, second, long]
+        rotation = rotation[:, columns] * np.array([1.0, 1.0, np.sign(toward) or 1.0])
+        half = half[columns]
+        return [_Hull(name, "end", group, group, origin + tree.rotation[group] @ middle, rotation, half)]
     return [_Hull(name, "end", group, group, origin + rotation @ middle, rotation, half)]
 
 
@@ -848,17 +863,27 @@ class _Rows:
             (body, center, rotation, np.asarray(scale, dtype=np.float64), anchors, owner, part, side, color)
         )
 
-    def bone(self, body: int, start: np.ndarray, end: np.ndarray, radius: float, owner: int) -> None:
-        """A limb from ``start`` (its thick end) to ``end`` (world, at neutral), rigid in joint ``body``; nothing
-        when they coincide."""
+    def bone(
+        self, body: int, start: np.ndarray, end: np.ndarray, radius: float, owner: int, *, across: np.ndarray | None
+    ) -> None:
+        """A limb, a block ``2 radius`` wide from ``start`` (its wide end) to ``end`` (world, at neutral) with its
+        sides along ``across``, rigid in joint ``body``; nothing when they coincide."""
         length = float(np.linalg.norm(end - start))
         if length > 1e-6 and radius > 0.0:
-            rotation = _matrix(_from_z(end - start))
-            self.add("limbs", "bone", body, (start + end) / 2, (radius, radius, length), rotation=rotation, owner=owner)
+            rotation = _limb_frame((end - start) / length, across)
+            self.add(
+                "boxes",
+                "bone",
+                body,
+                (start + end) / 2,
+                (2 * radius, 2 * radius, length),
+                rotation=rotation,
+                owner=owner,
+            )
 
     def hull(self, hull: _Hull) -> None:
         """The block of ``hull``; an end block belongs to its leaf joint, and the ball at its tip is a tip."""
-        scale = {"balls": hull.half, "limbs": hull.half * (1.0, 1.0, 2.0)}.get(hull.mesh, 2 * hull.half)
+        scale = hull.half if hull.mesh == "balls" else 2 * hull.half
         owner = hull.group if hull.part == "end" else -1
         part = "tip" if hull.part == "end" and hull.mesh == "balls" else hull.part
         self.add(hull.mesh, part, hull.body, hull.center, scale, rotation=hull.rotation, owner=owner, name=hull.name)
@@ -976,14 +1001,15 @@ def _maximal(
                 body, start = trunk[group].body, trunk[group].center
             else:
                 body, start = tree.body(group, j), center[group] if group else origin[tree.root[j]]
-            rows.bone(body, start, center[j], thickness(group, j), j)
+            rows.bone(body, start, center[j], thickness(group, j), j, across=tree.axis.get(j, tree.axis.get(group)))
     for hull in hulls:
         rows.hull(hull)
         if recipe.bones > 0.0 and hull.part == "hull":  # the spine from the group's glyph, the neck from the trunk
             main = trunk.get(hull.group)
             start = main.center if hull.mesh == "balls" and main is not None else origin[hull.body]
             start = center[hull.group] if hull.group and hull.mesh != "balls" else start
-            rows.bone(hull.body, start, hull.center, thickness(hull.group), hull.group or hull.body)
+            across = tree.axis.get(hull.group)
+            rows.bone(hull.body, start, hull.center, thickness(hull.group), hull.group or hull.body, across=across)
 
 
 def _limit_arc(tree: _Tree, rows: _Rows, joint: int, center: np.ndarray, radius: float) -> None:
@@ -1183,11 +1209,13 @@ def unit_ball(rings: int = 16, sides: int = 32) -> tuple[np.ndarray, np.ndarray]
     return vertices.astype(np.float32), np.concatenate(faces).astype(np.uint32)
 
 
-def unit_box(chamfer: float = 0.12) -> tuple[np.ndarray, np.ndarray]:
-    """Cube of side 1 with chamfered edges and corners, to draw flat-shaded: ``(vertices (24, 3), faces (44, 3))``.
+def unit_box(chamfer: float = 0.12, taper: float = _TAPER) -> tuple[np.ndarray, np.ndarray]:
+    """Cube of side 1 with chamfered edges and corners, narrowed towards ``+z``, to draw flat-shaded: ``(vertices
+    (24, 3), faces (44, 3))``.
 
     Each corner is inset by ``chamfer`` along two of its three axes, which gives three vertices per corner; their
-    convex hull has six square faces, twelve edge strips and eight corner triangles.
+    convex hull has six square faces, twelve edge strips and eight corner triangles. Then x and y are scaled from 1 at
+    ``z = -0.5`` to ``taper`` at ``z = 0.5``: a linear scale in z maps planes to planes, so the faces stay flat.
     """
     corners = np.array([[x, y, z] for x in (-0.5, 0.5) for y in (-0.5, 0.5) for z in (-0.5, 0.5)])
     kept = np.eye(3, dtype=bool)[None]  # per vertex, the axis that stays on the cube's face
@@ -1203,21 +1231,5 @@ def unit_box(chamfer: float = 0.12) -> tuple[np.ndarray, np.ndarray]:
         spread = vertices[ring] - vertices[ring].mean(axis=0)
         ring = ring[np.argsort(np.arctan2(spread @ np.cross(direction, across), spread @ across))]
         faces += [(ring[0], ring[k], ring[k + 1]) for k in range(1, len(ring) - 1)]
+    vertices[:, :2] *= 1.0 + (taper - 1.0) * (vertices[:, 2:] + 0.5)
     return vertices.astype(np.float32), np.array(faces, dtype=np.uint32)
-
-
-def unit_limb(sides: int = 40) -> tuple[np.ndarray, np.ndarray]:
-    """Closed frustum along z from radius 1 at ``-0.5`` to radius ``0.72`` at ``0.5``: ``(vertices (V, 3), faces (F,
-    3))``; its caps have their own rings, as in ``unit_cylinder``."""
-    vertices, faces = unit_cylinder(sides)
-    vertices[:, :2] *= (1.0 + (_TAPER - 1.0) * (vertices[:, 2:] + 0.5)).astype(np.float32)
-    return vertices, faces
-
-
-def unit_trunk(chamfer: float = 0.12) -> tuple[np.ndarray, np.ndarray]:
-    """``unit_box`` narrowed towards ``+z``: side 1 at ``z = -0.5``, ``0.78`` at ``z = 0.5``, to draw flat-shaded.
-
-    Scaling x and y by a linear function of z maps planes to planes, so the box's faces stay flat."""
-    vertices, faces = unit_box(chamfer)
-    vertices[:, :2] *= (1.0 + (_TRUNK_TAPER - 1.0) * (vertices[:, 2:] + 0.5)).astype(np.float32)
-    return vertices, faces

@@ -38,9 +38,7 @@ from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
 from .sidebar import Sidebar
-from .skeleton import (
-    MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder, unit_limb, unit_trunk,
-)  # fmt: skip
+from .skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder
 from .theme import LIGHT, RGB, Theme, linear_uint8
 
 if TYPE_CHECKING:
@@ -84,10 +82,7 @@ class _Blocks(Layer):
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        meshes = {
-            "cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(), "limbs": unit_limb(),
-            "trunks": unit_trunk(),
-        }  # fmt: skip
+        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box()}
         colors = self.skeleton.colors(self.hue, self.theme.shade)
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
@@ -96,7 +91,7 @@ class _Blocks(Layer):
                     scene.add_batched_meshes_simple(
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
-                        batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh in ("boxes", "trunks"),
+                        batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
                         receive_shadow=False,  # a block's own shadow map streaks its faces; the ground keeps them
                     )
                 )  # fmt: skip
@@ -433,9 +428,7 @@ class RobotVisual(Layer):
         joints = self._poses[step, min(1, self.model.njoints - 1) :, :3]  # not the universe, unless it is all there is
         lows, highs = [joints], [joints]
         for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
-            half = scale * {"cylinders": (1.0, 1.0, 0.5), "limbs": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(
-                mesh, (0.5, 0.5, 0.5)
-            )
+            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
             rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
             axes = np.abs(so3.act(rotations, eye).numpy())  # (N, 3, 3): each block's axes
             reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box
