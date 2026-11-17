@@ -54,7 +54,7 @@ _END_PAD = 0.4  # an end block pads its points by this share of min(joint radius
 _END_FLOOR = 0.35  # smallest half extent of an end block over the joint radius
 _PLATE = 0.5  # an end block cut back by a glyph stays at least this many joint radii thick
 _LEAF_CAP = 1.25  # a leaf glyph is at most this many median radii of the spheres it carries
-_TIP = 0.6  # radius of the ball that ends a leaf's stick over the leaf's ball, at most
+_TIP = 0.6  # radius of the ball that ends a leaf's stick over the leaf's ball (``_tip`` says when it is less)
 _FIXED_CAP = 0.4  # a glyph that cannot slide is at most this share of its shortest bone
 _ARC = 24  # segments of a limit arc
 _KINDS = {
@@ -1016,8 +1016,8 @@ def _minimal(
 
     A ball sits at the mean of its member origins at every step; the cluster of a free-flyer root is rigid in the
     root body and drawn as a cube. A ball is at most 0.4 of its shortest stick, and a stick never thicker than the
-    balls it joins. A leaf joint without an end block gets a stick on to the end of its body (``_tip``) and a ball
-    of 0.6 of its own there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length.
+    balls it joins. A leaf joint without an end block gets a stick on to the end of its body (``_tip``) and a small
+    ball there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length.
     """
     members, cluster, skipped = _clusters(tree, recipe)
     radius, anchor, base = {}, {}, {}
