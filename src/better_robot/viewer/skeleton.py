@@ -66,7 +66,7 @@ _KINDS = {
 #: Per joint kind, its blocks: (unit mesh, part, rigid in the parent group or in the child, scale over the radius).
 _GLYPHS = {
     "revolute": (("cylinders", "drum", True, (1.0, 1.0, 2 * _HALF)), ("cylinders", "face", True, (0.8, 0.8, 2.2 * _HALF))),
-    "prismatic": (("boxes", "sleeve", True, (1.6, 1.6, 2 * _HALF)), ("cylinders", "rail", False, (0.5, 0.5, 4.4 * _HALF))),
+    "prismatic": (("boxes", "sleeve", False, (1.6, 1.6, 2 * _HALF)), ("cylinders", "rail", True, (0.5, 0.5, 4.4 * _HALF))),
     "spherical": (("balls", "ball", False, (1.0, 1.0, 1.0)),),
     "free": (("boxes", "base", False, (1.5, 1.5, 1.5)),),
     "other": (("balls", "marker", False, (1.0, 1.0, 1.0)),),
@@ -287,7 +287,7 @@ def build_skeleton(
         hidden = {j for j in tree.glyphs if tree.radius[j] <= 0.0}
         if not recipe.twists:
             hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
-        slide, shrink = _solve(tree, hidden)
+        slide, shrink = _solve(tree, hidden, clouds)
         slides = {model.joint_names[j]: s for j, s in slide.items() if abs(s) > 1e-9}
         shrinks = {model.joint_names[j]: k for j, k in shrink.items() if k < 1.0}
         reach = {j: 0.0 if j in hidden else shrink[j] * tree.radius[j] for j in tree.glyphs}
@@ -481,10 +481,13 @@ def _twists(tree: _Tree, joint: int, after: Sequence[int]) -> bool:
 # ------------------------------------------------------------------------------------------------ slide, then shrink
 
 
-def _solve(tree: _Tree, hidden: set[int]) -> tuple[dict[int, float], dict[int, float]]:
+def _solve(
+    tree: _Tree, hidden: set[int], clouds: Mapping[int, list[_Cloud]]
+) -> tuple[dict[int, float], dict[int, float]]:
     """Slide ``s`` along its own axis and shrink ``k`` of every glyph, so that neighbours do not overlap.
 
-    One deterministic pass. Joints with a child joint are placed in reverse index order, then the leaf joints, so a
+    A sleeve of a prismatic leaf starts over the middle of the leaf's geometry along its axis: a finger rides on
+    its own carriage. One deterministic pass. Joints with a child joint are placed in reverse index order, then the leaf joints, so a
     distal glyph keeps its place and a proximal one gives way; a leaf gives way last because its drum sits against
     its own end block. A glyph is tested against the placed glyphs of its rigid groups (parent, siblings, children:
     clearance that holds for every configuration) and, where it can, against those two hops away (at neutral only).
@@ -500,6 +503,9 @@ def _solve(tree: _Tree, hidden: set[int]) -> tuple[dict[int, float], dict[int, f
         along = float(tree.axis[j] @ limb) / length if tree.kind[j] == "revolute" and length > tree.radius[j] else 0.0
         if abs(along) > _TWIST:
             slide[j] = -np.sign(along) * _HALF * tree.radius[j]
+        if tree.kind[j] == "prismatic" and not tree.children[j] and clouds.get(j):
+            reach = np.concatenate([(c.origin + c.points @ c.rotation.T - origin[j]) @ tree.axis[j] for c in clouds[j]])
+            slide[j] = float(reach.min() + reach.max()) / 2
 
     def box(j: int) -> _OrientedBox:
         center = origin[j] + slide[j] * tree.axis[j] if j in tree.axis else origin[j]
@@ -740,7 +746,8 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
 
 def _tapered(tree: _Tree, hull: _Hull) -> _Hull:
     """A box hull as a trunk when its group hangs from a joint and has child joints and the box is longest along
-    the line between them: wide at the child joints and narrow at the joint it hangs from; else the box itself."""
+    the line between them: wide at the child joints and narrow at the joint it hangs from. A box of such a group
+    that is longest across that line (a palm) narrows across its thinnest side; any other box stays as it is."""
     group = hull.group
     if not group or tree.kind[group] == "free" or not tree.children[group]:
         return hull
@@ -748,8 +755,10 @@ def _tapered(tree: _Tree, hull: _Hull) -> _Hull:
     if np.linalg.norm(toward) < 1e-6 * tree.scale:
         return hull
     axis = int(np.abs(toward).argmax())
-    if hull.half[axis] < hull.half.max():  # a trunk tapers along its length only
-        return hull
+    if hull.half[axis] < hull.half.max():  # not a trunk: a block narrowing across its thinnest side
+        thin = int(hull.half.argmin())
+        columns = [(thin + 1) % 3, (thin + 2) % 3, thin]
+        return replace(hull, rotation=hull.rotation[:, columns], half=hull.half[columns])
     first, second = (axis + 1) % 3, (axis + 2) % 3
     if toward[axis] > 0.0:  # +z must run from the wide side at the children to the narrow side
         first, second = second, first
@@ -989,7 +998,11 @@ def _maximal(
     for j in tree.glyphs:
         for mesh, part, in_parent, scale in _GLYPHS[tree.kind[j]] if reach[j] > 0.0 else ():
             body = tree.body(tree.group[j], j) if in_parent else j
-            rows.add(mesh, part, body, center[j], reach[j] * np.array(scale), rotation=frame[j], owner=j)
+            place, size = center[j], reach[j] * np.array(scale)
+            travel = _travel(tree, j) if part == "rail" else None
+            if travel is not None:  # the rail spans where the sleeve can be, so it never leaves its parent
+                place, size[2] = center[j] + sum(travel) / 2 * tree.axis[j], travel[1] - travel[0]
+            rows.add(mesh, part, body, place, size, rotation=frame[j], owner=j)
         if reach[j] > 0.0 and recipe.limits and isinstance(tree.model.joints[j], JointRevolute):
             _limit_arc(tree, rows, j, center[j], reach[j])
         if reach[j] <= 0.0 and tree.kind[j] != "free":  # a joint without its glyph: a ball rounds the bend of its bones
@@ -1010,6 +1023,18 @@ def _maximal(
             start = center[hull.group] if hull.group and hull.mesh != "balls" else start
             across = tree.axis.get(hull.group)
             rows.bone(hull.body, start, hull.center, thickness(hull.group), hull.group or hull.body, across=across)
+
+
+def _travel(tree: _Tree, joint: int) -> tuple[float, float] | None:
+    """How far a prismatic ``joint`` moves from its neutral place, ``(lowest, highest)`` along its axis; ``None``
+    without two finite limits. A mimic joint moves as its source does, times its multiplier."""
+    model, source = tree.model, tree.model.mimic_source_ids[joint]
+    index = model.idx_qs[source]
+    lower, upper = float(model.lower_position_limit[index]), float(model.upper_position_limit[index])
+    if not np.isfinite(lower) or not np.isfinite(upper) or upper <= lower:
+        return None
+    ends = model.mimic_multipliers[joint] * (np.array([lower, upper]) - float(model.q_neutral[index]))
+    return float(ends.min()), float(ends.max())
 
 
 def _limit_arc(tree: _Tree, rows: _Rows, joint: int, center: np.ndarray, radius: float) -> None:
