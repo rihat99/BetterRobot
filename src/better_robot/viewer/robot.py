@@ -190,7 +190,8 @@ class RobotVisual(Layer):
     # ------------------------------------------------------------------ the configurations
 
     def _solve(self, q: torch.Tensor | np.ndarray | None) -> tuple[torch.Tensor, np.ndarray]:
-        """``q`` as ``(T, nq)`` and the joint poses ``(T, njoints, 7)`` of one forward-kinematics pass."""
+        """``q`` as a detached copy ``(T, nq)`` and the joint poses ``(T, njoints, 7)`` of one forward-kinematics
+        pass."""
         model = self.model
         q = (
             model.q_neutral
@@ -199,7 +200,7 @@ class RobotVisual(Layer):
         )
         if q.ndim not in (1, 2) or q.shape[-1] != model.nq:
             raise ShapeError(f"q must be (nq,) or (T, nq) with nq = {model.nq}, got {tuple(q.shape)}")
-        q = q[None] if q.ndim == 1 else q
+        q = (q[None] if q.ndim == 1 else q).detach().clone()  # neither the caller's tensor nor its graph
         with torch.no_grad():
             poses = forward_kinematics(model, q).joint_poses
         return q, np.ascontiguousarray(poses.cpu().numpy(), dtype=np.float32)
@@ -366,11 +367,12 @@ class RobotVisual(Layer):
     def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
         """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
         chosen = frames if isinstance(frames, bool) else tuple(self.model.frame_id(frame) for frame in frames)
-        if chosen and chosen != self._triads:  # another set of frames is another node
-            self._drop("frames")
-            self._triads = chosen
-        self._frames = chosen
-        self._apply()
+        with self._lock():  # the playback thread must not push a step to the node being dropped
+            if chosen and chosen != self._triads:  # another set of frames is another node
+                self._drop("frames")
+                self._triads = chosen
+            self._frames = chosen
+            self._apply()
         self._show("Frames", bool(chosen))
 
     def _show(self, label: str, value: Any) -> None:

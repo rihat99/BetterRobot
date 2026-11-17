@@ -268,6 +268,17 @@ def test_robot_visual_update_equals_building_with_that_configuration() -> None:
         updated.update(torch.stack([q, q]))
 
 
+def test_robot_visual_keeps_a_detached_copy_of_q() -> None:
+    model = br.load(panda_urdf())
+    q = model.q_neutral.clone().requires_grad_()
+    robot = RobotVisual(model, q)
+    with torch.no_grad():
+        q += 0.1  # the caller goes on with its tensor
+    assert not robot.q.requires_grad and torch.equal(robot.q[0], model.q_neutral)
+    robot.update(q)
+    assert not robot.q.requires_grad and robot.q.data_ptr() != q.data_ptr()
+
+
 def test_robot_visuals_take_one_hue_each_also_after_a_replace_and_share_the_sidebar_controls() -> None:
     model = br.load(panda_urdf())
     server = FakeServer()
