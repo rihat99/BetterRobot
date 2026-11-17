@@ -17,7 +17,8 @@ model again. The skeleton's layout is ``src/better_robot/viewer/skeleton.py``.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import warnings
+from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import KW_ONLY, dataclass
 from pathlib import Path
@@ -83,7 +84,7 @@ class _Blocks(Layer):
     @override
     def build(self, scene: Any, root: str) -> None:
         meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(taper=self.skeleton.taper)}
-        colors = self.skeleton.colors(self.hue, self.theme.shade)
+        colors = self.skeleton.colors(self.hue, self.theme)
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
                 vertices, faces = meshes[mesh]
@@ -114,7 +115,7 @@ class _Blocks(Layer):
     def recolor(self, hue: RGB, theme: Theme) -> None:
         """Draw the blocks in ``theme``'s shades of ``hue``."""
         self.hue, self.theme = hue, theme
-        colors = self.skeleton.colors(hue, theme.shade)
+        colors = self.skeleton.colors(hue, theme)
         for mesh, node in self._nodes.items():
             node.batched_colors = linear_uint8(colors[mesh])
         if self._lines is not None:
@@ -134,8 +135,8 @@ class RobotVisual(Layer):
     while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer: a
     switch from code moves the control and leaves the other robots as they are.
 
-    ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the theme's next
-    hue, one per robot. ``name`` defaults to the model's name.
+    ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
+    theme's hues that no other robot of the viewer is drawn in (``hue``). ``name`` defaults to the model's name.
     """
 
     def __init__(
@@ -162,6 +163,7 @@ class RobotVisual(Layer):
         self._root_folder = None if root is None else Path(root)
         self._recipes = {"minimal": minimal, "maximal": maximal}
         self._skeletons: dict[str, Skeleton] = {}
+        self._meshes: dict[str, Any] = {}  # mesh file name -> its trimesh, read once: a theme or style switch reuses it
         visual = geometry is not None and any(not attached.collision for attached in geometry.shapes)
         self.styles: tuple[Style, ...] = _STYLES if visual or skin is not None else _STYLES[1:]
         self.style: Style = style or ("meshes" if "meshes" in self.styles else "maximal")
@@ -189,7 +191,8 @@ class RobotVisual(Layer):
     # ------------------------------------------------------------------ the configurations
 
     def _solve(self, q: torch.Tensor | np.ndarray | None) -> tuple[torch.Tensor, np.ndarray]:
-        """``q`` as ``(T, nq)`` and the joint poses ``(T, njoints, 7)`` of one forward-kinematics pass."""
+        """``q`` as a detached copy ``(T, nq)`` and the joint poses ``(T, njoints, 7)`` of one forward-kinematics
+        pass."""
         model = self.model
         q = (
             model.q_neutral
@@ -198,7 +201,7 @@ class RobotVisual(Layer):
         )
         if q.ndim not in (1, 2) or q.shape[-1] != model.nq:
             raise ShapeError(f"q must be (nq,) or (T, nq) with nq = {model.nq}, got {tuple(q.shape)}")
-        q = q[None] if q.ndim == 1 else q
+        q = (q[None] if q.ndim == 1 else q).detach().clone()  # neither the caller's tensor nor its graph
         with torch.no_grad():
             poses = forward_kinematics(model, q).joint_poses
         return q, np.ascontiguousarray(poses.cpu().numpy(), dtype=np.float32)
@@ -236,36 +239,56 @@ class RobotVisual(Layer):
                 self._recipes[part],
                 spheres=self.spheres,
                 geometry=self.geometry,
-                mesh_vertices=self._collision_vertices,
+                mesh_vertices=self._vertices,
             )
         return self._skeletons[part]
 
-    def _collision_vertices(self, mesh: Mesh) -> np.ndarray | None:
-        """The vertices ``(V, 3)`` of a collision mesh file, which size the skeleton's bodies; ``None`` when the
-        file is not found or holds no mesh, and the body is sized from its inertia."""
-        with needs_extra("meshes"):
-            import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
-
+    def _vertices(self, body: int, mesh: Mesh) -> np.ndarray | None:
+        """The vertices ``(V, 3)`` of the collision mesh file of ``mesh`` on ``body``, which a skeleton sizes the body
+        by. A file that ``_mesh`` cannot read gives ``None`` and a warning, and the skeleton sizes the body without
+        it: a skeleton does not need the file, while the collision overlay, which draws it, raises."""
         try:
-            path = _mesh_file(-1, mesh.uri, self._root_folder)
-        except ModelError:
+            return np.asarray(self._mesh(body, mesh).vertices)
+        except ModelError as error:
+            warnings.warn(  # Python's default filter shows it once, however many skeletons and steps read the file
+                f"{error}; the skeleton sizes body {body} without it, from its other shapes, spheres or inertia",
+                stacklevel=2,
+            )
             return None
-        loaded = trimesh.load(path, force="mesh")
-        return np.asarray(loaded.vertices) if isinstance(loaded, trimesh.Trimesh) else None
 
-    def _color(self) -> RGB:
+    def _mesh(self, body: int, mesh: Mesh) -> Any:
+        """The ``trimesh.Trimesh`` of the mesh file of ``mesh`` on ``body``, before its scale; read once per visual.
+        ``ModelError`` names the body and the file when it is not found, does not load or has no faces."""
+        if mesh.uri not in self._meshes:
+            with needs_extra("meshes"):
+                import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+
+            path = _mesh_file(body, mesh.uri, self._root_folder)
+            try:
+                loaded = trimesh.load(path, force="mesh")
+            except Exception as exc:  # noqa: BLE001 - trimesh raises many loader-specific errors
+                raise ModelError(f"body {body}: mesh {mesh.uri!r} does not load: {exc}") from exc
+            if not isinstance(loaded, trimesh.Trimesh) or loaded.faces.shape[0] == 0:
+                raise ModelError(f"body {body}: mesh {mesh.uri!r} has no faces")
+            self._meshes[mesh.uri] = loaded
+        return self._meshes[mesh.uri]
+
+    @property
+    def hue(self) -> RGB:
+        """The colour the robot is drawn in: the ``hue`` it was given, else its theme's hue for it, the first one no
+        other robot of its viewer is drawn in when it was added."""
         return self._hue if self._hue is not None else self._theme.hue(self._index or 0)
 
     def _make(self, part: str) -> list[Layer]:
         """The layers of ``part``, not yet built."""
         if part in ("minimal", "maximal"):
-            return [_Blocks(part, self._skeleton(part), self._poses, self._color(), self._theme)]
+            return [_Blocks(part, self._skeleton(part), self._poses, self.hue, self._theme)]
         if part == "meshes" and self.skin is not None:
             bind = self._solve(self.skin.bind)[1][0]
             return [
                 SkinnedMeshLayer(
                     part, self.skin.vertices, faces=self.skin.faces, weights=self.skin.weights, bind_poses=bind,
-                    bone_poses=self._poses, color=self._theme.shade(self._color(), "body"),
+                    bone_poses=self._poses, color=self._theme.shade(self.hue, "body"),
                 )
             ]  # fmt: skip
         if part == "frames":
@@ -281,9 +304,9 @@ class RobotVisual(Layer):
             return [self._derive(part, layer)]
         shapes = self.geometry.shapes if self.geometry is not None else ()
         collision = part == "collision"
-        color = self._theme.collision if collision else self._theme.shade(self._color(), "body")
+        color = self._theme.collision if collision else self._theme.shade(self.hue, "body")
         specs = [
-            _shape_spec(attached.body, attached.shape, self._root_folder, color, own_colors=not collision)
+            _shape_spec(attached.body, attached.shape, self._mesh, color, own_colors=not collision)
             for attached in shapes
             if attached.collision == collision
         ]
@@ -358,11 +381,12 @@ class RobotVisual(Layer):
     def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
         """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
         chosen = frames if isinstance(frames, bool) else tuple(self.model.frame_id(frame) for frame in frames)
-        if chosen and chosen != self._triads:  # another set of frames is another node
-            self._drop("frames")
-            self._triads = chosen
-        self._frames = chosen
-        self._apply()
+        with self._lock():  # the playback thread must not push a step to the node being dropped
+            if chosen and chosen != self._triads:  # another set of frames is another node
+                self._drop("frames")
+                self._triads = chosen
+            self._frames = chosen
+            self._apply()
         self._show("Frames", bool(chosen))
 
     def _show(self, label: str, value: Any) -> None:
@@ -402,16 +426,18 @@ class RobotVisual(Layer):
 
     @override
     def apply_theme(self, theme: Theme) -> None:
-        if self._index is None:  # the robot's place among the robots of its viewer picks its hue
+        if self._index is None:  # the first hue no other robot has: a robot that replaces one takes its hue back
             others = self.viewer.layers if self.viewer is not None else ()
-            self._index = sum(isinstance(layer, RobotVisual) and layer is not self for layer in others)
-        body, overlay = self._theme.shade(self._color(), "body"), (self._theme.collision, self._theme.collision_opacity)
+            taken = {layer.hue for layer in others if isinstance(layer, RobotVisual) and layer is not self}
+            free = [k for k in range(len(theme.hues)) if theme.hue(k) not in taken]
+            self._index = free[0] if free else len(taken)
+        body, overlay = self._theme.shade(self.hue, "body"), (self._theme.collision, self._theme.collision_opacity)
         self._theme = theme
         for part in ("minimal", "maximal"):
             if part in self._parts:
-                self._parts[part][1][0].recolor(self._color(), theme)  # type: ignore[attr-defined]
+                self._parts[part][1][0].recolor(self.hue, theme)  # type: ignore[attr-defined]
         stale = {
-            "meshes": body != theme.shade(self._color(), "body"),
+            "meshes": body != theme.shade(self.hue, "body"),
             "collision": overlay != (theme.collision, theme.collision_opacity),
         }
         for part, old in stale.items():
@@ -519,20 +545,15 @@ def _sizes(shape: Any) -> list[float]:
     return [0.0, 0.0, 0.0, shape.length / 2.0, 0.0, shape.radius]  # a capsule: a ball swept along a segment
 
 
-def _shape_spec(body: int, shape: Any, root: Path | None, color: RGB, *, own_colors: bool) -> MeshSpec:
-    """One shape as a ``MeshSpec``: a mesh file loaded with trimesh, a primitive tessellated by it."""
+def _shape_spec(body: int, shape: Any, load: Callable[[int, Mesh], Any], color: RGB, *, own_colors: bool) -> MeshSpec:
+    """One shape as a ``MeshSpec``: a mesh file's trimesh from ``load`` (``RobotVisual._mesh``), a primitive
+    tessellated by trimesh."""
     with needs_extra("meshes"):
         import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
     source = None
     if isinstance(shape, Mesh):
-        path = _mesh_file(body, shape.uri, root)
-        try:
-            mesh = trimesh.load(path, force="mesh")
-        except Exception as exc:  # noqa: BLE001 - trimesh raises many loader-specific errors
-            raise ModelError(f"body {body}: mesh {shape.uri!r} does not load: {exc}") from exc
-        if not isinstance(mesh, trimesh.Trimesh) or mesh.faces.shape[0] == 0:
-            raise ModelError(f"body {body}: mesh {shape.uri!r} has no faces")
+        mesh = load(body, shape).copy()  # the loaded one stays unscaled for the next shape that names its file
         mesh.apply_scale(shape.scale)
         visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look
         kind = None if visual is None else visual.kind

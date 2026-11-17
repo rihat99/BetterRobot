@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from functools import partial
+from pathlib import Path
 from typing import ClassVar, final
 
 import numpy as np
@@ -10,15 +12,17 @@ import pytest
 import torch
 
 import better_robot as br
+from better_robot.lie import so3
 from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
-from better_robot.viewer.theme import Theme, linear_uint8
+from better_robot.viewer.skeleton import MAXIMAL, build_skeleton
+from better_robot.viewer.theme import DARK, Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
 from better_robot import collision
-from better_robot.exceptions import ArgumentError, ShapeError, UnknownNameError
+from better_robot.exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from better_robot.testing import FakeServer
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -140,23 +144,83 @@ def _drawn(server: FakeServer) -> dict[str, object]:
     return {name: node for name, node in nodes if name.startswith("/g1_29dof/") and node.kind != "FrameHandle"}
 
 
-def _positions(node: object) -> np.ndarray:
+def _positions(node: object, key: str = "batched_positions") -> np.ndarray:
     """What a batched node shows: its last write, or what it was created with."""
-    return vars(node).get("batched_positions", node.props["batched_positions"])  # type: ignore[attr-defined]
+    return vars(node).get(key, node.props[key])  # type: ignore[attr-defined]
 
 
-def test_robot_visual_maximal_with_every_overlay_stays_within_six_nodes_and_two_writes_each() -> None:
-    robot, server, viewer = _g1_visual(collision=True, frames=True)
+def _matrices(wxyz: np.ndarray) -> np.ndarray:
+    """Rotation matrices ``(N, 3, 3)`` of viser's scalar-first quaternions ``(N, 4)``."""
+    return so3.to_matrix(torch.from_numpy(np.asarray(wxyz, dtype=np.float64)[:, [1, 2, 3, 0]])).numpy()
+
+
+def test_robot_visual_maximal_with_every_overlay_is_six_nodes_that_a_step_writes_once() -> None:
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    robot, server, viewer = _g1_visual(
+        model.q_neutral.repeat(2, 1), collision=True, frames=True, maximal=replace(MAXIMAL, limits=True)
+    )
     assert robot.style == "maximal" and robot.styles == ("minimal", "maximal")  # no geometry: no meshes
-    drawn = _drawn(server)
-    assert sorted(name.rsplit("/", 2)[-2] + "/" + name.rsplit("/", 1)[-1] for name in drawn) == [
-        "collision/spheres", "frames/axes", "maximal/balls", "maximal/boxes", "maximal/cylinders",
-    ]  # fmt: skip
-    assert len(drawn) <= 6
+    path, moved = "/g1_29dof/g1_29dof", ["batched_positions", "batched_wxyzs"]
     server.scene.log.clear()
-    viewer.show(0)
-    writes = [name for name, _ in server.scene.log if name in drawn]
-    assert writes and max(writes.count(name) for name in drawn) <= 2
+    viewer.show(1)
+    writes = {name: sorted(event for node, event in server.scene.log if node == name) for name in _drawn(server)}
+    assert writes == {
+        **{f"{path}/maximal/{mesh}": moved for mesh in ("balls", "boxes", "cylinders")},
+        f"{path}/maximal/limits": ["points"],  # the arcs and ticks
+        f"{path}/frames/axes": moved,
+        f"{path}/collision/spheres": ["batched_positions"],  # a ball needs no rotation
+    }
+
+
+@pytest.mark.parametrize("style", ["maximal", "minimal"])
+def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> None:
+    """A step writes rotations that follow forward kinematics, here far from the neutral configuration the skeleton is
+    laid out at: a block rigid in a joint keeps its pose in that joint's frame, a drum's axis is its joint's axis,
+    and each end of a stick is the centre of a ball or a point rigid in a joint."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    velocity = 0.8 * torch.randn(model.nv, generator=torch.Generator().manual_seed(5), dtype=model.q_neutral.dtype)
+    q = torch.stack([model.q_neutral, br.kinematics.integrate(model, model.q_neutral, velocity)])
+    robot, server, viewer = _g1_visual(q, style=style)
+    viewer.show(1)
+    poses = br.forward_kinematics(model, q).joint_poses.numpy().astype(np.float64)  # (2, njoints, 7)
+    joints = [_matrices(poses[step][:, [6, 3, 4, 5]]) for step in range(2)]  # (njoints, 3, 3) per step
+    skeleton, nodes = robot._skeleton(style), server.scene.nodes
+    shown = {}  # mesh -> at steps 0 (as built) and 1: positions (N, 3), rotations (N, 3, 3), scales (N, 3)
+    for mesh in ("cylinders", "balls", "boxes"):
+        node, blocks = nodes[f"/g1_29dof/g1_29dof/{style}/{mesh}"], getattr(skeleton, mesh)
+        shown[mesh] = [
+            tuple(read(f"batched_{key}") for key in ("positions", "wxyzs", "scales"))
+            for read in (node.props.__getitem__, partial(_positions, node))
+        ]
+        shown[mesh] = [(position, _matrices(wxyz), scale) for position, wxyz, scale in shown[mesh]]
+        rigid = blocks.anchors[:, 0] < 0
+        body = blocks.body[rigid]
+        local = [
+            (
+                np.einsum("nki,nk->ni", joints[step][body], position[rigid] - poses[step, body, :3]),
+                joints[step][body].transpose(0, 2, 1) @ rotation[rigid],
+            )
+            for step, (position, rotation, _) in enumerate(shown[mesh])
+        ]
+        np.testing.assert_allclose(local[1][0], local[0][0], atol=1e-5, err_msg=mesh)
+        np.testing.assert_allclose(local[1][1], local[0][1], atol=1e-5, err_msg=mesh)
+    blocks, rotation = skeleton.cylinders, shown["cylinders"][1][1]
+    if style == "maximal":
+        drums = [i for i, part in enumerate(blocks.part) if part == "drum"]
+        axes = [joints[1][j] @ np.asarray(model.joints[j].axis) for j in blocks.owner[drums]]
+        assert len(drums) == 29
+        np.testing.assert_allclose(rotation[drums, :, 2], np.stack(axes), atol=1e-5)
+        return
+    sticks = blocks.anchors[:, 0] >= 0
+    ends = [  # (2 N, 3) per step: both ends of each stick
+        np.concatenate([p[sticks] + sign * 0.5 * s[sticks, 2:] * r[sticks, :, 2] for sign in (-1.0, 1.0)])
+        for p, r, s in shown["cylinders"]
+    ]
+    in_joints = np.einsum("jki,njk->nji", joints[0], ends[0][:, None] - poses[0, None, :, :3])  # (2 N, njoints, 3)
+    carried = np.einsum("jik,njk->nji", joints[1], in_joints) + poses[1, None, :, :3]
+    rigid = np.linalg.norm(carried - ends[1][:, None], axis=-1).min(axis=1) < 1e-5
+    balls = np.linalg.norm(ends[1][:, None] - shown["balls"][1][0][None], axis=-1).min(axis=1) < 1e-5
+    assert sticks.sum() >= 12 and (rigid | balls).all(), np.flatnonzero(~(rigid | balls))
 
 
 def test_robot_visual_builds_a_style_once_and_switches_by_visibility() -> None:
@@ -204,7 +268,18 @@ def test_robot_visual_update_equals_building_with_that_configuration() -> None:
         updated.update(torch.stack([q, q]))
 
 
-def test_robot_visuals_take_one_hue_each_and_share_the_sidebar_controls() -> None:
+def test_robot_visual_keeps_a_detached_copy_of_q() -> None:
+    model = br.load(panda_urdf())
+    q = model.q_neutral.clone().requires_grad_()
+    robot = RobotVisual(model, q)
+    with torch.no_grad():
+        q += 0.1  # the caller goes on with its tensor
+    assert not robot.q.requires_grad and torch.equal(robot.q[0], model.q_neutral)
+    robot.update(q)
+    assert not robot.q.requires_grad and robot.q.data_ptr() != q.data_ptr()
+
+
+def test_robot_visuals_take_one_hue_each_also_after_a_replace_and_share_the_sidebar_controls() -> None:
     model = br.load(panda_urdf())
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)
@@ -219,6 +294,9 @@ def test_robot_visuals_take_one_hue_each_and_share_the_sidebar_controls() -> Non
     styles[0].value = "minimal"
     styles[0].fire(None)
     assert first.style == second.style == "minimal"
+    third = RobotVisual(model, model.q_neutral.repeat(3, 1), name="left")  # a clip of another length replaces one
+    viewer.replace(first, third)
+    assert third.hue == first.hue != second.hue
 
 
 def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:
@@ -313,6 +391,59 @@ def test_robot_visual_follows_a_theme_with_other_hues_and_another_overlay_colour
     spheres = server.scene.nodes[f"{path}/collision/spheres"]
     assert not spheres.removed and (spheres.props["batched_colors"] == linear_uint8(blue)).all()
     assert robot.style == "maximal"
+
+
+def test_robot_visual_reads_each_mesh_file_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both skeletons size the Panda's bodies from its nine collision meshes, the overlay draws them, and a theme
+    switch rebuilds the overlay in its new colour: each file is read once."""
+    import trimesh  # noqa: PLC0415 - optional dependency of the viewer
+
+    reads: list[str] = []
+    load = trimesh.load
+    monkeypatch.setattr(trimesh, "load", lambda path, **options: reads.append(str(path)) or load(path, **options))
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    viewer = Viewer(server=FakeServer(), ground=False)
+    robot = viewer.add(RobotVisual(model, geometry=geometry, root=panda_urdf(), style="maximal", collision=True))
+    robot.set_style("minimal")
+    viewer.set_theme(DARK)
+    assert len(reads) == len(set(reads)) == 9
+
+
+@pytest.mark.parametrize("content", [None, b"solid empty\nendsolid empty\n"], ids=["missing", "empty"])
+def test_a_collision_mesh_that_does_not_load_raises_for_the_overlay_and_the_skeleton_sizes_its_body_without_it(
+    tmp_path: Path, content: bytes | None
+) -> None:
+    """The collision overlay draws the file: one that is missing or holds no mesh raises ``ModelError``, naming the
+    body and the file. A skeleton only sizes the body by it: it gives the same words as a warning and sizes the body
+    from its inertia, as for a body without a collision shape."""
+    if content is not None:
+        (tmp_path / "part.stl").write_bytes(content)
+    inertial = (
+        '<inertial><mass value="2"/><origin xyz="0 0 0.1"/>'
+        '<inertia ixx="0.02" iyy="0.02" izz="0.01" ixy="0" ixz="0" iyz="0"/></inertial>'
+    )
+    collision = '<collision><geometry><mesh filename="part.stl"/></geometry></collision>'
+    urdf = tmp_path / "r.urdf"
+    urdf.write_text(
+        f'<robot name="r"><link name="base">{inertial}{collision}</link><link name="arm">{inertial}</link>'
+        '<joint name="hinge" type="revolute"><parent link="base"/><child link="arm"/><origin xyz="0 0 0.3"/>'
+        '<axis xyz="0 1 0"/><limit lower="-1" upper="1" effort="10" velocity="1"/></joint></robot>'
+    )
+    model = br.load(urdf)
+    robot = RobotVisual(model, geometry=br.io.load_geometry(urdf, model), root=urdf, style="maximal")
+    words = r"body \d+: mesh 'part.stl' (is not a file|does not load|has no faces)"
+    with pytest.warns(UserWarning, match=words + ".*the skeleton sizes body"):
+        Viewer(server=FakeServer(), ground=False).add(robot)
+    inertia = build_skeleton(model, MAXIMAL)  # no geometry: every body from its inertia
+    for mesh in ("cylinders", "balls", "boxes"):
+        for array in ("local", "scale"):
+            np.testing.assert_array_equal(
+                getattr(getattr(robot._skeleton("maximal"), mesh), array), getattr(getattr(inertia, mesh), array)
+            )
+    assert any(part == "hull" for part in inertia.boxes.part)  # the base's trunk, from its inertia
+    with pytest.raises(ModelError, match=words):
+        robot.set_collision(visible=True)
 
 
 def test_two_robots_of_one_model_need_a_name_each() -> None:

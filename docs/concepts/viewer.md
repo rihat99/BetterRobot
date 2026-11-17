@@ -180,8 +180,9 @@ Each part (a style, the collision overlay, the frames) is built the first time i
 that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
 shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are. `update(q)` shows new configurations of the same number of steps, for a live
-solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the theme's next
-hue, in the order the robots are added, unless `hue=` names one. The name defaults to the model's, so two robots of
+solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
+theme's hues that no other robot of the viewer is drawn in, unless `hue=` names one, so a robot that replaces
+another takes its hue back; `robot.hue` is the colour it is drawn in. The name defaults to the model's, so two robots of
 one model need a `name=` each.
 
 ### The skeleton
@@ -199,16 +200,17 @@ and every block is rigid in one joint frame, so a step only moves blocks.
 - joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart: each drum that would overlap
   another slides along its own axis, so it stays on its true axis line, and only then shrinks; a joint that ends
   a chain shrinks at its place first, so a chain gets smaller towards its tip, as no glyph is wider than the one
-  before it;
+  before it unless `joint_size` makes it so;
 - a limb, a slim faceted block that narrows towards the child, joins each joint to its parent (`bones`, its half
   width over the glyph radius; 0 draws none);
 - a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
   the tree branches (a torso, a pelvis, a palm), with a ball for a head; a body that ends a chain is a sole when
   it is flat, a block when a prismatic joint moves it (a finger), else a limb with a ball at its tip (a hand, a
   paw). Their sizes come from the collision shapes of the geometry, else from the sphere set, else from the
-  inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes.
-  `hulls="all"` also gives a trunk to the bodies with one child joint, `"none"` draws neither;
-  `body_hull={frame: bool}` decides one body.
+  inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes. A
+  collision mesh file that cannot be read is left out with a warning that names it, while the collision overlay,
+  which draws the file, raises `ModelError`. `hulls="all"` also gives a trunk to the bodies with one child joint,
+  `"none"` draws neither; `body_hull={frame: bool}` decides one body.
 
 `MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
 one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and
@@ -222,7 +224,9 @@ it at 0.62.
 
 Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
-multiplier}` (0 hides a glyph) and `color={joint or frame: rgb}`.
+multiplier}` and `color={joint or frame: rgb}`. A `joint_size` factor scales that one glyph after the size rules:
+0 hides it and the bones run on through its place, the glyphs after it keep their size, and above 1 it may be wider
+than the glyph before it; a minimal ball takes the mean factor of its joints.
 
 ```python
 from better_robot.viewer import MAXIMAL, SkeletonRecipe
@@ -236,8 +240,10 @@ kind auto True
 ```
 
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
-limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, and a step writes
-positions and rotations to each node on screen (the sticks of a minimal skeleton also their lengths). `bounds` is
+limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, while an overlay of
+collision shapes is one node per shape (17 on the Panda), and a step writes positions and rotations to each node on
+screen (the sticks of a minimal skeleton also their lengths). Each mesh file is read once per robot, however often
+its style, overlay or theme is switched. `bounds` is
 a box per joint, per collision sphere and collision shape that is not a mesh (exact), and per block of the maximal
 skeleton on a body without one, in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
 and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest

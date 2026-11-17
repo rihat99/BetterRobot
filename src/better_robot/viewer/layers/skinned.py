@@ -11,9 +11,6 @@ from ...exceptions import ShapeError
 from ...lie import so3
 from ..layer import Bounds, Layer, as_frames, as_triangles, box
 from ..theme import RGB, rgb_uint8
-from .camera import CameraLayer
-
-__all__ = ["CameraLayer", "SkinnedMeshLayer"]
 
 _IDENTITY_POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 

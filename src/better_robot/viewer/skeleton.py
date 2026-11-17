@@ -41,9 +41,7 @@ from ..model import (
     Model,
     Sphere,
 )
-
-#: A colour as the viewer takes it everywhere: red, green and blue in ``[0, 1]``.
-RGB = tuple[float, float, float]
+from .theme import RGB, Theme
 
 _TWIST = float(np.cos(np.radians(35.0)))  # a joint axis within 35 degrees of its limb twists the limb
 _HALF = 0.8  # half length of a drum over its radius
@@ -58,6 +56,7 @@ _FLAT = 0.3  # a leaf's geometry is a sole when its thinnest extent is under thi
 _TIP = 0.55  # the smallest ball that ends a leaf, over the leaf joint's radius
 _PLATE = 0.45  # a sole is this many joint radii thick
 _LEAF_CAP = 1.25  # a leaf glyph is at most this share of the half thickness of the body it moves
+_LEAF_FLOOR = 0.2  # and at least this share of the reference radius: a thin placeholder shape is not a body
 _FIXED_CAP = 0.4  # a glyph that cannot slide is at most this share of its shortest bone
 _ARC = 24  # segments of a limit arc
 _KINDS = {
@@ -91,8 +90,7 @@ class SkeletonRecipe:
     Parameters
     ----------
     glyphs
-        ``"kind"`` draws one glyph per joint kind, ``"ball"`` one ball per cluster of close joints, ``"none"`` bones
-        only.
+        ``"kind"`` draws one glyph per joint kind, ``"ball"`` one ball per cluster of close joints.
     bones
         Half width of a limb (``glyphs="kind"``) or radius of a stick over the glyph radius; 0 draws none.
     hulls
@@ -111,14 +109,17 @@ class SkeletonRecipe:
     size
         Multiplies every glyph radius.
     joint_size
-        Joint name to a multiplier of its glyph radius; 0 hides the glyph.
+        Joint name to a multiplier of its glyph's radius, applied after the layout's size rules, so it changes that
+        glyph only: 0 hides it and the bones run on through its place, and the glyphs after it keep their size. The
+        factor wins over the maximal layout's narrowing towards the tips, so above 1 a glyph may be wider than the
+        one before it. A ball of the stick figure takes the mean factor of the joints it stands for.
     body_hull
         Frame name to ``True`` (draw the hull of its geometry) or ``False`` (leave it out).
     color
         Joint or frame name to the colour of its glyph or hull, in place of the robot's hue.
     """
 
-    glyphs: Literal["kind", "ball", "none"] = "kind"
+    glyphs: Literal["kind", "ball"] = "kind"
     bones: float = 0.6
     hulls: Literal["auto", "all", "none"] = "auto"
     limits: bool = False
@@ -132,8 +133,8 @@ class SkeletonRecipe:
 
     def __post_init__(self) -> None:
         """Raise ``ArgumentError`` for an unknown ``glyphs`` or ``hulls`` word or a size out of range."""
-        if self.glyphs not in ("kind", "ball", "none"):
-            raise ArgumentError(f"glyphs must be 'kind', 'ball' or 'none', got {self.glyphs!r}")
+        if self.glyphs not in ("kind", "ball"):
+            raise ArgumentError(f"glyphs must be 'kind' or 'ball', got {self.glyphs!r}")
         if self.hulls not in ("auto", "all", "none"):
             raise ArgumentError(f"hulls must be 'auto', 'all' or 'none', got {self.hulls!r}")
         if (
@@ -238,21 +239,19 @@ class Skeleton:
         local = torch.from_numpy(self.line_local).to(poses.dtype)
         return se3.act(poses[..., self.line_body, None, :], local).numpy()
 
-    def colors(self, hue: RGB, shade: Callable[[RGB, _Shade], RGB]) -> dict[str, np.ndarray]:
-        """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``shade(hue, role)`` per part, tinted by side, or its
-        override.
-
-        ``shade`` is ``Theme.shade``. A left block takes the hue 35 % towards white, a right one 25 % towards black.
-        """
-        left, right = _mix(hue, (1.0, 1.0, 1.0), 0.35), _mix(hue, (0.0, 0.0, 0.0), 0.25)
+    def colors(self, hue: RGB, theme: Theme) -> dict[str, np.ndarray]:
+        """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``theme.shade`` of ``hue`` for its part and side, or the
+        recipe's colour for it (a drum face takes that colour's shade)."""
         colors = {}
         for name in _MESHES:
             blocks: Blocks = getattr(self, name)
             rows = np.zeros((len(blocks), 3), dtype=np.float32)
             for i, (part, side, own) in enumerate(zip(blocks.part, blocks.side, blocks.color, strict=True)):
                 role = _ROLE[part]
-                base = own if own is not None else left if side > 0 else right if side < 0 else hue
-                rows[i] = base if own is not None and role != "face" else shade(base, role)
+                if own is None:
+                    rows[i] = theme.shade(hue, role, side=int(side))
+                else:
+                    rows[i] = theme.shade(own, role) if role == "face" else own
             colors[name] = rows
         return colors
 
@@ -263,13 +262,14 @@ def build_skeleton(
     *,
     spheres: RobotSpheres | None = None,
     geometry: Geometry | None = None,
-    mesh_vertices: Callable[[Mesh], np.ndarray | None] | None = None,
+    mesh_vertices: Callable[[int, Mesh], np.ndarray | None] | None = None,
 ) -> Skeleton:
     """Lay out the skeleton of ``model`` under ``recipe``, from one forward-kinematics pass at ``q_neutral``.
 
     Hulls and end blocks are sized from the first source a body has: the collision shapes of ``geometry`` (a mesh
-    only through ``mesh_vertices``, which returns the vertices ``(V, 3)`` of a mesh file or ``None``), the
-    ``spheres`` on its frames, its inertia. A name of ``recipe`` that the model does not have raises ``UnknownNameError``.
+    only through ``mesh_vertices(body, mesh)``, which returns the vertices ``(V, 3)`` of its file, or ``None`` to
+    leave it out), the ``spheres`` on its frames, its inertia. A name of ``recipe`` that the model does not have
+    raises ``UnknownNameError``.
     """
     for name in recipe.joint_size:
         if name not in model.joint_names:
@@ -280,24 +280,27 @@ def build_skeleton(
     for name in recipe.color:
         if name not in model.joint_names and name not in model.frame_names:
             raise UnknownNameError("joint or frame", name, valid=(*model.joint_names, *model.frame_names))
-    tree = _tree(model, recipe)
+    tree = _tree(model)
     clouds = _clouds(tree, spheres, geometry, mesh_vertices)
-    tree = _leaf_caps(tree, clouds, maximal=recipe.glyphs == "kind")
+    tree = _leaf_caps(_sizes(tree, recipe, clouds), clouds, maximal=recipe.glyphs == "kind")
+    factor = {j: recipe.joint_size.get(model.joint_names[j], 1.0) for j in tree.glyphs}
     rows = _Rows(tree, recipe)
     slides: dict[str, float] = {}
     shrinks: dict[str, float] = {}
     clusters: tuple[tuple[str, ...], ...] = ()
-    if recipe.glyphs == "kind":
-        hidden = {j for j in tree.glyphs if tree.radius[j] <= 0.0}
+    if recipe.glyphs == "kind":  # joint_size scales a glyph after the size rules, so the glyphs after it keep theirs
+        drawn = replace(tree, radius={j: factor[j] * tree.radius[j] for j in tree.glyphs})
+        hidden = {j for j in tree.glyphs if drawn.radius[j] <= 0.0}
         if not recipe.twists:
             hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
-        slide, shrink = _solve(tree, hidden, clouds)
+        slide, shrink = _solve(drawn, hidden, clouds)
         slides = {model.joint_names[j]: s for j, s in slide.items() if abs(s) > 1e-9}
         shrinks = {model.joint_names[j]: k for j, k in shrink.items() if k < 1.0}
-        reach = {j: 0.0 if j in hidden else shrink[j] * tree.radius[j] for j in tree.glyphs}
-        _maximal(tree, recipe, rows, clouds, reach=reach, slide=slide)
+        reach = {j: 0.0 if j in hidden else shrink[j] * drawn.radius[j] for j in tree.glyphs}
+        ends = {j: shrink[j] * tree.radius[j] for j in tree.glyphs}  # an end block is the body's: never 0
+        _maximal(tree, recipe, rows, clouds, reach=reach, slide=slide, ends=ends)
     else:
-        clusters = _minimal(tree, recipe, rows, clouds)
+        clusters = _minimal(tree, recipe, rows, clouds, factor=factor)
     return rows.pack(slides=slides, shrinks=shrinks, clusters=clusters)
 
 
@@ -314,16 +317,17 @@ def _matrix(quaternion: np.ndarray) -> np.ndarray:
 
 
 def _from_z(direction: np.ndarray) -> np.ndarray:
-    """Shortest-arc ``xyzw`` rotations ``(..., 4)`` taking ``+z`` onto each ``direction (..., 3)``.
+    """Shortest-arc ``xyzw`` rotations ``(..., 4)`` taking ``+z`` onto each ``direction (..., 3)`` (``so3.exp``).
 
     A zero direction gives the identity, one opposite ``+z`` a half turn about ``x``.
     """
-    norm = np.linalg.norm(direction, axis=-1, keepdims=True)
-    unit = np.where(norm > 1e-12, direction / np.where(norm > 1e-12, norm, 1.0), [0.0, 0.0, 1.0])
-    # the axis z x d with the half-angle form (sin(t) n, 1 + cos(t)), then normalised
-    turn = np.stack([-unit[..., 1], unit[..., 0], np.zeros_like(unit[..., 0]), 1.0 + unit[..., 2]], axis=-1)
-    length = np.linalg.norm(turn, axis=-1, keepdims=True)
-    return np.where(length > 1e-9, turn / np.where(length > 1e-9, length, 1.0), [1.0, 0.0, 0.0, 0.0])
+    unit = torch.from_numpy(np.asarray(direction, dtype=np.float64))
+    norm = torch.linalg.norm(unit, dim=-1, keepdim=True)
+    unit = torch.where(norm > 1e-12, unit / norm.clamp_min(1e-12), unit.new_tensor([0.0, 0.0, 1.0]))
+    turn = torch.stack([-unit[..., 1], unit[..., 0], torch.zeros_like(unit[..., 0])], dim=-1)  # z x unit
+    sine = torch.linalg.norm(turn, dim=-1, keepdim=True)
+    axis = torch.where(sine > 1e-9, turn / sine.clamp_min(1e-9), unit.new_tensor([1.0, 0.0, 0.0]))
+    return so3.exp(axis * torch.atan2(sine, unit[..., 2:])).numpy()
 
 
 def _limb_frame(direction: np.ndarray, across: np.ndarray | None) -> np.ndarray:
@@ -334,11 +338,6 @@ def _limb_frame(direction: np.ndarray, across: np.ndarray | None) -> np.ndarray:
         return _matrix(_from_z(direction))
     side = side / np.linalg.norm(side)
     return np.stack([side, np.cross(direction, side), direction], axis=1)
-
-
-def _mix(color: RGB, other: RGB, share: float) -> RGB:
-    red, green, blue = (a + (b - a) * share for a, b in zip(color, other, strict=True))
-    return red, green, blue
 
 
 _OrientedBox = tuple[np.ndarray, np.ndarray, np.ndarray]  # centre (3,), rotation (3, 3), half extents (3,)
@@ -374,9 +373,10 @@ def _gaps(centers: np.ndarray, rotation: np.ndarray, half: np.ndarray, others: S
 class _Tree:
     """What every stage of the layout reads: the joint tree, the neutral poses and the sizes.
 
-    A rigid group is a moving joint plus the bodies welded to it by fixed joints; group 0 is the world. ``anchor[j]``
-    is the group of joint ``j``, ``glyphs`` the moving joints, ``group[j]`` the parent group of glyph ``j`` and
-    ``children[g]`` the glyphs whose parent group is ``g``.
+    A rigid group is a moving joint plus the bodies welded to it by fixed joints; group 0 is the world, and what is
+    rigid in group ``g`` is rigid in joint ``g``'s frame (the universe's for the world, also for a joint that hangs
+    from the world itself). ``anchor[j]`` is the group of joint ``j``, ``glyphs`` the moving joints, ``group[j]`` the
+    parent group of glyph ``j`` and ``children[g]`` the glyphs whose parent group is ``g``.
     """
 
     model: Model
@@ -394,11 +394,6 @@ class _Tree:
     reference: float  # the reference glyph radius
     radius: Mapping[int, float]  # per glyph
 
-    def body(self, group: int, joint: int) -> int:
-        """The joint whose frame carries what is rigid in ``group``: the group itself, or for the world the root
-        body that ``joint`` hangs from."""
-        return group if group else self.root[joint]
-
     def bones(self, joint: int) -> list[float]:
         """Distances from glyph ``joint`` to its parent and child glyphs, those under 1 % of the robot ignored."""
         ends = (*((self.group[joint],) if self.group[joint] else ()), *self.children[joint])
@@ -406,15 +401,8 @@ class _Tree:
         return [length for length in lengths if length > 0.01 * self.scale]
 
 
-def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
-    """The tree of ``model`` at ``q_neutral`` with the sizes of ``recipe``.
-
-    The robot's size is the diagonal of the box of its joint origins; the reference radius a third of the mean bone,
-    kept between 2 % and 4 % of the size, times ``size``; a joint's radius the reference times the sixth root of its
-    effort limit over the median one of the joints of its kind (a force is not a torque), kept between 0.8 and 1.2.
-    A glyph that cannot slide is no thicker than 0.4 of its shortest bone. Both styles share the rule, so a small
-    robot's balls are as small for it as a large robot's.
-    """
+def _tree(model: Model) -> _Tree:
+    """The tree of ``model`` at ``q_neutral``, without sizes yet (``_sizes``)."""
     njoints, parents = model.njoints, model.parent_joint_ids
     kind = ("fixed", *(_KINDS.get(type(joint), "other") for joint in model.joints[1:]))
     anchor, root = [0] * njoints, [0] * njoints
@@ -428,17 +416,41 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
         neutral = _numpy(forward_kinematics(model, model.q_neutral).joint_poses)
     origin, rotation = neutral[:, :3], _matrix(neutral[:, 3:])
     axis = {j: rotation[j] @ np.array(model.joints[j].axis) for j in glyphs if kind[j] in ("revolute", "prismatic")}
-    extent = origin[1:] if njoints > 1 else origin
-    scale = float(np.linalg.norm(extent.max(axis=0) - extent.min(axis=0)))
-    scale = scale if scale > 1e-9 else 1.0  # a single body: a unit robot
+    return _Tree(
+        model, kind, tuple(anchor), tuple(root), glyphs, group, children, origin, rotation, neutral, axis, 0.0, 0.0, {}
+    )
+
+
+def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud]]) -> _Tree:
+    """``tree`` with the sizes of ``recipe``.
+
+    The robot's size is the diagonal of the box of its joint origins; when they span nothing (one moving joint,
+    joints that share a point, a lone floating body) the box also takes in the ``clouds`` and the solid box of each
+    rigid group's inertia, and only a robot with none of those is 1 m. The reference radius is a third of the mean
+    bone, kept between 2 % and 4 % of the size, times ``size``; a joint's radius the reference times the sixth root
+    of its effort limit over the median one of the joints of its kind (a force is not a torque), kept between 0.8
+    and 1.2. A glyph that cannot slide is no thicker than 0.4 of its shortest bone. Both styles share the rule, so a
+    small robot's balls are as small for it as a large robot's.
+    """
+    model, origin, glyphs, group = tree.model, tree.origin, tree.glyphs, tree.group
+    points = [origin[1:] if model.njoints > 1 else origin]
+    if np.ptp(points[0], axis=0).max() <= 1e-9:
+        for cloud in (cloud for found in clouds.values() for cloud in found):
+            pad = 0.0 if cloud.radii is None else cloud.radii[:, None]
+            points += [cloud.origin + cloud.points @ cloud.rotation.T + sign * pad for sign in (-1.0, 1.0)]
+        for solid in filter(None, (_inertia(tree, g) for g in (0, *glyphs))):
+            mass, center, total = solid
+            half = np.sqrt(np.maximum(6.0 * (np.trace(total) - 2.0 * np.diag(total)) / mass, 0.0)) / 2
+            points.append(np.stack([center - half, center + half]))
+    extent = np.concatenate(points)
+    scale = float(np.linalg.norm(np.ptp(extent, axis=0)))
+    scale = scale if scale > 1e-9 else 1.0  # nothing to measure: a unit robot
     spans = [float(np.linalg.norm(origin[j] - origin[group[j]])) for j in glyphs if group[j]]
     spans = [span for span in spans if span > 0.01 * scale]
     reference = float(np.clip(np.mean(spans) / 3.0, 0.02 * scale, 0.04 * scale)) if spans else 0.03 * scale
     reference *= recipe.size
-    tree = _Tree(
-        model, kind, tuple(anchor), tuple(root), glyphs, group, children, origin, rotation, neutral, axis, scale,
-        reference, {},
-    )  # fmt: skip
+    tree = replace(tree, scale=scale, reference=reference)
+    kind = tree.kind
     effort = _numpy(model.effort_limit)
     torque = {}
     for j in glyphs:  # a mimic joint is as strong as the joint that drives it
@@ -450,8 +462,7 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
         known = [value for i, value in torque.items() if np.isfinite(value) and kind[i] == kind[j]]
         ratio = torque[j] / np.median(known) if torque[j] > 0.0 else 1.0
         factor = float(np.clip(ratio ** (1.0 / 6.0), 0.8, 1.2))
-        radius[j] = reference * factor * recipe.joint_size.get(model.joint_names[j], 1.0)
-        radius[j] *= _MARKER if kind[j] == "other" else 1.0
+        radius[j] = reference * factor * (_MARKER if kind[j] == "other" else 1.0)
         if kind[j] in ("spherical", "other") and tree.bones(j):
             radius[j] = min(radius[j], _FIXED_CAP * min(tree.bones(j)))
     return replace(tree, radius=radius)
@@ -460,7 +471,7 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
 def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool) -> _Tree:
     """``tree`` with each leaf glyph no thicker than the body it moves: at most 1.25 times the median radius of the
     spheres it carries or, in the ``maximal`` layout, of the middle half extent of its collision points in its own
-    frame.
+    frame, but never under 0.2 reference radii (Tiago's actuated finger joints carry 2 mm placeholder boxes).
 
     The ``maximal`` layout also narrows towards the tips: a glyph is no wider than the glyph before it (a
     free-flyer's cube does not count)."""
@@ -476,7 +487,7 @@ def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool
         else:
             points = np.concatenate([cloud.origin + cloud.points @ cloud.rotation.T for cloud in clouds[j]])
             size = float(np.sort(np.ptp((points - tree.origin[j]) @ tree.rotation[j], axis=0))[1]) / 2
-        radius[j] = min(radius[j], _LEAF_CAP * size)
+        radius[j] = min(radius[j], max(_LEAF_CAP * size, _LEAF_FLOOR * tree.reference))
     for j in tree.glyphs if maximal else ():  # in index order, a parent before its children
         parent = tree.group[j]
         if parent and tree.kind[parent] != "free":
@@ -633,7 +644,7 @@ def _clouds(
     tree: _Tree,
     spheres: RobotSpheres | None,
     geometry: Geometry | None,
-    mesh_vertices: Callable[[Mesh], np.ndarray | None] | None,
+    mesh_vertices: Callable[[int, Mesh], np.ndarray | None] | None,
 ) -> dict[int, list[_Cloud]]:
     """Per rigid group, the geometry its hulls are sized from: its collision shapes, else its sphere set. A sphere set
     is an overlay first: the look of a body with collision shapes does not change with it."""
@@ -641,7 +652,7 @@ def _clouds(
     found: dict[int, list[_Cloud]] = {}
     shapes: dict[int, list[np.ndarray]] = {}
     for attached in geometry.shapes if geometry is not None else ():
-        points = _shape_points(attached.shape, mesh_vertices) if attached.collision else None
+        points = _shape_points(attached.body, attached.shape, mesh_vertices) if attached.collision else None
         if points is not None:
             placement = np.array(attached.shape.placement)
             shapes.setdefault(attached.body, []).append(points @ _matrix(placement[3:]).T + placement[:3])
@@ -665,8 +676,11 @@ def _clouds(
     return found
 
 
-def _shape_points(shape: object, mesh_vertices: Callable[[Mesh], np.ndarray | None] | None) -> np.ndarray | None:
-    """Points ``(n, 3)`` on the surface of a shape, in the shape's own frame; ``None`` for a mesh that does not load."""
+def _shape_points(
+    body: int, shape: object, mesh_vertices: Callable[[int, Mesh], np.ndarray | None] | None
+) -> np.ndarray | None:
+    """Points ``(n, 3)`` on the surface of a shape on ``body``, in the shape's own frame; ``None`` for a mesh without
+    ``mesh_vertices`` or whose vertices it does not give."""
     if isinstance(shape, Box):
         return np.array([[x, y, z] for x in (-0.5, 0.5) for y in (-0.5, 0.5) for z in (-0.5, 0.5)]) * shape.size
     if isinstance(shape, Sphere):
@@ -677,7 +691,7 @@ def _shape_points(shape: object, mesh_vertices: Callable[[Mesh], np.ndarray | No
         tip = np.array([[0.0, 0.0, shape.length / 2 + (shape.radius if isinstance(shape, Capsule) else 0.0)]])
         return np.concatenate([ring + [0.0, 0.0, shape.length / 2], ring - [0.0, 0.0, shape.length / 2], tip, -tip])
     if isinstance(shape, Mesh) and mesh_vertices is not None:
-        vertices = mesh_vertices(shape)
+        vertices = mesh_vertices(body, shape)
         return None if vertices is None else np.asarray(vertices, dtype=np.float64) * shape.scale
     return None
 
@@ -704,11 +718,12 @@ def _hulls(
     tree: _Tree,
     recipe: SkeletonRecipe,
     clouds: Mapping[int, list[_Cloud]],
-    reach: Mapping[int, float],
+    radius: Mapping[int, float],
     glyphs: Mapping[int, _OrientedBox],
 ) -> list[_Hull]:
-    """The hulls and end blocks of ``recipe``; ``reach[g]`` is the drawn radius of the glyph of group ``g`` and
-    ``glyphs`` the boxes of the glyphs an end block gives way to.
+    """The hulls and end blocks of ``recipe``; ``radius[g]`` is the radius the end block of leaf group ``g`` is
+    sized by, its glyph's before ``joint_size`` (above 0, so a hidden glyph does not collapse its body), and
+    ``glyphs`` the boxes of the drawn glyphs an end block gives way to.
 
     A trunk group (the root, or two or more child joints; with ``hulls="all"`` also one child joint) gets its trunk
     hulls, a leaf group (no child joint) its end block; ``body_hull`` adds or removes single frames.
@@ -723,7 +738,7 @@ def _hulls(
             hulls += _trunk(tree, recipe, g, wanted, inertia=not clouds.get(g))
         elif recipe.hulls != "none" and kids == 0:
             near = (*(() if tree.kind[g] == "prismatic" else (g,)), tree.group[g])  # a sleeve stays behind its block
-            hulls += _end(tree, recipe, g, wanted, reach[g], [glyphs[j] for j in near if j in glyphs])
+            hulls += _end(tree, recipe, g, wanted, radius[g], [glyphs[j] for j in near if j in glyphs])
         else:
             hulls += _trunk(tree, recipe, g, forced, inertia=False)
     return hulls
@@ -1037,7 +1052,7 @@ class _Rows:
 
 def _maximal(
     tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]], *,
-    reach: Mapping[int, float], slide: Mapping[int, float],
+    reach: Mapping[int, float], slide: Mapping[int, float], ends: Mapping[int, float],
 ) -> None:  # fmt: skip
     """Glyphs per joint kind, bones from glyph centre to glyph centre, hulls and end blocks tied to their glyph.
 
@@ -1045,7 +1060,7 @@ def _maximal(
     of a group and the glyphs of its child joints are all rigid in that group, and the layout holds for every
     configuration. Every glyph contains the ball of 0.8 of its radius about its centre and a bone is thinner, so a
     bone that runs centre to centre has both caps inside the glyphs. ``reach[j]`` is the drawn radius of glyph
-    ``j``, 0 for a hidden one.
+    ``j``, 0 for a hidden one, and ``ends[j]`` the radius of the end block of leaf ``j`` (``_hulls``).
     """
     origin = tree.origin
     center = {j: origin[j] + slide[j] * tree.axis[j] if j in tree.axis else origin[j] for j in tree.glyphs}
@@ -1056,14 +1071,14 @@ def _maximal(
         return recipe.bones * (min(shown) if shown else tree.reference)
 
     solid = {j: (center[j], frame[j], _half(tree, j, reach[j])) for j in tree.glyphs if tree.kind[j] != "free"}
-    hulls = _hulls(tree, recipe, clouds, reach, {j: box for j, box in solid.items() if reach[j] > 0.0})
+    hulls = _hulls(tree, recipe, clouds, ends, {j: box for j, box in solid.items() if reach[j] > 0.0})
     trunk: dict[int, _Hull] = {}
     for hull in hulls:
         if hull.part == "hull" and hull.mesh != "balls":
             trunk.setdefault(hull.group, hull)
     for j in tree.glyphs:
         for mesh, part, in_parent, scale in _GLYPHS[tree.kind[j]] if reach[j] > 0.0 else ():
-            body = tree.body(tree.group[j], j) if in_parent else j
+            body = tree.group[j] if in_parent else j
             place, size = center[j], reach[j] * np.array(scale)
             travel = _travel(tree, j) if part == "rail" else None
             if travel is not None:  # the rail spans where the sleeve can be, so it never leaves its parent
@@ -1079,7 +1094,7 @@ def _maximal(
             if group in trunk:  # a limb leaves its trunk from the trunk's centre
                 body, start = trunk[group].body, trunk[group].center
             else:
-                body, start = tree.body(group, j), center[group] if group else origin[tree.root[j]]
+                body, start = group, center[group] if group else origin[tree.root[j]]
             rows.bone(body, start, center[j], thickness(group, j), j, across=tree.axis.get(j, tree.axis.get(group)))
     for hull in hulls:
         rows.hull(hull)
@@ -1120,7 +1135,7 @@ def _limit_arc(tree: _Tree, rows: _Rows, joint: int, center: np.ndarray, radius:
         return center + reach * radius * (np.cos(angle - zero) * frame[:, 0] + np.sin(angle - zero) * frame[:, 1])
 
     angles = np.linspace(lower, upper, _ARC + 1)
-    parent = tree.body(tree.group[joint], joint)
+    parent = tree.group[joint]
     rows.lines += [(parent, spoke(a, 1.15), spoke(b, 1.15)) for a, b in zip(angles[:-1], angles[1:], strict=True)]
     rows.lines.append((joint, spoke(zero, 1.0), spoke(zero, 1.3)))
 
@@ -1156,30 +1171,33 @@ def _clusters(tree: _Tree, recipe: SkeletonRecipe) -> tuple[dict[int, list[int]]
 
 
 def _minimal(
-    tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]]
-) -> tuple[tuple[str, ...], ...]:
+    tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]], *,
+    factor: Mapping[int, float],
+) -> tuple[tuple[str, ...], ...]:  # fmt: skip
     """A ball per cluster of close joints and sticks between the balls; returns the joint names behind each ball.
 
     A ball sits at the mean of its member origins at every step; the cluster of a free-flyer root is rigid in the
     root body and drawn as a cube. A ball is at most 0.4 of its shortest stick, and a stick never thicker than the
     balls it joins. A leaf joint without an end block gets a stick on to the end of its body (``_knob``) and a small
     ball there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length. A trunk's
-    head (``_heads``) is a ball as small as a joint's on a stick from the trunk.
+    head (``_heads``) is a ball as small as a joint's on a stick from the trunk. Then a ball takes the mean
+    ``factor`` (``joint_size``) of its joints; a ball of factor 0 is not drawn, and its sticks keep their thickness.
     """
     members, cluster, skipped = _clusters(tree, recipe)
-    radius, anchor, base = {}, {}, {}
+    radius, share, anchor, base = {}, {}, {}, {}
     for c, joints in members.items():
         if c in skipped:
             continue
         where = tree.origin[joints].mean(axis=0)
         radius[c] = float(np.mean([tree.radius[j] for j in joints]))
+        share[c] = float(np.mean([factor[j] for j in joints]))
         floating = [j for j in joints if tree.kind[j] == "free" and tree.group[j] == 0]
         if floating:
             anchor[c], base[c] = rows.point(floating[0], where), floating[0]
         else:
             anchor[c] = rows.anchor({j: 1.0 / len(joints) for j in joints}, where)
-    hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], 0.0) for j in tree.glyphs}, {})
-    heads = _heads(tree, recipe, rows, clouds) if recipe.glyphs == "ball" else []
+    hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], tree.radius[j]) for j in tree.glyphs}, {})
+    heads = _heads(tree, recipe, rows, clouds)
     sticks = _sticks(tree, rows, [*hulls, *heads], members=members, cluster=cluster, anchor=anchor)
     ends: dict[int, list[float]] = {}
     for start, end, _ in sticks:
@@ -1191,8 +1209,9 @@ def _minimal(
     for j in (j for j in tree.glyphs if not tree.children[j] and j not in ended):
         a = anchor[cluster[j]]
         sticks += _knob(tree, recipe, rows, j, clouds.get(j, []), start=a, radius=drawn[a])
-    for c, a in anchor.items():
-        r, joint = drawn[a], members[c][0]
+    ball = {anchor[c]: share[c] * drawn[anchor[c]] for c in radius}
+    for c, a in ((c, a) for c, a in anchor.items() if ball[a] > 0.0):
+        r, joint = ball[a], members[c][0]
         if c in base:
             rows.add(
                 "boxes",
@@ -1203,12 +1222,12 @@ def _minimal(
                 rotation=tree.rotation[base[c]],
                 owner=joint,
             )
-        elif recipe.glyphs == "ball":
+        else:
             rows.add("balls", "ball", tree.root[joint], rows.where[a], (r, r, r), owner=joint, anchors=(a, a))
     for hull in hulls:
         rows.hull(hull)
     for start, end, owner in sticks:
-        balls = [drawn[a] for a in (start, end) if a in drawn and recipe.glyphs == "ball"]
+        balls = [ball[a] for a in (start, end) if ball.get(a, 0.0) > 0.0]
         rows.stick(start, end, min([recipe.bones * tree.reference, *balls]), owner)
     return tuple(tuple(tree.model.joint_names[j] for j in members[c]) for c in anchor)
 
@@ -1241,7 +1260,7 @@ def _knob(
     if length <= radius:
         return []
     clear = min(_TIP * radius, (length - radius) / 2.0)  # clear of the leaf's ball: no blob round a short finger
-    ball = max(1.25 * min(recipe.bones * tree.reference, radius), clear) if recipe.glyphs == "ball" else 0.0
+    ball = max(1.25 * min(recipe.bones * tree.reference, radius), clear)
     end = end if centred else end - ball * toward / length  # a surface end: the ball ends there
     if ball > 0.0:  # a knob, wider than its stick
         rows.add("balls", "ball", group, end, (ball, ball, ball), owner=group)

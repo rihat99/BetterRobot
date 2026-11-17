@@ -28,9 +28,10 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.serve()` plays the timeline and serves the page until interrupted; `Viewer.set_theme(theme)` applies a
   theme to the page and to every layer; `Viewer(ground=True)` adds the ground grid under the tag `ground`.
 - `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
-  fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role)`, `accent`, `collision` and `text`, all colours RGB
-  in `[0, 1]`, and `collision_opacity`. `Theme.apply` switches viser's default lights and environment map off for
-  an ambient, a hemisphere, a key light that casts shadows and a fill light, one rig for meshes and solid colours.
+  fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role, *, side=0)` (`side=1` a left part, lighter, `-1`
+  a right one, darker), `accent`, `collision` and `text`, all colours RGB in `[0, 1]`, and `collision_opacity`.
+  `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
+  that casts shadows and a fill light, one rig for meshes and solid colours.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications.
 - `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, maximal, hue, collision,
@@ -38,16 +39,19 @@ that 0.3.0 renames or removes, one table row each.
   `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"` or `"maximal"` (skeletons), with a
   collision overlay (the sphere set, else the collision shapes) and frame triads. Each part is built the first time
   it is shown; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
-  viewer runs, and `update(q)` shows new configurations. Every robot takes the theme's next hue (record 0058).
+  viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
+  robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
+  is drawn in (record 0058).
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs, trunks
   for the bodies that branch, a sole, a hand or a paw where a chain ends, in two tones; glyphs that share a point
   slide apart along their own axes, then shrink, and a chain narrows towards its tip) and `viewer.MINIMAL` (one
   ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
   joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid
   has feet and hands; both styles share one size rule, a reference radius between 2 % and 4 % of the robot's size,
-  and size bodies from the collision shapes before a sphere set): `glyphs`, `bones` (0.6 of the glyph radius by
-  default), `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A
-  maximal skeleton is three batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies.
+  and size bodies from the collision shapes before a sphere set, leaving out with a warning a collision mesh file
+  that cannot be read): `glyphs` (`"kind"` or `"ball"`), `bones` (0.6 of the glyph radius by default), `hulls`,
+  `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is
+  three batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
@@ -133,6 +137,9 @@ that 0.3.0 renames or removes, one table row each.
 - `ArrowsLayer(head_size=, line_width=)` and `ArrowsLayer.HEAD_FRACTION`: use `head_length=`; every arrow is solid,
   and a short one is no longer scaled down whole.
 - `CameraLayer(fov=, aspect=)`: use `CameraLayer(intrinsics=, size=)`.
+- `viewer.theme.colormap`: no replacement; nothing called it once the torque colours went, and an application maps
+  values to colours with numpy.
+- `CameraLayer` from `viewer.layers.skinned`, a second path to it: use `better_robot.viewer.CameraLayer`.
 
 ## v0.3.0 (2026-11-10)
 
