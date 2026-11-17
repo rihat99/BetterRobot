@@ -23,7 +23,7 @@ class _Control:
     handle: Any
     value: Any  # the value the callbacks last applied; a failed change returns the control to it
     callbacks: list[tuple[int, Callable[[Any], None]]] = field(default_factory=list)  # (owner, callback)
-    reverting: bool = False
+    quiet: bool = False  # True while the sidebar itself sets the value: the callbacks stay out
 
 
 @final
@@ -114,6 +114,19 @@ class Sidebar:
         """A button; ``on_click()`` runs on each click."""
         return self._control(section, label, lambda _: on_click(), lambda: self.gui.add_button(label), click=True)
 
+    def set_value(self, section: str, label: str, *, value: Any) -> None:
+        """Show ``value`` on the control ``(section, label)`` without running its callbacks: what a layer calls when
+        code changed the state its control shows. Nothing happens when there is no such control."""
+        with self._lock:
+            control = self._controls.get((section, label))
+            if control is None or control.handle.value == value:
+                return
+            control.quiet = True  # viser runs a control's callbacks for a value set from code too
+            try:
+                control.handle.value = control.value = value
+            finally:
+                control.quiet = False
+
     def build(self, layer: Layer) -> None:
         """Run ``layer.build_gui(self)``; the controls and sections it asks for count as the layer's, so that
         ``remove(layer)`` takes back exactly those."""
@@ -171,7 +184,7 @@ class Sidebar:
         """One change of ``control``: every callback under the lock; on a ``BetterRobotError`` the ones that ran see
         the previous value again, the control shows it and the browser shows the error."""
         with self._lock:
-            if control.reverting:
+            if control.quiet:
                 return
             value = control.handle.value
             done: list[Callable[[Any], None]] = []
@@ -181,13 +194,13 @@ class Sidebar:
                     done.append(callback)
             except BetterRobotError as error:
                 if control.value is not None:
-                    control.reverting = True
+                    control.quiet = True
                     try:
                         for callback in done:
                             callback(control.value)
                         control.handle.value = control.value
                     finally:
-                        control.reverting = False
+                        control.quiet = False
                 client = None if event is None else event.client
                 clients = [client] if client is not None else list(self._server.get_clients().values())
                 for each in clients:

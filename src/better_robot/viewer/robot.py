@@ -39,7 +39,7 @@ from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
 from .sidebar import Sidebar
 from .skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder
-from .theme import LIGHT, RGB, Theme, rgb_uint8
+from .theme import LIGHT, RGB, Theme, linear_uint8
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -91,12 +91,12 @@ class _Blocks(Layer):
                     scene.add_batched_meshes_simple(
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
-                        batched_colors=rgb_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
+                        batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
                     )
                 )  # fmt: skip
         if len(self.skeleton.line_body):
             points = self.skeleton.lines(self.poses[0])
-            color = rgb_uint8(self.theme.shade(self.hue, "face"))
+            color = linear_uint8(self.theme.shade(self.hue, "face"))
             self._lines = self._track(scene.add_line_segments(f"{root}/limits", points, color, line_width=2.5))
 
     @override
@@ -115,9 +115,9 @@ class _Blocks(Layer):
         self.hue, self.theme = hue, theme
         colors = self.skeleton.colors(hue, theme.shade)
         for mesh, node in self._nodes.items():
-            node.batched_colors = rgb_uint8(colors[mesh])
+            node.batched_colors = linear_uint8(colors[mesh])
         if self._lines is not None:
-            self._lines.colors = rgb_uint8(theme.shade(hue, "face"))
+            self._lines.colors = linear_uint8(theme.shade(hue, "face"))
 
 
 @final
@@ -130,7 +130,8 @@ class RobotVisual(Layer):
     show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without them the collision
     shapes of ``geometry``; ``frames`` draws a triad per moving joint (``True``) or per frame given, by id or name.
     Every part is built the first time it is shown; ``set_style``, ``set_collision`` and ``set_frames`` switch them
-    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer.
+    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer: a
+    switch from code moves the control and leaves the other robots as they are.
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the theme's next
     hue, one per robot. ``name`` defaults to the model's name.
@@ -329,6 +330,7 @@ class RobotVisual(Layer):
             raise ArgumentError(f"style must be one of {list(self.styles)} for robot {self.name!r}, got {style!r}")
         self.style = style
         self._apply()
+        self._show("Style", style)
 
     def set_collision(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Show or hide the collision overlay: the spheres, or the collision shapes of the geometry."""
@@ -336,6 +338,7 @@ class RobotVisual(Layer):
             raise ArgumentError(f"robot {self.name!r} has no spheres and no collision shapes to overlay")
         self._collision = visible
         self._apply()
+        self._show("Collision", visible)
 
     def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
         """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
@@ -345,6 +348,12 @@ class RobotVisual(Layer):
             self._triads = chosen
         self._frames = chosen
         self._apply()
+        self._show("Frames", bool(chosen))
+
+    def _show(self, label: str, value: Any) -> None:
+        """Move the Robot section's control, shared by every robot, to what code set; no robot's callback runs."""
+        if self.viewer is not None:
+            self.viewer.sidebar.set_value("Robot", label, value=value)
 
     # ------------------------------------------------------------------ the Layer contract
 
@@ -397,7 +406,8 @@ class RobotVisual(Layer):
 
     @override
     def bounds(self, step: int) -> Bounds | None:
-        """The box round the joints and the blocks of the maximal skeleton: the robot's extent in any style."""
+        """A box per joint (a point) and per block of the maximal skeleton, ``(lo (N, 3), hi (N, 3))``: the robot's
+        extent in any style."""
         joints = self._poses[step, min(1, self.model.njoints - 1) :, :3]  # not the universe, unless it is all there is
         lows, highs = [joints], [joints]
         for mesh, (world, scale) in self._skeleton("maximal").place(self._poses[step]).items():
@@ -407,7 +417,7 @@ class RobotVisual(Layer):
             reach = np.einsum("nk,nkc->nc", half, axes)  # the half extent of its world box
             lows.append(world[:, :3] - reach)
             highs.append(world[:, :3] + reach)
-        return np.concatenate(lows).min(axis=0), np.concatenate(highs).max(axis=0)
+        return np.concatenate(lows), np.concatenate(highs)
 
     @override
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand

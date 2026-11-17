@@ -125,7 +125,9 @@ class Layer(ABC):
     def bounds(self, step: int) -> Bounds | None:
         """World box ``(lo (3,), hi (3,))`` of what the layer draws at ``step``, which ``Viewer.aim`` frames.
 
-        ``None`` (the default) keeps the layer out of the framing, as for the ground grid.
+        A layer of thin, spread-out parts may return one box per part, ``(lo (N, 3), hi (N, 3))``: ``aim`` frames the
+        corners of every box, and one box round a robot is twice what the robot covers on screen. ``None`` (the
+        default) keeps the layer out of the framing, as for the ground grid.
         """
         return None
 

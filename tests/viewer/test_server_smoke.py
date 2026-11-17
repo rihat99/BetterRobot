@@ -10,11 +10,16 @@ from typing import Any
 import numpy as np
 import pytest
 
+import better_robot as br
+from better_robot import collision
+
 from better_robot.viewer.layers import ArrowsLayer, FramesLayer, PointsLayer
 from better_robot.viewer.layers.mesh import SpheresLayer
 from better_robot.viewer.layer import Layer
+from better_robot.viewer.robot import RobotVisual
 from better_robot.viewer.tools import PoseGizmo
 from better_robot.viewer.viewer import Viewer
+from tests.support.robots import g1_urdf
 
 
 def _free_port() -> int:
@@ -103,5 +108,31 @@ def test_a_pose_gizmo_on_a_real_server_uses_no_deprecated_viser_call() -> None:
         gizmo = PoseGizmo(viewer, "target", pose=np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]))  # warnings are errors
         np.testing.assert_allclose(gizmo.pose, [0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
         gizmo.remove()
+    finally:
+        viewer.server.stop()
+
+
+def test_a_switch_from_code_moves_the_shared_control_and_no_other_robot() -> None:
+    """On a real server, where viser runs a control's callbacks for a value set from code as for a browser's."""
+    viewer = Viewer(port=_free_port())
+    try:
+        model = br.load(g1_urdf())
+        spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "g1.json", model)
+        first = viewer.add(RobotVisual(model, name="first", spheres=spheres))
+        second = viewer.add(RobotVisual(model, name="second", spheres=spheres), offset=(0.0, 1.0, 0.0))
+        ran: list[Any] = []  # joins the three shared controls: every change that runs the callbacks lands here
+        sidebar = viewer.sidebar
+        style = sidebar.dropdown("Robot", "Style", options=first.styles, value=first.style, on_change=ran.append)
+        overlay = sidebar.checkbox("Robot", "Collision", value=False, on_change=ran.append)
+        frames = sidebar.checkbox("Robot", "Frames", value=False, on_change=ran.append)
+        first.set_style("minimal")
+        first.set_collision(True)
+        first.set_frames(["pelvis"])
+        assert (style.value, overlay.value, frames.value) == ("minimal", True, True)
+        assert ran == [] and (first.style, second.style) == ("minimal", "maximal")
+        first.set_frames(False)
+        assert frames.value is False and ran == []
+        style.value = "maximal"  # as a browser's choice: every robot follows
+        assert ran == ["maximal"] and first.style == "maximal"
     finally:
         viewer.server.stop()
