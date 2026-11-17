@@ -16,7 +16,7 @@ import torch
 from robot_descriptions import g1_description, go2_description, panda_description
 
 import better_robot as br
-from better_robot import Viewer, lie
+from better_robot import Viewer
 from better_robot.testing import FakeServer
 from better_robot.viewer import DARK, LIGHT, RobotVisual
 
@@ -49,18 +49,6 @@ def motion(model: br.Model, rest: dict[str, float], poses: list[dict[str, float]
     return keys[index] + ease * (keys[(index + 1) % len(poses)] - keys[index])
 
 
-def stand(model: br.Model, geometry: br.model.Geometry, q: torch.Tensor) -> torch.Tensor:
-    """``q`` with the floating base lifted, step by step, until the lowest collision sphere (a sole) touches z = 0."""
-    poses = br.forward_kinematics(model, q).joint_poses  # (T, njoints, 7)
-    soles = [shape for shape in geometry.shapes if shape.collision and isinstance(shape.shape, br.model.Sphere)]
-    heights = torch.stack(
-        [lie.se3.act(poses[:, s.body], torch.tensor(s.shape.placement[:3]))[:, 2] - s.shape.radius for s in soles]
-    )
-    q = q.clone()
-    q[:, 2] -= heights.min(dim=0).values
-    return q
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1", help="0.0.0.0 serves the page to other machines")
@@ -74,7 +62,7 @@ def main() -> None:
     def pick(name: str) -> None:
         for other, robot in robots.items():
             viewer.set_visible(robot, other == name)
-        viewer.aim(azimuth=math.radians(60.0))  # a three-quarter view from the front
+        viewer.aim()  # a three-quarter view from the front
 
     viewer.sidebar.dropdown("Robot", "Model", options=list(ROBOTS), value="G1", on_change=pick)
     viewer.sidebar.dropdown(
@@ -86,8 +74,11 @@ def main() -> None:
             model = br.load(description.URDF_PATH, root_joint=br.JointFreeFlyer() if floating else None)
             geometry = br.io.load_geometry(description.URDF_PATH, model)
             q = motion(model, rest, poses)
-            q = stand(model, geometry, q) if floating else q
-            visual = RobotVisual(model, q, name=name, geometry=geometry, root=description.URDF_PATH)
+            hue = LIGHT.hue(0)  # one robot on the page at a time: each in the first robot's colour
+            visual = RobotVisual(model, q, name=name, geometry=geometry, root=description.URDF_PATH, hue=hue)
+            if floating:  # lift the base, step by step, until the lowest point (a sole's collision sphere) is at z = 0
+                q[:, 2] -= torch.tensor([visual.bounds(step)[0][:, 2].min() for step in range(STEPS)])
+                visual.update(q)
             robots[name] = viewer.add(visual, tags="robot")  # one tag: the picker, not the Layers section, chooses
     pick("G1")
     print(f"{', '.join(robots)} at {viewer.url}")
