@@ -51,7 +51,7 @@ _SLEEVE = 0.6  # half length of a sleeve along its rail over the joint radius
 _MARKER = 0.6  # radius of the plain marker of an unlisted joint kind over the joint radius
 _TRUNK_PAD = 0.7  # a trunk hull pads its sphere centres by this share of their median radius
 _TRUNK = 0.8  # a trunk keeps this share of the half extents of its geometry: the skeleton is slimmer than the robot
-_TAPER = 0.8  # a block's side at z = 0.5 over its side at z = -0.5: every body narrows towards +z (the unit box)
+_TAPER = 0.8  # a maximal block's side at z = 0.5 over its side at z = -0.5: every body narrows towards +z
 _HEAD_CAP = 0.8  # a second frame of a body is a ball of at most this share of the body hull's smallest half extent
 _END_PAD = 0.4  # an end block pads its points by this share of min(joint radius, median sphere radius)
 _FLAT = 0.3  # a leaf's geometry is a sole when its thinnest extent is under this share of its middle one
@@ -183,11 +183,13 @@ class Skeleton:
     ``scale`` is the robot's size (diagonal of the box of its joint origins at neutral) and ``radius`` the reference
     glyph radius. ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0.5, 1]``) list, by
     joint name, the glyphs the layout moved or shrank; ``clusters`` the joint names behind each ball of a
-    ``glyphs="ball"`` recipe.
+    ``glyphs="ball"`` recipe. ``taper`` is the ``unit_box`` the boxes are drawn with: 0.8 for the maximal layout,
+    whose bodies narrow towards their +z, 1 (a cube) for the stick figure.
     """
 
     scale: float
     radius: float
+    taper: float
     cylinders: Blocks
     balls: Blocks
     boxes: Blocks
@@ -408,8 +410,9 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
 
     The robot's size is the diagonal of the box of its joint origins; the reference radius a third of the mean bone,
     kept between 1 % and 6 % of the size; a joint's radius the reference times the sixth root of its effort limit
-    over the median one, kept between 0.7 and 1.3. A leaf joint is no thicker than 1.25 median radii of the spheres
-    it carries, and a glyph that cannot slide no thicker than 0.4 of its shortest bone.
+    over the median one, kept between 0.7 and 1.3. A glyph that cannot slide is no thicker than 0.4 of its
+    shortest bone. The maximal layout (``glyphs="kind"``) is calmer: the reference between 2 % and 4 % of the size,
+    the factor between 0.8 and 1.2, against the median of the joints of the same kind.
     """
     njoints, parents = model.njoints, model.parent_joint_ids
     kind = ("fixed", *(_KINDS.get(type(joint), "other") for joint in model.joints[1:]))
@@ -429,7 +432,9 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
     scale = scale if scale > 1e-9 else 1.0  # a single body: a unit robot
     spans = [float(np.linalg.norm(origin[j] - origin[group[j]])) for j in glyphs if group[j]]
     spans = [span for span in spans if span > 0.01 * scale]
-    reference = float(np.clip(np.mean(spans) / 3.0, 0.02 * scale, 0.04 * scale)) if spans else 0.03 * scale
+    maximal = recipe.glyphs == "kind"  # the stick figure keeps its own sizes
+    low, high, spread = (0.02, 0.04, 0.2) if maximal else (0.01, 0.06, 0.3)
+    reference = float(np.clip(np.mean(spans) / 3.0, low * scale, high * scale)) if spans else 0.03 * scale
     reference *= recipe.size
     tree = _Tree(
         model, kind, tuple(anchor), tuple(root), glyphs, group, children, origin, rotation, neutral, axis, scale,
@@ -442,9 +447,10 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
         value = float(effort[model.idx_vs[source]]) if model.nvs[source] == 1 else np.nan
         torque[j] = value if np.isfinite(value) and value > 0.0 else np.nan
     radius = {}
-    for j in glyphs:  # a force and a torque are not compared: each kind against its own median
-        known = [value for i, value in torque.items() if np.isfinite(value) and kind[i] == kind[j]]
-        factor = float(np.clip((torque[j] / np.median(known)) ** (1.0 / 6.0), 0.8, 1.2)) if torque[j] > 0.0 else 1.0
+    for j in glyphs:  # the maximal layout compares each kind with its own median: a force is not a torque
+        known = [value for i, value in torque.items() if np.isfinite(value) and (kind[i] == kind[j] or not maximal)]
+        ratio = torque[j] / np.median(known) if torque[j] > 0.0 else 1.0
+        factor = float(np.clip(ratio ** (1.0 / 6.0), 1.0 - spread, 1.0 + spread))
         radius[j] = reference * factor * recipe.joint_size.get(model.joint_names[j], 1.0)
         radius[j] *= _MARKER if kind[j] == "other" else 1.0
         if kind[j] in ("spherical", "other") and tree.bones(j):
@@ -454,7 +460,8 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
 
 def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool) -> _Tree:
     """``tree`` with each leaf glyph no thicker than the body it moves: at most 1.25 times the median radius of the
-    spheres it carries, or of the middle half extent of its collision points in its own frame.
+    spheres it carries or, in the ``maximal`` layout, of the middle half extent of its collision points in its own
+    frame.
 
     The ``maximal`` layout also narrows towards the tips: a glyph is no wider than the glyph before it (a
     free-flyer's cube does not count)."""
@@ -465,6 +472,8 @@ def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool
         radii = [cloud.radii for cloud in clouds[j] if cloud.radii is not None]
         if radii:
             size = float(np.median(np.concatenate(radii)))
+        elif not maximal:  # the stick figure is capped by spheres only
+            continue
         else:
             points = np.concatenate([cloud.origin + cloud.points @ cloud.rotation.T for cloud in clouds[j]])
             size = float(np.sort(np.ptp((points - tree.origin[j]) @ tree.rotation[j], axis=0))[1]) / 2
@@ -973,6 +982,7 @@ class _Rows:
         return Skeleton(
             scale=tree.scale,
             radius=tree.reference,
+            taper=_TAPER if self.recipe.glyphs == "kind" else 1.0,
             **packed,
             points_body=np.array([body for body, _ in self.points], dtype=np.int64),
             points_local=np.stack([local for _, local in self.points]),
@@ -1253,7 +1263,7 @@ def unit_ball(rings: int = 16, sides: int = 32) -> tuple[np.ndarray, np.ndarray]
     return vertices.astype(np.float32), np.concatenate(faces).astype(np.uint32)
 
 
-def unit_box(chamfer: float = 0.12, taper: float = _TAPER) -> tuple[np.ndarray, np.ndarray]:
+def unit_box(chamfer: float = 0.12, taper: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
     """Cube of side 1 with chamfered edges and corners, narrowed towards ``+z``, to draw flat-shaded: ``(vertices
     (24, 3), faces (44, 3))``.
 

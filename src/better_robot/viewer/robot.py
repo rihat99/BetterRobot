@@ -82,7 +82,7 @@ class _Blocks(Layer):
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box()}
+        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(taper=self.skeleton.taper)}
         colors = self.skeleton.colors(self.hue, self.theme.shade)
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
@@ -92,7 +92,7 @@ class _Blocks(Layer):
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
                         batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
-                        receive_shadow=False,  # a block's own shadow map streaks its faces; the ground keeps them
+                        receive_shadow=self.skeleton.taper == 1.0,  # a tapered block's own shadow streaks its faces
                     )
                 )  # fmt: skip
         if len(self.skeleton.line_body):
