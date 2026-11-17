@@ -554,6 +554,15 @@ def test_a_thin_placeholder_shape_does_not_shrink_a_leaf_glyph_to_nothing() -> N
     assert blocks.scale[drum, 0] == pytest.approx(0.2 * skeleton.radius)
 
 
+@pytest.mark.parametrize(("name", "size"), [("box", np.sqrt(0.1**2 + 0.2**2 + 0.3**2)), ("gantry", np.sqrt(3 * 0.06))])
+def test_a_robot_whose_joints_share_one_point_takes_its_size_from_its_bodies(name: str, size: float) -> None:
+    """When the joint origins span nothing (a lone floating body, sliders that share a point) the robot's size is the
+    diagonal of its geometry's box and of its inertia boxes (sides of 0.245 m for an inertia of 0.01 kg m2 about each
+    axis of 1 kg), not a default 1 m."""
+    model, geometry = _synthetic(name)
+    assert build_skeleton(model, MAXIMAL, geometry=geometry).scale == pytest.approx(size)
+
+
 def test_colors_shade_each_part_and_tint_the_sides() -> None:
     model, spheres = _g1()
     hue = (0.2, 0.6, 0.4)

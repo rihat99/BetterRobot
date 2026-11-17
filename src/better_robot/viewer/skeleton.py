@@ -284,9 +284,9 @@ def build_skeleton(
     for name in recipe.color:
         if name not in model.joint_names and name not in model.frame_names:
             raise UnknownNameError("joint or frame", name, valid=(*model.joint_names, *model.frame_names))
-    tree = _tree(model, recipe)
+    tree = _tree(model)
     clouds = _clouds(tree, spheres, geometry, mesh_vertices)
-    tree = _leaf_caps(tree, clouds, maximal=recipe.glyphs == "kind")
+    tree = _leaf_caps(_sizes(tree, recipe, clouds), clouds, maximal=recipe.glyphs == "kind")
     factor = {j: recipe.joint_size.get(model.joint_names[j], 1.0) for j in tree.glyphs}
     rows = _Rows(tree, recipe)
     slides: dict[str, float] = {}
@@ -409,15 +409,8 @@ class _Tree:
         return [length for length in lengths if length > 0.01 * self.scale]
 
 
-def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
-    """The tree of ``model`` at ``q_neutral`` with the sizes of ``recipe``.
-
-    The robot's size is the diagonal of the box of its joint origins; the reference radius a third of the mean bone,
-    kept between 2 % and 4 % of the size, times ``size``; a joint's radius the reference times the sixth root of its
-    effort limit over the median one of the joints of its kind (a force is not a torque), kept between 0.8 and 1.2.
-    A glyph that cannot slide is no thicker than 0.4 of its shortest bone. Both styles share the rule, so a small
-    robot's balls are as small for it as a large robot's.
-    """
+def _tree(model: Model) -> _Tree:
+    """The tree of ``model`` at ``q_neutral``, without sizes yet (``_sizes``)."""
     njoints, parents = model.njoints, model.parent_joint_ids
     kind = ("fixed", *(_KINDS.get(type(joint), "other") for joint in model.joints[1:]))
     anchor, root = [0] * njoints, [0] * njoints
@@ -431,17 +424,41 @@ def _tree(model: Model, recipe: SkeletonRecipe) -> _Tree:
         neutral = _numpy(forward_kinematics(model, model.q_neutral).joint_poses)
     origin, rotation = neutral[:, :3], _matrix(neutral[:, 3:])
     axis = {j: rotation[j] @ np.array(model.joints[j].axis) for j in glyphs if kind[j] in ("revolute", "prismatic")}
-    extent = origin[1:] if njoints > 1 else origin
-    scale = float(np.linalg.norm(extent.max(axis=0) - extent.min(axis=0)))
-    scale = scale if scale > 1e-9 else 1.0  # a single body: a unit robot
+    return _Tree(
+        model, kind, tuple(anchor), tuple(root), glyphs, group, children, origin, rotation, neutral, axis, 0.0, 0.0, {}
+    )
+
+
+def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud]]) -> _Tree:
+    """``tree`` with the sizes of ``recipe``.
+
+    The robot's size is the diagonal of the box of its joint origins; when they span nothing (one moving joint,
+    joints that share a point, a lone floating body) the box also takes in the ``clouds`` and the solid box of each
+    rigid group's inertia, and only a robot with none of those is 1 m. The reference radius is a third of the mean
+    bone, kept between 2 % and 4 % of the size, times ``size``; a joint's radius the reference times the sixth root
+    of its effort limit over the median one of the joints of its kind (a force is not a torque), kept between 0.8
+    and 1.2. A glyph that cannot slide is no thicker than 0.4 of its shortest bone. Both styles share the rule, so a
+    small robot's balls are as small for it as a large robot's.
+    """
+    model, origin, glyphs, group = tree.model, tree.origin, tree.glyphs, tree.group
+    points = [origin[1:] if model.njoints > 1 else origin]
+    if np.ptp(points[0], axis=0).max() <= 1e-9:
+        for cloud in (cloud for found in clouds.values() for cloud in found):
+            pad = 0.0 if cloud.radii is None else cloud.radii[:, None]
+            points += [cloud.origin + cloud.points @ cloud.rotation.T + sign * pad for sign in (-1.0, 1.0)]
+        for solid in filter(None, (_inertia(tree, g) for g in (0, *glyphs))):
+            mass, center, total = solid
+            half = np.sqrt(np.maximum(6.0 * (np.trace(total) - 2.0 * np.diag(total)) / mass, 0.0)) / 2
+            points.append(np.stack([center - half, center + half]))
+    extent = np.concatenate(points)
+    scale = float(np.linalg.norm(np.ptp(extent, axis=0)))
+    scale = scale if scale > 1e-9 else 1.0  # nothing to measure: a unit robot
     spans = [float(np.linalg.norm(origin[j] - origin[group[j]])) for j in glyphs if group[j]]
     spans = [span for span in spans if span > 0.01 * scale]
     reference = float(np.clip(np.mean(spans) / 3.0, 0.02 * scale, 0.04 * scale)) if spans else 0.03 * scale
     reference *= recipe.size
-    tree = _Tree(
-        model, kind, tuple(anchor), tuple(root), glyphs, group, children, origin, rotation, neutral, axis, scale,
-        reference, {},
-    )  # fmt: skip
+    tree = replace(tree, scale=scale, reference=reference)
+    kind = tree.kind
     effort = _numpy(model.effort_limit)
     torque = {}
     for j in glyphs:  # a mimic joint is as strong as the joint that drives it
