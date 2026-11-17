@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import base64
 import json
-import math
 import os
 import re
 import shutil
@@ -167,51 +166,27 @@ _RECORDER = r"""
 """.replace("__MARKER__", _MARKER)
 
 
-def record(
+def _record(
     viewer: Viewer,
-    path: str | Path,
+    path: Path,
     *,
-    size: tuple[int, int] = (1920, 1080),
-    fps: float | None = None,
-    steps: Sequence[int] | None = None,
-    camera: tuple[np.ndarray | Sequence[float], np.ndarray | Sequence[float]] | None = None,
-    fov: float = math.radians(40.0),
-    gpu: int | None = None,
-    bitrate: float | None = None,
+    steps: list[int],
+    size: tuple[int, int],
+    camera: tuple[np.ndarray, np.ndarray],
+    fov: float,
+    gpu: int | None,
+    fps: float,
+    bitrate: float,
 ) -> Path:
-    """The body of ``Viewer.record``, whose docstring states the contract; returns the path written."""
-    path = Path(path)
-    if path.suffix == "":
-        path = path.with_suffix(".mp4" if _ffmpeg(required=False) else ".webm")
+    """Record ``steps`` of ``viewer`` into ``path`` with the arguments ``Viewer.record`` checked; returns ``path``."""
     suffix = path.suffix.lower()
-    if suffix not in (".mp4", ".webm", ".png"):
-        raise ArgumentError(f"record writes .mp4, .webm or .png, not {path.name!r}")
-    nsteps = viewer.timeline.nsteps
-    default = [viewer.timeline.step] if suffix == ".png" else range(nsteps)
-    steps = [int(step) for step in (default if steps is None else steps)]
-    if (len(steps) != 1) if suffix == ".png" else not steps:
-        raise ArgumentError(f"{path.name} takes {'one step' if suffix == '.png' else 'at least one step'}, got {steps}")
-    if not all(0 <= step < nsteps for step in steps):
-        raise ArgumentError(f"steps must lie in [0, {nsteps}), got {steps}")
-    width, height = size = (int(size[0]), int(size[1]))
-    if width < 2 or height < 2 or suffix != ".png" and (width % 2 or height % 2):
-        raise ArgumentError(f"size must be (width, height) with both even for a video, got {size}")
     ffmpeg = _ffmpeg(required=True) if suffix == ".mp4" else None
     codecs = [] if suffix == ".png" else [_H264, *_CODECS] if ffmpeg else list(_CODECS)
-    position, look_at = viewer.aim(steps=steps, fov=fov) if camera is None else camera
-    position, look_at = np.asarray(position, dtype=np.float64), np.asarray(look_at, dtype=np.float64)
-    if position.shape not in ((3,), (len(steps), 3)) or look_at.shape != position.shape:
-        raise ArgumentError(
-            f"camera must be (position, look_at), each (3,) or ({len(steps)}, 3) per step, got {position.shape} and "
-            f"{look_at.shape}"
-        )
-    bits = 8e6 * width * height / (1920 * 1080) if bitrate is None else float(bitrate)
-    fps = float(fps or viewer.timeline.fps)
     shown, playing = viewer.timeline.step, viewer.timeline.playing
-    viewer.timeline.pause()  # outside the lock: the playback thread takes it to push a step
+    viewer.timeline.pause()
     try:
-        with viewer.lock, _Page(viewer, size, (position, look_at), fov, gpu) as page:
-            data, codec = page.record(steps, codecs=codecs, fps=fps, bitrate=bits)
+        with viewer.lock, _Page(viewer, size, camera, fov, gpu) as page:
+            data, codec = page.record(steps, codecs=codecs, fps=fps, bitrate=bitrate)
     finally:
         viewer.show(shown)
         if playing:
@@ -237,7 +212,16 @@ def record(
             "yuv420p",
         ]
     command = [ffmpeg, "-y", "-loglevel", "error", *convert, "-movflags", "+faststart", str(path)]
-    subprocess.run(command, input=data, check=True)
+    run = subprocess.run(command, input=data, capture_output=True, check=False)
+    if run.returncode != 0:  # the encoded video is the costly part: keep it
+        kept = path.with_suffix(".h264" if codec == _H264 else ".webm")
+        kept.write_bytes(data)
+        reason = run.stderr.decode(errors="replace").strip()
+        raise OptionalDependencyError(
+            f"an ffmpeg that writes {path.name} ({ffmpeg} exited with code {run.returncode}"
+            f"{f': {reason}' if reason else ''})",
+            install=f"apt install ffmpeg, or point BETTER_ROBOT_FFMPEG at a working one; the video is kept in {kept}",
+        )
     return path
 
 
@@ -276,6 +260,9 @@ class _Page:
         self, viewer: Viewer, size: tuple[int, int], camera: tuple[np.ndarray, np.ndarray], fov: float, gpu: int | None
     ) -> None:
         self.viewer, self.size, self.camera, self.fov, self.gpu = viewer, size, camera, fov, gpu
+        # A server bound to every interface is reached through loopback: 0.0.0.0 is no destination on every system,
+        # and Chromium is closing it.
+        self.origin = f"http://{'127.0.0.1' if viewer.host == '0.0.0.0' else viewer.host}:{viewer.port}"
         self._profile = tempfile.TemporaryDirectory(prefix="better_robot_record_")
         self._process: subprocess.Popen | None = None
         self._pipes: tuple[int, int] | None = None  # (write to Chromium, read from Chromium)
@@ -290,7 +277,7 @@ class _Page:
         position, look_at = (",".join(f"{value:.9g}" for value in vector.reshape(-1, 3)[0]) for vector in self.camera)
         up = ",".join(f"{value:g}" for value in self.viewer.theme.up_vector)
         url = (
-            f"{self.viewer.url}/?fixedDpr=1&initialCameraPosition={position}&initialCameraLookAt={look_at}"
+            f"{self.origin}/?fixedDpr=1&initialCameraPosition={position}&initialCameraLookAt={look_at}"
             f"&initialCameraUp={up}&initialCameraFov={self.fov:.9g}"
         )
         environment = dict(os.environ)
@@ -306,7 +293,7 @@ class _Page:
             "--remote-debugging-pipe",
             f"--user-data-dir={self._profile.name}",
             f"--window-size={width},{height}",
-            f"--unsafely-treat-insecure-origin-as-secure={self.viewer.url}",  # WebCodecs needs a secure origin
+            f"--unsafely-treat-insecure-origin-as-secure={self.origin}",  # WebCodecs needs a secure origin
             "--hide-scrollbars",
             "--mute-audio",
             "--disable-background-timer-throttling",

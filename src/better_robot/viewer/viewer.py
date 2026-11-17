@@ -107,7 +107,7 @@ class Viewer:
         self.theme.apply(server)
         self.lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes
         self.sidebar = Sidebar(server, self.lock)
-        self.timeline = Timeline(1, fps=fps)
+        self.timeline = Timeline(1, fps=fps, lock=self.lock)
         self._pointer: tuple[str, PointerCallback] | None = None  # (kind, callback) held by on_pointer
         self.timeline.on_step(lambda step: self._push_all(step, force=False))
         self._entries: list[_Entry] = []
@@ -311,12 +311,13 @@ class Viewer:
         """Play the timeline at ``fps`` steps per second, such as the frame rate of the clip on screen.
 
         The current step is kept and playback continues. Layers added with ``times`` are mapped onto the new
-        step length and the timeline is fitted to them; a `PlotPanel` keeps the time axis it was built with.
+        step length and the timeline is fitted to them; a `PlotPanel` keeps the time axis it was built with. A sidebar
+        callback may call it.
         """
         if not fps > 0.0:
             raise ArgumentError(f"fps must be positive, got {fps}")
         playing = self.timeline.playing
-        self.timeline.pause()  # outside the lock: the playback thread takes it to push steps
+        self.timeline.pause()
         with self.lock:
             self.timeline.fps = float(fps)
             self._fit_timeline()
@@ -398,16 +399,60 @@ class Viewer:
         found, else ``.webm``. Frame ``k`` shows ``steps[k]`` (default: every step; for a still, the current step).
         ``size`` is the output's ``(width, height)`` in pixels, both even for a video, up to the renderer's limit
         (3840 x 2160 is fine); ``fps`` defaults to the timeline's. ``camera`` is ``(position, look_at)``, each ``(3,)``
-        or ``(len(steps), 3)`` to move per step; ``None`` is ``aim(steps=steps)``. ``fov`` is the vertical field of
-        view in radians. ``gpu`` is the ``nvidia-smi`` index of the GPU to render on, ``None`` the CPU; an unreachable
-        GPU raises. ``bitrate`` in bits per second defaults to 8 Mbit/s scaled by the pixel count over full HD. The
-        frames are what a browser shows of this scene, background included. Playback pauses while recording and the
-        step shown before comes back. Needs a Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see
-        ``better_robot.viewer.record``.
+        or ``(len(steps), 3)`` to move per step; ``None`` is the view ``aim(steps=steps, fov=fov)`` would choose, and
+        the live browsers' cameras stay where they are. ``fov`` is the vertical field of view in radians, in
+        ``(0, pi)``. ``gpu`` is the ``nvidia-smi`` index of the GPU to render on, ``None`` the CPU; an unreachable GPU
+        raises. ``bitrate`` in bits per second defaults to 8 Mbit/s scaled by the pixel count over full HD. When
+        ffmpeg fails, the encoded video is kept beside ``path`` (``.h264``, or ``.webm`` when the browser had no H.264
+        encoder) and the error names it. The frames are what a browser shows of this scene, background included.
+        Playback pauses while recording and the step shown before comes back; a sidebar callback may call it. Needs a
+        Chromium (``$BETTER_ROBOT_CHROME`` or on ``PATH``); see ``better_robot.viewer.record``.
         """
-        from .record import record  # noqa: PLC0415 - the browser path is opt-in
+        from .record import _ffmpeg, _record  # noqa: PLC0415 - the browser path is opt-in
 
-        return record(self, path, size=size, fps=fps, steps=steps, camera=camera, fov=fov, gpu=gpu, bitrate=bitrate)
+        path = Path(path)
+        if path.suffix == "":
+            path = path.with_suffix(".mp4" if _ffmpeg(required=False) else ".webm")
+        suffix = path.suffix.lower()
+        if suffix not in (".mp4", ".webm", ".png"):
+            raise ArgumentError(f"record writes .mp4, .webm or .png, not {path.name!r}")
+        nsteps = self.timeline.nsteps
+        steps = list(([self.timeline.step] if suffix == ".png" else range(nsteps)) if steps is None else steps)
+        if not all(isinstance(step, int | np.integer) for step in steps):
+            raise ArgumentError(f"steps must be integers, got {steps}")
+        steps = [int(step) for step in steps]
+        if (len(steps) != 1) if suffix == ".png" else not steps:
+            raise ArgumentError(
+                f"{path.name} takes {'one step' if suffix == '.png' else 'at least one step'}, got {steps}"
+            )
+        if not all(0 <= step < nsteps for step in steps):
+            raise ArgumentError(f"steps must lie in [0, {nsteps}), got {steps}")
+        width, height = size = (int(size[0]), int(size[1]))
+        if width < 2 or height < 2 or suffix != ".png" and (width % 2 or height % 2):
+            raise ArgumentError(f"size must be (width, height) with both even for a video, got {size}")
+        if fps is not None and not fps > 0.0:
+            raise ArgumentError(f"fps must be positive (None: the timeline's), got {fps}")
+        if bitrate is not None and not bitrate > 0.0:
+            raise ArgumentError(
+                f"bitrate must be positive (None: 8 Mbit/s scaled by the pixels over full HD), got {bitrate}"
+            )
+        if not 0.0 < fov < math.pi:
+            raise ArgumentError(f"fov must lie in (0, pi) radians, got {fov}")
+        if camera is not None and len(camera) != 2:
+            raise ArgumentError(f"camera must be a pair (position, look_at), got {len(camera)} items")
+        # The view aim() would choose, without moving the live browsers' cameras or ending the aim after each add.
+        position, look_at = self._framing(steps, _AZIMUTH, _ELEVATION, fov) if camera is None else camera
+        position, look_at = np.asarray(position, dtype=np.float64), np.asarray(look_at, dtype=np.float64)
+        if position.shape not in ((3,), (len(steps), 3)) or look_at.shape != position.shape:
+            raise ArgumentError(
+                f"camera must be (position, look_at), each (3,) or ({len(steps)}, 3) per step, got {position.shape} "
+                f"and {look_at.shape}"
+            )
+        fps = self.timeline.fps if fps is None else float(fps)
+        bits = 8e6 * width * height / (1920 * 1080) if bitrate is None else float(bitrate)
+        return _record(
+            self, path, steps=steps, size=size, camera=(position, look_at), fov=fov, gpu=gpu, fps=fps, bitrate=bits
+        )
 
     def aim(
         self,
@@ -428,6 +473,8 @@ class Viewer:
         looks from ``-y`` (the right side of a robot facing ``+x``, the usual convention) and 90 degrees from ``+x``:
         the default 60 degrees is a front three-quarter view.
         """
+        if not 0.0 < fov < math.pi:
+            raise ArgumentError(f"fov must lie in (0, pi) radians, got {fov}")
         with self.lock:
             self._aimed = True
             position, look_at = self._framing(steps, azimuth, elevation, fov)

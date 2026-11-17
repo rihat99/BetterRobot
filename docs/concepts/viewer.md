@@ -86,7 +86,8 @@ and return viser's control; asking again for the same section and label returns 
 callback, so one control drives every layer that asked for it, and it goes when the last of them is removed.
 `sidebar.set_value(section, label, value=)` shows a value on a control without running its callbacks, for a layer
 whose state code changed. Every
-callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps. A callback that raises a
+callback runs under `viewer.lock`, the one lock of adding, removing and pushing steps; it may call `set_fps` or
+`record`, which pause playback. A callback that raises a
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
 Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the boxes of the visible

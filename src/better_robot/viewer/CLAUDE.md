@@ -25,8 +25,9 @@ The design is `docs/concepts/viewer.md`; read it first.
 - A layer that should frame the camera of `Viewer.record` and `Viewer.aim` implements `bounds(step)` (a world box
   `(lo (3,), hi (3,))`, or a box per part `(N, 3)` when one box would be mostly empty, as `RobotVisual` does; cheap:
   no per-vertex work); the default `None` keeps it out of the fit.
-- Sidebar callbacks run under `viewer.lock`, and the playback thread takes that lock to push a step: a callback must
-  never wait for the thread (`Timeline.pause` joins it); the Timeline's own controls stop it with `_halt`.
+- Sidebar callbacks run under `viewer.lock`, and the playback thread takes that lock for each step: it must never
+  wait for it without a timeout and a look at whether playback stopped, or `Timeline.pause` (which joins it) hangs
+  in a callback that calls `set_fps` or `record`.
 - `Theme.apply` switches viser's environment map off: any map washes solid colours to pastel. Meshes share the rig.
 - viser draws a plain mesh's `color` and a point cloud's colours as sRGB, but the colours of batched meshes, arrows,
   line segments and a glTF's vertices as linear, which looks pale: send those through `theme.linear_uint8`, the

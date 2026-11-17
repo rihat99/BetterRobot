@@ -1,7 +1,7 @@
 # Visualize a robot
 
 You open the browser viewer, show the Panda moving along a trajectory, step through it, and record it to a
-GIF through a headless browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
+video through a headless browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video>
 <figcaption>One <code>RobotVisual</code> four ways: meshes, the maximal skeleton, the minimal skeleton, and the maximal one with joint frames, switched with <code>set_style</code> and <code>set_frames</code>.</figcaption></figure>
