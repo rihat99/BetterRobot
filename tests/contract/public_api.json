@@ -657,7 +657,7 @@
   "better_robot.viewer.Theme.text": "value: tuple",
   "better_robot.viewer.Theme.up": "value: str",
   "better_robot.viewer.Theme.up_vector": "property",
-  "better_robot.viewer.Timeline": "class(object)(nsteps: 'int', *, fps: 'float' = 30.0, loop: 'bool' = True) -> 'None'",
+  "better_robot.viewer.Timeline": "class(object)(nsteps: 'int', *, fps: 'float' = 30.0, loop: 'bool' = True, lock: 'threading.RLock | None' = None) -> 'None'",
   "better_robot.viewer.Timeline.build_gui": "function(self, sidebar: 'Sidebar') -> 'None'",
   "better_robot.viewer.Timeline.extend": "function(self, nsteps: 'int') -> 'None'",
   "better_robot.viewer.Timeline.on_step": "function(self, callback: 'Callable[[int], None]') -> 'None'",

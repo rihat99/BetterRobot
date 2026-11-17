@@ -86,6 +86,9 @@ that 0.3.0 renames or removes, one table row each.
 - `Timeline.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API): a Play box, the Step slider, a
   Speed dropdown (0.25x to 2x, taken while playing, no restart) and Loop, run under `Viewer.lock`. A step set while
   playing becomes where playback goes on.
+- `Timeline(nsteps, *, fps=30.0, loop=True, lock=None)`: the playback thread advances under `lock` (the viewer's
+  `Viewer.lock`) and never waits for it without looking whether playback stopped, so `Timeline.pause`,
+  `Viewer.set_fps` and `Viewer.record` may run in a sidebar callback; they hung there.
 - The Layers section does not list tags that hold only sidebar panels (`PlotPanel`, `ImagePanel`) and labels its
   checkboxes in sentence case; a `PlotPanel`'s time axis shows seconds instead of a date.
 - `Viewer.aim` and `Viewer.record` centre the boxes of the bounds in the view, at the nearest distance where every
