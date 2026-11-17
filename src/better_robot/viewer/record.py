@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import base64
 import json
-import math
 import os
 import re
 import shutil
@@ -36,7 +35,6 @@ from typing import TYPE_CHECKING, Any, final
 import numpy as np
 
 from ..exceptions import ArgumentError, OptionalDependencyError
-from .viewer import _AZIMUTH, _ELEVATION
 
 if TYPE_CHECKING:
     from .viewer import Viewer
@@ -170,89 +168,32 @@ _RECORDER = r"""
 
 def _record(
     viewer: Viewer,
-    path: str | Path,
+    path: Path,
     *,
-    size: tuple[int, int] = (1920, 1080),
-    fps: float | None = None,
-    steps: Sequence[int] | None = None,
-    camera: tuple[np.ndarray | Sequence[float], np.ndarray | Sequence[float]] | None = None,
-    fov: float = math.radians(40.0),
-    gpu: int | None = None,
-    bitrate: float | None = None,
+    steps: list[int],
+    size: tuple[int, int],
+    camera: tuple[np.ndarray, np.ndarray],
+    fov: float,
+    gpu: int | None,
+    fps: float,
+    bitrate: float,
 ) -> Path:
-    """The body of ``Viewer.record``, whose docstring states the contract; returns the path written."""
-    path = Path(path)
-    if path.suffix == "":
-        path = path.with_suffix(".mp4" if _ffmpeg(required=False) else ".webm")
+    """Record ``steps`` of ``viewer`` into ``path`` with the arguments ``Viewer.record`` checked; returns ``path``."""
     suffix = path.suffix.lower()
-    if suffix not in (".mp4", ".webm", ".png"):
-        raise ArgumentError(f"record writes .mp4, .webm or .png, not {path.name!r}")
-    nsteps = viewer.timeline.nsteps
-    default = [viewer.timeline.step] if suffix == ".png" else range(nsteps)
-    steps = list(default if steps is None else steps)
-    if not all(isinstance(step, int | np.integer) for step in steps):
-        raise ArgumentError(f"steps must be integers, got {steps}")
-    steps = [int(step) for step in steps]
-    if (len(steps) != 1) if suffix == ".png" else not steps:
-        raise ArgumentError(f"{path.name} takes {'one step' if suffix == '.png' else 'at least one step'}, got {steps}")
-    if not all(0 <= step < nsteps for step in steps):
-        raise ArgumentError(f"steps must lie in [0, {nsteps}), got {steps}")
-    width, height = size = (int(size[0]), int(size[1]))
-    if width < 2 or height < 2 or suffix != ".png" and (width % 2 or height % 2):
-        raise ArgumentError(f"size must be (width, height) with both even for a video, got {size}")
-    if fps is not None and not fps > 0.0:
-        raise ArgumentError(f"fps must be positive (None: the timeline's), got {fps}")
-    if bitrate is not None and not bitrate > 0.0:
-        raise ArgumentError(
-            f"bitrate must be positive (None: 8 Mbit/s scaled by the pixels over full HD), got {bitrate}"
-        )
-    position, look_at = _camera(viewer, camera, steps=steps, fov=fov)
     ffmpeg = _ffmpeg(required=True) if suffix == ".mp4" else None
     codecs = [] if suffix == ".png" else [_H264, *_CODECS] if ffmpeg else list(_CODECS)
-    bits = 8e6 * width * height / (1920 * 1080) if bitrate is None else float(bitrate)
-    fps = viewer.timeline.fps if fps is None else float(fps)
     shown, playing = viewer.timeline.step, viewer.timeline.playing
     viewer.timeline.pause()
     try:
-        with viewer.lock, _Page(viewer, size, (position, look_at), fov, gpu) as page:
-            data, codec = page.record(steps, codecs=codecs, fps=fps, bitrate=bits)
+        with viewer.lock, _Page(viewer, size, camera, fov, gpu) as page:
+            data, codec = page.record(steps, codecs=codecs, fps=fps, bitrate=bitrate)
     finally:
         viewer.show(shown)
         if playing:
             viewer.timeline.play()
     if ffmpeg is None:
         path.write_bytes(data)
-    else:
-        _mp4(ffmpeg, data, codec=codec, fps=fps, path=path)
-    return path
-
-
-def _camera(
-    viewer: Viewer,
-    camera: tuple[np.ndarray | Sequence[float], np.ndarray | Sequence[float]] | None,
-    *,
-    steps: list[int],
-    fov: float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """``record``'s ``camera`` as float64 ``(position, look_at)``, each ``(3,)`` or ``(len(steps), 3)``, once it and
-    ``fov`` are valid; ``None`` is the view ``aim`` would choose, and no live browser's camera moves."""
-    if not 0.0 < fov < math.pi:
-        raise ArgumentError(f"fov must lie in (0, pi) radians, got {fov}")
-    if camera is not None and len(camera) != 2:
-        raise ArgumentError(f"camera must be a pair (position, look_at), got {len(camera)} items")
-    position, look_at = viewer._framing(steps, _AZIMUTH, _ELEVATION, fov) if camera is None else camera
-    position, look_at = np.asarray(position, dtype=np.float64), np.asarray(look_at, dtype=np.float64)
-    if position.shape not in ((3,), (len(steps), 3)) or look_at.shape != position.shape:
-        raise ArgumentError(
-            f"camera must be (position, look_at), each (3,) or ({len(steps)}, 3) per step, got {position.shape} and "
-            f"{look_at.shape}"
-        )
-    return position, look_at
-
-
-def _mp4(ffmpeg: str, data: bytes, *, codec: str, fps: float, path: Path) -> None:
-    """Write the page's video ``data`` (``codec``) into ``path`` as an MP4 with ``ffmpeg``; when ffmpeg fails, keep
-    ``data`` beside ``path`` and raise ``OptionalDependencyError`` naming it."""
+        return path
     if codec == _H264:  # only the container changes; -r stamps the frames, the stream's own timing is the encoder's
         convert = ["-f", "h264", "-r", f"{fps:g}", "-i", "pipe:0", "-c", "copy"]
     else:  # a browser without an H.264 encoder: transcode its WebM, which takes longer than the rendering
@@ -281,6 +222,7 @@ def _mp4(ffmpeg: str, data: bytes, *, codec: str, fps: float, path: Path) -> Non
             f"{f': {reason}' if reason else ''})",
             install=f"apt install ffmpeg, or point BETTER_ROBOT_FFMPEG at a working one; the video is kept in {kept}",
         )
+    return path
 
 
 def _chrome() -> str:
