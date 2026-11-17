@@ -242,7 +242,7 @@ class RobotVisual(Layer):
 
     def _collision_vertices(self, mesh: Mesh) -> np.ndarray | None:
         """The vertices ``(V, 3)`` of a collision mesh file, which size the skeleton's bodies; ``None`` when the
-        file is not found, and the body is sized from its inertia."""
+        file is not found or holds no mesh, and the body is sized from its inertia."""
         with needs_extra("meshes"):
             import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
@@ -250,7 +250,8 @@ class RobotVisual(Layer):
             path = _mesh_file(-1, mesh.uri, self._root_folder)
         except ModelError:
             return None
-        return np.asarray(trimesh.load(path, force="mesh").vertices)
+        loaded = trimesh.load(path, force="mesh")
+        return np.asarray(loaded.vertices) if isinstance(loaded, trimesh.Trimesh) else None
 
     def _color(self) -> RGB:
         return self._hue if self._hue is not None else self._theme.hue(self._index or 0)
