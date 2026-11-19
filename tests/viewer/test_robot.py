@@ -447,6 +447,30 @@ def test_robot_visual_bounds_are_the_box_of_the_robot_at_the_step() -> None:
         assert (high <= (centers[step] + radii).max(axis=0) + 0.05).all()
 
 
+def test_robot_visual_bounds_hold_a_skin_that_reaches_past_the_joints_also_after_update() -> None:
+    """A sail of a skin on the Panda's hand reaches 0.6 m past every joint: the boxes per bone hold each skinned
+    vertex at each step, in a skeleton style too, and follow ``update``."""
+    model = br.load(panda_urdf())
+    generator = torch.Generator().manual_seed(0)
+    q = torch.stack([model.random_configuration(generator=generator) for _ in range(2)])
+    hand = model.body_id("panda_hand")
+    bind = br.forward_kinematics(model, model.q_neutral).joint_poses[hand]
+    sail = np.array([[0.0, 0.0, 0.0], [0.6, 0.0, 0.0], [0.0, 0.0, 0.6]], dtype=np.float32)
+    weights = np.zeros((3, model.njoints), dtype=np.float32)
+    weights[:, hand] = 1.0
+    skin = Skin(bind[:3].numpy() + sail, np.array([[0, 1, 2]]), weights=weights)
+    robot = RobotVisual(model, q, skin=skin, style="maximal")
+    for clip in (q, q.flip(0)):
+        robot.update(clip)
+        posed = br.forward_kinematics(model, clip).joint_poses[:, hand]  # (2, 7)
+        turn = so3.compose(posed[:, None, 3:], so3.inverse(bind[3:]))  # the sail rides on the hand
+        vertices = (so3.act(turn, torch.from_numpy(sail).to(posed)) + posed[:, None, :3]).numpy()  # (2, 3, 3)
+        for step in range(2):
+            lows, highs = robot.bounds(step)  # (N, 3) each
+            inside = (lows[:, None] <= vertices[step] + 1e-5) & (vertices[step] <= highs[:, None] + 1e-5)
+            assert inside.all(axis=-1).any(axis=0).all()  # each vertex in a box
+
+
 def test_robot_visual_leaves_nothing_behind_when_removed_and_builds_again_when_added() -> None:
     robot, server, viewer = _g1_visual(collision=True, frames=True)
     robot.set_style("minimal")

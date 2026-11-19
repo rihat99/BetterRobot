@@ -582,8 +582,9 @@ class RobotVisual(Layer):
     @override
     def bounds(self, step: int) -> Bounds | None:
         """A box per joint (a point), per collision sphere and per collision shape that is not a mesh (each exact),
-        and per block of the maximal skeleton on a rigid body without one of those, ``(lo (N, 3), hi (N, 3))``: the
-        robot's extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
+        per block of the maximal skeleton on a rigid body without one of those, and per bone of the ``skin`` that
+        carries vertices (``SkinnedMeshLayer.bounds``: no vertex is skinned), ``(lo (N, 3), hi (N, 3))``: the robot's
+        extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
         """
         model, poses = self.model, torch.from_numpy(self._poses[step])
         fit = self._fit = self._fit or self._fitted()
@@ -606,11 +607,15 @@ class RobotVisual(Layer):
             reach = np.einsum("nk,nkc->nc", (scale * _HALF_EXTENT[mesh])[keep], _axes(world[keep]))  # its world box
             lows.append(world[keep, :3] - reach)
             highs.append(world[keep, :3] + reach)
+        if fit.skin is not None:
+            low, high = fit.skin.bounds(step)
+            lows.append(low)
+            highs.append(high)
         return np.concatenate(lows), np.concatenate(highs)
 
     def _fitted(self) -> _Fit:
-        """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, and which
-        blocks of the maximal skeleton sit on a body that neither covers."""
+        """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, which
+        blocks of the maximal skeleton sit on a body that neither covers, and the skin's boxes per bone."""
         model = self.model
         anchor = list(range(model.njoints))  # the joint each body is welded to
         for j in range(1, model.njoints):
@@ -623,6 +628,12 @@ class RobotVisual(Layer):
         shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
         covered |= {anchor[attached.body] for attached in shapes}
         skeleton = self._skeleton("maximal")
+        skin = None
+        if self.skin is not None:  # never built: its boxes per bone follow the joint poses that update writes
+            skin = SkinnedMeshLayer(
+                "skin", self.skin.vertices, faces=self.skin.faces, weights=self.skin.weights,
+                bind_poses=self._solve(self.skin.bind)[1][0], bone_poses=self._poses,
+            )  # fmt: skip
         return _Fit(
             radii=radii,
             bodies=[attached.body for attached in shapes],
@@ -633,6 +644,7 @@ class RobotVisual(Layer):
                 mesh: np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
                 for mesh in ("cylinders", "balls", "boxes")
             },
+            skin=skin,
         )
 
     @override
@@ -741,6 +753,7 @@ class _Fit:
     sizes: np.ndarray  # (P, 6): what its world box needs (``_sizes``)
     skeleton: Skeleton  # the maximal skeleton
     keep: dict[str, np.ndarray]  # per unit mesh, (N,): whether a block is on a body that no sphere or shape covers
+    skin: SkinnedMeshLayer | None  # the skin's layer, never built, for its boxes per bone
 
 
 def _sizes(shape: Any) -> list[float]:

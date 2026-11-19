@@ -115,8 +115,8 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
   cylinders (29 drums, 29 faces, 37 rods), 5 balls (the caps of the four ends and the head) and the base cube,
   three nodes like the others, and a step writes what the maximal one writes plus the rods' lengths.
 - `bounds` is the same in every style, so the camera does not jump on a style switch: a box per joint, per
-  collision sphere and per collision shape that is not a mesh, and per block of the maximal skeleton on a body
-  without one of those.
+  collision sphere and per collision shape that is not a mesh, per block of the maximal skeleton on a body
+  without one of those, and per bone of a skin that carries vertices.
 - A switch from code moves the shared sidebar control and switches no other robot, so the control shows the robot
   switched last, and the other robots may show another style, overlay or triads than it does.
 - Torque colouring (`robot_skeleton(tau=)`) is `joint_values=`, each joint's `|tau|` over its effort limit: on the
