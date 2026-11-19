@@ -14,7 +14,7 @@ import torch
 
 import better_robot as br
 from better_robot import collision
-from better_robot.model import Box, Geometry, JointFixed, JointPrismatic, Model
+from better_robot.model import Box, Geometry, JointFixed, JointPrismatic, JointRevolute, JointRevoluteUnbounded, Model
 from better_robot.viewer import LIGHT, RobotVisual
 from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton
 
@@ -312,19 +312,19 @@ def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
 def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> None:
     """The medium skeleton is the stick figure with a glyph per joint kind: every kind the maximal one draws (the mixed
     robot has a drum, a sleeve on its rail, a ball, a free-flyer cube and a marker), none sized wider than its
-    maximal glyph before the slide rule shrinks either, on rods that follow their ends; no limb, trunk or end block,
-    and its boxes are not tapered."""
+    maximal glyph before the slide rule shrinks either, on rods that follow their ends; no limb, trunk or end block
+    (a chain ends in a pale tip), and its boxes are not tapered."""
     model, spheres = _ROBOTS[robot]()
     medium, maximal = build_skeleton(model, MEDIUM, spheres=spheres), build_skeleton(model, MAXIMAL, spheres=spheres)
     parts = {mesh: set(getattr(medium, mesh).part) for mesh in ("cylinders", "balls", "boxes")}
     glyphs = {mesh: {part for part in getattr(maximal, mesh).part if part in (*_GLYPH_PARTS, "face", "rail")}
               for mesh in ("cylinders", "balls", "boxes")}  # fmt: skip
     assert all(glyphs[mesh] <= parts[mesh] for mesh in glyphs), (glyphs, parts)
-    assert not set.union(*parts.values()) & {"bone", "hull", "end", "tip", "fill", "stick"}
+    assert not set.union(*parts.values()) & {"bone", "hull", "end", "fill", "stick"}
     rods = np.array(medium.cylinders.part) == "rod"
     assert rods.any() and (medium.cylinders.anchors[rods, 0] >= 0).all() and medium.taper == 1.0
     if robot == "mixed":
-        assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "marker", "rod"}
+        assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "marker", "rod", "tip"}
 
     def sized(skeleton: Skeleton, mesh: str) -> dict[tuple[int, str], float]:  # (joint, part) -> radius unshrunk
         blocks = getattr(skeleton, mesh)
@@ -336,6 +336,38 @@ def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> No
         wide = sized(maximal, mesh)
         for key, radius in sized(medium, mesh).items():
             assert radius <= wide.get(key, np.inf) + 1e-12, (model.joint_names[key[0]], key[1])
+
+
+@pytest.mark.parametrize("name", [*_SYNTHETIC, "mixed", "g1", "panda"])
+@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
+def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe: SkeletonRecipe) -> None:
+    """With a glyph per joint kind, every revolute joint with a motor of its own is a drum and every prismatic joint
+    a sleeve, alone or in a compound: a ball is the glyph of a spherical joint (the owner on a G1 drawn with balls
+    at its hips: "not acceptable"). A ball that a hinge or a slider owns is the end of its chain or the bend of a
+    hidden joint's bones, in the pale shade of the bodies."""
+    if name in _SYNTHETIC:
+        model, geometry = _synthetic(name)
+        skeleton = build_skeleton(model, recipe, geometry=geometry)
+    else:
+        model, spheres = _ROBOTS[name]()
+        skeleton = build_skeleton(model, recipe, spheres=spheres)
+    hinges = {j for j, joint in enumerate(model.joints) if isinstance(joint, (JointRevolute, JointRevoluteUnbounded))}
+    hinges -= {j for j in hinges if model.mimic_source_ids[j] != j}  # a linkage that follows its source: no motor
+    sliders = {j for j, joint in enumerate(model.joints) if isinstance(joint, JointPrismatic)}
+    drawn = {(part, owner) for mesh in ("cylinders", "boxes") for part, owner in _parts(skeleton, mesh)}
+    assert {j for j in hinges if ("drum", j) not in drawn} == set(), name
+    assert {j for j in sliders if ("sleeve", j) not in drawn} == set(), name
+    hue = (0.2, 0.6, 0.4)
+    colors = skeleton.colors(hue, LIGHT)["balls"]
+    for (part, owner), color in zip(_parts(skeleton, "balls"), colors, strict=True):
+        if owner in hinges | sliders:
+            assert part in ("tip", "fill"), (name, model.joint_names[owner], part)
+            np.testing.assert_allclose(color, LIGHT.shade(hue, "bone"), atol=1e-6)
+
+
+def _parts(skeleton: Skeleton, mesh: str) -> list[tuple[str, int]]:
+    blocks = getattr(skeleton, mesh)
+    return [(part, int(owner)) for part, owner in zip(blocks.part, blocks.owner, strict=True)]
 
 
 def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_each_other() -> None:
@@ -709,15 +741,16 @@ _AUTO = {("hull", "base"), ("end", "l3"), ("tip", "l3")}  # the boxed arm's trun
     [
         ("auto", {}, _AUTO),
         ("all", {}, _AUTO | {("hull", "l0"), ("hull", "l1"), ("hull", "l2")}),
-        ("none", {}, set()),
+        ("none", {}, {("tip", "l3")}),
         ("auto", {"l1": True}, _AUTO | {("hull", "l1")}),
-        ("none", {"l1": True}, {("hull", "l1")}),
+        ("none", {"l1": True}, {("hull", "l1"), ("tip", "l3")}),
         ("auto", {"base": False, "l3": False}, set()),
     ],
 )
 def test_hulls_and_body_hull_choose_the_bodies_drawn(hulls: str, body_hull: dict, expected: set) -> None:
     """``hulls`` gives a trunk to the root and the branching bodies (``"all"``: also a body with one child joint, the
-    links) and an end to the leaf, ``"none"`` neither; ``body_hull`` then adds or removes one body."""
+    links) and an end to the leaf, ``"none"`` neither (the chain ends in a small tip); ``body_hull`` then adds or
+    removes one body."""
     model, geometry = _synthetic("boxed_arm")
     skeleton = build_skeleton(model, replace(MAXIMAL, hulls=hulls, body_hull=body_hull), geometry=geometry)
     drawn = {

@@ -79,11 +79,13 @@ _GLYPHS = {
     "other": (("balls", "marker", False, (1.0, 1.0, 1.0)),),
 }  # fmt: skip
 _Shade = Literal["joint", "face", "body", "bone", "stick"]
-#: The shade each part of the skeleton takes from the robot's hue: light bodies, mid drums, dark drum faces.
+#: The shade each part of the skeleton takes from the robot's hue: light bodies, mid drums, dark drum faces. A
+#: ``tip`` (the ball that ends a chain or a head on its trunk, where the glyphs are drawn) takes the body's shade, so
+#: no ball but a spherical joint's reads as a joint.
 _ROLE: dict[str, _Shade] = {
-    "drum": "joint", "sleeve": "joint", "ball": "joint", "tip": "joint",
+    "drum": "joint", "sleeve": "joint", "ball": "joint",
     "face": "face", "marker": "face", "base": "face",
-    "bone": "bone", "fill": "bone", "hull": "bone", "end": "bone", "rod": "bone", "rail": "bone",
+    "bone": "bone", "fill": "bone", "hull": "bone", "end": "bone", "rod": "bone", "rail": "bone", "tip": "bone",
     "stick": "stick",
 }  # fmt: skip
 _MESHES = ("cylinders", "balls", "boxes")
@@ -1317,7 +1319,8 @@ def _stick_figure(
             rows.anchor({j: 1.0 / len(joints) for j in joints}, where) if rigid is None else rows.point(rigid, where)
         )
     hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], tree.radius[j]) for j in tree.glyphs}, {})
-    heads = _heads(tree, recipe, rows, clouds)
+    tip = "ball" if glyphs is None else "tip"  # beside drums, an end or a head is pale: a ball there is no joint
+    heads = _heads(tree, recipe, rows, clouds, part=tip)
     sticks = _sticks(tree, rows, [*hulls, *heads], members=members, cluster=cluster, anchor=anchor)
     ends: dict[int, list[float]] = {}
     for start, end, _ in sticks if glyphs is None else ():  # a glyph is sized by the slide rule instead
@@ -1328,7 +1331,7 @@ def _stick_figure(
     ended = {hull.group for hull in hulls if hull.part == "end"}
     for j in (j for j in tree.glyphs if not tree.children[j] and j not in ended):
         a = anchor[cluster[j]]
-        sticks += _knob(tree, recipe, rows, j, clouds.get(j, []), start=a, radius=drawn[a])
+        sticks += _knob(tree, recipe, rows, j, clouds.get(j, []), start=a, radius=drawn[a], part=tip)
     ball = {anchor[c]: glyphs[1][c] if glyphs is not None else share[c] * drawn[anchor[c]] for c in radius}
     for c, a in anchor.items():
         if glyphs is not None:
@@ -1354,16 +1357,19 @@ def _ball(tree: _Tree, rows: _Rows, anchor: int, radius: float, joint: int, base
         rows.add("boxes", "base", base, rows.where[anchor], side, rotation=tree.rotation[base], owner=joint)
 
 
-def _heads(tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]]) -> list[_Hull]:
+def _heads(
+    tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]], *, part: str
+) -> list[_Hull]:
     """The heads of the trunks, found as the maximal layout finds them (``_trunk``: a second frame outside the
-    body), for a stick figure that draws no trunk: each a ball as small as a joint's, added; their hulls returned."""
+    body), for a stick figure that draws no trunk: each a ball of ``part`` as small as a joint's, added; their hulls
+    returned."""
     heads = []
     for g in tree.glyphs:
         if (tree.group[g] == 0 and tree.kind[g] == "free") or len(tree.children[g]) >= 2:
             wanted = [cloud for cloud in clouds.get(g, []) if recipe.body_hull.get(cloud.name, True)]
             heads += [hull for hull in _trunk(tree, recipe, g, wanted, inertia=False) if hull.mesh == "balls"]
     for head in heads:
-        rows.add("balls", "ball", head.body, head.center, np.full(3, tree.reference), owner=head.group)
+        rows.add("balls", part, head.body, head.center, np.full(3, tree.reference), owner=head.group)
     return heads
 
 
@@ -1378,11 +1384,11 @@ def _mirrored(tree: _Tree, joint: int, other: int) -> bool:
 
 def _knob(
     tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, group: int, clouds: Sequence[_Cloud], *, start: int,
-    radius: float,
+    radius: float, part: str,
 ) -> list[tuple[int, int, int]]:  # fmt: skip
     """The stick from the ball of leaf ``group`` (anchor ``start``, drawn radius ``radius``) on to the end of its
-    body (``_tip``), and the small ball that ends it, both rigid in the leaf's frame; the stick is returned, the ball
-    added. Nothing when the end is inside the leaf's ball. The ball's radius is 0.55 of the leaf's ball, or less to
+    body (``_tip``), and the small ball of ``part`` that ends it, both rigid in the leaf's frame; the stick is
+    returned, the ball added. Nothing when the end is inside the leaf's ball. The ball's radius is 0.55 of the leaf's ball, or less to
     stay clear of it, and at least 1.25 times the stick's.
     """
     end, centred = _tip(tree, recipe, group, clouds)
@@ -1394,7 +1400,7 @@ def _knob(
     ball = max(1.25 * min(recipe.bones * tree.reference, radius), clear)
     end = end if centred else end - ball * toward / length  # a surface end: the ball ends there
     if ball > 0.0:  # a knob, wider than its stick
-        rows.add("balls", "ball", group, end, (ball, ball, ball), owner=group)
+        rows.add("balls", part, group, end, (ball, ball, ball), owner=group)
     return [(start, rows.point(group, end), group)]
 
 
