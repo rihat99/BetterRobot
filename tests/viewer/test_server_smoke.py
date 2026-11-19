@@ -132,7 +132,7 @@ def test_a_switch_from_code_moves_the_shared_control_and_no_other_robot() -> Non
         model = br.load(g1_urdf())
         spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "g1.json", model)
         first = viewer.add(RobotVisual(model, name="first", spheres=spheres))
-        second = viewer.add(RobotVisual(model, name="second", spheres=spheres), offset=(0.0, 1.0, 0.0))
+        second = viewer.add(RobotVisual(model, name="second", spheres=spheres), pose=(0.0, 1.0, 0.0))
         ran: list[Any] = []  # joins the three shared controls: every change that runs the callbacks lands here
         sidebar = viewer.sidebar
         style = sidebar.dropdown("Robot", "Style", options=first.styles, value=first.style, on_change=ran.append)

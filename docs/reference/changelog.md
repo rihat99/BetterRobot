@@ -16,7 +16,7 @@ that 0.3.0 renames or removes, one table row each.
   `RobotVisual.set_style`, `set_collision` and `set_frames` called from code move the Robot section's shared control
   with it and leave the other robots as they are.
 - Tags: `Layer(name, nsteps, *, tags=)` (default: the layer's name; the first tag is the scene parent
-  `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_offset` and
+  `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_pose` and
   `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
   are two.
 - `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, or one box per part `(lo (N, 3), hi (N, 3))`
@@ -80,9 +80,13 @@ that 0.3.0 renames or removes, one table row each.
   `vertices_in_sphere` and `vertices_in_rect`; `PoseGizmo` and `CameraFrustum` have a `repr`.
 
 ### Changed
-- `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
-  its argument; `tags` replaces `group`, also in `Viewer.add_plot`. `Viewer.set_visible(target, visible)` and
-  `Viewer.set_offset(tag, offset)` rename their first parameter.
+- `Viewer.add(layers, *, tags=None, pose=, times=, valid=)` takes one layer or an iterable of layers and returns
+  its argument; `tags` replaces `group`, also in `Viewer.add_plot`. `Viewer.set_visible(target, visible)` renames
+  its first parameter.
+- `Viewer.set_pose(tag, pose)` and `Viewer.add(pose=)` place a tag's frame at a pose `(7,)` `[tx, ty, tz, qx, qy,
+  qz, qw]`, or a translation `(3,)` (were `set_offset(group, offset)` and `add(offset=)`, a translation only), so a
+  y-up body stands beside a z-up robot without turning its arrays; `aim`, `record` and `save` show the tag placed.
+  `Layer.bounds` is the box in the frame of the layer's first tag.
 - `Viewer(theme=LIGHT)` (was `None`); `Viewer.replace(old, new)` keeps `old`'s tags and sidebar rows.
 - `Layer.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API); `PlotPanel` and `ImagePanel` sit in
   the sidebar's Plots and Images sections.
@@ -157,6 +161,8 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact` and `Theme.target`: no replacement; no layer read
   the colours, and an application passes its own.
 - `Theme.control_width`: use `Theme.sidebar_width`.
+- `Viewer.set_offset` and `Viewer.add(offset=)`: use `Viewer.set_pose` and `Viewer.add(pose=)`, which take the same
+  translation `(3,)` or a pose `(7,)`.
 - `Viewer.record` to `.gif`, to numbered `.png` frames and to a directory of frames: use `Viewer.record` to an
   `.mp4` or a `.webm`, or to one `.png` still per call.
 - `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.

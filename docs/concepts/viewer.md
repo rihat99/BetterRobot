@@ -63,7 +63,7 @@ those tags instead. A layer lives under the scene node `/<first tag>/<layer.name
 has one checkbox per tag, labelled in sentence case (the ground's tag `ground` and tags that hold only sidebar
 charts or images are not listed). `remove` shrinks the timeline to the longest
 remaining layer, so a clip browser can remove one clip's tag before adding the next. Layer names must be unique
-under a first tag, and a tag that `set_offset` or `remove` does not know raises `UnknownNameError`.
+under a first tag, and a tag that `set_pose` or `remove` does not know raises `UnknownNameError`.
 
 A layer is changed through its own methods, never its fields: `viewer.set_visible(layer, False)` hides it,
 `layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`; a
@@ -76,8 +76,18 @@ viewer.add(PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3)), tags="debug"
 viewer.remove("debug")
 ```
 
-`add(..., offset=(x, y, z))` moves the layers' first tags, in the browser and in `record`, which is how you put two
-clips side by side; `set_offset(tag, (x, y, z))` moves a tag again later, such as from a spacing slider.
+`add(..., pose=(x, y, z))` moves the layers' first tags, in the browser, in `aim`, `record` and `save`, which is how
+you put two clips side by side; `set_pose(tag, pose)` places a tag again later, such as from a spacing slider. A pose
+`(7,)` `[x, y, z, qx, qy, qz, qw]` also turns the tag's frame, so data recorded with another up axis stands beside
+the rest without touching its arrays: a quarter turn about `+x` stands a y-up body upright in a z-up scene.
+
+```python
+import math
+
+turn = (math.sin(math.pi / 4), 0.0, 0.0, math.cos(math.pi / 4))  # a quarter turn about +x: +y up becomes +z up
+body = np.array([[0.0, 0.0, 0.0], [0.0, 1.8, 0.0]])  # a 1.8 m figure stored y-up
+viewer.add(PointsLayer("y_up", body), tags="y_up", pose=(0.0, 1.0, 0.0, *turn))  # stands 1 m along +y, upright
+```
 
 ## The sidebar, the camera and the theme
 
@@ -179,7 +189,7 @@ half = (model.upper_position_limit - model.lower_position_limit) / 2
 q = mid + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)   # q (30, nq)
 
 robot = viewer.add(RobotVisual(model, q, geometry=geometry, root=URDF, frames=["panda_hand"]))
-ghost = viewer.add(RobotVisual(model, q, name="ghost", style="minimal"), offset=(0.0, 1.0, 0.0))
+ghost = viewer.add(RobotVisual(model, q, name="ghost", style="minimal"), pose=(0.0, 1.0, 0.0))
 ghost.update(q.flip(0))            # the same clip played backwards: one kinematics pass, then a redraw
 robot.set_style("maximal")         # built now, the first time it is shown; "meshes" stays in the scene, hidden
 print(robot.style, robot.styles, ghost.styles)
@@ -253,7 +263,7 @@ than the glyph before it; a minimal ball takes the mean factor of its joints.
 from better_robot.viewer import MAXIMAL, SkeletonRecipe
 
 recipe = SkeletonRecipe(limits=True, sides=True, joint_size={"panda_finger_joint2": 0.0})
-viewer.add(RobotVisual(model, q, name="limits", maximal=recipe), offset=(0.0, -1.0, 0.0))
+viewer.add(RobotVisual(model, q, name="limits", maximal=recipe), pose=(0.0, -1.0, 0.0))
 print(MAXIMAL.glyphs, MAXIMAL.hulls, recipe.limits)
 ```
 ```output
@@ -321,7 +331,8 @@ for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the 
 (`Theme(sidebar_width="large")` for a dense panel; `"medium"` by default) and the up axis. `LIGHT`
 (the default) and `DARK` are built in; `viewer.set_theme(theme)` switches the page and every layer. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
-`plane` lies in the plane perpendicular to it (`"xz"` for `+y`). The default grid has no edges and fades out with
+`plane` lies in the plane perpendicular to it (`"xz"` for `+y`); the up axis is one per viewer, so a y-up body
+beside a z-up robot keeps the theme's up and turns the body's tag instead (`add(..., pose=)`). The default grid has no edges and fades out with
 the distance from the camera; `GroundLayer(size=4.0)` draws a square 4 m wide. `GroundLayer(origin=p, normal=n, fill=0.3)`
 instead tilts the grid onto the plane through `p` with normal `n`, such as a fitted floor, over a translucent fill
 (`fill` is its opacity; 0, the default, draws lines only) in the theme's grid colour unless `fill_color=` names one.

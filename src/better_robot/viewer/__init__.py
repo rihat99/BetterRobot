@@ -1,7 +1,7 @@
 """Interactive and offline viewing of robots, bodies and data clips, built on viser.
 
 A ``Viewer`` runs a viser server (``http://127.0.0.1:8080`` by default) and holds ``Layer``s under tags; a tag
-is toggled, offset and removed as one unit. Every layer is fed preloaded numpy arrays with a leading time
+is toggled, placed (a pose) and removed as one unit. Every layer is fed preloaded numpy arrays with a leading time
 axis ``(T, ...)`` (static input counts as ``T = 1``) and keeps them as float32 attributes (``layer.points``), the
 input itself when it already is C-contiguous float32. One ``Timeline`` drives all layers: ``show(k)`` pushes frame
 ``k``, ``layer.redraw()`` re-pushes one layer after its arrays were edited in place, ``serve()``

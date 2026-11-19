@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import Any, Literal, TYPE_CHECKING, final, override
 
 import numpy as np
+import torch
 
 from ..exceptions import ArgumentError, ShapeError, UnknownNameError
+from ..lie import so3
 from ._extras import needs_extra
 from .layer import Layer, as_tags
 from .layers.ground import GroundLayer
@@ -46,6 +48,25 @@ def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
     return times
 
 
+def _as_pose(pose: np.ndarray | Sequence[float]) -> np.ndarray:
+    """``add``'s and ``set_pose``'s ``pose`` as float64 ``(7,)``: a translation ``(3,)`` gains the identity rotation."""
+    pose = np.asarray(pose, dtype=np.float64)
+    if pose.shape == (3,):
+        pose = np.concatenate([pose, [0.0, 0.0, 0.0, 1.0]])
+    if pose.shape != (7,):
+        raise ShapeError(f"pose must be (7,) [tx, ty, tz, qx, qy, qz, qw] or a translation (3,), got {pose.shape}")
+    if not abs(np.linalg.norm(pose[3:]) - 1.0) < 1e-3:
+        raise ArgumentError(f"the quaternion [qx, qy, qz, qw] of pose must have unit norm, got {pose[3:].tolist()}")
+    return pose
+
+
+def _placed(low: np.ndarray, high: np.ndarray, pose: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The world boxes ``(low (M, 3), high (M, 3))`` round boxes given in a tag frame placed at ``pose (7,)``."""
+    rotation = so3.to_matrix(torch.from_numpy(pose[3:])).numpy()
+    centre, half = ((low + high) / 2.0) @ rotation.T + pose[:3], ((high - low) / 2.0) @ np.abs(rotation).T
+    return centre - half, centre + half
+
+
 def _label(tag: str) -> str:
     """A tag as its Layers checkbox reads, in sentence case: ``"left_arm"`` -> ``"Left arm"``."""
     return tag[:1].upper() + tag[1:].replace("_", " ")
@@ -68,15 +89,15 @@ class _Entry:
 @dataclass
 class _Tag:
     node: Any  # the frame ``/<tag>``: parent of the layers whose first tag this is
-    offset: tuple[float, float, float] | None = None
+    pose: np.ndarray | None = None  # ``set_pose``: the frame's pose (7,) in the world; None is the identity
 
 
 @final
 class Viewer:
     """Interactive viewer: ``add`` layers under tags, ``show`` a step, ``serve`` the page.
 
-    Every layer lives under the scene node ``/<tag>/<layer.name>`` of its first tag; a tag is the unit for offsets,
-    visibility and removal (``set_offset``, ``set_visible``, ``remove``), and the sidebar's Layers section has one
+    Every layer lives under the scene node ``/<tag>/<layer.name>`` of its first tag; a tag is the unit for placement,
+    visibility and removal (``set_pose``, ``set_visible``, ``remove``), and the sidebar's Layers section has one
     checkbox per tag once there are two. ``show(k)`` is the only place steps are pushed: visible layers receive
     ``set_step(_index(layer, k))`` inside one ``server.atomic()`` block, and layers that already show that step are
     skipped. ``lock`` is the one lock: adding and removing layers, every push and every sidebar callback hold it.
@@ -146,15 +167,16 @@ class Viewer:
         layers: Added,
         *,
         tags: str | Sequence[str] | None = None,
-        offset: tuple[float, float, float] | None = None,
+        pose: np.ndarray | Sequence[float] | None = None,
         times: np.ndarray | Sequence[float] | None = None,
         valid: np.ndarray | None = None,
     ) -> Added:
         """Build one layer or each of an iterable of layers under ``/<first tag>/<layer.name>``, push the current
         step to it, and return ``layers`` as given: ``robot = viewer.add(RobotVisual(...))``.
 
-        ``tags`` replaces the tags of every layer of the call (a string is one tag). ``offset`` moves the layers'
-        first tags (side-by-side comparisons). ``times`` ``(T,)`` gives the non-decreasing sample times in seconds of
+        ``tags`` replaces the tags of every layer of the call (a string is one tag). ``pose`` places the layers' first
+        tags: the pose ``(7,)`` ``[tx, ty, tz, qx, qy, qz, qw]`` of their frame in the world, or a translation ``(3,)``,
+        for clips side by side or a y-up body beside a z-up robot (``set_pose``). ``times`` ``(T,)`` gives the non-decreasing sample times in seconds of
         every layer of the call (``T = layer.nsteps``); timeline step ``k`` then shows the latest sample at or before
         ``k / fps``. ``None`` keeps one sample per step. ``valid`` ``(T,)`` bool hides the layers on the samples
         where it is false (a person not tracked in that frame); ``(T, N)`` hides single elements of a layer that draws
@@ -167,6 +189,7 @@ class Viewer:
             raise ArgumentError(f"add takes a layer or an iterable of layers, got {type(layers).__name__}")
         batch = [layers] if isinstance(layers, Layer) else list(layers)
         times = None if times is None else _as_times(times)
+        pose = None if pose is None else _as_pose(pose)
         valid = None if valid is None else np.asarray(valid, dtype=bool)
         given = None if tags is None else as_tags(tags) or None
         self._check_layers(batch, given, times, valid)
@@ -185,9 +208,9 @@ class Viewer:
                     self._entries.remove(entry)
                 self._prune_tags()
                 raise
-            if offset is not None:
+            if pose is not None:
                 for entry in placed:
-                    self.set_offset(entry.layer.tags[0], offset)
+                    self.set_pose(entry.layer.tags[0], pose)
             for entry in placed:
                 self.timeline.extend(self._span(entry))
             self._timeline_gui()
@@ -302,15 +325,19 @@ class Viewer:
             self._fit_timeline()
             self._sync_layers_section()
 
-    def set_offset(self, tag: str, offset: tuple[float, float, float]) -> None:
-        """Move the layers whose first tag is ``tag`` by ``offset``, as ``add(..., offset=)`` does, e.g. from a
-        side-by-side slider."""
+    def set_pose(self, tag: str, pose: np.ndarray | Sequence[float]) -> None:
+        """Place the layers whose first tag is ``tag`` at ``pose``, as ``add(..., pose=)`` does, e.g. from a
+        side-by-side slider: the pose ``(7,)`` ``[tx, ty, tz, qx, qy, qz, qw]`` of the tag's frame in the world, or a
+        translation ``(3,)``. The layers' arrays stay in the tag's frame; ``aim``, ``record`` and ``save`` show them
+        placed."""
+        pose = _as_pose(pose)
         with self.lock:
             if tag not in self._tags:
                 raise UnknownNameError("tag", tag, valid=list(self._tags))
             state = self._tags[tag]
-            state.node.position = offset
-            state.offset = offset
+            state.node.position = pose[:3]
+            state.node.wxyz = pose[[6, 3, 4, 5]]  # viser's scalar-first quaternion
+            state.pose = pose
 
     def set_fps(self, fps: float) -> None:
         """Play the timeline at ``fps`` steps per second, such as the frame rate of the clip on screen.
@@ -513,10 +540,10 @@ class Viewer:
         for entry in self._entries:
             if entry.layer.visible:
                 low, high = self._read_bounds(entry, steps, remember=remember)
-                offset = self._tags[entry.layer.tags[0]].offset
-                shift = np.zeros(3) if offset is None else np.asarray(offset, dtype=np.float64)
-                lows.append(low + shift)
-                highs.append(high + shift)
+                pose = self._tags[entry.layer.tags[0]].pose
+                low, high = (low, high) if pose is None else _placed(low, high, pose)
+                lows.append(low)
+                highs.append(high)
         low, high = np.concatenate(lows), np.concatenate(highs)
         if not len(low):  # nothing visible has bounds
             low, high = _EMPTY_SCENE[0][None], _EMPTY_SCENE[1][None]
@@ -549,7 +576,7 @@ class Viewer:
 
     def _read_bounds(self, entry: _Entry, steps: list[int], *, remember: bool) -> tuple[np.ndarray, np.ndarray]:
         """``(low (M, 3), high (M, 3))``: ``Layer.bounds`` of ``entry``'s layer (each one box or a stack of boxes) at
-        the samples that timeline ``steps`` show, each sample read once, without its tag's offset; a sample its
+        the samples that timeline ``steps`` show, each sample read once, in its tag's frame; a sample its
         ``(T,)`` ``valid`` marks invalid is skipped. With ``remember`` they are kept in ``entry.framed`` and served
         from there until the layer is pushed a step."""
         layer = entry.layer
