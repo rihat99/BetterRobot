@@ -25,8 +25,9 @@ class GroundLayer(Layer):
     ``size=None`` (the default) draws a grid without edges that fades out with the distance from the camera; a
     number draws a square ``size`` metres wide. Shadows fall on it at the theme's ``shadow`` opacity.
 
-    ``plane=None`` (the default) follows the viewer's theme: ``"xy"`` for a z-up theme, ``"xz"`` for y-up,
-    ``"yz"`` for x-up. Pass it explicitly to override, or when the layer is rendered without a ``Viewer``.
+    ``plane=None`` (the default) follows the viewer's theme, also through ``Viewer.set_theme``: ``"xy"`` for a z-up
+    theme, ``"xz"`` for y-up, ``"yz"`` for x-up. Pass it explicitly to override, or when the layer is rendered
+    without a ``Viewer``.
     ``normal`` ``(3,)`` tilts the grid to the plane with that normal (a fitted floor), replacing ``plane``;
     ``origin`` ``(3,)`` is the point the grid is centred on before ``height`` moves it along the normal.
     ``fill`` is the opacity of a solid ``fill_color`` plane under the lines; 0 (the default) draws lines only.
@@ -68,19 +69,27 @@ class GroundLayer(Layer):
         self.fill_color = fill_color
         self._colors = (cell_color or LIGHT.grid[0], section_color or LIGHT.grid[1], fill_color or LIGHT.grid[0])
         self._shadow = LIGHT.shadow
+        self._up_plane = "xy"  # the plane square to the theme's up axis, which ``plane=None`` draws in
         self._grid: Any = None
+        self._built: tuple[Any, str] | None = None  # (scene, root) of the last build, to rebuild in another plane
 
     @override
     def apply_theme(self, theme: Theme) -> None:
-        if self.plane is None:
-            self.plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
+        up_plane = {"z": "xy", "y": "xz", "x": "yz"}[theme.up[-1]]
+        moved = self.plane is None and self.normal is None and up_plane != self._up_plane
+        self._up_plane = up_plane
         self._colors = (
             self.cell_color or theme.grid[0],
             self.section_color or theme.grid[1],
             self.fill_color or theme.grid[0],
         )
         self._shadow = theme.shadow
-        if self._grid is not None:
+        if self._built is not None and moved:  # viser sets a grid's plane when it makes it
+            self.dispose()
+            self.build(*self._built)
+            if not self.visible:
+                Layer.set_visible(self, False)
+        elif self._grid is not None:
             self._grid.cell_color = _rgb(self._colors[0])
             self._grid.section_color = _rgb(self._colors[1])
             self._grid.plane_color = _rgb(self._colors[2])
@@ -88,8 +97,9 @@ class GroundLayer(Layer):
 
     @override
     def build(self, scene: Any, root: str) -> None:
+        self._built = (scene, root)
         if self.normal is None:
-            plane = self.plane or "xy"
+            plane = self.plane or self._up_plane
             axis = np.array({"xy": (0.0, 0.0, 1.0), "xz": (0.0, 1.0, 0.0), "yz": (1.0, 0.0, 0.0)}[plane])
             wxyz = np.array([1.0, 0.0, 0.0, 0.0])
         else:

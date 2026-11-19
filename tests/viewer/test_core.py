@@ -392,10 +392,18 @@ def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow()
 
 
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
-    viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"), ground=False)
+    server = FakeServer()
+    viewer = Viewer(server=server, theme=Theme(up="+y"), ground=False)
     ground, explicit = GroundLayer(), GroundLayer("explicit", plane="xy")
     viewer.add([ground, explicit])
-    assert ground.plane == "xz" and explicit.plane == "xy"
+
+    def planes() -> tuple[str, str]:
+        return tuple(server.scene.nodes[f"/{name}/{name}/grid"].props["plane"] for name in ("ground", "explicit"))
+
+    assert planes() == ("xz", "xy") and ground.plane is None  # the argument stays as given
+    viewer.set_visible(ground, False)
+    viewer.set_theme(Theme(up="+x"))  # the grid is made again in the new plane, still hidden
+    assert planes() == ("yz", "xy") and not server.scene.nodes["/ground/ground/grid"].visible
     assert GroundLayer().bounds(0) is None  # the grid never drives the camera's framing
 
 

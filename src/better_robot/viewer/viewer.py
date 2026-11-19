@@ -358,7 +358,7 @@ class Viewer:
         With no argument, re-push the current step to every visible layer even if it already shows it; call this
         after editing the arrays of several layers in place (``Layer.redraw`` does it for one).
         """
-        if step is not None and not isinstance(step, int | np.integer):
+        if step is not None and (not isinstance(step, int | np.integer) or isinstance(step, bool)):
             raise ArgumentError(f"step must be an int, got {step!r}")
         if step is None or step == self.timeline.step:
             self._push_all(self.timeline.step, force=True)
@@ -408,7 +408,7 @@ class Viewer:
         fps: float | None = None,
         steps: Sequence[int] | None = None,
         camera: tuple[np.ndarray | Sequence[float], np.ndarray | Sequence[float]] | None = None,
-        fov: float = math.radians(40.0),
+        fov: float = _FOV,
         gpu: int | None = None,
         bitrate: float | None = None,
     ) -> Path:

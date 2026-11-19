@@ -158,6 +158,10 @@ that 0.3.0 renames or removes, one table row each.
   `Viewer.add`. It is a box per bone now, the vertices the bone carries at least a quarter of, boxed once in its bind
   frame and turned with it: 0.1 ms per step, 5 ms per add; on SMPL and SMPL-X it holds the mesh within 2 to 5 cm in
   the median.
+- `GroundLayer(plane=None)` follows `Viewer.set_theme` to another up axis (it kept the first theme's plane, and
+  wrote it into `plane`, which now stays as given).
+- `Viewer(fps=nan)` and `Timeline(fps=nan)` raise `ArgumentError`, as `Viewer.set_fps` does; `Viewer.show(True)`
+  is refused (a bool showed step 1).
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
 

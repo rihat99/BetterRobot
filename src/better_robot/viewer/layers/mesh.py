@@ -116,7 +116,7 @@ def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.nda
 @final
 @dataclass(frozen=True)
 class MeshSpec:
-    """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body step).
+    """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body frame).
 
     ``trimesh`` keeps a textured/vertex-coloured source for ``add_mesh_trimesh``; otherwise the
     mesh is sent as ``vertices``/``faces`` with one ``color``.

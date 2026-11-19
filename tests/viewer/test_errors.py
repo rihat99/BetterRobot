@@ -43,6 +43,11 @@ def test_add_and_show_refuse_what_is_not_a_layer_or_a_step() -> None:
     assert viewer.layers == []
     with pytest.raises(ArgumentError, match="step must be an int, got 'x'"):
         viewer.show("x")  # type: ignore[arg-type]
+    with pytest.raises(ArgumentError, match="step must be an int, got True"):
+        viewer.show(True)  # a bool is an int to Python, never a step
+    for fps in (0.0, float("nan")):
+        with pytest.raises(ArgumentError, match="fps > 0"):
+            Viewer(server=FakeServer(), fps=fps)
 
 
 _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
