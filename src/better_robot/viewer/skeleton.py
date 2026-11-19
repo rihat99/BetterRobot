@@ -54,6 +54,7 @@ _TRUNK_PAD = 0.7  # a trunk hull pads its sphere centres by this share of their 
 _TRUNK = 0.8  # a trunk keeps this share of the half extents of its geometry: the skeleton is slimmer than the robot
 _TAPER = 0.8  # a maximal block's side at z = 0.5 over its side at z = -0.5: every body narrows towards +z
 _HEAD_CAP = 0.8  # a second frame of a body is a ball of at most this share of the body hull's smallest half extent
+_HEAD_MIN = 0.3  # and of at least this share: a smaller frame (a sensor) is no head
 _END_PAD = 0.4  # an end block pads its points by this share of min(joint radius, median sphere radius)
 _FLAT = 0.3  # a leaf's geometry is a sole when its thinnest extent is under this share of its middle one
 _TIP = (0.55, 0.7)  # the smallest and the largest ball that ends a leaf, over the leaf joint's radius
@@ -758,11 +759,14 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
     """Trunk hulls of a group, its body first.
 
     The bulkiest frame is the body: a box, axis-aligned in that frame around its points and padded by 0.7 of their
-    median radius, then cut to 0.8 of its half extents about its centre. Any other frame is a ball on the body, no
-    wider than 0.8 of the body's smallest extent (a head never wider than its trunk), and nothing at all when it
-    sits inside the body; ``body_hull`` makes it a box. With ``inertia`` the body is the solid box that has the
-    group's inertia, aligned with the group's frame, each half extent between 0.6 reference radii and 12 % of the
-    robot, cut the same way. ``_tapered`` gives the body its shape.
+    median radius, then cut to 0.8 of its half extents about its centre, except the root's: the robot's own body
+    keeps its full box, so the hips sit in it (a Go2). The box of a moving body with two or more child joints
+    reaches their origins (a fixed base does not reach up to its arm): a chest spans its shoulders (an H1, whose torso shape is a small block). One other frame may be the head, a ball on the body: the
+    bulkiest that sits outside the body, is round (no more than twice as long as wide) and at least 0.3 of the
+    body's smallest half extent, and no wider than 0.8 of it; sensors, antennas and columns draw nothing, unless
+    ``body_hull`` makes them a box. With ``inertia`` the body is the solid box that has the group's inertia, aligned
+    with the group's frame, each half extent between 0.6 reference radii and 12 % of the robot, cut the same way.
+    ``_tapered`` gives the body its shape.
     """
 
     def bulk(cloud: _Cloud) -> float:
@@ -771,16 +775,20 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
 
     hulls: list[_Hull] = []
     uncut: _OrientedBox | None = None  # the body's box before the cut
+    cut = 1.0 if group == 0 or (tree.group[group] == 0 and tree.kind[group] == "free") else _TRUNK
     for cloud in sorted(clouds, key=bulk, reverse=True):
         pad = _TRUNK_PAD * float(np.median(cloud.radii)) if cloud.radii is not None else 0.0
         low, high = cloud.points.min(axis=0) - pad, cloud.points.max(axis=0) + pad
+        if uncut is None and group and len(tree.children[group]) >= 2:  # a moving body reaches its branches (a chest)
+            kids = (tree.origin[list(tree.children[group])] - cloud.origin) @ cloud.rotation
+            low, high = np.minimum(low, kids.min(axis=0)), np.maximum(high, kids.max(axis=0))
         center, half = cloud.origin + cloud.rotation @ ((low + high) / 2), (high - low) / 2
         if uncut is not None and not recipe.body_hull.get(cloud.name, False):
             radius = min(float(np.median(half)), _HEAD_CAP * _TRUNK * float(uncut[2].min()))
-            inside = np.all(np.abs(uncut[1].T @ (center - uncut[0])) <= uncut[2] + 0.5 * radius)
-            if inside or any(  # a part round a joint of the body, or a part touching a head already drawn
-                hull.mesh == "balls" and np.all(np.abs(hull.center - center) < half + hull.half) for hull in hulls
-            ):
+            inside = np.all(np.abs(uncut[1].T @ (center - uncut[0])) <= uncut[2] + 0.5 * radius)  # round a joint
+            long, wide = np.sort(half)[:0:-1]
+            small = radius < _HEAD_MIN * float(uncut[2].min()) or long > 2.0 * wide
+            if inside or small or any(hull.mesh == "balls" for hull in hulls):
                 continue
             hulls.append(
                 _Hull(cloud.name, "hull", group, cloud.joint, center, cloud.rotation, np.full(3, radius), "balls")
@@ -788,7 +796,7 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
         else:
             uncut = uncut or (center, cloud.rotation, half)
             hulls.append(
-                _tapered(tree, _Hull(cloud.name, "hull", group, cloud.joint, center, cloud.rotation, _TRUNK * half))
+                _tapered(tree, _Hull(cloud.name, "hull", group, cloud.joint, center, cloud.rotation, cut * half))
             )
     body = group if group else next((b for b in range(1, tree.model.njoints) if tree.anchor[b] == 0), 0)
     solid = _inertia(tree, group) if inertia and recipe.body_hull.get(tree.model.body_names[body], True) else None
@@ -796,7 +804,7 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
         mass, center, total = solid
         moments = np.diag(tree.rotation[body].T @ total @ tree.rotation[body])
         sides = np.sqrt(np.maximum(6.0 * (moments.sum() - 2.0 * moments) / mass, 0.0))
-        half = _TRUNK * np.clip(sides / 2, 0.6 * tree.reference, 0.12 * tree.scale)
+        half = cut * np.clip(sides / 2, 0.6 * tree.reference, 0.12 * tree.scale)
         hulls.append(
             _tapered(tree, _Hull(tree.model.body_names[body], "hull", group, body, center, tree.rotation[body], half))
         )
@@ -1106,7 +1114,8 @@ def _maximal(
             start = main.center if hull.mesh == "balls" and main is not None else origin[hull.body]
             start = center[hull.group] if hull.group and hull.mesh != "balls" else start
             across = tree.axis.get(hull.group)
-            rows.bone(hull.body, start, hull.center, thickness(hull.group), hull.group or hull.body, across=across)
+            thick = thickness(hull.group) if hull.mesh != "balls" else recipe.bones * float(hull.half[0])  # a neck
+            rows.bone(hull.body, start, hull.center, thick, hull.group or hull.body, across=across)
 
 
 def _placed(tree: _Tree, slide: Mapping[int, float]) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
