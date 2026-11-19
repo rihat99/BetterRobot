@@ -46,8 +46,15 @@ class SkinnedMeshLayer(Layer):
         if self.bind_poses.ndim != 2 or self.bind_poses.shape[1] != 7:
             raise ShapeError(f"bind_poses must be (J, 7) world bone poses (xyzw), got {self.bind_poses.shape}")
         n_bones = self.bind_poses.shape[0]
-        if self.bone_poses.shape[1:] != (n_bones, 7) or np.shape(weights) != (len(self.vertices), n_bones):
-            raise ShapeError("bone_poses must be (T, J, 7) and weights (V, J) with J bind poses")
+        if self.bone_poses.shape[1:] != (n_bones, 7):
+            raise ShapeError(
+                f"bone_poses must be (T, J, 7) with the J = {n_bones} bones of bind_poses, got {self.bone_poses.shape}"
+            )
+        if np.shape(weights) != (len(self.vertices), n_bones):
+            raise ShapeError(
+                f"weights must be (V, J) = ({len(self.vertices)}, {n_bones}), one column per bone of bind_poses (for a "
+                f"RobotVisual's Skin, per model joint, the universe included), got {np.shape(weights)}"
+            )
         self.weights = top_k_weights(np.asarray(weights, dtype=np.float32), 4)
         # For bounds without skinning: per bone, the box in its bind frame of the vertices it carries at least a quarter
         # of (each vertex's main bone always does), turned with the bone at each step. A vertex is a blend of points in

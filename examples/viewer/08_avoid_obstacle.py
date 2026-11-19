@@ -123,8 +123,8 @@ def main() -> None:
             SpheresLayer("obstacle", centers[:, None].numpy(), radii=np.array([RADIUS]), colors=GREY, opacity=0.9),
             SpheresLayer("inside the margin", robot, radii=radii, colors=RED, opacity=0.8),
         ]  # fmt: skip
-        viewer.add(layers[:2], tags=group, offset=offset)
-        viewer.add(layers[2:], tags=group, offset=offset, valid=clearance < MARGIN - 1e-3)
+        viewer.add(layers[:2], tags=group, pose=offset)
+        viewer.add(layers[2:], tags=group, pose=offset, valid=clearance < MARGIN - 1e-3)
         return layers
 
     if not (args.check or args.record):

@@ -254,9 +254,9 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | Term | Meaning |
 |---|---|
 | **`Viewer`** | The browser viewer on viser. `viewer.add(layer, tags=...)` adds a layer or an iterable of layers, `viewer.show(step)` draws one step, `viewer.serve()` serves the page until interrupted, `viewer.record(path)` draws the live scene in a headless Chromium into a video (`.mp4` or `.webm`) or a still (`.png`). |
-| **tag** | A name a layer carries (`Layer.tags`, `Viewer.add(tags=)`); the first is its scene parent. `Viewer.remove`, `set_visible`, `set_offset` and `redraw` address every layer of a tag. |
+| **tag** | A name a layer carries (`Layer.tags`, `Viewer.add(tags=)`); the first is its scene parent. `Viewer.remove`, `set_visible`, `set_pose` and `redraw` address every layer of a tag. |
 | **sidebar** | The viewer's panel of controls in ordered sections (`Sidebar`, `Layer.build_gui(sidebar)`). |
-| **bounds** | The world box `(lo, hi)` of what a layer draws at a step (`Layer.bounds`), which `Viewer.aim` frames. |
+| **bounds** | The box `(lo, hi)` of what a layer draws at a step, in its first tag's frame (`Layer.bounds`), which `Viewer.aim` frames. |
 | **redraw** | Push a layer's current step again after its arrays changed (`Layer.redraw`, `Viewer.redraw`). |
 | **serve** | Keep the viewer's page served, playing the timeline, until interrupted (`Viewer.serve`). |
 | **hue** | A robot's one colour (`Theme.hues`, `Theme.hue(index)`); its parts take shades of it. |

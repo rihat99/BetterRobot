@@ -90,15 +90,30 @@ def test_remove_a_tag_disposes_its_layers_and_the_tag_node() -> None:
         viewer.add([_skeleton(name="keep")])
 
 
-def test_set_offset_moves_a_tag_after_it_was_added() -> None:
+def test_set_pose_places_a_tag_after_it_was_added_and_aim_frames_it_turned() -> None:
+    """A y-up clip beside a z-up one: the tag's frame turns +y up to +z, the scene node gets the pose (viser's
+    scalar-first quaternion), and aim, which record shares, frames the turned box, not the box as given."""
     server = FakeServer()
-    viewer = Viewer(server=server)
-    viewer.add([PointsLayer("p", np.zeros((1, 3)))], tags="robot", offset=(0.0, 2.0, 0.0))
-    viewer.set_offset("robot", (0.0, 3.0, 0.0))
-    assert server.scene.nodes["/robot"].position == (0.0, 3.0, 0.0)
-    np.testing.assert_allclose(viewer.aim()[1], [0.0, 3.0, 0.0])  # record and aim frame the moved tag
+    viewer = Viewer(server=server, ground=False)
+    tall = np.array([[0.0, 0.0, 0.0], [0.1, 2.0, 0.1]])  # 2 m along +y, its up
+    viewer.add([PointsLayer("p", tall)], tags="body", pose=(0.0, 2.0, 0.0))
+    np.testing.assert_allclose(server.scene.nodes["/body"].position, [0.0, 2.0, 0.0])
+    up = so3.from_axis_angle(
+        torch.tensor([1.0, 0.0, 0.0], dtype=torch.float64), torch.tensor(np.pi / 2, dtype=torch.float64)
+    ).numpy()
+    viewer.set_pose("body", [0.0, 3.0, 0.0, *up])
+    node = server.scene.nodes["/body"]
+    np.testing.assert_allclose(node.position, [0.0, 3.0, 0.0])
+    np.testing.assert_allclose(node.wxyz, up[[3, 0, 1, 2]])
+    look_at = viewer.aim()[1]
+    np.testing.assert_allclose(look_at, [0.05, 2.95, 1.0], atol=1e-9)  # the box turned upright: z from 0 to 2
     with pytest.raises(UnknownNameError, match="unknown tag 'missing'"):
-        viewer.set_offset("missing", (0.0, 0.0, 0.0))
+        viewer.set_pose("missing", (0.0, 0.0, 0.0))
+    with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):
+        viewer.set_pose("body", (0.0, 0.0))
+    with pytest.raises(ArgumentError, match="unit norm"):
+        viewer.add(PointsLayer("q", tall), pose=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+    assert [layer.name for layer in viewer.layers] == ["p"]  # refused before anything was built
 
 
 def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
@@ -679,7 +694,7 @@ def test_aim_frames_the_box_of_the_visible_layers_in_new_and_connected_browsers(
     points = np.zeros((3, 2, 3))
     points[:, 1, 2] = 1.0
     points[2, :, 0] = 5.0  # the last step moves away
-    viewer.add(PointsLayer("pts", points), tags="g", offset=(0.0, 2.0, 0.0))
+    viewer.add(PointsLayer("pts", points), tags="g", pose=(0.0, 2.0, 0.0))
     hidden = viewer.add(PointsLayer("far", np.full((1, 3), 50.0)))
     viewer.set_visible(hidden, False)
     fov = np.radians(30.0)
@@ -689,7 +704,7 @@ def test_aim_frames_the_box_of_the_visible_layers_in_new_and_connected_browsers(
         np.testing.assert_allclose(camera.position, position)
         np.testing.assert_allclose(camera.look_at, look_at)
         assert camera.writes.index("position") < camera.writes.index("look_at")
-    np.testing.assert_allclose(look_at, [0.0, 2.0, 0.5])  # the box of step 0, moved by the tag's offset
+    np.testing.assert_allclose(look_at, [0.0, 2.0, 0.5])  # the box of step 0, moved by the tag's pose
     # That box spans 80 % of a 16:9 view: its corners reach the bound on one screen axis and stay inside the other.
     view = (look_at - position) / np.linalg.norm(look_at - position)
     right = np.cross(view, viewer.theme.up_vector)
@@ -743,12 +758,12 @@ def test_adding_a_layer_reads_the_bounds_of_the_others_only_after_they_were_push
     first = viewer.add(_Box("first", 40))
     assert len(first.read) == 32  # one read per sampled step
     first.read.clear()
-    second = viewer.add(_Box("second", 40), offset=(0.0, 3.0, 0.0))
+    second = viewer.add(_Box("second", 40), pose=(0.0, 3.0, 0.0))
     assert first.read == [] and len(second.read) == 32
     viewer.show()  # a push: the arrays may have changed in place
     viewer.add(_Box("third", 1))
     assert len(first.read) == 32 and len(second.read) == 64
-    viewer.set_offset("second", (0.0, -3.0, 0.0))  # offsets and visibility are applied after the reads
+    viewer.set_pose("second", (0.0, -3.0, 0.0))  # poses and visibility are applied after the reads
     viewer.set_visible("third", False)
     second.read.clear()
     viewer.add(_Box("fourth", 1))

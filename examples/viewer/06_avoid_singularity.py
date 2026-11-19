@@ -87,9 +87,9 @@ def main() -> None:
             SpheresLayer("hand", point, radii=np.array([0.05]), colors=GREY, opacity=0.4),
             SpheresLayer("below the threshold", point, radii=np.array([0.05]), colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:1], tags=group, offset=offset)
-        viewer.add(layers[1:2], tags=(group, "markers"), offset=offset)
-        viewer.add(layers[2:], tags=(group, "markers"), offset=offset, valid=w < THRESHOLD - 1e-4)
+        viewer.add(layers[:1], tags=group, pose=offset)
+        viewer.add(layers[1:2], tags=(group, "markers"), pose=offset)
+        viewer.add(layers[2:], tags=(group, "markers"), pose=offset, valid=w < THRESHOLD - 1e-4)
         return layers
 
     if not (args.check or args.record):
@@ -108,7 +108,7 @@ def main() -> None:
         offset = (0.0, 1.0 * side - 0.5, 0.0)
         draw(form, q[::12], offset)  # every 12th tick: 100 Hz ticks at three times real time
         target = SpheresLayer("target", path[::12, None, :3].numpy(), radii=np.array([0.02]), colors=(0.1, 0.3, 0.9))
-        viewer.add([target], tags=form, offset=offset)
+        viewer.add([target], tags=form, pose=offset)
     if args.record:
         camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
         print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")

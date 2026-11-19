@@ -44,8 +44,9 @@ video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `Poi
 contact turning red or green. A list of `(N_t, 3)` arrays makes a `PointsLayer` whose size changes per step
 (detections, a growing map); a step without points hides it. `LinesLayer(name, points)` draws segments
 `(T, N, 2, 3)` (start, end) `width` pixels wide, in the theme's text colour unless given `colors`.
-`MeshLayer(name, vertices, faces=, colors=(V, 3))` colours each vertex: a static mesh blends them across each face,
-a deforming one draws one scene node per distinct colour (at most 64), each face in its first vertex's colour.
+`MeshLayer(name, vertices, faces=, colors=(V, 3))` colours each vertex, the same colours at every step: a static
+mesh blends them across each face, a deforming one draws one scene node per distinct colour (at most 64), each face
+in its first vertex's colour.
 `CameraLayer(name, poses, intrinsics=K, size=(W, H))` draws a pinhole camera's frustum from its intrinsics, an
 off-centre principal point included, cut `scale` metres in front of the camera, with an optional image on the cut.
 `ArrowsLayer` draws viser's solid arrows, a cylinder of `shaft_radius` and a cone of `head_radius` and `head_length`
@@ -63,7 +64,7 @@ those tags instead. A layer lives under the scene node `/<first tag>/<layer.name
 has one checkbox per tag, labelled in sentence case (the ground's tag `ground` and tags that hold only sidebar
 charts or images are not listed). `remove` shrinks the timeline to the longest
 remaining layer, so a clip browser can remove one clip's tag before adding the next. Layer names must be unique
-under a first tag, and a tag that `set_offset` or `remove` does not know raises `UnknownNameError`.
+under a first tag, and a tag that `set_pose` or `remove` does not know raises `UnknownNameError`.
 
 A layer is changed through its own methods, never its fields: `viewer.set_visible(layer, False)` hides it,
 `layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`; a
@@ -76,8 +77,18 @@ viewer.add(PointsLayer("noise", 0.01 * np.random.randn(1, 200, 3)), tags="debug"
 viewer.remove("debug")
 ```
 
-`add(..., offset=(x, y, z))` moves the layers' first tags, in the browser and in `record`, which is how you put two
-clips side by side; `set_offset(tag, (x, y, z))` moves a tag again later, such as from a spacing slider.
+`add(..., pose=(x, y, z))` moves the layers' first tags, in the browser, in `aim`, `record` and `save`, which is how
+you put two clips side by side; `set_pose(tag, pose)` places a tag again later, such as from a spacing slider. A pose
+`(7,)` `[x, y, z, qx, qy, qz, qw]` also turns the tag's frame, so data recorded with another up axis stands beside
+the rest without touching its arrays: a quarter turn about `+x` stands a y-up body upright in a z-up scene.
+
+```python
+import math
+
+turn = (math.sin(math.pi / 4), 0.0, 0.0, math.cos(math.pi / 4))  # a quarter turn about +x: +y up becomes +z up
+body = np.array([[0.0, 0.0, 0.0], [0.0, 1.8, 0.0]])  # a 1.8 m figure stored y-up
+viewer.add(PointsLayer("y_up", body), tags="y_up", pose=(0.0, 1.0, 0.0, *turn))  # stands 1 m along +y, upright
+```
 
 ## The sidebar, the camera and the theme
 
@@ -119,7 +130,8 @@ viewer.add([PointsLayer("mocap", markers_10hz)], times=np.arange(len(markers_10h
 
 `viewer.add([layer], valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
 as a person who is not tracked in that frame; its sidebar switch stays on. A `(T, N)` mask hides single spheres of a
-`SpheresLayer` or arrows of an `ArrowsLayer`. The layer keeps `v` as `layer.valid`, beside its other arrays.
+`SpheresLayer` or arrows of an `ArrowsLayer`. The layer keeps `v` as `layer.valid`, beside its other arrays. One
+`add` gives its one mask to every layer of the call, so layers with masks of their own take an `add` each.
 
 ```python
 viewer.show(10)
@@ -157,7 +169,9 @@ clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of fou
 
 `style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
 looked up under `root`, the description file or its folder, and under each folder above it, so `root=` is the path
-you loaded. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
+you loaded. Code without a viewer reads the same files the same way: `load_meshes(geometry, root=path)` returns one
+`MeshSpec` per display shape (`collision=True`: per collision shape), `vertices (V, 3)` and `faces (F, 3)` with the
+`body` it hangs on and its placement `origin (7,)` in that body's frame. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
 the collision shapes of the geometry, as a pale see-through shell over any style (`Theme.collision` at
 `Theme.collision_opacity`, casting and catching no shadow); `frames=True` draws a triad at every moving joint and
 `frames=[...]` at the frames listed, by id or name.
@@ -177,7 +191,7 @@ half = (model.upper_position_limit - model.lower_position_limit) / 2
 q = mid + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)   # q (30, nq)
 
 robot = viewer.add(RobotVisual(model, q, geometry=geometry, root=URDF, frames=["panda_hand"]))
-ghost = viewer.add(RobotVisual(model, q, name="ghost", style="minimal"), offset=(0.0, 1.0, 0.0))
+ghost = viewer.add(RobotVisual(model, q, name="ghost", style="minimal"), pose=(0.0, 1.0, 0.0))
 ghost.update(q.flip(0))            # the same clip played backwards: one kinematics pass, then a redraw
 robot.set_style("maximal")         # built now, the first time it is shown; "meshes" stays in the scene, hidden
 print(robot.style, robot.styles, ghost.styles)
@@ -195,7 +209,7 @@ it moves the other robots to the first style left. `update(q)` shows new configu
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
 theme's hues that no other robot of the viewer is drawn in, unless `hue=` names one, so a robot that replaces
 another takes its hue back; `robot.hue` is the colour it is drawn in. The name defaults to the model's, so two robots of
-one model need a `name=` each.
+one model need a `name=` each, and `B` rollouts `(B, T, nq)` are `B` visuals, `q[b]` each.
 
 ### The skeleton
 
@@ -251,7 +265,7 @@ than the glyph before it; a minimal ball takes the mean factor of its joints.
 from better_robot.viewer import MAXIMAL, SkeletonRecipe
 
 recipe = SkeletonRecipe(limits=True, sides=True, joint_size={"panda_finger_joint2": 0.0})
-viewer.add(RobotVisual(model, q, name="limits", maximal=recipe), offset=(0.0, -1.0, 0.0))
+viewer.add(RobotVisual(model, q, name="limits", maximal=recipe), pose=(0.0, -1.0, 0.0))
 print(MAXIMAL.glyphs, MAXIMAL.hulls, recipe.limits)
 ```
 ```output
@@ -272,8 +286,10 @@ by step, to stand the robot on the ground.
 ### A skinned surface
 
 `Skin(vertices, faces, weights=, bind=)` is a surface that deforms with the joints: `vertices (V, 3)` in the world at
-the configuration `bind (nq,)` (`None` is `model.q_neutral`) and `weights (V, njoints)`. `RobotVisual(model, q,
-skin=skin)` shows it as the `"meshes"` style, skinned in the browser.
+the configuration `bind (nq,)` (`None` is `model.q_neutral`) and `weights (V, njoints)`, one column per model joint,
+the universe included: a body model's weights over its own joints are scattered into those columns
+([Use with BetterHuman](../guides/use-with-betterhuman.md)). `RobotVisual(model, q, skin=skin)` shows it as the
+`"meshes"` style, skinned in the browser.
 
 ## Tools: a gizmo and numpy picking
 
@@ -319,7 +335,8 @@ for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the 
 (`Theme(sidebar_width="large")` for a dense panel; `"medium"` by default) and the up axis. `LIGHT`
 (the default) and `DARK` are built in; `viewer.set_theme(theme)` switches the page and every layer. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
-`plane` lies in the plane perpendicular to it (`"xz"` for `+y`). The default grid has no edges and fades out with
+`plane` lies in the plane perpendicular to it (`"xz"` for `+y`); the up axis is one per viewer, so a y-up body
+beside a z-up robot keeps the theme's up and turns the body's tag instead (`add(..., pose=)`). The default grid has no edges and fades out with
 the distance from the camera; `GroundLayer(size=4.0)` draws a square 4 m wide. `GroundLayer(origin=p, normal=n, fill=0.3)`
 instead tilts the grid onto the plane through `p` with normal `n`, such as a fitted floor, over a translucent fill
 (`fill` is its opacity; 0, the default, draws lines only) in the theme's grid colour unless `fill_color=` names one.
