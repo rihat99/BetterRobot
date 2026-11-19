@@ -356,10 +356,10 @@ class RobotVisual(Layer):
             self.value_range = self.value_range if value_range is None else value_range
             for part in _SKELETONS:
                 if part in self._parts:
-                    blocks = self._parts[part][1][0]
-                    blocks.values, blocks.value_range = values, self.value_range  # type: ignore[attr-defined]
+                    blocks = self._blocks(part)
+                    blocks.values, blocks.value_range = values, self.value_range
                     if values is None:
-                        blocks.recolor(self.hue, self._theme)  # type: ignore[attr-defined]
+                        blocks.recolor(self.hue, self._theme)
             if self.viewer is not None:
                 self.redraw()
             elif self._scene is not None:
@@ -372,6 +372,10 @@ class RobotVisual(Layer):
 
     def _shown(self) -> tuple[str, ...]:
         return (self.style, *(("collision",) if self._collision else ()), *(("frames",) if self._frames else ()))
+
+    def _blocks(self, part: str) -> _Blocks:
+        """The layer of the built skeleton style ``part``."""
+        return cast("_Blocks", self._parts[part][1][0])
 
     def _skeleton(self, part: str) -> Skeleton:
         if part not in self._skeletons:
@@ -607,7 +611,7 @@ class RobotVisual(Layer):
         self._theme = theme
         for part in _SKELETONS:
             if part in self._parts:
-                self._parts[part][1][0].recolor(self.hue, theme)  # type: ignore[attr-defined]
+                self._blocks(part).recolor(self.hue, theme)
         stale = {
             "meshes": body != theme.shade(self.hue, "body"),
             "collision": overlay != (theme.collision, theme.collision_opacity),
@@ -783,8 +787,11 @@ def _axes(world: np.ndarray) -> np.ndarray:
     return np.abs(so3.act(rotations, eye).numpy())
 
 
-#: Per unit mesh, its half extent along x, y and z over its scale.
-_HALF_EXTENT = {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0), "boxes": (0.5, 0.5, 0.5)}
+#: Per unit mesh, its half extent along x, y and z over its scale, read off the mesh (a taper only narrows a box).
+_HALF_EXTENT = {
+    mesh: np.abs(unit()[0]).max(axis=0)
+    for mesh, unit in (("cylinders", unit_cylinder), ("balls", unit_ball), ("boxes", unit_box))
+}
 
 
 @final
