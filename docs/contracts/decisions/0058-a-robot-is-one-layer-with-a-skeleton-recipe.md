@@ -80,7 +80,7 @@ robot = viewer.add(RobotVisual(model, q, geometry=geometry, root=URDF, spheres=s
 robot.set_style("maximal")       # built now; "meshes" stays in the scene, hidden
 robot.set_collision(True)        # the sphere set, faint, over any style
 robot.update(q_next)             # one kinematics pass, then a redraw
-viewer.add(RobotVisual(model, q, name="ghost", maximal=SkeletonRecipe(limits=True)), offset=(0.0, 1.0, 0.0))
+viewer.add(RobotVisual(model, q, name="ghost", maximal=SkeletonRecipe(limits=True)), pose=(0.0, 1.0, 0.0))
 ```
 
 ## Consequences

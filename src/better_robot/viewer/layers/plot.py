@@ -30,7 +30,8 @@ _PALETTE = (
 class PlotPanel(Layer):
     """Series ``(T, K)`` against time ``t = step / fps`` (uPlot); a dot per series marks the step.
 
-    Lives in the GUI, not the 3D scene: ``build`` does nothing and ``build_gui`` creates the chart.
+    Lives in the GUI, not the 3D scene: ``build`` does nothing and ``build_gui`` creates the chart, which holds
+    ``series`` as it was then; a push moves only the marker.
     """
 
     def __init__(self, name: str, series: np.ndarray, *, labels: list[str] | None = None, fps: float = 30.0) -> None:

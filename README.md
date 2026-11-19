@@ -50,7 +50,7 @@ state. Poses are `[tx, ty, tz, qx, qy, qz, qw]` (scalar last).
 - [Scope](docs/contracts/scope.md): what BetterRobot computes, what it leaves out, and the bar for a new feature.
 - [Examples](examples/): short programs from batched IK (`uv run python examples/01_ik.py`) to dynamics
   (`examples/08_dynamics.py`); the scripts in `examples/viewer/` show, play and record scenes with the viewer
-  (`examples/viewer/00_showcase.py` shows three robots in every style), and five of them keep a robot off its joint
+  (`examples/viewer/00_showcase.py` shows eight robots in every style), and five of them keep a robot off its joint
   limits, singular poses, the floor, an obstacle and itself while it tracks a target you drag
   ([Try the avoidance demos](docs/guides/avoidance-demos.md)).
 - Upgrading from 0.2: [Migrating to 0.3.0](docs/reference/migration-0.3.0.md) maps every public name that 0.3.0

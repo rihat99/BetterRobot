@@ -201,12 +201,34 @@ def test_a_sidebar_button_records_while_playing(monkeypatch: pytest.MonkeyPatch,
 
 
 def test_the_page_reaches_a_server_bound_to_every_interface_through_loopback() -> None:
-    for host, origin in (("0.0.0.0", "http://127.0.0.1:8123"), ("localhost", "http://localhost:8123")):
+    """R1's probe: a server on IPv6 loopback gave ``url == "http://::1:8125"``, which no browser opens."""
+    cases = {
+        "0.0.0.0": ("http://0.0.0.0:8123", "http://127.0.0.1:8123"),
+        "localhost": ("http://localhost:8123", "http://localhost:8123"),
+        "::1": ("http://[::1]:8123", "http://[::1]:8123"),
+        "::": ("http://[::]:8123", "http://[::1]:8123"),
+    }
+    for host, (url, origin) in cases.items():
         viewer = Viewer(server=FakeServer(port=8123))
         viewer.host = host  # where a real server would listen; the stand-in is always on loopback
         page = recorder._Page(viewer, (320, 180), _CAMERA, 0.7, None)
         page.__exit__()  # removes the browser profile; no browser started
-        assert page.origin == origin
+        assert (viewer.url, page.origin) == (url, origin)
+
+
+@pytest.mark.slow
+def test_a_page_that_does_not_load_names_its_address_not_the_viser_version(tmp_path: Path) -> None:
+    """The unbracketed IPv6 address made Chromium show an error page, and record blamed the client internals of the
+    viser version after a minute."""
+    with socket.socket() as closed:  # a port nothing listens on
+        closed.bind(("127.0.0.1", 0))
+        port = closed.getsockname()[1]
+    viewer = Viewer(server=FakeServer(port=port), ground=False)
+    viewer.add(PointsLayer("p", np.zeros((1, 3))))
+    started = time.monotonic()
+    with pytest.raises(ArgumentError, match=rf"could not load the viewer's page from http://127.0.0.1:{port}"):
+        viewer.record(tmp_path / "still.png", size=(64, 64), camera=_CAMERA)
+    assert time.monotonic() - started < 30.0
 
 
 def test_gpu_index_maps_to_its_pci_bus_and_the_browser_is_found_on_it(monkeypatch: pytest.MonkeyPatch) -> None:

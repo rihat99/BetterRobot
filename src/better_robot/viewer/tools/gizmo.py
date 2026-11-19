@@ -14,6 +14,14 @@ if TYPE_CHECKING:
     from ..viewer import Viewer
 
 
+def _as_pose(pose: np.ndarray) -> np.ndarray:
+    """``pose`` as float32 ``(7,)``; another shape raises ``ShapeError``."""
+    pose = np.asarray(pose, dtype=np.float32)
+    if pose.shape != (7,):
+        raise ShapeError(f"pose must be (7,) = [x, y, z, qx, qy, qz, qw], got {pose.shape}")
+    return pose
+
+
 @final
 class PoseGizmo:
     """A draggable handle in the scene at ``pose (7,)`` ``[x, y, z, qx, qy, qz, qw]``; ``on_change(pose (7,))`` fires on
@@ -28,7 +36,8 @@ class PoseGizmo:
     Tools are not layers: they hold the viewer and callbacks and sit outside the step loop.
     ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). ``translation=False`` leaves only the
     rings that turn the pose, without the arrows and plane sliders that move it; ``on_top=True`` draws the handle in
-    front of every mesh, for a joint inside a body. Raises ``ShapeError`` for a ``pose`` that is not ``(7,)``.
+    front of every mesh, for a joint inside a body. Raises ``ShapeError`` for a ``pose`` that is not ``(7,)``, given here or
+    set later.
     """
 
     def __init__(
@@ -42,9 +51,7 @@ class PoseGizmo:
         translation: bool = True,
         on_top: bool = False,
     ) -> None:
-        pose = np.asarray(pose, dtype=np.float32)
-        if pose.shape != (7,):
-            raise ShapeError(f"pose must be (7,) = [x, y, z, qx, qy, qz, qw], got {pose.shape}")
+        pose = _as_pose(pose)
         self.name = name
         self.handle = viewer.server.scene.add_transform_controls(
             f"/tools/{name}",
@@ -77,7 +84,7 @@ class PoseGizmo:
 
     @pose.setter
     def pose(self, pose: np.ndarray) -> None:
-        pose = np.asarray(pose, dtype=np.float32)
+        pose = _as_pose(pose)
         self.handle.position = pose[:3]
         self.handle.wxyz = pose[[6, 3, 4, 5]]
 

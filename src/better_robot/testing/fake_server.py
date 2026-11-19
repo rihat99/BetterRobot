@@ -15,8 +15,15 @@ import contextlib
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any, Literal, final, override
 
+
 _IDENTITY = (1.0, 0.0, 0.0, 0.0)
 _ORIGIN = (0.0, 0.0, 0.0)
+
+
+def _sent(value: Any) -> Any:
+    """What viser holds of ``value`` once it is sent: a copy of a numpy array (told by its type's name, as the stand-in
+    imports no numpy), anything else as given."""
+    return value.copy() if type(value).__name__ == "ndarray" else value
 
 
 @final
@@ -24,7 +31,8 @@ class FakeHandle:
     """One viser handle: ``kind`` names the viser class it stands for and ``props`` holds the call's arguments.
 
     Attribute writes are kept (``writes``, and ``(name, attribute)`` in the scene's ``log``) and so are the names of
-    the methods called on it (``calls``). A write after ``remove()`` raises ``AttributeError``, as viser refuses it
+    the methods called on it (``calls``). An array is copied when it is sent, at the call or a write, as viser
+    serialises it then: a later edit of the sender's array reaches the handle only through another write. A write after ``remove()`` raises ``AttributeError``, as viser refuses it
     (with a ``RuntimeError``) and a frozen dataclass refuses any write.
     ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered. A tab
     group's ``add_tab`` keeps its tabs in ``tabs``.
@@ -50,7 +58,7 @@ class FakeHandle:
     def __setattr__(self, key: str, value: Any) -> None:
         if self.removed:
             raise AttributeError(f"cannot assign {key!r}: this {self.kind} was removed")
-        self.__dict__[key] = value
+        self.__dict__[key] = _sent(value)
         self.writes.append(key)
         if self.scene is not None:
             self.scene.log.append((self.name, key))
@@ -121,7 +129,7 @@ class FakeScene:
 
     def _node(self, kind: str, arguments: dict[str, Any]) -> FakeHandle:
         """A scene node from a method's ``locals()``: position, orientation and visibility readable as on viser."""
-        props = {key: value for key, value in arguments.items() if key != "self"}
+        props = {key: _sent(value) for key, value in arguments.items() if key != "self"}
         state = {key: props[key] for key in ("position", "wxyz", "visible")}
         handle = FakeHandle(self, kind, props.pop("name"), props, **state)
         self.nodes[handle.name] = handle
@@ -458,7 +466,7 @@ class FakeGui:
     def _control(self, kind: str, label: str, arguments: dict[str, Any], **state: Any) -> FakeHandle:
         """A control from a method's ``locals()``: value, order, label and visibility readable as on viser; ``state``
         adds or replaces what reads back (a dropdown's first option as its value, a markdown's ``content``)."""
-        props = {key: value for key, value in arguments.items() if key != "self"}
+        props = {key: _sent(value) for key, value in arguments.items() if key != "self"}
         state = {"value": props.get("initial_value"), "order": props["order"], "label": label, **state}
         handle = FakeHandle(None, kind, label, props, visible=props["visible"], **state)
         self.controls.append(handle)
@@ -574,7 +582,6 @@ class FakeGui:
     def configure_theme(
         self,
         *,
-        control_layout: str = "floating",
         control_width: str = "medium",
         dark_mode: bool = False,
         show_logo: bool = True,

@@ -52,6 +52,19 @@ def test_a_stand_in_handle_refuses_writes_after_remove() -> None:
         cloud.points = np.ones((4, 3))
 
 
+def test_a_stand_in_keeps_a_copy_of_each_array_it_is_sent_as_viser_does() -> None:
+    """R1's probe: the stand-in kept the arrays it was sent by reference, so the array-rule test of test_core passed its
+    points half with the push removed. viser serialises an array when it is sent."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    cloud = viewer.add(PointsLayer("cloud", np.zeros((1, 4, 3), np.float32)))
+    node = server.scene.nodes["/cloud/cloud/points"]
+    cloud.points[0, :, 2] = 0.5  # the layer's attribute: the array the add sent a slice of
+    assert (node.points[:, 2] == 0.0).all() and (node.props["points"][:, 2] == 0.0).all()
+    viewer.show()
+    np.testing.assert_allclose(node.points[:, 2], 0.5)
+
+
 def test_removing_a_pointer_callback_that_is_not_held_does_nothing_as_on_viser() -> None:
     scene = FakeServer().scene
     scene.on_click()(print)
@@ -80,6 +93,12 @@ def test_every_stand_in_method_binds_like_viser(fake: type, real: type) -> None:
             continue
         assert hasattr(real, name), f"{fake.__name__}.{name} is not on viser's {real.__name__}"
         _assert_binds_like(getattr(fake, name), getattr(real, name), f"{fake.__name__}.{name}")
+
+
+def test_the_stand_in_theme_takes_no_parameter_viser_deprecates() -> None:
+    """R1's grep: ``configure_theme(control_layout=)``, which viser 1.1 deprecates for the main panel's placement, stayed
+    on the stand-in although nothing passes it any more."""
+    assert "control_layout" not in inspect.signature(FakeGui.configure_theme).parameters
 
 
 @pytest.mark.slow

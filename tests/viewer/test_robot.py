@@ -119,6 +119,17 @@ def test_load_meshes_gives_the_shapes_as_arrays_the_overlay_draws() -> None:
         load_meshes(geometry, root=panda_urdf())
 
 
+def test_load_meshes_refuses_a_model_for_the_geometry_and_a_collision_that_is_not_a_bool() -> None:
+    """A ``Model`` in place of its ``Geometry`` raised the builtin ``AttributeError`` of a missing ``shapes``, and
+    ``collision="yes"`` matched no shape and returned ``[]`` (R1 n4): both are the library's ``ArgumentError``."""
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    with pytest.raises(ArgumentError, match="takes a Geometry.*got Model"):
+        load_meshes(model, root=panda_urdf())  # pyright: ignore[reportArgumentType]
+    with pytest.raises(ArgumentError, match="collision must be True or False, got 'yes'"):
+        load_meshes(geometry, root=panda_urdf(), collision="yes")  # pyright: ignore[reportArgumentType]
+
+
 @final
 @dataclass(frozen=True)
 class _JointDrop(JointModel):
