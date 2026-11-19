@@ -72,7 +72,8 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
   as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files
-  are found as `RobotVisual(root=)` finds them, by the one lookup the viewer uses.
+  are found as `RobotVisual(root=)` finds them, by the one lookup the viewer uses. A `geometry` that is not a
+  `Geometry` (a `Model`) or a `collision` that is not a bool raises `ArgumentError`.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
 - `MeshLayer(colors=(V, 3))`: one colour per vertex. A static mesh is one GLB node that blends them across each face;
