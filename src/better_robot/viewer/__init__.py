@@ -48,6 +48,7 @@ from .skeleton import MAXIMAL, MINIMAL, SkeletonRecipe
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline
 from .viewer import Viewer
+from . import tools
 
 __all__ = [
     "DARK",
@@ -75,4 +76,5 @@ __all__ = [
     "Theme",
     "Timeline",
     "Viewer",
+    "tools",
 ]

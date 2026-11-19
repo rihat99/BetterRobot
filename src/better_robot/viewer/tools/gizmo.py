@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, final, override
 
 import numpy as np
 
@@ -16,7 +16,8 @@ if TYPE_CHECKING:
 
 @final
 class PoseGizmo:
-    """Transform controls at ``pose`` ``[x, y, z, qx, qy, qz, qw]``; ``on_change(pose)`` fires on drags.
+    """A draggable handle in the scene at ``pose (7,)`` ``[x, y, z, qx, qy, qz, qw]``; ``on_change(pose (7,))`` fires on
+    drags.
 
     Callbacks run on one worker thread owned by the gizmo, never on viser's callback pool: a drag
     overwrites a single pending pose and the worker handles only the newest one (latest wins), so a
@@ -25,8 +26,9 @@ class PoseGizmo:
     callback that raises stops the worker: its traceback goes to ``threading.excepthook`` (printed by default) and
     every later ``wait()`` raises it. The worker is a daemon thread: it ends with ``remove()`` and never keeps the interpreter alive.
     Tools are not layers: they hold the viewer and callbacks and sit outside the step loop.
-    ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). ``disable_sliders=True`` and
-    ``disable_axes=True`` make a rotation-only handle; ``depth_test=False`` draws it in front of every mesh.
+    ``scale`` is the handle size in metres (viser's default of 1 dwarfs a robot). ``translation=False`` leaves only the
+    rings that turn the pose, without the arrows and plane sliders that move it; ``on_top=True`` draws the handle in
+    front of every mesh, for a joint inside a body. Raises ``ShapeError`` for a ``pose`` that is not ``(7,)``.
     """
 
     def __init__(
@@ -37,19 +39,19 @@ class PoseGizmo:
         pose: np.ndarray,
         on_change: Callable[[np.ndarray], None] | None = None,
         scale: float = 0.15,
-        disable_sliders: bool = False,
-        disable_axes: bool = False,
-        depth_test: bool = True,
+        translation: bool = True,
+        on_top: bool = False,
     ) -> None:
         pose = np.asarray(pose, dtype=np.float32)
         if pose.shape != (7,):
             raise ShapeError(f"pose must be (7,) = [x, y, z, qx, qy, qz, qw], got {pose.shape}")
+        self.name = name
         self.handle = viewer.server.scene.add_transform_controls(
             f"/tools/{name}",
             scale=scale,
-            disable_sliders=disable_sliders,
-            disable_axes=disable_axes,
-            depth_test=depth_test,
+            disable_sliders=not translation,
+            disable_axes=not translation,
+            depth_test=not on_top,
             position=pose[:3],
             wxyz=pose[[6, 3, 4, 5]],
         )
@@ -62,6 +64,10 @@ class PoseGizmo:
         self._worker = threading.Thread(target=self._run, name=f"gizmo:{name}", daemon=True)
         self._worker.start()
         self.handle.on_update(lambda _: self._submit())  # also fires on the drag's end phase
+
+    @override
+    def __repr__(self) -> str:
+        return f"PoseGizmo({self.name!r}, pose={np.round(self.pose, 3).tolist()})"
 
     @property
     def pose(self) -> np.ndarray:

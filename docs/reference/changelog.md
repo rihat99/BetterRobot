@@ -64,6 +64,9 @@ that 0.3.0 renames or removes, one table row each.
 - `testing.FakeServer.scene.add_glb`, and `testing.FakeServer.get_host()` (loopback), as viser's server has.
 - `examples/viewer/00_showcase.py`: one page that shows the G1, the Panda and the Go2 as meshes or as the minimal
   or maximal skeleton, with the collision overlay, the frame triads, the light or dark theme and a looping motion.
+- `better_robot.viewer.tools` is in the public tree (`viewer.__all__`): the API snapshot, the keyword-only and
+  vocabulary tests and the API page cover `PoseGizmo`, `CameraFrustum`, `ray_hit`, `nearest_on_ray`, `project`,
+  `vertices_in_sphere` and `vertices_in_rect`; `PoseGizmo` and `CameraFrustum` have a `repr`.
 
 ### Changed
 - `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
@@ -117,6 +120,12 @@ that 0.3.0 renames or removes, one table row each.
   `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
 - `ArrowsLayer.vectors` holds the vectors as given (was multiplied by `scale`) and `ArrowsLayer.scale` applies at
   each push, so an in-place edit is in the units of the input; a float32 input is no longer copied.
+- `tools.PoseGizmo(translation=True, on_top=False)`: `translation=False` leaves only the rings that turn the pose
+  (was `disable_sliders=True, disable_axes=True`), `on_top=True` draws the handle in front of every mesh (was
+  `depth_test=False`).
+- `tools.CameraFrustum(pose, *, fov, aspect)` takes the camera's pose `(7,)` `[x, y, z, qx, qy, qz, qw]`, quaternion
+  scalar last like every pose of the library (was `position` and the scalar-first `wxyz`); `from_camera` reorders
+  viser's camera, and a `pose` that is not `(7,)` raises `ShapeError`.
 
 ### Removed
 - `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
@@ -146,6 +155,8 @@ that 0.3.0 renames or removes, one table row each.
 - `CameraLayer` from `viewer.layers.skinned`, a second path to it: use `better_robot.viewer.CameraLayer`.
 - The names `better_robot.viewer.layers` re-exported, seven of the twelve layers, a second path to them: use
   `better_robot.viewer`, which holds every layer.
+- `tools.PoseGizmo(disable_sliders=, disable_axes=, depth_test=)`: use `translation=False` and `on_top=True`.
+- `tools.CameraFrustum.position` and `tools.CameraFrustum.wxyz`: use `CameraFrustum.pose`.
 
 ### Fixed
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`

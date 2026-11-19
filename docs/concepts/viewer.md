@@ -267,11 +267,14 @@ skin=skin)` shows it as the `"meshes"` style, skinned in the browser.
 ## Tools: a gizmo and numpy picking
 
 `better_robot.viewer.tools` holds two things. `PoseGizmo(viewer, name, pose=, on_change=...)` is a draggable
-transform handle that calls `on_change(pose)` on every drag; `examples/viewer/03_ik_gizmo.py` uses it to re-solve
-IK and call `robot.update(q)` live. A callback that raises stops the gizmo, and `gizmo.wait()` raises its error in
-your thread. Picking is plain numpy over vertices, so it also works on data you never
-showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
-`vertices_in_sphere` and `vertices_in_rect`.
+handle that calls `on_change(pose)` on every drag; `examples/viewer/03_ik_gizmo.py` uses it to re-solve
+IK and call `robot.update(q)` live. `translation=False` leaves only the rings that turn the pose, and `on_top=True`
+draws the handle in front of every mesh, for a joint inside a body. A callback that raises stops the gizmo, and
+`gizmo.wait()` raises its error in your thread. Picking is plain numpy over vertices, so it also works on data you
+never showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
+`vertices_in_sphere` and `vertices_in_rect`. The last one projects through a `CameraFrustum(pose, *, fov, aspect)`,
+whose `pose (7,)` is `[x, y, z, qx, qy, qz, qw]` like every pose of the library;
+`CameraFrustum.from_camera(client.camera)` takes a browser's camera now.
 
 The viewer holds one pointer callback so that tools never fight over the scene: a tool calls
 `viewer.on_pointer("click", callback)` (viser's `SceneClickEvent`: `ray_origin`, `ray_direction`, `screen_pos`) or

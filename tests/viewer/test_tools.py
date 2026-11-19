@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -11,6 +12,7 @@ import pytest
 from better_robot.viewer.tools import CameraFrustum, PoseGizmo, project, ray_hit, vertices_in_rect, vertices_in_sphere
 from better_robot.viewer.viewer import Viewer
 
+from better_robot.exceptions import ShapeError
 from better_robot.testing import FakeServer
 
 
@@ -121,7 +123,7 @@ def test_ray_hit_sphere_and_rect_selection() -> None:
 
     # Camera at the origin looking down +z (identity orientation): the triangle sits in front, the far
     # vertex off-centre; a marquee around the image centre selects the first three vertices only.
-    camera = CameraFrustum(np.zeros(3), np.array([1.0, 0.0, 0.0, 0.0]), fov=np.pi / 2, aspect=1.0)
+    camera = CameraFrustum(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]), fov=np.pi / 2, aspect=1.0)
     screen, depth = project(vertices, camera)
     np.testing.assert_allclose(screen[0], [0.5, 0.5])
     np.testing.assert_allclose(screen[1], [1.0, 0.5])
@@ -129,3 +131,17 @@ def test_ray_hit_sphere_and_rect_selection() -> None:
     assert vertices_in_rect(
         vertices, camera, rect_min=np.array([0.4, 0.4]), rect_max=np.array([1.0, 1.0])
     ).tolist() == [0, 1, 2]
+
+
+def test_a_camera_frustum_is_a_pose_in_the_library_order_also_from_a_browser_camera() -> None:
+    """viser's camera is scalar-first ``wxyz``; the frustum holds ``[x, y, z, qx, qy, qz, qw]`` like every pose."""
+    half = np.sqrt(0.5)
+    browser = SimpleNamespace(position=(1.0, 2.0, 3.0), wxyz=(half, 0.0, half, 0.0), fov=1.0, aspect=1.5)  # +z to +x
+    camera = CameraFrustum.from_camera(browser)
+    np.testing.assert_allclose(camera.pose, [1.0, 2.0, 3.0, 0.0, half, 0.0, half])
+    screen, depth = project(np.array([[3.0, 2.0, 3.0]]), camera)  # two metres straight ahead
+    np.testing.assert_allclose(screen, [[0.5, 0.5]], atol=1e-12)
+    np.testing.assert_allclose(depth, [2.0])
+    assert repr(camera) == "CameraFrustum(pose=[1.0, 2.0, 3.0, 0.0, 0.707, 0.0, 0.707], fov=1.000, aspect=1.500)"
+    with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):
+        CameraFrustum(np.zeros(4), fov=1.0, aspect=1.0)

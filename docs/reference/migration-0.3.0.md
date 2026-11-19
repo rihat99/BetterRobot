@@ -234,8 +234,9 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `ArrowsLayer(name, origins, vectors, ...)`, `MeshLayer(name, vertices, faces, ...)`, `SpheresLayer(name, centers, radii, ...)` | `vectors=`, `faces=`, `radii=` | keyword-only after the second argument |
 | `RigidMeshLayer(name, meshes, body_poses, ...)`, `SkinnedMeshLayer(name, vertices, faces, weights, bind_poses, bone_poses, ...)` | `body_poses=`, `faces=`, `weights=`, `bind_poses=`, `bone_poses=` | keyword-only |
 | `MeshSpec(vertices, faces, body, origin, color, trimesh)`, `Theme(dark, brand_color, ...)` | `body=`, `origin=`, `dark=`, `accent=` | keyword-only fields |
-| `PoseGizmo(viewer, name, pose, **options)` (in `viewer.tools`) | `pose=`, `on_change=`, `scale=`, `depth_test=` | named options only; `pose` is `(7,)` |
-| `CameraFrustum`, `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` (in `viewer.tools`) | `fov=`, `vertices=`, `direction=`, `radius=`, `rect_min=` | keyword-only after the first two arguments |
+| `PoseGizmo(viewer, name, pose, **options)` (in `viewer.tools`) | `pose=`, `on_change=`, `scale=`, `translation=`, `on_top=` | named options only; `pose` is `(7,)`; `translation=False` replaces `disable_sliders=True, disable_axes=True`, `on_top=True` replaces `depth_test=False` |
+| `CameraFrustum(position, wxyz, fov, aspect)` (in `viewer.tools`) | `CameraFrustum(pose, *, fov, aspect)` | `pose (7,)` is `[x, y, z, qx, qy, qz, qw]`, quaternion scalar last; `CameraFrustum.from_camera` reorders viser's `wxyz` |
+| `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` (in `viewer.tools`) | `vertices=`, `direction=`, `radius=`, `rect_min=` | keyword-only after the first two arguments |
 | click callback event with `screen_pos ((x, y),)` and `event_type` | viser's click event | `Viewer.on_pointer("click", ...)` passes it: `screen_pos` is `(x, y)`, no `event_type` |
 | rect-select callback event with `screen_pos` | viser's rect-select event | its corners are `screen_min` and `screen_max` |
 | `Viewer.record(path, *, steps, size=(960, 540), fps, gpu=False, camera)` | `Viewer.record(path, *, size=(1920, 1080), fps, steps, camera, fov, gpu=None, bitrate)` | `gpu` is the `nvidia-smi` index of the GPU to draw on (`gpu=True` used whichever GPU EGL chose); the call returns the path it wrote |
