@@ -31,7 +31,7 @@ class Timeline:
     def __init__(
         self, nsteps: int, *, fps: float = 30.0, loop: bool = True, lock: threading.RLock | None = None
     ) -> None:
-        if nsteps < 1 or fps <= 0.0:
+        if nsteps < 1 or not fps > 0.0:
             raise ArgumentError(f"Timeline needs nsteps >= 1 and fps > 0, got nsteps={nsteps}, fps={fps}")
         self.nsteps = nsteps
         self.fps = fps

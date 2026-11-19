@@ -8,21 +8,23 @@ that 0.3.0 renames or removes, one table row each.
 ## Unreleased
 
 ### Added
-- `viewer.Sidebar`: the viewer's controls in ordered sections (Timeline, Robot, Layers, Plots, an application's
-  sections in creation order, Info). A control is shared by `(section, label)`, so one control drives every layer
+- `viewer.Sidebar`: the viewer's controls in ordered sections (Timeline, Robot, Layers, Plots, Images, an
+  application's sections in creation order, Info). A control is shared by `(section, label)`, so one control drives every layer
   that asks for it; every callback runs under `Viewer.lock`, and a `BetterRobotError` raised in one returns the
   control to its previous value and shows a red notification in the browser. `Viewer.sidebar` is the viewer's one.
 - `Sidebar.set_value(section, label, *, value)` shows a value on a control without running its callbacks;
   `RobotVisual.set_style`, `set_collision` and `set_frames` called from code move the Robot section's shared control
   with it and leave the other robots as they are.
 - Tags: `Layer(name, nsteps, *, tags=)` (default: the layer's name; the first tag is the scene parent
-  `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_offset` and
+  `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_pose` and
   `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
   are two.
 - `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, or one box per part `(lo (N, 3), hi (N, 3))`
   for a layer of thin, spread-out parts, which `Viewer.aim` and `Viewer.record` frame
   (over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
-  the camera after each `add`.
+  the camera after each `add`; it reads a layer's bounds again only after a step was pushed to the layer and fits
+  the boxes without listing their corners, so the sixteenth G1 added takes about what the first does (81 and 62 ms,
+  maximal style, 300 steps; the sixteenth took 1.7 to 2.5 s).
 - `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
   `Layer.viewer` is the viewer the layer was added to.
 - `Viewer.serve()` plays the timeline and serves the page until interrupted; `Viewer.set_theme(theme)` applies a
@@ -32,6 +34,8 @@ that 0.3.0 renames or removes, one table row each.
   a right one, darker), `accent`, `collision` and `text`, all colours RGB in `[0, 1]`, and `collision_opacity`.
   `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
   that casts shadows and a fill light, one rig for meshes and solid colours.
+- `Theme(sidebar_width="medium")`: viser's `"small"`, `"medium"` or `"large"` sidebar, which `Viewer.set_theme`
+  keeps; it put `"medium"` back over an application's own `configure_theme(control_width=)`.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications; its plain and skinned meshes take `cast_shadow` and
   `receive_shadow`.
@@ -58,21 +62,31 @@ that 0.3.0 renames or removes, one table row each.
   batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies and the medium one's
   rods.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
+- `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
+  as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files
+  are found as `RobotVisual(root=)` finds them, by the one lookup the viewer uses.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
 - `MeshLayer(colors=(V, 3))`: one colour per vertex. A static mesh is one GLB node that blends them across each face;
   a deforming one is one node per distinct colour (at most 64), each face in its first vertex's colour.
 - `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
   one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
-- `testing.FakeServer.scene.add_glb`.
+- `testing.FakeServer.scene.add_glb`, and `testing.FakeServer.get_host()` (loopback), as viser's server has.
 - `examples/viewer/00_showcase.py`: one page that shows the G1, the Panda and the Go2 as meshes or as the minimal,
   medium or maximal skeleton, with the collision overlay, the frame triads, the light or dark theme and a looping
   motion.
+- `better_robot.viewer.tools` is in the public tree (`viewer.__all__`): the API snapshot, the keyword-only and
+  vocabulary tests and the API page cover `PoseGizmo`, `CameraFrustum`, `ray_hit`, `nearest_on_ray`, `project`,
+  `vertices_in_sphere` and `vertices_in_rect`; `PoseGizmo` and `CameraFrustum` have a `repr`.
 
 ### Changed
-- `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
-  its argument; `tags` replaces `group`, also in `Viewer.add_plot`. `Viewer.set_visible(target, visible)` and
-  `Viewer.set_offset(tag, offset)` rename their first parameter.
+- `Viewer.add(layers, *, tags=None, pose=, times=, valid=)` takes one layer or an iterable of layers and returns
+  its argument; `tags` replaces `group`, also in `Viewer.add_plot`. `Viewer.set_visible(target, visible)` renames
+  its first parameter.
+- `Viewer.set_pose(tag, pose)` and `Viewer.add(pose=)` place a tag's frame at a pose `(7,)` `[tx, ty, tz, qx, qy,
+  qz, qw]`, or a translation `(3,)` (were `set_offset(group, offset)` and `add(offset=)`, a translation only), so a
+  y-up body stands beside a z-up robot without turning its arrays; `aim`, `record` and `save` show the tag placed.
+  `Layer.bounds` is the box in the frame of the layer's first tag.
 - `Viewer(theme=LIGHT)` (was `None`); `Viewer.replace(old, new)` keeps `old`'s tags and sidebar rows.
 - `Layer.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API); `PlotPanel` and `ImagePanel` sit in
   the sidebar's Plots and Images sections.
@@ -125,6 +139,14 @@ that 0.3.0 renames or removes, one table row each.
   `_fade`, gives the settings a mesh node is drawn with at the layer's opacity.
 - `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
   `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
+- `ArrowsLayer.vectors` holds the vectors as given (was multiplied by `scale`) and `ArrowsLayer.scale` applies at
+  each push, so an in-place edit is in the units of the input; a float32 input is no longer copied.
+- `tools.PoseGizmo(translation=True, on_top=False)`: `translation=False` leaves only the rings that turn the pose
+  (was `disable_sliders=True, disable_axes=True`), `on_top=True` draws the handle in front of every mesh (was
+  `depth_test=False`).
+- `tools.CameraFrustum(pose, *, fov, aspect)` takes the camera's pose `(7,)` `[x, y, z, qx, qy, qz, qw]`, quaternion
+  scalar last like every pose of the library (was `position` and the scalar-first `wxyz`); `from_camera` reorders
+  viser's camera, and a `pose` that is not `(7,)` raises `ShapeError`.
 
 ### Removed
 - `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
@@ -136,13 +158,17 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme.brand_color`: use `Theme.accent`.
 - `Theme.grid_cell` and `Theme.grid_section`: use `Theme.grid`.
 - `Theme.robot` and `Theme.human`: use `Theme.hue(index)`.
-- `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` and `Theme.control_width`: no
-  replacement; no layer read the colours, an application passes its own, and the sidebar keeps viser's medium width.
+- `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact` and `Theme.target`: no replacement; no layer read
+  the colours, and an application passes its own.
+- `Theme.control_width`: use `Theme.sidebar_width`.
+- `Viewer.set_offset` and `Viewer.add(offset=)`: use `Viewer.set_pose` and `Viewer.add(pose=)`, which take the same
+  translation `(3,)` or a pose `(7,)`.
 - `Viewer.record` to `.gif`, to numbered `.png` frames and to a directory of frames: use `Viewer.record` to an
   `.mp4` or a `.webm`, or to one `.png` still per call.
 - `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.
 - `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer`: use `viewer.RobotVisual`, which draws
-  the meshes and both skeletons of a model and runs the forward kinematics itself. Colouring joints by torque
+  the meshes and both skeletons of a model and runs the forward kinematics itself, and `viewer.load_meshes(geometry,
+  root=)` for the meshes as arrays. Colouring joints by torque
   (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
 - `Theme.joint`, `Theme.link`, `Theme.torque_ramp` and `Theme.over_limit`: use `Theme.hue` and `Theme.shade`; a
   skeleton takes its robot's hue and the shades of it.
@@ -152,6 +178,40 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.theme.colormap`: no replacement; nothing called it once the torque colours went, and an application maps
   values to colours with numpy.
 - `CameraLayer` from `viewer.layers.skinned`, a second path to it: use `better_robot.viewer.CameraLayer`.
+- The names `better_robot.viewer.layers` re-exported, seven of the twelve layers, a second path to them: use
+  `better_robot.viewer`, which holds every layer.
+- `tools.PoseGizmo(disable_sliders=, disable_axes=, depth_test=)`: use `translation=False` and `on_top=True`.
+- `tools.CameraFrustum.position` and `tools.CameraFrustum.wxyz`: use `CameraFrustum.pose`.
+
+### Fixed
+- `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
+  opened whatever page listened there).
+- The docs and `Viewer.add` said a layer keeps the caller's arrays by reference, and the docs' example edited a
+  float64 cloud that the layer had copied. A layer keeps its arrays as float32 attributes (`layer.points`,
+  `layer.poses`, `layer.valid`, ...), the input itself only when it already is C-contiguous float32: edit the
+  attribute in place and call `redraw()` or `Viewer.show()`.
+- `SkinnedMeshLayer.bounds` skinned every vertex against every bone, 32.5 ms per step at SMPL-X size and 1.07 s per
+  `Viewer.add`. It is a box per bone now, the vertices the bone carries at least a quarter of, boxed once in its bind
+  frame and turned with it: 0.1 ms per step, 5 ms per add; on SMPL and SMPL-X it holds the mesh within 2 to 5 cm in
+  the median.
+- `GroundLayer(plane=None)` follows `Viewer.set_theme` to another up axis (it kept the first theme's plane, and
+  wrote it into `plane`, which now stays as given).
+- `Viewer(fps=nan)` and `Timeline(fps=nan)` raise `ArgumentError`, as `Viewer.set_fps` does; `Viewer.show(True)`
+  is refused (a bool showed step 1).
+- A sidebar dropdown shared by several layers drops the options of a layer that is removed and that no other
+  offers: the Style dropdown kept `"meshes"` after the one robot with meshes went, and choosing it changed nothing.
+  When the option shown goes, the dropdown shows the first one left and the remaining layers follow it.
+- `Theme.shade` raises `ShapeError` for a hue that is not three numbers, so `RobotVisual(hue=(1.0, 0.0))` fails
+  in `Viewer.add` with the library's error (was the builtin error of an unpack).
+- `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
+  thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
+- `SkinnedMeshLayer` names `weights` and `bone_poses` apart, each with the shape it needs: a `RobotVisual`'s `Skin`
+  with one weight column per joint of the body instead of per model joint raised an error about bone poses the
+  caller never passed.
+- [Use with BetterHuman](../guides/use-with-betterhuman.md) names BetterHuman's actual API (`HumanModel`,
+  `Identity.forward(q, streams=)`, the `vertices` property, `joint_translations`) and shows a body in BetterRobot's
+  viewer: `RobotVisual(identity.model, q, skin=Skin(...))` with the weights scattered by `joint_ids`, beside a G1
+  through a tag pose, recorded to mp4; its viewer fences run in the docs tests on a stand-in body.
 
 ## v0.3.0 (2026-11-10)
 

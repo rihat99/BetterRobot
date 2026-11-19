@@ -6,3 +6,9 @@ The interactive viewer: a `Viewer` on a viser server, layers that hold whole cli
     options:
       show_root_heading: false
       show_submodules: false
+
+## `better_robot.viewer.tools`
+
+::: better_robot.viewer.tools
+    options:
+      show_root_heading: false

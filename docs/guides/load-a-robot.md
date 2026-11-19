@@ -127,7 +127,9 @@ accept either the id or the name.
 ## Meshes
 
 Visual and collision meshes are loaded lazily by the viewer and the collision layer. Mesh URIs stay the strings the file wrote;
-`viewer.RobotVisual(model, geometry=, root=)` reads them under the root you name, the description file. Mesh files other
+`viewer.RobotVisual(model, geometry=, root=)` reads them under the root you name, the description file;
+`viewer.load_meshes(geometry, root=)` reads them the same way for code without a viewer, one `MeshSpec` per shape:
+its vertices and faces as numpy arrays, its body and its placement in that body's frame. Mesh files other
 than primitives need the `meshes` extra (`pip install "better-robot[meshes]"`, which installs
 `trimesh`). Kinematics and dynamics never read meshes.
 

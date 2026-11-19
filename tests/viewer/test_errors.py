@@ -22,6 +22,7 @@ from better_robot.viewer import (
     PointsLayer,
     RigidMeshLayer,
     RobotVisual,
+    Skin,
     SkinnedMeshLayer,
     Theme,
     Viewer,
@@ -43,6 +44,11 @@ def test_add_and_show_refuse_what_is_not_a_layer_or_a_step() -> None:
     assert viewer.layers == []
     with pytest.raises(ArgumentError, match="step must be an int, got 'x'"):
         viewer.show("x")  # type: ignore[arg-type]
+    with pytest.raises(ArgumentError, match="step must be an int, got True"):
+        viewer.show(True)  # a bool is an int to Python, never a step
+    for fps in (0.0, float("nan")):
+        with pytest.raises(ArgumentError, match="fps > 0"):
+            Viewer(server=FakeServer(), fps=fps)
 
 
 _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
@@ -102,6 +108,20 @@ def test_robot_visual_names_q_when_its_shape_is_wrong() -> None:
     model = br.load(panda_urdf())
     with pytest.raises(ShapeError, match=rf"q must be \(nq,\) or \(T, nq\) with nq = {model.nq}"):
         RobotVisual(model, np.zeros(model.nq + 1))
+
+
+def test_a_skin_with_a_column_per_body_joint_not_per_model_joint_names_the_weights() -> None:
+    """A body's weights over its own joints, not scattered into the model's columns (the universe included): the
+    error names the weights and the shape they need, not the bone poses the robot visual made."""
+    model = br.load(panda_urdf())
+    skin = Skin(np.zeros((3, 3)), _TRIANGLE, weights=np.ones((3, model.njoints - 1)))
+    with pytest.raises(ShapeError, match=rf"weights must be \(V, J\) = \(3, {model.njoints}\), one column per bone"):
+        Viewer(server=FakeServer(), ground=False).add(RobotVisual(model, skin=skin))
+    with pytest.raises(ShapeError, match=r"bone_poses must be \(T, J, 7\) with the J = 2 bones of bind_poses"):
+        SkinnedMeshLayer(
+            "k", np.zeros((3, 3)), faces=_TRIANGLE, weights=np.ones((3, 2)), bind_poses=np.zeros((2, 7)),
+            bone_poses=np.zeros((1, 3, 7)),
+        )  # fmt: skip
 
 
 def test_pose_gizmo_takes_one_pose() -> None:

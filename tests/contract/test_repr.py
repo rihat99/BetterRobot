@@ -183,6 +183,10 @@ BUILDERS: dict[str, Callable[[], object]] = {
     "better_robot.viewer.Theme": viewer.Theme,
     "better_robot.viewer.Timeline": lambda: viewer.Timeline(10),
     "better_robot.viewer.Viewer": lambda: viewer.Viewer(server=FakeServer()),
+    "better_robot.viewer.tools.CameraFrustum": lambda: viewer.tools.CameraFrustum(np.array(POSE), fov=1.0, aspect=1.5),
+    "better_robot.viewer.tools.PoseGizmo": lambda: viewer.tools.PoseGizmo(
+        viewer.Viewer(server=FakeServer()), "gizmo", pose=np.array(POSE)
+    ),
     "better_robot.testing.FakeServer": FakeServer,
 }
 

@@ -92,9 +92,9 @@ def main() -> None:
             SpheresLayer("at the limit", joints, radii=radii, colors=AMBER, opacity=0.8),
             SpheresLayer("past the limit", joints, radii=radii, colors=RED, opacity=0.8),
         ]
-        viewer.add(layers[:1], tags=group, offset=offset)
-        viewer.add(layers[1:2], tags=(group, "markers"), offset=offset, valid=np.abs(inside) <= 1e-3)
-        viewer.add(layers[2:], tags=(group, "markers"), offset=offset, valid=inside < -1e-3)
+        viewer.add(layers[:1], tags=group, pose=offset)
+        viewer.add(layers[1:2], tags=(group, "markers"), pose=offset, valid=np.abs(inside) <= 1e-3)
+        viewer.add(layers[2:], tags=(group, "markers"), pose=offset, valid=inside < -1e-3)
         return layers
 
     if not (args.check or args.record):

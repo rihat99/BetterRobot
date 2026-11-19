@@ -12,8 +12,8 @@ from ..exceptions import ArgumentError, BetterRobotError, UnknownNameError
 if TYPE_CHECKING:
     from .layer import Layer
 
-#: Where the viewer's own sections sit; a section an application creates goes after Plots, in creation order.
-_ORDER = {"Timeline": 0.0, "Robot": 10.0, "Layers": 20.0, "Plots": 30.0, "Info": 90.0}
+#: Where the viewer's own sections sit; a section an application creates goes after Images, in creation order.
+_ORDER = {"Timeline": 0.0, "Robot": 10.0, "Layers": 20.0, "Plots": 30.0, "Images": 35.0, "Info": 90.0}
 _APPLICATION_ORDER = 40.0
 
 
@@ -24,6 +24,7 @@ class _Control:
     value: Any  # the value the callbacks last applied; a failed change returns the control to it
     callbacks: list[tuple[int, Callable[[Any], None]]] = field(default_factory=list)  # (owner, callback)
     quiet: bool = False  # True while the sidebar itself sets the value: the callbacks stay out
+    offers: dict[int, set[str]] = field(default_factory=dict)  # a dropdown's options, per owner that asked for them
 
 
 @final
@@ -38,10 +39,10 @@ class Sidebar:
     """The viewer's controls: sections (viser folders) in a fixed order, holding controls shared by
     ``(section, label)``.
 
-    A section appears with its first control: Timeline, Robot, Layers, Plots, then the sections an application
-    creates in creation order, Info last. Asking again for a ``(section, label)`` that exists returns the same control
-    and adds the callback to it, so one "Style" dropdown drives every robot; a control and its section go when the
-    last layer that asked for them is removed. Every callback runs under the viewer's lock. A ``BetterRobotError``
+    A section appears with its first control: Timeline, Robot, Layers, Plots, Images, then the sections an
+    application creates in creation order, Info last. Asking again for a ``(section, label)`` that exists returns the
+    same control and adds the callback to it, so one "Style" dropdown drives every robot; a control and its section
+    go when the last layer that asked for them is removed. Every callback runs under the viewer's lock. A ``BetterRobotError``
     raised in one becomes a red notification in the browser and the control returns to its previous value; any other
     exception propagates. ``gui`` is viser's GUI API, for what the sidebar does not make (a chart, an image): add it
     inside ``with sidebar.section(name):``.
@@ -81,15 +82,18 @@ class Sidebar:
         self, section: str, label: str, *, options: Sequence[str], value: str, on_change: Callable[[str], None]
     ) -> Any:
         """A dropdown of ``options``; ``on_change(option)`` runs on a choice. A layer joining an existing dropdown
-        adds the options it lacks."""
+        adds the options it lacks; when a layer goes, so do the options no other offers, and if the one shown is
+        among them, the dropdown shows the first one left and its callbacks run, as viser does on a server."""
         control = self._controls.get((section, label))
         if control is not None:
             missing = tuple(option for option in options if option not in control.handle.options)
             if missing:
                 control.handle.options = (*control.handle.options, *missing)
-        return self._control(
+        handle = self._control(
             section, label, on_change, lambda: self.gui.add_dropdown(label, options=tuple(options), initial_value=value)
         )
+        self._controls[(section, label)].offers.setdefault(self._owner, set()).update(options)
+        return handle
 
     def slider(
         self,
@@ -158,10 +162,30 @@ class Sidebar:
             control.callbacks = [(held, callback) for held, callback in control.callbacks if held != owner]
             if not control.callbacks:
                 self._controls.pop(key).handle.remove()
+            elif control.offers.pop(owner, None) is not None:
+                self._withdraw(control)
         for name, section in list(self._sections.items()):
             section.owners.discard(owner)
             if not section.owners and not any(key[0] == name for key in self._controls):
                 self._sections.pop(name).folder.remove()
+
+    def _withdraw(self, control: _Control) -> None:
+        """Keep the options of a dropdown that its remaining owners offer; a choice that went moves to the first one
+        left and runs the callbacks (viser itself moves it on a server, quietly here so that they run once)."""
+        handle = control.handle
+        kept = tuple(option for option in handle.options if any(option in offer for offer in control.offers.values()))
+        if kept == tuple(handle.options):
+            return
+        gone = handle.value not in kept
+        control.quiet = True
+        try:
+            handle.options = kept
+            if gone:
+                handle.value = kept[0]
+        finally:
+            control.quiet = False
+        if gone:
+            self._run(control, None)
 
     def _control(
         self, section: str, label: str, callback: Callable[[Any], None], make: Callable[[], Any], *, click: bool = False

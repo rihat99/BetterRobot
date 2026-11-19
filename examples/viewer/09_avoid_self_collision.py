@@ -119,8 +119,8 @@ def main() -> None:
                         collision=True),  # the Robot section's Collision box shows the spheres
             SpheresLayer("inside the margin", centers, radii=radii, colors=RED, opacity=0.8),
         ]  # fmt: skip
-        viewer.add(layers[:1], tags=group, offset=offset)
-        viewer.add(layers[1:], tags=group, offset=offset, valid=red)
+        viewer.add(layers[:1], tags=group, pose=offset)
+        viewer.add(layers[1:], tags=group, pose=offset, valid=red)
         return layers
 
     if not (args.check or args.record):
@@ -138,7 +138,7 @@ def main() -> None:
         offset = (0.0, 1.2 * side - 0.6, 0.0)
         draw(form, q[::8], offset)  # every 8th tick: 100 Hz ticks at twice real time
         target = SpheresLayer("target", path[::8, None, :3].numpy(), radii=np.array([0.02]), colors=(0.1, 0.3, 0.9))
-        viewer.add([target], tags=form, offset=offset)
+        viewer.add([target], tags=form, pose=offset)
     if args.record:
         camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
         print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")

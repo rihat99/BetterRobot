@@ -21,9 +21,9 @@ _MAX_COLOURS = 64
 class MeshLayer(Layer):
     """One triangle mesh: static ``vertices (V, 3)`` or deforming ``(T, V, 3)``, ``faces (F, 3)``.
 
-    ``colors (V, 3)`` colours each vertex instead of the one ``color``. A static mesh sends them in one GLB node,
-    blended across each face and always opaque; a deforming one becomes one node per distinct colour, at most 64, each
-    face taking the colour of its first vertex.
+    ``colors (V, 3)`` colours each vertex instead of the one ``color``, the same at every step. A static mesh sends
+    them in one GLB node, blended across each face and always opaque; a deforming one becomes one node per distinct
+    colour, at most 64, each face taking the colour of its first vertex.
     """
 
     def __init__(
@@ -116,7 +116,7 @@ def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.nda
 @final
 @dataclass(frozen=True)
 class MeshSpec:
-    """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body step).
+    """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body frame).
 
     ``trimesh`` keeps a textured/vertex-coloured source for ``add_mesh_trimesh``; otherwise the
     mesh is sent as ``vertices``/``faces`` with one ``color``.

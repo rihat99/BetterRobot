@@ -13,7 +13,7 @@ import pytest
 import better_robot as br
 from better_robot import collision
 
-from better_robot.viewer.layers import ArrowsLayer, FramesLayer, PointsLayer
+from better_robot.viewer import ArrowsLayer, FramesLayer, PointsLayer
 from better_robot.viewer.layers.mesh import SpheresLayer
 from better_robot.viewer.layer import Layer
 from better_robot.viewer.robot import RobotVisual
@@ -69,6 +69,19 @@ def test_url_follows_viser_when_requested_port_is_taken() -> None:
             viewer.server.stop()
 
 
+def test_a_server_passed_in_gives_its_own_address() -> None:
+    """``Viewer(server=s)`` reports where ``s`` listens, not the default port, which another page may hold."""
+    import viser  # noqa: PLC0415 - the optional dependency this test exercises
+
+    server = viser.ViserServer(host="127.0.0.1", port=_free_port(), verbose=False)
+    try:
+        viewer = Viewer(server=server, port=8080)
+        assert (viewer.host, viewer.port) == ("127.0.0.1", server.get_port())
+        assert viewer.url == f"http://127.0.0.1:{server.get_port()}"
+    finally:
+        server.stop()
+
+
 class _BrokenPush(Layer):
     """Builds a point cloud, then raises on its first push."""
 
@@ -119,7 +132,7 @@ def test_a_switch_from_code_moves_the_shared_control_and_no_other_robot() -> Non
         model = br.load(g1_urdf())
         spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "g1.json", model)
         first = viewer.add(RobotVisual(model, name="first", spheres=spheres))
-        second = viewer.add(RobotVisual(model, name="second", spheres=spheres), offset=(0.0, 1.0, 0.0))
+        second = viewer.add(RobotVisual(model, name="second", spheres=spheres), pose=(0.0, 1.0, 0.0))
         ran: list[Any] = []  # joins the three shared controls: every change that runs the callbacks lands here
         sidebar = viewer.sidebar
         style = sidebar.dropdown("Robot", "Style", options=first.styles, value=first.style, on_change=ran.append)
