@@ -133,11 +133,11 @@ class Theme:
         server.gui.configure_theme(
             dark_mode=self.dark,
             brand_color=_uint8(self.accent),
-            control_layout="collapsible",
             control_width="medium",
             show_logo=False,
             show_share_button=False,
         )
+        server.gui.main_panel.dock_right()
         scene = server.scene
         scene.set_up_direction(self.up)
         ramp = np.linspace(0.0, 1.0, 256, dtype=np.float32)[:, None, None]

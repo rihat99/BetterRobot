@@ -83,6 +83,10 @@ class FakeHandle:
         for callback in self.callbacks:
             callback(event)
 
+    def dock_right(self) -> None:
+        """viser's placement of a panel (the main one: ``gui.main_panel``) docked at the right edge."""
+        self.calls.append("dock_right")
+
     def add_tab(self, label: str) -> FakeHandle:
         """viser's tab of a tab group: a ``GuiTabHandle``, a context manager for the controls in the tab."""
         self.calls.append("add_tab")
@@ -440,6 +444,7 @@ class FakeGui:
     def __init__(self) -> None:
         self.controls: list[FakeHandle] = []
         self.theme: dict[str, Any] = {}
+        self.main_panel = FakeHandle(None, "MainPanelHandle", "main_panel", {})  # its placement calls in ``calls``
 
     def control(self, label: str) -> FakeHandle:
         """The first control named ``label``."""
