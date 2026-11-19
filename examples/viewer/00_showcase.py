@@ -1,5 +1,5 @@
-"""A first look at the viewer: pick a robot, show it as meshes or as the minimal or maximal skeleton, overlay its
-collision shapes and joint frames, switch the theme, and play or pause a short loop of natural poses.
+"""A first look at the viewer: pick a robot, show it as meshes or as the minimal, medium or maximal skeleton, overlay
+its collision shapes and joint frames, switch the theme, and play or pause a short loop of natural poses.
 
     uv run python examples/viewer/00_showcase.py                          # open http://127.0.0.1:8080
     uv run python examples/viewer/00_showcase.py --host 0.0.0.0 --port 8139

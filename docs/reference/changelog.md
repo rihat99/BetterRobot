@@ -47,7 +47,7 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs, trunks
   for the bodies that branch, a sole, a hand or a paw where a chain ends, in two tones; glyphs that share a point
   slide apart along their own axes, then shrink, and a chain narrows towards its tip), `viewer.MEDIUM` (the same
-  glyphs, laid out by the same slides, on thin pale rods instead of bodies: `hulls="none"` with `glyphs="kind"`,
+  glyphs, laid out by the same slide rule, on thin pale rods instead of bodies: `hulls="none"` with `glyphs="kind"`,
   `bones=0.35`, `size=0.7`) and `viewer.MINIMAL` (one
   ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
   joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid

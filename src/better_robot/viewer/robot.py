@@ -142,9 +142,10 @@ class RobotVisual(Layer):
     draw the skeleton of the recipes ``minimal``, ``medium`` and ``maximal``. ``style=None`` is ``"meshes"`` when
     there is something to show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without
     them the collision shapes of ``geometry``, as a pale glass shell over any style; ``frames`` draws a triad per
-    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown; ``set_style``, ``set_collision`` and ``set_frames`` switch them
-    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer: a
-    switch from code moves the control and leaves the other robots as they are.
+    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown;
+    ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs, and the sidebar gets the
+    same three controls, shared by every robot in the viewer: a switch from code moves the control and leaves the
+    other robots as they are.
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
     theme's hues that no other robot of the viewer is drawn in (``hue``). ``name`` defaults to the model's name.
