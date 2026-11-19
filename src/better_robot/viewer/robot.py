@@ -99,7 +99,9 @@ class _Blocks(Layer):
         if len(self.skeleton.line_body):
             points = self.skeleton.lines(self.poses[0])
             color = linear_uint8(self.theme.shade(self.hue, "face"))
-            self._lines = self._track(scene.add_line_segments(f"{root}/limits", points, color, line_width=2.5))
+            self._lines = self._track(
+                scene.add_line_segments(f"{root}/limits", points, color, thickness=2.5, thickness_units="screen")
+            )
 
     @override
     def set_step(self, step: int) -> None:
