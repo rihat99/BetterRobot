@@ -377,6 +377,8 @@ def test_theme_shades_run_from_dark_drum_faces_to_pale_bones_with_bodies_in_the_
     assert theme.shade(hue, "body") == hue
     with pytest.raises(ArgumentError, match="role must be one of"):
         theme.shade(hue, "hull")  # pyright: ignore[reportArgumentType]
+    with pytest.raises(ShapeError, match="hue must be an RGB triple"):  # was the builtin error of an unpack
+        theme.shade((1.0, 0.0), "body")  # pyright: ignore[reportArgumentType]
 
 
 def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow() -> None:
