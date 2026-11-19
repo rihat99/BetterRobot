@@ -489,7 +489,7 @@ def test_the_images_section_follows_plots_before_an_applications_sections() -> N
 
 def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> None:
     """A Style dropdown shared by a robot with meshes and one without loses "meshes" with the first; the choice it
-    showed goes to the first option left, and the layers still there follow it, as on a choice in the browser."""
+    showed goes quietly to the first option left: the layers still there keep their state."""
     server = FakeServer()
     sidebar = Sidebar(server, threading.RLock())
     chosen: dict[str, list[str]] = {"meshes": [], "skeleton": []}
@@ -509,10 +509,53 @@ def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> No
     assert style.options == ("meshes", "minimal", "maximal") and style.value == "meshes"
     sidebar.remove(with_meshes)  # type: ignore[arg-type]
     assert style.options == ("minimal", "maximal") and style.value == "minimal"
-    assert chosen == {"meshes": [], "skeleton": ["minimal"]}
+    assert chosen == {"meshes": [], "skeleton": []}
     style.value = "maximal"
     style.fire(None)
-    assert chosen["skeleton"] == ["minimal", "maximal"]
+    assert chosen["skeleton"] == ["maximal"]
+
+
+class _Styled(Layer):
+    """A layer with RobotVisual's shared Style dropdown: it takes the styles it has and ignores the others."""
+
+    def __init__(self, name: str, styles: tuple[str, ...], style: str) -> None:
+        super().__init__(name)
+        self.styles, self.style, self.chosen = styles, style, []
+
+    def build(self, scene: Any, root: str) -> None:
+        pass
+
+    def set_step(self, step: int) -> None:
+        pass
+
+    def build_gui(self, sidebar: Sidebar) -> None:
+        def choose(style: str) -> None:
+            if style in self.styles:
+                self.style = style
+                self.chosen.append(style)
+
+        sidebar.dropdown("Robot", "Style", options=self.styles, value=self.style, on_change=choose)
+
+
+def test_removing_or_replacing_a_layer_never_restyles_the_others() -> None:
+    """R1's probe: a G1 with meshes beside a Panda at "maximal"; removing the G1 left the Panda "minimal", and a robot
+    built with ``style="medium"`` that replaced the G1 came up "minimal"."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    styles = ("minimal", "medium", "maximal")
+    g1 = viewer.add(_Styled("g1", ("meshes", *styles), "meshes"))
+    panda = viewer.add(_Styled("panda", styles, "maximal"))
+    style = server.gui.control("Style")
+    viewer.remove(g1)
+    assert panda.style == "maximal" and panda.chosen == []
+    assert "meshes" not in style.options and style.value in style.options
+    g1 = viewer.add(_Styled("g1", ("meshes", *styles), "meshes"))
+    style.value = "meshes"  # a choice in the browser: the robots that have it follow
+    style.fire(None)
+    new = _Styled("panda2", styles, "medium")
+    viewer.replace(g1, new)
+    assert new.style == "medium" and new.chosen == [] and panda.style == "maximal"
+    assert "meshes" not in style.options and style.value in style.options
 
 
 def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_set_visible() -> None:

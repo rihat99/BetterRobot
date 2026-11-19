@@ -201,7 +201,8 @@ that 0.3.0 renames or removes, one table row each.
   is refused (a bool showed step 1).
 - A sidebar dropdown shared by several layers drops the options of a layer that is removed and that no other
   offers: the Style dropdown kept `"meshes"` after the one robot with meshes went, and choosing it changed nothing.
-  When the option shown goes, the dropdown shows the first one left and the remaining layers follow it.
+  When the option shown goes, the dropdown shows the first one left and runs no callback: removing or replacing a
+  layer never restyles the others, and a robot that replaces another keeps its own `style=`.
 - `Theme.shade` raises `ShapeError` for a hue that is not three numbers, so `RobotVisual(hue=(1.0, 0.0))` fails
   in `Viewer.add` with the library's error (was the builtin error of an unpack).
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
