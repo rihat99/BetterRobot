@@ -510,6 +510,7 @@
   "better_robot.testing.FakeServer": "class(object)(port: 'int' = 8080) -> 'None'",
   "better_robot.testing.FakeServer.atomic": "function(self) -> 'Iterator[None]'",
   "better_robot.testing.FakeServer.get_clients": "function(self) -> 'dict[int, Any]'",
+  "better_robot.testing.FakeServer.get_host": "function(self) -> 'str'",
   "better_robot.testing.FakeServer.get_port": "function(self) -> 'int'",
   "better_robot.testing.FakeServer.get_scene_serializer": "function(self) -> '_FakeSerializer'",
   "better_robot.testing.FakeServer.sleep_forever": "function(self) -> 'None'",
