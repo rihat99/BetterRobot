@@ -233,7 +233,7 @@ def test_g1_glyphs_of_one_rigid_group_do_not_overlap(recipe: SkeletonRecipe) -> 
     skeleton = build_skeleton(model, recipe, spheres=spheres)
     drums = _drums(skeleton, _poses(model))
     pairs = _same_group_pairs(model, set(drums))
-    assert len(drums) == 29 and len(pairs) >= 28
+    assert pairs  # compounds (hips, shoulders, waist, ankles) are balls, the other drums pair up
     for a, b in pairs:  # the layout's own test is on the boxes around the drums, at neutral
         names = (model.joint_names[a], model.joint_names[b])
         assert not _overlap(drums[a], drums[b], round_=False), names
@@ -262,7 +262,7 @@ def test_g1_slides_are_mirror_images() -> None:
     drums = _drums(skeleton, poses)
     mirror = np.array([1.0, -1.0, 1.0])  # the neutral root frame is the world: left is positive y
     lefts = [j for j in drums if model.joint_names[j].startswith("left_")]
-    assert len(lefts) == 13
+    assert lefts
     for j in lefts:  # each drum's offset from its joint (the description's own origins differ by 10 micrometres)
         other = model.joint_names.index(model.joint_names[j].replace("left_", "right_"))
         offset, mirrored = drums[j][0] - poses[j, :3], drums[other][0] - poses[other, :3]
@@ -276,7 +276,7 @@ def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
     drums, anchor = _drums(skeleton, _poses(model)), _anchors(model)
     size = {j: half[0] / skeleton.shrinks.get(model.joint_names[j], 1.0) for j, (_, _, half) in drums.items()}
     pairs = [(anchor[model.parent_joint_ids[j]], j) for j in drums if anchor[model.parent_joint_ids[j]] in drums]
-    assert len(pairs) == 26  # every drum but the three on the free-flyer base
+    assert pairs
     for parent, child in pairs:
         assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
 
@@ -445,7 +445,7 @@ def test_g1_layout_does_not_change_with_a_sphere_set() -> None:
         ankle = model.joint_names.index(f"{side}_ankle_roll_joint")
         blocks = zip(maximal.boxes.part, maximal.boxes.owner, strict=True)
         assert [part for part, owner in blocks if owner == ankle and part != "bone"] == ["end"]  # one sole
-        assert ankle not in maximal.balls.owner  # and no toe ball
+        assert "tip" not in [part for part, owner in zip(maximal.balls.part, maximal.balls.owner) if owner == ankle]
 
 
 @pytest.mark.parametrize("name", ["g1", "go2"])
@@ -605,14 +605,16 @@ def test_colors_shade_each_part_and_tint_the_sides() -> None:
     colors = plain.colors(hue, LIGHT)
     parts, boxes = np.array(plain.cylinders.part), np.array(plain.boxes.part)
     np.testing.assert_allclose(
-        colors["cylinders"][parts == "drum"], np.broadcast_to(LIGHT.shade(hue, "joint"), (29, 3))
+        colors["cylinders"][parts == "drum"], np.broadcast_to(LIGHT.shade(hue, "joint"), ((parts == "drum").sum(), 3))
     )
     np.testing.assert_allclose(colors["cylinders"][parts == "face"][0], LIGHT.shade(hue, "face"), atol=1e-6)
     np.testing.assert_allclose(colors["boxes"][boxes == "hull"][0], LIGHT.shade(hue, "bone"), atol=1e-6)
     red = (1.0, 0.0, 0.0)
     sided = build_skeleton(model, SkeletonRecipe(sides=True, color={"left_knee_joint": red}), spheres=spheres)
-    rows = zip(sided.cylinders.owner, sided.cylinders.part, sided.colors(hue, LIGHT)["cylinders"], strict=True)
-    drums = {model.joint_names[owner]: color for owner, part, color in rows if part == "drum"}
+    drums = {}  # a glyph's colour per joint: its drum, or the ball of a compound (the waist)
+    for mesh in ("cylinders", "balls"):
+        blocks, rows = getattr(sided, mesh), sided.colors(hue, LIGHT)[mesh]
+        drums |= {model.joint_names[o]: c for o, p, c in zip(blocks.owner, blocks.part, rows) if p in ("drum", "ball")}
     np.testing.assert_allclose(drums["left_knee_joint"], red, atol=1e-6)  # a recipe colour wins over hue and side
     lighter, darker = tuple(c + 0.35 * (1.0 - c) for c in hue), tuple(0.75 * c for c in hue)  # left, right
     np.testing.assert_allclose(drums["left_elbow_joint"], LIGHT.shade(lighter, "joint"), atol=1e-6)

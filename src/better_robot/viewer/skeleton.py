@@ -46,6 +46,7 @@ from .theme import RGB, Theme
 
 _TWIST = float(np.cos(np.radians(35.0)))  # a joint axis within 35 degrees of its limb twists the limb
 _CARRY = 0.026  # m: the glyph radius of a joint that carries 1 kg; it grows with the cube root of the mass
+_COMPOUND = 0.75  # two revolute joints closer than this share of their radii' sum are one compound, a ball
 _HALF = 0.8  # half length of a drum over its radius
 _SLEEVE = 0.6  # half length of a sleeve along its rail over the joint radius
 _MARKER = 0.6  # radius of the plain marker of an unlisted joint kind over the joint radius
@@ -294,9 +295,10 @@ def build_skeleton(
     if recipe.glyphs == "ball":
         clusters = _stick_figure(tree, recipe, rows, clouds, factor=factor)
         return rows.pack(slides={}, shrinks={}, clusters=clusters)
+    tree, merged = _compounds(tree, recipe.size)
     # joint_size scales a glyph after the size rules, so the glyphs after it keep theirs
     drawn = replace(tree, radius={j: factor[j] * tree.radius[j] for j in tree.glyphs})
-    hidden = {j for j in tree.glyphs if drawn.radius[j] <= 0.0}
+    hidden = merged | {j for j in tree.glyphs if drawn.radius[j] <= 0.0}
     if not recipe.twists:
         hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
     slide, shrink = _solve(drawn, hidden, clouds)
@@ -494,6 +496,26 @@ def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool
     return replace(tree, radius=radius)
 
 
+def _compounds(tree: _Tree, size: float) -> tuple[_Tree, set[int]]:
+    """``tree`` with each compound of revolute joints drawn as one ball, and the joints the ball stands for.
+
+    A revolute joint closer to the revolute joint before it than 0.75 of their two radii (at ``size`` 1, so every
+    style finds the same compounds), where two drums cannot both stand on their axes (a hip's pitch and roll, an
+    ankle, a waist, a knuckle), joins that joint's compound; the first joint of a compound becomes a ball of its radius on its origin, as a
+    spherical joint is, and the others draw no glyph."""
+    head: dict[int, int] = {}
+    for j in tree.glyphs:
+        before = tree.group[j]
+        if before and tree.kind[j] == tree.kind[before] == "revolute":
+            if np.linalg.norm(tree.origin[j] - tree.origin[before]) * size < _COMPOUND * (
+                tree.radius[j] + tree.radius[before]
+            ):
+                head[j] = head.get(before, before)
+    balls = set(head.values())
+    kind = tuple("spherical" if j in balls else k for j, k in enumerate(tree.kind))
+    return replace(tree, kind=kind, axis={j: a for j, a in tree.axis.items() if j not in balls}), set(head)
+
+
 def _twists(tree: _Tree, joint: int, after: Sequence[int]) -> bool:
     """Whether revolute ``joint`` twists its limb: a joint before it, and its axis within 35 degrees of the line from
     that joint to the mean of the joints ``after`` it (none: no limb, no twist)."""
@@ -566,11 +588,10 @@ def _fit(
     """The slide and shrink of one glyph against its placed neighbours ``hard`` and, if possible, ``soft``.
 
     Candidates step a quarter of the half length away from ``base``, alternating sides, first the side away from
-    the root body (so left and right come out as mirror images). The first one clear of every box by 0.1 radius
-    wins, else the first clear of ``hard``; with none the glyph shrinks by 0.85 and tries again, and at 0.5 keeps
-    the least penetration. A ball or a marker has the one candidate and only shrinks. A leaf first shrinks at
-    ``base`` until it clears ``hard``, and only when even half its size does not, slides as any other glyph: the end
-    of a chain gets smaller instead of leaving its place.
+    the root body (so left and right come out as mirror images), and go no farther than one half length: a drum
+    stays on its joint. The first one clear of every box by 0.1 radius wins, else the first clear of ``hard``; with
+    none the glyph shrinks by 0.85 and tries again, and at 0.5 keeps the least penetration. A ball or a marker has
+    the one candidate and only shrinks.
     """
     radius, origin, axis = tree.radius[joint], tree.origin[joint], tree.axis.get(joint)
     sign = 1.0
@@ -581,20 +602,10 @@ def _fit(
             away = float(in_root[np.abs(in_root).argmax()])
         sign = 1.0 if away >= 0.0 else -1.0
     shrink = 1.0
-    while not tree.children[joint]:  # a leaf ends its chain smaller rather than away from its place
-        center = origin + base * (axis if axis is not None else np.zeros(3))
-        if _gaps(center[None], frame, _half(tree, joint, shrink * radius), hard)[0] >= 0.1 * shrink * radius:
-            return base, shrink
-        if shrink <= 0.5:
-            shrink = 1.0
-            break
-        shrink = max(0.5, 0.85 * shrink)
     while True:
         half, offsets = _half(tree, joint, shrink * radius), [0.0]
         if axis is not None:
-            step = 0.25 * half[2]
-            steps = int(1.25 * (half[2] + max(other[2][0] for other in hard)) / step)
-            offsets += [side * m * step for m in range(1, steps + 1) for side in (sign, -sign)]
+            offsets += [sign * m * 0.25 * half[2] for m in range(1, 5)]
         candidates = base * shrink + np.array(offsets)
         centers = origin + candidates[:, None] * (axis if axis is not None else np.zeros(3))
         clear = _gaps(centers, frame, half, hard)
@@ -1117,7 +1128,7 @@ def _glyph(
             place, size[2] = center + sum(travel) / 2 * tree.axis[joint], travel[1] - travel[0]
         body = tree.group[joint] if in_parent else joint
         rows.add(mesh, part, body, place, size, rotation=frame, owner=joint)
-    if reach > 0.0 and recipe.limits and isinstance(tree.model.joints[joint], JointRevolute):
+    if reach > 0.0 and recipe.limits and isinstance(tree.model.joints[joint], JointRevolute) and joint in tree.axis:
         _limit_arc(tree, rows, joint, center, reach)
 
 
