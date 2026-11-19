@@ -351,6 +351,8 @@ def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_e
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
 def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: SkeletonRecipe) -> None:
+    """A bone's end inside a glyph is no wider than that glyph, at its wide start and at its narrowed (``taper``)
+    far end; a maximal limb wider than the glyph it reaches ends on that glyph's side instead."""
     model, spheres = _ROBOTS[robot]()
     skeleton = build_skeleton(model, recipe, spheres=spheres)
     placed = skeleton.place(_poses(model))
@@ -373,11 +375,33 @@ def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: Skel
     assert bones
     joined = np.zeros(len(glyphs), dtype=bool)
     for center, axis, length, half in bones:
-        for end in (center - 0.5 * length * axis, center + 0.5 * length * axis):
-            inside = np.linalg.norm(centers - end, axis=1) < 0.5 * radii  # the bone's cap is in these glyphs
-            assert (half <= radii[inside] + 1e-12).all(), (center, half, radii[inside])
+        for sign, width in ((-1.0, half), (1.0, skeleton.taper * half)):
+            distance = np.linalg.norm(centers - (center + 0.5 * sign * length * axis), axis=1)
+            inside = distance < 0.5 * radii  # the bone's cap is in these glyphs
+            assert (width <= radii[inside] + 1e-12).all(), (center, width, radii[inside])
             joined |= inside
+            if sign > 0.0:  # a far end on a glyph's side, where a wider limb stops
+                joined |= (distance <= 1.3 * radii) & (width > 0.8 * radii)
     assert joined.sum() >= len(glyphs) - 1  # every glyph but a free-flyer's cube inside its hull holds a bone end
+
+
+def test_g1_maximal_limbs_are_bodies_from_their_links() -> None:
+    """A maximal limb takes its width from its link: a thigh wider than its shin, an upper arm than its forearm,
+    and each wider than the medium skeleton's rod along it."""
+    model, spheres = _g1()
+    maximal, medium = build_skeleton(model, MAXIMAL, spheres=spheres), build_skeleton(model, MEDIUM, spheres=spheres)
+
+    def width(skeleton: Skeleton, mesh: str, part: str, joint: str) -> float:  # the bone that reaches ``joint``
+        blocks = getattr(skeleton, mesh)
+        owner = model.joint_names.index(f"left_{joint}_joint")
+        return max(
+            s[0] for o, p, s in zip(blocks.owner, blocks.part, blocks.scale, strict=True) if o == owner and p == part
+        )
+
+    limb = {joint: width(maximal, "boxes", "bone", joint) for joint in ("knee", "ankle_pitch", "elbow", "wrist_roll")}
+    assert limb["knee"] > limb["ankle_pitch"] and limb["elbow"] > limb["wrist_roll"]  # thigh, shin; upper arm, forearm
+    for joint, side in limb.items():
+        assert side / 2 > width(medium, "cylinders", "rod", joint), joint  # a box's scale is its side, a rod's radius
 
 
 def test_g1_minimal_clusters_close_joints_alike_on_both_sides_and_without_geometry() -> None:
