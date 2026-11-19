@@ -370,15 +370,30 @@ class Viewer:
                     self._push(self._entry(layer), self.timeline.step)
 
     def save(self, path: str | Path, *, fps: float | None = None) -> Path:
-        """Record every step into a ``.viser`` file that plays in viser's static client, no Python needed."""
+        """Record every step into a ``.viser`` file that plays in viser's static client, no Python needed; return the
+        path written.
+
+        ``fps`` defaults to the timeline's. Playback pauses while saving and the step shown before comes back, as for
+        ``record``; a sidebar callback may call it.
+        """
+        if fps is not None and not fps > 0.0:
+            raise ArgumentError(f"fps must be positive (None: the timeline's), got {fps}")
         path = Path(path)
-        fps = fps or self.timeline.fps
-        serializer = self.server.get_scene_serializer()
-        for step in range(self.timeline.nsteps):
-            self._push_all(step, force=True)
-            serializer.insert_sleep(1.0 / fps)
-        path.write_bytes(serializer.serialize())
-        self._push_all(self.timeline.step, force=True)
+        fps = self.timeline.fps if fps is None else float(fps)
+        playing = self.timeline.playing
+        self.timeline.pause()  # else the playback thread pushes its steps between the saved ones
+        try:
+            with self.lock:
+                serializer = self.server.get_scene_serializer()
+                for step in range(self.timeline.nsteps):
+                    self._push_all(step, force=True)
+                    serializer.insert_sleep(1.0 / fps)
+                data = serializer.serialize()
+        finally:
+            self._push_all(self.timeline.step, force=True)
+            if playing:
+                self.timeline.play()
+        path.write_bytes(data)
         return path
 
     def record(

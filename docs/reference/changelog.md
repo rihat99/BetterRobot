@@ -144,6 +144,8 @@ that 0.3.0 renames or removes, one table row each.
 ### Fixed
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
   opened whatever page listened there).
+- `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
+  thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
 
 ## v0.3.0 (2026-11-10)
 

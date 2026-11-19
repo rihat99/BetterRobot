@@ -176,6 +176,39 @@ def test_a_sidebar_button_may_change_the_fps_while_playing() -> None:
         viewer.timeline._halt()  # never join: after a deadlock the thread would never end
 
 
+class _Probe(Layer):
+    """Records ``(thread name, step)`` of every push; each push takes a little time, as a real one does."""
+
+    def __init__(self, nsteps: int) -> None:
+        super().__init__("probe", nsteps)
+        self.pushed: list[tuple[str, int]] = []
+
+    def build(self, scene: Any, root: str) -> None:
+        pass
+
+    def set_step(self, step: int) -> None:
+        self.pushed.append((threading.current_thread().name, step))
+        time.sleep(1e-4)
+
+
+def test_save_while_playing_records_each_step_once_and_playback_goes_on(tmp_path: Any) -> None:
+    viewer = Viewer(server=FakeServer(), fps=1000.0, ground=False)
+    probe = viewer.add(_Probe(200))
+    viewer.timeline.play()
+    time.sleep(0.05)
+    try:
+        probe.pushed.clear()
+        viewer.save(tmp_path / "clip.viser")
+        saved = [step for thread, step in probe.pushed[:200]]
+        assert saved == list(range(200)), "the playback thread pushed its steps between the saved ones"
+        assert viewer.timeline.playing
+    finally:
+        viewer.timeline.pause()
+    for fps in (0.0, -1.0, float("nan")):
+        with pytest.raises(ArgumentError, match="fps must be positive"):
+            viewer.save(tmp_path / "clip.viser", fps=fps)
+
+
 def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
     scene = FakeServer().scene
     poses = np.zeros((2, 3, 7), dtype=np.float32)
