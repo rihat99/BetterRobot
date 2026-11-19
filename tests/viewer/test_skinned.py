@@ -5,11 +5,43 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import pytest
+import torch
+
+from better_robot.lie import so3
 
 from better_robot.viewer import SkinnedMeshLayer, Viewer
 from better_robot.viewer.layers.skinned import top_k_weights
 
 from better_robot.testing import FakeServer
+
+
+def test_bounds_hold_every_skinned_vertex_without_skinning_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A chain of six bones in a tube of 600 vertices, each weighted to its two nearest bones, bent at random: the
+    bones' boxes hold every skinned vertex, and reading them skins nothing (bounds are cheap, viewer/CLAUDE.md)."""
+    rng = np.random.default_rng(0)
+    joints = np.stack([np.zeros(6), np.zeros(6), np.arange(6) * 0.3], axis=1)  # (6, 3) a chain along +z
+    vertices = (rng.random((600, 3)) * [0.2, 0.2, 1.8] - [0.1, 0.1, 0.0]).astype(np.float32)
+    nearest = np.argsort(np.abs(vertices[:, 2:] - joints[:, 2]), axis=1)[:, :2]  # (V, 2) the two nearest joints
+    weights = np.zeros((600, 6), np.float32)
+    np.put_along_axis(weights, nearest, np.array([0.7, 0.3], np.float32)[None], axis=1)
+    bind = np.concatenate([joints, np.tile([0.0, 0.0, 0.0, 1.0], (6, 1))], axis=1).astype(np.float32)
+    steps = 20
+    turns = so3.exp(torch.from_numpy(rng.normal(scale=0.5, size=(steps, 6, 3))))  # each bone's turn at its joint
+    poses = np.repeat(bind[None], steps, axis=0)
+    for j in range(1, 6):  # forward kinematics of the chain: a child sits on its parent's turned bone
+        poses[:, j, 3:] = so3.compose(torch.from_numpy(poses[:, j - 1, 3:]), turns[:, j].float()).numpy()
+        offset = torch.from_numpy(joints[j] - joints[j - 1]).float().expand(steps, 3)
+        poses[:, j, :3] = poses[:, j - 1, :3] + so3.act(torch.from_numpy(poses[:, j - 1, 3:]), offset).numpy()
+    faces = np.array([[0, 1, 2]])
+    layer = SkinnedMeshLayer("tube", vertices, faces=faces, weights=weights, bind_poses=bind, bone_poses=poses)
+    skinned = [layer.skin(step) for step in range(steps)]
+    monkeypatch.setattr(layer, "skin", lambda step: pytest.fail("bounds skinned the vertices"))
+    for step, posed in enumerate(skinned):
+        low, high = layer.bounds(step)
+        assert (low.min(axis=0) <= posed.min(axis=0) + 1e-5).all() and (
+            high.max(axis=0) >= posed.max(axis=0) - 1e-5
+        ).all()
 
 
 def test_two_bone_mesh_bends_at_the_second_bone() -> None:

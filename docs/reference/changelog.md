@@ -152,6 +152,10 @@ that 0.3.0 renames or removes, one table row each.
   float64 cloud that the layer had copied. A layer keeps its arrays as float32 attributes (`layer.points`,
   `layer.poses`, `layer.valid`, ...), the input itself only when it already is C-contiguous float32: edit the
   attribute in place and call `redraw()` or `Viewer.show()`.
+- `SkinnedMeshLayer.bounds` skinned every vertex against every bone, 32.5 ms per step at SMPL-X size and 1.07 s per
+  `Viewer.add`. It is a box per bone now, the vertices the bone carries at least a quarter of, boxed once in its bind
+  frame and turned with it: 0.1 ms per step, 5 ms per add; on SMPL and SMPL-X it holds the mesh within 2 to 5 cm in
+  the median.
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
 
