@@ -17,7 +17,7 @@ from better_robot.lie.se3 import compose, from_translation
 from better_robot.model import JointManifold, JointModel, JointPrismatic
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
-from better_robot.viewer.skeleton import MAXIMAL, build_skeleton
+from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, build_skeleton
 from better_robot.viewer.theme import DARK, Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
@@ -154,25 +154,29 @@ def _matrices(wxyz: np.ndarray) -> np.ndarray:
     return so3.to_matrix(torch.from_numpy(np.asarray(wxyz, dtype=np.float64)[:, [1, 2, 3, 0]])).numpy()
 
 
-def test_robot_visual_maximal_with_every_overlay_is_six_nodes_that_a_step_writes_once() -> None:
+@pytest.mark.parametrize("style", ["maximal", "medium"])
+def test_robot_visual_skeleton_with_every_overlay_is_six_nodes_that_a_step_writes_once(style: str) -> None:
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    recipes = {style: replace(MAXIMAL if style == "maximal" else MEDIUM, limits=True)}
     robot, server, viewer = _g1_visual(
-        model.q_neutral.repeat(2, 1), collision=True, frames=True, maximal=replace(MAXIMAL, limits=True)
+        model.q_neutral.repeat(2, 1), collision=True, frames=True, style=style, **recipes
     )
-    assert robot.style == "maximal" and robot.styles == ("minimal", "maximal")  # no geometry: no meshes
+    assert robot.styles == ("minimal", "medium", "maximal")  # no geometry: no meshes
     path, moved = "/g1_29dof/g1_29dof", ["batched_positions", "batched_wxyzs"]
     server.scene.log.clear()
     viewer.show(1)
     writes = {name: sorted(event for node, event in server.scene.log if node == name) for name in _drawn(server)}
+    rods = ["batched_scales"] if style == "medium" else []  # the medium rods follow their ends, as sticks do
     assert writes == {
-        **{f"{path}/maximal/{mesh}": moved for mesh in ("balls", "boxes", "cylinders")},
-        f"{path}/maximal/limits": ["points"],  # the arcs and ticks
+        **{f"{path}/{style}/{mesh}": moved for mesh in ("balls", "boxes")},
+        f"{path}/{style}/cylinders": sorted(moved + rods),
+        f"{path}/{style}/limits": ["points"],  # the arcs and ticks
         f"{path}/frames/axes": moved,
         f"{path}/collision/spheres": ["batched_positions"],  # a ball needs no rotation
     }
 
 
-@pytest.mark.parametrize("style", ["maximal", "minimal"])
+@pytest.mark.parametrize("style", ["maximal", "medium", "minimal"])
 def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> None:
     """A step writes rotations that follow forward kinematics, here far from the neutral configuration the skeleton is
     laid out at: a block rigid in a joint keeps its pose in that joint's frame, a drum's axis is its joint's axis,
@@ -205,11 +209,12 @@ def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> 
         np.testing.assert_allclose(local[1][0], local[0][0], atol=1e-5, err_msg=mesh)
         np.testing.assert_allclose(local[1][1], local[0][1], atol=1e-5, err_msg=mesh)
     blocks, rotation = skeleton.cylinders, shown["cylinders"][1][1]
-    if style == "maximal":
+    if style != "minimal":
         drums = [i for i, part in enumerate(blocks.part) if part == "drum"]
         axes = [joints[1][j] @ np.asarray(model.joints[j].axis) for j in blocks.owner[drums]]
         assert len(drums) == 29
         np.testing.assert_allclose(rotation[drums, :, 2], np.stack(axes), atol=1e-5)
+    if style == "maximal":
         return
     sticks = blocks.anchors[:, 0] >= 0
     ends = [  # (2 N, 3) per step: both ends of each stick
@@ -311,7 +316,7 @@ def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:
     skin = Skin(vertices, np.array([[0, 1, 2]]), weights=weights, bind=bind.numpy())
     server = FakeServer()
     robot = Viewer(server=server, ground=False).add(RobotVisual(model, q, skin=skin))
-    assert robot.style == "meshes" and robot.styles == ("meshes", "minimal", "maximal")
+    assert robot.style == "meshes" and robot.styles == ("meshes", "minimal", "medium", "maximal")
     mesh = server.scene.nodes["/panda/panda/meshes/mesh"]
     np.testing.assert_allclose(mesh.props["bone_positions"], poses[0, :, :3], atol=1e-6)
     np.testing.assert_allclose(mesh.bones[hand].position, poses[1, hand, :3], atol=1e-6)
@@ -456,8 +461,9 @@ def test_two_robots_of_one_model_need_a_name_each() -> None:
     assert [layer.name for layer in viewer.layers] == ["panda", "second"]
 
 
-def test_robot_visual_minimal_writes_lengths_to_the_stick_node_only() -> None:
-    _, server, viewer = _g1_visual(style="minimal")
+@pytest.mark.parametrize("style", ["minimal", "medium"])
+def test_robot_visual_stick_figure_writes_lengths_to_the_stick_node_only(style: str) -> None:
+    _, server, viewer = _g1_visual(style=style)
     server.scene.log.clear()
     viewer.show(0)
     assert [name.rsplit("/", 1)[-1] for name, event in server.scene.log if event == "batched_scales"] == ["cylinders"]

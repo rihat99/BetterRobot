@@ -83,7 +83,7 @@ class Theme:
         _srgb(146, 150, 158),  # graphite
     )
     accent: RGB = _srgb(72, 124, 200)
-    collision: RGB = _srgb(140, 150, 165)  # a quiet grey: the body under the overlay stays the subject
+    collision: RGB = _srgb(140, 150, 165)  # a quiet grey glass: the skeleton under the overlay stays the subject
     collision_opacity: float = 0.18
     text: RGB = _srgb(40, 42, 48)
 
@@ -112,9 +112,10 @@ class Theme:
 
     def shade(self, hue: RGB, role: Literal["joint", "face", "body", "bone", "stick"], *, side: int = 0) -> RGB:
         """``hue`` as a part of ``role`` draws it: ``joint`` 10 % towards black, ``face`` 32 % towards black (drum
-        faces), ``body`` the hue itself (meshes), ``bone`` 45 % towards white (the bodies of the maximal skeleton),
-        ``stick`` 10 % towards white (thin bones). A part on the left (``side=1``) takes the hue 35 % towards white
-        first, one on the right (``side=-1``) 25 % towards black (``SkeletonRecipe(sides=True)``)."""
+        faces), ``body`` the hue itself (meshes), ``bone`` 45 % towards white (the bodies of the maximal skeleton,
+        the rods of the medium one), ``stick`` 10 % towards white (the sticks of the minimal skeleton). A part on the
+        left (``side=1``) takes the hue 35 % towards white first, one on the right (``side=-1``) 25 % towards black
+        (``SkeletonRecipe(sides=True)``)."""
         if role not in _SHADE_MIX or side not in _SIDE_MIX:
             raise ArgumentError(f"role must be one of {list(_SHADE_MIX)} and side -1, 0 or 1, got {role!r}, {side!r}")
         red, green, blue = hue
@@ -167,7 +168,7 @@ DARK = Theme(
     backdrop=(_srgb(44, 45, 50), _srgb(22, 22, 25)),
     grid=(_srgb(58, 59, 64), _srgb(86, 88, 95)),
     shadow=0.45,
-    collision=_srgb(170, 180, 196),  # the light theme's grey turns to a dim ghost on dark; lighter, a little denser
-    collision_opacity=0.22,
+    collision=_srgb(236, 239, 245),  # a pale glass: a darker or denser grey turns to smoke that dims what it holds
+    collision_opacity=0.16,
     text=_srgb(228, 229, 233),
 )

@@ -16,7 +16,7 @@ import better_robot as br
 from better_robot import collision
 from better_robot.model import Box, Geometry, JointFixed, JointPrismatic, Model
 from better_robot.viewer import LIGHT, RobotVisual
-from better_robot.viewer.skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton
+from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton
 
 from better_robot.exceptions import ArgumentError, UnknownNameError
 from tests.support.robots import g1_urdf, panda_urdf
@@ -227,9 +227,10 @@ def _overlap(first: tuple, second: tuple, *, round_: bool) -> bool:
     return bool(((radial < 1.0 - 1e-9) & (np.abs(local[:, 2]) < 1.0 - 1e-9)).any())
 
 
-def test_g1_glyphs_of_one_rigid_group_do_not_overlap() -> None:
+@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
+def test_g1_glyphs_of_one_rigid_group_do_not_overlap(recipe: SkeletonRecipe) -> None:
     model, spheres = _g1()
-    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    skeleton = build_skeleton(model, recipe, spheres=spheres)
     drums = _drums(skeleton, _poses(model))
     pairs = _same_group_pairs(model, set(drums))
     assert len(drums) == 29 and len(pairs) >= 28
@@ -280,6 +281,36 @@ def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
         assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
 
 
+@pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
+def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> None:
+    """The medium skeleton is the stick figure with a glyph per joint kind: every kind the maximal one draws (the mixed
+    robot has a drum, a sleeve on its rail, a ball, a free-flyer cube and a marker), none sized wider than its
+    maximal glyph before the slide rule shrinks either, on rods that follow their ends; no limb, trunk or end block,
+    and its boxes are not tapered."""
+    model, spheres = _ROBOTS[robot]()
+    medium, maximal = build_skeleton(model, MEDIUM, spheres=spheres), build_skeleton(model, MAXIMAL, spheres=spheres)
+    parts = {mesh: set(getattr(medium, mesh).part) for mesh in ("cylinders", "balls", "boxes")}
+    glyphs = {mesh: {part for part in getattr(maximal, mesh).part if part in (*_GLYPH_PARTS, "face", "rail")}
+              for mesh in ("cylinders", "balls", "boxes")}  # fmt: skip
+    assert all(glyphs[mesh] <= parts[mesh] for mesh in glyphs), (glyphs, parts)
+    assert not set.union(*parts.values()) & {"bone", "hull", "end", "tip", "fill", "stick"}
+    rods = np.array(medium.cylinders.part) == "rod"
+    assert rods.any() and (medium.cylinders.anchors[rods, 0] >= 0).all() and medium.taper == 1.0
+    if robot == "mixed":
+        assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "marker", "rod"}
+
+    def sized(skeleton: Skeleton, mesh: str) -> dict[tuple[int, str], float]:  # (joint, part) -> radius unshrunk
+        blocks = getattr(skeleton, mesh)
+        rows = zip(blocks.owner, blocks.part, blocks.scale, strict=True)
+        names = model.joint_names
+        return {(int(o), p): s[0] / skeleton.shrinks.get(names[o], 1.0) for o, p, s in rows if p in _GLYPH_PARTS}
+
+    for mesh in ("cylinders", "balls", "boxes"):
+        wide = sized(maximal, mesh)
+        for key, radius in sized(medium, mesh).items():
+            assert radius <= wide.get(key, np.inf) + 1e-12, (model.joint_names[key[0]], key[1])
+
+
 def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_each_other() -> None:
     model, spheres = _panda()
     skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
@@ -291,7 +322,7 @@ def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_e
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
-@pytest.mark.parametrize("recipe", [MAXIMAL, MINIMAL], ids=["maximal", "minimal"])
+@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
 def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: SkeletonRecipe) -> None:
     model, spheres = _ROBOTS[robot]()
     skeleton = build_skeleton(model, recipe, spheres=spheres)
@@ -310,7 +341,7 @@ def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: Skel
         bones += [
             (world[i, :3], axes[i], scale[i, 2], per_scale * scale[i, 0])
             for i in range(len(blocks))
-            if blocks.part[i] in ("bone", "stick")
+            if blocks.part[i] in ("bone", "stick", "rod")
         ]
     assert bones
     joined = np.zeros(len(glyphs), dtype=bool)
@@ -440,7 +471,7 @@ def test_minimal_follows_the_maximal_size_rule_and_draws_the_head(name: str) -> 
         assert balls[heads[0], 2] == balls[:, 2].max()
 
 
-@pytest.mark.parametrize("recipe", [MAXIMAL, MINIMAL], ids=["maximal", "minimal"])
+@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
 def test_place_on_a_clip_equals_place_per_step(recipe: SkeletonRecipe) -> None:
     model, spheres = _g1()
     skeleton = build_skeleton(model, recipe, spheres=spheres)
@@ -463,13 +494,13 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
         build_skeleton(model, SkeletonRecipe(joint_size={"knee": 2.0}))
 
 
-@pytest.mark.parametrize("recipe", [MAXIMAL, MINIMAL], ids=["maximal", "minimal"])
+@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
 @pytest.mark.parametrize("factors", [{"j1": 0.0}, {"j1": 0.5}, {"j3": 2.0}, {"j0": 0.0, "j2": 0.0}], ids=str)
 def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRecipe, factors: dict) -> None:
     """A factor scales one glyph after the size rules, so the glyphs after it keep theirs (a 2 at the tip wins over
     the narrowing towards it), and a glyph of factor 0 goes while every bone and stick stays."""
     model, _ = _synthetic("arm")
-    mesh, glyph = ("cylinders", "drum") if recipe is MAXIMAL else ("balls", "ball")
+    mesh, glyph = ("cylinders", "drum") if recipe.glyphs == "kind" else ("balls", "ball")
 
     def glyphs(skeleton: Skeleton) -> dict[int, float]:  # joint -> radius of its drum or of its cluster's ball
         blocks = getattr(skeleton, mesh)
@@ -481,7 +512,9 @@ def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRe
 
     def bones(skeleton: Skeleton) -> list[tuple[str, int]]:
         rows = [(name, getattr(skeleton, name)) for name in ("cylinders", "boxes")]
-        return sorted((name, int(o)) for name, b in rows for o, p in zip(b.owner, b.part) if p in ("bone", "stick"))
+        return sorted(
+            (name, int(o)) for name, b in rows for o, p in zip(b.owner, b.part) if p in ("bone", "stick", "rod")
+        )
 
     plain = build_skeleton(model, recipe)
     sized = build_skeleton(model, replace(recipe, joint_size=factors))
@@ -493,7 +526,7 @@ def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRe
 
 @pytest.mark.parametrize("name", [*_SYNTHETIC, "mixed", "g1", "panda"])
 def test_every_block_line_and_bound_is_finite(name: str) -> None:
-    """Both styles of the presets and of a recipe that hides every glyph, with limit arcs, sides and every hull, place
+    """The skeleton styles of the presets and of recipes that hide every glyph, with limit arcs, sides and every hull, place
     finite blocks and lines and give finite bounds at two configurations: a hidden leaf whose centre of mass is on
     its joint gave a NaN end block and a NaN camera."""
     if name in _SYNTHETIC:
@@ -507,15 +540,16 @@ def test_every_block_line_and_bound_is_finite(name: str) -> None:
     hidden = dict.fromkeys(moving, 0.0)
     velocity = torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=model.q_neutral.dtype)
     q = torch.stack([model.q_neutral, br.kinematics.integrate(model, model.q_neutral, velocity)])
-    for maximal, minimal in (
-        (MAXIMAL, MINIMAL),
+    for maximal, medium, minimal in (
+        (MAXIMAL, MEDIUM, MINIMAL),
         (
             replace(MAXIMAL, limits=True, sides=True, hulls="all", joint_size=hidden),
+            replace(MEDIUM, limits=True, sides=True, joint_size=hidden),
             replace(MINIMAL, joint_size=hidden),
         ),
     ):
-        visual = RobotVisual(model, q, geometry=geometry, root=root, maximal=maximal, minimal=minimal)
-        for style in ("minimal", "maximal"):
+        visual = RobotVisual(model, q, geometry=geometry, root=root, maximal=maximal, medium=medium, minimal=minimal)
+        for style in ("minimal", "medium", "maximal"):
             skeleton = visual._skeleton(style)
             for mesh, (world, scale) in skeleton.place(visual._poses).items():
                 assert np.isfinite(world).all() and np.isfinite(scale).all(), (style, mesh)

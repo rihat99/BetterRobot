@@ -68,7 +68,7 @@ class SkinnedMeshLayer(Layer):
                 bone_positions=bind[:, :3],
                 skin_weights=np.pad(self.weights, ((0, 0), (0, pad))),
                 color=rgb_uint8(self.color),
-                opacity=None if self.opacity >= 1.0 else self.opacity,
+                **self._surface(),
             )
         )
 
