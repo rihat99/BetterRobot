@@ -405,6 +405,26 @@ def test_a_neck_ends_in_a_head_that_stands_above_its_trunk(recipe: SkeletonRecip
         assert cylinders.part and max(top) <= min(reach) + 1e-9
 
 
+def test_g1_medium_wrist_keeps_rod_between_its_drums() -> None:
+    """On rods a drum outside a compound is at most 0.35 of its shortest bone, never under half the reference radius:
+    the G1's forearm reads rod, wrist roll, rod, wrist pitch, rod, wrist yaw, not a cluster of motors."""
+    model, spheres = _g1()
+    skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
+    origin = _poses(model)[:, :3]
+    chain = [
+        model.joint_names.index(f"left_{name}_joint") for name in ("elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")
+    ]
+    radius = {
+        owner: scale[0]
+        for part, owner, scale in zip(skeleton.cylinders.part, skeleton.cylinders.owner, skeleton.cylinders.scale)
+        if part == "drum"
+    }
+    for before, joint in itertools.pairwise(chain):
+        bone = float(np.linalg.norm(origin[joint] - origin[before]))
+        assert max(radius[before], radius[joint]) <= max(0.35 * bone, skeleton.radius / 2) + 1e-9
+        assert radius[before] + radius[joint] < bone  # rod shows between them
+
+
 def test_g1_chest_stops_above_its_waist_drums() -> None:
     """A trunk's body stops short of the drums of the compound at its joint: the G1's waist gimbal stands between its
     chest and its pelvis instead of half inside the chest."""

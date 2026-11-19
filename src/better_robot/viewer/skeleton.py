@@ -65,6 +65,7 @@ _PLATE = 0.45  # a sole is this many joint radii thick
 _LEAF_CAP = 1.25  # a leaf glyph is at most this share of the half thickness of the body it moves
 _LEAF_FLOOR = 0.2  # and at least this share of the reference radius: a thin placeholder shape is not a body
 _FIXED_CAP = 0.4  # a glyph that cannot slide is at most this share of its shortest bone
+_SPACING = 0.35  # on rods, a drum outside a compound is at most this share of its shortest bone, not under R / 2
 _ARC = 24  # segments of a limit arc
 _KINDS = {
     JointFixed: "fixed", JointRevolute: "revolute", JointRevoluteUnbounded: "revolute", JointHelical: "revolute",
@@ -302,6 +303,13 @@ def build_skeleton(
         _stick_figure(tree, recipe, rows, clouds, factor=factor)
         return rows.pack(slides={}, shrinks={})
     tree, compound = _compounds(tree, recipe.size)
+    if recipe.hulls == "none":  # on rods, a row of close drums (a wrist) keeps rod between them
+        spaced = {j: _SPACING * min(tree.bones(j), default=np.inf) for j in tree.glyphs}
+        radius = {
+            j: r if j in compound or tree.kind[j] != "revolute" else max(min(r, spaced[j]), min(r, tree.reference / 2))
+            for j, r in tree.radius.items()
+        }
+        tree = replace(tree, radius=radius)
     # joint_size scales a glyph after the size rules, so the glyphs after it keep theirs
     drawn = replace(tree, radius={j: factor[j] * tree.radius[j] for j in tree.glyphs})
     hidden = {j for j in tree.glyphs if _mimic(tree, j) or drawn.radius[j] <= 0.0}
