@@ -126,6 +126,9 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
 - Lay the skeleton out per step: joints that share a point would be solved every step, and the blocks would swim
   as the robot moves.
 - Scale glyphs down until they do not overlap, without sliding: the hip's three drums become too small to read.
+- A compound as one ball: it reads as a ball joint, which a G1's hips and wrists are not.
+- A glyph sized by its joint's effort limit (0.8 to 1.2 of the reference): the G1's wrist roll was as wide as its
+  elbow, and every drum of a Talos or a UR5e alike.
 - Options as keyword arguments of `RobotVisual` instead of a recipe value: eleven more parameters, twice (one set
   per skeleton style).
 - A control per robot in the sidebar: the Robot section grows with the number of robots; comparison scenes have
