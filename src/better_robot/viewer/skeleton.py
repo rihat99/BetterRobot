@@ -44,6 +44,7 @@ from ..model import (
     Model,
     Sphere,
 )
+from .layer import from_z
 from .theme import RGB, Theme
 
 _TWIST = float(np.cos(np.radians(35.0)))  # a joint axis within 35 degrees of its limb twists the limb
@@ -244,7 +245,7 @@ class Skeleton:
                 start, end = anchors[..., blocks.anchors[moving, 0], :], anchors[..., blocks.anchors[moving, 1], :]
                 world[..., moving, :3] = (start + end) / 2
                 if name == "cylinders":
-                    world[..., moving, 3:] = _from_z(end - start)
+                    world[..., moving, 3:] = from_z(end - start)
                     scale = np.broadcast_to(scale, (*world.shape[:-1], 3)).astype(world.dtype)
                     scale[..., moving, 2] = np.linalg.norm(end - start, axis=-1)
             placed[name] = (world, scale)
@@ -343,26 +344,12 @@ def _matrix(quaternion: np.ndarray) -> np.ndarray:
     return so3.to_matrix(torch.from_numpy(np.ascontiguousarray(quaternion, dtype=np.float64))).numpy()
 
 
-def _from_z(direction: np.ndarray) -> np.ndarray:
-    """Shortest-arc ``xyzw`` rotations ``(..., 4)`` taking ``+z`` onto each ``direction (..., 3)`` (``so3.exp``).
-
-    A zero direction gives the identity, one opposite ``+z`` a half turn about ``x``.
-    """
-    unit = torch.from_numpy(np.asarray(direction, dtype=np.float64))
-    norm = torch.linalg.norm(unit, dim=-1, keepdim=True)
-    unit = torch.where(norm > 1e-12, unit / norm.clamp_min(1e-12), unit.new_tensor([0.0, 0.0, 1.0]))
-    turn = torch.stack([-unit[..., 1], unit[..., 0], torch.zeros_like(unit[..., 0])], dim=-1)  # z x unit
-    sine = torch.linalg.norm(turn, dim=-1, keepdim=True)
-    axis = torch.where(sine > 1e-9, turn / sine.clamp_min(1e-9), unit.new_tensor([1.0, 0.0, 0.0]))
-    return so3.exp(axis * torch.atan2(sine, unit[..., 2:])).numpy()
-
-
 def _limb_frame(direction: np.ndarray, across: np.ndarray | None) -> np.ndarray:
     """The rotation ``(3, 3)`` of a limb along the unit ``direction``: its z is ``direction`` and its x the part of
     ``across`` square to it (a drum's axis, so that the limb's sides face the way the drum's faces do)."""
     side = np.zeros(3) if across is None else across - (across @ direction) * direction
     if np.linalg.norm(side) < 1e-6:
-        return _matrix(_from_z(direction))
+        return _matrix(from_z(direction))
     side = side / np.linalg.norm(side)
     return np.stack([side, np.cross(direction, side), direction], axis=1)
 
@@ -591,7 +578,7 @@ def _solve(
     """
     origin = tree.origin
     solid = [j for j in tree.glyphs if j not in hidden and tree.kind[j] != "free"]  # the base cube sits in the hull
-    frame = {j: _matrix(_from_z(tree.axis[j])) if j in tree.axis else np.eye(3) for j in solid}
+    frame = {j: _matrix(from_z(tree.axis[j])) if j in tree.axis else np.eye(3) for j in solid}
     slide = {j: 0.0 for j in tree.glyphs}
     shrink = {j: 1.0 for j in tree.glyphs}
     for j in solid:  # a drum on a twist joint starts with its far face on the joint: a collar on the limb
@@ -1339,7 +1326,7 @@ def _maximal(
 def _placed(tree: _Tree, slide: Mapping[int, float]) -> tuple[dict[int, np.ndarray], dict[int, np.ndarray]]:
     """Centre (world, at neutral) and rotation of every glyph: slid along its joint's axis, the axis as its z."""
     center = {j: tree.origin[j] + slide[j] * tree.axis[j] if j in tree.axis else tree.origin[j] for j in tree.glyphs}
-    frame = {j: _matrix(_from_z(tree.axis[j])) if j in tree.axis else tree.rotation[j] for j in tree.glyphs}
+    frame = {j: _matrix(from_z(tree.axis[j])) if j in tree.axis else tree.rotation[j] for j in tree.glyphs}
     return center, frame
 
 
@@ -1382,7 +1369,7 @@ def _limit_arc(tree: _Tree, rows: _Rows, joint: int, center: np.ndarray, radius:
     lower, upper = float(model.lower_position_limit[index]), float(model.upper_position_limit[index])
     if not 0.0 < upper - lower < 2.0 * np.pi:
         return
-    frame = _matrix(_from_z(tree.axis[joint]))
+    frame = _matrix(from_z(tree.axis[joint]))
     zero = float(model.q_neutral[index])  # the tick's angle at neutral
 
     def spoke(angle: float, reach: float) -> np.ndarray:
