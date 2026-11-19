@@ -31,7 +31,8 @@ that 0.3.0 renames or removes, one table row each.
   theme to the page and to every layer; `Viewer(ground=True)` adds the ground grid under the tag `ground`.
 - `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
   fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role, *, side=0)` (`side=1` a left part, lighter, `-1`
-  a right one, darker), `accent`, `collision` and `text`, all colours RGB in `[0, 1]`, and `collision_opacity`.
+  a right one, darker), `accent`, `collision`, `text` and `ramp` (the low and the high end of a joint value's range,
+  a quiet steel and a warm orange), all colours RGB in `[0, 1]`, and `collision_opacity`.
   `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
   that casts shadows and a fill light, one rig for meshes and solid colours.
 - `Theme(sidebar_width="medium")`: viser's `"small"`, `"medium"` or `"large"` sidebar, which `Viewer.set_theme`
@@ -40,7 +41,7 @@ that 0.3.0 renames or removes, one table row each.
   and its clients have a camera and notifications; its plain and skinned meshes take `cast_shadow` and
   `receive_shadow`.
 - `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, medium, maximal, hue,
-  collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
+  opacity, joint_values, value_range, collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
   the style `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"`, `"medium"` or `"maximal"`
   (skeletons), with a collision overlay (the sphere set, else the collision shapes, a pale see-through shell over any
   style) and frame triads. Each part is built the first time
@@ -48,6 +49,15 @@ that 0.3.0 renames or removes, one table row each.
   viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
   is drawn in (record 0058).
+- `RobotVisual(opacity=)` and `RobotVisual.set_opacity`: every style drawn see-through, a ghost of a target or a
+  reference motion beside or over the robot; below 1 it casts and catches no shadow, and the collision overlay and
+  the triads keep their own look. A ghost costs nothing per step.
+- `RobotVisual(joint_values=, value_range=(0.0, 1.0))` and `RobotVisual.set_joint_values(values, *,
+  value_range=None)`: one value per model joint and step, `(T, njoints)` or `(njoints,)` with the universe as
+  column 0, such as a joint's load `|tau| / effort limit`, colours the joint glyphs of the skeleton styles through
+  `Theme.ramp` over the range, clamped (a minimal ball takes the value of the largest magnitude among its joints; a
+  NaN, the universe, a free base and the `"meshes"` style show none). A step writes one more array to each node that
+  holds a glyph: on the G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step, and no node.
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs as wide as
   their link up to the size its mass gives, trunks for the bodies that branch, and where a chain ends a sole, a
   finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
@@ -174,15 +184,15 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.
 - `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer`: use `viewer.RobotVisual`, which draws
   the meshes and both skeletons of a model and runs the forward kinematics itself, and `viewer.load_meshes(geometry,
-  root=)` for the meshes as arrays. Colouring joints by torque
-  (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
+  root=)` for the meshes as arrays. Colouring joints by torque (`robot_skeleton(tau=)`): use
+  `RobotVisual(joint_values=)` with `|tau| / effort limit` per joint. `end_points=` has no replacement.
 - `Theme.joint`, `Theme.link`, `Theme.torque_ramp` and `Theme.over_limit`: use `Theme.hue` and `Theme.shade`; a
-  skeleton takes its robot's hue and the shades of it.
+  skeleton takes its robot's hue and the shades of it. Joint values take `Theme.ramp`, clamped at its high end.
 - `ArrowsLayer(head_size=, line_width=)` and `ArrowsLayer.HEAD_FRACTION`: use `head_length=`; every arrow is solid,
   and a short one is no longer scaled down whole.
 - `CameraLayer(fov=, aspect=)`: use `CameraLayer(intrinsics=, size=)`.
-- `viewer.theme.colormap`: no replacement; nothing called it once the torque colours went, and an application maps
-  values to colours with numpy.
+- `viewer.theme.colormap`: no replacement; joint values blend the two colours of `Theme.ramp` inside
+  `RobotVisual`, and an application maps values to colours with numpy.
 - `CameraLayer` from `viewer.layers.skinned`, a second path to it: use `better_robot.viewer.CameraLayer`.
 - The names `better_robot.viewer.layers` re-exported, seven of the twelve layers, a second path to them: use
   `better_robot.viewer`, which holds every layer.

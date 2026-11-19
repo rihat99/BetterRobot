@@ -60,12 +60,16 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    overlay takes `theme.collision` and `theme.collision_opacity`, a pale neutral glass in both themes. Like every
    mesh layer below opacity 1 it casts and catches no shadow (`Layer._surface`, a subclass hook beside `_track`,
    `_store_opacity` and `_fade`): the shadow map ignores opacity, so a glass would throw a solid shadow and wear
-   the shadows of what it holds.
+   the shadows of what it holds. `opacity=` (`set_opacity`) draws every style of a robot see-through by the same
+   rule, a ghost, while the overlay and the triads keep their look. `joint_values=` (`set_joint_values`), one value
+   per model joint and step, `(T, njoints)` or `(njoints,)`, colours the joint glyphs of the skeleton styles
+   through the two colours of `theme.ramp` over `value_range`, clamped, with one more write of colours per node
+   that holds a glyph and no new node.
 7. **A skin is a mesh style.** `viewer.Skin(vertices, faces, *, weights, bind=None)` is shown as `"meshes"`, skinned
    in the browser.
 8. **The old adapters go.** `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer` are removed,
-   with the theme fields `joint`, `link`, `torque_ramp` and `over_limit`, and `theme.colormap`, which nothing
-   called once the torque colours went.
+   with the theme fields `joint`, `link`, `torque_ramp` (now `ramp`, item 6) and `over_limit`, and
+   `theme.colormap`: joint values blend the two colours of the ramp inside the robot visual.
 
 ## Example
 ```python { .no-run }
@@ -115,7 +119,10 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
   without one of those.
 - A switch from code moves the shared sidebar control and switches no other robot, so the control shows the robot
   switched last, and the other robots may show another style, overlay or triads than it does.
-- Torque colouring (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
+- Torque colouring (`robot_skeleton(tau=)`) is `joint_values=`, each joint's `|tau|` over its effort limit: on the
+  G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step and no node (minimal 0.83, medium 0.88, maximal
+  0.53 ms per step with values, at load average 16); a ghost at opacity 0.35 costs nothing per step. `end_points=`
+  has no replacement.
 
 ## Alternatives
 - Keep three adapter functions and add a switcher on top: three kinematics passes and three owners of one robot's
@@ -132,7 +139,8 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
 - Options as keyword arguments of `RobotVisual` instead of a recipe value: eleven more parameters, twice (one set
   per skeleton style).
 - A control per robot in the sidebar: the Robot section grows with the number of robots; comparison scenes have
-  two to four.
+  two to four. For the same reason the section has no opacity slider: one shared slider would fade a ghost and its
+  solid twin alike.
 
 ## Compatibility
 Breaks callers of `robot_skeleton`, `robot_meshes`, `SkeletonLayer` and of four `Theme` fields, inside the

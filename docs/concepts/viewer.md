@@ -67,8 +67,8 @@ remaining layer, so a clip browser can remove one clip's tag before adding the n
 under a first tag, and a tag that `set_pose` or `remove` does not know raises `UnknownNameError`.
 
 A layer is changed through its own methods, never its fields: `viewer.set_visible(layer, False)` hides it,
-`layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`; a
-layer without surfaces raises `ArgumentError`), and `viewer.replace(old, new)` swaps the data a layer draws, such
+`layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`,
+every style of a `RobotVisual`; a layer without surfaces raises `ArgumentError`), and `viewer.replace(old, new)` swaps the data a layer draws, such
 as a body switched in a studio: `new` takes `old`'s tags, place, sidebar controls and visibility, the current step is
 pushed and the camera stays.
 
@@ -294,6 +294,37 @@ and by what it covers: one box round a moving robot is about twice that on scree
 point of a sole or a foot with a collision shape: `examples/viewer/00_showcase.py` lifts a floating base by it, step
 by step, to stand the robot on the ground.
 
+### A ghost and joint values
+
+`opacity=0.35`, or `robot.set_opacity(0.35)` while the viewer runs, draws every style of a robot see-through: a
+ghost of a target or a reference motion beside or over the robot itself. Below 1 it casts and catches no shadow, a
+textured mesh file stays opaque, and the collision overlay and the triads keep their own look. The sidebar has no
+opacity control: the Robot section's controls are shared by every robot, so one slider would fade a ghost and its
+solid twin alike; an application adds its own slider in its own section.
+
+`joint_values=` colours the joint glyphs of the skeleton styles at each step, such as each joint's load
+`|tau| / effort limit`: one value per model joint, `(T, njoints)` with the visual's `T`, or `(njoints,)` for every
+step, in model order with joint 0, the universe, as a `Skin`'s weights are. `value_range=(low, high)`, `(0, 1)` by
+default, maps a value onto the theme's `ramp`, from a quiet steel at `low` to a warm orange at `high`, clamped
+beyond. A drum, a sleeve or a spherical joint's ball takes the colour (a drum's faces a darker shade of it), and a
+ball of the minimal stick figure takes the value of the largest magnitude among the joints it stands for. A NaN
+value, the universe, a free base and a joint without a glyph keep the robot's colours, and the `"meshes"` style
+draws no joints, so it shows no value. `set_joint_values(values, value_range=)` changes them live, and `None` takes
+them away. A step writes one more array, the colours, to each node that holds a glyph and adds no node: on the G1
+0.12 to 0.15 ms and 0.2 to 0.4 kB more per step. With several robots on screen, the second robot's default hue is an
+orange close to the ramp's high end, so pass `hue=` (a ghost takes its robot's: `hue=robot.hue`). Inverse dynamics
+gives one torque per velocity coordinate, `(T, nv)`; column `model.idx_vs[j]` is joint `j`'s first, which is how
+`examples/viewer/02_play_trajectory.py` turns torques into loads.
+
+```python
+robot.set_joint_values(torch.rand(30, model.njoints), value_range=(0.0, 1.0))
+ghost.set_opacity(0.35)
+print(robot.joint_values.shape, ghost.opacity)
+```
+```output
+(30, 14) 0.35
+```
+
 ### A skinned surface
 
 `Skin(vertices, faces, weights=, bind=)` is a surface that deforms with the joints: `vertices (V, 3)` in the world at
@@ -342,7 +373,7 @@ exactly what a browser would; `aim` points the live browsers at the view `record
 `Viewer(theme=...)` takes a `Theme`, the one source of colours: the backdrop gradient, the grid, the shadow on the
 ground, the light rig (ambient, hemisphere, a key light that casts shadows, a fill; no environment map, so meshes and solid
 colours share one rig), the collision overlay's colour and opacity, the robots' hues (`theme.hue(k)`
-for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the GUI accent, the sidebar's width
+for the `k`-th robot), the shades of a hue (`theme.shade(hue, "body")`), the two ends of the joint values' `ramp`, the GUI accent, the sidebar's width
 (`Theme(sidebar_width="large")` for a dense panel; `"medium"` by default) and the up axis. `LIGHT`
 (the default) and `DARK` are built in; `viewer.set_theme(theme)` switches the page and every layer. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
@@ -388,6 +419,7 @@ Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames
 - [Visualize a robot](../getting-started/visualize.md) walks through a first scene and a recording.
 - [Record a video of a scene](../guides/record-a-video.md): `record`'s formats, options and camera.
 - `examples/viewer/` has runnable scripts: a showcase of three robots in every style
-  (`uv run python examples/viewer/00_showcase.py`), a robot pose, an IK gizmo, recording a clip, and five demos of
+  (`uv run python examples/viewer/00_showcase.py`), a robot pose, a trajectory coloured by joint load beside a ghost
+  of its end, an IK gizmo, recording a clip, and five demos of
   avoidance while tracking a dragged target ([Try the avoidance demos](../guides/avoidance-demos.md)).
 - [API reference: viewer](../reference/api/viewer.md).
