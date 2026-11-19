@@ -678,8 +678,11 @@ class RobotVisual(Layer):
 
     @override
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
+        """Show or hide the robot; shown, it is caught up to its viewer's step, as ``Viewer.set_visible`` does."""
         super().set_visible(visible)
         self._apply()
+        if visible:
+            self.redraw()
 
     @override
     def dispose(self) -> None:

@@ -49,7 +49,8 @@ that 0.3.0 renames or removes, one table row each.
   (skeletons), with a collision overlay (the sphere set, else the collision shapes, a pale see-through shell over any
   style, 0.2 % of the robot's size off the shapes so that it shows no stripes where it meets the meshes) and frame
   triads. Each part is built the first time
-  it is shown, not while its robot is hidden; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
+  it is shown, not while its robot is hidden, and `robot.set_visible(True)` shows the viewer's step, as
+  `Viewer.set_visible` does; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
   viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
   is drawn in, and `style`, `collision` and `frames` what it shows (record 0058).

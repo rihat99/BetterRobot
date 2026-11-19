@@ -326,6 +326,22 @@ def test_a_hidden_robot_builds_a_part_switched_on_only_when_it_is_shown() -> Non
     assert not server.scene.nodes[f"{path}/maximal"].visible
 
 
+def test_a_robot_shown_by_its_own_switch_shows_the_viewers_step() -> None:
+    """``robot.set_visible(True)`` catches the robot up to the step the viewer moved to while it was hidden, as
+    ``Viewer.set_visible`` does (R2 m1: its skeleton, overlay and triads stayed at the step they were hidden at)."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    velocity = torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
+    q = torch.stack([br.kinematics.integrate(model, model.q_neutral, k * velocity) for k in range(3)])
+    shown, server_a, viewer_a = _g1_visual(q, style="maximal", collision=True, frames=True)
+    hidden, server_b, viewer_b = _g1_visual(q, style="maximal", collision=True, frames=True)
+    hidden.set_visible(False)
+    viewer_a.show(2)
+    viewer_b.show(2)
+    hidden.set_visible(True)
+    for name, node in _drawn(server_a).items():
+        np.testing.assert_array_equal(_positions(server_b.scene.nodes[name]), _positions(node), err_msg=name)
+
+
 def test_robot_visual_update_equals_building_with_that_configuration() -> None:
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     velocity = 0.5 * torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
