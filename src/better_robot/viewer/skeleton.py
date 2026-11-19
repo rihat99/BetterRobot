@@ -16,6 +16,7 @@ Nothing here imports viser: the robot visual sends the arrays. Poses are ``[tx, 
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Literal, final
@@ -146,19 +147,20 @@ class SkeletonRecipe:
     color: Mapping[str, RGB] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Raise ``ArgumentError`` for an unknown ``glyphs`` or ``hulls`` word or a size out of range."""
+        """Raise ``ArgumentError`` for an unknown ``glyphs`` or ``hulls`` word or a size out of range or not finite."""
         if self.glyphs not in ("kind", "ball"):
             raise ArgumentError(f"glyphs must be 'kind' or 'ball', got {self.glyphs!r}")
         if self.hulls not in ("auto", "all", "none"):
             raise ArgumentError(f"hulls must be 'auto', 'all' or 'none', got {self.hulls!r}")
         if (
-            self.bones < 0.0
+            not all(math.isfinite(value) for value in (self.bones, self.cluster, self.size, *self.joint_size.values()))
+            or self.bones < 0.0
             or self.cluster < 0.0
             or self.size <= 0.0
             or min(self.joint_size.values(), default=0.0) < 0.0
         ):
             raise ArgumentError(
-                f"bones, cluster and joint_size must be at least 0 and size above 0, got bones={self.bones}, "
+                f"bones, cluster and joint_size must be finite and at least 0, size finite and above 0, got bones={self.bones}, "
                 f"cluster={self.cluster}, size={self.size}, joint_size={dict(self.joint_size)}"
             )
 

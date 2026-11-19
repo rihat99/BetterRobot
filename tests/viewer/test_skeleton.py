@@ -697,6 +697,10 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
         SkeletonRecipe(glyphs="cube")  # type: ignore[arg-type]
     with pytest.raises(ArgumentError, match="size"):
         SkeletonRecipe(size=0.0)
+    with pytest.raises(ArgumentError, match="finite"):
+        SkeletonRecipe(size=float("nan"))
+    with pytest.raises(ArgumentError, match="finite"):
+        SkeletonRecipe(bones=float("inf"))
     model, _ = _mixed()
     with pytest.raises(UnknownNameError, match="knee"):
         build_skeleton(model, SkeletonRecipe(joint_size={"knee": 2.0}))
