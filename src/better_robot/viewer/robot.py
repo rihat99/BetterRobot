@@ -827,6 +827,7 @@ def _shape_spec(
     tessellated by trimesh; each vertex moved ``margin`` metres out along its normal."""
     with needs_extra("meshes"):
         import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+        from trimesh.visual.material import empty_material  # noqa: PLC0415
 
     source = None
     if isinstance(shape, Mesh):
@@ -834,7 +835,7 @@ def _shape_spec(
         mesh.apply_scale(shape.scale)
         visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look, but not
         kind = None if visual is None else visual.kind  # trimesh's grey stand-in for a missing material file (black)
-        textured = kind == "texture" and hash(visual.material) != hash(trimesh.visual.material.empty_material())
+        textured = kind == "texture" and hash(visual.material) != hash(empty_material())
         varied = textured or (
             kind in ("vertex", "face") and len(np.unique(np.asarray(getattr(visual, f"{kind}_colors")), axis=0)) > 1
         )
