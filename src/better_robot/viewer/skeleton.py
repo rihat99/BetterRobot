@@ -410,6 +410,7 @@ class _Tree:
     reference: float  # the reference glyph radius
     radius: Mapping[int, float]  # per glyph
     crossing: Mapping[int, tuple[float, float]] = field(default_factory=dict)  # half length over radius, slide
+    load: Mapping[int, float] = field(default_factory=dict)  # per glyph, its radius by the mass rule before the clip
 
     def bones(self, joint: int) -> list[float]:
         """Distances from glyph ``joint`` to its parent and child glyphs, those under 1 % of the robot ignored."""
@@ -472,14 +473,15 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
     carried = _numpy(model.body_inertias)[:, 0].copy()  # per joint, the mass of its subtree
     for j in range(model.njoints - 1, 0, -1):
         carried[model.parent_joint_ids[j]] += carried[j]
-    radius = {}
+    radius, load = {}, {}
     for j in glyphs:
         own = _CARRY * np.cbrt(carried[j]) if carried[0] > 0.0 and kind[j] != "free" else reference
+        load[j] = recipe.size * float(own)
         radius[j] = recipe.size * float(np.clip(own, 0.5 * reference, 1.2 * reference))
         radius[j] *= _MARKER if kind[j] == "other" else 1.0
         if kind[j] in ("spherical", "other") and tree.bones(j):
             radius[j] = min(radius[j], _FIXED_CAP * min(tree.bones(j)))
-    return replace(tree, radius=radius)
+    return replace(tree, radius=radius, load=load)
 
 
 def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool) -> _Tree:
@@ -1260,9 +1262,10 @@ def _maximal(
     (``_hulls``) and a bone are sized by it. A bone is ``bones`` times the radius of the glyph it leaves, so a limb
     keeps its width up to a small joint, and is never wider than the ball of 0.8 radii in the glyph it leaves. A
     bone between two glyphs narrows (``_TAPER``) to no wider than that ball in the glyph it reaches; a limb, the
-    bone of a link that is no trunk, is as wide as 0.7 of its link's thinner half width across it (``_width``: a
-    thigh wider than its shin) when that is more, and when it is wider than the glyph it reaches it ends on that
-    glyph's side.
+    bone of a link that is no trunk, is as wide as 0.7 of its link's thinner half width across it (``_width``) when
+    that is more, up to 0.8 of the radius the mass rule gives the joint it leaves before the clip (``_Tree.load``: a
+    thigh wider than its shin, and a Spot's or a UR5e's links wider than their clipped drums); where it is wider than
+    a glyph it joins it starts or ends on that glyph's side, so the drum stays in sight.
     """
     origin = tree.origin
     center, frame = _placed(tree, slide)
@@ -1272,6 +1275,18 @@ def _maximal(
         return min([max(recipe.bones * ends.get(start, tree.reference), _BODY * width), *shown])
 
     solid = {j: (center[j], frame[j], _half(tree, j, reach[j])) for j in tree.glyphs if tree.kind[j] != "free"}
+
+    def limb(group: int, j: int, start: np.ndarray, end: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+        direction = (end - start) / np.linalg.norm(end - start)
+        width = _BODY * _width(tree, clouds.get(group, []), group, _limb_frame(direction, tree.axis.get(j)))
+        side = min(max(recipe.bones * ends[group], width), 0.8 * max(reach[group], tree.load[group]))
+        for glyph, sign in ((group, 1.0), (j, -1.0)):  # wider than a glyph it joins: it ends on that glyph's side
+            if glyph in solid and 0.0 < 0.8 * reach[glyph] < side * (_TAPER if sign < 0.0 else 1.0):
+                _, turn, half = solid[glyph]
+                exit = sign * float(np.min(half / np.maximum(np.abs(turn.T @ direction), 1e-9)))
+                start, end = (start + exit * direction, end) if sign > 0.0 else (start, end + exit * direction)
+        return start, end, side if (end - start) @ direction > 0.0 else 0.0  # glyphs that touch: no limb between
+
     hulls = _hulls(tree, recipe, clouds, ends, {j: box for j, box in solid.items() if reach[j] > 0.0}, compound)
     trunk: dict[int, _Hull] = {}
     for hull in hulls:
@@ -1291,13 +1306,7 @@ def _maximal(
                 body, start = group, center[group] if group else origin[tree.root[j]]
             side = thickness(group, j)
             if group and group not in trunk and np.linalg.norm(end - start) > 1e-6:  # a limb: its link's body
-                direction = (end - start) / np.linalg.norm(end - start)
-                side = thickness(
-                    group, width=_width(tree, clouds.get(group, []), group, _limb_frame(direction, across))
-                )
-                if j in solid and reach[j] > 0.0 and _TAPER * side > 0.8 * reach[j]:  # it stops at a narrower glyph
-                    _, turn, half = solid[j]
-                    end = end - direction * float(np.min(half / np.maximum(np.abs(turn.T @ direction), 1e-9)))
+                start, end, side = limb(group, j, start, end)
             rows.bone(body, start, end, side, j, across=across)
     for hull in hulls:
         rows.hull(hull)

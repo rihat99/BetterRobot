@@ -446,7 +446,7 @@ def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_e
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
 def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: SkeletonRecipe) -> None:
     """A bone's end inside a glyph is no wider than that glyph, at its wide start and at its narrowed (``taper``)
-    far end; a maximal limb wider than the glyph it reaches ends on that glyph's side instead."""
+    far end; a maximal limb wider than a glyph it joins starts or ends on that glyph's side instead."""
     model, spheres = _ROBOTS[robot]()
     skeleton = build_skeleton(model, recipe, spheres=spheres)
     placed = skeleton.place(_poses(model))
@@ -473,9 +473,7 @@ def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: Skel
             distance = np.linalg.norm(centers - (center + 0.5 * sign * length * axis), axis=1)
             inside = distance < 0.5 * radii  # the bone's cap is in these glyphs
             assert (width <= radii[inside] + 1e-12).all(), (center, width, radii[inside])
-            joined |= inside
-            if sign > 0.0:  # a far end on a glyph's side, where a wider limb stops
-                joined |= (distance <= 1.3 * radii) & (width > 0.8 * radii)
+            joined |= inside | ((distance <= 1.3 * radii) & (width > 0.8 * radii))  # a wider limb on a glyph's side
     assert joined.sum() >= len(glyphs) - 1  # every glyph but a free-flyer's cube inside its hull holds a bone end
 
 
