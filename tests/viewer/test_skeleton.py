@@ -357,6 +357,53 @@ def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
         assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
 
 
+@pytest.mark.parametrize("robot", ["g1", "panda"])
+def test_a_maximal_drum_is_sized_no_thinner_than_the_limbs_that_end_on_it(robot: str) -> None:
+    """A motor is never thinner than the body it drives: before the layout shrinks it, a drum's half length (so its
+    radius too) is at least the half width of each limb end in or on it, at a limb's wide start and at its narrowed
+    (``taper``) far end, so both its faces stand out. Also a collar whose child joint sits on its own joint: the
+    Panda's base collar under its shoulder drum (its link a limb along the collar's axis)."""
+    model, spheres = _ROBOTS[robot]()
+    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    placed = skeleton.place(_poses(model))
+    world, scale = placed["boxes"]
+    axes = _rotations(world[:, 3:])[:, :, 2]
+    ends = [  # (point, half width) of each end of each limb
+        (world[i, :3] + sign * 0.5 * scale[i, 2] * axes[i], width * scale[i, 0] / 2)
+        for i in range(len(skeleton.boxes))
+        if skeleton.boxes.part[i] == "bone"
+        for sign, width in ((-1.0, 1.0), (1.0, skeleton.taper))
+    ]
+    world, scale = placed["cylinders"]
+    drums = [i for i in range(len(skeleton.cylinders)) if skeleton.cylinders.part[i] == "drum"]
+    for i in drums:
+        name = model.joint_names[skeleton.cylinders.owner[i]]
+        widths = [half for point, half in ends if np.linalg.norm(point - world[i, :3]) <= 1.3 * scale[i, 0]]
+        assert widths, name  # every drum joins a limb here: in it, or on its side
+        assert scale[i, 2] / 2 / skeleton.shrinks.get(name, 1.0) >= max(widths) - 1e-6, name
+
+
+@pytest.mark.parametrize("robot", ["g1", "panda"])
+@pytest.mark.parametrize(("recipe", "least"), [(MEDIUM, 0.7), (MAXIMAL, 0.45)], ids=["medium", "maximal"])
+def test_the_drums_of_one_robot_keep_a_narrow_range_of_sizes(robot: str, recipe: SkeletonRecipe, least: float) -> None:
+    """No joint is too small beside the others: before the layout shrinks them, a robot's smallest drum is at least
+    ``least`` of its largest. Measured: on rods 0.75 (G1) and 0.79 (Panda), where the floor of 2.5 rod radii lifts
+    the G1's wrists and ankles (0.43 under a floor of half the reference radius); in maximal 0.47 and 0.46, where
+    the limb floor widens an arm's proximal drums up to their mass size (the Panda's base collar 2.13 reference
+    radii, its last wrist drum 0.97) and the floor of 0.65 reference radii holds the G1's wrists."""
+    model, spheres = _ROBOTS[robot]()
+    skeleton = build_skeleton(model, recipe, spheres=spheres)
+    blocks = skeleton.cylinders
+    radii = [
+        blocks.scale[i, 0] / skeleton.shrinks.get(model.joint_names[blocks.owner[i]], 1.0)
+        for i in range(len(blocks))
+        if blocks.part[i] == "drum"
+    ]
+    assert min(radii) >= least * max(radii)
+    floor = 2.5 * MEDIUM.bones if recipe is MEDIUM else 0.65  # reference radii: no wrist or ankle reads as a bead
+    assert min(radii) >= floor * skeleton.radius * (1 - 1e-6)
+
+
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
 def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> None:
     """The medium skeleton is the stick figure with a glyph per joint kind: every kind the maximal one draws (the mixed
