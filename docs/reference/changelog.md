@@ -67,9 +67,10 @@ that 0.3.0 renames or removes, one table row each.
   at most 4 of that joint's glyph radii from its centre (a Shadow hand's forearm no larger than the hand), and
   where a chain ends a sole, a
   finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
-  spherical joint's among the drums, and a head only above a trunk; no joint glyph goes inside another: one that would touch
-  a glyph nearer the root slides along its own axis until it clears, at most 1.75 of its radii, else it shrinks
-  and slides less, so the joints of a hip stand as a short staggered stack of drums), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on thin pale
+  spherical joint's among the drums, and a head only above a trunk; no joint glyph goes inside another: one that would
+  touch a glyph nearer the root slides along its own axis until it clears, at most 1.75 of its radii, else it shrinks
+  and slides less, so the joints of a hip stand as a short staggered stack of drums), `viewer.MEDIUM` (the same
+  glyphs, laid out by the same rules, on thin pale
   rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum at most
   0.35 of its shortest rod: `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
   `viewer.MINIMAL` (one
