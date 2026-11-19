@@ -86,8 +86,8 @@ class Layer(ABC):
     A layer owns its preloaded arrays and the viser handles it creates in ``build``. The viewer
     calls ``set_step(k)`` to write slice ``k`` into those handles; a static layer has
     ``nsteps == 1`` and is pushed once. The arrays are the layer's float32 ``(T, ...)`` attributes
-    (``PointsLayer.points``, ``FramesLayer.poses``, ...) and ``SpheresLayer.radii``, read at each push: edit one in
-    place and call ``redraw`` (or ``Viewer.show()``) to update the scene; a skin's rest arrays and a chart's
+    (``PointsLayer.points``, ``FramesLayer.poses``, ...), ``SpheresLayer.radii`` and ``FramesLayer.scales``, read at
+    each push: edit one in place and call ``redraw`` (or ``Viewer.show()``) to update the scene; a skin's rest arrays and a chart's
     ``series`` are sent once, at ``build``. An input that already is a C-contiguous float32 array is that attribute,
     no copy, which keeps a big cloud single; any other input (a strided view too) is converted once, so edit the
     attribute. Handles registered with ``_track`` get the default

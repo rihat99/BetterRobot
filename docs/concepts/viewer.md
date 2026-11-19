@@ -178,8 +178,9 @@ you loaded. Code without a viewer reads the same files the same way: `load_meshe
 the collision shapes of the geometry, as a pale see-through shell over any style (`Theme.collision` at
 `Theme.collision_opacity`, casting and catching no shadow). The shell stands 0.2 % of the robot's size off its
 shapes, along their normals (2 mm on a 1 m arm): viser has no depth offset, and glass on the very surface of a
-display mesh (a G1 names one file for both) shows stripes of each in turn. `frames=True` draws a triad at every moving joint and
-`frames=[...]` at the frames listed, by id or name.
+display mesh (a G1 names one file for both) shows stripes of each in turn. `frames=True` draws a triad at every
+moving joint and `frames=[...]` at the frames listed, by id or name, each as large as the maximal skeleton's glyph of
+its joint, so a finger's triad is a finger's size and a hip's a hip's.
 
 ```python
 import torch

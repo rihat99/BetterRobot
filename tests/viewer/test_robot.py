@@ -469,6 +469,22 @@ def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> Non
         robot.set_frames(["panda_nose"])
 
 
+def test_a_triad_is_as_large_as_the_glyph_of_its_joint() -> None:
+    """One length for every triad drew a Shadow hand's fingers as a bed of spikes: a triad now follows its joint's
+    glyph, as large on a hip as a hip's drum and on a wrist as a wrist's."""
+    robot, server, _ = _g1_visual(frames=True)
+    model = robot.model
+    moving = [j for j in range(1, model.njoints) if model.nqs[j] == 1 or j == 1]  # the base and the 29 revolute ones
+    scales = server.scene.nodes["/g1_29dof/g1_29dof/frames/axes"].props["batched_scales"]
+    assert len(scales) == len(moving)
+    size = dict(zip((model.joint_names[j] for j in moving), scales, strict=True))
+    assert size["left_hip_pitch_joint"] > 1.5 * size["left_wrist_yaw_joint"] > 0.0
+    assert size["left_hip_pitch_joint"] == size["right_hip_pitch_joint"]  # mirror sides match
+    robot.set_frames(["left_wrist_yaw_link"])  # a frame takes the glyph of its joint
+    named = server.scene.nodes["/g1_29dof/g1_29dof/frames/axes"].props["batched_scales"]
+    np.testing.assert_allclose(named, [size["left_wrist_yaw_joint"]])
+
+
 @pytest.mark.parametrize("frames", [True, ["panda_hand"]])
 def test_robot_visual_update_moves_its_frames_while_they_are_hidden(frames: bool | list[str]) -> None:
     """Hidden triads follow ``update`` too, so they are in place when they are shown again."""

@@ -147,6 +147,7 @@ class FakeScene:
         name: str,
         batched_wxyzs: Any,
         batched_positions: Any,
+        batched_scales: Any = None,
         *,
         axes_length: float = 0.5,
         axes_radius: float = 0.025,

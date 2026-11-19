@@ -81,6 +81,9 @@ that 0.3.0 renames or removes, one table row each.
   `body_hull` and `color`; a `bones`, `cluster` or `joint_size` below 0, a `size` not above 0, or any of them not
   finite raises `ArgumentError`. A skeleton is three batched nodes. `Theme.shade` takes the role `bone` for
   the maximal skeleton's pale bodies and the medium one's rods.
+- `FramesLayer(scales=)`: one factor per frame `(F,)` on the length and thickness of its axes, an array that follows
+  the array rule; `RobotVisual`'s triads take the glyph radius of their joint in the maximal skeleton, so a finger's triad
+  is a finger's size, where one length for all drew a hand's fingers as a bed of spikes.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
   as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files

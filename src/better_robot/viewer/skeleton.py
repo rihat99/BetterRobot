@@ -202,14 +202,16 @@ class Blocks:
 class Skeleton:
     """The blocks of one robot under one recipe: ``build_skeleton`` makes it, ``place`` poses it.
 
-    ``scale`` is the robot's size (diagonal of the box of its joint origins at neutral) and ``radius`` the reference
-    glyph radius. ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0.5, 1]``) list, by
+    ``scale`` is the robot's size (diagonal of the box of its joint origins at neutral), ``radius`` the reference
+    glyph radius and ``radii (njoints,)`` the radius each joint's glyph is sized by, before ``joint_size`` (a fixed
+    joint's is that of the joint its body is welded to, the universe's the reference). ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0.5, 1]``) list, by
     joint name, the glyphs the layout moved or shrank. ``taper`` is the ``unit_box`` the boxes are drawn with: 0.8 for the maximal layout,
     whose bodies narrow towards their +z, 1 (a cube) for a stick figure.
     """
 
     scale: float
     radius: float
+    radii: np.ndarray  # (njoints,)
     taper: float
     cylinders: Blocks
     balls: Blocks
@@ -324,7 +326,7 @@ def build_skeleton(
     rows = _Rows(tree, recipe)
     if recipe.glyphs == "ball":
         _stick_figure(tree, recipe, rows, clouds, factor=factor)
-        return rows.pack(slides={}, shrinks={})
+        return rows.pack(slides={}, shrinks={}, radii=tree.radius)
     tree, compound = _compounds(tree, recipe.size)
     if recipe.hulls == "none":  # on rods, a row of close drums (a wrist) keeps rod between them
         spaced = {j: _SPACING * min(tree.bones(j), default=np.inf) for j in tree.glyphs}
@@ -348,6 +350,7 @@ def build_skeleton(
     return rows.pack(
         slides={model.joint_names[j]: s for j, s in slide.items() if abs(s) > 1e-9},
         shrinks={model.joint_names[j]: k for j, k in shrink.items() if k < 1.0},
+        radii=ends,
     )
 
 
@@ -1224,8 +1227,10 @@ class _Rows:
                 anchors=(start, end),
             )
 
-    def pack(self, *, slides: Mapping[str, float], shrinks: Mapping[str, float]) -> Skeleton:
-        """The finished ``Skeleton``: every world placement expressed in its joint's frame."""
+    def pack(
+        self, *, slides: Mapping[str, float], shrinks: Mapping[str, float], radii: Mapping[int, float]
+    ) -> Skeleton:
+        """The finished ``Skeleton``: every world placement expressed in its joint's frame; ``radii`` per glyph."""
         tree = self.tree
         packed = {}
         for mesh, rows in self.rows.items():
@@ -1254,6 +1259,7 @@ class _Rows:
         return Skeleton(
             scale=tree.scale,
             radius=tree.reference,
+            radii=np.array([radii.get(group, tree.reference) for group in tree.anchor]),
             taper=_TAPER if self.recipe.glyphs == "kind" and self.recipe.hulls != "none" else 1.0,
             **packed,
             points_body=np.array([body for body, _ in self.points], dtype=np.int64),

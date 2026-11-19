@@ -14,7 +14,7 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
 1. **One layer per robot.** `viewer.RobotVisual(model, q)` runs forward kinematics once over `q`, `(nq,)` or a clip
    `(T, nq)`, and owns every way the robot is drawn: a style (`"meshes"`, `"minimal"`, `"medium"`, `"maximal"`), a
    collision overlay (the sphere set, else the collision shapes of the geometry) and frame triads (every moving
-   joint, or frames by id or name). `update(q)` shows new configurations of the same number of steps.
+   joint, or frames by id or name, each the size of its joint's glyph). `update(q)` shows new configurations of the same number of steps.
 2. **Parts are built once and then hidden.** A style, the overlay and the triads are each built the first time
    they are shown, so a hidden robot builds none; a switch only shows and hides them (another set of named frames is another triad node), and a
    step is written only to the parts on screen. `set_style`, `set_collision` and `set_frames` switch from code, and

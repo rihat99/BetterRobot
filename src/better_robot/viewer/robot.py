@@ -62,7 +62,7 @@ Style = Literal["meshes", "minimal", "medium", "maximal"]
 
 _STYLES = ("meshes", "minimal", "medium", "maximal")
 _SKELETONS = _STYLES[1:]
-_TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the skeleton's glyph radius
+_TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the glyph radius of the joint it hangs on
 _GLASS = 0.002  # the collision glass stands this share of the robot's size off its shapes: clear of the meshes
 
 
@@ -417,10 +417,11 @@ class RobotVisual(Layer):
                     bone_poses=self._poses, color=self._theme.shade(self.hue, "body"), opacity=self.opacity,
                 )
             ]  # fmt: skip
-        if part == "frames":
-            radius = self._skeleton("maximal").radius  # a triad reaches one glyph radius out of its joint's drum
-            poses = np.zeros((self.nsteps, self._frame_count(), 7), np.float32)
-            layer = FramesLayer(part, poses, axes_length=_TRIAD[0] * radius, axes_radius=_TRIAD[1] * radius)
+        if part == "frames":  # a triad reaches one glyph radius out of its joint's drum: a finger's is a finger's size
+            joints = self._triad_joints()
+            poses = np.zeros((self.nsteps, len(joints), 7), np.float32)
+            scales = self._skeleton("maximal").radii[joints]
+            layer = FramesLayer(part, poses, axes_length=_TRIAD[0], axes_radius=_TRIAD[1], scales=scales)
             return [self._derive(part, layer)]
         if part == "collision" and self.spheres is not None:
             radii = self.spheres.radii.detach().cpu().numpy()
@@ -442,8 +443,11 @@ class RobotVisual(Layer):
         opacity = self._theme.collision_opacity if collision else self.opacity
         return [RigidMeshLayer(part, specs, body_poses=self._poses, opacity=opacity)]
 
-    def _frame_count(self) -> int:
-        return len(self._moving()) if self._triads is True else len(self._triads or ())
+    def _triad_joints(self) -> list[int]:
+        """The joint each triad of the frames part hangs on: every moving joint, or each frame's parent joint."""
+        if self._triads is True:
+            return self._moving()
+        return [self.model.frame_parent_joint_ids[f] for f in self._triads or ()]
 
     def _moving(self) -> list[int]:
         return [j for j in range(1, self.model.njoints) if not isinstance(self.model.joints[j], JointFixed)]
@@ -456,7 +460,7 @@ class RobotVisual(Layer):
                 layer.poses[...] = self._poses[:, self._moving()]
             else:
                 ids = list(self._triads or ())
-                parents = [model.frame_parent_joint_ids[f] for f in ids]
+                parents = self._triad_joints()
                 layer.poses[...] = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses)).numpy()
         elif self.spheres is not None:
             layer.centers[...] = _centers(model, self.spheres, poses)

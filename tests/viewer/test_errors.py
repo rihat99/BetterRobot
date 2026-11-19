@@ -16,6 +16,7 @@ from better_robot.testing import FakeServer
 from better_robot.viewer import (
     ArrowsLayer,
     CameraLayer,
+    FramesLayer,
     GroundLayer,
     MeshLayer,
     MeshSpec,
@@ -64,6 +65,7 @@ _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
         "colors must be",
     ),
     (lambda: MeshLayer("m", np.zeros((3, 3)), faces=np.array([[0, 1, 2, 0]])), ShapeError, r"faces must be \(F, 3\)"),
+    (lambda: FramesLayer("f", np.zeros((2, 7)), scales=np.ones(3)), ShapeError, r"scales must be \(F,\) = \(2,\)"),
     (
         lambda: MeshLayer("m", np.zeros((3, 3)), faces=np.array([[0, 1, 3]])),
         ArgumentError,
