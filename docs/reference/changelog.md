@@ -144,8 +144,8 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.theme.colormap`: no replacement; nothing called it once the torque colours went, and an application maps
   values to colours with numpy.
 - `CameraLayer` from `viewer.layers.skinned`, a second path to it: use `better_robot.viewer.CameraLayer`.
-- The names `better_robot.viewer.layers` re-exported, seven of the twelve layers, a second path to them: import every
-  layer from `better_robot.viewer`.
+- The names `better_robot.viewer.layers` re-exported, seven of the twelve layers, a second path to them: use
+  `better_robot.viewer`, which holds every layer.
 
 ### Fixed
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
