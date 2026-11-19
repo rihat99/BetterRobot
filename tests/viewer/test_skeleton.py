@@ -152,12 +152,26 @@ def _servo(builder: br.io.ModelBuilder) -> None:
     builder.add_revolute("spin", parent="case", child="horn", origin=_at(z=0.02), **_HINGE)
 
 
+def _bust(builder: br.io.ModelBuilder) -> None:
+    """A floating chest with two arms and a head on a pan and tilt neck that rises above them."""
+    for name in ("chest", "l_arm", "r_arm", "neck", "head"):
+        builder.add_body(name, mass=1.0)
+    builder.add_free_flyer_root(child="chest")
+    builder.add_shape("chest", Box(size=(0.2, 0.4, 0.5), placement=(0, 0, 0, 0, 0, 0, 1.0)))
+    for side, y in (("l", 0.25), ("r", -0.25)):
+        builder.add_revolute(f"{side}_shoulder", parent="chest", child=f"{side}_arm", origin=_at(y=y, z=0.2), **_HINGE)
+        builder.add_shape(f"{side}_arm", Box(size=(0.06, 0.06, 0.3), placement=(0, 0, -0.15, 0, 0, 0, 1.0)))
+    builder.add_revolute("pan", parent="chest", child="neck", origin=_at(z=0.3), **{**_HINGE, "axis": (0.0, 0.0, 1.0)})
+    builder.add_revolute("tilt", parent="neck", child="head", origin=_at(), **_HINGE)
+    builder.add_shape("head", Box(size=(0.16, 0.16, 0.18), placement=(0, 0, 0.12, 0, 0, 0, 1.0)))
+
+
 #: Small models at the edges of the layout.
 _SYNTHETIC: dict[str, Callable[[br.io.ModelBuilder], None]] = {
     "arm": _arm, "thin_tip": partial(_arm, thin=True), "boxed_arm": partial(_arm, boxes=True),
     "world_hinge": partial(_on_world, slider=False),
     "world_slider": partial(_on_world, slider=True), "gantry": _gantry, "planar": _planar, "hand": _hand,
-    "fixed": _fixed, "box": _box, "servo": _servo,
+    "fixed": _fixed, "box": _box, "servo": _servo, "bust": _bust,
 }  # fmt: skip
 
 
@@ -363,6 +377,54 @@ def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe:
         if owner in hinges | sliders:
             assert part in ("tip", "fill"), (name, model.joint_names[owner], part)
             np.testing.assert_allclose(color, LIGHT.shade(hue, "bone"), atol=1e-6)
+
+
+@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
+def test_a_neck_ends_in_a_head_that_stands_above_its_trunk(recipe: SkeletonRecipe) -> None:
+    """A chain of at most two joints that leaves a trunk above every other joint and ends in round geometry is a
+    neck: it ends in one pale ball in the middle of that geometry (maximal: 0.8 of its middle half extent; medium:
+    the reference radius), and the trunk's body stops under the neck's drums (a Talos, an Atlas)."""
+    model, geometry = _synthetic("bust")
+    skeleton = build_skeleton(model, recipe, geometry=geometry)
+    tilt, pan = model.joint_names.index("tilt"), model.joint_names.index("pan")
+    (balls, _), (boxes, sides) = (skeleton.place(_poses(model))[mesh] for mesh in ("balls", "boxes"))
+    heads = [i for i, (_, owner) in enumerate(_parts(skeleton, "balls")) if owner == tilt]
+    assert len(heads) == 1 and skeleton.balls.part[heads[0]] == "tip"
+    np.testing.assert_allclose(balls[heads[0], :3], [0.0, 0.0, 0.42], atol=1e-6)
+    np.testing.assert_allclose(skeleton.balls.scale[heads[0]], 0.064 if recipe is MAXIMAL else skeleton.radius)
+    if recipe is MAXIMAL:
+        cylinders, (drums, lengths) = skeleton.cylinders, skeleton.place(_poses(model))["cylinders"]
+        neck = [
+            i
+            for i, (part, owner) in enumerate(_parts(skeleton, "cylinders"))
+            if part == "drum" and owner in (pan, tilt)
+        ]
+        reach = [drums[i, 2] - np.abs(_rotations(drums[[i], 3:])[0][2]) @ (lengths[i] * [1.0, 1.0, 0.5]) for i in neck]
+        chest = [i for i, part in enumerate(skeleton.boxes.part) if part == "hull"]
+        top = [boxes[i, 2] + np.abs(_rotations(boxes[[i], 3:])[0][2]) @ (sides[i] / 2) for i in chest]
+        assert cylinders.part and max(top) <= min(reach) + 1e-9
+
+
+def test_g1_chest_stops_above_its_waist_drums() -> None:
+    """A trunk's body stops short of the drums of the compound at its joint: the G1's waist gimbal stands between its
+    chest and its pelvis instead of half inside the chest."""
+    model, spheres = _g1()
+    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    (boxes, sides), (drums, lengths) = (skeleton.place(_poses(model))[mesh] for mesh in ("boxes", "cylinders"))
+    chest = model.joint_names.index("waist_pitch_joint")
+    hull = next(
+        i
+        for i, (part, body) in enumerate(zip(skeleton.boxes.part, skeleton.boxes.body))
+        if part == "hull" and body == chest
+    )
+    bottom = boxes[hull, 2] - np.abs(_rotations(boxes[[hull], 3:])[0][2]) @ (sides[hull] / 2)
+    waist = {model.joint_names.index(f"waist_{name}_joint") for name in ("yaw", "roll", "pitch")}
+    tops = [
+        drums[i, 2] + np.abs(_rotations(drums[[i], 3:])[0][2]) @ (lengths[i] * [1.0, 1.0, 0.5])
+        for i, (part, owner) in enumerate(_parts(skeleton, "cylinders"))
+        if part == "drum" and owner in waist
+    ]
+    assert len(tops) == 3 and bottom >= max(tops) - 1e-9
 
 
 def _parts(skeleton: Skeleton, mesh: str) -> list[tuple[str, int]]:
