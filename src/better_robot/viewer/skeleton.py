@@ -1292,6 +1292,15 @@ def _heads(tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int
     return heads
 
 
+def _mirrored(tree: _Tree, joint: int, other: int) -> bool:
+    """Whether the origins of ``joint`` and ``other`` mirror each other across the root body's x-z plane (left and
+    right, each more than 2 % of the robot off it, within 2 % of the robot)."""
+    root = tree.root[joint]
+    a, b = ((tree.origin[j] - tree.origin[root]) @ tree.rotation[root] for j in (joint, other))
+    side = 0.02 * tree.scale
+    return abs(a[1]) > side and bool(np.linalg.norm(a * [1.0, -1.0, 1.0] - b) < side)
+
+
 def _knob(
     tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, group: int, clouds: Sequence[_Cloud], *, start: int,
     radius: float,
@@ -1322,7 +1331,8 @@ def _sticks(
 
     Each ball hangs from the ball of the nearest drawn group above it. A group with a hull, or with two or more
     balls below it, joins them through a hub that is rigid in the group: the centre of its body hull, or the mean
-    of its child joints (spine, hip bar, shoulder bar). A fixed base gets a cube at the root body's origin and a
+    of its child joints; a left and right pair of them hangs from a bar whose middle joins the hub, so a quadruped
+    has a spine and two shoulder bars and a pelvis a hip bar, not a star of sticks from the hub. A fixed base gets a cube at the root body's origin and a
     stick up to each first ball; an end block hangs from its ball, a head from its group's hub.
     """
     origin = tree.origin
@@ -1353,7 +1363,18 @@ def _sticks(
         if group and first and (len(first) >= 2 or boxes):
             where = boxes[0].center if boxes else np.mean([origin[joint] for joint in first.values()], axis=0)
             hub = hubs[group] = rows.point(group, where)
-            sticks += [(anchor[own], hub, group), *((hub, anchor[c], joint) for c, joint in first.items())]
+            sticks.append((anchor[own], hub, group))
+            bars: dict[frozenset[int], int] = {}  # a mirror pair of child balls hangs from a bar: hips, shoulders
+            for c, joint in first.items():
+                twin = next((d for d in first if d != c and _mirrored(tree, joint, first[d])), None)
+                if twin is None:
+                    sticks.append((hub, anchor[c], joint))
+                    continue
+                pair = frozenset((c, twin))
+                if pair not in bars:
+                    bars[pair] = rows.point(group, (rows.where[anchor[c]] + rows.where[anchor[twin]]) / 2)
+                    sticks.append((hub, bars[pair], group))
+                sticks.append((bars[pair], anchor[c], joint))
         elif group:
             sticks += [(anchor[own], anchor[c], joint) for c, joint in first.items()]
     for hull in hulls:
