@@ -236,6 +236,24 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
     assert scene.nodes["/g/ground/grid"].props["position"] == (0.0, 0.0, 0.5)
 
 
+def test_a_layer_draws_its_array_attributes_so_an_edit_in_place_and_a_redraw_update_the_scene() -> None:
+    """One rule for every layer: the float32 attribute is what it draws. A C-contiguous float32 input is that
+    attribute (no copy of a big cloud); any other input is converted once, so the attribute is what to edit."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    cloud = np.zeros((3, 4, 3))  # numpy's default float64
+    points = viewer.add(PointsLayer("cloud", cloud))
+    origins = np.zeros((1, 2, 3), np.float32)
+    arrows = viewer.add(ArrowsLayer("forces", origins, vectors=np.ones((1, 2, 3), np.float32), scale=0.5))
+    assert points.points is not cloud and arrows.origins is origins
+    points.points[:, :, 2] += 0.5
+    arrows.vectors[0, 1] = (0.0, 0.0, 4.0)  # unscaled, as given: the scale applies at the push
+    viewer.show()
+    np.testing.assert_allclose(server.scene.nodes["/cloud/cloud/points"].points[:, 2], 0.5)
+    np.testing.assert_allclose(server.scene.nodes["/forces/forces/arrows"].points[1, 1], [0.0, 0.0, 2.0])
+    assert np.shares_memory(PointsLayer("static", origins[0]).points, origins)  # a static float32 cloud too
+
+
 def test_arrows_hide_zero_vectors() -> None:
     scene = FakeServer().scene
     arrows = ArrowsLayer(

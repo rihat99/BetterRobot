@@ -23,6 +23,9 @@ def as_frames(
 ) -> np.ndarray:
     """Promote an array to ``(T, ...)`` float32: a static array (no leading axis) becomes ``T = 1``.
 
+    A C-contiguous float32 array comes back without a copy (a view, for static input), so a layer shares the caller's
+    memory; any other input is converted once.
+
     ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``; ``width``, when given,
     is the size of the last axis. A wrong shape raises ``ShapeError`` naming the argument ``name``.
     """
@@ -61,7 +64,10 @@ class Layer(ABC):
 
     A layer owns its preloaded arrays and the viser handles it creates in ``build``. The viewer
     calls ``set_step(k)`` to write slice ``k`` into those handles; a static layer has
-    ``nsteps == 1`` and is pushed once. Handles registered with ``_track`` get the default
+    ``nsteps == 1`` and is pushed once. The arrays are the layer's float32 ``(T, ...)`` attributes
+    (``PointsLayer.points``, ``FramesLayer.poses``, ...), read at each push: edit one in place and call ``redraw``
+    (or ``Viewer.show()``) to update the scene. An input that already is a C-contiguous float32 array is that
+    attribute, no copy, which keeps a big cloud single; any other input is converted once, so edit the attribute. Handles registered with ``_track`` get the default
     ``set_visible`` and ``dispose``; ``visible`` and ``set_visible`` are the one way to read and switch a layer, and
     an override of ``set_visible`` or ``dispose`` calls the base method.
 

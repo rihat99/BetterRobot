@@ -158,7 +158,8 @@ class Viewer:
         every layer of the call (``T = layer.nsteps``); timeline step ``k`` then shows the latest sample at or before
         ``k / fps``. ``None`` keeps one sample per step. ``valid`` ``(T,)`` bool hides the layers on the samples
         where it is false (a person not tracked in that frame); ``(T, N)`` hides single elements of a layer that draws
-        ``N`` (``SpheresLayer``, ``ArrowsLayer``). It is kept by reference, like the layers' arrays. Nothing is added
+        ``N`` (``SpheresLayer``, ``ArrowsLayer``); the layer keeps it as ``layer.valid``, like its other arrays: edit
+        that in place and ``redraw``. Nothing is added
         when any layer is refused, or raises while it builds or shows its first step: that error propagates and the
         viewer is as it was.
         """

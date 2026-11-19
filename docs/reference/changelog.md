@@ -115,6 +115,8 @@ that 0.3.0 renames or removes, one table row each.
   light theme's `(140, 150, 165)` at 0.18 was a dim ghost on the dark backdrop.
 - `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
   `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
+- `ArrowsLayer.vectors` holds the vectors as given (was multiplied by `scale`) and `ArrowsLayer.scale` applies at
+  each push, so an in-place edit is in the units of the input; a float32 input is no longer copied.
 
 ### Removed
 - `Viewer.add(group=)`, `Viewer.add_plot(group=)` and `Viewer.remove_group`: use `Viewer.add(tags=)` and
@@ -146,6 +148,10 @@ that 0.3.0 renames or removes, one table row each.
 ### Fixed
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
   opened whatever page listened there).
+- The docs and `Viewer.add` said a layer keeps the caller's arrays by reference, and the docs' example edited a
+  float64 cloud that the layer had copied. A layer keeps its arrays as float32 attributes (`layer.points`,
+  `layer.poses`, `layer.valid`, ...), the input itself only when it already is C-contiguous float32: edit the
+  attribute in place and call `redraw()` or `Viewer.show()`.
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
 

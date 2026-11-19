@@ -4,9 +4,10 @@ The design is `docs/concepts/viewer.md`; read it first.
 
 - Public callables take at most two positional parameters (a layer: its name and main array); the rest are
   keyword-only.
-- Layers take numpy `(T, ...)` arrays (`as_frames` promotes static input to `T = 1`) and keep them by
-  reference: in-place edits plus `viewer.show()` update the scene. Per step write arrays into existing
-  handles; never create or remove nodes during playback.
+- Layers take numpy `(T, ...)` arrays (`as_frames` promotes static input to `T = 1`) and keep them as float32
+  attributes, without a copy when the input already is C-contiguous float32: edits of the attribute in place plus
+  `redraw()` or `viewer.show()` update the scene. Per step write arrays into existing handles; never create or
+  remove nodes during playback.
 - `Viewer.show` is the only step-push path (one `server.atomic()` block). Keep `set_step` free of
   torch and FK; adapters precompute.
 - Time: one integer `step` timeline; a layer with `times` (seconds) is mapped by `Viewer._index`, and

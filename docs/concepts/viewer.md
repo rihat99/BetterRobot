@@ -13,8 +13,10 @@ nothing else in the library imports it. viser is imported only when you create a
 
 A `Layer` is one named thing in the scene: a point cloud, a skeleton, rigid meshes, coordinate frames, arrows.
 You give it every frame up front as numpy arrays with a leading time axis `(T, ...)`. Static input counts as
-`T = 1`. The layer keeps the arrays **by reference**, so editing them in place and calling `layer.redraw()` updates
-the scene without rebuilding anything.
+`T = 1`. The layer keeps them as float32 attributes (`points.points`, `frames.poses`, ...) that it reads at every
+push, so editing one in place and calling `layer.redraw()` updates the scene without rebuilding anything. A
+C-contiguous float32 input is that attribute itself, no copy, which keeps a big cloud in memory once; any other
+input (numpy's default float64, a list) is converted once, so edit the layer's attribute, not your input.
 
 ![The Viewer shows layers that each hold a whole clip; `record` draws the same scene in a headless Chromium.](../figures/viewer_layers.svg)
 
@@ -117,12 +119,16 @@ viewer.add([PointsLayer("mocap", markers_10hz)], times=np.arange(len(markers_10h
 
 `viewer.add([layer], valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
 as a person who is not tracked in that frame; its sidebar switch stays on. A `(T, N)` mask hides single spheres of a
-`SpheresLayer` or arrows of an `ArrowsLayer`. Like the layer's arrays, `v` is kept by reference.
+`SpheresLayer` or arrows of an `ArrowsLayer`. The layer keeps `v` as `layer.valid`, beside its other arrays.
 
 ```python
 viewer.show(10)
-cloud[:, :, 2] += 0.5   # edit the clip in place ...
-viewer.show()           # ... and re-push step 10
+points.points[:, :, 2] += 0.5   # edit the layer's clip in place ...
+viewer.show()                   # ... and re-push step 10
+print(round(float(points.points[10, :, 2].mean() - cloud[10, :, 2].mean()), 3))   # your float64 cloud is as it was
+```
+```output
+0.5
 ```
 
 The other three calls consume the timeline:
