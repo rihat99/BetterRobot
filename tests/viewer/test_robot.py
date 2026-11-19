@@ -537,6 +537,49 @@ def test_two_robots_of_one_model_need_a_name_each() -> None:
     assert [layer.name for layer in viewer.layers] == ["panda", "second"]
 
 
+@pytest.mark.parametrize("style", ["maximal", "medium", "minimal"])
+def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_node(style: str) -> None:
+    """A step with values writes the colours of the node that holds the glyphs, once, beside what it writes without
+    them, and makes no node; only the knee's glyph changes colour, to the ramp's ends (clamped), its drum face in the
+    face shade. Taking the values away gives the hue's colours back; values of another shape are refused."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    knee = model.joint_names.index("left_knee_joint")
+    values = np.full((2, model.njoints), np.nan, dtype=np.float32)  # NaN: no value
+    values[:, knee] = (-1.0, 5.0)  # below and above the range
+    q = model.q_neutral.repeat(2, 1)
+    plain, plain_server, plain_viewer = _g1_visual(q, style=style)
+    robot, server, viewer = _g1_visual(q, style=style, joint_values=values, value_range=(0.0, 2.0))
+    assert set(_drawn(server)) == set(_drawn(plain_server))
+    for each in (server, plain_server):
+        each.scene.log.clear()
+    viewer.show(1)
+    plain_viewer.show(1)
+    node = f"/g1_29dof/g1_29dof/{style}/{'balls' if style == 'minimal' else 'cylinders'}"
+    assert sorted(set(server.scene.log) - set(plain_server.scene.log)) == [(node, "batched_colors")]
+    assert len(server.scene.log) == len(plain_server.scene.log) + 1
+
+    blocks = getattr(robot._skeleton(style), node.rsplit("/", 1)[-1])
+    knees = [i for i, owner in enumerate(blocks.owner) if owner == knee and blocks.part[i] in ("drum", "face", "ball")]
+    painted, hue = server.scene.nodes[node].batched_colors, plain_server.scene.nodes[node].props["batched_colors"]
+    assert np.flatnonzero((painted != hue).any(axis=1)).tolist() == knees
+    high = {"drum": LIGHT.ramp[1], "ball": LIGHT.ramp[1], "face": LIGHT.shade(LIGHT.ramp[1], "face")}
+    for i in knees:
+        np.testing.assert_array_equal(painted[i], linear_uint8(high[blocks.part[i]]))
+    viewer.show(0)
+    assert (server.scene.nodes[node].batched_colors[knees[0]] == linear_uint8(LIGHT.ramp[0])).all()
+    robot.set_joint_values(None)
+    np.testing.assert_array_equal(server.scene.nodes[node].batched_colors, hue)
+
+    for wrong in (np.zeros((3, model.njoints)), np.zeros(model.nv), torch.zeros(2, model.njoints, 1)):
+        with pytest.raises(ShapeError, match="joint_values"):
+            robot.set_joint_values(wrong)
+    for span in ((1.0, 1.0), (0.0, float("nan"))):
+        with pytest.raises(ArgumentError, match="value_range"):
+            robot.set_joint_values(values, value_range=span)
+    with pytest.raises(ShapeError, match="value_range"):
+        robot.set_joint_values(values, value_range=(0.0, 1.0, 2.0))  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize("style", ["minimal", "medium"])
 def test_robot_visual_stick_figure_writes_lengths_to_the_stick_node_only(style: str) -> None:
     _, server, viewer = _g1_visual(style=style)

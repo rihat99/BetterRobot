@@ -84,14 +84,16 @@ _GLYPHS = {
 _Shade = Literal["joint", "face", "body", "bone", "stick"]
 #: The shade each part of the skeleton takes from the robot's hue: light bodies, mid drums, dark drum faces. A
 #: ``head`` (the ball of a head over its trunk, where the glyphs are drawn) and a ``cap`` (the round end of the rod
-#: that ends a chain) take the body's shade: no ball but a spherical joint's reads as a joint.
+#: that ends a chain) take the body's shade: no ball but a spherical joint's reads as a joint. A ``knob`` (the small
+#: ball that ends a chain of the stick figure, or its head) takes the shade of the balls but draws no joint.
 _ROLE: dict[str, _Shade] = {
-    "drum": "joint", "sleeve": "joint", "ball": "joint",
+    "drum": "joint", "sleeve": "joint", "ball": "joint", "knob": "joint",
     "face": "face", "marker": "face", "base": "face",
     "bone": "bone", "hull": "bone", "end": "bone", "rod": "bone", "rail": "bone", "head": "bone", "cap": "bone",
     "stick": "stick",
 }  # fmt: skip
 _MESHES = ("cylinders", "balls", "boxes")
+_JOINT_PARTS = ("drum", "face", "sleeve", "ball", "marker")  # the blocks that draw a joint; a free base is no motor
 
 
 @final
@@ -256,6 +258,23 @@ class Skeleton:
         poses = torch.from_numpy(np.ascontiguousarray(joint_poses))
         local = torch.from_numpy(self.line_local).to(poses.dtype)
         return se3.act(poses[..., self.line_body, None, :], local).numpy()
+
+    def glyphs(self, mesh: str, njoints: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """The blocks of ``mesh`` that draw joints: ``(rows (n,), joints (n, njoints) bool, faces (n,) bool)``.
+
+        A glyph of its kind (a drum and its faces, a sleeve, a spherical joint's ball, a marker) stands for its
+        joint, a ball of the stick figure for every joint of its cluster; ``faces`` marks the blocks in the dark
+        shade of a drum's faces. A body, a bone, a stick or rod, a rail, a head, a knob, a cap and the cube of a free
+        base draw no joint.
+        """
+        blocks: Blocks = getattr(self, mesh)
+        rows = np.array([i for i, part in enumerate(blocks.part) if part in _JOINT_PARTS], dtype=np.int64)
+        joints = np.zeros((len(rows), njoints), dtype=bool)
+        for k, i in enumerate(rows):
+            anchor = blocks.anchors[i, 0]  # a ball of the stick figure sits at the mean of its joints' origins
+            joints[k] = self.weights[anchor, :njoints] > 0.0 if anchor >= 0 else np.arange(njoints) == blocks.owner[i]
+        faces = np.array([_ROLE[blocks.part[i]] == "face" for i in rows], dtype=bool)
+        return rows, joints, faces
 
     def colors(self, hue: RGB, theme: Theme) -> dict[str, np.ndarray]:
         """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``theme.shade`` of ``hue`` for its part and side, or the
@@ -1450,7 +1469,7 @@ def _stick_figure(
             rows.anchor({j: 1.0 / len(joints) for j in joints}, where) if rigid is None else rows.point(rigid, where)
         )
     hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], tree.radius[j]) for j in tree.glyphs}, {}, {})
-    tip = "ball" if glyphs is None else "head"  # beside drums a head is pale: a ball there is no joint
+    tip = "knob" if glyphs is None else "head"  # beside drums a head is pale: a ball there is no joint
     heads = _heads(tree, recipe, rows, clouds, part=tip)
     crowned = _crowns(tree, clouds, heads)
     sticks = _sticks(tree, rows, [*hulls, *heads], members=members, cluster=cluster, anchor=anchor)
@@ -1527,7 +1546,7 @@ def _knob(
     body (``_tip``), and the small ball of ``part`` that ends it, both rigid in the leaf's frame; the stick is
     returned, the ball added. Nothing when the end is inside the leaf's ball. The ball's radius is 0.55 of the leaf's ball, or less to
     stay clear of it, and at least 1.25 times the stick's; a ``head``'s is a ball of the reference radius in the
-    middle of its body. A ``part`` other than ``"ball"`` (the glyphs beside the rods) adds no ball but a head: the
+    middle of its body. A ``part`` other than ``"knob"`` (the glyphs beside the rods) adds no ball but a head: the
     stick stops a stick's radius short of the end, where ``_stick_figure`` rounds it with a cap.
     """
     end, centred = _tip(tree, recipe, group, clouds)
@@ -1540,9 +1559,9 @@ def _knob(
         return []
     clear = min(_TIP[0] * radius, (length - radius) / 2.0)  # clear of the leaf's ball: no blob round a short finger
     ball = tree.reference if head else max(1.25 * min(recipe.bones * tree.reference, radius), clear)
-    ball = ball if head or part == "ball" else min(recipe.bones * tree.reference, radius)  # else the cap's radius
+    ball = ball if head or part == "knob" else min(recipe.bones * tree.reference, radius)  # else the cap's radius
     end = end if centred or head else end - ball * toward / length  # a surface end: the ball ends there
-    if ball > 0.0 and (head or part == "ball"):  # a knob, wider than its stick
+    if ball > 0.0 and (head or part == "knob"):  # a knob, wider than its stick
         rows.add("balls", part, group, end, (ball, ball, ball), owner=group)
     return [(start, rows.point(group, end), group)]
 
