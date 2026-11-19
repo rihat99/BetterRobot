@@ -121,7 +121,8 @@ print(body.styles, viewer.timeline.nsteps)
 ('meshes', 'minimal', 'medium', 'maximal') 60
 ```
 
-The skinned surface is a linear blend of the joints, without the pose correctives of `state.vertices`; it costs
+The body takes the first of the theme's hues no other robot has; `RobotVisual(..., hue=(r, g, b))` gives it a colour
+of its own. The skinned surface is a linear blend of the joints, without the pose correctives of `state.vertices`; it costs
 one bone pose per joint and step. For the exact surface, show the vertices themselves under the same pose:
 `viewer.add(MeshLayer("surface", state.vertices.numpy(), faces=human.spec.faces.numpy()), tags="surface",
 pose=(0.0, 1.0, 0.0, *Z_UP))`, which sends `T x V x 3` floats. A body without a model, given only its bone poses

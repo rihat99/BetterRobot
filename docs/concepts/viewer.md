@@ -44,8 +44,9 @@ video (`(T, H, W, 3)` uint8, or a callable `step -> image` with `nsteps=`). `Poi
 contact turning red or green. A list of `(N_t, 3)` arrays makes a `PointsLayer` whose size changes per step
 (detections, a growing map); a step without points hides it. `LinesLayer(name, points)` draws segments
 `(T, N, 2, 3)` (start, end) `width` pixels wide, in the theme's text colour unless given `colors`.
-`MeshLayer(name, vertices, faces=, colors=(V, 3))` colours each vertex: a static mesh blends them across each face,
-a deforming one draws one scene node per distinct colour (at most 64), each face in its first vertex's colour.
+`MeshLayer(name, vertices, faces=, colors=(V, 3))` colours each vertex, the same colours at every step: a static
+mesh blends them across each face, a deforming one draws one scene node per distinct colour (at most 64), each face
+in its first vertex's colour.
 `CameraLayer(name, poses, intrinsics=K, size=(W, H))` draws a pinhole camera's frustum from its intrinsics, an
 off-centre principal point included, cut `scale` metres in front of the camera, with an optional image on the cut.
 `ArrowsLayer` draws viser's solid arrows, a cylinder of `shaft_radius` and a cone of `head_radius` and `head_length`
@@ -129,7 +130,8 @@ viewer.add([PointsLayer("mocap", markers_10hz)], times=np.arange(len(markers_10h
 
 `viewer.add([layer], valid=v)` with a bool `v` of shape `(T,)` hides the layer on the samples where `v` is false, such
 as a person who is not tracked in that frame; its sidebar switch stays on. A `(T, N)` mask hides single spheres of a
-`SpheresLayer` or arrows of an `ArrowsLayer`. The layer keeps `v` as `layer.valid`, beside its other arrays.
+`SpheresLayer` or arrows of an `ArrowsLayer`. The layer keeps `v` as `layer.valid`, beside its other arrays. One
+`add` gives its one mask to every layer of the call, so layers with masks of their own take an `add` each.
 
 ```python
 viewer.show(10)
@@ -207,7 +209,7 @@ it moves the other robots to the first style left. `update(q)` shows new configu
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
 theme's hues that no other robot of the viewer is drawn in, unless `hue=` names one, so a robot that replaces
 another takes its hue back; `robot.hue` is the colour it is drawn in. The name defaults to the model's, so two robots of
-one model need a `name=` each.
+one model need a `name=` each, and `B` rollouts `(B, T, nq)` are `B` visuals, `q[b]` each.
 
 ### The skeleton
 
@@ -284,8 +286,10 @@ by step, to stand the robot on the ground.
 ### A skinned surface
 
 `Skin(vertices, faces, weights=, bind=)` is a surface that deforms with the joints: `vertices (V, 3)` in the world at
-the configuration `bind (nq,)` (`None` is `model.q_neutral`) and `weights (V, njoints)`. `RobotVisual(model, q,
-skin=skin)` shows it as the `"meshes"` style, skinned in the browser.
+the configuration `bind (nq,)` (`None` is `model.q_neutral`) and `weights (V, njoints)`, one column per model joint,
+the universe included: a body model's weights over its own joints are scattered into those columns
+([Use with BetterHuman](../guides/use-with-betterhuman.md)). `RobotVisual(model, q, skin=skin)` shows it as the
+`"meshes"` style, skinned in the browser.
 
 ## Tools: a gizmo and numpy picking
 

@@ -57,12 +57,17 @@ names that file. The options:
 - `camera=(position, look_at)`: each `(3,)` for a fixed view or `(len(steps), 3)` for one that moves with the steps;
   without it, the view `viewer.aim(steps=steps, fov=fov)` would choose (the boxes of the visible layers'
   `Layer.bounds` over `steps`, inside four fifths of the view, upright along the theme's `up` axis), while the live
-  browsers' cameras stay where they are. `fov` is the vertical field of view in radians, between 0 and pi.
+  browsers' cameras stay where they are. `fov` is the vertical field of view in radians, between 0 and pi. To look
+  through a camera you show as a `CameraLayer`, pass its positions and hide its tag first
+  (`viewer.set_visible(tag, False)`): its frustum and image would fill the view. The view stays upright along the
+  theme's `up` (no roll) and takes no principal point.
 - `gpu`: the `nvidia-smi` index of the GPU to draw on, through Vulkan; `None`, the default, draws on the CPU
   (SwiftShader, which ships with Chromium). A full-HD frame of a Panda takes about 130 ms on the CPU and 5 to 8 ms
   on a GPU.
 
-The frames are what a browser shows of the scene, background included: a dark theme records a dark clip. Playback
+The frames are what a browser shows of the scene, background included: a dark theme records a dark clip. They hold
+the canvas only: the sidebar and its panels (`PlotPanel`, `ImagePanel`) are not in the file, so a video with plots
+or the source footage beside the scene is composed by your application. Playback
 pauses while `record` runs, and the step shown before comes back after.
 
 `viewer.aim(steps=...)` points the live browsers with the same 3/4 view: the connected ones and every new one

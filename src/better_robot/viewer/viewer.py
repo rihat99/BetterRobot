@@ -181,7 +181,8 @@ class Viewer:
         ``k / fps``. ``None`` keeps one sample per step. ``valid`` ``(T,)`` bool hides the layers on the samples
         where it is false (a person not tracked in that frame); ``(T, N)`` hides single elements of a layer that draws
         ``N`` (``SpheresLayer``, ``ArrowsLayer``); the layer keeps it as ``layer.valid``, like its other arrays: edit
-        that in place and ``redraw``. Nothing is added
+        that in place and ``redraw``. Every layer of the call gets the one mask, so layers with masks of their own take
+        an ``add`` each. Nothing is added
         when any layer is refused, or raises while it builds or shows its first step: that error propagates and the
         viewer is as it was.
         """

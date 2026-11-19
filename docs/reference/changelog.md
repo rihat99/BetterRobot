@@ -205,6 +205,9 @@ that 0.3.0 renames or removes, one table row each.
   in `Viewer.add` with the library's error (was the builtin error of an unpack).
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
+- `SkinnedMeshLayer` names `weights` and `bone_poses` apart, each with the shape it needs: a `RobotVisual`'s `Skin`
+  with one weight column per joint of the body instead of per model joint raised an error about bone poses the
+  caller never passed.
 - [Use with BetterHuman](../guides/use-with-betterhuman.md) names BetterHuman's actual API (`HumanModel`,
   `Identity.forward(q, streams=)`, the `vertices` property, `joint_translations`) and shows a body in BetterRobot's
   viewer: `RobotVisual(identity.model, q, skin=Skin(...))` with the weights scattered by `joint_ids`, beside a G1
