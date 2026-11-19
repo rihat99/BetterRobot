@@ -55,7 +55,7 @@ _TAPER = 0.8  # a maximal block's side at z = 0.5 over its side at z = -0.5: eve
 _HEAD_CAP = 0.8  # a second frame of a body is a ball of at most this share of the body hull's smallest half extent
 _END_PAD = 0.4  # an end block pads its points by this share of min(joint radius, median sphere radius)
 _FLAT = 0.3  # a leaf's geometry is a sole when its thinnest extent is under this share of its middle one
-_TIP = 0.55  # the smallest ball that ends a leaf, over the leaf joint's radius
+_TIP = (0.55, 0.7)  # the smallest and the largest ball that ends a leaf, over the leaf joint's radius
 _PLATE = 0.45  # a sole is this many joint radii thick
 _LEAF_CAP = 1.25  # a leaf glyph is at most this share of the half thickness of the body it moves
 _LEAF_FLOOR = 0.2  # and at least this share of the reference radius: a thin placeholder shape is not a body
@@ -833,7 +833,7 @@ def _end(
     the end.
 
     A limb runs from the joint towards the end of the body (``_tip``), as thick as a bone, and ends in a ball as wide
-    as the points' middle half extent, between 0.55 and 1 joint radius (a hand, a paw): centred on an end frame, else
+    as the points' middle half extent, between 0.55 and 0.7 joint radius (a hand, a paw: smaller than the drum): centred on an end frame, else
     with its far side at the end, and always clear of ``glyphs`` (the leaf's drum and the glyph before it). A body
     that sits on its joint is a ball there. A sole is a plate 0.45 joint radii thick on the far side of the points,
     its underside where theirs is, as long and wide as their box and narrowing towards its joint: a heel, then a
@@ -851,7 +851,7 @@ def _end(
     low, high = local.min(axis=0) - pad, local.max(axis=0) + pad
     middle, half = (low + high) / 2, (high - low) / 2
     if thin >= _FLAT * mid and tree.kind[group] != "prismatic":  # a limb; a slider is a block
-        tip = float(np.clip(np.sort(half)[1], _TIP * radius, radius))
+        tip = float(np.clip(np.sort(half)[1], _TIP[0] * radius, _TIP[1] * radius))
         end, centred = _tip(tree, recipe, group, clouds)
         if min(np.linalg.norm(middle), np.linalg.norm(end - origin)) < 0.25 * radius:  # the body sits on its joint
             return [_Hull(name, "end", group, group, origin + rotation @ middle, rotation, np.full(3, tip), "balls")]
@@ -1059,14 +1059,16 @@ def _maximal(
     of a group and the glyphs of its child joints are all rigid in that group, and the layout holds for every
     configuration. Every glyph contains the ball of 0.8 of its radius about its centre and a bone is thinner, so a
     bone that runs centre to centre has both caps inside the glyphs. ``reach[j]`` is the drawn radius of glyph
-    ``j``, 0 for a hidden one, and ``ends[j]`` the radius of the end block of leaf ``j`` (``_hulls``).
+    ``j``, 0 for a hidden one, and ``ends[j]`` its radius before ``joint_size``, never 0: the end block of a leaf
+    (``_hulls``) and a bone are sized by it. A bone is ``bones`` times the radius of the glyph it leaves, so a limb
+    keeps its width up to a small joint, and never wider than the ball of 0.8 radii in a drawn glyph it joins.
     """
     origin = tree.origin
     center, frame = _placed(tree, slide)
 
-    def thickness(*ends: int) -> float:
-        shown = [reach[j] for j in ends if j and reach[j] > 0.0]
-        return recipe.bones * (min(shown) if shown else tree.reference)
+    def thickness(start: int, *joined: int) -> float:  # a bone is its start's, inside the glyphs it joins
+        shown = [0.8 * reach[j] for j in (start, *joined) if j and reach[j] > 0.0]
+        return min([recipe.bones * ends.get(start, tree.reference), *shown])
 
     solid = {j: (center[j], frame[j], _half(tree, j, reach[j])) for j in tree.glyphs if tree.kind[j] != "free"}
     hulls = _hulls(tree, recipe, clouds, ends, {j: box for j, box in solid.items() if reach[j] > 0.0})
@@ -1077,7 +1079,7 @@ def _maximal(
     for j in tree.glyphs:
         _glyph(tree, recipe, rows, j, center[j], frame[j], reach[j])
         if reach[j] <= 0.0 and tree.kind[j] != "free":  # a joint without its glyph: a ball rounds the bend of its bones
-            fill = thickness(tree.group[j], *tree.children[j])
+            fill = thickness(tree.group[j], j)
             rows.add("balls", "fill", j, center[j], (fill, fill, fill), owner=j)
         if recipe.bones > 0.0 and tree.kind[j] != "free":
             group = tree.group[j]
@@ -1284,7 +1286,7 @@ def _knob(
     length = float(np.linalg.norm(toward))
     if length <= radius:
         return []
-    clear = min(_TIP * radius, (length - radius) / 2.0)  # clear of the leaf's ball: no blob round a short finger
+    clear = min(_TIP[0] * radius, (length - radius) / 2.0)  # clear of the leaf's ball: no blob round a short finger
     ball = max(1.25 * min(recipe.bones * tree.reference, radius), clear)
     end = end if centred else end - ball * toward / length  # a surface end: the ball ends there
     if ball > 0.0:  # a knob, wider than its stick
