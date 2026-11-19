@@ -224,11 +224,13 @@ class Skeleton:
             local = torch.from_numpy(self.points_local).to(poses.dtype)
             points = se3.act(poses[..., self.points_body, :], local).numpy()
             anchors = self.weights.astype(points.dtype) @ points  # (..., K, 3)
-        placed = {}
-        for name in _MESHES:
-            blocks: Blocks = getattr(self, name)
-            local = torch.from_numpy(blocks.local).to(poses.dtype)
-            world = se3.compose(poses[..., blocks.body, :], local).numpy()
+        meshes: list[Blocks] = [getattr(self, name) for name in _MESHES]
+        body = np.concatenate([blocks.body for blocks in meshes])
+        local = torch.from_numpy(np.concatenate([blocks.local for blocks in meshes])).to(poses.dtype)
+        every = se3.compose(poses[..., body, :], local).numpy()  # one composition for every block
+        placed, first = {}, 0
+        for name, blocks in zip(_MESHES, meshes, strict=True):
+            world, first = every[..., first : first + len(blocks), :], first + len(blocks)
             scale = blocks.scale
             moving = blocks.anchors[:, 0] >= 0
             if anchors is not None and moving.any():
