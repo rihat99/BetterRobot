@@ -47,7 +47,8 @@ that 0.3.0 renames or removes, one table row each.
   opacity, joint_values, value_range, collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
   the style `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"`, `"medium"` or `"maximal"`
   (skeletons), with a collision overlay (the sphere set, else the collision shapes, a pale see-through shell over any
-  style) and frame triads. Each part is built the first time
+  style, 0.2 % of the robot's size off the shapes so that it shows no stripes where it meets the meshes) and frame
+  triads. Each part is built the first time
   it is shown, not while its robot is hidden; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
   viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it

@@ -63,6 +63,7 @@ Style = Literal["meshes", "minimal", "medium", "maximal"]
 _STYLES = ("meshes", "minimal", "medium", "maximal")
 _SKELETONS = _STYLES[1:]
 _TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the skeleton's glyph radius
+_GLASS = 0.002  # the collision glass stands this share of the robot's size off its shapes: clear of the meshes
 
 
 @final
@@ -430,8 +431,11 @@ class RobotVisual(Layer):
         shapes = self.geometry.shapes if self.geometry is not None else ()
         collision = part == "collision"
         color = self._theme.collision if collision else self._theme.shade(self.hue, "body")
+        # viser has no depth offset: glass on a surface it shares with the meshes (the same file, or a hull that
+        # meets it) would show stripes of each in turn, so it stands a little off along its normals
+        margin = _GLASS * self._skeleton("maximal").scale if collision else 0.0
         specs = [
-            _shape_spec(attached.body, attached.shape, self._mesh, color, own_colors=not collision)
+            _shape_spec(attached.body, attached.shape, self._mesh, color, own_colors=not collision, margin=margin)
             for attached in shapes
             if attached.collision == collision
         ]
@@ -788,9 +792,11 @@ def _sizes(shape: Any) -> list[float]:
     return [0.0, 0.0, 0.0, shape.length / 2.0, 0.0, shape.radius]  # a capsule: a ball swept along a segment
 
 
-def _shape_spec(body: int, shape: Any, load: Callable[[int, Mesh], Any], color: RGB, *, own_colors: bool) -> MeshSpec:
+def _shape_spec(
+    body: int, shape: Any, load: Callable[[int, Mesh], Any], color: RGB, *, own_colors: bool, margin: float = 0.0
+) -> MeshSpec:
     """One shape as a ``MeshSpec``: a mesh file's trimesh from ``load`` (``RobotVisual._mesh``), a primitive
-    tessellated by trimesh."""
+    tessellated by trimesh; each vertex moved ``margin`` metres out along its normal."""
     with needs_extra("meshes"):
         import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
@@ -813,7 +819,8 @@ def _shape_spec(body: int, shape: Any, load: Callable[[int, Mesh], Any], color: 
     else:
         mesh = trimesh.creation.capsule(radius=shape.radius, height=shape.length)
     own = shape.color[:3] if own_colors and shape.color is not None else color
+    vertices = mesh.vertices + margin * mesh.vertex_normals if margin else mesh.vertices
     return MeshSpec(
-        np.asarray(mesh.vertices, dtype=np.float32), np.asarray(mesh.faces, dtype=np.uint32), body=body,
+        np.asarray(vertices, dtype=np.float32), np.asarray(mesh.faces, dtype=np.uint32), body=body,
         origin=np.asarray(shape.placement, dtype=np.float32), color=own, trimesh=source,
     )  # fmt: skip

@@ -176,7 +176,9 @@ you loaded. Code without a viewer reads the same files the same way: `load_meshe
 `MeshSpec` per display shape (`collision=True`: per collision shape), `vertices (V, 3)` and `faces (F, 3)` with the
 `body` it hangs on and its placement `origin (7,)` in that body's frame. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
 the collision shapes of the geometry, as a pale see-through shell over any style (`Theme.collision` at
-`Theme.collision_opacity`, casting and catching no shadow); `frames=True` draws a triad at every moving joint and
+`Theme.collision_opacity`, casting and catching no shadow). The shell stands 0.2 % of the robot's size off its
+shapes, along their normals (2 mm on a 1 m arm): viser has no depth offset, and glass on the very surface of a
+display mesh (a G1 names one file for both) shows stripes of each in turn. `frames=True` draws a triad at every moving joint and
 `frames=[...]` at the frames listed, by id or name.
 
 ```python

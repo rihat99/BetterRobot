@@ -57,7 +57,8 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    nodes (cylinders, balls, boxes) and one line node for limit arcs, whatever the robot.
 6. **Colour is the theme's.** A robot takes the first of the theme's hues that no other robot of its viewer is
    drawn in (or `hue=`; `RobotVisual.hue`), and the skeleton's parts take `theme.shade(hue, role, side=)`; the
-   overlay takes `theme.collision` and `theme.collision_opacity`, a pale neutral glass in both themes. Like every
+   overlay takes `theme.collision` and `theme.collision_opacity`, a pale neutral glass in both themes, 0.2 % of the
+   robot's size off its shapes (viser has no depth offset; on a display mesh's surface it showed stripes). Like every
    mesh layer below opacity 1 it casts and catches no shadow (`Layer._surface`, a subclass hook beside `_track`,
    `_store_opacity` and `_fade`): the shadow map ignores opacity, so a glass would throw a solid shadow and wear
    the shadows of what it holds. `opacity=` (`set_opacity`) draws every style of a robot see-through by the same

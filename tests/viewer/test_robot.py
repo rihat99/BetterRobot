@@ -88,10 +88,26 @@ def test_panda_visual_follows_forward_kinematics() -> None:
     assert robot.nsteps == 5 and robot.q.shape == (5, model.nq)
 
 
+def test_the_collision_glass_stands_a_little_off_its_shapes() -> None:
+    """viser has no depth offset: glass drawn on the very surface of a display mesh (a G1 names one file for both, a
+    Panda's hull meets its mesh within a millimetre) showed stripes of each in turn."""
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    server = FakeServer()
+    Viewer(server=server, ground=False).add(
+        RobotVisual(model, geometry=geometry, root=panda_urdf(), style="maximal", collision=True)
+    )
+    for k, shape in enumerate(load_meshes(geometry, root=panda_urdf(), collision=True)):  # the shapes as they are
+        drawn = server.scene.nodes[f"/panda/panda/collision/mesh_{k}"].props["vertices"]
+        moved = drawn - shape.vertices
+        np.testing.assert_allclose(np.linalg.norm(moved, axis=1), 0.002 * 1.044, rtol=2e-3)  # of the arm's size
+        assert np.mean(np.sum(moved * (shape.vertices - shape.vertices.mean(axis=0)), axis=1) > 0) > 0.9  # outwards
+
+
 def test_load_meshes_gives_the_shapes_as_arrays_the_overlay_draws() -> None:
     """The tracked Panda's collision shapes as arrays outside a viewer: each STL file's vertices and faces, scaled,
-    with its body and placement, are what the collision overlay draws; its display meshes are not tracked, so asking
-    for them names the first missing file."""
+    with its body and placement, which the collision overlay draws a little off the surface (the test above); its
+    display meshes are not tracked, so asking for them names the first missing file."""
     import trimesh  # noqa: PLC0415 - optional dependency of the viewer
 
     model = br.load(panda_urdf())
@@ -106,15 +122,6 @@ def test_load_meshes_gives_the_shapes_as_arrays_the_overlay_draws() -> None:
     stl = trimesh.load(panda_urdf().parent / "meshes" / "collision" / "link0.stl", force="mesh")
     np.testing.assert_allclose(specs[link0].vertices, stl.vertices * shapes[link0].shape.scale, rtol=1e-6)
     np.testing.assert_array_equal(specs[link0].faces, stl.faces)
-
-    server = FakeServer()
-    Viewer(server=server, ground=False).add(
-        RobotVisual(model, geometry=geometry, root=panda_urdf(), style="minimal", collision=True)
-    )
-    for index, spec in enumerate(specs):
-        np.testing.assert_array_equal(
-            server.scene.nodes[f"/panda/panda/collision/mesh_{index}"].props["vertices"], spec.vertices
-        )
     with pytest.raises(ModelError, match=r"body 1: mesh 'package://example-robot-data/.*link0.dae' is not a file"):
         load_meshes(geometry, root=panda_urdf())
 
