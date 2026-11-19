@@ -56,7 +56,7 @@ def main() -> None:
     parser.add_argument("--check", action="store_true", help="build the page on the stand-in server and exit")
     args = parser.parse_args()
 
-    viewer = Viewer(host=args.host, port=args.port, server=FakeServer() if args.check else None)
+    viewer = Viewer(server=FakeServer()) if args.check else Viewer(host=args.host, port=args.port)
     robots: dict[str, RobotVisual] = {}
 
     def pick(name: str) -> None:

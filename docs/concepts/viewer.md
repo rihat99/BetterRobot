@@ -14,9 +14,11 @@ nothing else in the library imports it. viser is imported only when you create a
 A `Layer` is one named thing in the scene: a point cloud, a skeleton, rigid meshes, coordinate frames, arrows.
 You give it every frame up front as numpy arrays with a leading time axis `(T, ...)`. Static input counts as
 `T = 1`. The layer keeps them as float32 attributes (`points.points`, `frames.poses`, ...) that it reads at every
-push, so editing one in place and calling `layer.redraw()` updates the scene without rebuilding anything. A
-C-contiguous float32 input is that attribute itself, no copy, which keeps a big cloud in memory once; any other
-input (numpy's default float64, a list) is converted once, so edit the layer's attribute, not your input.
+push, so editing one in place and calling `layer.redraw()` updates the scene without rebuilding anything; so does
+`SpheresLayer.radii`, while a skin's rest arrays (`vertices`, `bind_poses`, `weights`) and a chart's `series` are sent
+once, when the layer is built. A C-contiguous float32 input is that attribute itself, no copy, which keeps a big cloud
+in memory once; any other input (numpy's default float64, a strided view, a list) is converted once, so edit the
+layer's attribute, not your input.
 
 ![The Viewer shows layers that each hold a whole clip; `record` draws the same scene in a headless Chromium.](../figures/viewer_layers.svg)
 
@@ -104,10 +106,11 @@ callback runs under `viewer.lock`, the one lock of adding, removing and pushing 
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
 Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the boxes of the visible
-layers' `Layer.bounds` over the clip (at most 32 steps are read), centred in a front three-quarter view of a robot
-facing `+x` at the nearest distance where every corner of every box lies inside four fifths of a 16:9 view. Each
-layer's boxes are read once and again only after a step reaches the layer (`show`, `redraw`, `update`), so the
-sixteenth robot added costs what the first did. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself
+layers' `Layer.bounds` over their whole clips (at most 32 evenly spaced samples of each layer are read), centred in a
+front three-quarter view of a robot facing `+x` at the nearest distance where every corner of every box lies inside
+four fifths of a 16:9 view. Each sample's boxes are read once and again only after a push that follows an edit
+(`redraw`, `show()`, `set_visible`, `RobotVisual.update`); a step change, playback or a longer timeline keeps them,
+so the sixteenth robot added costs what the first did. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself
 and reads every visible layer afresh.
 
 ## One timeline drives every layer
@@ -205,7 +208,7 @@ that, so switching back creates nothing, and a step is written only to the parts
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
 shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are. The Style dropdown offers the
 styles of the robots still shown: removing the one robot with meshes takes `"meshes"` away, and a dropdown that showed
-it moves the other robots to the first style left. `update(q)` shows new configurations of the same number of steps, for a live
+it shows the first style left while every robot keeps its own; a robot that replaces another keeps its `style=`. `update(q)` shows new configurations of the same number of steps, for a live
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
 theme's hues that no other robot of the viewer is drawn in, unless `hue=` names one, so a robot that replaces
 another takes its hue back; `robot.hue` is the colour it is drawn in. The name defaults to the model's, so two robots of
@@ -312,7 +315,10 @@ draws the handle in front of every mesh, for a joint inside a body. A callback t
 never showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
 `vertices_in_sphere` and `vertices_in_rect`. The last one projects through a `CameraFrustum(pose, *, fov, aspect)`,
 whose `pose (7,)` is `[x, y, z, qx, qy, qz, qw]` like every pose of the library;
-`CameraFrustum.from_camera(client.camera)` takes a browser's camera now.
+`CameraFrustum.from_camera(client.camera)` takes a browser's camera now. Rays, centres, cameras and a gizmo's pose are
+in the world, while a layer's arrays stay in its tag's frame: the picking functions take `pose=viewer.pose(tag)` to
+pick on a tag that `set_pose` placed, and a gizmo's pose meant for a placed robot is composed with the `se3.inverse`
+of that pose to be in the robot's frame.
 
 The viewer holds one pointer callback so that tools never fight over the scene: a tool calls
 `viewer.on_pointer("click", callback)` (viser's `SceneClickEvent`: `ray_origin`, `ray_direction`, `screen_pos`) or

@@ -21,7 +21,8 @@ class SkinnedMeshLayer(Layer):
 
     ``bind_poses (J, 7)`` are the world bone poses the vertices are given in; a vertex follows
     ``sum_j w_ij * T_j(t) * T_j(bind)^-1``. viser keeps the four largest weights per vertex, so
-    the offline renderer does the same. Poses are xyzw (BetterRobot order).
+    the offline renderer does the same. Poses are xyzw (BetterRobot order). ``bone_poses`` is read at every push; the
+    rest arrays ``vertices``, ``bind_poses`` and ``weights`` are sent once, when the layer is built.
     """
 
     def __init__(
@@ -38,11 +39,11 @@ class SkinnedMeshLayer(Layer):
     ) -> None:
         self.bone_poses = as_frames(bone_poses, 2, name="bone_poses", width=7)
         super().__init__(name, self.bone_poses.shape[0])
-        self.vertices = np.asarray(vertices, dtype=np.float32)
+        self.vertices = np.ascontiguousarray(vertices, dtype=np.float32)
         if self.vertices.ndim != 2 or self.vertices.shape[1] != 3:
             raise ShapeError(f"vertices must be (V, 3) bind-pose positions, got {self.vertices.shape}")
         self.faces = as_triangles(faces)
-        self.bind_poses = np.asarray(bind_poses, dtype=np.float32)
+        self.bind_poses = np.ascontiguousarray(bind_poses, dtype=np.float32)
         if self.bind_poses.ndim != 2 or self.bind_poses.shape[1] != 7:
             raise ShapeError(f"bind_poses must be (J, 7) world bone poses (xyzw), got {self.bind_poses.shape}")
         n_bones = self.bind_poses.shape[0]
@@ -111,7 +112,8 @@ class SkinnedMeshLayer(Layer):
         """A box per bone that carries vertices ``(lo (B, 3), hi (B, 3))``: the box of the vertices it carries at
         least a quarter of, turned with the bone; no vertex is skinned. It holds every vertex blended from such bones;
         on SMPL and SMPL-X under random poses it held every vertex and reached 2 to 5 cm beyond the skinned mesh's box
-        in the median, 16 cm at most."""
+        in the median, 16 cm at most. It assumes that weights under a quarter move a vertex little, which those skins
+        hold and another skin need not."""
         poses = self.bone_poses[step, self._carriers]
         turn = so3.to_matrix(torch.from_numpy(poses[:, 3:])).numpy()  # (B, 3, 3)
         centre, half = self._boxes

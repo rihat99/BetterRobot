@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any, Literal, TYPE_CHECKING, final, override
@@ -31,11 +31,12 @@ if TYPE_CHECKING:
 #: What the camera frames when no visible layer has bounds: a 2 x 2 x 1 m box standing on the origin.
 _EMPTY_SCENE: tuple[np.ndarray, np.ndarray] = (np.array([-1.0, -1.0, 0.0]), np.array([1.0, 1.0, 1.0]))
 _FOV = math.radians(40.0)  # the vertical field of view of the browsers' camera
-_AIM_STEPS = 32  # at most this many evenly spaced steps are framed by ``aim``
+_AIM_STEPS = 32  # ``aim`` reads at most this many evenly spaced samples of each layer, or steps of ``steps``
 _AIM_FILL = 0.8  # share of a 16:9 view's height (or width) the framed box spans
 _AIM_ASPECT = 16.0 / 9.0
 #: The default view of ``aim``: from the front-right of an x-forward robot, 30 degrees off its front, and from above.
 _AZIMUTH, _ELEVATION = math.radians(60.0), math.radians(25.0)
+_UNIT = 1e-3  # how far from 1 a pose's quaternion norm may be; within it the quaternion is normalised
 
 
 def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
@@ -49,14 +50,25 @@ def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
 
 
 def _as_pose(pose: np.ndarray | Sequence[float]) -> np.ndarray:
-    """``add``'s and ``set_pose``'s ``pose`` as float64 ``(7,)``: a translation ``(3,)`` gains the identity rotation."""
-    pose = np.asarray(pose, dtype=np.float64)
+    """``add``'s and ``set_pose``'s ``pose`` as a new float64 ``(7,)`` of finite numbers: a translation ``(3,)`` gains
+    the identity rotation, and a quaternion whose norm is within ``1e-3`` of 1 is normalised (one further off
+    raises)."""
+    try:
+        pose = np.array(pose, dtype=np.float64)
+    except (TypeError, ValueError) as error:
+        raise ArgumentError(
+            f"pose must be numbers [tx, ty, tz, qx, qy, qz, qw] or [tx, ty, tz], got {pose!r}"
+        ) from error
     if pose.shape == (3,):
         pose = np.concatenate([pose, [0.0, 0.0, 0.0, 1.0]])
     if pose.shape != (7,):
         raise ShapeError(f"pose must be (7,) [tx, ty, tz, qx, qy, qz, qw] or a translation (3,), got {pose.shape}")
-    if not abs(np.linalg.norm(pose[3:]) - 1.0) < 1e-3:
+    if not np.all(np.isfinite(pose)):
+        raise ArgumentError(f"pose must be finite, got {pose.tolist()}")
+    norm = np.linalg.norm(pose[3:])
+    if not abs(norm - 1.0) < _UNIT:
         raise ArgumentError(f"the quaternion [qx, qy, qz, qw] of pose must have unit norm, got {pose[3:].tolist()}")
+    pose[3:] /= norm
     return pose
 
 
@@ -80,9 +92,10 @@ class _Entry:
     node: Any  # the frame at ``root``; hidden on samples the layer's ``valid`` marks invalid
     times: np.ndarray | None = None  # ``add(times=)``: sample times (nsteps,) in seconds; None = one sample per step
     step: int = -1  # last step pushed; -1 = never
-    # The automatic aim's read of the layer's boxes: (samples, low (M, 3), high (M, 3)); None once a step is pushed to
-    # the layer, the one way its arrays reach the scene, so adding a robot does not read every other robot again.
-    framed: tuple[tuple[int, ...], np.ndarray, np.ndarray] | None = None
+    # The automatic aim's read of the layer's boxes per sample, (low (M, 3), high (M, 3)) or None without bounds, so
+    # adding a robot does not read every other robot again. ``redraw``, ``show()`` and ``set_visible``, the pushes
+    # that follow an edit of the arrays, empty it; a plain step change keeps it.
+    framed: dict[int, tuple[np.ndarray, np.ndarray] | None] = field(default_factory=dict)
 
 
 @final
@@ -103,17 +116,18 @@ class Viewer:
     skipped. ``lock`` is the one lock: adding and removing layers, every push and every sidebar callback hold it.
 
     ``server`` is the underlying ``viser.ViserServer`` (escape hatch for custom GUI); pass one in to reuse a server
-    or a fake in tests (``testing.FakeServer``, hence typed ``Any``), and ``host`` and ``port`` are ignored: ``url``
-    is the server's own address. The default host is loopback only. ``ground``
+    or a fake in tests (``testing.FakeServer``, hence typed ``Any``), without ``host`` or ``port``, which are the
+    server's (``ArgumentError`` otherwise): ``url`` is its own address. Without a server, ``host`` defaults to
+    ``127.0.0.1``, loopback only, and ``port`` to 8080. ``ground``
     adds a ``GroundLayer`` under the tag ``ground``. Until ``aim`` is called, the camera is aimed at the scene after
-    each ``add``, which reads a layer's ``bounds`` again only after a step was pushed to it.
+    each ``add``, which reads a layer's ``bounds`` again only after ``redraw``, ``show()`` or ``set_visible``.
     """
 
     def __init__(
         self,
         *,
-        host: str = "127.0.0.1",
-        port: int = 8080,
+        host: str | None = None,
+        port: int | None = None,
         fps: float = 30.0,
         theme: Theme = LIGHT,
         ground: bool = True,
@@ -123,7 +137,12 @@ class Viewer:
             with needs_extra("viewer"):
                 import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
 
-            server = viser.ViserServer(host=host, port=port, verbose=False)
+            server = viser.ViserServer(host=host or "127.0.0.1", port=8080 if port is None else port, verbose=False)
+        elif host is not None or port is not None:
+            raise ArgumentError(
+                f"a server passed in listens where it was made; leave out host={host!r} and port={port!r}, or leave "
+                "out server"
+            )
         self.server = server
         # The server's own address: viser moves to the next free port when ``port`` is taken, and a server passed in
         # listens where it was made. ``url`` and ``record`` must follow it.
@@ -149,8 +168,8 @@ class Viewer:
 
     @property
     def url(self) -> str:
-        """Address to open in a browser, e.g. ``http://127.0.0.1:8080``."""
-        return f"http://{self.host}:{self.port}"
+        """Address to open in a browser, e.g. ``http://127.0.0.1:8080``, or ``http://[::1]:8080`` for IPv6."""
+        return f"http://{f'[{self.host}]' if ':' in self.host else self.host}:{self.port}"
 
     @property
     def layers(self) -> list[Layer]:
@@ -329,8 +348,8 @@ class Viewer:
     def set_pose(self, tag: str, pose: np.ndarray | Sequence[float]) -> None:
         """Place the layers whose first tag is ``tag`` at ``pose``, as ``add(..., pose=)`` does, e.g. from a
         side-by-side slider: the pose ``(7,)`` ``[tx, ty, tz, qx, qy, qz, qw]`` of the tag's frame in the world, or a
-        translation ``(3,)``. The layers' arrays stay in the tag's frame; ``aim``, ``record`` and ``save`` show them
-        placed."""
+        translation ``(3,)``, finite, with a quaternion whose norm is within ``1e-3`` of 1 (it is normalised). The
+        layers' arrays stay in the tag's frame; ``aim``, ``record`` and ``save`` show them placed."""
         pose = _as_pose(pose)
         with self.lock:
             if tag not in self._tags:
@@ -339,6 +358,16 @@ class Viewer:
             state.node.position = pose[:3]
             state.node.wxyz = pose[[6, 3, 4, 5]]  # viser's scalar-first quaternion
             state.pose = pose
+
+    def pose(self, tag: str) -> np.ndarray:
+        """The pose ``(7,)`` ``[tx, ty, tz, qx, qy, qz, qw]`` in the world of the frame of the layers whose first tag
+        is ``tag``, as ``set_pose`` placed it (the identity until then). The tools take it as ``pose=`` to pick on
+        those layers' arrays, which stay in the tag's frame."""
+        with self.lock:
+            if tag not in self._tags:
+                raise UnknownNameError("tag", tag, valid=list(self._tags))
+            pose = self._tags[tag].pose
+            return np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]) if pose is None else pose.copy()
 
     def set_fps(self, fps: float) -> None:
         """Play the timeline at ``fps`` steps per second, such as the frame rate of the clip on screen.
@@ -366,6 +395,7 @@ class Viewer:
                 entry = self._entry(layer)
                 layer.set_visible(visible)
                 if visible:
+                    entry.framed.clear()
                     self._push(entry, self.timeline.step)
             for tag, box in self._boxes.items():
                 shown = any(layer.visible for layer in self._tagged(tag))
@@ -389,17 +419,23 @@ class Viewer:
         if step is not None and (not isinstance(step, int | np.integer) or isinstance(step, bool)):
             raise ArgumentError(f"step must be an int, got {step!r}")
         if step is None or step == self.timeline.step:
-            self._push_all(self.timeline.step, force=True)
+            with self.lock:
+                for entry in self._entries:
+                    entry.framed.clear()
+                self._push_all(self.timeline.step, force=True)
         else:
             self.timeline.step = step
 
     def redraw(self, target: Layer | str) -> None:
         """Push the current step again to a visible layer, or to every visible layer carrying the tag ``target``, after
-        its arrays changed; ``Layer.redraw`` calls this."""
+        its arrays changed; ``Layer.redraw`` calls this. A hidden layer is pushed when ``set_visible`` shows it, and
+        its boxes for the automatic aim are read again either way."""
         with self.lock, self.server.atomic():
             for layer in self._targets(target):
+                entry = self._entry(layer)
+                entry.framed.clear()  # also while hidden: the layer's own switch may show it without a push
                 if layer.visible:
-                    self._push(self._entry(layer), self.timeline.step)
+                    self._push(entry, self.timeline.step)
 
     def save(self, path: str | Path, *, fps: float | None = None) -> Path:
         """Record every step into a ``.viser`` file that plays in viser's static client, no Python needed; return the
@@ -465,6 +501,7 @@ class Viewer:
         if suffix not in (".mp4", ".webm", ".png"):
             raise ArgumentError(f"record writes .mp4, .webm or .png, not {path.name!r}")
         nsteps = self.timeline.nsteps
+        whole = steps is None and suffix != ".png"  # the whole clip: framed as aim() frames it
         steps = list(([self.timeline.step] if suffix == ".png" else range(nsteps)) if steps is None else steps)
         if not all(isinstance(step, int | np.integer) for step in steps):
             raise ArgumentError(f"steps must be integers, got {steps}")
@@ -489,7 +526,8 @@ class Viewer:
         if camera is not None and len(camera) != 2:
             raise ArgumentError(f"camera must be a pair (position, look_at), got {len(camera)} items")
         # The view aim() would choose, without moving the live browsers' cameras or ending the aim after each add.
-        position, look_at = self._framing(steps, _AZIMUTH, _ELEVATION, fov) if camera is None else camera
+        framing = self._framing(None if whole else steps, _AZIMUTH, _ELEVATION, fov) if camera is None else camera
+        position, look_at = framing
         position, look_at = np.asarray(position, dtype=np.float64), np.asarray(look_at, dtype=np.float64)
         if position.shape not in ((3,), (len(steps), 3)) or look_at.shape != position.shape:
             raise ArgumentError(
@@ -513,8 +551,9 @@ class Viewer:
         """Point the connected browsers and every new one (viser's initial camera, also "Reset View") at the visible
         layers, and stop aiming by itself after each ``add``.
 
-        The view holds the boxes of the visible layers' ``Layer.bounds`` over ``steps`` (default: every step; at most
-        32 evenly spaced ones are read; steps with nothing visible are skipped), seen from ``azimuth`` and
+        The view holds the boxes of the visible layers' ``Layer.bounds`` over ``steps`` (at most 32 evenly spaced ones
+        are read; default: the whole clip, at most 32 evenly spaced samples of each layer; samples its ``valid`` hides
+        are skipped), seen from ``azimuth`` and
         ``elevation`` (radians) about the theme's ``up`` axis: the boxes are centred in the view, at the nearest
         distance where every corner of every box lies inside 80 % of a 16:9 view's height and width, in the vertical
         field of view ``fov``; the browsers take ``fov``. Returns ``(position, look_at)``. Under ``+z`` up, azimuth 0
@@ -534,8 +573,7 @@ class Viewer:
     ) -> tuple[np.ndarray, np.ndarray]:
         """``(position, look_at)`` of ``aim``, without moving a camera; ``remember`` keeps each layer's boxes for the
         next call (the automatic aim of ``add``)."""
-        steps = list(range(self.timeline.nsteps)) if steps is None else list(steps)
-        if len(steps) > _AIM_STEPS:
+        if steps is not None and len(steps := list(steps)) > _AIM_STEPS:
             steps = [steps[int(index)] for index in np.linspace(0, len(steps) - 1, _AIM_STEPS).round()]
         lows, highs = [np.empty((0, 3))], [np.empty((0, 3))]
         for entry in self._entries:
@@ -575,27 +613,36 @@ class Viewer:
         distance = max(float((offsets @ edges.T + half @ np.abs(edges).T).max()), 1e-3)
         return center + distance * direction, center
 
-    def _read_bounds(self, entry: _Entry, steps: list[int], *, remember: bool) -> tuple[np.ndarray, np.ndarray]:
+    def _read_bounds(self, entry: _Entry, steps: list[int] | None, *, remember: bool) -> tuple[np.ndarray, np.ndarray]:
         """``(low (M, 3), high (M, 3))``: ``Layer.bounds`` of ``entry``'s layer (each one box or a stack of boxes) at
-        the samples that timeline ``steps`` show, each sample read once, in its tag's frame; a sample its
-        ``(T,)`` ``valid`` marks invalid is skipped. With ``remember`` they are kept in ``entry.framed`` and served
-        from there until the layer is pushed a step."""
+        the samples that timeline ``steps`` show, or at most 32 evenly spaced samples of its own when ``steps`` is
+        ``None``, each sample read once, in its tag's frame; a sample its ``(T,)`` ``valid`` marks invalid is skipped.
+        With ``remember`` each sample's boxes are kept in ``entry.framed`` and served from there."""
         layer = entry.layer
-        samples = tuple(dict.fromkeys(self._index(entry, step) for step in steps))
-        if remember and entry.framed is not None and entry.framed[0] == samples:
-            return entry.framed[1], entry.framed[2]
+        if steps is None:  # a layer's own samples: a timeline that moves or grows asks for the ones already read
+            spread = np.linspace(0, layer.nsteps - 1, min(layer.nsteps, _AIM_STEPS)).round().astype(int)
+            samples = dict.fromkeys(spread.tolist())
+        else:
+            samples = dict.fromkeys(self._index(entry, step) for step in steps)
         lows, highs = [np.empty((0, 3))], [np.empty((0, 3))]
         for sample in samples:
             if layer.valid is not None and layer.valid.ndim == 1 and not layer.valid[sample]:
                 continue
-            bounds = layer.bounds(sample)
-            if bounds is not None:
-                lows.append(np.asarray(bounds[0], dtype=np.float64).reshape(-1, 3))
-                highs.append(np.asarray(bounds[1], dtype=np.float64).reshape(-1, 3))
-        low, high = np.concatenate(lows), np.concatenate(highs)
-        if remember:
-            entry.framed = (samples, low, high)
-        return low, high
+            if remember and sample in entry.framed:
+                boxes = entry.framed[sample]
+            else:
+                boxes = layer.bounds(sample)
+                if boxes is not None:
+                    boxes = (
+                        np.asarray(boxes[0], np.float64).reshape(-1, 3),
+                        np.asarray(boxes[1], np.float64).reshape(-1, 3),
+                    )
+                if remember:
+                    entry.framed[sample] = boxes
+            if boxes is not None:
+                lows.append(boxes[0])
+                highs.append(boxes[1])
+        return np.concatenate(lows), np.concatenate(highs)
 
     def _point_cameras(self, position: np.ndarray, look_at: np.ndarray, fov: float) -> None:
         for camera in [self.server.initial_camera, *(client.camera for client in self.server.get_clients().values())]:
@@ -739,7 +786,6 @@ class Viewer:
         if force or step != entry.step:
             entry.layer.set_step(step)
             entry.step = step
-            entry.framed = None
             valid = entry.layer.valid
             # Hidden on an invalid sample through its frame, so the layer's own switch stays on.
             shown = valid is None or valid.ndim != 1 or bool(valid[step])

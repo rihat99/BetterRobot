@@ -9,10 +9,19 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from better_robot.viewer.tools import CameraFrustum, PoseGizmo, project, ray_hit, vertices_in_rect, vertices_in_sphere
+from better_robot.viewer import PointsLayer
+from better_robot.viewer.tools import (
+    CameraFrustum,
+    PoseGizmo,
+    nearest_on_ray,
+    project,
+    ray_hit,
+    vertices_in_rect,
+    vertices_in_sphere,
+)
 from better_robot.viewer.viewer import Viewer
 
-from better_robot.exceptions import ShapeError
+from better_robot.exceptions import ShapeError, UnknownNameError
 from better_robot.testing import FakeServer
 
 
@@ -30,6 +39,9 @@ def test_gizmo_reports_poses_in_xyzw_order_and_fires_callbacks() -> None:
     np.testing.assert_allclose(seen[-1], [4.0, 5.0, 6.0, 0.0, 0.0, 0.0, 1.0])
     gizmo.pose = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     np.testing.assert_allclose(handle.wxyz, [0.0, 1.0, 0.0, 0.0])
+    with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):  # R1: the setter took any shape
+        gizmo.pose = [1.0, 2.0, 3.0]
+    np.testing.assert_allclose(handle.position, [0.0, 0.0, 0.0])
 
 
 def test_one_drag_reaches_the_gizmo_once() -> None:
@@ -145,3 +157,35 @@ def test_a_camera_frustum_is_a_pose_in_the_library_order_also_from_a_browser_cam
     assert repr(camera) == "CameraFrustum(pose=[1.0, 2.0, 3.0, 0.0, 0.707, 0.0, 0.707], fov=1.000, aspect=1.500)"
     with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):
         CameraFrustum(np.zeros(4), fov=1.0, aspect=1.0)
+
+
+def test_picking_on_a_placed_tag_takes_the_viewer_pose_of_that_tag() -> None:
+    """R1's probe: a world click ray at vertex 0 as drawn, on a layer whose tag is turned a quarter about +z, picked
+    vertex 1 from the layer's own arrays."""
+    viewer = Viewer(server=FakeServer(), ground=False)
+    turn = [0.0, 0.0, np.sin(np.pi / 4), np.cos(np.pi / 4)]
+    layer = viewer.add(PointsLayer("p", np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])), pose=[0.0, 0.0, 0.0, *turn])
+    pose = viewer.pose("p")
+    np.testing.assert_allclose(pose, [0.0, 0.0, 0.0, *turn])
+    drawn = np.array([0.0, 1.0, 0.0])  # where vertex 0 appears in the world
+    origin = np.array([0.0, 1.0, 5.0])
+    assert nearest_on_ray(layer.points[0], origin, direction=drawn - origin, radius=0.05) == 1  # as R1 found it
+    assert nearest_on_ray(layer.points[0], origin, direction=drawn - origin, radius=0.05, pose=pose) == 0
+    # A triangle on the plane x = 1 of the layer, drawn on the plane y = 1; a ray along -y meets it only when placed.
+    triangle, faces = np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 0.0, 1.0]]), np.array([[0, 1, 2]])
+    start, down = np.array([-0.5, 3.0, 0.2]), np.array([0.0, -1.0, 0.0])
+    assert ray_hit(start, down, vertices=triangle, faces=faces) is None
+    hit = ray_hit(start, down, vertices=triangle, faces=faces, pose=pose)
+    assert hit is not None and hit[1] == 0
+    np.testing.assert_allclose(hit[0], [-0.5, 1.0, 0.2], atol=1e-12)  # the point in the world
+    assert vertices_in_sphere(layer.points[0], drawn, radius=0.1, pose=pose).tolist() == [0]
+    camera = CameraFrustum(np.array([0.0, 1.0, -2.0, 0.0, 0.0, 0.0, 1.0]), fov=np.pi / 4, aspect=1.0)  # looks at +z
+    np.testing.assert_allclose(project(layer.points[0], camera, pose=pose)[0][0], [0.5, 0.5], atol=1e-12)
+    centre = np.array([0.45, 0.45]), np.array([0.55, 0.55])
+    assert vertices_in_rect(layer.points[0], camera, rect_min=centre[0], rect_max=centre[1], pose=pose).tolist() == [0]
+    viewer.add(PointsLayer("q", np.zeros((1, 3))))
+    np.testing.assert_allclose(viewer.pose("q"), [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])  # never placed: the identity
+    with pytest.raises(UnknownNameError):
+        viewer.pose("nowhere")
+    with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):
+        nearest_on_ray(layer.points[0], origin, direction=drawn - origin, radius=0.05, pose=np.zeros(3))

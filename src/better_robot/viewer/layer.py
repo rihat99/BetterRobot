@@ -81,9 +81,11 @@ class Layer(ABC):
     A layer owns its preloaded arrays and the viser handles it creates in ``build``. The viewer
     calls ``set_step(k)`` to write slice ``k`` into those handles; a static layer has
     ``nsteps == 1`` and is pushed once. The arrays are the layer's float32 ``(T, ...)`` attributes
-    (``PointsLayer.points``, ``FramesLayer.poses``, ...), read at each push: edit one in place and call ``redraw``
-    (or ``Viewer.show()``) to update the scene. An input that already is a C-contiguous float32 array is that
-    attribute, no copy, which keeps a big cloud single; any other input is converted once, so edit the attribute. Handles registered with ``_track`` get the default
+    (``PointsLayer.points``, ``FramesLayer.poses``, ...) and ``SpheresLayer.radii``, read at each push: edit one in
+    place and call ``redraw`` (or ``Viewer.show()``) to update the scene; a skin's rest arrays and a chart's
+    ``series`` are sent once, at ``build``. An input that already is a C-contiguous float32 array is that attribute,
+    no copy, which keeps a big cloud single; any other input (a strided view too) is converted once, so edit the
+    attribute. Handles registered with ``_track`` get the default
     ``set_visible`` and ``dispose``; ``visible`` and ``set_visible`` are the one way to read and switch a layer, and
     an override of ``set_visible`` or ``dispose`` calls the base method.
 
@@ -151,7 +153,8 @@ class Layer(ABC):
         A layer of thin, spread-out parts may return one box per part, ``(lo (N, 3), hi (N, 3))``: ``aim`` frames the
         corners of every box, and one box round a robot is twice what the robot covers on screen. ``None`` (the
         default) keeps the layer out of the framing, as for the ground grid. The automatic aim of ``Viewer.add`` reads
-        it again only after the viewer pushed a step to the layer, the path every change of its arrays takes.
+        a sample again only after ``redraw``, ``Viewer.show()`` or ``Viewer.set_visible``, the pushes that follow an
+        edit of the arrays.
         """
         return None
 

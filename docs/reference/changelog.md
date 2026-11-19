@@ -21,10 +21,11 @@ that 0.3.0 renames or removes, one table row each.
   are two.
 - `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, or one box per part `(lo (N, 3), hi (N, 3))`
   for a layer of thin, spread-out parts, which `Viewer.aim` and `Viewer.record` frame
-  (over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
-  the camera after each `add`; it reads a layer's bounds again only after a step was pushed to the layer and fits
-  the boxes without listing their corners, so the sixteenth G1 added takes about what the first does (81 and 62 ms,
-  maximal style, 300 steps; the sixteenth took 1.7 to 2.5 s).
+  (over at most 32 sampled steps, by default 32 samples of each layer's clip; `Viewer.aim(fov=)`). Until `aim` is
+  called, the viewer aims the camera after each `add`; it keeps each sample's boxes until `redraw`, `show()` or
+  `set_visible` (a step change, playback and a longer timeline keep them) and fits the boxes without listing their
+  corners, so the sixteenth G1 added takes about what the first does (80 and 59 ms, maximal style, 300 steps, also
+  with a step shown between adds or while playing; the sixteenth took 1.7 to 2.5 s).
 - `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
   `Layer.viewer` is the viewer the layer was added to.
 - `Viewer.serve()` plays the timeline and serves the page until interrupted; `Viewer.set_theme(theme)` applies a
@@ -38,7 +39,8 @@ that 0.3.0 renames or removes, one table row each.
   keeps; it put `"medium"` back over an application's own `configure_theme(control_width=)`.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications; its plain and skinned meshes take `cast_shadow` and
-  `receive_shadow`.
+  `receive_shadow`. It keeps a copy of each array it is sent, as viser serialises one, so a test sees an edit in
+  place only after the push that sends it.
 - `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, medium, maximal, hue,
   collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
   the style `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"`, `"medium"` or `"maximal"`
@@ -70,7 +72,8 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
   as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files
-  are found as `RobotVisual(root=)` finds them, by the one lookup the viewer uses.
+  are found as `RobotVisual(root=)` finds them, by the one lookup the viewer uses. A `geometry` that is not a
+  `Geometry` (a `Model`) or a `collision` that is not a bool raises `ArgumentError`.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
 - `MeshLayer(colors=(V, 3))`: one colour per vertex. A static mesh is one GLB node that blends them across each face;
@@ -92,7 +95,10 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.set_pose(tag, pose)` and `Viewer.add(pose=)` place a tag's frame at a pose `(7,)` `[tx, ty, tz, qx, qy,
   qz, qw]`, or a translation `(3,)` (were `set_offset(group, offset)` and `add(offset=)`, a translation only), so a
   y-up body stands beside a z-up robot without turning its arrays; `aim`, `record` and `save` show the tag placed.
-  `Layer.bounds` is the box in the frame of the layer's first tag.
+  `Layer.bounds` is the box in the frame of the layer's first tag. A pose must be finite numbers, and a quaternion
+  whose norm is within `1e-3` of 1 is normalised (one further off raises). `Viewer.pose(tag)` reads the pose back,
+  and the picking functions `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` and `project`
+  take it as `pose=` to pick on the arrays of a placed tag.
 - `Viewer(theme=LIGHT)` (was `None`); `Viewer.replace(old, new)` keeps `old`'s tags and sidebar rows.
 - `Layer.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API); `PlotPanel` and `ImagePanel` sit in
   the sidebar's Plots and Images sections.
@@ -192,6 +198,12 @@ that 0.3.0 renames or removes, one table row each.
 ### Fixed
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
   opened whatever page listened there).
+- `Viewer(server=s, host=, port=)` raises `ArgumentError` (the host and port were dropped silently: `url` is the
+  server's); `host` and `port` default to `None`, which is `127.0.0.1` and 8080 for the viewer's own server. A
+  `PoseGizmo.pose` that is not `(7,)` raises `ShapeError` when set, as it does at construction.
+- `Viewer.url` puts an IPv6 host in brackets (`http://[::1]:8080`; was `http://::1:8080`), so `record` reaches such a
+  server, and a page Chromium cannot load raises `ArgumentError` naming its address at once (it was blamed on the
+  viser version after a minute).
 - The docs and `Viewer.add` said a layer keeps the caller's arrays by reference, and the docs' example edited a
   float64 cloud that the layer had copied. A layer keeps its arrays as float32 attributes (`layer.points`,
   `layer.poses`, `layer.valid`, ...), the input itself only when it already is C-contiguous float32: edit the
@@ -206,7 +218,8 @@ that 0.3.0 renames or removes, one table row each.
   is refused (a bool showed step 1).
 - A sidebar dropdown shared by several layers drops the options of a layer that is removed and that no other
   offers: the Style dropdown kept `"meshes"` after the one robot with meshes went, and choosing it changed nothing.
-  When the option shown goes, the dropdown shows the first one left and the remaining layers follow it.
+  When the option shown goes, the dropdown shows the first one left and runs no callback: removing or replacing a
+  layer never restyles the others, and a robot that replaces another keeps its own `style=`.
 - `Theme.shade` and `RobotVisual(hue=)` raise `ShapeError` for a hue that is not three numbers, so
   `RobotVisual(hue=(1.0, 0.0))` fails where it is made, with the library's error (was the builtin error of an
   unpack, in `Viewer.add`).

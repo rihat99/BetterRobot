@@ -83,7 +83,8 @@ class Sidebar:
     ) -> Any:
         """A dropdown of ``options``; ``on_change(option)`` runs on a choice. A layer joining an existing dropdown
         adds the options it lacks; when a layer goes, so do the options no other offers, and if the one shown is
-        among them, the dropdown shows the first one left and its callbacks run, as viser does on a server."""
+        among them, the dropdown shows the first one left without running a callback: removing or replacing a layer
+        never changes the others."""
         control = self._controls.get((section, label))
         if control is not None:
             missing = tuple(option for option in options if option not in control.handle.options)
@@ -170,22 +171,20 @@ class Sidebar:
                 self._sections.pop(name).folder.remove()
 
     def _withdraw(self, control: _Control) -> None:
-        """Keep the options of a dropdown that its remaining owners offer; a choice that went moves to the first one
-        left and runs the callbacks (viser itself moves it on a server, quietly here so that they run once)."""
+        """Keep the options of a dropdown that its remaining owners offer; a choice that went moves quietly to the
+        first one left (viser itself moves it on a server), so the layers that stay keep their state."""
         handle = control.handle
         kept = tuple(option for option in handle.options if any(option in offer for offer in control.offers.values()))
         if kept == tuple(handle.options):
             return
-        gone = handle.value not in kept
         control.quiet = True
         try:
             handle.options = kept
-            if gone:
+            if handle.value not in kept:
                 handle.value = kept[0]
+            control.value = handle.value
         finally:
             control.quiet = False
-        if gone:
-            self._run(control, None)
 
     def _control(
         self, section: str, label: str, callback: Callable[[Any], None], make: Callable[[], Any], *, click: bool = False

@@ -535,9 +535,13 @@ def load_meshes(geometry: Geometry, *, root: str | Path | None = None, collision
     so ``se3.act(origin, vertices)`` gives the vertices in the body's frame. Mesh files are found as
     ``RobotVisual(root=)`` finds them, under ``root`` (the description file or its folder, ``None`` for the working
     directory) and each folder above it; primitives are tessellated. A file that is not found, does not load or has
-    no faces raises ``ModelError`` naming the body and the file. ``RigidMeshLayer(name, specs, body_poses=)`` draws
-    the result.
+    no faces raises ``ModelError`` naming the body and the file; a ``geometry`` that is not a ``Geometry`` or a
+    ``collision`` that is not a bool, ``ArgumentError``. ``RigidMeshLayer(name, specs, body_poses=)`` draws the result.
     """
+    if not isinstance(geometry, Geometry):
+        raise ArgumentError(f"load_meshes takes a Geometry (io.load_geometry), got {type(geometry).__name__}")
+    if not isinstance(collision, bool):
+        raise ArgumentError(f"collision must be True or False, got {collision!r}")
     folder = None if root is None else Path(root)
     read: dict[str, Any] = {}  # each file once, however many shapes name it
 

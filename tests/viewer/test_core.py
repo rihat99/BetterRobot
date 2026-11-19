@@ -116,6 +116,25 @@ def test_set_pose_places_a_tag_after_it_was_added_and_aim_frames_it_turned() -> 
     assert [layer.name for layer in viewer.layers] == ["p"]  # refused before anything was built
 
 
+def test_a_pose_of_non_finite_or_non_numeric_values_is_refused_and_a_near_unit_quaternion_is_normalised() -> None:
+    """R1's probe: a NaN or inf translation and ``None`` inside were accepted (the camera turned NaN), a string or a
+    ragged pose raised numpy's builtin error, and a norm of 1.0009 reached viser as it was."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    refused = [[np.nan, 0, 0, 0, 0, 0, 1], [np.inf, 0, 0], [0, 0, None], "abc", [0, 0, [0]]]
+    for pose in refused:
+        with pytest.raises(ArgumentError, match="pose must be"):
+            viewer.add(PointsLayer("q", np.zeros((1, 3))), pose=pose)
+    assert viewer.layers == []
+    given = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0009])
+    viewer.add(PointsLayer("q", np.zeros((1, 3))), pose=given)
+    np.testing.assert_allclose(server.scene.nodes["/q"].wxyz, [1.0, 0.0, 0.0, 0.0])
+    np.testing.assert_allclose(viewer.pose("q"), [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+    assert given[6] == 1.0009  # the caller's array is left as it was
+    with pytest.raises(ArgumentError, match="unit norm"):
+        viewer.set_pose("q", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0011])
+
+
 def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
     timeline = Timeline(5, fps=100.0)
     seen: list[int] = []
@@ -268,6 +287,32 @@ def test_a_layer_draws_its_array_attributes_so_an_edit_in_place_and_a_redraw_upd
     np.testing.assert_allclose(server.scene.nodes["/cloud/cloud/points"].points[:, 2], 0.5)
     np.testing.assert_allclose(server.scene.nodes["/forces/forces/arrows"].points[1, 1], [0.0, 0.0, 2.0])
     assert np.shares_memory(PointsLayer("static", origins[0]).points, origins)  # a static float32 cloud too
+
+
+def test_radii_and_a_static_coloured_mesh_follow_the_array_rule_and_no_layer_keeps_a_strided_view() -> None:
+    """R1's probe: an edit of ``SpheresLayer.radii`` or of a static coloured ``MeshLayer``'s vertices plus a redraw
+    wrote nothing, and ``radii`` and a skin's rest arrays kept a non-contiguous float32 view of the caller's array."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    balls = viewer.add(SpheresLayer("balls", np.zeros((2, 2, 3)), radii=np.ones(2, np.float32)))
+    triangle = np.eye(3, dtype=np.float32)
+    mesh = viewer.add(MeshLayer("scan", triangle, faces=[[0, 1, 2]], colors=np.eye(3)))
+    scan, mark = server.scene.nodes["/scan/scan/mesh"], len(server.scene.log)
+    viewer.show(1)
+    viewer.show()  # a forced push sends nothing that did not change
+    assert ("/balls/balls/spheres", "batched_scales") not in server.scene.log[mark:] and scan.writes == []
+    balls.radii[0] = 3.0
+    mesh.vertices[0, 0] = (5.0, 0.0, 0.0)
+    viewer.show()
+    np.testing.assert_allclose(server.scene.nodes["/balls/balls/spheres"].batched_scales, [3.0, 1.0])
+    assert scan.writes == ["glb_data"] and scan.glb_data != scan.props["glb_data"]
+    strided = np.zeros((6, 3), np.float32)[::2]
+    rest = np.tile(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], np.float32), (2, 2))[:, :7]
+    skin = SkinnedMeshLayer(
+        "skin", strided, faces=[[0, 1, 2]], weights=np.full((3, 2), 0.5), bind_poses=rest, bone_poses=rest[None]
+    )
+    assert not np.shares_memory(SpheresLayer("s", strided, radii=strided[:, 0]).radii, strided)
+    assert not np.shares_memory(skin.vertices, strided) and not np.shares_memory(skin.bind_poses, rest)
 
 
 def test_arrows_hide_zero_vectors() -> None:
@@ -489,7 +534,7 @@ def test_the_images_section_follows_plots_before_an_applications_sections() -> N
 
 def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> None:
     """A Style dropdown shared by a robot with meshes and one without loses "meshes" with the first; the choice it
-    showed goes to the first option left, and the layers still there follow it, as on a choice in the browser."""
+    showed goes quietly to the first option left: the layers still there keep their state."""
     server = FakeServer()
     sidebar = Sidebar(server, threading.RLock())
     chosen: dict[str, list[str]] = {"meshes": [], "skeleton": []}
@@ -509,10 +554,53 @@ def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> No
     assert style.options == ("meshes", "minimal", "maximal") and style.value == "meshes"
     sidebar.remove(with_meshes)  # type: ignore[arg-type]
     assert style.options == ("minimal", "maximal") and style.value == "minimal"
-    assert chosen == {"meshes": [], "skeleton": ["minimal"]}
+    assert chosen == {"meshes": [], "skeleton": []}
     style.value = "maximal"
     style.fire(None)
-    assert chosen["skeleton"] == ["minimal", "maximal"]
+    assert chosen["skeleton"] == ["maximal"]
+
+
+class _Styled(Layer):
+    """A layer with RobotVisual's shared Style dropdown: it takes the styles it has and ignores the others."""
+
+    def __init__(self, name: str, styles: tuple[str, ...], style: str) -> None:
+        super().__init__(name)
+        self.styles, self.style, self.chosen = styles, style, []
+
+    def build(self, scene: Any, root: str) -> None:
+        pass
+
+    def set_step(self, step: int) -> None:
+        pass
+
+    def build_gui(self, sidebar: Sidebar) -> None:
+        def choose(style: str) -> None:
+            if style in self.styles:
+                self.style = style
+                self.chosen.append(style)
+
+        sidebar.dropdown("Robot", "Style", options=self.styles, value=self.style, on_change=choose)
+
+
+def test_removing_or_replacing_a_layer_never_restyles_the_others() -> None:
+    """R1's probe: a G1 with meshes beside a Panda at "maximal"; removing the G1 left the Panda "minimal", and a robot
+    built with ``style="medium"`` that replaced the G1 came up "minimal"."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    styles = ("minimal", "medium", "maximal")
+    g1 = viewer.add(_Styled("g1", ("meshes", *styles), "meshes"))
+    panda = viewer.add(_Styled("panda", styles, "maximal"))
+    style = server.gui.control("Style")
+    viewer.remove(g1)
+    assert panda.style == "maximal" and panda.chosen == []
+    assert "meshes" not in style.options and style.value in style.options
+    g1 = viewer.add(_Styled("g1", ("meshes", *styles), "meshes"))
+    style.value = "meshes"  # a choice in the browser: the robots that have it follow
+    style.fire(None)
+    new = _Styled("panda2", styles, "medium")
+    viewer.replace(g1, new)
+    assert new.style == "medium" and new.chosen == [] and panda.style == "maximal"
+    assert "meshes" not in style.options and style.value in style.options
 
 
 def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_set_visible() -> None:
@@ -768,5 +856,36 @@ def test_adding_a_layer_reads_the_bounds_of_the_others_only_after_they_were_push
     second.read.clear()
     viewer.add(_Box("fourth", 1))
     assert second.read == []
+    remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
+    np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read
+
+
+def test_a_redraw_while_hidden_drops_the_boxes_a_layer_shown_by_its_own_switch_is_framed_by() -> None:
+    """R1's probe: ``layer.set_visible(False)``, an edit, ``redraw()`` and ``layer.set_visible(True)`` left the automatic
+    aim on the old boxes, 13.9 m from a fresh fit."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    cloud = viewer.add(PointsLayer("cloud", np.zeros((1, 2, 3), np.float32)))
+    cloud.set_visible(False)
+    cloud.points[0, 1] = (0.0, 0.0, 10.0)
+    cloud.redraw()
+    cloud.set_visible(True)
+    viewer.add(PointsLayer("other", np.zeros((1, 1, 3), np.float32)))
+    remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
+    np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read
+
+
+def test_a_step_change_playback_or_a_longer_timeline_keeps_the_boxes_the_automatic_aim_read() -> None:
+    """A plain step change carries no edit: building a scene while it plays or while its clips grow the timeline
+    reads each layer's samples once."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    first = viewer.add(_Box("first", 40))
+    first.read.clear()
+    viewer.show(5)
+    second = viewer.add(_Box("second", 60), pose=(0.0, 3.0, 0.0))  # a longer clip: the timeline grows
+    viewer.timeline.step = 50  # what playback does
+    viewer.add(_Box("third", 90))
+    assert first.read == [] and len(second.read) == 32
     remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
     np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read

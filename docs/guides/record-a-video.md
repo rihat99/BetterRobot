@@ -72,8 +72,9 @@ pauses while `record` runs, and the step shown before comes back after.
 
 `viewer.aim(steps=...)` points the live browsers with the same 3/4 view: the connected ones and every new one
 (viser's initial camera, which "Reset View" returns to). It reads only the layers' boxes, at most 32 evenly spaced
-steps of the clip, so it takes milliseconds. It frames every step by default; pass `steps` to frame a part of the
-clip, and `azimuth=`/`elevation=` to look from another side.
+samples of each layer's own clip, so it takes milliseconds. It frames the whole clip by default; pass `steps` to
+frame a part of it (at most 32 evenly spaced steps of those are read), and `azimuth=`/`elevation=` to look from
+another side.
 
 ## Set up the browser
 
