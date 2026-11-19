@@ -34,7 +34,8 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
   fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role, *, side=0)` (`side=1` a left part, lighter, `-1`
   a right one, darker), `accent`, `collision`, `text` and `ramp` (the low and the high end of a joint value's range,
-  a quiet steel and a warm orange), all colours RGB in `[0, 1]`, and `collision_opacity`.
+  a quiet steel and a warm orange; another count of colours raises `ShapeError`, a value outside `[0, 1]`
+  `ArgumentError`), all colours RGB in `[0, 1]`, and `collision_opacity`.
   `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
   that casts shadows and a fill light, one rig for meshes and solid colours.
 - `Theme(sidebar_width="medium")`: viser's `"small"`, `"medium"` or `"large"` sidebar, which `Viewer.set_theme`
@@ -53,7 +54,9 @@ that 0.3.0 renames or removes, one table row each.
   `Viewer.set_visible` does; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
   viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
-  is drawn in, and `style`, `collision` and `frames` what it shows (record 0058).
+  is drawn in, and `style`, `collision` and `frames` what it shows (record 0058). A `hue` outside `[0, 1]`, a
+  collision switch that is not a bool, a string for `frames` and strings for `opacity`, `joint_values` or
+  `value_range` raise `ArgumentError` naming the argument.
 - `RobotVisual(opacity=)` and `RobotVisual.set_opacity`: every style drawn see-through, a ghost of a target or a
   reference motion beside or over the robot; below 1 it casts and catches no shadow, a mesh file with its own
   colours or texture (the Panda's, the Go2's) keeps them at that opacity through its material, and the collision
@@ -87,7 +90,8 @@ that 0.3.0 renames or removes, one table row each.
   the maximal skeleton's pale bodies and the medium one's rods.
 - `FramesLayer(scales=)`: one factor per frame `(F,)` on the length and thickness of its axes, an array that follows
   the array rule; `RobotVisual`'s triads take the glyph radius of their joint in the maximal skeleton, so a finger's triad
-  is a finger's size, where one length for all drew a hand's fingers as a bed of spikes.
+  is a finger's size, where one length for all drew a hand's fingers as a bed of spikes. A scale that is not a
+  positive, finite number raises `ArgumentError`.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
   as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files

@@ -132,6 +132,42 @@ def test_layers_refuse_bad_input_at_construction() -> None:
             build()
 
 
+def _panda(**options: object) -> RobotVisual:
+    return RobotVisual(br.load(panda_urdf()), **options)  # type: ignore[arg-type]
+
+
+_NAN = float("nan")
+_BAD_ROBOT_INPUT: list[tuple[Callable[[], object], type[Exception], str]] = [
+    (lambda: _panda().set_frames("panda_hand"), ArgumentError, "frames must be True, False or a sequence of frame"),
+    (lambda: _panda().set_collision("yes"), ArgumentError, "collision must be True or False, got 'yes'"),
+    (lambda: _panda(collision="yes"), ArgumentError, "collision must be True or False, got 'yes'"),
+    (lambda: _panda(hue=(2.0, 0.0, 0.0)), ArgumentError, r"hue must be three numbers in \[0, 1\]"),
+    (lambda: _panda(hue=(_NAN, 0.0, 0.0)), ArgumentError, r"hue must be three numbers in \[0, 1\]"),
+    (lambda: _panda(hue=("1", "0", "0")), ArgumentError, r"hue must be three numbers in \[0, 1\]"),
+    (lambda: _panda(opacity="0.5"), ArgumentError, r"opacity must be in \(0, 1\], got '0.5'"),
+    (lambda: _panda().set_opacity(_NAN), ArgumentError, r"opacity must be in \(0, 1\], got nan"),
+    (lambda: _panda(joint_values=["0.5"] * 10), ArgumentError, "joint_values must be numbers"),
+    (lambda: _panda().set_joint_values(None, value_range=("0", "1")), ArgumentError, "value_range must be two finite"),
+    (lambda: Theme(ramp=((1.0, 0.0, 0.0),)), ShapeError, r"ramp must be two RGB colours \(low, high\)"),
+    (lambda: Theme(ramp="ab"), ShapeError, r"ramp must be two RGB colours \(low, high\)"),
+    (lambda: Theme(ramp=((2.0, 0.0, 0.0), (0.0, 0.0, 0.0))), ArgumentError, r"ramp must be two colours of numbers"),
+    (lambda: FramesLayer("f", np.zeros((2, 7)), scales=[1.0, -1.0]), ArgumentError, "scales must be positive"),
+    (lambda: FramesLayer("f", np.zeros((2, 7)), scales=[0.0, 1.0]), ArgumentError, "scales must be positive"),
+    (lambda: FramesLayer("f", np.zeros((2, 7)), scales=[_NAN, 1.0]), ArgumentError, "scales must be positive"),
+    (lambda: FramesLayer("f", np.zeros((2, 7)), scales=["1", "1"]), ArgumentError, "scales must be numbers"),
+]
+
+
+@pytest.mark.parametrize(("call", "error", "match"), _BAD_ROBOT_INPUT)
+def test_the_robot_surface_refuses_bad_input_naming_the_argument(
+    call: Callable[[], object], error: type[Exception], match: str
+) -> None:
+    """R2 m4: a string where a switch or numbers belong, a colour outside [0, 1], a ramp of one colour and frame
+    scales that are not positive were accepted, read letter by letter or met a builtin error later."""
+    with pytest.raises(error, match=match):
+        call()
+
+
 def test_robot_visual_names_q_when_its_shape_is_wrong() -> None:
     model = br.load(panda_urdf())
     with pytest.raises(ShapeError, match=rf"q must be \(nq,\) or \(T, nq\) with nq = {model.nq}"):

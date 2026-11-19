@@ -21,6 +21,7 @@ import warnings
 from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import KW_ONLY, dataclass
+from numbers import Real
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast, final, override
 
@@ -50,7 +51,7 @@ from .skeleton import (
     unit_box,
     unit_cylinder,
 )
-from .theme import LIGHT, RGB, Theme, linear_uint8
+from .theme import LIGHT, RGB, Theme, linear_uint8, unit_numbers
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -205,12 +206,13 @@ class RobotVisual(Layer):
     controls to it (``style``, ``collision`` and ``frames`` read it).
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
-    theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
-    raises ``ShapeError``. ``name`` defaults to the model's name. ``opacity`` in ``(0, 1]`` draws every style see-through,
-    a ghost of the robot beside or over another (``set_opacity`` changes it); below 1 it casts and catches no shadow,
-    a mesh file with its own colours or texture keeps them at that opacity, and the overlay and the triads keep their
-    own look. ``joint_values`` colours the joint glyphs of the skeleton styles at each step through the theme's
-    ``ramp`` over ``value_range``, such as a joint's load (``set_joint_values``).
+    theme's hues that no other robot of the viewer is drawn in (``hue``); a ``hue`` that is not three numbers raises
+    ``ShapeError``, one outside ``[0, 1]`` ``ArgumentError``. ``name`` defaults to the model's name. ``opacity`` in
+    ``(0, 1]`` draws every style see-through, a ghost of the robot beside or over another (``set_opacity`` changes
+    it); below 1 it casts and catches no shadow, a mesh file with its own colours or texture keeps them at that
+    opacity, and the overlay and the triads keep their own look. ``joint_values`` colours the joint glyphs of the
+    skeleton styles at each step through the theme's ``ramp`` over ``value_range``, such as a joint's load
+    (``set_joint_values``).
     """
 
     def __init__(
@@ -237,6 +239,8 @@ class RobotVisual(Layer):
     ) -> None:
         if hue is not None and np.shape(hue) != (3,):
             raise ShapeError(f"hue must be an RGB triple, got {hue!r}")
+        if hue is not None and not unit_numbers(hue):
+            raise ArgumentError(f"hue must be three numbers in [0, 1], got {hue!r}")
         self.model, self.geometry, self.spheres, self.skin = model, geometry, spheres, skin
         self.q, self._poses = self._solve(q)
         super().__init__(name or model.name, self._poses.shape[0], tags=tags)
@@ -269,8 +273,7 @@ class RobotVisual(Layer):
         self.joint_values: np.ndarray | None = None
         self.value_range = (0.0, 1.0)
         self.set_joint_values(joint_values, value_range=value_range)
-        if collision:
-            self.set_collision(visible=True)
+        self.set_collision(collision)
         self.set_frames(frames)
 
     # ------------------------------------------------------------------ the configurations
@@ -324,22 +327,24 @@ class RobotVisual(Layer):
         (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
         kept as a read-only ``(T, njoints)`` view of it.
 
-        Values of another shape raise ``ShapeError``; a ``value_range`` that is not two finite numbers, low below
-        high, raises ``ArgumentError``.
+        Values of another shape raise ``ShapeError``, values that are not numbers (strings) and a ``value_range`` that
+        is not two finite numbers, low below high, ``ArgumentError``.
         """
         if value_range is not None:
             if np.shape(value_range) != (2,):
                 raise ShapeError(f"value_range must be two numbers (low, high), got {value_range!r}")
-            low, high = (float(end) for end in value_range)
-            if not (np.isfinite(low) and np.isfinite(high) and low < high):
+            low, high = value_range
+            real = isinstance(low, Real) and isinstance(high, Real)  # float() would read a string
+            if not (real and np.isfinite(low) and np.isfinite(high) and low < high):
                 raise ArgumentError(f"value_range must be two finite numbers, low below high, got {value_range!r}")
-            value_range = (low, high)
+            value_range = (float(low), float(high))
         if values is not None:
-            values = np.asarray(values.detach().cpu() if isinstance(values, torch.Tensor) else values, np.float32)
-            if values.shape == (self.model.njoints,):  # one row for every step: a read-only view, not T copies
-                values = np.broadcast_to(values, (self.nsteps, self.model.njoints))
-            else:
-                values = np.ascontiguousarray(values)
+            values = np.asarray(values.detach().cpu() if isinstance(values, torch.Tensor) else values)
+            if values.dtype.kind not in "biuf":  # numpy would read "0.5" as a number
+                raise ArgumentError(f"joint_values must be numbers, got {values.dtype} values")
+            values = values.astype(np.float32, copy=False)
+            row = values.shape == (self.model.njoints,)  # one row for every step: a read-only view, not T copies
+            values = np.broadcast_to(values, (self.nsteps, values.shape[0])) if row else np.ascontiguousarray(values)
             if values.shape != (self.nsteps, self.model.njoints):
                 raise ShapeError(
                     f"joint_values must be (njoints,) = ({self.model.njoints},) for every step or (T, njoints) = "
@@ -511,6 +516,8 @@ class RobotVisual(Layer):
 
     def set_collision(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Show or hide the collision overlay: the spheres, or the collision shapes of the geometry."""
+        if not isinstance(visible, bool):
+            raise ArgumentError(f"collision must be True or False, got {visible!r}")
         if visible and not self._has_collision:
             raise ArgumentError(f"robot {self.name!r} has no spheres and no collision shapes to overlay")
         self._collision = visible
@@ -519,6 +526,8 @@ class RobotVisual(Layer):
 
     def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
         """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
+        if isinstance(frames, str):  # a string is a sequence of one-letter names
+            raise ArgumentError(f"frames must be True, False or a sequence of frame ids or names, got {frames!r}")
         chosen = frames if isinstance(frames, bool) else tuple(self.model.frame_id(frame) for frame in frames)
         with self._lock():  # the playback thread must not push a step to the node being dropped
             if chosen and chosen != self._triads:  # another set of frames is another node
