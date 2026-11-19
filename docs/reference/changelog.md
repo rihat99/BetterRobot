@@ -81,9 +81,10 @@ that 0.3.0 renames or removes, one table row each.
 - `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
   one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
 - `testing.FakeServer.scene.add_glb`, and `testing.FakeServer.get_host()` (loopback), as viser's server has.
-- `examples/viewer/00_showcase.py`: one page that shows the G1, the Panda and the Go2 as meshes or as the minimal,
-  medium or maximal skeleton, with the collision overlay, the frame triads, the light or dark theme and a looping
-  motion.
+- `examples/viewer/00_showcase.py`: one page that shows eight robots (G1, H1, Go2, Spot, Panda, UR5e, Shadow hand,
+  Tiago; those in the `robot_descriptions` cache) as meshes or as the minimal, medium or maximal skeleton, with the
+  collision overlay, the frame triads, the light or dark theme and a calm loop that moves every joint within its
+  limits; a robot is built the first time it is picked.
 - `better_robot.viewer.tools` is in the public tree (`viewer.__all__`): the API snapshot, the keyword-only and
   vocabulary tests and the API page cover `PoseGizmo`, `CameraFrustum`, `ray_hit`, `nearest_on_ray`, `project`,
   `vertices_in_sphere` and `vertices_in_rect`; `PoseGizmo` and `CameraFrustum` have a `repr`.
