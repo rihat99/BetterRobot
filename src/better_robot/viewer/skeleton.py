@@ -546,7 +546,9 @@ def _limb_floors(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[
     """``tree`` with each drum wider than the limbs it joins, as ``_maximal`` draws them (``_TAPER`` narrower at
     their far end), and as long, so that both its faces stand out of them: a radius of at least their half width
     over ``_HALF``. A motor is never thinner than the body it drives (a Go2's knee under its thigh, a UR5e's joints
-    between its tubes). A limb leaves each group that is no trunk towards each of its child glyphs."""
+    between its tubes). A limb leaves each group that is no trunk towards each of its child glyphs; a child on the
+    group's own joint (a Panda's shoulder on its base collar) still has one, along that joint's axis, the way the
+    collar slides off it."""
     radius = dict(tree.radius)
     for g in tree.glyphs:
         trunk = (tree.group[g] == 0 and tree.kind[g] == "free") or len(tree.children[g]) >= 2
@@ -554,8 +556,10 @@ def _limb_floors(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[
             continue
         for j in tree.children[g]:
             direction = tree.origin[j] - tree.origin[g]
-            if np.linalg.norm(direction) <= 1e-6:
-                continue
+            if np.linalg.norm(direction) <= 1e-6:  # on its joint: the drum slides off it along its axis, the limb too
+                if g not in tree.axis:
+                    continue
+                direction = tree.axis[g]
             frame = _limb_frame(direction / np.linalg.norm(direction), tree.axis.get(j))
             width = _BODY * _width(tree, clouds.get(g, []), g, frame)
             side = min(max(recipe.bones * radius[g], width), 0.8 * max(radius[g], tree.load[g]))
