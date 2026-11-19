@@ -26,19 +26,19 @@ from better_robot.viewer import DARK, LIGHT, RobotVisual
 
 STEPS = 240  # 8 s at 30 fps: one slow swing of every joint
 CACHE = Path(g1_description.REPOSITORY_PATH).parent  # robot_descriptions' cache folder
-ROBOTS = {  # name: (description file in the cache, floating base, ready pose: joint -> angle in rad or m)
-    "G1": ("unitree_ros/robots/g1_description/g1_29dof.urdf", True,
+ROBOTS = {  # name: (description file relative to the cache, floating base, ready pose: joint -> angle in rad or m)
+    "G1": ("./unitree_ros/robots/g1_description/g1_29dof.urdf", True,
            {"left_shoulder_roll": 0.25, "right_shoulder_roll": -0.25, "elbow": 1.2}),
-    "H1": ("unitree_ros/robots/h1_description/urdf/h1.urdf", True,
+    "H1": ("./unitree_ros/robots/h1_description/urdf/h1.urdf", True,
            {"left_shoulder_roll": 0.2, "right_shoulder_roll": -0.2, "elbow": 1.0}),
-    "Go2": ("unitree_ros/robots/go2_description/urdf/go2_description.urdf", True, {"thigh": 0.7, "calf": -1.4}),
-    "Spot": ("mujoco_menagerie/boston_dynamics_spot/spot.xml", True, {"hy": 0.8, "kn": -1.6}),
-    "Panda": ("example-robot-data/robots/panda_description/urdf/panda.urdf", False,
+    "Go2": ("./unitree_ros/robots/go2_description/urdf/go2_description.urdf", True, {"thigh": 0.7, "calf": -1.4}),
+    "Spot": ("./mujoco_menagerie/boston_dynamics_spot/spot.xml", True, {"hy": 0.8, "kn": -1.6}),
+    "Panda": ("./example-robot-data/robots/panda_description/urdf/panda.urdf", False,
               {"panda_joint2": -0.8, "panda_joint4": -2.4, "panda_joint6": 1.6, "panda_joint7": 0.8}),
-    "UR5e": ("mujoco_menagerie/universal_robots_ur5e/ur5e.xml", False,
+    "UR5e": ("./mujoco_menagerie/universal_robots_ur5e/ur5e.xml", False,
              {"shoulder_lift": -1.57, "elbow": 1.57, "wrist_1": -1.57, "wrist_2": -1.57}),
-    "Shadow hand": ("mujoco_menagerie/shadow_hand/left_hand.xml", False, {".*FJ[123]": 0.3, "lh_THJ4": 0.5}),
-    "Tiago": ("example-robot-data/robots/tiago_description/robots/tiago.urdf", False,
+    "Shadow hand": ("./mujoco_menagerie/shadow_hand/left_hand.xml", False, {".*FJ[123]": 0.3, "lh_THJ4": 0.5}),
+    "Tiago": ("./example-robot-data/robots/tiago_description/robots/tiago.urdf", False,
               {"torso_lift": 0.15, "arm_2": -1.34, "arm_4": 1.94, "arm_5": -1.57, "arm_6": 1.37}),
 }  # fmt: skip
 
