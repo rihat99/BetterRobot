@@ -103,7 +103,9 @@ class MeshLayer(Layer):
         linear = linear_uint8(self.colors / 255.0)
         visual.vertex_attributes["color"] = np.concatenate([linear, np.full_like(linear[:, :1], 255)], 1)
         mesh = Trimesh(self.vertices[0], self.faces, visual=visual, process=False)
-        return mesh.export(file_type="glb", include_normals=not self.flat_shading)
+        glb = mesh.export(file_type="glb", include_normals=not self.flat_shading)
+        assert isinstance(glb, bytes)
+        return glb
 
 
 def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.ndarray, np.ndarray | slice, np.ndarray]]:
@@ -287,8 +289,8 @@ class SpheresLayer(Layer):
         self._spheres.batched_positions = self.centers[step]
         if self._colors.ndim == 3:
             self._spheres.batched_colors = self._colors[step]
-        hidden = self.valid is not None and self.valid.ndim == 2
-        scales = self.radii * self.valid[step] if hidden else self.radii  # radius 0 hides an invalid sphere
+        # Radius 0 hides an invalid sphere.
+        scales = self.radii * self.valid[step] if self.valid is not None and self.valid.ndim == 2 else self.radii
         if not np.array_equal(scales, self._scales):  # an edit of radii, or another mask
             self._spheres.batched_scales = self._scales = scales.copy()
 
