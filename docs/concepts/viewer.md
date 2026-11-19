@@ -346,6 +346,8 @@ the configuration `bind (nq,)` (`None` is `model.q_neutral`) and `weights (V, nj
 the universe included: a body model's weights over its own joints are scattered into those columns
 ([Use with BetterHuman](../guides/use-with-betterhuman.md)). `RobotVisual(model, q, skin=skin)` shows it as the
 `"meshes"` style, skinned in the browser.
+On viser 1.1.1 a connected browser goes blank when `viewer.remove` or `viewer.replace` takes a skinned surface
+away (a bug of viser's client, fixed upstream in viser pull request 791); reloading the page shows the scene again.
 
 ## Tools: a gizmo and numpy picking
 

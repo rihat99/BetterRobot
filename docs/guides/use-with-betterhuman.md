@@ -127,6 +127,8 @@ one bone pose per joint and step. For the exact surface, show the vertices thems
 `viewer.add(MeshLayer("surface", state.vertices.numpy(), faces=human.spec.faces.numpy()), tags="surface",
 pose=(0.0, 1.0, 0.0, *Z_UP))`, which sends `T x V x 3` floats. A body without a model, given only its bone poses
 `(T, J, 7)`, is a `SkinnedMeshLayer(name, vertices, faces=, weights=, bind_poses=, bone_poses=)`.
+On viser 1.1.1 a connected browser goes blank when `viewer.remove` or `viewer.replace` takes a body away, as a body
+swap does (a bug of viser's client, fixed upstream in viser pull request 791); reloading the page shows the scene again.
 
 ## Record the clip
 
