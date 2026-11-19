@@ -223,6 +223,8 @@ that 0.3.0 renames or removes, one table row each.
   unpack, in `Viewer.add`).
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
+- `MeshLayer`, `SkinnedMeshLayer` and `RigidMeshLayer` (each `MeshSpec`) raise `ArgumentError` for a face index
+  outside the vertices, naming the range (it reached the browser).
 - `SkinnedMeshLayer` names `weights` and `bone_poses` apart, each with the shape it needs: a `RobotVisual`'s `Skin`
   with one weight column per joint of the body instead of per model joint raised an error about bone poses the
   caller never passed.

@@ -67,12 +67,17 @@ def from_z(direction: np.ndarray) -> np.ndarray:
     return so3.exp(axis * torch.atan2(sine, unit[..., 2:])).numpy()
 
 
-def as_triangles(faces: np.ndarray) -> np.ndarray:
-    """``faces`` as contiguous uint32 ``(F, 3)`` vertex indices of triangles; another shape raises ``ShapeError``."""
-    out = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
-    if out.ndim != 2 or out.shape[1] != 3:
-        raise ShapeError(f"faces must be (F, 3) vertex indices of triangles, got {out.shape}")
-    return out
+def as_triangles(faces: np.ndarray, *, vertices: int) -> np.ndarray:
+    """``faces`` as contiguous uint32 ``(F, 3)`` indices into ``vertices`` vertices; another shape raises
+    ``ShapeError``, an index outside ``[0, vertices)`` ``ArgumentError`` (the browser would draw it from garbage)."""
+    index = np.asarray(faces)
+    if index.ndim != 2 or index.shape[1] != 3:
+        raise ShapeError(f"faces must be (F, 3) vertex indices of triangles, got {index.shape}")
+    if index.size and (np.min(index) < 0 or np.max(index) >= vertices):
+        raise ArgumentError(
+            f"faces must index the {vertices} vertices, from 0 to {vertices - 1}; got {np.min(index)} to {np.max(index)}"
+        )
+    return np.ascontiguousarray(index, dtype=np.uint32)
 
 
 class Layer(ABC):

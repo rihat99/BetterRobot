@@ -41,7 +41,7 @@ class SkinnedMeshLayer(Layer):
         self.vertices = np.asarray(vertices, dtype=np.float32)
         if self.vertices.ndim != 2 or self.vertices.shape[1] != 3:
             raise ShapeError(f"vertices must be (V, 3) bind-pose positions, got {self.vertices.shape}")
-        self.faces = as_triangles(faces)
+        self.faces = as_triangles(faces, vertices=len(self.vertices))
         self.bind_poses = np.asarray(bind_poses, dtype=np.float32)
         if self.bind_poses.ndim != 2 or self.bind_poses.shape[1] != 7:
             raise ShapeError(f"bind_poses must be (J, 7) world bone poses (xyzw), got {self.bind_poses.shape}")
