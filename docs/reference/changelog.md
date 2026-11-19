@@ -33,25 +33,30 @@ that 0.3.0 renames or removes, one table row each.
   `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
   that casts shadows and a fill light, one rig for meshes and solid colours.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
-  and its clients have a camera and notifications.
-- `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, maximal, hue, collision,
-  frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws the style
-  `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"` or `"maximal"` (skeletons), with a
-  collision overlay (the sphere set, else the collision shapes) and frame triads. Each part is built the first time
+  and its clients have a camera and notifications; its plain and skinned meshes take `cast_shadow` and
+  `receive_shadow`.
+- `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, medium, maximal, hue,
+  collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
+  the style `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"`, `"medium"` or `"maximal"`
+  (skeletons), with a collision overlay (the sphere set, else the collision shapes, a pale see-through shell over any
+  style) and frame triads. Each part is built the first time
   it is shown; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
   viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
   is drawn in (record 0058).
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs, trunks
   for the bodies that branch, a sole, a hand or a paw where a chain ends, in two tones; glyphs that share a point
-  slide apart along their own axes, then shrink, and a chain narrows towards its tip) and `viewer.MINIMAL` (one
+  slide apart along their own axes, then shrink, and a chain narrows towards its tip), `viewer.MEDIUM` (the same
+  glyphs, laid out by the same slides, on thin pale rods instead of bodies: `hulls="none"` with `glyphs="kind"`,
+  `bones=0.35`, `size=0.7`) and `viewer.MINIMAL` (one
   ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
   joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid
   has feet and hands; both styles share one size rule, a reference radius between 2 % and 4 % of the robot's size,
   and size bodies from the collision shapes before a sphere set, leaving out with a warning a collision mesh file
   that cannot be read): `glyphs` (`"kind"` or `"ball"`), `bones` (0.6 of the glyph radius by default), `hulls`,
-  `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A maximal skeleton is
-  three batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies.
+  `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A skeleton is three
+  batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies and the medium one's
+  rods.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
@@ -60,8 +65,9 @@ that 0.3.0 renames or removes, one table row each.
 - `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
   one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
 - `testing.FakeServer.scene.add_glb`.
-- `examples/viewer/00_showcase.py`: one page that shows the G1, the Panda and the Go2 as meshes or as the minimal
-  or maximal skeleton, with the collision overlay, the frame triads, the light or dark theme and a looping motion.
+- `examples/viewer/00_showcase.py`: one page that shows the G1, the Panda and the Go2 as meshes or as the minimal,
+  medium or maximal skeleton, with the collision overlay, the frame triads, the light or dark theme and a looping
+  motion.
 
 ### Changed
 - `Viewer.add(layers, *, tags=None, offset=, times=, valid=)` takes one layer or an iterable of layers and returns
@@ -109,8 +115,13 @@ that 0.3.0 renames or removes, one table row each.
   and `CameraLayer` drew about 100 levels paler than a `MeshLayer` of the same colour, because viser reads their
   colours as linear values. With the true colours `Theme.hues` are lighter mid-tones (green `(116, 190, 140)`, was
   `(82, 160, 104)`) and `Theme.shade` mixes less: `joint` 10 % and `face` 32 % towards black (were 22 % and 58 %),
-  `stick` 10 % towards white (was 25 %). `DARK.collision` is a lighter grey `(170, 180, 196)` at opacity 0.22: the
-  light theme's `(140, 150, 165)` at 0.18 was a dim ghost on the dark backdrop.
+  `stick` 10 % towards white (was 25 %). `DARK.collision` is a pale glass `(236, 239, 245)` at opacity 0.16: the
+  light theme's `(140, 150, 165)` at 0.18 was a dim ghost on the dark backdrop, and a darker or denser grey turns
+  to smoke that dims the skeleton it holds.
+- A mesh layer below opacity 1 (`MeshLayer`, `RigidMeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`, the collision
+  overlay) casts and catches no shadow: the shadow map ignores opacity, so a glass at 0.2 threw a solid shadow and
+  wore the shadows of what it holds. `Layer._surface()`, a subclass hook beside `_track`, `_store_opacity` and
+  `_fade`, gives the settings a mesh node is drawn with at the layer's opacity.
 - `ArrowsLayer` draws viser's arrows (`scene.add_arrows`): `shaft_radius=0.006`, `head_radius=0.016` and
   `head_length=0.04` metres for every arrow, the arrows not drawn at a step left out of it.
 
