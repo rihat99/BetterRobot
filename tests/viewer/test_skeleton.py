@@ -227,13 +227,37 @@ def _overlap(first: tuple, second: tuple, *, round_: bool) -> bool:
     return bool(((radial < 1.0 - 1e-9) & (np.abs(local[:, 2]) < 1.0 - 1e-9)).any())
 
 
+#: The G1's compounds, joints that nearly share a point: each later joint and the first joint of its compound.
+_G1_COMPOUNDS = {
+    "hip_roll": "hip_pitch", "ankle_roll": "ankle_pitch", "shoulder_roll": "shoulder_pitch",
+    "waist_roll": "waist_yaw", "waist_pitch": "waist_yaw",
+}  # fmt: skip
+
+
+def _g1_compound(model: Model, joint: int) -> int:
+    """The first joint of the compound of G1 ``joint``, or ``joint`` itself."""
+    name = model.joint_names[joint]
+    for later, first in _G1_COMPOUNDS.items():
+        if later in name:
+            return model.joint_names.index(name.replace(later, first))
+    return joint
+
+
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
 def test_g1_glyphs_of_one_rigid_group_do_not_overlap(recipe: SkeletonRecipe) -> None:
+    """Drums of one rigid group stay clear, except the drums of a compound: they cross, as a universal joint's do,
+    on axes far apart, and a later drum is at least 10 % narrower or longer than the one it crosses."""
     model, spheres = _g1()
     skeleton = build_skeleton(model, recipe, spheres=spheres)
     drums = _drums(skeleton, _poses(model))
     pairs = _same_group_pairs(model, set(drums))
-    assert pairs  # compounds (hips, shoulders, waist, ankles) are balls, the other drums pair up
+    crossed = [(a, b) for a, b in pairs if _g1_compound(model, a) == _g1_compound(model, b)]
+    assert len(crossed) == 8  # two hips, two ankles, two shoulders, and the waist's roll with its yaw and its pitch
+    for a, b in crossed:
+        (_, first, first_half), (_, later, later_half) = drums[a], drums[b]
+        assert abs(float(first[:, 2] @ later[:, 2])) < np.cos(np.radians(35.0))
+        assert later_half[0] <= 0.9 * first_half[0] or later_half[2] >= 1.1 * first_half[2]
+    pairs = [pair for pair in pairs if pair not in crossed]
     for a, b in pairs:  # the layout's own test is on the boxes around the drums, at neutral
         names = (model.joint_names[a], model.joint_names[b])
         assert not _overlap(drums[a], drums[b], round_=False), names
@@ -271,6 +295,8 @@ def test_g1_slides_are_mirror_images() -> None:
 
 
 def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
+    """A drum is no wider than the drum before it, or than the first drum of that one's compound (a compound's later
+    drums are narrower than their own joint's size, so that they cross)."""
     model, spheres = _g1()
     skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
     drums, anchor = _drums(skeleton, _poses(model)), _anchors(model)
@@ -278,7 +304,8 @@ def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
     pairs = [(anchor[model.parent_joint_ids[j]], j) for j in drums if anchor[model.parent_joint_ids[j]] in drums]
     assert pairs
     for parent, child in pairs:
-        assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
+        first = parent if _g1_compound(model, child) == _g1_compound(model, parent) else _g1_compound(model, parent)
+        assert size[child] <= size[first] + 1e-12, (model.joint_names[parent], model.joint_names[child])
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
@@ -370,14 +397,19 @@ def test_g1_minimal_clusters_close_joints_alike_on_both_sides_and_without_geomet
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda"])
-def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str) -> None:
-    """A drum slides along its own axis by at most one half length, after a twist joint's collar offset of one
-    more: it never leaves its joint."""
+@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
+def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str, recipe: SkeletonRecipe) -> None:
+    """Every revolute joint draws one drum on its own axis (a compound's joints too: their drums cross), slid along
+    that axis by at most one half length, after a twist joint's collar offset of one more: it never leaves its
+    joint."""
     model, spheres = _ROBOTS[robot]()
     poses = _poses(model)
-    drums = _drums(build_skeleton(model, MAXIMAL, spheres=spheres), poses)
-    assert drums
+    drums = _drums(build_skeleton(model, recipe, spheres=spheres), poses)
+    revolute = {j for j in range(1, model.njoints) if type(model.joints[j]).__name__ == "JointRevolute"}
+    assert set(drums) == revolute
     for joint, (center, rotation, half) in drums.items():
+        axis = _rotations(poses[joint : joint + 1, 3:])[0] @ np.asarray(model.joints[joint].axis)
+        assert abs(float(axis @ rotation[:, 2])) == pytest.approx(1.0, abs=1e-5), model.joint_names[joint]
         offset = center - poses[joint, :3]
         along = float(offset @ rotation[:, 2])
         np.testing.assert_allclose(offset, along * rotation[:, 2], atol=1e-6)
@@ -634,7 +666,7 @@ def test_colors_shade_each_part_and_tint_the_sides() -> None:
     np.testing.assert_allclose(colors["boxes"][boxes == "hull"][0], LIGHT.shade(hue, "bone"), atol=1e-6)
     red = (1.0, 0.0, 0.0)
     sided = build_skeleton(model, SkeletonRecipe(sides=True, color={"left_knee_joint": red}), spheres=spheres)
-    drums = {}  # a glyph's colour per joint: its drum, or the ball of a compound (the waist)
+    drums = {}  # a glyph's colour per joint: its drum or its ball
     for mesh in ("cylinders", "balls"):
         blocks, rows = getattr(sided, mesh), sided.colors(hue, LIGHT)[mesh]
         drums |= {model.joint_names[o]: c for o, p, c in zip(blocks.owner, blocks.part, rows) if p in ("drum", "ball")}

@@ -14,7 +14,7 @@ import torch
 import better_robot as br
 from better_robot.lie import so3
 from better_robot.lie.se3 import compose, from_translation
-from better_robot.model import JointManifold, JointModel, JointPrismatic
+from better_robot.model import JointManifold, JointModel, JointPrismatic, JointRevolute
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin
 from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, build_skeleton
@@ -212,7 +212,7 @@ def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> 
     if style != "minimal":
         drums = [i for i, part in enumerate(blocks.part) if part == "drum"]
         axes = [joints[1][j] @ np.asarray(model.joints[j].axis) for j in blocks.owner[drums]]
-        assert drums  # compounds (hips, shoulders, waist, ankles) are balls
+        assert len(drums) == sum(isinstance(joint, JointRevolute) for joint in model.joints)  # a compound's too
         np.testing.assert_allclose(rotation[drums, :, 2], np.stack(axes), atol=1e-5)
     if style == "maximal":
         return
