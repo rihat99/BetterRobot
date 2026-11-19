@@ -261,9 +261,9 @@ class _Page:
         self, viewer: Viewer, size: tuple[int, int], camera: tuple[np.ndarray, np.ndarray], fov: float, gpu: int | None
     ) -> None:
         self.viewer, self.size, self.camera, self.fov, self.gpu = viewer, size, camera, fov, gpu
-        # A server bound to every interface is reached through loopback: 0.0.0.0 is no destination on every system,
-        # and Chromium is closing it.
-        self.origin = f"http://{'127.0.0.1' if viewer.host == '0.0.0.0' else viewer.host}:{viewer.port}"
+        # A server bound to every interface is reached through loopback: 0.0.0.0 and :: are no destination on every
+        # system, and Chromium is closing them.
+        self.origin = viewer.url.replace("//0.0.0.0:", "//127.0.0.1:").replace("//[::]:", "//[::1]:")
         self._profile = tempfile.TemporaryDirectory(prefix="better_robot_record_")
         self._process: subprocess.Popen | None = None
         self._pipes: tuple[int, int] | None = None  # (write to Chromium, read from Chromium)
@@ -341,6 +341,13 @@ class _Page:
         self._session = self._send("Target.attachToTarget", targetId=page["targetId"], flatten=True)["sessionId"]
         deadline = time.monotonic() + 60.0
         while (missing := self.eval(PROBE, check=False)) != []:
+            if missing == ["window.__viserMutable"]:  # no viser client: the page may not have loaded at all
+                shown = self.eval("location.href", check=False)
+                if str(shown).startswith("chrome-error:") or time.monotonic() > deadline:
+                    raise ArgumentError(
+                        f"Chromium could not load the viewer's page from {self.origin} (it shows {shown!r}); the "
+                        "server must be reachable at that address from this host"
+                    )
             if time.monotonic() > deadline:
                 raise OptionalDependencyError(
                     f"viser {version('viser')} with the client internals Viewer.record drives (missing: {missing})",

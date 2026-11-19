@@ -191,6 +191,9 @@ that 0.3.0 renames or removes, one table row each.
 ### Fixed
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
   opened whatever page listened there).
+- `Viewer.url` puts an IPv6 host in brackets (`http://[::1]:8080`; was `http://::1:8080`), so `record` reaches such a
+  server, and a page Chromium cannot load raises `ArgumentError` naming its address at once (it was blamed on the
+  viser version after a minute).
 - The docs and `Viewer.add` said a layer keeps the caller's arrays by reference, and the docs' example edited a
   float64 cloud that the layer had copied. A layer keeps its arrays as float32 attributes (`layer.points`,
   `layer.poses`, `layer.valid`, ...), the input itself only when it already is C-contiguous float32: edit the

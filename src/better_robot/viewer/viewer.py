@@ -162,8 +162,8 @@ class Viewer:
 
     @property
     def url(self) -> str:
-        """Address to open in a browser, e.g. ``http://127.0.0.1:8080``."""
-        return f"http://{self.host}:{self.port}"
+        """Address to open in a browser, e.g. ``http://127.0.0.1:8080``, or ``http://[::1]:8080`` for IPv6."""
+        return f"http://{f'[{self.host}]' if ':' in self.host else self.host}:{self.port}"
 
     @property
     def layers(self) -> list[Layer]:
