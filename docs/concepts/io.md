@@ -55,8 +55,9 @@ ball joint with a `range` (a cone limit), an `<equality>` other than an active l
 one becomes a mimic joint), and an ellipsoid, plane, height-field or SDF geom. What lies outside it is ignored by
 rule and never reaches the `Model`: actuators, tendons, sensors, contact settings (`<contact>` pairs and excludes,
 geom `friction`, `condim`, `solref`, `solimp`, `margin`), joint springs (`stiffness`, `springref`) and
-`frictionloss`, keyframes, cameras, lights, materials and textures (a geom keeps its `rgba`), the world body's
-geoms (scenery; its sites become frames on `"universe"`) and every simulation option but gravity.
+`frictionloss`, keyframes, cameras, lights, materials and textures (a geom keeps the colour MuJoCo draws it in:
+its `rgba`, or its material's when it sets none of its own), the world body's geoms (scenery; its sites become
+frames on `"universe"`) and every simulation option but gravity.
 
 ## Loading is a guide
 

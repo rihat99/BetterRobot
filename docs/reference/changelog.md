@@ -216,6 +216,9 @@ that 0.3.0 renames or removes, one table row each.
 - `tools.CameraFrustum.position` and `tools.CameraFrustum.wxyz`: use `CameraFrustum.pose`.
 
 ### Fixed
+- An MJCF geom that names a material and sets no `rgba` of its own takes the material's colour, as MuJoCo
+  draws it (it took MuJoCo's default grey: the menagerie's Spot lost its yellow, the UR5e and the Shadow hand
+  their tones).
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
   opened whatever page listened there).
 - `Viewer(server=s, host=, port=)` raises `ArgumentError` (the host and port were dropped silently: `url` is the
