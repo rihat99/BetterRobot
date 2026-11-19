@@ -407,10 +407,15 @@ class _Page:
 
     def eval(self, expression: str, *, check: bool = True) -> Any:
         """Await ``expression`` in the page and return its JSON value; a page error raises, or returns ``None`` when
-        ``check`` is off."""
-        result = self._send(
-            "Runtime.evaluate", expression=expression, awaitPromise=True, returnByValue=True, session=self._session
-        )
+        ``check`` is off, as does a page between two documents, where DevTools finds no context to evaluate in."""
+        try:
+            result = self._send(
+                "Runtime.evaluate", expression=expression, awaitPromise=True, returnByValue=True, session=self._session
+            )
+        except ArgumentError:  # DevTools' refusal while the page navigates: the wait polls again
+            if check:
+                raise
+            return None
         if "exceptionDetails" in result:
             if not check:
                 return None

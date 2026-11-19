@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import KW_ONLY, dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, final, override
+from typing import TYPE_CHECKING, Any, Literal, cast, final, override
 
 import numpy as np
 import torch
@@ -62,7 +62,8 @@ Style = Literal["meshes", "minimal", "medium", "maximal"]
 
 _STYLES = ("meshes", "minimal", "medium", "maximal")
 _SKELETONS = _STYLES[1:]
-_TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the skeleton's glyph radius
+_TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the glyph radius of the joint it hangs on
+_GLASS = 0.002  # the collision glass stands this share of the robot's size off its shapes: clear of the meshes
 
 
 @final
@@ -84,18 +85,30 @@ class Skin:
 
 @final
 class _Blocks(Layer):
-    """The nodes of one skeleton: a batched node per unit mesh in use and a line node for limit arcs."""
+    """The nodes of one skeleton: a batched node per unit mesh in use and a line node for limit arcs.
 
-    def __init__(self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme) -> None:
+    With ``values`` ``(T, njoints)`` a step also colours the joint glyphs, one write of colours to each node that
+    holds one (``_paint``).
+    """
+
+    def __init__(
+        self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float,
+        values: np.ndarray | None, value_range: tuple[float, float],
+    ) -> None:  # fmt: skip
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
+        self.values, self.value_range = values, value_range
+        self._store_opacity(opacity)
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
+        self._step = 0
+        self._colors: dict[str, np.ndarray] = {}  # per node, the colours of its blocks without values
+        self._ends: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}  # per node, its glyphs (_shade)
 
     @override
     def build(self, scene: Any, root: str) -> None:
         meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(taper=self.skeleton.taper)}
-        colors = self.skeleton.colors(self.hue, self.theme)
+        colors = self._shade()
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
                 vertices, faces = meshes[mesh]
@@ -104,7 +117,7 @@ class _Blocks(Layer):
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
                         batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
-                        receive_shadow=self.skeleton.taper == 1.0,  # a tapered block's own shadow streaks its faces
+                        **self._surface(),
                     )
                 )  # fmt: skip
         if len(self.skeleton.line_body):
@@ -116,6 +129,7 @@ class _Blocks(Layer):
 
     @override
     def set_step(self, step: int) -> None:
+        self._step = step
         for mesh, (world, scale) in self.skeleton.place(self.poses[step]).items():
             if mesh in self._nodes:
                 self._nodes[mesh].batched_positions = world[:, :3]
@@ -124,15 +138,55 @@ class _Blocks(Layer):
                     self._nodes[mesh].batched_scales = scale.astype(np.float32)
         if self._lines is not None:
             self._lines.points = self.skeleton.lines(self.poses[step])
+        if self.values is not None:
+            self._paint(self.values[step])
+
+    def _shade(self) -> dict[str, np.ndarray]:
+        """The colours ``(N, 3)`` of every block in the shades of the hue, kept with, per unit mesh, its glyphs: their
+        rows, the joints each stands for and the colours of the two ends of the theme's ramp in each one's shade (a
+        drum face darker, as the recipe's colour of a glyph is)."""
+        self._colors, self._ends = self.skeleton.colors(self.hue, self.theme), {}
+        ramp = np.array(self.theme.ramp, dtype=np.float32)  # (2, 3)
+        dark = np.array([self.theme.shade(end, "face") for end in self.theme.ramp], dtype=np.float32)
+        for mesh in self._colors:
+            rows, joints, faces = self.skeleton.glyphs(mesh, self.poses.shape[1])
+            if len(rows):
+                self._ends[mesh] = (rows, joints, np.where(faces[:, None, None], dark, ramp))  # (n, 2, 3)
+        return self._colors
+
+    def _paint(self, values: np.ndarray) -> None:
+        """Colour each glyph by its joint's value in ``values (njoints,)``, a ball of the stick figure by the value of
+        the largest magnitude among its joints; a glyph without a value (NaN) keeps its colour."""
+        low, high = self.value_range
+        for mesh, (rows, joints, ends) in self._ends.items():
+            picked = np.where(joints, values, np.nan)  # (n, njoints)
+            picked = picked[np.arange(len(rows)), np.nan_to_num(np.abs(picked), nan=-1.0).argmax(axis=1)]
+            share = np.clip((picked - low) / (high - low), 0.0, 1.0)[:, None]
+            valued = ~np.isnan(picked)
+            colors = self._colors[mesh].copy()
+            colors[rows[valued]] = ends[valued, 0] + share[valued] * (ends[valued, 1] - ends[valued, 0])
+            self._nodes[mesh].batched_colors = linear_uint8(colors)
+
+    @override
+    def _surface(self) -> dict[str, Any]:
+        surface = super()._surface()
+        surface["receive_shadow"] &= self.skeleton.taper == 1.0  # a tapered block's own shadow streaks its faces
+        return surface
+
+    @override
+    def set_opacity(self, opacity: float) -> None:
+        self._fade(opacity, list(self._nodes.values()))  # the limit arcs are lines: they stay as they are
 
     def recolor(self, hue: RGB, theme: Theme) -> None:
-        """Draw the blocks in ``theme``'s shades of ``hue``."""
+        """Draw the blocks in ``theme``'s shades of ``hue``, the glyphs with values in its ramp."""
         self.hue, self.theme = hue, theme
-        colors = self.skeleton.colors(hue, theme)
+        colors = self._shade()
         for mesh, node in self._nodes.items():
             node.batched_colors = linear_uint8(colors[mesh])
         if self._lines is not None:
             self._lines.colors = linear_uint8(theme.shade(hue, "face"))
+        if self.values is not None:
+            self._paint(self.values[self._step])
 
 
 @final
@@ -144,14 +198,19 @@ class RobotVisual(Layer):
     draw the skeleton of the recipes ``minimal``, ``medium`` and ``maximal``. ``style=None`` is ``"meshes"`` when
     there is something to show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without
     them the collision shapes of ``geometry``, as a pale glass shell over any style; ``frames`` draws a triad per
-    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown;
-    ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs, and the sidebar gets the
-    same three controls, shared by every robot in the viewer: a switch from code moves the control and leaves the
-    other robots as they are.
+    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown, not
+    while the robot is hidden; ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs,
+    and the sidebar gets the same three controls, shared by every robot in the viewer: a switch from code moves the
+    control and leaves the other robots as they are, and a robot added later keeps its own state and moves the
+    controls to it (``style``, ``collision`` and ``frames`` read it).
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
     theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
-    raises ``ShapeError``. ``name`` defaults to the model's name.
+    raises ``ShapeError``. ``name`` defaults to the model's name. ``opacity`` in ``(0, 1]`` draws every style see-through,
+    a ghost of the robot beside or over another (``set_opacity`` changes it); below 1 it casts and catches no shadow,
+    a textured mesh file stays opaque, and the overlay and the triads keep their own look. ``joint_values`` colours
+    the joint glyphs of the skeleton styles at each step through the theme's ``ramp`` over ``value_range``, such as a
+    joint's load (``set_joint_values``).
     """
 
     def __init__(
@@ -169,6 +228,9 @@ class RobotVisual(Layer):
         medium: SkeletonRecipe = MEDIUM,
         maximal: SkeletonRecipe = MAXIMAL,
         hue: RGB | None = None,
+        opacity: float = 1.0,
+        joint_values: torch.Tensor | np.ndarray | None = None,
+        value_range: tuple[float, float] = (0.0, 1.0),
         collision: bool = False,
         frames: bool | Sequence[int | str] = False,
         tags: Sequence[str] = (),
@@ -178,6 +240,7 @@ class RobotVisual(Layer):
         self.model, self.geometry, self.spheres, self.skin = model, geometry, spheres, skin
         self.q, self._poses = self._solve(q)
         super().__init__(name or model.name, self._poses.shape[0], tags=tags)
+        self._store_opacity(opacity)
         self._root_folder = None if root is None else Path(root)
         self._recipes = {"minimal": minimal, "medium": medium, "maximal": maximal}
         self._skeletons: dict[str, Skeleton] = {}
@@ -203,6 +266,9 @@ class RobotVisual(Layer):
         self._path = ""
         self._step = 0
         self._parts: dict[str, tuple[Any, list[Layer]]] = {}  # part -> (its frame node, its layers)
+        self.joint_values: np.ndarray | None = None
+        self.value_range = (0.0, 1.0)
+        self.set_joint_values(joint_values, value_range=value_range)
         if collision:
             self.set_collision(visible=True)
         self.set_frames(frames)
@@ -238,6 +304,52 @@ class RobotVisual(Layer):
             for part in ("collision", "frames"):
                 if part in self._parts:
                     self._derive(part, self._parts[part][1][0])
+            if self.viewer is not None:
+                self.redraw()
+            elif self._scene is not None:
+                self.set_step(self._step)
+
+    def set_joint_values(
+        self, values: torch.Tensor | np.ndarray | None, *, value_range: tuple[float, float] | None = None
+    ) -> None:
+        """Colour the joint glyphs of the skeleton styles by ``values (T, njoints)`` or ``(njoints,)``, one per model
+        joint and step, such as each joint's load ``|tau| / effort limit``: ``T`` is the visual's, and the joints run in
+        model order with joint 0, the universe, as ``Skin`` weights do. ``value_range`` ``(low, high)`` maps a value
+        onto the theme's ``ramp``, from its first colour at ``low`` to its second at ``high`` and clamped beyond;
+        ``None`` keeps the range in use. A drum takes the colour and its faces a darker shade of it, a ball of the
+        minimal stick figure the value of the largest magnitude among the joints it stands for; a NaN value, the
+        universe, a free base and the joints without a glyph keep the robot's colours, and the ``"meshes"`` style draws
+        no joint, so it shows no value. ``values=None`` takes the values away. A step costs one more write, of the
+        colours, to each skeleton node that holds a glyph. ``(T, njoints)`` float32 values are kept without a copy
+        (``joint_values``): an edit in place and ``redraw()`` show it.
+
+        Values of another shape raise ``ShapeError``; a ``value_range`` that is not two finite numbers, low below
+        high, raises ``ArgumentError``.
+        """
+        if value_range is not None:
+            if np.shape(value_range) != (2,):
+                raise ShapeError(f"value_range must be two numbers (low, high), got {value_range!r}")
+            low, high = (float(end) for end in value_range)
+            if not (np.isfinite(low) and np.isfinite(high) and low < high):
+                raise ArgumentError(f"value_range must be two finite numbers, low below high, got {value_range!r}")
+            value_range = (low, high)
+        if values is not None:
+            values = np.asarray(values.detach().cpu() if isinstance(values, torch.Tensor) else values, np.float32)
+            values = np.ascontiguousarray(values[None] if values.ndim == 1 else values)
+            if values.shape != (self.nsteps, self.model.njoints):
+                raise ShapeError(
+                    f"joint_values must be (njoints,) or (T, njoints) = ({self.nsteps}, {self.model.njoints}) for robot "
+                    f"{self.name!r}, one value per model joint (the universe included) and step, got {values.shape}"
+                )
+        with self._lock():
+            self.joint_values = values
+            self.value_range = self.value_range if value_range is None else value_range
+            for part in _SKELETONS:
+                if part in self._parts:
+                    blocks = self._parts[part][1][0]
+                    blocks.values, blocks.value_range = values, self.value_range  # type: ignore[attr-defined]
+                    if values is None:
+                        blocks.recolor(self.hue, self._theme)  # type: ignore[attr-defined]
             if self.viewer is not None:
                 self.redraw()
             elif self._scene is not None:
@@ -291,19 +403,25 @@ class RobotVisual(Layer):
     def _make(self, part: str) -> list[Layer]:
         """The layers of ``part``, not yet built."""
         if part in _SKELETONS:
-            return [_Blocks(part, self._skeleton(part), self._poses, self.hue, self._theme)]
+            return [
+                _Blocks(
+                    part, self._skeleton(part), self._poses, self.hue, self._theme, opacity=self.opacity,
+                    values=self.joint_values, value_range=self.value_range,
+                )
+            ]  # fmt: skip
         if part == "meshes" and self.skin is not None:
             bind = self._solve(self.skin.bind)[1][0]
             return [
                 SkinnedMeshLayer(
                     part, self.skin.vertices, faces=self.skin.faces, weights=self.skin.weights, bind_poses=bind,
-                    bone_poses=self._poses, color=self._theme.shade(self.hue, "body"),
+                    bone_poses=self._poses, color=self._theme.shade(self.hue, "body"), opacity=self.opacity,
                 )
             ]  # fmt: skip
-        if part == "frames":
-            radius = self._skeleton("maximal").radius  # a triad reaches one glyph radius out of its joint's drum
-            poses = np.zeros((self.nsteps, self._frame_count(), 7), np.float32)
-            layer = FramesLayer(part, poses, axes_length=_TRIAD[0] * radius, axes_radius=_TRIAD[1] * radius)
+        if part == "frames":  # a triad reaches one glyph radius out of its joint's drum: a finger's is a finger's size
+            joints = self._triad_joints()
+            poses = np.zeros((self.nsteps, len(joints), 7), np.float32)
+            scales = self._skeleton("maximal").radii[joints]
+            layer = FramesLayer(part, poses, axes_length=_TRIAD[0], axes_radius=_TRIAD[1], scales=scales)
             return [self._derive(part, layer)]
         if part == "collision" and self.spheres is not None:
             radii = self.spheres.radii.detach().cpu().numpy()
@@ -314,16 +432,22 @@ class RobotVisual(Layer):
         shapes = self.geometry.shapes if self.geometry is not None else ()
         collision = part == "collision"
         color = self._theme.collision if collision else self._theme.shade(self.hue, "body")
+        # viser has no depth offset: glass on a surface it shares with the meshes (the same file, or a hull that
+        # meets it) would show stripes of each in turn, so it stands a little off along its normals
+        margin = _GLASS * self._skeleton("maximal").scale if collision else 0.0
         specs = [
-            _shape_spec(attached.body, attached.shape, self._mesh, color, own_colors=not collision)
+            _shape_spec(attached.body, attached.shape, self._mesh, color, own_colors=not collision, margin=margin)
             for attached in shapes
             if attached.collision == collision
         ]
-        opacity = self._theme.collision_opacity if collision else 1.0
+        opacity = self._theme.collision_opacity if collision else self.opacity
         return [RigidMeshLayer(part, specs, body_poses=self._poses, opacity=opacity)]
 
-    def _frame_count(self) -> int:
-        return len(self._moving()) if self._triads is True else len(self._triads or ())
+    def _triad_joints(self) -> list[int]:
+        """The joint each triad of the frames part hangs on: every moving joint, or each frame's parent joint."""
+        if self._triads is True:
+            return self._moving()
+        return [self.model.frame_parent_joint_ids[f] for f in self._triads or ()]
 
     def _moving(self) -> list[int]:
         return [j for j in range(1, self.model.njoints) if not isinstance(self.model.joints[j], JointFixed)]
@@ -336,7 +460,7 @@ class RobotVisual(Layer):
                 layer.poses[...] = self._poses[:, self._moving()]
             else:
                 ids = list(self._triads or ())
-                parents = [model.frame_parent_joint_ids[f] for f in ids]
+                parents = self._triad_joints()
                 layer.poses[...] = se3.compose(poses[:, parents], model.frame_placements[ids].to(poses)).numpy()
         elif self.spheres is not None:
             layer.centers[...] = _centers(model, self.spheres, poses)
@@ -351,11 +475,12 @@ class RobotVisual(Layer):
             frame.remove()
 
     def _apply(self) -> None:
-        """Build what is shown for the first time, show and hide the parts' frames, push the step to the new ones."""
+        """Build what is shown for the first time, show and hide the parts' frames, push the step to the new ones. A
+        hidden robot builds nothing: a part switched on while it is hidden is built when it is shown."""
         if self._scene is None:
             return
         with self._lock():
-            for part in self._shown():
+            for part in self._shown() if self._visible else ():
                 if part not in self._parts:
                     frame = self._scene.add_frame(f"{self._path}/{part}", show_axes=False)
                     layers = self._make(part)
@@ -398,6 +523,26 @@ class RobotVisual(Layer):
             self._apply()
         self._show("Frames", bool(chosen))
 
+    @property
+    def collision(self) -> bool:
+        """Whether the collision overlay is shown; ``set_collision`` switches it."""
+        return self._collision
+
+    @property
+    def frames(self) -> bool | tuple[int, ...]:
+        """The triads shown: ``False``, ``True`` for every moving joint, or the frame ids; ``set_frames`` sets them."""
+        return self._frames
+
+    @override
+    def set_opacity(self, opacity: float) -> None:
+        """Draw every style at ``opacity`` in ``(0, 1]`` (1 is opaque), live and in the styles built later; the
+        collision overlay and the triads keep their own look."""
+        with self._lock():
+            self._store_opacity(opacity)
+            for part, (_, layers) in self._parts.items():
+                for layer in layers if part in _STYLES else ():
+                    layer.set_opacity(opacity)
+
     def _show(self, label: str, value: Any) -> None:
         """Move the Robot section's control, shared by every robot, to what code set; no robot's callback runs."""
         if self.viewer is not None:
@@ -423,15 +568,19 @@ class RobotVisual(Layer):
             if value in self.styles:
                 self.set_style(value)  # type: ignore[arg-type]
 
+        # A robot that joins controls another robot made keeps its own state and moves them to it, as code does.
         sidebar.dropdown("Robot", "Style", options=self.styles, value=self.style, on_change=style)
+        sidebar.set_value("Robot", "Style", value=self.style)
         if self._has_collision:
             sidebar.checkbox("Robot", "Collision", value=self._collision, on_change=self.set_collision)
+            sidebar.set_value("Robot", "Collision", value=self._collision)
         sidebar.checkbox(
             "Robot",
             "Frames",
             value=bool(self._frames),
             on_change=lambda on: self.set_frames(on and (self._triads or True)),
         )
+        sidebar.set_value("Robot", "Frames", value=bool(self._frames))
 
     @override
     def apply_theme(self, theme: Theme) -> None:
@@ -457,8 +606,9 @@ class RobotVisual(Layer):
     @override
     def bounds(self, step: int) -> Bounds | None:
         """A box per joint (a point), per collision sphere and per collision shape that is not a mesh (each exact),
-        and per block of the maximal skeleton on a rigid body without one of those, ``(lo (N, 3), hi (N, 3))``: the
-        robot's extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
+        per block of the maximal skeleton on a rigid body without one of those, and per bone of the ``skin`` that
+        carries vertices (``SkinnedMeshLayer.bounds``: no vertex is skinned), ``(lo (N, 3), hi (N, 3))``: the robot's
+        extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
         """
         model, poses = self.model, torch.from_numpy(self._poses[step])
         fit = self._fit = self._fit or self._fitted()
@@ -481,11 +631,15 @@ class RobotVisual(Layer):
             reach = np.einsum("nk,nkc->nc", (scale * _HALF_EXTENT[mesh])[keep], _axes(world[keep]))  # its world box
             lows.append(world[keep, :3] - reach)
             highs.append(world[keep, :3] + reach)
+        if fit.skin is not None:
+            low, high = cast("Bounds", fit.skin.bounds(step))  # a skin's layer always has its boxes per bone
+            lows.append(low)
+            highs.append(high)
         return np.concatenate(lows), np.concatenate(highs)
 
     def _fitted(self) -> _Fit:
-        """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, and which
-        blocks of the maximal skeleton sit on a body that neither covers."""
+        """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, which
+        blocks of the maximal skeleton sit on a body that neither covers, and the skin's boxes per bone."""
         model = self.model
         anchor = list(range(model.njoints))  # the joint each body is welded to
         for j in range(1, model.njoints):
@@ -498,6 +652,12 @@ class RobotVisual(Layer):
         shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
         covered |= {anchor[attached.body] for attached in shapes}
         skeleton = self._skeleton("maximal")
+        skin = None
+        if self.skin is not None:  # never built: its boxes per bone follow the joint poses that update writes
+            skin = SkinnedMeshLayer(
+                "skin", self.skin.vertices, faces=self.skin.faces, weights=self.skin.weights,
+                bind_poses=self._solve(self.skin.bind)[1][0], bone_poses=self._poses,
+            )  # fmt: skip
         return _Fit(
             radii=radii,
             bodies=[attached.body for attached in shapes],
@@ -508,6 +668,7 @@ class RobotVisual(Layer):
                 mesh: np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
                 for mesh in ("cylinders", "balls", "boxes")
             },
+            skin=skin,
         )
 
     @override
@@ -620,6 +781,7 @@ class _Fit:
     sizes: np.ndarray  # (P, 6): what its world box needs (``_sizes``)
     skeleton: Skeleton  # the maximal skeleton
     keep: dict[str, np.ndarray]  # per unit mesh, (N,): whether a block is on a body that no sphere or shape covers
+    skin: SkinnedMeshLayer | None  # the skin's layer, never built, for its boxes per bone
 
 
 def _sizes(shape: Any) -> list[float]:
@@ -634,9 +796,11 @@ def _sizes(shape: Any) -> list[float]:
     return [0.0, 0.0, 0.0, shape.length / 2.0, 0.0, shape.radius]  # a capsule: a ball swept along a segment
 
 
-def _shape_spec(body: int, shape: Any, load: Callable[[int, Mesh], Any], color: RGB, *, own_colors: bool) -> MeshSpec:
+def _shape_spec(
+    body: int, shape: Any, load: Callable[[int, Mesh], Any], color: RGB, *, own_colors: bool, margin: float = 0.0
+) -> MeshSpec:
     """One shape as a ``MeshSpec``: a mesh file's trimesh from ``load`` (``RobotVisual._mesh``), a primitive
-    tessellated by trimesh."""
+    tessellated by trimesh; each vertex moved ``margin`` metres out along its normal."""
     with needs_extra("meshes"):
         import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
 
@@ -659,7 +823,8 @@ def _shape_spec(body: int, shape: Any, load: Callable[[int, Mesh], Any], color: 
     else:
         mesh = trimesh.creation.capsule(radius=shape.radius, height=shape.length)
     own = shape.color[:3] if own_colors and shape.color is not None else color
+    vertices = mesh.vertices + margin * mesh.vertex_normals if margin else mesh.vertices
     return MeshSpec(
-        np.asarray(mesh.vertices, dtype=np.float32), np.asarray(mesh.faces, dtype=np.uint32), body=body,
+        np.asarray(vertices, dtype=np.float32), np.asarray(mesh.faces, dtype=np.uint32), body=body,
         origin=np.asarray(shape.placement, dtype=np.float32), color=own, trimesh=source,
     )  # fmt: skip

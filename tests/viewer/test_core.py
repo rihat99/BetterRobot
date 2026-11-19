@@ -255,6 +255,10 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
     node = scene.nodes["/g/axes/axes"]
     np.testing.assert_array_equal(node.batched_positions[:, 0], 1.0)
     np.testing.assert_array_equal(node.batched_wxyzs, np.tile([1.0, 0.0, 0.0, 0.0], (3, 1)))
+    np.testing.assert_array_equal(node.props["batched_scales"], 1.0)
+    frames.scales[0] = 2.0  # the array rule: an edit in place reaches the node at the next push
+    frames.set_step(1)
+    np.testing.assert_array_equal(node.batched_scales, [2.0, 1.0, 1.0])
 
     # Zero frames: viser's batched-axes client crashes on an empty instance list, so nothing is added.
     empty = FramesLayer("none", np.zeros((1, 0, 7), dtype=np.float32))

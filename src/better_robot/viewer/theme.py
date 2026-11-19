@@ -65,8 +65,9 @@ class Theme:
     ``shadow`` the opacity of shadows on the ground, ``lights`` the intensities (ambient, hemisphere, key, fill).
     ``hues`` are the robots' colours in the order robots are added (``hue(k)``), ``shade`` derives a part's colour
     from a hue, ``accent`` colours the GUI and the tools, ``collision`` and ``collision_opacity`` the collision
-    overlay, ``text`` labels and the default ink of lines and camera frustums. ``sidebar_width`` is viser's width of
-    the sidebar, ``"small"``, ``"medium"`` or ``"large"`` (a dense application's panel).
+    overlay, ``text`` labels and the default ink of lines and camera frustums. ``ramp`` holds the colours of the low
+    and the high end of a joint value's range (``RobotVisual(joint_values=)``), blended between them. ``sidebar_width``
+    is viser's width of the sidebar, ``"small"``, ``"medium"`` or ``"large"`` (a dense application's panel).
     ``apply(server)`` sends all of it to a viser server; ``Viewer.set_theme`` re-applies it with the layers.
     """
 
@@ -90,6 +91,7 @@ class Theme:
     collision: RGB = _srgb(140, 150, 165)  # a quiet grey glass: the skeleton under the overlay stays the subject
     collision_opacity: float = 0.18
     text: RGB = _srgb(40, 42, 48)
+    ramp: tuple[RGB, RGB] = (_srgb(190, 198, 210), _srgb(242, 126, 44))  # a quiet steel up to a warm orange
     sidebar_width: Literal["small", "medium", "large"] = "medium"
 
     @override

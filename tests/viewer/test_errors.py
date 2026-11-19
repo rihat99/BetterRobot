@@ -16,6 +16,7 @@ from better_robot.testing import FakeServer
 from better_robot.viewer import (
     ArrowsLayer,
     CameraLayer,
+    FramesLayer,
     GroundLayer,
     MeshLayer,
     MeshSpec,
@@ -64,6 +65,33 @@ _BAD_LAYERS: list[tuple[Callable[[], object], type[Exception], str]] = [
         "colors must be",
     ),
     (lambda: MeshLayer("m", np.zeros((3, 3)), faces=np.array([[0, 1, 2, 0]])), ShapeError, r"faces must be \(F, 3\)"),
+    (lambda: FramesLayer("f", np.zeros((2, 7)), scales=np.ones(3)), ShapeError, r"scales must be \(F,\) = \(2,\)"),
+    (
+        lambda: MeshLayer("m", np.zeros((3, 3)), faces=np.array([[0, 1, 3]])),
+        ArgumentError,
+        "faces must index the 3 vertices, from 0 to 2; got 0 to 3",
+    ),
+    (
+        lambda: SkinnedMeshLayer(
+            "k",
+            np.zeros((3, 3)),
+            faces=[[-1, 1, 2]],
+            weights=np.ones((3, 1)),
+            bind_poses=np.zeros((1, 7)),
+            bone_poses=np.zeros((1, 1, 7)),
+        ),
+        ArgumentError,
+        "faces must index the 3 vertices, from 0 to 2; got -1 to 2",
+    ),
+    (
+        lambda: RigidMeshLayer(
+            "r",
+            [MeshSpec(np.zeros((3, 3)), np.array([[0, 1, 2], [2, 3, 0]]), body=0, origin=_POSE)],
+            body_poses=np.zeros((1, 7)),
+        ),
+        ArgumentError,
+        "faces must index the 3 vertices",
+    ),
     (
         lambda: CameraLayer("c", np.zeros((2, 6)), intrinsics=np.eye(3), size=(4, 3)),
         ShapeError,

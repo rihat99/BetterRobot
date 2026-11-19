@@ -161,6 +161,18 @@ def _servo(builder: br.io.ModelBuilder) -> None:
     builder.add_revolute("spin", parent="case", child="horn", origin=_at(z=0.02), **_HINGE)
 
 
+def _forearm(builder: br.io.ModelBuilder) -> None:
+    """A hand on a fixed forearm as large as a Shadow hand's (15 x 15 x 23 cm), its wrist at the forearm's end."""
+    for body in ("forearm", "palm", "finger"):
+        builder.add_body(body, mass=1.0)
+    builder.add_fixed("mount", parent="world", child="forearm")
+    builder.add_shape("forearm", Box(size=(0.15, 0.15, 0.23), placement=(0, 0, 0.115, 0, 0, 0, 1.0)))
+    builder.add_revolute("wrist", parent="forearm", child="palm", origin=_at(z=0.23), **_HINGE)
+    builder.add_shape("palm", Box(size=(0.03, 0.08, 0.1), placement=(0, 0, 0.05, 0, 0, 0, 1.0)))
+    builder.add_revolute("knuckle", parent="palm", child="finger", origin=_at(z=0.1), **_HINGE)
+    builder.add_shape("finger", Box(size=(0.02, 0.02, 0.05), placement=(0, 0, 0.025, 0, 0, 0, 1.0)))
+
+
 def _bust(builder: br.io.ModelBuilder) -> None:
     """A floating chest with two arms and a head on a pan and tilt neck that rises above them."""
     for name in ("chest", "l_arm", "r_arm", "neck", "head"):
@@ -180,7 +192,7 @@ _SYNTHETIC: dict[str, Callable[[br.io.ModelBuilder], None]] = {
     "arm": _arm, "thin_tip": partial(_arm, thin=True), "boxed_arm": partial(_arm, boxes=True),
     "world_hinge": partial(_on_world, slider=False),
     "world_slider": partial(_on_world, slider=True), "gantry": _gantry, "planar": _planar, "hand": _hand,
-    "fixed": _fixed, "box": _box, "servo": _servo, "bust": _bust,
+    "fixed": _fixed, "box": _box, "servo": _servo, "bust": _bust, "forearm": _forearm,
 }  # fmt: skip
 
 
@@ -799,6 +811,29 @@ def test_a_thin_placeholder_shape_does_not_shrink_a_leaf_glyph_to_nothing() -> N
     blocks, tip = skeleton.cylinders, model.joint_names.index("j3")
     drum = next(i for i, (owner, part) in enumerate(zip(blocks.owner, blocks.part)) if owner == tip and part == "drum")
     assert blocks.scale[drum, 0] == pytest.approx(0.2 * skeleton.radius)
+
+
+def test_a_fixed_base_that_carries_one_joint_shrinks_towards_it_and_keeps_its_bones_inside() -> None:
+    """A Shadow hand's forearm would dwarf the hand: a fixed base that carries one joint reaches at most 4 of that
+    joint's glyph radii from its centre (an arm's stand, about 3, keeps its box), shrunk towards the joint, which stays
+    on the box; the bones in the base's frame stay inside it, so no spine sticks out behind."""
+    model, geometry = _synthetic("forearm")
+    skeleton = build_skeleton(model, MAXIMAL, geometry=geometry)
+    boxes, drums, wrist = skeleton.boxes, skeleton.cylinders, model.joint_names.index("wrist")
+    drum = next(i for i, (owner, part) in enumerate(zip(drums.owner, drums.part)) if owner == wrist and part == "drum")
+    hull = boxes.part.index("hull")
+    rotation, center, half = _rotations(boxes.local[[hull], 3:])[0], boxes.local[hull, :3], boxes.scale[hull] / 2
+    assert half.max() <= 4.0 * drums.scale[drum, 0] * (1 + 1e-6)
+
+    def inside(point: np.ndarray) -> bool:
+        return bool(np.all(np.abs(rotation.T @ (point - center)) <= half + 1e-6))  # float32 blocks
+
+    assert inside(np.array([0.0, 0.0, 0.23]))  # the wrist, in the base's frame
+    bones = [i for i, part in enumerate(boxes.part) if part == "bone" and boxes.body[i] == boxes.body[hull]]
+    assert len(bones) == 2  # the base's spine and the wrist's bone
+    for i in bones:
+        axis = _rotations(boxes.local[[i], 3:])[0][:, 2] * boxes.scale[i, 2] / 2
+        assert inside(boxes.local[i, :3] - axis) and inside(boxes.local[i, :3] + axis)
 
 
 @pytest.mark.parametrize(("name", "size"), [("box", np.sqrt(0.1**2 + 0.2**2 + 0.3**2)), ("gantry", np.sqrt(3 * 0.06))])

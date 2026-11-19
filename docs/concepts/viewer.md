@@ -69,8 +69,8 @@ remaining layer, so a clip browser can remove one clip's tag before adding the n
 under a first tag, and a tag that `set_pose` or `remove` does not know raises `UnknownNameError`.
 
 A layer is changed through its own methods, never its fields: `viewer.set_visible(layer, False)` hides it,
-`layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`; a
-layer without surfaces raises `ArgumentError`), and `viewer.replace(old, new)` swaps the data a layer draws, such
+`layer.set_opacity(0.4)` fades a mesh layer (`RigidMeshLayer`, `MeshLayer`, `SpheresLayer`, `SkinnedMeshLayer`,
+every style of a `RobotVisual`; a layer without surfaces raises `ArgumentError`), and `viewer.replace(old, new)` swaps the data a layer draws, such
 as a body switched in a studio: `new` takes `old`'s tags, place, sidebar controls and visibility, the current step is
 pushed and the camera stays.
 
@@ -176,8 +176,11 @@ you loaded. Code without a viewer reads the same files the same way: `load_meshe
 `MeshSpec` per display shape (`collision=True`: per collision shape), `vertices (V, 3)` and `faces (F, 3)` with the
 `body` it hangs on and its placement `origin (7,)` in that body's frame. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
 the collision shapes of the geometry, as a pale see-through shell over any style (`Theme.collision` at
-`Theme.collision_opacity`, casting and catching no shadow); `frames=True` draws a triad at every moving joint and
-`frames=[...]` at the frames listed, by id or name.
+`Theme.collision_opacity`, casting and catching no shadow). The shell stands 0.2 % of the robot's size off its
+shapes, along their normals (2 mm on a 1 m arm): viser has no depth offset, and glass on the very surface of a
+display mesh (a G1 names one file for both) shows stripes of each in turn. `frames=True` draws a triad at every
+moving joint and `frames=[...]` at the frames listed, by id or name, each as large as the maximal skeleton's glyph of
+its joint, so a finger's triad is a finger's size and a hip's a hip's.
 
 ```python
 import torch
@@ -204,9 +207,13 @@ maximal ('meshes', 'minimal', 'medium', 'maximal') ('minimal', 'medium', 'maxima
 ```
 
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
-that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
+that, so switching back creates nothing, and a step is written only to the parts on screen. A hidden robot builds
+nothing: a part switched on while it is hidden is built when it is shown, so a Style choice with seven robots kept
+hidden builds one skeleton. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
-shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are. The Style dropdown offers the
+shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are,
+and a robot added later keeps its own style, collision and frames and moves the controls to them (`robot.style`,
+`robot.collision` and `robot.frames` read what a robot shows). The Style dropdown offers the
 styles of the robots still shown: removing the one robot with meshes takes `"meshes"` away, and a dropdown that showed
 it shows the first style left while every robot keeps its own; a robot that replaces another keeps its `style=`. `update(q)` shows new configurations of the same number of steps, for a live
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
@@ -241,7 +248,9 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
   the drum stays in sight (`bones=0` draws none);
 - a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
   the tree branches (a torso, a pelvis, a palm), and stops short of the drums of its own waist and of its neck. A
-  head is a ball that stands above the trunk and every joint: the head of a neck chain (a Talos, an Atlas), a
+  fixed base that carries one joint reaches at most 4 of that joint's glyph radii from its centre, shrunk towards
+  the joint: an arm's stand (about 3) keeps its box, a Shadow hand's forearm becomes a block about the size of the
+  hand, and the bones of a fixed base stay inside its box. A head is a ball that stands above the trunk and every joint: the head of a neck chain (a Talos, an Atlas), a
   round second frame of the trunk, or over a trunk whose sensor frames rise above it (an H1); a quadruped's snout
   or the lidar on its back is no head. A body that ends a chain is a sole when it is flat, a block when a prismatic
   joint moves it (a finger), else a limb that tapers to the end of the body (a hand, a paw), with no ball at its
@@ -291,11 +300,42 @@ limit arcs; with the sphere overlay and the frames a robot is at most six drawin
 collision shapes is one node per shape (17 on the Panda), and a step writes positions and rotations to each node on
 screen (the sticks of a minimal skeleton and the rods of a medium one also their lengths). Each mesh file is read
 once per robot, however often its style, overlay or theme is switched. `bounds` is
-a box per joint, per collision sphere and collision shape that is not a mesh (exact), and per block of the maximal
-skeleton on a body without one, in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
+a box per joint, per collision sphere and collision shape that is not a mesh (exact), per block of the maximal
+skeleton on a body without one, and per bone of a skin that carries vertices (no vertex is skinned), in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
 and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest
 point of a sole or a foot with a collision shape: `examples/viewer/00_showcase.py` lifts a floating base by it, step
 by step, and a fixed base by its lowest over the loop, to stand the robot on the ground.
+
+### A ghost and joint values
+
+`opacity=0.35`, or `robot.set_opacity(0.35)` while the viewer runs, draws every style of a robot see-through: a
+ghost of a target or a reference motion beside or over the robot itself. Below 1 it casts and catches no shadow, a
+textured mesh file stays opaque, and the collision overlay and the triads keep their own look. The sidebar has no
+opacity control: the Robot section's controls are shared by every robot, so one slider would fade a ghost and its
+solid twin alike; an application adds its own slider in its own section.
+
+`joint_values=` colours the joint glyphs of the skeleton styles at each step, such as each joint's load
+`|tau| / effort limit`: one value per model joint, `(T, njoints)` with the visual's `T`, or `(njoints,)` for every
+step, in model order with joint 0, the universe, as a `Skin`'s weights are. `value_range=(low, high)`, `(0, 1)` by
+default, maps a value onto the theme's `ramp`, from a quiet steel at `low` to a warm orange at `high`, clamped
+beyond. A drum, a sleeve or a spherical joint's ball takes the colour (a drum's faces a darker shade of it), and a
+ball of the minimal stick figure takes the value of the largest magnitude among the joints it stands for. A NaN
+value, the universe, a free base and a joint without a glyph keep the robot's colours, and the `"meshes"` style
+draws no joints, so it shows no value. `set_joint_values(values, value_range=)` changes them live, and `None` takes
+them away. A step writes one more array, the colours, to each node that holds a glyph and adds no node: on the G1
+0.12 to 0.15 ms and 0.2 to 0.4 kB more per step. With several robots on screen, the second robot's default hue is an
+orange close to the ramp's high end, so pass `hue=` (a ghost takes its robot's: `hue=robot.hue`). Inverse dynamics
+gives one torque per velocity coordinate, `(T, nv)`; column `model.idx_vs[j]` is joint `j`'s first, which is how
+`examples/viewer/02_play_trajectory.py` turns torques into loads.
+
+```python
+robot.set_joint_values(torch.rand(30, model.njoints), value_range=(0.0, 1.0))
+ghost.set_opacity(0.35)
+print(robot.joint_values.shape, ghost.opacity)
+```
+```output
+(30, 14) 0.35
+```
 
 ### A skinned surface
 
@@ -348,7 +388,7 @@ exactly what a browser would; `aim` points the live browsers at the view `record
 `Viewer(theme=...)` takes a `Theme`, the one source of colours: the backdrop gradient, the grid, the shadow on the
 ground, the light rig (ambient, hemisphere, a key light that casts shadows, a fill; no environment map, so meshes and solid
 colours share one rig), the collision overlay's colour and opacity, the robots' hues (`theme.hue(k)`
-for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the GUI accent, the sidebar's width
+for the `k`-th robot), the shades of a hue (`theme.shade(hue, "body")`), the two ends of the joint values' `ramp`, the GUI accent, the sidebar's width
 (`Theme(sidebar_width="large")` for a dense panel; `"medium"` by default) and the up axis. `LIGHT`
 (the default) and `DARK` are built in; `viewer.set_theme(theme)` switches the page and every layer. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
@@ -394,6 +434,7 @@ Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames
 - [Visualize a robot](../getting-started/visualize.md) walks through a first scene and a recording.
 - [Record a video of a scene](../guides/record-a-video.md): `record`'s formats, options and camera.
 - `examples/viewer/` has runnable scripts: a showcase of eight robots in every style
-  (`uv run python examples/viewer/00_showcase.py`), a robot pose, an IK gizmo, recording a clip, and five demos of
+  (`uv run python examples/viewer/00_showcase.py`), a robot pose, a trajectory coloured by joint load beside a ghost
+  of its end, an IK gizmo, recording a clip, and five demos of
   avoidance while tracking a dragged target ([Try the avoidance demos](../guides/avoidance-demos.md)).
 - [API reference: viewer](../reference/api/viewer.md).

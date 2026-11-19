@@ -40,7 +40,7 @@ class MeshLayer(Layer):
     ) -> None:
         self.vertices = as_frames(vertices, 2, name="vertices", width=3)
         super().__init__(name, self.vertices.shape[0])
-        self.faces = as_triangles(faces)
+        self.faces = as_triangles(faces, vertices=self.vertices.shape[1])
         self.color = color
         self.colors = None if colors is None else rgb_uint8(colors, (self.vertices.shape[1],))
         self._store_opacity(opacity)
@@ -164,6 +164,8 @@ class RigidMeshLayer(Layer):
                 f"MeshSpec.body {outside} out of range for body_poses with {n_bodies} bodies; pass every body's pose "
                 "(KinematicState.body_poses)"
             )
+        for spec in meshes:  # checked here, sent to viser as given at build
+            as_triangles(spec.faces, vertices=len(spec.vertices))
         self.meshes = meshes
         self._store_opacity(opacity)
         self._bodies = np.array([spec.body for spec in meshes], dtype=np.int64)

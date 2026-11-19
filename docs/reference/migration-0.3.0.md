@@ -205,7 +205,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 |---|---|---|
 | `viewer.RobotView`, `viewer.robot_layers` | `viewer.RobotVisual` | one layer: `RobotVisual(model, q, geometry=, root=, spheres=)` with `style=`, `collision=` and `frames=`; `update(q)` shows new configurations |
 | `viewer.skeleton_spec`, `viewer.spread_offsets` | `viewer.SkeletonRecipe` | the skeleton is laid out inside `RobotVisual`; a `SkeletonRecipe` (`RobotVisual(maximal=, minimal=)`) sets how |
-| `viewer.robot_skeleton(model, joint_poses, ...)` | `viewer.RobotVisual` | `RobotVisual(model, q, style="maximal")` or `"minimal"`; it runs the forward kinematics itself. The torque colours (`tau=`) and `end_points=` have no replacement |
+| `viewer.robot_skeleton(model, joint_poses, ...)` | `viewer.RobotVisual` | `RobotVisual(model, q, style="maximal")` or `"minimal"`; it runs the forward kinematics itself. The torque colours (`tau=`) are `RobotVisual(joint_values=)`, each joint's torque over its effort limit; `end_points=` has no replacement |
 | `robot_meshes(model, *, collision, default_color)` | `viewer.RobotVisual`, `viewer.load_meshes` | `RobotVisual(model, q, geometry=io.load_geometry(path, model), root=path)` draws the display shapes; `collision=True` overlays the collision shapes; `load_meshes(geometry, root=path, collision=)` returns them as `MeshSpec` arrays |
 | `Layer.times`, `Layer.root` | `Viewer.add(..., times=)` | the viewer keeps what each `add` set; `Layer.elements` is read-only |
 | `Viewer.add(layer, group)`, `Viewer.add_plot(..., group=)` | `Viewer.add(layers, *, tags)`, `Viewer.add_plot(..., tags=)` | one layer or an iterable of layers, returned as given; a layer's first tag is its scene parent `/<tag>/<name>`; `offset=` is `pose=` |
@@ -223,10 +223,10 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `Theme.brand_color` | `Theme.accent` | the colour of the GUI and the tools |
 | `Theme.grid_cell`, `Theme.grid_section` | `Theme.grid` | a (cell, section) pair |
 | `Theme.robot`, `Theme.human` | `Theme.hue` | a robot or body takes `theme.hue(index)`, its parts `theme.shade(hue, role)` |
-| `Theme.joint`, `Theme.link`, `Theme.torque_ramp`, `Theme.over_limit` | `Theme.shade` | a skeleton takes its robot's hue and `theme.shade(hue, role)` for joints, drum faces, bodies and sticks; the torque colours went with `robot_skeleton(tau=)` |
+| `Theme.joint`, `Theme.link`, `Theme.torque_ramp`, `Theme.over_limit` | `Theme.shade`, `Theme.ramp` | a skeleton takes its robot's hue and `theme.shade(hue, role)` for joints, drum faces, bodies and sticks; joint values (`RobotVisual(joint_values=)`) take `theme.ramp`, clamped at its high end |
 | `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` | — | no layer read the colours, and an application passes its own |
 | `Theme.control_width` | `Theme.sidebar_width` | viser's `"small"`, `"medium"` (the default) or `"large"`; `Viewer.set_theme` keeps it |
-| `viewer.theme.colormap(values, *stops)` | — | nothing called it once the torque colours went; an application maps values to colours with numpy |
+| `viewer.theme.colormap(values, *stops)` | — | joint values blend the two colours of `Theme.ramp` inside `RobotVisual`; an application maps values to colours with numpy |
 | `from better_robot.viewer.layers import ArrowsLayer, CameraLayer, FramesLayer, GroundLayer, PointsLayer, SkeletonLayer, SkinnedMeshLayer` | `from better_robot.viewer import ...` | `viewer.layers` re-exported seven layers, a second path to them; `better_robot.viewer` holds every layer (`SkeletonLayer` is `RobotVisual`, below) |
 | `ArrowsLayer.vectors` (the given vectors times `scale`) | `ArrowsLayer(name, origins, *, vectors, scale)` | the attribute `vectors` holds the vectors as given and `scale` applies at each push: edit either and `redraw()` |
 | `ArrowsLayer(..., head_size=, line_width=, shaft_radius=None, head_radius=None)`, `ArrowsLayer.HEAD_FRACTION` | `ArrowsLayer(..., shaft_radius=0.006, head_radius=0.016, head_length=0.04)` | viser's solid arrows: no line shafts, the head keeps its size, so an arrow shorter than `head_length` is all head |

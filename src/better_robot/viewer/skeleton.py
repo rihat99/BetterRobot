@@ -56,6 +56,7 @@ _SLEEVE = 0.6  # half length of a sleeve along its rail over the joint radius
 _MARKER = 0.6  # radius of the plain marker of an unlisted joint kind over the joint radius
 _TRUNK_PAD = 0.7  # a trunk hull pads its sphere centres by this share of their median radius
 _TRUNK = 0.8  # a trunk keeps this share of the half extents of its geometry: the skeleton is slimmer than the robot
+_MOUNT = 4.0  # a fixed base that carries one joint reaches at most this many of its glyph radii from its centre
 _TAPER = 0.8  # a maximal block's side at z = 0.5 over its side at z = -0.5: every body narrows towards +z
 _BODY = 0.7  # a maximal limb is this share of the thinner half width of its link's geometry across it
 _HEAD_CAP = 0.8  # a second frame of a body is a ball of at most this share of the body hull's smallest half extent
@@ -84,14 +85,16 @@ _GLYPHS = {
 _Shade = Literal["joint", "face", "body", "bone", "stick"]
 #: The shade each part of the skeleton takes from the robot's hue: light bodies, mid drums, dark drum faces. A
 #: ``head`` (the ball of a head over its trunk, where the glyphs are drawn) and a ``cap`` (the round end of the rod
-#: that ends a chain) take the body's shade: no ball but a spherical joint's reads as a joint.
+#: that ends a chain) take the body's shade: no ball but a spherical joint's reads as a joint. A ``knob`` (the small
+#: ball that ends a chain of the stick figure, or its head) takes the shade of the balls but draws no joint.
 _ROLE: dict[str, _Shade] = {
-    "drum": "joint", "sleeve": "joint", "ball": "joint",
+    "drum": "joint", "sleeve": "joint", "ball": "joint", "knob": "joint",
     "face": "face", "marker": "face", "base": "face",
     "bone": "bone", "hull": "bone", "end": "bone", "rod": "bone", "rail": "bone", "head": "bone", "cap": "bone",
     "stick": "stick",
 }  # fmt: skip
 _MESHES = ("cylinders", "balls", "boxes")
+_JOINT_PARTS = ("drum", "face", "sleeve", "ball", "marker")  # the blocks that draw a joint; a free base is no motor
 
 
 @final
@@ -200,14 +203,16 @@ class Blocks:
 class Skeleton:
     """The blocks of one robot under one recipe: ``build_skeleton`` makes it, ``place`` poses it.
 
-    ``scale`` is the robot's size (diagonal of the box of its joint origins at neutral) and ``radius`` the reference
-    glyph radius. ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0.5, 1]``) list, by
+    ``scale`` is the robot's size (diagonal of the box of its joint origins at neutral), ``radius`` the reference
+    glyph radius and ``radii (njoints,)`` the radius each joint's glyph is sized by, before ``joint_size`` (a fixed
+    joint's is that of the joint its body is welded to, the universe's the reference). ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0.5, 1]``) list, by
     joint name, the glyphs the layout moved or shrank. ``taper`` is the ``unit_box`` the boxes are drawn with: 0.8 for the maximal layout,
     whose bodies narrow towards their +z, 1 (a cube) for a stick figure.
     """
 
     scale: float
     radius: float
+    radii: np.ndarray  # (njoints,)
     taper: float
     cylinders: Blocks
     balls: Blocks
@@ -257,6 +262,23 @@ class Skeleton:
         local = torch.from_numpy(self.line_local).to(poses.dtype)
         return se3.act(poses[..., self.line_body, None, :], local).numpy()
 
+    def glyphs(self, mesh: str, njoints: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """The blocks of ``mesh`` that draw joints: ``(rows (n,), joints (n, njoints) bool, faces (n,) bool)``.
+
+        A glyph of its kind (a drum and its faces, a sleeve, a spherical joint's ball, a marker) stands for its
+        joint, a ball of the stick figure for every joint of its cluster; ``faces`` marks the blocks in the dark
+        shade of a drum's faces. A body, a bone, a stick or rod, a rail, a head, a knob, a cap and the cube of a free
+        base draw no joint.
+        """
+        blocks: Blocks = getattr(self, mesh)
+        rows = np.array([i for i, part in enumerate(blocks.part) if part in _JOINT_PARTS], dtype=np.int64)
+        joints = np.zeros((len(rows), njoints), dtype=bool)
+        for k, i in enumerate(rows):
+            anchor = blocks.anchors[i, 0]  # a ball of the stick figure sits at the mean of its joints' origins
+            joints[k] = self.weights[anchor, :njoints] > 0.0 if anchor >= 0 else np.arange(njoints) == blocks.owner[i]
+        faces = np.array([_ROLE[blocks.part[i]] == "face" for i in rows], dtype=bool)
+        return rows, joints, faces
+
     def colors(self, hue: RGB, theme: Theme) -> dict[str, np.ndarray]:
         """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``theme.shade`` of ``hue`` for its part and side, or the
         recipe's colour for it (a drum face takes that colour's shade)."""
@@ -305,7 +327,7 @@ def build_skeleton(
     rows = _Rows(tree, recipe)
     if recipe.glyphs == "ball":
         _stick_figure(tree, recipe, rows, clouds, factor=factor)
-        return rows.pack(slides={}, shrinks={})
+        return rows.pack(slides={}, shrinks={}, radii=tree.radius)
     tree, compound = _compounds(tree, recipe.size)
     if recipe.hulls == "none":  # on rods, a row of close drums (a wrist) keeps rod between them
         spaced = {j: _SPACING * min(tree.bones(j), default=np.inf) for j in tree.glyphs}
@@ -329,6 +351,7 @@ def build_skeleton(
     return rows.pack(
         slides={model.joint_names[j]: s for j, s in slide.items() if abs(s) > 1e-9},
         shrinks={model.joint_names[j]: k for j, k in shrink.items() if k < 1.0},
+        radii=ends,
     )
 
 
@@ -894,7 +917,10 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
     keeps its full box, so the hips sit in it (a Go2), and takes in the solid box of its inertia, so a stand-in shape
     does not leave the legs without a pelvis (an H1's 5 cm sphere). The box of a moving body with two or more child
     joints reaches their origins (a fixed base does not reach up to its arm, a pelvis not down to its hips): a chest
-    spans its shoulders (an H1, whose torso shape is a small block). One other frame may be the head, a ball on the
+    spans its shoulders (an H1, whose torso shape is a small block). A fixed base that carries one joint reaches at
+    most 4 of that joint's glyph radii from its centre, shrunk towards the point of its box nearest the joint: a
+    Panda's or an iiwa's stand (about 3) keeps its box, a Shadow hand's 15 x 15 x 23 cm forearm would dwarf the hand
+    (7.4); ``_maximal`` keeps the spine of a fixed base inside its box. One other frame may be the head, a ball on the
     body: the bulkiest that sits outside the body, is round (no more than twice as long as wide) and at least 0.3 of
     the body's smallest half extent, and no wider than 0.8 of it; sensors, antennas and columns draw nothing, unless
     ``body_hull`` makes them a box. A trunk without such a head whose frames rise above its body along the root
@@ -907,8 +933,9 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
     """
 
     def bulk(cloud: _Cloud) -> float:
-        extent = cloud.points.max(axis=0) - cloud.points.min(axis=0)
-        return float(np.sum(cloud.radii**3)) if cloud.radii is not None else float(np.prod(extent))
+        return (
+            float(np.sum(cloud.radii**3)) if cloud.radii is not None else float(np.prod(np.ptp(cloud.points, axis=0)))
+        )
 
     up = tree.rotation[tree.root[group]][:, 2]
     highest = max((float(tree.origin[j] @ up) for j in tree.glyphs), default=-np.inf)
@@ -943,6 +970,10 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
                 _Hull(cloud.name, "hull", group, cloud.joint, center, cloud.rotation, np.full(3, radius), "balls")
             )
         else:
+            if uncut is None and group == 0 and len(tree.children[0]) == 1:  # a mount: an arm's stand, a forearm
+                shrink = min(1.0, _MOUNT * tree.radius[joint := tree.children[0][0]] / float(half.max()))
+                held = np.clip(cloud.rotation.T @ (tree.origin[joint] - center), -half, half)  # it keeps its joint
+                center, half = center + cloud.rotation @ ((1.0 - shrink) * held), shrink * half
             uncut = uncut or (center, cloud.rotation, half)
             hulls.append(
                 _tapered(tree, _Hull(cloud.name, "hull", group, cloud.joint, center, cloud.rotation, cut * half))
@@ -1205,8 +1236,10 @@ class _Rows:
                 anchors=(start, end),
             )
 
-    def pack(self, *, slides: Mapping[str, float], shrinks: Mapping[str, float]) -> Skeleton:
-        """The finished ``Skeleton``: every world placement expressed in its joint's frame."""
+    def pack(
+        self, *, slides: Mapping[str, float], shrinks: Mapping[str, float], radii: Mapping[int, float]
+    ) -> Skeleton:
+        """The finished ``Skeleton``: every world placement expressed in its joint's frame; ``radii`` per glyph."""
         tree = self.tree
         packed = {}
         for mesh, rows in self.rows.items():
@@ -1235,6 +1268,7 @@ class _Rows:
         return Skeleton(
             scale=tree.scale,
             radius=tree.reference,
+            radii=np.array([radii.get(group, tree.reference) for group in tree.anchor]),
             taper=_TAPER if self.recipe.glyphs == "kind" and self.recipe.hulls != "none" else 1.0,
             **packed,
             points_body=np.array([body for body, _ in self.points], dtype=np.int64),
@@ -1318,6 +1352,10 @@ def _maximal(
                     np.min(main.half / np.maximum(np.abs(main.rotation.T @ toward), 1e-9))
                 )
             start = center[hull.group] if hull.group and hull.mesh != "balls" else start
+            if not hull.group and hull.mesh != "balls":  # a fixed base's spine stays in its box: a mount's box shrinks
+                start = hull.center + hull.rotation @ np.clip(
+                    hull.rotation.T @ (start - hull.center), -hull.half, hull.half
+                )
             across = tree.axis.get(hull.group)
             thick = thickness(hull.group) if hull.mesh != "balls" else recipe.bones * float(hull.half[0])  # a neck
             rows.bone(hull.body, start, hull.center, thick, hull.group or hull.body, across=across)
@@ -1450,7 +1488,7 @@ def _stick_figure(
             rows.anchor({j: 1.0 / len(joints) for j in joints}, where) if rigid is None else rows.point(rigid, where)
         )
     hulls = _hulls(tree, recipe, clouds, {j: radius.get(cluster[j], tree.radius[j]) for j in tree.glyphs}, {}, {})
-    tip = "ball" if glyphs is None else "head"  # beside drums a head is pale: a ball there is no joint
+    tip = "knob" if glyphs is None else "head"  # beside drums a head is pale: a ball there is no joint
     heads = _heads(tree, recipe, rows, clouds, part=tip)
     crowned = _crowns(tree, clouds, heads)
     sticks = _sticks(tree, rows, [*hulls, *heads], members=members, cluster=cluster, anchor=anchor)
@@ -1527,7 +1565,7 @@ def _knob(
     body (``_tip``), and the small ball of ``part`` that ends it, both rigid in the leaf's frame; the stick is
     returned, the ball added. Nothing when the end is inside the leaf's ball. The ball's radius is 0.55 of the leaf's ball, or less to
     stay clear of it, and at least 1.25 times the stick's; a ``head``'s is a ball of the reference radius in the
-    middle of its body. A ``part`` other than ``"ball"`` (the glyphs beside the rods) adds no ball but a head: the
+    middle of its body. A ``part`` other than ``"knob"`` (the glyphs beside the rods) adds no ball but a head: the
     stick stops a stick's radius short of the end, where ``_stick_figure`` rounds it with a cap.
     """
     end, centred = _tip(tree, recipe, group, clouds)
@@ -1540,9 +1578,9 @@ def _knob(
         return []
     clear = min(_TIP[0] * radius, (length - radius) / 2.0)  # clear of the leaf's ball: no blob round a short finger
     ball = tree.reference if head else max(1.25 * min(recipe.bones * tree.reference, radius), clear)
-    ball = ball if head or part == "ball" else min(recipe.bones * tree.reference, radius)  # else the cap's radius
+    ball = ball if head or part == "knob" else min(recipe.bones * tree.reference, radius)  # else the cap's radius
     end = end if centred or head else end - ball * toward / length  # a surface end: the ball ends there
-    if ball > 0.0 and (head or part == "ball"):  # a knob, wider than its stick
+    if ball > 0.0 and (head or part == "knob"):  # a knob, wider than its stick
         rows.add("balls", part, group, end, (ball, ball, ball), owner=group)
     return [(start, rows.point(group, end), group)]
 

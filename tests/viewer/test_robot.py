@@ -18,7 +18,7 @@ from better_robot.model import JointManifold, JointModel, JointPrismatic, JointR
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin, load_meshes
 from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, build_skeleton
-from better_robot.viewer.theme import DARK, Theme, linear_uint8
+from better_robot.viewer.theme import DARK, LIGHT, Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
 from better_robot import collision
@@ -88,10 +88,26 @@ def test_panda_visual_follows_forward_kinematics() -> None:
     assert robot.nsteps == 5 and robot.q.shape == (5, model.nq)
 
 
+def test_the_collision_glass_stands_a_little_off_its_shapes() -> None:
+    """viser has no depth offset: glass drawn on the very surface of a display mesh (a G1 names one file for both, a
+    Panda's hull meets its mesh within a millimetre) showed stripes of each in turn."""
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    server = FakeServer()
+    Viewer(server=server, ground=False).add(
+        RobotVisual(model, geometry=geometry, root=panda_urdf(), style="maximal", collision=True)
+    )
+    for k, shape in enumerate(load_meshes(geometry, root=panda_urdf(), collision=True)):  # the shapes as they are
+        drawn = server.scene.nodes[f"/panda/panda/collision/mesh_{k}"].props["vertices"]
+        moved = drawn - shape.vertices
+        np.testing.assert_allclose(np.linalg.norm(moved, axis=1), 0.002 * 1.044, rtol=2e-3)  # of the arm's size
+        assert np.mean(np.sum(moved * (shape.vertices - shape.vertices.mean(axis=0)), axis=1) > 0) > 0.9  # outwards
+
+
 def test_load_meshes_gives_the_shapes_as_arrays_the_overlay_draws() -> None:
     """The tracked Panda's collision shapes as arrays outside a viewer: each STL file's vertices and faces, scaled,
-    with its body and placement, are what the collision overlay draws; its display meshes are not tracked, so asking
-    for them names the first missing file."""
+    with its body and placement, which the collision overlay draws a little off the surface (the test above); its
+    display meshes are not tracked, so asking for them names the first missing file."""
     import trimesh  # noqa: PLC0415 - optional dependency of the viewer
 
     model = br.load(panda_urdf())
@@ -106,15 +122,6 @@ def test_load_meshes_gives_the_shapes_as_arrays_the_overlay_draws() -> None:
     stl = trimesh.load(panda_urdf().parent / "meshes" / "collision" / "link0.stl", force="mesh")
     np.testing.assert_allclose(specs[link0].vertices, stl.vertices * shapes[link0].shape.scale, rtol=1e-6)
     np.testing.assert_array_equal(specs[link0].faces, stl.faces)
-
-    server = FakeServer()
-    Viewer(server=server, ground=False).add(
-        RobotVisual(model, geometry=geometry, root=panda_urdf(), style="minimal", collision=True)
-    )
-    for index, spec in enumerate(specs):
-        np.testing.assert_array_equal(
-            server.scene.nodes[f"/panda/panda/collision/mesh_{index}"].props["vertices"], spec.vertices
-        )
     with pytest.raises(ModelError, match=r"body 1: mesh 'package://example-robot-data/.*link0.dae' is not a file"):
         load_meshes(geometry, root=panda_urdf())
 
@@ -287,6 +294,22 @@ def test_robot_visual_builds_a_style_once_and_switches_by_visibility() -> None:
         robot.set_style("meshes")
 
 
+def test_a_hidden_robot_builds_a_part_switched_on_only_when_it_is_shown() -> None:
+    """The showcase keeps seven robots hidden: a Style or Collision switch built the new part of each of them."""
+    robot, server, viewer = _g1_visual(style="maximal")
+    viewer.set_visible(robot, False)
+    nodes = set(server.scene.nodes)
+    robot.set_style("minimal")
+    robot.set_collision(visible=True)
+    robot.set_frames(True)
+    assert set(server.scene.nodes) == nodes  # nothing built while hidden
+    viewer.set_visible(robot, True)
+    path = "/g1_29dof/g1_29dof"
+    for part in ("minimal", "collision", "frames"):
+        assert server.scene.nodes[f"{path}/{part}"].visible
+    assert not server.scene.nodes[f"{path}/maximal"].visible
+
+
 def test_robot_visual_update_equals_building_with_that_configuration() -> None:
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     velocity = 0.5 * torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
@@ -352,6 +375,27 @@ def test_robot_visuals_take_one_hue_each_also_after_a_replace_and_share_the_side
     assert third.hue == first.hue != second.hue
 
 
+def test_a_robot_that_joins_the_shared_controls_keeps_its_own_state_and_moves_them_to_it() -> None:
+    """The showcase's case: a robot added after a choice in the sidebar kept its own style while the Style control
+    still showed the choice, and code could not read a robot's collision and frames switches."""
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    panda = partial(RobotVisual, model, geometry=geometry, root=panda_urdf())  # the tracked one draws no meshes
+    first = viewer.add(panda(name="left", style="maximal"))
+    controls = {label: server.gui.control(label) for label in ("Style", "Collision", "Frames")}
+    for label, value in (("Style", "medium"), ("Collision", True), ("Frames", True)):
+        controls[label].value = value  # a choice in the browser
+        controls[label].fire(None)
+    assert (first.style, first.collision, first.frames) == ("medium", True, True)
+    hand = model.frame_id("panda_hand")
+    second = viewer.add(panda(name="right", style="minimal", frames=[hand]))
+    assert (second.style, second.collision, second.frames) == ("minimal", False, (hand,))  # its own arguments win
+    assert [controls[label].value for label in ("Style", "Collision", "Frames")] == ["minimal", False, True]
+    assert (first.style, first.collision, first.frames) == ("medium", True, True)  # and no other robot changes
+
+
 def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:
     model = br.load(panda_urdf())
     generator = torch.Generator().manual_seed(0)
@@ -370,6 +414,45 @@ def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:
     np.testing.assert_allclose(mesh.bones[hand].position, poses[1, hand, :3], atol=1e-6)
 
 
+def test_a_ghost_robot_draws_every_style_see_through_and_without_shadows() -> None:
+    """``opacity`` reaches every surface node of every style, those built before ``set_opacity`` and after it, and a
+    see-through node casts and catches no shadow; the collision glass keeps the theme's opacity."""
+    model = br.load(panda_urdf())
+    spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "panda.json", model)
+    hand = model.body_id("panda_hand")
+    weights = np.zeros((3, model.njoints), dtype=np.float32)
+    weights[:, hand] = 1.0
+    skin = Skin(0.05 * np.eye(3, dtype=np.float32), np.array([[0, 1, 2]]), weights=weights)
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(
+        RobotVisual(model, skin=skin, spheres=spheres, opacity=0.35, style="maximal", collision=True)
+    )
+    robot.set_style("meshes")
+
+    def drawn(*parts: str) -> list[str]:
+        under = tuple(f"/panda/panda/{part}/" for part in parts)
+        return [
+            name for name, node in server.scene.nodes.items() if name.startswith(under) and node.kind != "FrameHandle"
+        ]
+
+    def look(name: str) -> tuple[object, ...]:
+        node = server.scene.nodes[name]
+        return tuple(vars(node).get(key, node.props[key]) for key in ("opacity", "cast_shadow", "receive_shadow"))
+
+    assert len(drawn("meshes", "maximal")) == 3  # the skin, the drums and the blocks
+    assert {look(name) for name in drawn("meshes", "maximal")} == {(0.35, False, False)}
+    robot.set_opacity(0.6)  # live, and in the styles built after it
+    robot.set_style("minimal")
+    robot.set_style("medium")
+    assert len(drawn(*robot.styles)) == 9 and {look(name) for name in drawn(*robot.styles)} == {(0.6, False, False)}
+    assert look("/panda/panda/collision/spheres") == (LIGHT.collision_opacity, False, False)  # the glass keeps its own
+    robot.set_opacity(1.0)  # solid again: viser's opaque, and shadows but on the tapered maximal blocks
+    assert look("/panda/panda/medium/cylinders") == (None, True, True)
+    assert look("/panda/panda/maximal/boxes") == (None, True, False)
+    with pytest.raises(ArgumentError, match="opacity"):
+        robot.set_opacity(0.0)
+
+
 def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> None:
     model = br.load(panda_urdf())
     server = FakeServer()
@@ -384,6 +467,22 @@ def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> Non
     assert server.scene.nodes["/panda/panda/frames"].visible and not server.scene.nodes[axes].removed
     with pytest.raises(UnknownNameError, match="panda_nose"):
         robot.set_frames(["panda_nose"])
+
+
+def test_a_triad_is_as_large_as_the_glyph_of_its_joint() -> None:
+    """One length for every triad drew a Shadow hand's fingers as a bed of spikes: a triad now follows its joint's
+    glyph, as large on a hip as a hip's drum and on a wrist as a wrist's."""
+    robot, server, _ = _g1_visual(frames=True)
+    model = robot.model
+    moving = [j for j in range(1, model.njoints) if model.nqs[j] == 1 or j == 1]  # the base and the 29 revolute ones
+    scales = server.scene.nodes["/g1_29dof/g1_29dof/frames/axes"].props["batched_scales"]
+    assert len(scales) == len(moving)
+    size = dict(zip((model.joint_names[j] for j in moving), scales, strict=True))
+    assert size["left_hip_pitch_joint"] > 1.5 * size["left_wrist_yaw_joint"] > 0.0
+    assert size["left_hip_pitch_joint"] == size["right_hip_pitch_joint"]  # mirror sides match
+    robot.set_frames(["left_wrist_yaw_link"])  # a frame takes the glyph of its joint
+    named = server.scene.nodes["/g1_29dof/g1_29dof/frames/axes"].props["batched_scales"]
+    np.testing.assert_allclose(named, [size["left_wrist_yaw_joint"]])
 
 
 @pytest.mark.parametrize("frames", [True, ["panda_hand"]])
@@ -417,6 +516,30 @@ def test_robot_visual_bounds_are_the_box_of_the_robot_at_the_step() -> None:
         assert (low <= joints[step].min(axis=0)).all() and (joints[step].max(axis=0) <= high).all()
         assert (low >= (centers[step] - radii).min(axis=0) - 0.05).all()
         assert (high <= (centers[step] + radii).max(axis=0) + 0.05).all()
+
+
+def test_robot_visual_bounds_hold_a_skin_that_reaches_past_the_joints_also_after_update() -> None:
+    """A sail of a skin on the Panda's hand reaches 0.6 m past every joint: the boxes per bone hold each skinned
+    vertex at each step, in a skeleton style too, and follow ``update``."""
+    model = br.load(panda_urdf())
+    generator = torch.Generator().manual_seed(0)
+    q = torch.stack([model.random_configuration(generator=generator) for _ in range(2)])
+    hand = model.body_id("panda_hand")
+    bind = br.forward_kinematics(model, model.q_neutral).joint_poses[hand]
+    sail = np.array([[0.0, 0.0, 0.0], [0.6, 0.0, 0.0], [0.0, 0.0, 0.6]], dtype=np.float32)
+    weights = np.zeros((3, model.njoints), dtype=np.float32)
+    weights[:, hand] = 1.0
+    skin = Skin(bind[:3].numpy() + sail, np.array([[0, 1, 2]]), weights=weights)
+    robot = RobotVisual(model, q, skin=skin, style="maximal")
+    for clip in (q, q.flip(0)):
+        robot.update(clip)
+        posed = br.forward_kinematics(model, clip).joint_poses[:, hand]  # (2, 7)
+        turn = so3.compose(posed[:, None, 3:], so3.inverse(bind[3:]))  # the sail rides on the hand
+        vertices = (so3.act(turn, torch.from_numpy(sail).to(posed)) + posed[:, None, :3]).numpy()  # (2, 3, 3)
+        for step in range(2):
+            lows, highs = robot.bounds(step)  # (N, 3) each
+            inside = (lows[:, None] <= vertices[step] + 1e-5) & (vertices[step] <= highs[:, None] + 1e-5)
+            assert inside.all(axis=-1).any(axis=0).all()  # each vertex in a box
 
 
 def test_robot_visual_leaves_nothing_behind_when_removed_and_builds_again_when_added() -> None:
@@ -507,6 +630,49 @@ def test_two_robots_of_one_model_need_a_name_each() -> None:
         viewer.add(RobotVisual(model))
     viewer.add(RobotVisual(model, name="second"))
     assert [layer.name for layer in viewer.layers] == ["panda", "second"]
+
+
+@pytest.mark.parametrize("style", ["maximal", "medium", "minimal"])
+def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_node(style: str) -> None:
+    """A step with values writes the colours of the node that holds the glyphs, once, beside what it writes without
+    them, and makes no node; only the knee's glyph changes colour, to the ramp's ends (clamped), its drum face in the
+    face shade. Taking the values away gives the hue's colours back; values of another shape are refused."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    knee = model.joint_names.index("left_knee_joint")
+    values = np.full((2, model.njoints), np.nan, dtype=np.float32)  # NaN: no value
+    values[:, knee] = (-1.0, 5.0)  # below and above the range
+    q = model.q_neutral.repeat(2, 1)
+    plain, plain_server, plain_viewer = _g1_visual(q, style=style)
+    robot, server, viewer = _g1_visual(q, style=style, joint_values=values, value_range=(0.0, 2.0))
+    assert set(_drawn(server)) == set(_drawn(plain_server))
+    for each in (server, plain_server):
+        each.scene.log.clear()
+    viewer.show(1)
+    plain_viewer.show(1)
+    node = f"/g1_29dof/g1_29dof/{style}/{'balls' if style == 'minimal' else 'cylinders'}"
+    assert sorted(set(server.scene.log) - set(plain_server.scene.log)) == [(node, "batched_colors")]
+    assert len(server.scene.log) == len(plain_server.scene.log) + 1
+
+    blocks = getattr(robot._skeleton(style), node.rsplit("/", 1)[-1])
+    knees = [i for i, owner in enumerate(blocks.owner) if owner == knee and blocks.part[i] in ("drum", "face", "ball")]
+    painted, hue = server.scene.nodes[node].batched_colors, plain_server.scene.nodes[node].props["batched_colors"]
+    assert np.flatnonzero((painted != hue).any(axis=1)).tolist() == knees
+    high = {"drum": LIGHT.ramp[1], "ball": LIGHT.ramp[1], "face": LIGHT.shade(LIGHT.ramp[1], "face")}
+    for i in knees:
+        np.testing.assert_array_equal(painted[i], linear_uint8(high[blocks.part[i]]))
+    viewer.show(0)
+    assert (server.scene.nodes[node].batched_colors[knees[0]] == linear_uint8(LIGHT.ramp[0])).all()
+    robot.set_joint_values(None)
+    np.testing.assert_array_equal(server.scene.nodes[node].batched_colors, hue)
+
+    for wrong in (np.zeros((3, model.njoints)), np.zeros(model.nv), torch.zeros(2, model.njoints, 1)):
+        with pytest.raises(ShapeError, match="joint_values"):
+            robot.set_joint_values(wrong)
+    for span in ((1.0, 1.0), (0.0, float("nan"))):
+        with pytest.raises(ArgumentError, match="value_range"):
+            robot.set_joint_values(values, value_range=span)
+    with pytest.raises(ShapeError, match="value_range"):
+        robot.set_joint_values(values, value_range=(0.0, 1.0, 2.0))  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("style", ["minimal", "medium"])
