@@ -12,7 +12,7 @@ import torch
 
 from better_robot.lie import so3
 from better_robot.viewer.layer import Layer
-from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer
+from better_robot.viewer import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.layers.skinned import SkinnedMeshLayer

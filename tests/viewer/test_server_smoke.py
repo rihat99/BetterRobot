@@ -13,7 +13,7 @@ import pytest
 import better_robot as br
 from better_robot import collision
 
-from better_robot.viewer.layers import ArrowsLayer, FramesLayer, PointsLayer
+from better_robot.viewer import ArrowsLayer, FramesLayer, PointsLayer
 from better_robot.viewer.layers.mesh import SpheresLayer
 from better_robot.viewer.layer import Layer
 from better_robot.viewer.robot import RobotVisual

@@ -41,7 +41,7 @@ from better_robot.model import (
 from better_robot.optim import Problem
 from better_robot.testing import public_objects
 from better_robot.viewer import Viewer
-from better_robot.viewer.layers import FramesLayer
+from better_robot.viewer import FramesLayer
 
 PAGE = Path(__file__).resolve().parents[2] / "docs" / "contracts" / "coupling-standard.md"
 FROZEN = Path(__file__).parent / "coupling_standard_lines.txt"

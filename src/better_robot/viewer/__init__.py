@@ -32,11 +32,15 @@ viewer.serve()  # plays and blocks until Ctrl-C
 from __future__ import annotations
 
 from .layer import Layer
-from .layers import ArrowsLayer, FramesLayer, GroundLayer, LinesLayer, PointsLayer
+from .layers.arrows import ArrowsLayer
+from .layers.camera import CameraLayer
+from .layers.frames import FramesLayer
+from .layers.ground import GroundLayer
 from .layers.image import ImagePanel
+from .layers.lines import LinesLayer
 from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
-from .layers.camera import CameraLayer
+from .layers.points import PointsLayer
 from .layers.skinned import SkinnedMeshLayer
 from .robot import RobotVisual, Skin
 from .sidebar import Sidebar

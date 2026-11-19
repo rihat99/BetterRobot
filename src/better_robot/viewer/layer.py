@@ -7,8 +7,10 @@ from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING, override
 
 import numpy as np
+import torch
 
 from ..exceptions import ArgumentError, ShapeError
+from ..lie import so3
 
 if TYPE_CHECKING:
     from .sidebar import Sidebar
@@ -49,6 +51,20 @@ def box(points: np.ndarray) -> Bounds | None:
     if not len(flat):
         return None
     return flat.min(axis=0), flat.max(axis=0)
+
+
+def from_z(direction: np.ndarray) -> np.ndarray:
+    """Shortest-arc ``xyzw`` rotations ``(..., 4)`` taking ``+z`` onto each ``direction (..., 3)`` (``so3.exp``).
+
+    A zero direction gives the identity, one opposite ``+z`` a half turn about ``x``.
+    """
+    unit = torch.from_numpy(np.asarray(direction, dtype=np.float64))
+    norm = torch.linalg.norm(unit, dim=-1, keepdim=True)
+    unit = torch.where(norm > 1e-12, unit / norm.clamp_min(1e-12), unit.new_tensor([0.0, 0.0, 1.0]))
+    turn = torch.stack([-unit[..., 1], unit[..., 0], torch.zeros_like(unit[..., 0])], dim=-1)  # z x unit
+    sine = torch.linalg.norm(turn, dim=-1, keepdim=True)
+    axis = torch.where(sine > 1e-9, turn / sine.clamp_min(1e-9), unit.new_tensor([1.0, 0.0, 0.0]))
+    return so3.exp(axis * torch.atan2(sine, unit[..., 2:])).numpy()
 
 
 def as_triangles(faces: np.ndarray) -> np.ndarray:

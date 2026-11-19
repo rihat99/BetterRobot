@@ -8,9 +8,8 @@ from typing import Any, TYPE_CHECKING, final, override
 import numpy as np
 
 from ...exceptions import ArgumentError
-from ..skeleton import _from_z
-from ..theme import LIGHT, RGB, _uint8
-from ..layer import Layer
+from ..layer import Layer, from_z
+from ..theme import LIGHT, RGB, rgb_uint8
 
 if TYPE_CHECKING:
     from ..theme import Theme
@@ -82,9 +81,9 @@ class GroundLayer(Layer):
         )
         self._shadow = theme.shadow
         if self._grid is not None:
-            self._grid.cell_color = _uint8(self._colors[0])
-            self._grid.section_color = _uint8(self._colors[1])
-            self._grid.plane_color = _uint8(self._colors[2])
+            self._grid.cell_color = _rgb(self._colors[0])
+            self._grid.section_color = _rgb(self._colors[1])
+            self._grid.plane_color = _rgb(self._colors[2])
             self._grid.shadow_opacity = theme.shadow
 
     @override
@@ -97,7 +96,7 @@ class GroundLayer(Layer):
             plane = "xy"  # the grid's own normal is +z; rotate it onto ``normal``
             axis = np.asarray(self.normal, dtype=np.float64).reshape(3)
             axis = axis / np.linalg.norm(axis)
-            wxyz = _from_z(axis)[[3, 0, 1, 2]]  # the shortest turn of +z onto the normal
+            wxyz = from_z(axis)[[3, 0, 1, 2]]  # the shortest turn of +z onto the normal
         origin = np.zeros(3) if self.origin is None else np.asarray(self.origin, dtype=np.float64).reshape(3)
         self._grid = self._track(
             scene.add_grid(
@@ -112,9 +111,9 @@ class GroundLayer(Layer):
                 plane=plane,
                 cell_size=self.cell_size,
                 section_size=self.section_size,
-                cell_color=_uint8(self._colors[0]),
-                section_color=_uint8(self._colors[1]),
-                plane_color=_uint8(self._colors[2]),
+                cell_color=_rgb(self._colors[0]),
+                section_color=_rgb(self._colors[1]),
+                plane_color=_rgb(self._colors[2]),
                 plane_opacity=self.fill,
                 wxyz=tuple(float(c) for c in wxyz),
                 position=tuple(float(c) for c in origin + self.height * axis),
@@ -124,3 +123,9 @@ class GroundLayer(Layer):
     @override
     def set_step(self, step: int) -> None:
         pass
+
+
+def _rgb(color: RGB) -> tuple[int, int, int]:
+    """``color`` as the integer triple a grid handle's colour takes (an array would reach the browser as bytes)."""
+    red, green, blue = rgb_uint8(color).tolist()
+    return red, green, blue
