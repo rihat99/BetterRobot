@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 #: What the camera frames when no visible layer has bounds: a 2 x 2 x 1 m box standing on the origin.
 _EMPTY_SCENE: tuple[np.ndarray, np.ndarray] = (np.array([-1.0, -1.0, 0.0]), np.array([1.0, 1.0, 1.0]))
 _FOV = math.radians(40.0)  # the vertical field of view of the browsers' camera
-_AIM_STEPS = 32  # at most this many evenly spaced steps are framed by ``aim``
+_AIM_STEPS = 32  # ``aim`` reads at most this many evenly spaced samples of each layer, or steps of ``steps``
 _AIM_FILL = 0.8  # share of a 16:9 view's height (or width) the framed box spans
 _AIM_ASPECT = 16.0 / 9.0
 #: The default view of ``aim``: from the front-right of an x-forward robot, 30 degrees off its front, and from above.
