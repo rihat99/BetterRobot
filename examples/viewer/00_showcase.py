@@ -21,7 +21,6 @@ from robot_descriptions import g1_description
 
 import better_robot as br
 from better_robot import Viewer
-from better_robot.exceptions import ModelError
 from better_robot.testing import FakeServer
 from better_robot.viewer import DARK, LIGHT, RobotVisual
 
@@ -48,8 +47,10 @@ def motion(model: br.Model, ready: dict[str, float]) -> torch.Tensor:
     """``q (STEPS, nq)``: each joint with limits leaves its ``ready`` angle (a name without its side, ``"knee"``, sets
     the joint of every side) for a quarter of the way to its farther limit and comes back, a little after its parent,
     so that a limb moves as one wave. It turns at most 0.3 rad and moves the far end of what it carries by at most
-    10 cm: a hip less than a knee, a knee less than a finger. Mirror joints move alike, never past a limit."""
-    q, lag, cap, left = model.q_neutral.clone(), torch.zeros(model.nq), torch.zeros(model.nq), torch.ones(model.nq)
+    10 cm: a hip less than a knee, a knee less than a finger. A joint and its twin on the other side move as mirror
+    images, and no joint passes a limit."""
+    q = model.q_neutral.clone()
+    lag, cap, left = torch.zeros(model.nq), torch.zeros(model.nq), torch.zeros(model.nq)  # per coordinate
     rest = br.forward_kinematics(model, model.q_neutral).joint_poses[:, :3]  # (njoints, 3)
     depth, extent = [0] * model.njoints, [0.05] * model.njoints  # how far each joint's subtree reaches, in m
     for joint in reversed(range(1, model.njoints)):
@@ -81,10 +82,8 @@ def main() -> None:
     viewer = Viewer(host=args.host, port=args.port, server=FakeServer() if args.check else None)
     models: dict[str, br.Model] = {}
     for name, (file, floating, _) in ROBOTS.items():
-        try:
+        if (CACHE / file).exists():  # in the cache: nothing is downloaded here
             models[name] = br.load(CACHE / file, root_joint=br.JointFreeFlyer() if floating else None)
-        except ModelError:  # no such file: not in the cache
-            continue
     robots: dict[str, RobotVisual] = {}
     lifts: dict[str, float] = {}  # how far each fixed base is lifted to stand on the ground
     shown = {"style": "meshes", "collision": False, "frames": False}  # what the shared Robot controls show
@@ -107,7 +106,8 @@ def main() -> None:
 
     viewer.sidebar.dropdown("Robot", "Model", options=list(models), value="G1", on_change=pick)
     pick("G1")
-    # The robots' own Style, Collision and Frames controls are shared: these callbacks join theirs.
+    # The first robot made the shared Style, Collision and Frames controls; these callbacks join them, so that a robot
+    # built later starts as they show.
     viewer.sidebar.dropdown("Robot", "Style", options=(), value="", on_change=lambda style: shown.update(style=style))
     viewer.sidebar.checkbox("Robot", "Collision", value=False, on_change=lambda on: shown.update(collision=on))
     viewer.sidebar.checkbox("Robot", "Frames", value=False, on_change=lambda on: shown.update(frames=on))
