@@ -543,7 +543,7 @@
   "better_robot.viewer.CameraLayer.image_at": "function(self, step: 'int') -> 'np.ndarray | None'",
   "better_robot.viewer.CameraLayer.set_step": "function(self, step: 'int') -> 'None'",
   "better_robot.viewer.DARK": "value: Theme",
-  "better_robot.viewer.FramesLayer": "class(Layer)(name: 'str', poses: 'np.ndarray', *, axes_length: 'float' = 0.1, axes_radius: 'float' = 0.004) -> 'None'",
+  "better_robot.viewer.FramesLayer": "class(Layer)(name: 'str', poses: 'np.ndarray', *, axes_length: 'float' = 0.1, axes_radius: 'float' = 0.004, scales: 'np.ndarray | None' = None) -> 'None'",
   "better_robot.viewer.FramesLayer.bounds": "function(self, step: 'int') -> 'Bounds | None'",
   "better_robot.viewer.FramesLayer.build": "function(self, scene: 'Any', root: 'str') -> 'None'",
   "better_robot.viewer.FramesLayer.set_step": "function(self, step: 'int') -> 'None'",
