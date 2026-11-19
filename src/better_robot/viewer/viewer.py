@@ -341,6 +341,16 @@ class Viewer:
             state.node.wxyz = pose[[6, 3, 4, 5]]  # viser's scalar-first quaternion
             state.pose = pose
 
+    def pose(self, tag: str) -> np.ndarray:
+        """The pose ``(7,)`` ``[tx, ty, tz, qx, qy, qz, qw]`` in the world of the frame of the layers whose first tag
+        is ``tag``, as ``set_pose`` placed it (the identity until then). The tools take it as ``pose=`` to pick on
+        those layers' arrays, which stay in the tag's frame."""
+        with self.lock:
+            if tag not in self._tags:
+                raise UnknownNameError("tag", tag, valid=list(self._tags))
+            pose = self._tags[tag].pose
+            return np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]) if pose is None else pose.copy()
+
     def set_fps(self, fps: float) -> None:
         """Play the timeline at ``fps`` steps per second, such as the frame rate of the clip on screen.
 

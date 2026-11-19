@@ -302,7 +302,10 @@ draws the handle in front of every mesh, for a joint inside a body. A callback t
 never showed: `ray_hit`, `nearest_on_ray` (the point nearest the camera within a radius of a click ray),
 `vertices_in_sphere` and `vertices_in_rect`. The last one projects through a `CameraFrustum(pose, *, fov, aspect)`,
 whose `pose (7,)` is `[x, y, z, qx, qy, qz, qw]` like every pose of the library;
-`CameraFrustum.from_camera(client.camera)` takes a browser's camera now.
+`CameraFrustum.from_camera(client.camera)` takes a browser's camera now. Rays, centres, cameras and a gizmo's pose are
+in the world, while a layer's arrays stay in its tag's frame: the picking functions take `pose=viewer.pose(tag)` to
+pick on a tag that `set_pose` placed, and a gizmo's pose meant for a placed robot is composed with the `se3.inverse`
+of that pose to be in the robot's frame.
 
 The viewer holds one pointer callback so that tools never fight over the scene: a tool calls
 `viewer.on_pointer("click", callback)` (viser's `SceneClickEvent`: `ray_origin`, `ray_direction`, `screen_pos`) or

@@ -3,6 +3,9 @@
 viser conventions this reproduces (viser 1.1.1): pointer ``screen_pos``, ``screen_min`` and ``screen_max`` are
 image coordinates in ``[0, 1]`` with ``(0, 0)`` top-left; the camera frame follows OpenCV (look ``+z``, up ``-y``,
 right ``+x``); ``fov`` is the vertical field of view in radians and ``aspect`` is width over height.
+
+Rays, centres and cameras are in the world. Vertices are too, unless ``pose (7,)`` gives the world pose of the frame
+they are in: a layer's arrays under a tag placed by ``Viewer.set_pose`` are picked with ``pose=viewer.pose(tag)``.
 """
 
 from __future__ import annotations
@@ -15,7 +18,7 @@ import numpy as np
 import torch
 
 from ...exceptions import ShapeError
-from ...lie import so3
+from ...lie import se3, so3
 
 
 @final
@@ -51,15 +54,31 @@ class CameraFrustum:
         return cls(np.concatenate([position, wxyz[[1, 2, 3, 0]]]), fov=float(camera.fov), aspect=float(camera.aspect))
 
 
+def _world(vertices: np.ndarray, pose: np.ndarray | None) -> np.ndarray:
+    """``vertices (V, 3)`` in the world: as given for ``pose=None``, else placed by the frame's pose ``(7,)``."""
+    if pose is None:
+        return vertices
+    pose = np.asarray(pose, dtype=np.float64)
+    if pose.shape != (7,):
+        raise ShapeError(f"pose must be (7,) = [x, y, z, qx, qy, qz, qw] or None, got {pose.shape}")
+    return se3.act(torch.from_numpy(pose), torch.from_numpy(np.asarray(vertices, dtype=np.float64))).numpy()
+
+
 def ray_hit(
-    origin: np.ndarray, direction: np.ndarray, *, vertices: np.ndarray, faces: np.ndarray
+    origin: np.ndarray,
+    direction: np.ndarray,
+    *,
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    pose: np.ndarray | None = None,
 ) -> tuple[np.ndarray, int] | None:
     """``(point (3,), face)``: where the ray from ``origin (3,)`` along ``direction (3,)`` first meets a triangle
     ``faces (F, 3)`` of ``vertices (V, 3)``, from either side (Möller–Trumbore), and that triangle's index; ``None``
-    when it meets none ahead of ``origin``."""
+    when it meets none ahead of ``origin``. ``pose (7,)`` places vertices given in a tag's frame; the point is in the
+    world."""
     origin = np.asarray(origin, dtype=np.float64)
     direction = np.asarray(direction, dtype=np.float64)
-    vertices = np.asarray(vertices, dtype=np.float64)
+    vertices = np.asarray(_world(vertices, pose), dtype=np.float64)
     v0 = vertices[faces[:, 0]]
     edge1 = vertices[faces[:, 1]] - v0
     edge2 = vertices[faces[:, 2]] - v0
@@ -80,12 +99,16 @@ def ray_hit(
     return origin + t[face] * direction, face
 
 
-def nearest_on_ray(points: np.ndarray, origin: np.ndarray, *, direction: np.ndarray, radius: float) -> int | None:
+def nearest_on_ray(
+    points: np.ndarray, origin: np.ndarray, *, direction: np.ndarray, radius: float, pose: np.ndarray | None = None
+) -> int | None:
     """Index of the point of ``points (N, 3)`` within ``radius`` of the ray from ``origin (3,)`` that lies nearest
     ``origin`` along it, or ``None``.
 
-    ``direction (3,)`` need not be unit length; points behind the origin are ignored.
+    ``direction (3,)`` need not be unit length; points behind the origin are ignored. ``pose (7,)`` places points
+    given in a tag's frame.
     """
+    points = _world(points, pose)
     direction = direction / np.linalg.norm(direction)
     along = (points - origin) @ direction
     distance = np.linalg.norm(points - origin - along[:, None] * direction, axis=-1)
@@ -93,32 +116,42 @@ def nearest_on_ray(points: np.ndarray, origin: np.ndarray, *, direction: np.ndar
     return None if hits.size == 0 else int(hits[np.argmin(along[hits])])
 
 
-def vertices_in_sphere(vertices: np.ndarray, center: np.ndarray, *, radius: float) -> np.ndarray:
-    """Indices ``(K,)`` of ``vertices (V, 3)`` within ``radius`` of ``center (3,)``."""
-    distance_squared = ((np.asarray(vertices) - np.asarray(center)) ** 2).sum(-1)
+def vertices_in_sphere(
+    vertices: np.ndarray, center: np.ndarray, *, radius: float, pose: np.ndarray | None = None
+) -> np.ndarray:
+    """Indices ``(K,)`` of ``vertices (V, 3)`` within ``radius`` of ``center (3,)``; ``pose (7,)`` places vertices
+    given in a tag's frame."""
+    distance_squared = ((np.asarray(_world(vertices, pose)) - np.asarray(center)) ** 2).sum(-1)
     return np.nonzero(distance_squared <= radius * radius)[0]
 
 
 def vertices_in_rect(
-    vertices: np.ndarray, camera: CameraFrustum, *, rect_min: np.ndarray, rect_max: np.ndarray
+    vertices: np.ndarray,
+    camera: CameraFrustum,
+    *,
+    rect_min: np.ndarray,
+    rect_max: np.ndarray,
+    pose: np.ndarray | None = None,
 ) -> np.ndarray:
     """Indices ``(K,)`` of ``vertices (V, 3)`` in front of ``camera`` that project inside the screen rectangle of
     corners ``rect_min (2,)`` and ``rect_max (2,)`` (in ``[0, 1]``, top-left origin, either order), as viser's box
-    selection gives them."""
+    selection gives them; ``pose (7,)`` places vertices given in a tag's frame."""
     lower = np.minimum(rect_min, rect_max)
     upper = np.maximum(rect_min, rect_max)
-    screen, depth = project(vertices, camera)
+    screen, depth = project(vertices, camera, pose=pose)
     inside = (depth > 0) & (screen >= lower).all(-1) & (screen <= upper).all(-1)
     return np.nonzero(inside)[0]
 
 
-def project(vertices: np.ndarray, camera: CameraFrustum) -> tuple[np.ndarray, np.ndarray]:
+def project(
+    vertices: np.ndarray, camera: CameraFrustum, *, pose: np.ndarray | None = None
+) -> tuple[np.ndarray, np.ndarray]:
     """``(screen (V, 2), depth (V,))`` of world points ``vertices (V, 3)`` seen by ``camera``: screen coordinates in
     ``[0, 1]`` with ``(0, 0)`` top left, as viser's pointer events give them, and the distance along the camera's
-    ``+z`` (positive in front of it)."""
-    pose = np.asarray(camera.pose, dtype=np.float64)
-    xyzw = pose[3:] / max(float(np.linalg.norm(pose[3:])), 1e-8)
-    world = torch.from_numpy(np.asarray(vertices, dtype=np.float64) - pose[:3])
+    ``+z`` (positive in front of it). ``pose (7,)`` places vertices given in a tag's frame."""
+    view = np.asarray(camera.pose, dtype=np.float64)
+    xyzw = view[3:] / max(float(np.linalg.norm(view[3:])), 1e-8)
+    world = torch.from_numpy(np.asarray(_world(vertices, pose), dtype=np.float64) - view[:3])
     camera_space = so3.act(so3.inverse(torch.from_numpy(xyzw)), world).numpy()
     depth = camera_space[..., 2]
     safe_depth = np.where(depth > 0, depth, 1.0)
