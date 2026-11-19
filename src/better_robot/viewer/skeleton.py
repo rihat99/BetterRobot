@@ -1,8 +1,8 @@
 """The abstract skeleton of a robot: ``SkeletonRecipe`` and the layout that turns a ``Model`` into blocks.
 
 A skeleton is drawn from three unit meshes (a cylinder, a ball and a chamfered box), each instanced many times.
-``build_skeleton`` solves the layout once, at the neutral configuration: sizes from the robot's extent and effort
-limits, one glyph per joint kind (a drum for a revolute joint, a sleeve and rail for a prismatic one, a ball for a
+``build_skeleton`` solves the layout once, at the neutral configuration: sizes from the robot's extent and the mass
+each joint carries, one glyph per joint kind (a drum for a revolute joint, a sleeve and rail for a prismatic one, a ball for a
 spherical one, a cube for a free-flyer), bones between glyphs, hulls for the bodies that branch and end blocks for
 the bodies that end a chain. Close joints never overlap: a drum slides along its own axis until it clears its
 neighbours and shrinks only when no slide does, so every axis line stays exact; the drums of joints that nearly

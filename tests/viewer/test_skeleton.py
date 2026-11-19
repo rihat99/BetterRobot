@@ -658,12 +658,12 @@ def test_g1_layout_does_not_change_with_a_sphere_set() -> None:
 
 @pytest.mark.parametrize("name", ["g1", "go2"])
 def test_minimal_follows_the_maximal_size_rule_and_draws_the_head(name: str) -> None:
-    """Both styles share one size rule (a reference radius between 2 % and 4 % of the robot's size, the minimal one
+    """Both styles share one size rule (a reference radius between 2 % and 3 % of the robot's size, the minimal one
     at ``MINIMAL.size`` of it: the Go2's minimal balls were 3.7 % of its size), and the minimal skeleton draws the
     trunk's head that the maximal one finds as one ball of the reference radius, rigid in the trunk, on a stick."""
     model, sources = _described(name)
     maximal, minimal = build_skeleton(model, MAXIMAL, **sources), build_skeleton(model, MINIMAL, **sources)
-    assert 0.02 <= maximal.radius / maximal.scale <= 0.04
+    assert 0.02 <= maximal.radius / maximal.scale <= 0.03 + 1e-12
     assert minimal.radius == pytest.approx(MINIMAL.size * maximal.radius)
     trunk = model.joint_names.index("waist_pitch_joint" if name == "g1" else "root_joint")
     heads = [i for i, owner in enumerate(minimal.balls.owner) if owner == trunk and minimal.balls.anchors[i, 0] < 0]
