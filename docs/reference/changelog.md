@@ -230,7 +230,8 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.url` puts an IPv6 host in brackets (`http://[::1]:8080`; was `http://::1:8080`), so `record` reaches such a
   server, and a page Chromium cannot load raises `ArgumentError` naming its address at once (it was blamed on the
   viser version after a minute), also when DevTools refuses to evaluate while the page moves to its error page (a
-  loaded host met that refusal instead of the address).
+  loaded host met that refusal instead of the address); a page DevTools keeps refusing to evaluate in raises
+  `ArgumentError` with DevTools' last answer after the minute's wait, not the viser version.
 - The docs and `Viewer.add` said a layer keeps the caller's arrays by reference, and the docs' example edited a
   float64 cloud that the layer had copied. A layer keeps its arrays as float32 attributes (`layer.points`,
   `layer.poses`, `layer.valid`, ...), the input itself only when it already is C-contiguous float32: edit the
