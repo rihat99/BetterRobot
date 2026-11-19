@@ -39,7 +39,17 @@ from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
 from .sidebar import Sidebar
-from .skeleton import MAXIMAL, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder
+from .skeleton import (
+    MAXIMAL,
+    MEDIUM,
+    MINIMAL,
+    Skeleton,
+    SkeletonRecipe,
+    build_skeleton,
+    unit_ball,
+    unit_box,
+    unit_cylinder,
+)
 from .theme import LIGHT, RGB, Theme, linear_uint8
 
 if TYPE_CHECKING:
@@ -48,9 +58,10 @@ if TYPE_CHECKING:
 
 # ------------------------------------------------------------------------------------------------ the robot visual
 
-Style = Literal["meshes", "minimal", "maximal"]
+Style = Literal["meshes", "minimal", "medium", "maximal"]
 
-_STYLES = ("meshes", "minimal", "maximal")
+_STYLES = ("meshes", "minimal", "medium", "maximal")
+_SKELETONS = _STYLES[1:]
 _TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the skeleton's glyph radius
 
 
@@ -99,7 +110,9 @@ class _Blocks(Layer):
         if len(self.skeleton.line_body):
             points = self.skeleton.lines(self.poses[0])
             color = linear_uint8(self.theme.shade(self.hue, "face"))
-            self._lines = self._track(scene.add_line_segments(f"{root}/limits", points, color, line_width=2.5))
+            self._lines = self._track(
+                scene.add_line_segments(f"{root}/limits", points, color, thickness=2.5, thickness_units="screen")
+            )
 
     @override
     def set_step(self, step: int) -> None:
@@ -124,16 +137,17 @@ class _Blocks(Layer):
 
 @final
 class RobotVisual(Layer):
-    """One robot: its ``model`` at the configurations ``q``, shown in one of three styles.
+    """One robot: its ``model`` at the configurations ``q``, shown in one of four styles.
 
     ``"meshes"`` draws the visual shapes of ``geometry`` (mesh files are found under ``root``, the description file
-    or its folder, and under each folder above it) or the ``skin``; ``"minimal"`` and ``"maximal"`` draw the
-    skeleton of the recipes ``minimal`` and ``maximal``. ``style=None`` is ``"meshes"`` when there is something to
-    show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without them the collision
-    shapes of ``geometry``; ``frames`` draws a triad per moving joint (``True``) or per frame given, by id or name.
-    Every part is built the first time it is shown; ``set_style``, ``set_collision`` and ``set_frames`` switch them
-    while the viewer runs, and the sidebar gets the same three controls, shared by every robot in the viewer: a
-    switch from code moves the control and leaves the other robots as they are.
+    or its folder, and under each folder above it) or the ``skin``; ``"minimal"``, ``"medium"`` and ``"maximal"``
+    draw the skeleton of the recipes ``minimal``, ``medium`` and ``maximal``. ``style=None`` is ``"meshes"`` when
+    there is something to show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without
+    them the collision shapes of ``geometry``, as a pale glass shell over any style; ``frames`` draws a triad per
+    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown;
+    ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs, and the sidebar gets the
+    same three controls, shared by every robot in the viewer: a switch from code moves the control and leaves the
+    other robots as they are.
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
     theme's hues that no other robot of the viewer is drawn in (``hue``). ``name`` defaults to the model's name.
@@ -151,6 +165,7 @@ class RobotVisual(Layer):
         skin: Skin | None = None,
         style: Style | None = None,
         minimal: SkeletonRecipe = MINIMAL,
+        medium: SkeletonRecipe = MEDIUM,
         maximal: SkeletonRecipe = MAXIMAL,
         hue: RGB | None = None,
         collision: bool = False,
@@ -161,11 +176,11 @@ class RobotVisual(Layer):
         self.q, self._poses = self._solve(q)
         super().__init__(name or model.name, self._poses.shape[0], tags=tags)
         self._root_folder = None if root is None else Path(root)
-        self._recipes = {"minimal": minimal, "maximal": maximal}
+        self._recipes = {"minimal": minimal, "medium": medium, "maximal": maximal}
         self._skeletons: dict[str, Skeleton] = {}
         self._meshes: dict[str, Any] = {}  # mesh file name -> its trimesh, read once: a theme or style switch reuses it
         visual = geometry is not None and any(not attached.collision for attached in geometry.shapes)
-        self.styles: tuple[Style, ...] = _STYLES if visual or skin is not None else _STYLES[1:]
+        self.styles: tuple[Style, ...] = _STYLES if visual or skin is not None else _SKELETONS
         self.style: Style = style or ("meshes" if "meshes" in self.styles else "maximal")
         if self.style not in self.styles:
             raise ArgumentError(
@@ -281,7 +296,7 @@ class RobotVisual(Layer):
 
     def _make(self, part: str) -> list[Layer]:
         """The layers of ``part``, not yet built."""
-        if part in ("minimal", "maximal"):
+        if part in _SKELETONS:
             return [_Blocks(part, self._skeleton(part), self._poses, self.hue, self._theme)]
         if part == "meshes" and self.skin is not None:
             bind = self._solve(self.skin.bind)[1][0]
@@ -433,7 +448,7 @@ class RobotVisual(Layer):
             self._index = free[0] if free else len(taken)
         body, overlay = self._theme.shade(self.hue, "body"), (self._theme.collision, self._theme.collision_opacity)
         self._theme = theme
-        for part in ("minimal", "maximal"):
+        for part in _SKELETONS:
             if part in self._parts:
                 self._parts[part][1][0].recolor(self.hue, theme)  # type: ignore[attr-defined]
         stale = {

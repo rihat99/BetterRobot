@@ -206,7 +206,10 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
 
     handles = [*server.scene.nodes.values(), *server.gui.controls, server.initial_camera, server.clients[0].camera]
     handles += [bone for handle in server.scene.nodes.values() for bone in handle.__dict__.get("bones", ())]
-    handles += [tab for handle in server.gui.controls for tab in handle.__dict__.get("tabs", ())]
+    handles += [
+        server.gui.main_panel,
+        *(tab for handle in server.gui.controls for tab in handle.__dict__.get("tabs", ())),
+    ]
     used = set()
     for handle in handles:
         real = getattr(viser, handle.kind)

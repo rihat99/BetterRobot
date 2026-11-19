@@ -72,7 +72,11 @@ class CameraLayer(Layer):
         edges = np.concatenate([np.stack([apex, self._corners], 1), np.stack([self._corners, ring], 1)])  # (8, 2, 3)
         self._lines = self._track(
             scene.add_line_segments(
-                f"{root}/camera/edges", edges, linear_uint8(self.color or self._ink), line_width=2.0
+                f"{root}/camera/edges",
+                edges,
+                linear_uint8(self.color or self._ink),
+                thickness=2.0,
+                thickness_units="screen",
             )
         )
         image = self.image_at(0)

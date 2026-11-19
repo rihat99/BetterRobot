@@ -146,19 +146,21 @@ viewer.serve()  # plays and blocks until Ctrl-C
 ## A robot is one layer
 
 `RobotVisual(model, q)` is a whole robot: it runs forward kinematics once over `q`, one configuration `(nq,)` or a
-clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of three styles.
+clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of four styles.
 
 | Style | Draws | Needs |
 |---|---|---|
 | `"meshes"` | the display shapes of a `Geometry` (`io.load_geometry`), or a `Skin` | `geometry=` with display shapes, or `skin=` |
 | `"maximal"` | a skeleton with one glyph per joint, limbs, trunks and the ends of the chains | nothing but the model |
+| `"medium"` | the maximal glyphs on thin pale rods, no bodies | nothing but the model |
 | `"minimal"` | a stick figure: one ball per cluster of close joints, sticks between | nothing but the model |
 
 `style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
 looked up under `root`, the description file or its folder, and under each folder above it, so `root=` is the path
 you loaded. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
-the collision shapes of the geometry; `frames=True` draws a triad at every moving joint and `frames=[...]` at
-the frames listed, by id or name.
+the collision shapes of the geometry, as a pale see-through shell over any style (`Theme.collision` at
+`Theme.collision_opacity`, casting and catching no shadow); `frames=True` draws a triad at every moving joint and
+`frames=[...]` at the frames listed, by id or name.
 
 ```python
 import torch
@@ -181,7 +183,7 @@ robot.set_style("maximal")         # built now, the first time it is shown; "mes
 print(robot.style, robot.styles, ghost.styles)
 ```
 ```output
-maximal ('meshes', 'minimal', 'maximal') ('minimal', 'maximal')
+maximal ('meshes', 'minimal', 'medium', 'maximal') ('minimal', 'medium', 'maximal')
 ```
 
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
@@ -195,10 +197,10 @@ one model need a `name=` each.
 
 ### The skeleton
 
-The two skeleton styles are laid out by a `SkeletonRecipe`; `MAXIMAL` and `MINIMAL` are the presets and
-`RobotVisual(maximal=, minimal=)` takes your own. Sizes come from the robot: every radius is a fraction of the
-robot's size, so a hand and a humanoid read the same on screen. The layout is computed once, at `model.q_neutral`,
-and every block is rigid in one joint frame, so a step only moves blocks.
+The three skeleton styles are laid out by a `SkeletonRecipe`; `MAXIMAL`, `MEDIUM` and `MINIMAL` are the presets
+and `RobotVisual(maximal=, medium=, minimal=)` takes your own. Sizes come from the robot: every radius is a fraction
+of the robot's size, so a hand and a humanoid read the same on screen. The layout is computed once, at
+`model.q_neutral`, and every block is rigid in one joint frame, so a step only moves blocks.
 
 `MAXIMAL` draws what the joints are, in two tones of the robot's hue: joints in the hue, bodies pale.
 
@@ -230,7 +232,14 @@ trunk's head is a ball as small as a joint's, on a stick from the trunk. Balls a
 reference radius is a third of the mean bone, kept between 2 % and 4 % of the robot's size, and `MINIMAL` draws
 it at 0.62.
 
-Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
+`MEDIUM` sits between them: the joints as `MAXIMAL` draws them (a glyph per kind, at 0.7 of their size, laid out
+by the same slide rule) and the bodies as `MINIMAL` does, thin rods (0.35 of the glyph radius) in the pale body
+shade from glyph to glyph, a rod and a small ball on to the end of each body that ends a chain, and a trunk's
+head as a ball. It is the recipe `SkeletonRecipe(bones=0.35, hulls="none", size=0.7)`: with `hulls="none"` a
+skeleton of glyphs is a stick figure too. With no bodies drawn, the collision overlay is what shows the robot's
+volume around its motors.
+
+All three take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
 multiplier}` and `color={joint or frame: rgb}`. A `joint_size` factor scales that one glyph after the size rules:
 0 hides it and the bones run on through its place, the glyphs after it keep their size, and above 1 it may be wider
@@ -250,8 +259,8 @@ kind auto True
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
 limit arcs; with the sphere overlay and the frames a robot is at most six drawing nodes, while an overlay of
 collision shapes is one node per shape (17 on the Panda), and a step writes positions and rotations to each node on
-screen (the sticks of a minimal skeleton also their lengths). Each mesh file is read once per robot, however often
-its style, overlay or theme is switched. `bounds` is
+screen (the sticks of a minimal skeleton and the rods of a medium one also their lengths). Each mesh file is read
+once per robot, however often its style, overlay or theme is switched. `bounds` is
 a box per joint, per collision sphere and collision shape that is not a mesh (exact), and per block of the maximal
 skeleton on a body without one, in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
 and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest

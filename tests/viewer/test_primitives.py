@@ -22,7 +22,7 @@ def test_lines_step_their_segments_and_take_the_theme_ink_unless_coloured() -> N
     plain = viewer.add(LinesLayer("path", points, tags="paths"))
     viewer.add(LinesLayer("red", points[0], colors=(1.0, 0.0, 0.0), width=4.0), tags="paths")
     lines, red = server.scene.nodes["/paths/path/lines"], server.scene.nodes["/paths/red/lines"]
-    assert plain.nsteps == 3 and red.props["line_width"] == 4.0
+    assert plain.nsteps == 3 and red.props["thickness"] == 4.0
     viewer.show(2)
     np.testing.assert_allclose(lines.points[:, 1, 2], [3.0, 3.0])
     np.testing.assert_allclose(plain.bounds(2), [[0.0] * 3, [0.0, 0.0, 3.0]])

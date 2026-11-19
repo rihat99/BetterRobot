@@ -192,9 +192,17 @@ class Layer(ABC):
             raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
         self.opacity = float(opacity)
 
+    def _surface(self) -> dict[str, Any]:
+        """The settings a mesh node is drawn with at the layer's ``opacity``: viser's ``opacity``, and no shadow cast
+        or caught by a see-through surface. The shadow map ignores opacity: a glass at 0.2 would throw a solid shadow
+        and wear the shadows of what it holds."""
+        solid = self.opacity >= 1.0
+        return {"opacity": None if solid else self.opacity, "cast_shadow": solid, "receive_shadow": solid}
+
     def _fade(self, opacity: float, surfaces: list[Any] | None = None) -> None:
-        """``set_opacity`` of a mesh layer: keep ``opacity`` and write it to ``surfaces`` (every tracked handle when
-        ``None``)."""
+        """``set_opacity`` of a mesh layer: keep ``opacity`` and write ``_surface`` to ``surfaces`` (every tracked
+        handle when ``None``)."""
         self._store_opacity(opacity)
         for handle in self._handles if surfaces is None else surfaces:
-            handle.opacity = None if self.opacity >= 1.0 else self.opacity
+            for key, value in self._surface().items():
+                setattr(handle, key, value)
