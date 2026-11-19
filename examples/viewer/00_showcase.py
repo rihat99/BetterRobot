@@ -86,13 +86,14 @@ def main() -> None:
             models[name] = br.load(CACHE / file, root_joint=br.JointFreeFlyer() if floating else None)
     robots: dict[str, RobotVisual] = {}
     lifts: dict[str, float] = {}  # how far each fixed base is lifted to stand on the ground
-    shown = {"style": "meshes", "collision": False, "frames": False}  # what the shared Robot controls show
 
     def pick(name: str) -> None:
-        if name not in robots:  # built the first time it is picked, as the Robot controls show
+        if name not in robots:  # built the first time it is picked, drawn as the robot on screen is
             (file, floating, ready), model = ROBOTS[name], models[name]
             q, geometry = motion(model, ready), br.io.load_geometry(CACHE / file, model)
-            robot = RobotVisual(model, q, name=name, geometry=geometry, root=CACHE / file, hue=LIGHT.hue(0), **shown)
+            now = next((robot for robot in robots.values() if robot.visible), None)
+            look = {"style": now.style, "collision": now.collision, "frames": now.frames} if now else {}
+            robot = RobotVisual(model, q, name=name, geometry=geometry, root=CACHE / file, hue=LIGHT.hue(0), **look)
             lowest = torch.tensor([robot.bounds(step)[0][:, 2].min() for step in range(STEPS)])  # a sole, a palm
             if floating:  # the base stands on the ground at every step
                 q[:, 2] -= lowest
@@ -106,11 +107,6 @@ def main() -> None:
 
     viewer.sidebar.dropdown("Robot", "Model", options=list(models), value="G1", on_change=pick)
     pick("G1")
-    # The first robot made the shared Style, Collision and Frames controls; these callbacks join them, so that a robot
-    # built later starts as they show.
-    viewer.sidebar.dropdown("Robot", "Style", options=(), value="", on_change=lambda style: shown.update(style=style))
-    viewer.sidebar.checkbox("Robot", "Collision", value=False, on_change=lambda on: shown.update(collision=on))
-    viewer.sidebar.checkbox("Robot", "Frames", value=False, on_change=lambda on: shown.update(frames=on))
     viewer.sidebar.dropdown(
         "Scene", "Theme", options=("light", "dark"), value="light",
         on_change=lambda theme: viewer.set_theme(DARK if theme == "dark" else LIGHT),

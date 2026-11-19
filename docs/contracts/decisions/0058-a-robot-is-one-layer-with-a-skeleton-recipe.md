@@ -117,8 +117,9 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
 - `bounds` is the same in every style, so the camera does not jump on a style switch: a box per joint, per
   collision sphere and per collision shape that is not a mesh, per block of the maximal skeleton on a body
   without one of those, and per bone of a skin that carries vertices.
-- A switch from code moves the shared sidebar control and switches no other robot, so the control shows the robot
-  switched last, and the other robots may show another style, overlay or triads than it does.
+- A switch from code moves the shared sidebar control and switches no other robot, and a robot added later keeps
+  its own arguments and moves the controls to them, so the controls show the robot switched or added last, and the
+  other robots may show another style, overlay or triads than it does.
 - Torque colouring (`robot_skeleton(tau=)`) is `joint_values=`, each joint's `|tau|` over its effort limit: on the
   G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step and no node (minimal 0.83, medium 0.88, maximal
   0.53 ms per step with values, at load average 16); a ghost at opacity 0.35 costs nothing per step. `end_points=`

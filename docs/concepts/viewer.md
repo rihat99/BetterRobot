@@ -206,7 +206,9 @@ maximal ('meshes', 'minimal', 'medium', 'maximal') ('minimal', 'medium', 'maxima
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
 that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
-shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are. The Style dropdown offers the
+shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are,
+and a robot added later keeps its own style, collision and frames and moves the controls to them (`robot.style`,
+`robot.collision` and `robot.frames` read what a robot shows). The Style dropdown offers the
 styles of the robots still shown: removing the one robot with meshes takes `"meshes"` away, and a dropdown that showed
 it shows the first style left while every robot keeps its own; a robot that replaces another keeps its `style=`. `update(q)` shows new configurations of the same number of steps, for a live
 solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the

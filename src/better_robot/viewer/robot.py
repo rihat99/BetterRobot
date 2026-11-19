@@ -200,7 +200,8 @@ class RobotVisual(Layer):
     moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown;
     ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs, and the sidebar gets the
     same three controls, shared by every robot in the viewer: a switch from code moves the control and leaves the
-    other robots as they are.
+    other robots as they are, and a robot added later keeps its own state and moves the controls to it (``style``,
+    ``collision`` and ``frames`` read it).
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
     theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
@@ -513,6 +514,16 @@ class RobotVisual(Layer):
             self._apply()
         self._show("Frames", bool(chosen))
 
+    @property
+    def collision(self) -> bool:
+        """Whether the collision overlay is shown; ``set_collision`` switches it."""
+        return self._collision
+
+    @property
+    def frames(self) -> bool | tuple[int, ...]:
+        """The triads shown: ``False``, ``True`` for every moving joint, or the frame ids; ``set_frames`` sets them."""
+        return self._frames
+
     @override
     def set_opacity(self, opacity: float) -> None:
         """Draw every style at ``opacity`` in ``(0, 1]`` (1 is opaque), live and in the styles built later; the
@@ -548,15 +559,19 @@ class RobotVisual(Layer):
             if value in self.styles:
                 self.set_style(value)  # type: ignore[arg-type]
 
+        # A robot that joins controls another robot made keeps its own state and moves them to it, as code does.
         sidebar.dropdown("Robot", "Style", options=self.styles, value=self.style, on_change=style)
+        sidebar.set_value("Robot", "Style", value=self.style)
         if self._has_collision:
             sidebar.checkbox("Robot", "Collision", value=self._collision, on_change=self.set_collision)
+            sidebar.set_value("Robot", "Collision", value=self._collision)
         sidebar.checkbox(
             "Robot",
             "Frames",
             value=bool(self._frames),
             on_change=lambda on: self.set_frames(on and (self._triads or True)),
         )
+        sidebar.set_value("Robot", "Frames", value=bool(self._frames))
 
     @override
     def apply_theme(self, theme: Theme) -> None:

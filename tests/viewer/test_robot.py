@@ -352,6 +352,27 @@ def test_robot_visuals_take_one_hue_each_also_after_a_replace_and_share_the_side
     assert third.hue == first.hue != second.hue
 
 
+def test_a_robot_that_joins_the_shared_controls_keeps_its_own_state_and_moves_them_to_it() -> None:
+    """The showcase's case: a robot added after a choice in the sidebar kept its own style while the Style control
+    still showed the choice, and code could not read a robot's collision and frames switches."""
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    panda = partial(RobotVisual, model, geometry=geometry, root=panda_urdf())  # the tracked one draws no meshes
+    first = viewer.add(panda(name="left", style="maximal"))
+    controls = {label: server.gui.control(label) for label in ("Style", "Collision", "Frames")}
+    for label, value in (("Style", "medium"), ("Collision", True), ("Frames", True)):
+        controls[label].value = value  # a choice in the browser
+        controls[label].fire(None)
+    assert (first.style, first.collision, first.frames) == ("medium", True, True)
+    hand = model.frame_id("panda_hand")
+    second = viewer.add(panda(name="right", style="minimal", frames=[hand]))
+    assert (second.style, second.collision, second.frames) == ("minimal", False, (hand,))  # its own arguments win
+    assert [controls[label].value for label in ("Style", "Collision", "Frames")] == ["minimal", False, True]
+    assert (first.style, first.collision, first.frames) == ("medium", True, True)  # and no other robot changes
+
+
 def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:
     model = br.load(panda_urdf())
     generator = torch.Generator().manual_seed(0)

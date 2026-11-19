@@ -14,7 +14,8 @@ that 0.3.0 renames or removes, one table row each.
   control to its previous value and shows a red notification in the browser. `Viewer.sidebar` is the viewer's one.
 - `Sidebar.set_value(section, label, *, value)` shows a value on a control without running its callbacks;
   `RobotVisual.set_style`, `set_collision` and `set_frames` called from code move the Robot section's shared control
-  with it and leave the other robots as they are.
+  with it and leave the other robots as they are, and so does a robot added later: it keeps its own style, collision
+  and frames and moves the controls to them.
 - Tags: `Layer(name, nsteps, *, tags=)` (default: the layer's name; the first tag is the scene parent
   `/<tag>/<name>`) and `Viewer.tags`. `Viewer.remove`, `Viewer.set_visible`, `Viewer.set_pose` and
   `Viewer.redraw` address every layer of a tag, and the sidebar's Layers section has one checkbox per tag once there
@@ -50,7 +51,7 @@ that 0.3.0 renames or removes, one table row each.
   it is shown; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
   viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
-  is drawn in (record 0058).
+  is drawn in, and `style`, `collision` and `frames` what it shows (record 0058).
 - `RobotVisual(opacity=)` and `RobotVisual.set_opacity`: every style drawn see-through, a ghost of a target or a
   reference motion beside or over the robot; below 1 it casts and catches no shadow, and the collision overlay and
   the triads keep their own look. A ghost costs nothing per step.
