@@ -44,9 +44,10 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    root body's mid plane with its axis across it before any), each glyph that would touch one placed before it slides
    along its own axis until it clears it by a tenth of its radius, so it stays on its true axis line; when that takes
    more than 1.75 of its radii it shrinks, down to half its size, and slides less, and only when no size clears that
-   close may it slide farther or shrink further. Joints that share a point (a hip, a waist, a knuckle) so come out as
-   a short staggered stack of separate drums, mirror joints as mirror images; no glyph is wider than the one before
-   it (unless `joint_size` makes it so), and a glyph that ends a chain shrinks at its place before it slides. On rods
+   close may it slide farther or shrink further; one that clears at no size down to a tenth of its own is not drawn.
+   Joints that share a point (a hip, a waist, a knuckle) so come out as a short staggered stack of separate drums,
+   mirror joints as mirror images; no glyph is wider than the one before it (unless `joint_size` makes it so), and a
+   glyph that ends a chain shrinks at its place before it slides. On rods
    a drum is at most 0.35 of its shortest rod, so a wrist reads motor, rod, motor. A maximal limb is `bones` glyph
    radii wide, or 0.7 of its link's thinner half width when that is more, up to 0.8 of the radius its mass gives (a
    thigh is wider than its shin), and starts or ends on the side of a narrower drum it joins. Body sizes come from

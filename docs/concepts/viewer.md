@@ -242,10 +242,11 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
 - no two joint glyphs go inside each other, neighbours in the tree or not: the larger glyph nearer the root keeps
   its place (a drum on the root body's mid plane with its axis across it first, so a waist stays symmetric), and
   each later glyph that would touch one slides along its own axis until it clears it, so it stays on its true axis
-  line; when that takes more than 1.75 of its radii it shrinks, down to half, and slides less. Joints that share a
-  point, such as a hip's pitch, roll and yaw, so come out as a short staggered stack of separate drums, mirror
-  joints as mirror images; a joint that ends a chain shrinks at its place first, as no glyph is wider than the one
-  before it unless `joint_size` makes it so;
+  line; when that takes more than 1.75 of its radii it shrinks, down to half, and slides less, and a glyph that
+  clears at no size down to a tenth of its own is not drawn (a hand whose finger joints sit 7 mm apart). Joints that
+  share a point, such as a hip's pitch, roll and yaw, so come out as a short staggered stack of separate drums,
+  mirror joints as mirror images; a joint that ends a chain shrinks at its place first, as no glyph is wider than
+  the one before it unless `joint_size` makes it so;
 - a limb joins each joint to its parent: a faceted block that narrows towards the child, `bones` times the glyph
   radius wide, or 0.7 of its link's thinner half width when that is more, up to 0.8 of the radius its mass gives
   (a thigh is wider than its shin); where it is wider than a drum it joins, it starts or ends on the drum's side, so

@@ -210,7 +210,7 @@ class Skeleton:
 
     ``scale`` is the robot's size (diagonal of the box of its joint origins at neutral), ``radius`` the reference
     glyph radius and ``radii (njoints,)`` the radius each joint's glyph is sized by, before ``joint_size`` (a fixed
-    joint's is that of the joint its body is welded to, the universe's the reference). ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0.5, 1]``) list, by
+    joint's is that of the joint its body is welded to, the universe's the reference). ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0, 1]``, 0: no glyph fits) list, by
     joint name, the glyphs the layout moved or shrank. ``taper`` is the ``unit_box`` the boxes are drawn with: 0.8 for the maximal layout,
     whose bodies narrow towards their +z, 1 (a cube) for a stick figure.
     """
@@ -347,7 +347,7 @@ def build_skeleton(
         hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
     slide, shrink = _solve(drawn, hidden, clouds)
     reach = {j: 0.0 if j in hidden else shrink[j] * drawn.radius[j] for j in tree.glyphs}
-    ends = {j: shrink[j] * tree.radius[j] for j in tree.glyphs}  # an end block is the body's: never 0
+    ends = {j: max(shrink[j], _LEAST) * tree.radius[j] for j in tree.glyphs}  # an end block is the body's: never 0
     if recipe.hulls == "none":  # no bodies: sticks join the glyphs
         _stick_figure(tree, recipe, rows, clouds, factor=factor, glyphs=(slide, reach, ends))
     else:
@@ -620,8 +620,8 @@ def _fit(
     the root body (so left and right come out as mirror images), until just past the widest neighbour. The first one
     clear of every box by 0.1 radius and no farther than 1.5 radii from ``base`` wins (the glyph stays by its joint);
     with none the glyph shrinks by 0.85 and tries again, down to half its size. Only when no size down to half
-    clears that close, the farther candidates count as well, from the full size down to a fifth, and at a fifth the
-    glyph keeps the least penetration. A ball or a marker has the one candidate and only shrinks. A leaf first
+    clears that close, the farther candidates count as well, from the full size down to a tenth, and a glyph that
+    clears at no size down to a tenth is not drawn (shrink 0: a hand whose finger joints sit 7 mm apart). A ball or a marker has the one candidate and only shrinks. A leaf first
     shrinks at ``base`` until it clears, and only when even half its size does not, slides as any other glyph: the
     end of a chain gets smaller instead of leaving its place.
     """
@@ -641,7 +641,6 @@ def _fit(
         if shrink <= 0.5:
             break
         shrink = max(0.5, 0.85 * shrink)
-    candidates = gaps = np.zeros(1)  # set by the first pass
     for reach, least in ((_REACH * radius, 0.5), (np.inf, _LEAST)):
         shrink = 1.0
         while True:
@@ -659,7 +658,7 @@ def _fit(
             if shrink <= least:
                 break
             shrink = max(least, 0.85 * shrink)
-    return float(candidates[np.argmax(gaps)]), shrink  # nothing clears: the least penetration
+    return base, 0.0  # nothing clears: no glyph
 
 
 # ------------------------------------------------------------------------------------------------ hulls and end blocks

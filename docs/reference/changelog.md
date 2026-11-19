@@ -76,7 +76,8 @@ that 0.3.0 renames or removes, one table row each.
   spherical joint's among the drums (a planar joint is a thin plate in its plane, a translation joint a block), and a
   head only above a trunk; no joint glyph goes inside another: one that would touch a glyph nearer the root slides
   along its own axis until it clears, at most 1.75 of its radii, else it shrinks and slides less, so the joints of a
-  hip stand as a short staggered stack of drums), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on
+  hip stand as a short staggered stack of drums; one that clears at no size down to a tenth of its own is not
+  drawn), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on
   thin pale rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum
   at most 0.35 of its shortest rod: `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
   `viewer.MINIMAL` (one
