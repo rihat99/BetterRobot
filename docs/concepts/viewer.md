@@ -315,7 +315,8 @@ exactly what a browser would; `aim` points the live browsers at the view `record
 `Viewer(theme=...)` takes a `Theme`, the one source of colours: the backdrop gradient, the grid, the shadow on the
 ground, the light rig (ambient, hemisphere, a key light that casts shadows, a fill; no environment map, so meshes and solid
 colours share one rig), the collision overlay's colour and opacity, the robots' hues (`theme.hue(k)`
-for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the GUI accent and the up axis. `LIGHT`
+for the `k`-th robot) and the shades of a hue (`theme.shade(hue, "body")`), the GUI accent, the sidebar's width
+(`Theme(sidebar_width="large")` for a dense panel; `"medium"` by default) and the up axis. `LIGHT`
 (the default) and `DARK` are built in; `viewer.set_theme(theme)` switches the page and every layer. `Theme(up="+y")` is for data in a y-up convention, such as SMPL bodies; it sets the up
 direction of the browser scene and of the `record` camera, and a `GroundLayer` added without an explicit
 `plane` lies in the plane perpendicular to it (`"xz"` for `+y`). The default grid has no edges and fades out with

@@ -224,7 +224,8 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `Theme.grid_cell`, `Theme.grid_section` | `Theme.grid` | a (cell, section) pair |
 | `Theme.robot`, `Theme.human` | `Theme.hue` | a robot or body takes `theme.hue(index)`, its parts `theme.shade(hue, role)` |
 | `Theme.joint`, `Theme.link`, `Theme.torque_ramp`, `Theme.over_limit` | `Theme.shade` | a skeleton takes its robot's hue and `theme.shade(hue, role)` for joints, drum faces, bodies and sticks; the torque colours went with `robot_skeleton(tau=)` |
-| `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target`, `Theme.control_width` | — | no layer read the colours, and an application passes its own; the sidebar keeps viser's medium width |
+| `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` | — | no layer read the colours, and an application passes its own |
+| `Theme.control_width` | `Theme.sidebar_width` | viser's `"small"`, `"medium"` (the default) or `"large"`; `Viewer.set_theme` keeps it |
 | `viewer.theme.colormap(values, *stops)` | — | nothing called it once the torque colours went; an application maps values to colours with numpy |
 | `ArrowsLayer(..., head_size=, line_width=, shaft_radius=None, head_radius=None)`, `ArrowsLayer.HEAD_FRACTION` | `ArrowsLayer(..., shaft_radius=0.006, head_radius=0.016, head_length=0.04)` | viser's solid arrows: no line shafts, the head keeps its size, so an arrow shorter than `head_length` is all head |
 | `CameraLayer(name, poses, *, fov, aspect, ...)` | `CameraLayer(name, poses, *, intrinsics, size, ...)` | the frustum from the `(3, 3)` matrix `K` of a `(W, H)` image, principal point included; `color=None` takes `Theme.text` |

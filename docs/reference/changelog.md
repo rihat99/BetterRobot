@@ -34,6 +34,8 @@ that 0.3.0 renames or removes, one table row each.
   a right one, darker), `accent`, `collision` and `text`, all colours RGB in `[0, 1]`, and `collision_opacity`.
   `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
   that casts shadows and a fill light, one rig for meshes and solid colours.
+- `Theme(sidebar_width="medium")`: viser's `"small"`, `"medium"` or `"large"` sidebar, which `Viewer.set_theme`
+  keeps; it put `"medium"` back over an application's own `configure_theme(control_width=)`.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications; its plain and skinned meshes take `cast_shadow` and
   `receive_shadow`.
@@ -149,8 +151,9 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme.brand_color`: use `Theme.accent`.
 - `Theme.grid_cell` and `Theme.grid_section`: use `Theme.grid`.
 - `Theme.robot` and `Theme.human`: use `Theme.hue(index)`.
-- `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` and `Theme.control_width`: no
-  replacement; no layer read the colours, an application passes its own, and the sidebar keeps viser's medium width.
+- `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact` and `Theme.target`: no replacement; no layer read
+  the colours, and an application passes its own.
+- `Theme.control_width`: use `Theme.sidebar_width`.
 - `Viewer.record` to `.gif`, to numbered `.png` frames and to a directory of frames: use `Viewer.record` to an
   `.mp4` or a `.webm`, or to one `.png` still per call.
 - `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.

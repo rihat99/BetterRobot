@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import threading
 import time
 from typing import Any
@@ -389,6 +390,19 @@ def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow()
     GroundLayer(size=4.0).build(server.scene, "/g/square")  # a number keeps a square of that width
     square = server.scene.nodes["/g/square/grid"].props
     assert not square["infinite_grid"] and square["width"] == 4.0
+
+
+def test_the_sidebar_width_is_the_themes_also_through_set_theme() -> None:
+    """Three applications use viser's "large" sidebar; set_theme used to put "medium" back."""
+    server = FakeServer()
+    viewer = Viewer(server=server, theme=Theme(sidebar_width="large"))
+    assert server.gui.theme["control_width"] == "large"
+    viewer.set_theme(dataclasses.replace(DARK, sidebar_width="large"))
+    assert server.gui.theme["control_width"] == "large" and server.gui.theme["dark_mode"]
+    viewer.set_theme(LIGHT)
+    assert server.gui.theme["control_width"] == "medium"
+    with pytest.raises(ArgumentError, match="sidebar_width must be one of"):
+        Theme(sidebar_width="wide")  # type: ignore[arg-type]
 
 
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:

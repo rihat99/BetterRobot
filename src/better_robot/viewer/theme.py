@@ -11,6 +11,7 @@ from ..exceptions import ArgumentError, ShapeError
 
 RGB = tuple[float, float, float]
 _UP_AXES = ("+x", "-x", "+y", "-y", "+z", "-z")  # what viser's set_up_direction takes as a word
+_SIDEBAR_WIDTHS = ("small", "medium", "large")  # viser's control_width
 #: How far ``shade`` mixes a hue towards black (negative) or white (positive) per role.
 _SHADE_MIX = {"joint": -0.10, "face": -0.32, "body": 0.0, "bone": 0.45, "stick": 0.10}
 #: How far ``shade`` first mixes the hue of a part on the left (1) or the right (-1) side, the same way.
@@ -64,7 +65,8 @@ class Theme:
     ``shadow`` the opacity of shadows on the ground, ``lights`` the intensities (ambient, hemisphere, key, fill).
     ``hues`` are the robots' colours in the order robots are added (``hue(k)``), ``shade`` derives a part's colour
     from a hue, ``accent`` colours the GUI and the tools, ``collision`` and ``collision_opacity`` the collision
-    overlay, ``text`` labels and the default ink of lines and camera frustums.
+    overlay, ``text`` labels and the default ink of lines and camera frustums. ``sidebar_width`` is viser's width of
+    the sidebar, ``"small"``, ``"medium"`` or ``"large"`` (a dense application's panel).
     ``apply(server)`` sends all of it to a viser server; ``Viewer.set_theme`` re-applies it with the layers.
     """
 
@@ -88,15 +90,19 @@ class Theme:
     collision: RGB = _srgb(140, 150, 165)  # a quiet grey glass: the skeleton under the overlay stays the subject
     collision_opacity: float = 0.18
     text: RGB = _srgb(40, 42, 48)
+    sidebar_width: Literal["small", "medium", "large"] = "medium"
 
     @override
     def __repr__(self) -> str:
         return f"Theme(dark={self.dark}, up={self.up!r})"
 
     def __post_init__(self) -> None:
-        """Raise ``ArgumentError`` unless ``up`` names a signed axis, such as ``"+z"``, and ``hues`` is not empty."""
+        """Raise ``ArgumentError`` unless ``up`` names a signed axis, such as ``"+z"``, ``hues`` is not empty and
+        ``sidebar_width`` is one of viser's three."""
         if self.up not in _UP_AXES:
             raise ArgumentError(f"up must be one of {list(_UP_AXES)}, got {self.up!r}")
+        if self.sidebar_width not in _SIDEBAR_WIDTHS:
+            raise ArgumentError(f"sidebar_width must be one of {list(_SIDEBAR_WIDTHS)}, got {self.sidebar_width!r}")
         if not self.hues:
             raise ArgumentError("hues must hold at least one colour")
 
@@ -127,7 +133,7 @@ class Theme:
         return red, green, blue
 
     def apply(self, server: Any) -> None:
-        """Send the theme to a viser server: GUI colours, up axis, the backdrop gradient and the light rig.
+        """Send the theme to a viser server: GUI colours and width, up axis, the backdrop gradient and the light rig.
 
         viser's default lights and its environment map are switched off: meshes and solid colours share one rig, an
         ambient, a hemisphere, a key light that casts shadows and a fill light, as scene nodes under ``/theme``.
@@ -136,7 +142,7 @@ class Theme:
         server.gui.configure_theme(
             dark_mode=self.dark,
             brand_color=rgb_ints(self.accent),
-            control_width="medium",
+            control_width=self.sidebar_width,
             show_logo=False,
             show_share_button=False,
         )
