@@ -835,8 +835,9 @@ def _hulls(
     """The hulls and end blocks of ``recipe``; ``radius[g]`` is the radius the end block of leaf group ``g`` is
     sized by, its glyph's before ``joint_size`` (above 0, so a hidden glyph does not collapse its body), and
     ``glyphs`` the boxes of the drawn glyphs an end block gives way to, and a trunk's body stops short of along the
-    root body's z: those of the joints in series that lead to it (a G1's waist) and of the neck it carries, each at
-    most half its height.
+    root body's z: those of the joints in series that lead to it (a G1's waist) and of the neck it carries, and a
+    fixed base those of the collars that stand on it (an iiwa's base joint, an Allegro's finger bases, which would
+    otherwise show only their rims), each at most half its height.
 
     A trunk group (the root, or two or more child joints; with ``hulls="all"`` also one child joint) gets its trunk
     hulls, a leaf group (no child joint) its end block, a head when it ends a trunk's neck (``_crowns``);
@@ -861,10 +862,11 @@ def _hulls(
         if hull.part == "hull" and hull.mesh == "boxes":
             body.setdefault(hull.group, i)
     necks = {tree.group[first]: (first, leaf) for leaf, first in crowned.items()}
-    for g, i in ((g, i) for g, i in body.items() if g):
+    for g, i in body.items():
         up, center = tree.rotation[tree.root[g]][:, 2], hulls[i].center
-        series = [g]
-        while tree.group[series[-1]] and len(tree.children[tree.group[series[-1]]]) == 1:
+        # a fixed base: the collars that stand on it (an iiwa's base joint), not a drum across it (a wrist on its end)
+        series = [g] if g else [j for j in tree.children[0] if j in tree.axis and abs(tree.axis[j] @ up) > _TWIST]
+        while g and tree.group[series[-1]] and len(tree.children[tree.group[series[-1]]]) == 1:
             series.append(tree.group[series[-1]])
         own = [glyphs[j] for j in series if j in glyphs]
         own = [box for box in own if abs((box[0] - center) @ up) > np.linalg.norm(np.cross(box[0] - center, up))]
