@@ -292,7 +292,7 @@ a box per joint, per collision sphere and collision shape that is not a mesh (ex
 skeleton on a body without one, in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
 and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest
 point of a sole or a foot with a collision shape: `examples/viewer/00_showcase.py` lifts a floating base by it, step
-by step, to stand the robot on the ground.
+by step, and a fixed base by its lowest over the loop, to stand the robot on the ground.
 
 ### A skinned surface
 
@@ -387,7 +387,7 @@ Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames
 
 - [Visualize a robot](../getting-started/visualize.md) walks through a first scene and a recording.
 - [Record a video of a scene](../guides/record-a-video.md): `record`'s formats, options and camera.
-- `examples/viewer/` has runnable scripts: a showcase of three robots in every style
+- `examples/viewer/` has runnable scripts: a showcase of eight robots in every style
   (`uv run python examples/viewer/00_showcase.py`), a robot pose, an IK gizmo, recording a clip, and five demos of
   avoidance while tracking a dragged target ([Try the avoidance demos](../guides/avoidance-demos.md)).
 - [API reference: viewer](../reference/api/viewer.md).
