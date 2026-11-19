@@ -265,49 +265,62 @@ def _overlap(first: tuple, second: tuple, *, round_: bool) -> bool:
     return bool(((radial < 1.0 - 1e-9) & (np.abs(local[:, 2]) < 1.0 - 1e-9)).any())
 
 
-#: The G1's compounds, joints that nearly share a point: each later joint and the first joint of its compound.
-_G1_COMPOUNDS = {
-    "hip_roll": "hip_pitch", "ankle_roll": "ankle_pitch", "shoulder_roll": "shoulder_pitch",
-    "waist_roll": "waist_yaw", "waist_pitch": "waist_yaw",
-}  # fmt: skip
+def _solids(skeleton: Skeleton, poses: np.ndarray) -> dict[int, list[tuple[np.ndarray, np.ndarray, np.ndarray, bool]]]:
+    """Per joint, the solids of its glyph at ``poses``: a drum and its faces (round), a sleeve and its rail, a ball
+    (its box), a planar joint's plate, a translation's block, each as centre ``(3,)``, rotation ``(3, 3)``, half
+    extents ``(3,)`` and whether it is round."""
+    solids: dict[int, list] = {}
+    for mesh, parts in (
+        ("cylinders", ("drum", "face", "rail")),
+        ("boxes", ("sleeve", "plate", "block")),
+        ("balls", ("ball",)),
+    ):
+        world, scale = skeleton.place(poses)[mesh]
+        blocks, rotations = getattr(skeleton, mesh), _rotations(world[:, 3:])
+        for i in (i for i in range(len(blocks)) if blocks.part[i] in parts):
+            half = scale[i] * {"cylinders": [1.0, 1.0, 0.5], "boxes": [0.5, 0.5, 0.5], "balls": [1.0, 1.0, 1.0]}[mesh]
+            solids.setdefault(int(blocks.owner[i]), []).append((world[i, :3], rotations[i], half, mesh == "cylinders"))
+    return solids
 
 
-def _g1_compound(model: Model, joint: int) -> int:
-    """The first joint of the compound of G1 ``joint``, or ``joint`` itself."""
-    name = model.joint_names[joint]
-    for later, first in _G1_COMPOUNDS.items():
-        if later in name:
-            return model.joint_names.index(name.replace(later, first))
-    return joint
+def _touching(first: list, second: list) -> bool:
+    """Whether a solid of ``first`` and one of ``second`` overlap: any grid point of one inside the other."""
+    for (center, rotation, half, round_), (other, turn, reach, also) in itertools.product(first, second):
+        if np.linalg.norm(center - other) < np.linalg.norm(half) + np.linalg.norm(reach) and (
+            _overlap((center, rotation, half), (other, turn, reach), round_=round_ and also)
+            or _overlap((other, turn, reach), (center, rotation, half), round_=round_ and also)
+        ):
+            return True
+    return False
 
 
+#: Per robot, the joints whose glyphs meet by construction, each with its reason. The mixed robot's shoulder ball sits
+#: on its mast's line 20 cm above the carriage, within the mast's 30 cm travel: the rail spans that travel, so it runs
+#: through the ball, which has no axis to slide along, and no shrink takes it off the line.
+_MEETING = {"mixed": {("mast", "shoulder")}}
+
+
+@pytest.mark.parametrize("robot", ["g1", "panda", "mixed", "planar"])
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
-def test_g1_glyphs_of_one_rigid_group_do_not_overlap(recipe: SkeletonRecipe) -> None:
-    """Drums of one rigid group stay clear, except the drums of a compound: they cross, as a universal joint's do,
-    on axes far apart, and a later drum is at least 10 % narrower or longer than the one it crosses."""
-    model, spheres = _g1()
-    skeleton = build_skeleton(model, recipe, spheres=spheres)
-    drums = _drums(skeleton, _poses(model))
-    pairs = _same_group_pairs(model, set(drums))
-    crossed = [(a, b) for a, b in pairs if _g1_compound(model, a) == _g1_compound(model, b)]
-    assert len(crossed) == 8  # two hips, two ankles, two shoulders, and the waist's roll with its yaw and its pitch
-    for a, b in crossed:
-        (_, first, first_half), (_, later, later_half) = drums[a], drums[b]
-        assert abs(float(first[:, 2] @ later[:, 2])) < np.cos(np.radians(35.0))
-        assert later_half[0] <= 0.9 * first_half[0] or later_half[2] >= 1.1 * first_half[2]
-    pairs = [pair for pair in pairs if pair not in crossed]
-    for a, b in pairs:  # the layout's own test is on the boxes around the drums, at neutral
-        names = (model.joint_names[a], model.joint_names[b])
-        assert not _overlap(drums[a], drums[b], round_=False), names
-        assert not _overlap(drums[b], drums[a], round_=False), names
-    # A drum is rigid in its parent group and symmetric about its axis, so the drums stay clear in every pose.
+def test_no_joint_glyph_goes_inside_another(robot: str, recipe: SkeletonRecipe) -> None:
+    """No two joint glyphs overlap at neutral, neighbours in the tree or not (a hip's three drums, a waist beside the
+    hips, the fingers, a planar plate or a translation block beside a drum): each slides along its own axis or
+    shrinks. The glyphs of one rigid group (a joint with its child joints, and siblings) stay clear in every pose,
+    because a drum is rigid in its parent group and symmetric about its axis."""
+    if robot in _SYNTHETIC:
+        model, geometry = _synthetic(robot)
+        skeleton = build_skeleton(model, recipe, geometry=geometry)
+    else:
+        model, spheres = _ROBOTS[robot]()
+        skeleton = build_skeleton(model, recipe, spheres=spheres)
+    names, meeting = model.joint_names, _MEETING.get(robot, set())
+    solids = _solids(skeleton, _poses(model))
+    pairs = itertools.combinations(sorted(solids), 2)
+    assert {(names[a], names[b]) for a, b in pairs if _touching(solids[a], solids[b])} == meeting
     velocity = 0.8 * torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=model.q_neutral.dtype)
-    q = br.kinematics.integrate(model, model.q_neutral, velocity)
-    drums = _drums(skeleton, _poses(model, q))
-    for a, b in pairs:
-        names = (model.joint_names[a], model.joint_names[b])
-        assert not _overlap(drums[a], drums[b], round_=True), names
-        assert not _overlap(drums[b], drums[a], round_=True), names
+    solids = _solids(skeleton, _poses(model, br.kinematics.integrate(model, model.q_neutral, velocity)))
+    for a, b in _same_group_pairs(model, set(solids)):
+        assert (names[a], names[b]) in meeting or not _touching(solids[a], solids[b]), (names[a], names[b])
 
 
 def test_g1_slides_are_mirror_images() -> None:
@@ -333,8 +346,7 @@ def test_g1_slides_are_mirror_images() -> None:
 
 
 def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
-    """A drum is no wider than the drum before it, or than the first drum of that one's compound (a compound's later
-    drums are narrower than their own joint's size, so that they cross)."""
+    """A drum is sized no wider than the drum before it (before the layout shrinks either)."""
     model, spheres = _g1()
     skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
     drums, anchor = _drums(skeleton, _poses(model)), _anchors(model)
@@ -342,8 +354,54 @@ def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
     pairs = [(anchor[model.parent_joint_ids[j]], j) for j in drums if anchor[model.parent_joint_ids[j]] in drums]
     assert pairs
     for parent, child in pairs:
-        first = parent if _g1_compound(model, child) == _g1_compound(model, parent) else _g1_compound(model, parent)
-        assert size[child] <= size[first] + 1e-12, (model.joint_names[parent], model.joint_names[child])
+        assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
+
+
+@pytest.mark.parametrize("robot", ["g1", "panda"])
+def test_a_maximal_drum_is_sized_no_thinner_than_the_limbs_that_end_on_it(robot: str) -> None:
+    """A motor is never thinner than the body it drives: before the layout shrinks it, a drum's half length (so its
+    radius too) is at least the half width of each limb end in or on it, at a limb's wide start and at its narrowed
+    (``taper``) far end, so both its faces stand out. Also a collar whose child joint sits on its own joint: the
+    Panda's base collar under its shoulder drum (its link a limb along the collar's axis)."""
+    model, spheres = _ROBOTS[robot]()
+    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    placed = skeleton.place(_poses(model))
+    world, scale = placed["boxes"]
+    axes = _rotations(world[:, 3:])[:, :, 2]
+    ends = [  # (point, half width) of each end of each limb
+        (world[i, :3] + sign * 0.5 * scale[i, 2] * axes[i], width * scale[i, 0] / 2)
+        for i in range(len(skeleton.boxes))
+        if skeleton.boxes.part[i] == "bone"
+        for sign, width in ((-1.0, 1.0), (1.0, skeleton.taper))
+    ]
+    world, scale = placed["cylinders"]
+    drums = [i for i in range(len(skeleton.cylinders)) if skeleton.cylinders.part[i] == "drum"]
+    for i in drums:
+        name = model.joint_names[skeleton.cylinders.owner[i]]
+        widths = [half for point, half in ends if np.linalg.norm(point - world[i, :3]) <= 1.3 * scale[i, 0]]
+        assert widths, name  # every drum joins a limb here: in it, or on its side
+        assert scale[i, 2] / 2 / skeleton.shrinks.get(name, 1.0) >= max(widths) - 1e-6, name
+
+
+@pytest.mark.parametrize("robot", ["g1", "panda"])
+@pytest.mark.parametrize(("recipe", "least"), [(MEDIUM, 0.7), (MAXIMAL, 0.45)], ids=["medium", "maximal"])
+def test_the_drums_of_one_robot_keep_a_narrow_range_of_sizes(robot: str, recipe: SkeletonRecipe, least: float) -> None:
+    """No joint is too small beside the others: before the layout shrinks them, a robot's smallest drum is at least
+    ``least`` of its largest. Measured: on rods 0.75 (G1) and 0.79 (Panda), where the floor of 2.5 rod radii lifts
+    the G1's wrists and ankles (0.43 under a floor of half the reference radius); in maximal 0.47 and 0.46, where
+    the limb floor widens an arm's proximal drums up to their mass size (the Panda's base collar 2.13 reference
+    radii, its last wrist drum 0.97) and the floor of 0.65 reference radii holds the G1's wrists."""
+    model, spheres = _ROBOTS[robot]()
+    skeleton = build_skeleton(model, recipe, spheres=spheres)
+    blocks = skeleton.cylinders
+    radii = [
+        blocks.scale[i, 0] / skeleton.shrinks.get(model.joint_names[blocks.owner[i]], 1.0)
+        for i in range(len(blocks))
+        if blocks.part[i] == "drum"
+    ]
+    assert min(radii) >= least * max(radii)
+    floor = 2.5 * MEDIUM.bones if recipe is MEDIUM else 0.65  # reference radii: no wrist or ankle reads as a bead
+    assert min(radii) >= floor * skeleton.radius * (1 - 1e-6)
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
@@ -380,8 +438,9 @@ def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> No
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
 def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe: SkeletonRecipe) -> None:
     """With a glyph per joint kind, every revolute joint with a motor of its own is a drum, every prismatic joint
-    a sleeve, alone or in a compound, a planar joint a thin plate and a translation a block: a ball is the glyph of a
-    spherical joint (the owner on a G1 drawn with balls at its hips: "not acceptable"; R2 m3: a planar base too). The only other balls are at most one head per trunk and, on rods, the round cap
+    a sleeve, alone or beside others, a planar joint a thin plate and a translation a block: a ball is the glyph of a
+    spherical joint (the owner on a G1 drawn with balls at its hips: "not acceptable"; R2 m3: a planar base too). The
+    only other balls are at most one head per trunk and, on rods, the round cap
     of a chain's last rod, no wider than the rod; both in the pale shade of the bodies. A chain's end, a hidden
     joint and a quadruped's snout draw no ball."""
     if name in _SYNTHETIC:
@@ -441,28 +500,33 @@ def test_a_neck_ends_in_a_head_that_stands_above_its_trunk(recipe: SkeletonRecip
 
 
 def test_g1_medium_wrist_keeps_rod_between_its_drums() -> None:
-    """On rods a drum outside a compound is at most 0.35 of its shortest bone, never under half the reference radius:
-    the G1's forearm reads rod, wrist roll, rod, wrist pitch, rod, wrist yaw, not a cluster of motors."""
+    """On rods a drum is at most 0.35 of its shortest bone, never under 2.5 rod radii (``MEDIUM.bones`` reference
+    radii each): the G1's forearm reads rod, wrist roll, rod, wrist pitch, rod, wrist yaw, not a cluster of motors."""
     model, spheres = _g1()
     skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
-    origin = _poses(model)[:, :3]
+    poses = _poses(model)
+    origin, drums = poses[:, :3], _drums(skeleton, poses)
     chain = [
         model.joint_names.index(f"left_{name}_joint") for name in ("elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")
     ]
-    radius = {
-        owner: scale[0]
-        for part, owner, scale in zip(skeleton.cylinders.part, skeleton.cylinders.owner, skeleton.cylinders.scale)
-        if part == "drum"
-    }
+
+    def reach(joint: int, direction: np.ndarray) -> tuple[float, float]:  # a placed drum's span along the bone
+        center, rotation, half = drums[joint]
+        along = abs(float(rotation[:, 2] @ direction))
+        extent = along * half[2] + np.sqrt(max(1.0 - along**2, 0.0)) * half[0]
+        return float(center @ direction) - extent, float(center @ direction) + extent
+
     for before, joint in itertools.pairwise(chain):
         bone = float(np.linalg.norm(origin[joint] - origin[before]))
-        assert max(radius[before], radius[joint]) <= max(0.35 * bone, skeleton.radius / 2) + 1e-9
-        assert radius[before] + radius[joint] < bone  # rod shows between them
+        radius = max(drums[before][2][0], drums[joint][2][0])
+        assert radius <= max(0.35 * bone, 2.5 * MEDIUM.bones * skeleton.radius) + 1e-9
+        direction = (origin[joint] - origin[before]) / bone
+        assert reach(joint, direction)[0] > reach(before, direction)[1]  # rod shows between them
 
 
 def test_g1_chest_stops_above_its_waist_drums() -> None:
-    """A trunk's body stops short of the drums of the compound at its joint: the G1's waist gimbal stands between its
-    chest and its pelvis instead of half inside the chest."""
+    """A trunk's body stops short of the drums of the joints in series that lead to it: the G1's waist drums stand
+    between its chest and its pelvis instead of half inside the chest."""
     model, spheres = _g1()
     skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
     (boxes, sides), (drums, lengths) = (skeleton.place(_poses(model))[mesh] for mesh in ("boxes", "cylinders"))
@@ -570,12 +634,13 @@ def test_g1_minimal_clusters_close_joints_alike_on_both_sides_and_without_geomet
 @pytest.mark.parametrize("robot", ["g1", "panda"])
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
 def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str, recipe: SkeletonRecipe) -> None:
-    """Every revolute joint draws one drum on its own axis (a compound's joints too: their drums cross), slid along
-    that axis by at most one half length, after a twist joint's collar offset of one more: it never leaves its
-    joint."""
+    """Every revolute joint draws one drum on its own axis (close joints too: their drums stand apart), slid along
+    that axis by at most 1.75 of its radii before the layout shrank it, after a twist joint's collar offset of one
+    half length: it never leaves its joint."""
     model, spheres = _ROBOTS[robot]()
     poses = _poses(model)
-    drums = _drums(build_skeleton(model, recipe, spheres=spheres), poses)
+    skeleton = build_skeleton(model, recipe, spheres=spheres)
+    drums = _drums(skeleton, poses)
     revolute = {j for j in range(1, model.njoints) if type(model.joints[j]).__name__ == "JointRevolute"}
     assert set(drums) == revolute
     for joint, (center, rotation, half) in drums.items():
@@ -584,7 +649,8 @@ def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str, rec
         offset = center - poses[joint, :3]
         along = float(offset @ rotation[:, 2])
         np.testing.assert_allclose(offset, along * rotation[:, 2], atol=1e-6)
-        assert abs(along) <= 2.0 * half[2] + 1e-9, (model.joint_names[joint], along, half[2])
+        radius = half[0] / skeleton.shrinks.get(model.joint_names[joint], 1.0)
+        assert abs(along) <= half[2] + 1.75 * radius + 1e-9, (model.joint_names[joint], along, radius)
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
@@ -811,9 +877,10 @@ def test_a_joint_on_the_world_keeps_its_parent_side_in_the_world(name: str, stil
 
 def test_a_thin_placeholder_shape_does_not_shrink_a_leaf_glyph_to_nothing() -> None:
     """A leaf glyph is capped by the body it moves, but a 2 mm placeholder box (Tiago's actuated finger joints carry
-    them) leaves it at 0.2 reference radii, not 1.25 times 1 mm."""
+    them) leaves it at 0.2 reference radii, not 1.25 times 1 mm. On rods, as nothing else sizes it there: a maximal
+    drum is at least as wide as the limb that reaches it."""
     model, geometry = _synthetic("thin_tip")
-    skeleton = build_skeleton(model, MAXIMAL, geometry=geometry)
+    skeleton = build_skeleton(model, MEDIUM, geometry=geometry)
     blocks, tip = skeleton.cylinders, model.joint_names.index("j3")
     drum = next(i for i, (owner, part) in enumerate(zip(blocks.owner, blocks.part)) if owner == tip and part == "drum")
     assert blocks.scale[drum, 0] == pytest.approx(0.2 * skeleton.radius)

@@ -70,20 +70,28 @@ that 0.3.0 renames or removes, one table row each.
   holds a glyph: on the G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step, and no node.
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs as wide as
   their link up to the size its mass gives, trunks for the bodies that branch, a fixed base that carries one joint
-  at most 4 of that joint's glyph radii from its centre (a Shadow hand's forearm no larger than the hand), and
+  at most 4 of that joint's glyph radii from its centre (a Shadow hand's forearm no larger than the hand) and short
+  of the collars that stand on it (an iiwa's base joint), and
   where a chain ends a sole, a
   finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
-  spherical joint's among the drums (a planar joint is a thin plate in its plane, a translation joint a block), and a head only above a trunk; the drums of joints that share a point, such
-  as a hip, cross as a universal joint's do, and any other glyph that would overlap slides along its own axis, at
-  most half its length, then shrinks), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on thin pale
-  rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum outside
-  a compound at most 0.35 of its shortest rod: `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
+  spherical joint's among the drums (a planar joint is a thin plate in its plane, a translation joint a block), and a
+  head only above a trunk; a drum never thinner than a limb it joins, both its faces standing out of it (a Go2's
+  knee, a UR5e's joints, a Panda's base collar); no joint glyph goes inside another: one that would touch a glyph
+  nearer the root slides along its own axis until it clears, at most 1.75 of its radii, else it shrinks down to 0.7
+  and slides less, else it slides farther at 0.7, so the joints of a hip stand as a short staggered stack of drums;
+  one that clears at no size down to a tenth of its own is not drawn), `viewer.MEDIUM` (the same glyphs, laid out
+  by the same rules, on
+  thin pale rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum
+  at most 0.35 of its shortest rod and at least 2.5 rod radii, a rod no thicker than 1 / 2.5 of its drums:
+  `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
   `viewer.MINIMAL` (one
   ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
   joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid
   has feet and hands; the styles share one size rule, a glyph as large as the mass it carries, 26 mm times the
-  cube root of its subtree's mass in kg, kept between 0.5 and 1.2 of a reference radius between 2 % and 3 % of the
-  robot's size, so a chain narrows towards its tip, and size bodies from the collision shapes before a sphere set,
+  cube root of its subtree's mass in kg, kept under 1.2 of a reference radius between 2 % and 3 % of the robot's
+  size and over 0.65 of it for a joint glyph (0.5 for a ball of `MINIMAL`; a finger on an arm at most twice its mass
+  size), so a chain narrows towards its tip and a wrist, an ankle or a knee still reads as a motor, and size bodies
+  from the collision shapes before a sphere set,
   leaving out with a warning a collision mesh file that cannot be read): `glyphs` (`"kind"` or `"ball"`), `bones`
   (0.6 of the glyph radius by default), `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`,
   `body_hull` and `color`; a `bones`, `cluster` or `joint_size` below 0, a `size` not above 0, or any of them not
