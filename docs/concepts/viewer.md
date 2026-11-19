@@ -157,7 +157,9 @@ clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of fou
 
 `style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
 looked up under `root`, the description file or its folder, and under each folder above it, so `root=` is the path
-you loaded. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
+you loaded. Code without a viewer reads the same files the same way: `load_meshes(geometry, root=path)` returns one
+`MeshSpec` per display shape (`collision=True`: per collision shape), `vertices (V, 3)` and `faces (F, 3)` with the
+`body` it hangs on and its placement `origin (7,)` in that body's frame. `collision=True` overlays the collision model, the `spheres` (a `RobotSpheres`) when given, otherwise
 the collision shapes of the geometry, as a pale see-through shell over any style (`Theme.collision` at
 `Theme.collision_opacity`, casting and catching no shadow); `frames=True` draws a triad at every moving joint and
 `frames=[...]` at the frames listed, by id or name.

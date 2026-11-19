@@ -15,7 +15,8 @@ A robot is one layer, ``RobotVisual(model, q)``: it runs forward kinematics over
 and shows the robot as its ``"meshes"`` (a ``Geometry`` from ``io.load_geometry``, or a ``Skin``) or as a
 ``"minimal"``, ``"medium"`` or ``"maximal"`` skeleton laid out by a ``SkeletonRecipe`` (``MINIMAL``, ``MEDIUM``,
 ``MAXIMAL``), with a collision overlay and frame triads; the style switches while the viewer runs and ``update(q)``
-shows new configurations.
+shows new configurations. ``load_meshes(geometry, root=)`` gives a geometry's shapes as arrays (``MeshSpec``) to code
+without a viewer.
 ``viewer.tools`` adds a draggable ``PoseGizmo`` and numpy picking (``ray_hit``, ``vertices_in_sphere``,
 ``vertices_in_rect``). ``LIGHT`` and ``DARK`` are the built-in ``Theme``s; ``Theme(up="+y")`` sets the up axis of
 the browser scene and of the ``record`` camera. viser is imported only when a ``Viewer`` is created.
@@ -43,7 +44,7 @@ from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
 from .layers.points import PointsLayer
 from .layers.skinned import SkinnedMeshLayer
-from .robot import RobotVisual, Skin
+from .robot import RobotVisual, Skin, load_meshes
 from .sidebar import Sidebar
 from .skeleton import MAXIMAL, MEDIUM, MINIMAL, SkeletonRecipe
 from .theme import DARK, LIGHT, Theme
@@ -78,5 +79,6 @@ __all__ = [
     "Theme",
     "Timeline",
     "Viewer",
+    "load_meshes",
     "tools",
 ]

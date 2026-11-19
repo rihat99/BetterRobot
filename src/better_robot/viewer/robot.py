@@ -275,17 +275,7 @@ class RobotVisual(Layer):
         """The ``trimesh.Trimesh`` of the mesh file of ``mesh`` on ``body``, before its scale; read once per visual.
         ``ModelError`` names the body and the file when it is not found, does not load or has no faces."""
         if mesh.uri not in self._meshes:
-            with needs_extra("meshes"):
-                import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
-
-            path = _mesh_file(body, mesh.uri, self._root_folder)
-            try:
-                loaded = trimesh.load(path, force="mesh")
-            except Exception as exc:  # noqa: BLE001 - trimesh raises many loader-specific errors
-                raise ModelError(f"body {body}: mesh {mesh.uri!r} does not load: {exc}") from exc
-            if not isinstance(loaded, trimesh.Trimesh) or loaded.faces.shape[0] == 0:
-                raise ModelError(f"body {body}: mesh {mesh.uri!r} has no faces")
-            self._meshes[mesh.uri] = loaded
+            self._meshes[mesh.uri] = _read_mesh(body, mesh.uri, self._root_folder)
         return self._meshes[mesh.uri]
 
     @property
@@ -514,6 +504,49 @@ class RobotVisual(Layer):
 
 
 # ------------------------------------------------------------------------------------------------ mesh files
+
+
+def load_meshes(geometry: Geometry, *, root: str | Path | None = None, collision: bool = False) -> list[MeshSpec]:
+    """The display shapes of ``geometry``, or its collision shapes with ``collision=True``, as arrays: one
+    ``MeshSpec`` per shape, in description order, for code that needs a robot's surface without a viewer.
+
+    Each spec holds ``vertices (V, 3)`` (float32, scaled) in the shape's own frame, ``faces (F, 3)``, the ``body``
+    (a joint id: the body hangs on that joint's frame) and ``origin``, the shape's placement ``(7,)`` in that frame,
+    so ``se3.act(origin, vertices)`` gives the vertices in the body's frame. Mesh files are found as
+    ``RobotVisual(root=)`` finds them, under ``root`` (the description file or its folder, ``None`` for the working
+    directory) and each folder above it; primitives are tessellated. A file that is not found, does not load or has
+    no faces raises ``ModelError`` naming the body and the file. ``RigidMeshLayer(name, specs, body_poses=)`` draws
+    the result.
+    """
+    folder = None if root is None else Path(root)
+    read: dict[str, Any] = {}  # each file once, however many shapes name it
+
+    def load(body: int, mesh: Mesh) -> Any:
+        if mesh.uri not in read:
+            read[mesh.uri] = _read_mesh(body, mesh.uri, folder)
+        return read[mesh.uri]
+
+    return [
+        _shape_spec(attached.body, attached.shape, load, MeshSpec.color, own_colors=True)
+        for attached in geometry.shapes
+        if attached.collision == collision
+    ]
+
+
+def _read_mesh(body: int, uri: str, root: Path | None) -> Any:
+    """The ``trimesh.Trimesh`` of the mesh file ``uri`` on ``body`` (``_mesh_file``), before its scale.
+    ``ModelError`` names the body and the file when it is not found, does not load or has no faces."""
+    with needs_extra("meshes"):
+        import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+
+    path = _mesh_file(body, uri, root)
+    try:
+        loaded = trimesh.load(path, force="mesh")
+    except Exception as exc:  # noqa: BLE001 - trimesh raises many loader-specific errors
+        raise ModelError(f"body {body}: mesh {uri!r} does not load: {exc}") from exc
+    if not isinstance(loaded, trimesh.Trimesh) or loaded.faces.shape[0] == 0:
+        raise ModelError(f"body {body}: mesh {uri!r} has no faces")
+    return loaded
 
 
 def _mesh_file(body: int, uri: str, root: Path | None) -> Path:

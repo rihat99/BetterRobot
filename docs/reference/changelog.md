@@ -62,6 +62,9 @@ that 0.3.0 renames or removes, one table row each.
   batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies and the medium one's
   rods.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
+- `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
+  as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files
+  are found as `RobotVisual(root=)` finds them, by the one lookup the viewer uses.
 - `viewer.LinesLayer(name, points, *, colors=None, width=2.0, tags=())`: segments `(T, N, 2, 3)` or `(N, 2, 3)`,
   one colour, one per segment or one per step, in `Theme.text` unless given.
 - `MeshLayer(colors=(V, 3))`: one colour per vertex. A static mesh is one GLB node that blends them across each face;
@@ -158,7 +161,8 @@ that 0.3.0 renames or removes, one table row each.
   `.mp4` or a `.webm`, or to one `.png` still per call.
 - `viewer.capture` (`HeadlessClient`, `write_frames`, `find_chrome`, `find_ffmpeg`): use `Viewer.record`.
 - `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer`: use `viewer.RobotVisual`, which draws
-  the meshes and both skeletons of a model and runs the forward kinematics itself. Colouring joints by torque
+  the meshes and both skeletons of a model and runs the forward kinematics itself, and `viewer.load_meshes(geometry,
+  root=)` for the meshes as arrays. Colouring joints by torque
   (`robot_skeleton(tau=)`) and `end_points=` have no replacement.
 - `Theme.joint`, `Theme.link`, `Theme.torque_ramp` and `Theme.over_limit`: use `Theme.hue` and `Theme.shade`; a
   skeleton takes its robot's hue and the shades of it.
