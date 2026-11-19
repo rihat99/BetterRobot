@@ -78,6 +78,14 @@ Chromium exit at start: put a copy of the library (from the `libasound2` package
 a GPU needs `nvidia-smi` and Mesa's Vulkan device-select layer (`mesa-vulkan-drivers`), which puts the chosen GPU
 first; `record` raises, naming `gpu=None`, when Chromium does not draw there.
 
+On a host with several NVIDIA GPUs, a recording with `gpu=` also holds about 8 MiB on GPU 0 while it runs, whichever
+GPU draws: NVIDIA's Vulkan driver opens every GPU when Chromium starts Vulkan and leaves that much on the first one.
+It is harmless: nothing is drawn there, and the memory is freed when the recording ends.
+`CUDA_VISIBLE_DEVICES` does not change it, as Vulkan does not read it. Where even 8 MiB matters, such as on a GPU
+reserved for someone else, record in a process that can open only the chosen GPU's device node: in a container given
+that GPU alone (`docker run --gpus device=4 ...`, where it is index 0, so `gpu=0`), or with an `LD_PRELOAD` library
+that fails the `open` of every other `/dev/nvidia<k>`.
+
 ## Where next
 
 - [Viewer](../concepts/viewer.md): layers, tags and the one timeline that `record` steps through.
