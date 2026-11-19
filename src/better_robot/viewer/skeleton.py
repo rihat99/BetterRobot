@@ -45,6 +45,7 @@ from ..model import (
 from .theme import RGB, Theme
 
 _TWIST = float(np.cos(np.radians(35.0)))  # a joint axis within 35 degrees of its limb twists the limb
+_CARRY = 0.026  # m: the glyph radius of a joint that carries 1 kg; it grows with the cube root of the mass
 _HALF = 0.8  # half length of a drum over its radius
 _SLEEVE = 0.6  # half length of a sleeve along its rail over the joint radius
 _MARKER = 0.6  # radius of the plain marker of an unlisted joint kind over the joint radius
@@ -435,10 +436,12 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
     The robot's size is the diagonal of the box of its joint origins; when they span nothing (one moving joint,
     joints that share a point, a lone floating body) the box also takes in the ``clouds`` and the solid box of each
     rigid group's inertia, and only a robot with none of those is 1 m. The reference radius is a third of the mean
-    bone, kept between 2 % and 4 % of the size, times ``size``; a joint's radius the reference times the sixth root
-    of its effort limit over the median one of the joints of its kind (a force is not a torque), kept between 0.8
-    and 1.2. A glyph that cannot slide is no thicker than 0.4 of its shortest bone. Both styles share the rule, so a
-    small robot's balls are as small for it as a large robot's.
+    bone, kept between 2 % and 3 % of the size. A joint's radius grows with the mass it carries, as an actuator
+    does: 26 mm times the cube root of the mass of its subtree in kg (a 1 kg forearm 26 mm, a 10 kg leg 56 mm, a
+    50 g finger 10 mm), kept between 0.5 and 1.2 reference radii, so a wrist is smaller than its elbow, a finger
+    than its wrist, a chain narrows towards its tips and mirror sides match; a robot without mass takes the
+    reference. Both times ``size``. A glyph that cannot slide is no thicker than 0.4 of its shortest bone. Every
+    style shares the rule, so a small robot's balls are as small for it as a large robot's.
     """
     model, origin, glyphs, group = tree.model, tree.origin, tree.glyphs, tree.group
     points = [origin[1:] if model.njoints > 1 else origin]
@@ -455,22 +458,17 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
     scale = scale if scale > 1e-9 else 1.0  # nothing to measure: a unit robot
     spans = [float(np.linalg.norm(origin[j] - origin[group[j]])) for j in glyphs if group[j]]
     spans = [span for span in spans if span > 0.01 * scale]
-    reference = float(np.clip(np.mean(spans) / 3.0, 0.02 * scale, 0.04 * scale)) if spans else 0.03 * scale
-    reference *= recipe.size
-    tree = replace(tree, scale=scale, reference=reference)
+    reference = float(np.clip(np.mean(spans) / 3.0, 0.02 * scale, 0.03 * scale)) if spans else 0.03 * scale
+    tree = replace(tree, scale=scale, reference=reference * recipe.size)
     kind = tree.kind
-    effort = _numpy(model.effort_limit)
-    torque = {}
-    for j in glyphs:  # a mimic joint is as strong as the joint that drives it
-        source = model.mimic_source_ids[j]
-        value = float(effort[model.idx_vs[source]]) if model.nvs[source] == 1 else np.nan
-        torque[j] = value if np.isfinite(value) and value > 0.0 else np.nan
+    carried = _numpy(model.body_inertias)[:, 0].copy()  # per joint, the mass of its subtree
+    for j in range(model.njoints - 1, 0, -1):
+        carried[model.parent_joint_ids[j]] += carried[j]
     radius = {}
     for j in glyphs:
-        known = [value for i, value in torque.items() if np.isfinite(value) and kind[i] == kind[j]]
-        ratio = torque[j] / np.median(known) if torque[j] > 0.0 else 1.0
-        factor = float(np.clip(ratio ** (1.0 / 6.0), 0.8, 1.2))
-        radius[j] = reference * factor * (_MARKER if kind[j] == "other" else 1.0)
+        own = _CARRY * np.cbrt(carried[j]) if carried[0] > 0.0 and kind[j] != "free" else reference
+        radius[j] = recipe.size * float(np.clip(own, 0.5 * reference, 1.2 * reference))
+        radius[j] *= _MARKER if kind[j] == "other" else 1.0
         if kind[j] in ("spherical", "other") and tree.bones(j):
             radius[j] = min(radius[j], _FIXED_CAP * min(tree.bones(j)))
     return replace(tree, radius=radius)
@@ -479,10 +477,7 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
 def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool) -> _Tree:
     """``tree`` with each leaf glyph no thicker than the body it moves: at most 1.25 times the median radius of the
     spheres it carries or, in the ``maximal`` layout, of the middle half extent of its collision points in its own
-    frame, but never under 0.2 reference radii (Tiago's actuated finger joints carry 2 mm placeholder boxes).
-
-    The ``maximal`` layout also narrows towards the tips: a glyph is no wider than the glyph before it (a
-    free-flyer's cube does not count)."""
+    frame, but never under 0.2 reference radii (Tiago's actuated finger joints carry 2 mm placeholder boxes)."""
     radius = dict(tree.radius)
     for j in tree.glyphs:
         if tree.children[j] or j not in clouds:
@@ -496,10 +491,6 @@ def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool
             points = np.concatenate([cloud.origin + cloud.points @ cloud.rotation.T for cloud in clouds[j]])
             size = float(np.sort(np.ptp((points - tree.origin[j]) @ tree.rotation[j], axis=0))[1]) / 2
         radius[j] = min(radius[j], max(_LEAF_CAP * size, _LEAF_FLOOR * tree.reference))
-    for j in tree.glyphs if maximal else ():  # in index order, a parent before its children
-        parent = tree.group[j]
-        if parent and tree.kind[parent] != "free":
-            radius[j] = min(radius[j], radius[parent])
     return replace(tree, radius=radius)
 
 
