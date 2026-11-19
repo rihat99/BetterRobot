@@ -39,7 +39,8 @@ that 0.3.0 renames or removes, one table row each.
   keeps; it put `"medium"` back over an application's own `configure_theme(control_width=)`.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,
   and its clients have a camera and notifications; its plain and skinned meshes take `cast_shadow` and
-  `receive_shadow`.
+  `receive_shadow`. It keeps a copy of each array it is sent, as viser serialises one, so a test sees an edit in
+  place only after the push that sends it.
 - `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, medium, maximal, hue,
   collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
   the style `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"`, `"medium"` or `"maximal"`
