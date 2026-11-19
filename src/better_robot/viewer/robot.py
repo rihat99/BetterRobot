@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import KW_ONLY, dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, final, override
+from typing import TYPE_CHECKING, Any, Literal, cast, final, override
 
 import numpy as np
 import torch
@@ -608,7 +608,7 @@ class RobotVisual(Layer):
             lows.append(world[keep, :3] - reach)
             highs.append(world[keep, :3] + reach)
         if fit.skin is not None:
-            low, high = fit.skin.bounds(step)
+            low, high = cast("Bounds", fit.skin.bounds(step))  # a skin's layer always has its boxes per bone
             lows.append(low)
             highs.append(high)
         return np.concatenate(lows), np.concatenate(highs)
