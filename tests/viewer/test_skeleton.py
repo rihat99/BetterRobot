@@ -14,7 +14,16 @@ import torch
 
 import better_robot as br
 from better_robot import collision
-from better_robot.model import Box, Geometry, JointFixed, JointPrismatic, JointRevolute, JointRevoluteUnbounded, Model
+from better_robot.model import (
+    Box,
+    Geometry,
+    JointFixed,
+    JointPrismatic,
+    JointRevolute,
+    JointRevoluteUnbounded,
+    JointSpherical,
+    Model,
+)
 from better_robot.viewer import LIGHT, RobotVisual
 from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton
 
@@ -327,18 +336,18 @@ def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> No
     """The medium skeleton is the stick figure with a glyph per joint kind: every kind the maximal one draws (the mixed
     robot has a drum, a sleeve on its rail, a ball, a free-flyer cube and a marker), none sized wider than its
     maximal glyph before the slide rule shrinks either, on rods that follow their ends; no limb, trunk or end block
-    (a chain ends in a pale tip), and its boxes are not tapered."""
+    (a chain ends in a round cap of its rod), and its boxes are not tapered."""
     model, spheres = _ROBOTS[robot]()
     medium, maximal = build_skeleton(model, MEDIUM, spheres=spheres), build_skeleton(model, MAXIMAL, spheres=spheres)
     parts = {mesh: set(getattr(medium, mesh).part) for mesh in ("cylinders", "balls", "boxes")}
     glyphs = {mesh: {part for part in getattr(maximal, mesh).part if part in (*_GLYPH_PARTS, "face", "rail")}
               for mesh in ("cylinders", "balls", "boxes")}  # fmt: skip
     assert all(glyphs[mesh] <= parts[mesh] for mesh in glyphs), (glyphs, parts)
-    assert not set.union(*parts.values()) & {"bone", "hull", "end", "fill", "stick"}
+    assert not set.union(*parts.values()) & {"bone", "hull", "end", "stick"}
     rods = np.array(medium.cylinders.part) == "rod"
     assert rods.any() and (medium.cylinders.anchors[rods, 0] >= 0).all() and medium.taper == 1.0
     if robot == "mixed":
-        assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "marker", "rod", "tip"}
+        assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "marker", "rod", "cap"}
 
     def sized(skeleton: Skeleton, mesh: str) -> dict[tuple[int, str], float]:  # (joint, part) -> radius unshrunk
         blocks = getattr(skeleton, mesh)
@@ -357,8 +366,9 @@ def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> No
 def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe: SkeletonRecipe) -> None:
     """With a glyph per joint kind, every revolute joint with a motor of its own is a drum and every prismatic joint
     a sleeve, alone or in a compound: a ball is the glyph of a spherical joint (the owner on a G1 drawn with balls
-    at its hips: "not acceptable"). A ball that a hinge or a slider owns is the end of its chain or the bend of a
-    hidden joint's bones, in the pale shade of the bodies."""
+    at its hips: "not acceptable"). The only other balls are at most one head per trunk and, on rods, the round cap
+    of a chain's last rod, no wider than the rod; both in the pale shade of the bodies. A chain's end, a hidden
+    joint and a quadruped's snout draw no ball."""
     if name in _SYNTHETIC:
         model, geometry = _synthetic(name)
         skeleton = build_skeleton(model, recipe, geometry=geometry)
@@ -371,12 +381,19 @@ def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe:
     drawn = {(part, owner) for mesh in ("cylinders", "boxes") for part, owner in _parts(skeleton, mesh)}
     assert {j for j in hinges if ("drum", j) not in drawn} == set(), name
     assert {j for j in sliders if ("sleeve", j) not in drawn} == set(), name
+    spherical = {j for j, joint in enumerate(model.joints) if isinstance(joint, JointSpherical)}
+    kids = np.bincount(np.asarray(model.parent_joint_ids[1:]), minlength=model.njoints)
+    trunks = 1 + int((kids[1:] >= 2).sum())  # the root, and every joint with two or more child joints
     hue = (0.2, 0.6, 0.4)
     colors = skeleton.colors(hue, LIGHT)["balls"]
-    for (part, owner), color in zip(_parts(skeleton, "balls"), colors, strict=True):
-        if owner in hinges | sliders:
-            assert part in ("tip", "fill"), (name, model.joint_names[owner], part)
+    balls = zip(_parts(skeleton, "balls"), skeleton.balls.scale, colors, strict=True)
+    for (part, owner), scale, color in balls:
+        assert part in ("ball", "marker", "head", "cap"), (name, part)
+        assert part != "ball" or owner in spherical, (name, model.joint_names[owner])
+        assert part != "cap" or (recipe is MEDIUM and scale.max() <= MEDIUM.bones * skeleton.radius + 1e-12), name
+        if part in ("head", "cap"):
             np.testing.assert_allclose(color, LIGHT.shade(hue, "bone"), atol=1e-6)
+    assert skeleton.balls.part.count("head") <= trunks, name
 
 
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
@@ -389,7 +406,7 @@ def test_a_neck_ends_in_a_head_that_stands_above_its_trunk(recipe: SkeletonRecip
     tilt, pan = model.joint_names.index("tilt"), model.joint_names.index("pan")
     (balls, _), (boxes, sides) = (skeleton.place(_poses(model))[mesh] for mesh in ("balls", "boxes"))
     heads = [i for i, (_, owner) in enumerate(_parts(skeleton, "balls")) if owner == tilt]
-    assert len(heads) == 1 and skeleton.balls.part[heads[0]] == "tip"
+    assert len(heads) == 1 and skeleton.balls.part[heads[0]] == "head"
     np.testing.assert_allclose(balls[heads[0], :3], [0.0, 0.0, 0.42], atol=1e-6)
     np.testing.assert_allclose(skeleton.balls.scale[heads[0]], 0.064 if recipe is MAXIMAL else skeleton.radius)
     if recipe is MAXIMAL:
@@ -636,7 +653,7 @@ def test_g1_layout_does_not_change_with_a_sphere_set() -> None:
         ankle = model.joint_names.index(f"{side}_ankle_roll_joint")
         blocks = zip(maximal.boxes.part, maximal.boxes.owner, strict=True)
         assert [part for part, owner in blocks if owner == ankle and part != "bone"] == ["end"]  # one sole
-        assert "tip" not in [part for part, owner in zip(maximal.balls.part, maximal.balls.owner) if owner == ankle]
+        assert ankle not in maximal.balls.owner
 
 
 @pytest.mark.parametrize("name", ["g1", "go2"])
@@ -813,7 +830,7 @@ def test_colors_shade_each_part_and_tint_the_sides() -> None:
     np.testing.assert_allclose(drums["waist_yaw_joint"], LIGHT.shade(hue, "joint"), atol=1e-6)
 
 
-_AUTO = {("hull", "base"), ("end", "l3"), ("tip", "l3")}  # the boxed arm's trunk, then its last link's limb and ball
+_AUTO = {("hull", "base"), ("end", "l3")}  # the boxed arm's trunk, then its last link's limb
 
 
 @pytest.mark.parametrize(
@@ -821,15 +838,15 @@ _AUTO = {("hull", "base"), ("end", "l3"), ("tip", "l3")}  # the boxed arm's trun
     [
         ("auto", {}, _AUTO),
         ("all", {}, _AUTO | {("hull", "l0"), ("hull", "l1"), ("hull", "l2")}),
-        ("none", {}, {("tip", "l3")}),
+        ("none", {}, {("cap", "l3")}),
         ("auto", {"l1": True}, _AUTO | {("hull", "l1")}),
-        ("none", {"l1": True}, {("hull", "l1"), ("tip", "l3")}),
+        ("none", {"l1": True}, {("hull", "l1"), ("cap", "l3")}),
         ("auto", {"base": False, "l3": False}, set()),
     ],
 )
 def test_hulls_and_body_hull_choose_the_bodies_drawn(hulls: str, body_hull: dict, expected: set) -> None:
     """``hulls`` gives a trunk to the root and the branching bodies (``"all"``: also a body with one child joint, the
-    links) and an end to the leaf, ``"none"`` neither (the chain ends in a small tip); ``body_hull`` then adds or
+    links) and an end to the leaf, ``"none"`` neither (the chain's rod ends in a round cap); ``body_hull`` then adds or
     removes one body."""
     model, geometry = _synthetic("boxed_arm")
     skeleton = build_skeleton(model, replace(MAXIMAL, hulls=hulls, body_hull=body_hull), geometry=geometry)
@@ -837,7 +854,7 @@ def test_hulls_and_body_hull_choose_the_bodies_drawn(hulls: str, body_hull: dict
         (part, model.body_names[body])
         for blocks in (skeleton.boxes, skeleton.balls)
         for part, body in zip(blocks.part, blocks.body, strict=True)
-        if part in ("hull", "end", "tip")
+        if part in ("hull", "end", "cap")
     }
     assert drawn == expected
 
