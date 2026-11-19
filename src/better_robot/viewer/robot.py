@@ -150,7 +150,8 @@ class RobotVisual(Layer):
     other robots as they are.
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
-    theme's hues that no other robot of the viewer is drawn in (``hue``). ``name`` defaults to the model's name.
+    theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
+    raises ``ShapeError``. ``name`` defaults to the model's name.
     """
 
     def __init__(
@@ -172,12 +173,15 @@ class RobotVisual(Layer):
         frames: bool | Sequence[int | str] = False,
         tags: Sequence[str] = (),
     ) -> None:
+        if hue is not None and np.shape(hue) != (3,):
+            raise ShapeError(f"hue must be an RGB triple, got {hue!r}")
         self.model, self.geometry, self.spheres, self.skin = model, geometry, spheres, skin
         self.q, self._poses = self._solve(q)
         super().__init__(name or model.name, self._poses.shape[0], tags=tags)
         self._root_folder = None if root is None else Path(root)
         self._recipes = {"minimal": minimal, "medium": medium, "maximal": maximal}
         self._skeletons: dict[str, Skeleton] = {}
+        self._fit: _Fit | None = None  # what bounds needs that no step changes, the first time it is asked
         self._meshes: dict[str, Any] = {}  # mesh file name -> its trimesh, read once: a theme or style switch reuses it
         visual = geometry is not None and any(not attached.collision for attached in geometry.shapes)
         self.styles: tuple[Style, ...] = _STYLES if visual or skin is not None else _SKELETONS
@@ -457,38 +461,54 @@ class RobotVisual(Layer):
         robot's extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
         """
         model, poses = self.model, torch.from_numpy(self._poses[step])
+        fit = self._fit = self._fit or self._fitted()
         joints = self._poses[step, min(1, model.njoints - 1) :, :3]  # not the universe, unless it is all there is
         lows, highs = [joints], [joints]
-        anchor = list(range(model.njoints))  # the joint each body is welded to
-        for j in range(1, model.njoints):
-            anchor[j] = anchor[model.parent_joint_ids[j]] if isinstance(model.joints[j], JointFixed) else j
-        covered = set()
         if self.spheres is not None:
-            radii, centers = self.spheres.radii.detach().cpu().numpy()[:, None], _centers(model, self.spheres, poses)
-            lows.append(centers - radii)
-            highs.append(centers + radii)
-            covered |= {anchor[model.frame_parent_joint_ids[f]] for f in self.spheres.frame_ids.tolist()}
-        shapes = [shape for shape in self.geometry.shapes if shape.collision] if self.geometry is not None else []
-        shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
-        if shapes:
-            placements = torch.tensor([attached.shape.placement for attached in shapes], dtype=poses.dtype)
-            world = se3.compose(poses[[attached.body for attached in shapes]], placements).numpy()
-            sizes = np.array([_sizes(attached.shape) for attached in shapes], dtype=world.dtype)
+            centers = _centers(model, self.spheres, poses)
+            lows.append(centers - fit.radii)
+            highs.append(centers + fit.radii)
+        if fit.bodies:
+            world = se3.compose(poses[fit.bodies], fit.placements.to(poses.dtype)).numpy()
             axes = _axes(world)
-            axis = axes[:, 2]  # each shape's own z
+            axis, sizes = axes[:, 2], fit.sizes.astype(world.dtype)  # each shape's own z
             reach = np.einsum("nk,nkc->nc", sizes[:, :3], axes) + sizes[:, 3:4] * axis
             reach += sizes[:, 4:5] * np.sqrt(np.clip(1.0 - axis**2, 0.0, None)) + sizes[:, 5:]
             lows.append(world[:, :3] - reach)
             highs.append(world[:, :3] + reach)
-            covered |= {anchor[attached.body] for attached in shapes}
-        skeleton = self._skeleton("maximal")
-        for mesh, (world, scale) in skeleton.place(self._poses[step]).items():
-            keep = np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
-            half = scale * {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0)}.get(mesh, (0.5, 0.5, 0.5))
-            reach = np.einsum("nk,nkc->nc", half[keep], _axes(world[keep]))  # the half extent of its world box
+        for mesh, (world, scale) in fit.skeleton.place(self._poses[step]).items():
+            keep = fit.keep[mesh]
+            reach = np.einsum("nk,nkc->nc", (scale * _HALF_EXTENT[mesh])[keep], _axes(world[keep]))  # its world box
             lows.append(world[keep, :3] - reach)
             highs.append(world[keep, :3] + reach)
         return np.concatenate(lows), np.concatenate(highs)
+
+    def _fitted(self) -> _Fit:
+        """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, and which
+        blocks of the maximal skeleton sit on a body that neither covers."""
+        model = self.model
+        anchor = list(range(model.njoints))  # the joint each body is welded to
+        for j in range(1, model.njoints):
+            anchor[j] = anchor[model.parent_joint_ids[j]] if isinstance(model.joints[j], JointFixed) else j
+        covered, radii = set(), np.zeros((0, 1))
+        if self.spheres is not None:
+            radii = self.spheres.radii.detach().cpu().numpy()[:, None]
+            covered |= {anchor[model.frame_parent_joint_ids[f]] for f in self.spheres.frame_ids.tolist()}
+        shapes = [shape for shape in self.geometry.shapes if shape.collision] if self.geometry is not None else []
+        shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
+        covered |= {anchor[attached.body] for attached in shapes}
+        skeleton = self._skeleton("maximal")
+        return _Fit(
+            radii=radii,
+            bodies=[attached.body for attached in shapes],
+            placements=torch.tensor([attached.shape.placement for attached in shapes], dtype=torch.float64),
+            sizes=np.array([_sizes(attached.shape) for attached in shapes], dtype=np.float64).reshape(-1, 6),
+            skeleton=skeleton,
+            keep={
+                mesh: np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
+                for mesh in ("cylinders", "balls", "boxes")
+            },
+        )
 
     @override
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
@@ -579,6 +599,23 @@ def _axes(world: np.ndarray) -> np.ndarray:
     """``(N, 3, 3)``: row ``k`` holds the absolute world components of axis ``k`` of each pose of ``world (N, 7)``."""
     rotations, eye = torch.from_numpy(world[:, None, 3:]), torch.from_numpy(np.eye(3, dtype=world.dtype))
     return np.abs(so3.act(rotations, eye).numpy())
+
+
+#: Per unit mesh, its half extent along x, y and z over its scale.
+_HALF_EXTENT = {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0), "boxes": (0.5, 0.5, 0.5)}
+
+
+@final
+@dataclass(frozen=True)
+class _Fit:
+    """What ``RobotVisual.bounds`` reads that no step changes."""
+
+    radii: np.ndarray  # (S, 1): the radius of each collision sphere
+    bodies: list[int]  # per collision shape that is not a mesh, the body it is on
+    placements: torch.Tensor  # (P, 7): its placement on that body
+    sizes: np.ndarray  # (P, 6): what its world box needs (``_sizes``)
+    skeleton: Skeleton  # the maximal skeleton
+    keep: dict[str, np.ndarray]  # per unit mesh, (N,): whether a block is on a body that no sphere or shape covers
 
 
 def _sizes(shape: Any) -> list[float]:

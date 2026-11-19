@@ -225,17 +225,27 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
 
 - a revolute joint is a drum along its axis, with dark end faces that show which way the axis points; a prismatic
   joint is a sleeve that rides with its child on a rail that spans the joint's travel in the parent; a spherical
-  joint is a ball; any other kind is a small ball, and a free base is a cube;
-- joints that share a point, such as a hip's pitch, roll and yaw, are drawn apart: each drum that would overlap
-  another slides along its own axis, so it stays on its true axis line, and only then shrinks; a joint that ends
-  a chain shrinks at its place first, so a chain gets smaller towards its tip, as no glyph is wider than the one
-  before it unless `joint_size` makes it so;
-- a limb, a slim faceted block that narrows towards the child, joins each joint to its parent (`bones`, its half
-  width over the glyph radius; 0 draws none);
+  joint is a ball, and no other ball sits among the drums, where it would read as a ball joint; any other kind is a
+  small ball, and a free base is a cube;
+- a glyph is as large as the motor that would carry its subtree: 26 mm times the cube root of that mass in kg, kept
+  between 0.5 and 1.2 reference radii, so a wrist is smaller than its elbow and a chain narrows towards its tip;
+- joints that share a point, such as a hip's pitch, roll and yaw, form a compound and cross as the drums of a
+  universal joint do: each drum stays on its own axis at 0.85 of the one before it (never under 0.7 of its own
+  size), and one whose joint sits inside another slides along its axis to centre on it, both faces standing out.
+  Any other drum that would overlap a neighbour slides along its own axis, at most half its length, and only then
+  shrinks; a joint that ends a chain shrinks at its place first, as no glyph is wider than the one before it
+  unless `joint_size` makes it so;
+- a limb joins each joint to its parent: a faceted block that narrows towards the child, `bones` times the glyph
+  radius wide, or 0.7 of its link's thinner half width when that is more, up to 0.8 of the radius its mass gives
+  (a thigh is wider than its shin); where it is wider than a drum it joins, it starts or ends on the drum's side, so
+  the drum stays in sight (`bones=0` draws none);
 - a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
-  the tree branches (a torso, a pelvis, a palm), with a ball for a head; a body that ends a chain is a sole when
-  it is flat, a block when a prismatic joint moves it (a finger), else a limb with a ball at its tip (a hand, a
-  paw). Their sizes come from the collision shapes of the geometry, else from the sphere set, else from the
+  the tree branches (a torso, a pelvis, a palm), and stops short of the drums of its own waist and of its neck. A
+  head is a ball that stands above the trunk and every joint: the head of a neck chain (a Talos, an Atlas), a
+  round second frame of the trunk, or over a trunk whose sensor frames rise above it (an H1); a quadruped's snout
+  or the lidar on its back is no head. A body that ends a chain is a sole when it is flat, a block when a prismatic
+  joint moves it (a finger), else a limb that tapers to the end of the body (a hand, a paw), with no ball at its
+  tip. Their sizes come from the collision shapes of the geometry, else from the sphere set, else from the
   inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes. A
   collision mesh file that cannot be read is left out with a warning that names it, while the collision overlay,
   which draws the file, raises `ModelError`. `hulls="all"` also gives a trunk to the bodies with one child joint,
@@ -247,14 +257,15 @@ sticks join the balls. A leaf joint's stick runs on to the end of its body and e
 leaf's frame: to the far end of its geometry (the paw of a Go2, the toe of a G1's sole, a hand, a finger), so
 the figure stands on its feet; without geometry, to its farthest frame when that frame lies past the middle of the
 body its inertia spans (a foot, a tool tip). The maximal limb of a hand or a paw ends at the same place. A
-trunk's head is a ball as small as a joint's, on a stick from the trunk. Balls and drums follow one size rule: the
-reference radius is a third of the mean bone, kept between 2 % and 4 % of the robot's size, and `MINIMAL` draws
-it at 0.62.
+trunk's head is a ball as small as a joint's, on a stick from the trunk (here a quadruped's snout counts). Balls
+and drums follow one size rule: the reference radius is a third of the mean bone, kept between 2 % and 3 % of the
+robot's size, and `MINIMAL` draws it at 0.62.
 
 `MEDIUM` sits between them: the joints as `MAXIMAL` draws them (a glyph per kind, at 0.7 of their size, laid out
 by the same slide rule) and the bodies as `MINIMAL` does, thin rods (0.35 of the glyph radius) in the pale body
-shade from glyph to glyph, a rod and a small ball on to the end of each body that ends a chain, and a trunk's
-head as a ball. It is the recipe `SkeletonRecipe(bones=0.35, hulls="none", size=0.7)`: with `hulls="none"` a
+shade from glyph to glyph, a rod on to the end of each body that ends a chain, closed by a round cap of its own
+width, and the heads of `MAXIMAL` as small pale balls. A drum outside a compound is at most 0.35 of its shortest
+rod, so a wrist reads motor, rod, motor. It is the recipe `SkeletonRecipe(bones=0.35, hulls="none", size=0.7)`: with `hulls="none"` a
 skeleton of glyphs is a stick figure too. With no bodies drawn, the collision overlay is what shows the robot's
 volume around its motors.
 

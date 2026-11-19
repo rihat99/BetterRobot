@@ -14,7 +14,7 @@ import torch
 import better_robot as br
 from better_robot.lie import so3
 from better_robot.lie.se3 import compose, from_translation
-from better_robot.model import JointManifold, JointModel, JointPrismatic
+from better_robot.model import JointManifold, JointModel, JointPrismatic, JointRevolute
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin, load_meshes
 from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, build_skeleton
@@ -243,7 +243,7 @@ def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> 
     if style != "minimal":
         drums = [i for i, part in enumerate(blocks.part) if part == "drum"]
         axes = [joints[1][j] @ np.asarray(model.joints[j].axis) for j in blocks.owner[drums]]
-        assert len(drums) == 29
+        assert len(drums) == sum(isinstance(joint, JointRevolute) for joint in model.joints)  # a compound's too
         np.testing.assert_allclose(rotation[drums, :, 2], np.stack(axes), atol=1e-5)
     if style == "maximal":
         return
@@ -302,6 +302,12 @@ def test_robot_visual_update_equals_building_with_that_configuration() -> None:
     np.testing.assert_allclose(updated.bounds(0)[0], built.bounds(0)[0], atol=1e-6)
     with pytest.raises(ShapeError, match="steps"):
         updated.update(torch.stack([q, q]))
+
+
+def test_robot_visual_refuses_a_hue_that_is_not_three_numbers() -> None:
+    model = br.load(panda_urdf())
+    with pytest.raises(ShapeError, match="hue"):
+        RobotVisual(model, hue=(1.0, 0.0))  # type: ignore[arg-type]
 
 
 def test_robot_visual_keeps_a_detached_copy_of_q() -> None:

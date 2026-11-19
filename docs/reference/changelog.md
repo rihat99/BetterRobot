@@ -50,19 +50,25 @@ that 0.3.0 renames or removes, one table row each.
   viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
   is drawn in (record 0058).
-- `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs, trunks
-  for the bodies that branch, a sole, a hand or a paw where a chain ends, in two tones; glyphs that share a point
-  slide apart along their own axes, then shrink, and a chain narrows towards its tip), `viewer.MEDIUM` (the same
-  glyphs, laid out by the same slide rule, on thin pale rods instead of bodies: `hulls="none"` with `glyphs="kind"`,
-  `bones=0.35`, `size=0.7`) and `viewer.MINIMAL` (one
+- `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs as wide as
+  their link up to the size its mass gives, trunks for the bodies that branch, and where a chain ends a sole, a
+  finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
+  spherical joint's among the drums, and a head only above a trunk; the drums of joints that share a point, such
+  as a hip, cross as a universal joint's do, and any other glyph that would overlap slides along its own axis, at
+  most half its length, then shrinks), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on thin pale
+  rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum outside
+  a compound at most 0.35 of its shortest rod: `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
+  `viewer.MINIMAL` (one
   ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
   joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid
-  has feet and hands; both styles share one size rule, a reference radius between 2 % and 4 % of the robot's size,
-  and size bodies from the collision shapes before a sphere set, leaving out with a warning a collision mesh file
-  that cannot be read): `glyphs` (`"kind"` or `"ball"`), `bones` (0.6 of the glyph radius by default), `hulls`,
-  `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`, `body_hull` and `color`. A skeleton is three
-  batched nodes. `Theme.shade` takes the role `bone` for the maximal skeleton's pale bodies and the medium one's
-  rods.
+  has feet and hands; the styles share one size rule, a glyph as large as the mass it carries, 26 mm times the
+  cube root of its subtree's mass in kg, kept between 0.5 and 1.2 of a reference radius between 2 % and 3 % of the
+  robot's size, so a chain narrows towards its tip, and size bodies from the collision shapes before a sphere set,
+  leaving out with a warning a collision mesh file that cannot be read): `glyphs` (`"kind"` or `"ball"`), `bones`
+  (0.6 of the glyph radius by default), `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`,
+  `body_hull` and `color`; a `bones`, `cluster` or `joint_size` below 0, a `size` not above 0, or any of them not
+  finite raises `ArgumentError`. A skeleton is three batched nodes. `Theme.shade` takes the role `bone` for
+  the maximal skeleton's pale bodies and the medium one's rods.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
   as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files
@@ -213,8 +219,9 @@ that 0.3.0 renames or removes, one table row each.
   offers: the Style dropdown kept `"meshes"` after the one robot with meshes went, and choosing it changed nothing.
   When the option shown goes, the dropdown shows the first one left and runs no callback: removing or replacing a
   layer never restyles the others, and a robot that replaces another keeps its own `style=`.
-- `Theme.shade` raises `ShapeError` for a hue that is not three numbers, so `RobotVisual(hue=(1.0, 0.0))` fails
-  in `Viewer.add` with the library's error (was the builtin error of an unpack).
+- `Theme.shade` and `RobotVisual(hue=)` raise `ShapeError` for a hue that is not three numbers, so
+  `RobotVisual(hue=(1.0, 0.0))` fails where it is made, with the library's error (was the builtin error of an
+  unpack, in `Viewer.add`).
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
 - `SkinnedMeshLayer` names `weights` and `bone_poses` apart, each with the shape it needs: a `RobotVisual`'s `Skin`
