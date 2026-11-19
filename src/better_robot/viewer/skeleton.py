@@ -67,9 +67,12 @@ _PLATE = 0.45  # a sole is this many joint radii thick
 _LEAF_CAP = 1.25  # a leaf glyph is at most this share of the half thickness of the body it moves
 _LEAF_FLOOR = 0.2  # and at least this share of the reference radius: a thin placeholder shape is not a body
 _FIXED_CAP = 0.4  # a glyph that cannot slide is at most this share of its shortest bone
-_REACH = 1.75  # a glyph slides at most this many of its radii from its start, unless no size down to half clears there
+_LOW = 0.65  # a glyph of its kind is at least this many reference radii: a wrist, an ankle, a knee reads as a motor
+_REACH = 1.75  # a glyph slides at most this many of its radii from its start, unless no size down to _KEEP clears there
+_KEEP = 0.7  # a glyph keeps this share of its size while a slide of any length clears it
 _LEAST = 0.1  # the least share of its size a glyph shrinks to when nothing clears it nearer
-_SPACING = 0.35  # on rods, a drum is at most this share of its shortest bone, not under R / 2
+_SPACING = 0.35  # on rods, a drum is at most this share of its shortest bone, not under _ROD rod radii
+_ROD = 2.5  # on rods, a drum is at least this many rod radii, and a rod thins beside a smaller drum
 _ARC = 24  # segments of a limit arc
 _KINDS = {
     JointFixed: "fixed", JointRevolute: "revolute", JointRevoluteUnbounded: "revolute", JointHelical: "revolute",
@@ -328,6 +331,8 @@ def build_skeleton(
     tree = _tree(model)
     clouds = _clouds(tree, spheres, geometry, mesh_vertices)
     tree = _leaf_caps(_sizes(tree, recipe, clouds), clouds, maximal=recipe.glyphs == "kind")
+    if recipe.glyphs == "kind" and recipe.hulls != "none":
+        tree = _limb_floors(tree, recipe, clouds)
     factor = {j: recipe.joint_size.get(model.joint_names[j], 1.0) for j in tree.glyphs}
     rows = _Rows(tree, recipe)
     if recipe.glyphs == "ball":
@@ -335,8 +340,9 @@ def build_skeleton(
         return rows.pack(slides={}, shrinks={}, radii=tree.radius)
     if recipe.hulls == "none":  # on rods, a row of close drums (a wrist) keeps rod between them
         spaced = {j: _SPACING * min(tree.bones(j), default=np.inf) for j in tree.glyphs}
+        least = _ROD * recipe.bones * tree.reference
         radius = {
-            j: r if tree.kind[j] != "revolute" else max(min(r, spaced[j]), min(r, tree.reference / 2))
+            j: r if tree.kind[j] != "revolute" else max(min(r, spaced[j]), min(r, least))
             for j, r in tree.radius.items()
         }
         tree = replace(tree, radius=radius)
@@ -345,7 +351,7 @@ def build_skeleton(
     hidden = {j for j in tree.glyphs if _mimic(tree, j) or drawn.radius[j] <= 0.0}
     if not recipe.twists:
         hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
-    slide, shrink = _solve(drawn, hidden, clouds)
+    slide, shrink = _solve(drawn, hidden, clouds, cube=recipe.hulls == "none")
     reach = {j: 0.0 if j in hidden else shrink[j] * drawn.radius[j] for j in tree.glyphs}
     ends = {j: max(shrink[j], _LEAST) * tree.radius[j] for j in tree.glyphs}  # an end block is the body's: never 0
     if recipe.hulls == "none":  # no bodies: sticks join the glyphs
@@ -471,10 +477,14 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
     rigid group's inertia, and only a robot with none of those is 1 m. The reference radius is a third of the mean
     bone, kept between 2 % and 3 % of the size. A joint's radius grows with the mass it carries, as an actuator
     does: 26 mm times the cube root of the mass of its subtree in kg (a 1 kg forearm 26 mm, a 10 kg leg 56 mm, a
-    50 g finger 10 mm), kept between 0.5 and 1.2 reference radii, so a wrist is smaller than its elbow, a finger
-    than its wrist, a chain narrows towards its tips and mirror sides match; a robot without mass takes the
-    reference. Both times ``size``. A glyph that cannot slide is no thicker than 0.4 of its shortest bone. Every
-    style shares the rule, so a small robot's balls are as small for it as a large robot's.
+    50 g finger 10 mm), kept under 1.2 reference radii, so a wrist is smaller than its elbow, a finger than its
+    wrist, a chain narrows towards its tips and mirror sides match; a robot without mass takes the reference. A ball
+    of the stick figure is at least 0.5 reference radii. A glyph of its kind is at least 0.65 of them, on rods 2.5
+    rod radii (0.875 of them), so a wrist, an ankle or a knee reads as a motor at the distance of the whole robot;
+    a joint inside a chain that carries grams (a finger of a hand on an arm) is at most twice its mass size instead,
+    and a leaf at least half a reference radius (``_leaf_caps`` caps it by its body). Both times ``size``. A glyph
+    that cannot slide is no thicker than 0.4 of its shortest bone. Every style shares the reference, so a small
+    robot's balls are as small for it as a large robot's.
     """
     model, origin, glyphs, group = tree.model, tree.origin, tree.glyphs, tree.group
     points = [origin[1:] if model.njoints > 1 else origin]
@@ -498,10 +508,14 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
     for j in range(model.njoints - 1, 0, -1):
         carried[model.parent_joint_ids[j]] += carried[j]
     radius, load = {}, {}
+    floor = max(_LOW, _ROD * recipe.bones) if recipe.hulls == "none" else _LOW
     for j in glyphs:
         own = _CARRY * np.cbrt(carried[j]) if carried[0] > 0.0 and kind[j] != "free" else reference
         load[j] = recipe.size * float(own)
-        radius[j] = recipe.size * float(np.clip(own, 0.5 * reference, 1.2 * reference))
+        low = 0.5
+        if recipe.glyphs == "kind":
+            low = max(0.0 if tree.children[j] else 0.5, min(floor, 2.0 * own / reference))
+        radius[j] = recipe.size * float(np.clip(own, low * reference, 1.2 * reference))
         radius[j] *= _MARKER if kind[j] == "other" else 1.0
         if kind[j] in ("spherical", "planar", "translation", "other") and tree.bones(j):  # glyphs that cannot slide
             radius[j] = min(radius[j], _FIXED_CAP * min(tree.bones(j)))
@@ -528,6 +542,29 @@ def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, maximal: bool
     return replace(tree, radius=radius)
 
 
+def _limb_floors(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud]]) -> _Tree:
+    """``tree`` with each drum wider than the limbs it joins, as ``_maximal`` draws them (``_TAPER`` narrower at
+    their far end), and as long, so that both its faces stand out of them: a radius of at least their half width
+    over ``_HALF``. A motor is never thinner than the body it drives (a Go2's knee under its thigh, a UR5e's joints
+    between its tubes). A limb leaves each group that is no trunk towards each of its child glyphs."""
+    radius = dict(tree.radius)
+    for g in tree.glyphs:
+        trunk = (tree.group[g] == 0 and tree.kind[g] == "free") or len(tree.children[g]) >= 2
+        if trunk or (recipe.hulls == "all" and tree.children[g]):
+            continue
+        for j in tree.children[g]:
+            direction = tree.origin[j] - tree.origin[g]
+            if np.linalg.norm(direction) <= 1e-6:
+                continue
+            frame = _limb_frame(direction / np.linalg.norm(direction), tree.axis.get(j))
+            width = _BODY * _width(tree, clouds.get(g, []), g, frame)
+            side = min(max(recipe.bones * radius[g], width), 0.8 * max(radius[g], tree.load[g]))
+            for end, wide in ((g, side), (j, _TAPER * side)):
+                if tree.kind[end] == "revolute":
+                    radius[end] = max(radius[end], wide / _HALF)
+    return replace(tree, radius=radius)
+
+
 def _mimic(tree: _Tree, joint: int) -> bool:
     """Whether ``joint`` is a revolute mimic joint: it moves as its source does and has no motor of its own, so it
     draws no glyph (a gripper's linkage). A mimic slider keeps its sleeve: two fingers that close on each other
@@ -549,7 +586,7 @@ def _twists(tree: _Tree, joint: int, after: Sequence[int]) -> bool:
 
 
 def _solve(
-    tree: _Tree, hidden: set[int], clouds: Mapping[int, list[_Cloud]]
+    tree: _Tree, hidden: set[int], clouds: Mapping[int, list[_Cloud]], *, cube: bool
 ) -> tuple[dict[int, float], dict[int, float]]:
     """Slide ``s`` along its own axis and shrink ``k`` of every glyph, so that neighbours do not overlap.
 
@@ -560,10 +597,11 @@ def _solve(
     its own end block. A glyph is tested against every placed glyph closer to it than the sum of their sizes (each
     with room to slide): the glyphs of its rigid groups (parent, siblings, children), where the clearance holds for
     every configuration, and any other, where it holds at neutral (a hip's yaw two hops from its pitch, a waist
-    beside a hip, a finger beside its neighbour).
+    beside a hip, a finger beside its neighbour). With ``cube`` the cube of a free base is placed as a glyph that
+    cannot slide (on rods, where no hull holds it): the drums of a waist on it slide clear of it.
     """
     origin = tree.origin
-    solid = [j for j in tree.glyphs if j not in hidden and tree.kind[j] != "free"]  # the base cube sits in the hull
+    solid = [j for j in tree.glyphs if j not in hidden and (cube or tree.kind[j] != "free")]
     frame = {j: _matrix(from_z(tree.axis[j])) if j in tree.axis else tree.rotation[j] for j in solid}  # as placed
     slide = {j: 0.0 for j in tree.glyphs}
     shrink = {j: 1.0 for j in tree.glyphs}
@@ -606,9 +644,11 @@ def _solve(
 
 def _half(tree: _Tree, joint: int, reach: float) -> np.ndarray:
     """Half extents of the box around the glyph of ``joint`` drawn with radius ``reach``: a drum with its faces or a
-    sleeve along z, else a ball."""
+    sleeve along z, a free base's cube, else a ball."""
     along = _SLEEVE if tree.kind[joint] == "prismatic" else 1.1 * _HALF
-    return reach * (np.array([1.0, 1.0, along]) if joint in tree.axis else np.ones(3))
+    if joint not in tree.axis:
+        return reach * np.full(3, 0.75 if tree.kind[joint] == "free" else 1.0)
+    return reach * np.array([1.0, 1.0, along])
 
 
 def _fit(
@@ -617,13 +657,13 @@ def _fit(
     """The slide and shrink of one glyph against its placed neighbours ``others``.
 
     Candidates step a quarter of the half length away from ``base``, alternating sides, first the side away from
-    the root body (so left and right come out as mirror images), until just past the widest neighbour. The first one
-    clear of every box by 0.1 radius and no farther than 1.5 radii from ``base`` wins (the glyph stays by its joint);
-    with none the glyph shrinks by 0.85 and tries again, down to half its size. Only when no size down to half
-    clears that close, the farther candidates count as well, from the full size down to a tenth, and a glyph that
-    clears at no size down to a tenth is not drawn (shrink 0: a hand whose finger joints sit 7 mm apart). A ball or a marker has the one candidate and only shrinks. A leaf first
-    shrinks at ``base`` until it clears, and only when even half its size does not, slides as any other glyph: the
-    end of a chain gets smaller instead of leaving its place.
+    the root body (so left and right come out as mirror images), until just past the half diagonal of the widest
+    neighbour. The first one clear of every box by 0.1 radius and no farther than 1.75 radii from ``base`` wins (the
+    glyph stays by its joint); with none the glyph shrinks by 0.85 and tries again, down to 0.7 of its size. Then
+    the farther candidates count as well, from the full size down to 0.7, and only when none clears there, down to
+    a tenth: a glyph slides rather than shrinks under 0.7. A glyph that clears at no size down to a tenth is not
+    drawn (shrink 0: a hand whose finger joints sit 7 mm apart). A ball or a marker has the one candidate and only
+    shrinks.
     """
     radius, origin, axis = tree.radius[joint], tree.origin[joint], tree.axis.get(joint)
     sign = 1.0
@@ -633,21 +673,13 @@ def _fit(
             in_root = np.round(tree.rotation[tree.root[joint]].T @ axis, 6)
             away = float(in_root[np.abs(in_root).argmax()])
         sign = 1.0 if away >= 0.0 else -1.0
-    shrink = 1.0
-    while not tree.children[joint]:  # a leaf ends its chain smaller rather than away from its place
-        center = origin + base * (axis if axis is not None else np.zeros(3))
-        if _gaps(center[None], frame, _half(tree, joint, shrink * radius), others)[0] >= 0.1 * shrink * radius:
-            return base, shrink
-        if shrink <= 0.5:
-            break
-        shrink = max(0.5, 0.85 * shrink)
-    for reach, least in ((_REACH * radius, 0.5), (np.inf, _LEAST)):
+    for reach, least in ((_REACH * radius, _KEEP), (np.inf, _KEEP), (np.inf, _LEAST)):
         shrink = 1.0
         while True:
             half, offsets = _half(tree, joint, shrink * radius), [0.0]
             if axis is not None:
                 step = 0.25 * half[2]
-                steps = int(1.25 * (half[2] + max(other[2][0] for other in others)) / step)
+                steps = int(1.25 * (half[2] + max(float(np.linalg.norm(other[2])) for other in others)) / step)
                 offsets += [side * m * step for m in range(1, steps + 1) for side in (sign, -sign)]
             candidates = base * shrink + np.array(offsets)
             centers = origin + candidates[:, None] * (axis if axis is not None else np.zeros(3))
@@ -1284,8 +1316,8 @@ def _maximal(
     bone between two glyphs narrows (``_TAPER``) to no wider than that ball in the glyph it reaches; a limb, the
     bone of a link that is no trunk, is as wide as 0.7 of its link's thinner half width across it (``_width``) when
     that is more, up to 0.8 of the radius the mass rule gives the joint it leaves before the clip (``_Tree.load``: a
-    thigh wider than its shin, and a Spot's or a UR5e's links wider than their clipped drums); where it is wider than
-    a glyph it joins it starts or ends on that glyph's side, so the drum stays in sight.
+    thigh wider than its shin, and a Spot's or a UR5e's links as wide as theirs, whose drums ``_limb_floors`` widens
+    in turn); where it is wider than a glyph it joins it starts or ends on that glyph's side.
     """
     origin = tree.origin
     center, frame = _placed(tree, slide)
@@ -1443,7 +1475,7 @@ def _stick_figure(
 
     A ball sits at the mean of its member origins at every step; the cluster of a free-flyer root is rigid in the
     root body and drawn as a cube. A ball is at most 0.4 of its shortest stick, and a stick never thicker than the
-    balls it joins. A leaf joint without an end block gets a stick on to the end of its body (``_knob``) and a small
+    balls it joins (a rod beside glyphs: than 1 / 2.5 of them). A leaf joint without an end block gets a stick on to the end of its body (``_knob``) and a small
     ball there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length. A trunk's
     head (``_heads``) is a ball as small as a joint's on a stick from the trunk. Then a ball takes the mean
     ``factor`` (``joint_size``) of its joints; a ball of factor 0, or of mimic joints only (``_mimic``), is not
@@ -1497,7 +1529,7 @@ def _stick_figure(
         rows.hull(hull)
     part = "stick" if glyphs is None else "rod"  # between glyphs a rod, in the pale shade of the maximal bodies
     for start, end, owner in sticks:
-        balls = [ball[a] for a in (start, end) if ball.get(a, 0.0) > 0.0]
+        balls = [ball[a] / (1.0 if glyphs is None else _ROD) for a in (start, end) if ball.get(a, 0.0) > 0.0]
         side = min([recipe.bones * tree.reference, *balls])
         rows.stick(start, end, side, owner, part=part)
         if end in capped:  # the rod that ends a chain beside drums ends round, in a cap no wider than itself

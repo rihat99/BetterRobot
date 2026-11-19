@@ -453,23 +453,28 @@ def test_a_neck_ends_in_a_head_that_stands_above_its_trunk(recipe: SkeletonRecip
 
 
 def test_g1_medium_wrist_keeps_rod_between_its_drums() -> None:
-    """On rods a drum is at most 0.35 of its shortest bone, never under half the reference radius:
-    the G1's forearm reads rod, wrist roll, rod, wrist pitch, rod, wrist yaw, not a cluster of motors."""
+    """On rods a drum is at most 0.35 of its shortest bone, never under 2.5 rod radii (``MEDIUM.bones`` reference
+    radii each): the G1's forearm reads rod, wrist roll, rod, wrist pitch, rod, wrist yaw, not a cluster of motors."""
     model, spheres = _g1()
     skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
-    origin = _poses(model)[:, :3]
+    poses = _poses(model)
+    origin, drums = poses[:, :3], _drums(skeleton, poses)
     chain = [
         model.joint_names.index(f"left_{name}_joint") for name in ("elbow", "wrist_roll", "wrist_pitch", "wrist_yaw")
     ]
-    radius = {
-        owner: scale[0]
-        for part, owner, scale in zip(skeleton.cylinders.part, skeleton.cylinders.owner, skeleton.cylinders.scale)
-        if part == "drum"
-    }
+
+    def reach(joint: int, direction: np.ndarray) -> tuple[float, float]:  # a placed drum's span along the bone
+        center, rotation, half = drums[joint]
+        along = abs(float(rotation[:, 2] @ direction))
+        extent = along * half[2] + np.sqrt(max(1.0 - along**2, 0.0)) * half[0]
+        return float(center @ direction) - extent, float(center @ direction) + extent
+
     for before, joint in itertools.pairwise(chain):
         bone = float(np.linalg.norm(origin[joint] - origin[before]))
-        assert max(radius[before], radius[joint]) <= max(0.35 * bone, skeleton.radius / 2) + 1e-9
-        assert radius[before] + radius[joint] < bone  # rod shows between them
+        radius = max(drums[before][2][0], drums[joint][2][0])
+        assert radius <= max(0.35 * bone, 2.5 * MEDIUM.bones * skeleton.radius) + 1e-9
+        direction = (origin[joint] - origin[before]) / bone
+        assert reach(joint, direction)[0] > reach(before, direction)[1]  # rod shows between them
 
 
 def test_g1_chest_stops_above_its_waist_drums() -> None:
@@ -825,9 +830,10 @@ def test_a_joint_on_the_world_keeps_its_parent_side_in_the_world(name: str, stil
 
 def test_a_thin_placeholder_shape_does_not_shrink_a_leaf_glyph_to_nothing() -> None:
     """A leaf glyph is capped by the body it moves, but a 2 mm placeholder box (Tiago's actuated finger joints carry
-    them) leaves it at 0.2 reference radii, not 1.25 times 1 mm."""
+    them) leaves it at 0.2 reference radii, not 1.25 times 1 mm. On rods, as nothing else sizes it there: a maximal
+    drum is at least as wide as the limb that reaches it."""
     model, geometry = _synthetic("thin_tip")
-    skeleton = build_skeleton(model, MAXIMAL, geometry=geometry)
+    skeleton = build_skeleton(model, MEDIUM, geometry=geometry)
     blocks, tip = skeleton.cylinders, model.joint_names.index("j3")
     drum = next(i for i, (owner, part) in enumerate(zip(blocks.owner, blocks.part)) if owner == tip and part == "drum")
     assert blocks.scale[drum, 0] == pytest.approx(0.2 * skeleton.radius)
