@@ -137,7 +137,7 @@ that 0.3.0 renames or removes, one table row each.
   robot a fifth of the height), seen from azimuth 60 degrees (was 35): a front three-quarter view of a robot facing
   `+x`. `RobotVisual.bounds` is a box per joint, per collision sphere and collision shape that is not a mesh (exact),
   per block of the maximal skeleton on a body without one, and per bone of a `Skin` that carries vertices (the boxes
-  of `SkinnedMeshLayer.bounds`: 0.14 ms more per step for a skin of SMPL-X size on the G1), so a clip of a G1 sweeping its joints fills 73 % of
+  of `SkinnedMeshLayer.bounds`: 0.14 ms more per call for a skin of SMPL-X size on the G1), so a clip of a G1 sweeping its joints fills 73 % of
   the frame's height (one box round the clip left it at 42 %) and the lowest point of a G1 or a Go2 is its soles'
   (within 1 mm of the meshes; the blocks reached 3 to 7 cm below).
 - `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
