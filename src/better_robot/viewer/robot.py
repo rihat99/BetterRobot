@@ -86,9 +86,12 @@ class Skin:
 class _Blocks(Layer):
     """The nodes of one skeleton: a batched node per unit mesh in use and a line node for limit arcs."""
 
-    def __init__(self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme) -> None:
+    def __init__(
+        self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float
+    ) -> None:
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
+        self._store_opacity(opacity)
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
 
@@ -104,7 +107,7 @@ class _Blocks(Layer):
                         f"{root}/{mesh}", vertices, faces, batched_wxyzs=world[:, [6, 3, 4, 5]],
                         batched_positions=world[:, :3], batched_scales=scale.astype(np.float32),
                         batched_colors=linear_uint8(colors[mesh]), lod="off", flat_shading=mesh == "boxes",
-                        receive_shadow=self.skeleton.taper == 1.0,  # a tapered block's own shadow streaks its faces
+                        **self._surface(),
                     )
                 )  # fmt: skip
         if len(self.skeleton.line_body):
@@ -124,6 +127,16 @@ class _Blocks(Layer):
                     self._nodes[mesh].batched_scales = scale.astype(np.float32)
         if self._lines is not None:
             self._lines.points = self.skeleton.lines(self.poses[step])
+
+    @override
+    def _surface(self) -> dict[str, Any]:
+        surface = super()._surface()
+        surface["receive_shadow"] &= self.skeleton.taper == 1.0  # a tapered block's own shadow streaks its faces
+        return surface
+
+    @override
+    def set_opacity(self, opacity: float) -> None:
+        self._fade(opacity, list(self._nodes.values()))  # the limit arcs are lines: they stay as they are
 
     def recolor(self, hue: RGB, theme: Theme) -> None:
         """Draw the blocks in ``theme``'s shades of ``hue``."""
@@ -151,7 +164,9 @@ class RobotVisual(Layer):
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
     theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
-    raises ``ShapeError``. ``name`` defaults to the model's name.
+    raises ``ShapeError``. ``name`` defaults to the model's name. ``opacity`` in ``(0, 1]`` draws every style see-through,
+    a ghost of the robot beside or over another (``set_opacity`` changes it); below 1 it casts and catches no shadow,
+    a textured mesh file stays opaque, and the overlay and the triads keep their own look.
     """
 
     def __init__(
@@ -169,6 +184,7 @@ class RobotVisual(Layer):
         medium: SkeletonRecipe = MEDIUM,
         maximal: SkeletonRecipe = MAXIMAL,
         hue: RGB | None = None,
+        opacity: float = 1.0,
         collision: bool = False,
         frames: bool | Sequence[int | str] = False,
         tags: Sequence[str] = (),
@@ -178,6 +194,7 @@ class RobotVisual(Layer):
         self.model, self.geometry, self.spheres, self.skin = model, geometry, spheres, skin
         self.q, self._poses = self._solve(q)
         super().__init__(name or model.name, self._poses.shape[0], tags=tags)
+        self._store_opacity(opacity)
         self._root_folder = None if root is None else Path(root)
         self._recipes = {"minimal": minimal, "medium": medium, "maximal": maximal}
         self._skeletons: dict[str, Skeleton] = {}
@@ -291,13 +308,13 @@ class RobotVisual(Layer):
     def _make(self, part: str) -> list[Layer]:
         """The layers of ``part``, not yet built."""
         if part in _SKELETONS:
-            return [_Blocks(part, self._skeleton(part), self._poses, self.hue, self._theme)]
+            return [_Blocks(part, self._skeleton(part), self._poses, self.hue, self._theme, opacity=self.opacity)]
         if part == "meshes" and self.skin is not None:
             bind = self._solve(self.skin.bind)[1][0]
             return [
                 SkinnedMeshLayer(
                     part, self.skin.vertices, faces=self.skin.faces, weights=self.skin.weights, bind_poses=bind,
-                    bone_poses=self._poses, color=self._theme.shade(self.hue, "body"),
+                    bone_poses=self._poses, color=self._theme.shade(self.hue, "body"), opacity=self.opacity,
                 )
             ]  # fmt: skip
         if part == "frames":
@@ -319,7 +336,7 @@ class RobotVisual(Layer):
             for attached in shapes
             if attached.collision == collision
         ]
-        opacity = self._theme.collision_opacity if collision else 1.0
+        opacity = self._theme.collision_opacity if collision else self.opacity
         return [RigidMeshLayer(part, specs, body_poses=self._poses, opacity=opacity)]
 
     def _frame_count(self) -> int:
@@ -397,6 +414,16 @@ class RobotVisual(Layer):
             self._frames = chosen
             self._apply()
         self._show("Frames", bool(chosen))
+
+    @override
+    def set_opacity(self, opacity: float) -> None:
+        """Draw every style at ``opacity`` in ``(0, 1]`` (1 is opaque), live and in the styles built later; the
+        collision overlay and the triads keep their own look."""
+        with self._lock():
+            self._store_opacity(opacity)
+            for part, (_, layers) in self._parts.items():
+                for layer in layers if part in _STYLES else ():
+                    layer.set_opacity(opacity)
 
     def _show(self, label: str, value: Any) -> None:
         """Move the Robot section's control, shared by every robot, to what code set; no robot's callback runs."""

@@ -18,7 +18,7 @@ from better_robot.model import JointManifold, JointModel, JointPrismatic, JointR
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.robot import RobotVisual, Skin, load_meshes
 from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, build_skeleton
-from better_robot.viewer.theme import DARK, Theme, linear_uint8
+from better_robot.viewer.theme import DARK, LIGHT, Theme, linear_uint8
 from better_robot.viewer.viewer import Viewer
 
 from better_robot import collision
@@ -357,6 +357,45 @@ def test_robot_visual_shows_a_skin_bound_at_its_own_configuration() -> None:
     mesh = server.scene.nodes["/panda/panda/meshes/mesh"]
     np.testing.assert_allclose(mesh.props["bone_positions"], poses[0, :, :3], atol=1e-6)
     np.testing.assert_allclose(mesh.bones[hand].position, poses[1, hand, :3], atol=1e-6)
+
+
+def test_a_ghost_robot_draws_every_style_see_through_and_without_shadows() -> None:
+    """``opacity`` reaches every surface node of every style, those built before ``set_opacity`` and after it, and a
+    see-through node casts and catches no shadow; the collision glass keeps the theme's opacity."""
+    model = br.load(panda_urdf())
+    spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "panda.json", model)
+    hand = model.body_id("panda_hand")
+    weights = np.zeros((3, model.njoints), dtype=np.float32)
+    weights[:, hand] = 1.0
+    skin = Skin(0.05 * np.eye(3, dtype=np.float32), np.array([[0, 1, 2]]), weights=weights)
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(
+        RobotVisual(model, skin=skin, spheres=spheres, opacity=0.35, style="maximal", collision=True)
+    )
+    robot.set_style("meshes")
+
+    def drawn(*parts: str) -> list[str]:
+        under = tuple(f"/panda/panda/{part}/" for part in parts)
+        return [
+            name for name, node in server.scene.nodes.items() if name.startswith(under) and node.kind != "FrameHandle"
+        ]
+
+    def look(name: str) -> tuple[object, ...]:
+        node = server.scene.nodes[name]
+        return tuple(vars(node).get(key, node.props[key]) for key in ("opacity", "cast_shadow", "receive_shadow"))
+
+    assert len(drawn("meshes", "maximal")) == 3  # the skin, the drums and the blocks
+    assert {look(name) for name in drawn("meshes", "maximal")} == {(0.35, False, False)}
+    robot.set_opacity(0.6)  # live, and in the styles built after it
+    robot.set_style("minimal")
+    robot.set_style("medium")
+    assert len(drawn(*robot.styles)) == 9 and {look(name) for name in drawn(*robot.styles)} == {(0.6, False, False)}
+    assert look("/panda/panda/collision/spheres") == (LIGHT.collision_opacity, False, False)  # the glass keeps its own
+    robot.set_opacity(1.0)  # solid again: viser's opaque, and shadows but on the tapered maximal blocks
+    assert look("/panda/panda/medium/cylinders") == (None, True, True)
+    assert look("/panda/panda/maximal/boxes") == (None, True, False)
+    with pytest.raises(ArgumentError, match="opacity"):
+        robot.set_opacity(0.0)
 
 
 def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> None:
