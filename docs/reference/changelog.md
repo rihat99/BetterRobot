@@ -83,8 +83,9 @@ that 0.3.0 renames or removes, one table row each.
   A 1920x1080 Panda clip of 300 frames takes 42 s on the CPU and 5 s on a GPU, where screenshots took 2.6 to 5 s
   per frame (`docs/guides/record-a-video.md`).
 - `Viewer.record` finds ffmpeg through `$BETTER_ROBOT_FFMPEG` (was `$FFMPEG`) or the `PATH`.
-- The `viewer` extra pins `viser>=1.0.30,<1.1`: `Viewer.record` drives the client of viser 1.0, and a test names
-  the viser version when the internals it uses change.
+- The `viewer` extra pins `viser>=1.1.1,<1.2`: `Viewer.record` drives the client of viser 1.1, and a test names
+  the viser version when the internals it uses change. On viser 1.1.1 a connected browser goes blank when a skinned
+  mesh is removed or replaced (its client's bug, fixed upstream in viser pull request 791); reload the page.
 - `GroundLayer(size=None)` (was `10.0`): the default grid has no edges and fades out with the distance from the
   camera; shadows fall on it at `Theme.shadow`. A number keeps a square grid of that width.
 - `Timeline.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API): a Play box, the Step slider, a
