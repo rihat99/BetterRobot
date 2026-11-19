@@ -126,6 +126,22 @@ def test_load_meshes_gives_the_shapes_as_arrays_the_overlay_draws() -> None:
         load_meshes(geometry, root=panda_urdf())
 
 
+def test_a_mesh_file_whose_material_file_is_missing_takes_the_shapes_colour(tmp_path: Path) -> None:
+    """An OBJ with texture coordinates that names a missing material file (the menagerie's Spot) loads as a texture
+    of trimesh's grey stand-in, which drew black: it has no look of its own and takes the shape's colour."""
+    (tmp_path / "part.obj").write_text(
+        "mtllib material.mtl\nusemtl material_0\nv 0 0 0\nv 0.1 0 0\nv 0 0.1 0\nv 0 0 0.1\n"
+        "vt 0 0\nvt 1 0\nvt 0 1\nvt 1 1\nf 1/1 3/3 2/2\nf 1/1 2/2 4/4\nf 1/1 4/4 3/3\nf 2/2 3/3 4/4\n"
+    )
+    urdf = tmp_path / "r.urdf"
+    urdf.write_text(
+        '<robot name="r"><link name="base"><visual><geometry><mesh filename="part.obj"/></geometry>'
+        '<material name="wrap"><color rgba="0.9 0.7 0.2 1"/></material></visual></link></robot>'
+    )
+    (spec,) = load_meshes(br.io.load_geometry(urdf, br.load(urdf)), root=urdf)
+    assert spec.trimesh is None and spec.color == pytest.approx((0.9, 0.7, 0.2))
+
+
 def test_load_meshes_refuses_a_model_for_the_geometry_and_a_collision_that_is_not_a_bool() -> None:
     """A ``Model`` in place of its ``Geometry`` raised the builtin ``AttributeError`` of a missing ``shapes``, and
     ``collision="yes"`` matched no shape and returned ``[]`` (R1 n4): both are the library's ``ArgumentError``."""
@@ -310,6 +326,22 @@ def test_a_hidden_robot_builds_a_part_switched_on_only_when_it_is_shown() -> Non
     assert not server.scene.nodes[f"{path}/maximal"].visible
 
 
+def test_a_robot_shown_by_its_own_switch_shows_the_viewers_step() -> None:
+    """``robot.set_visible(True)`` catches the robot up to the step the viewer moved to while it was hidden, as
+    ``Viewer.set_visible`` does (R2 m1: its skeleton, overlay and triads stayed at the step they were hidden at)."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    velocity = torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
+    q = torch.stack([br.kinematics.integrate(model, model.q_neutral, k * velocity) for k in range(3)])
+    shown, server_a, viewer_a = _g1_visual(q, style="maximal", collision=True, frames=True)
+    hidden, server_b, viewer_b = _g1_visual(q, style="maximal", collision=True, frames=True)
+    hidden.set_visible(False)
+    viewer_a.show(2)
+    viewer_b.show(2)
+    hidden.set_visible(True)
+    for name, node in _drawn(server_a).items():
+        np.testing.assert_array_equal(_positions(server_b.scene.nodes[name]), _positions(node), err_msg=name)
+
+
 def test_robot_visual_update_equals_building_with_that_configuration() -> None:
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     velocity = 0.5 * torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
@@ -336,6 +368,31 @@ def test_robot_visual_update_equals_building_with_that_configuration() -> None:
     np.testing.assert_allclose(updated.bounds(0)[0], built.bounds(0)[0], atol=1e-6)
     with pytest.raises(ShapeError, match="steps"):
         updated.update(torch.stack([q, q]))
+
+
+def test_robot_visual_update_with_one_configuration_holds_it_at_every_step_of_the_clip() -> None:
+    """``update(q (nq,))`` on a clip of three steps draws ``q`` at each step, as ``joint_values (njoints,)`` does; a
+    ``(T, nq)`` of another length still raises."""
+    model = br.load(panda_urdf())
+    generator = torch.Generator().manual_seed(1)
+    clip = torch.stack([model.random_configuration(generator=generator) for _ in range(3)])
+    q = model.random_configuration(generator=generator)
+    servers, viewers = (FakeServer(), FakeServer()), []
+    for server in servers:
+        viewers.append(Viewer(server=server, ground=False))
+    updated = viewers[0].add(RobotVisual(model, clip, style="maximal"))
+    built = viewers[1].add(RobotVisual(model, q.expand(3, -1), style="maximal"))
+    updated.update(q)
+    assert torch.equal(updated.q, built.q)
+    for step in range(3):
+        for viewer in viewers:
+            viewer.show(step)
+        np.testing.assert_allclose(updated.bounds(step)[0], built.bounds(step)[0], atol=1e-6)
+        for name, node in servers[1].scene.nodes.items():
+            if "batched_positions" in node.props:
+                np.testing.assert_allclose(_positions(servers[0].scene.nodes[name]), _positions(node), atol=1e-6)
+    with pytest.raises(ShapeError, match="steps"):
+        updated.update(q[None])
 
 
 def test_robot_visual_refuses_a_hue_that_is_not_three_numbers() -> None:
@@ -451,6 +508,57 @@ def test_a_ghost_robot_draws_every_style_see_through_and_without_shadows() -> No
     assert look("/panda/panda/maximal/boxes") == (None, True, False)
     with pytest.raises(ArgumentError, match="opacity"):
         robot.set_opacity(0.0)
+
+
+def test_a_ghost_keeps_the_own_colours_and_texture_of_its_mesh_files_see_through(tmp_path: Path) -> None:
+    """A mesh file with its own texture or colours (a Panda's, a Go2's) is sent as a GLB whose material takes the
+    ghost's opacity, blended, with the texture and the colours kept and no shadow; opaque again, it is the file's
+    own GLB with shadows (R2 M1: such a robot stayed solid)."""
+    import json  # noqa: PLC0415 - one test reads a GLB's JSON chunk
+
+    import trimesh  # noqa: PLC0415 - optional dependency of the viewer
+    from PIL import Image  # noqa: PLC0415
+
+    textured = trimesh.creation.box(extents=(0.1, 0.1, 0.1))
+    texture = Image.new("RGB", (2, 2), (200, 30, 30))
+    textured.visual = trimesh.visual.TextureVisuals(uv=textured.vertices[:, :2] + 0.5, image=texture)
+    textured.export(tmp_path / "textured.glb")
+    painted = trimesh.creation.box(extents=(0.1, 0.1, 0.1))
+    painted.visual.face_colors = np.where(np.arange(12)[:, None] < 6, (200, 30, 30, 255), (30, 30, 200, 255))
+    painted.export(tmp_path / "painted.ply")
+    urdf = tmp_path / "r.urdf"
+    urdf.write_text(
+        '<robot name="r"><link name="base"><visual><geometry><mesh filename="textured.glb"/></geometry></visual>'
+        '</link><link name="arm"><visual><geometry><mesh filename="painted.ply"/></geometry></visual></link>'
+        '<joint name="hinge" type="revolute"><parent link="base"/><child link="arm"/><origin xyz="0 0 0.3"/>'
+        '<axis xyz="0 1 0"/><limit lower="-1" upper="1" effort="10" velocity="1"/></joint></robot>'
+    )
+    model = br.load(urdf)
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(
+        RobotVisual(model, geometry=br.io.load_geometry(urdf, model), root=urdf, opacity=0.35)
+    )
+    nodes = [server.scene.nodes[f"/r/r/meshes/mesh_{k}"] for k in range(2)]
+
+    def look(node: object) -> tuple[dict[str, object], tuple[object, object]]:
+        """The node's glTF JSON and its two shadow switches."""
+        glb = vars(node).get("glb_data", node.props["glb_data"])  # type: ignore[attr-defined]
+        shadows = tuple(vars(node).get(key, node.props[key]) for key in ("cast_shadow", "receive_shadow"))  # type: ignore[attr-defined]
+        return json.loads(glb[20 : 20 + int.from_bytes(glb[12:16], "little")]), shadows
+
+    for opacity in (0.35, 0.6):
+        robot.set_opacity(opacity)
+        for node in nodes:
+            gltf, shadows = look(node)
+            (material,) = gltf["materials"]
+            assert node.kind == "GlbHandle" and shadows == (False, False) and material["alphaMode"] == "BLEND"
+            assert material["pbrMetallicRoughness"]["baseColorFactor"][3] == pytest.approx(opacity, abs=0.003)
+        assert len(look(nodes[0])[0]["images"]) == 1  # the texture stays
+        assert "COLOR_0" in look(nodes[1])[0]["meshes"][0]["primitives"][0]["attributes"]  # so do the face colours
+    robot.set_opacity(1.0)
+    for node in nodes:
+        gltf, shadows = look(node)
+        assert shadows == (True, True) and all("alphaMode" not in material for material in gltf.get("materials", []))
 
 
 def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> None:
@@ -662,6 +770,11 @@ def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_nod
         np.testing.assert_array_equal(painted[i], linear_uint8(high[blocks.part[i]]))
     viewer.show(0)
     assert (server.scene.nodes[node].batched_colors[knees[0]] == linear_uint8(LIGHT.ramp[0])).all()
+    robot.set_joint_values(values[1])  # one row holds for every step of the clip
+    viewer.show(0)
+    np.testing.assert_array_equal(server.scene.nodes[node].batched_colors, painted)
+    assert robot.joint_values is not None and robot.joint_values.shape == (2, model.njoints)
+    assert RobotVisual(model, q, joint_values=torch.from_numpy(values[0])).joint_values.shape == (2, model.njoints)
     robot.set_joint_values(None)
     np.testing.assert_array_equal(server.scene.nodes[node].batched_colors, hue)
 

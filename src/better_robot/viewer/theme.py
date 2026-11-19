@@ -27,6 +27,12 @@ def _srgb(red: int, green: int, blue: int) -> RGB:
     return red / 255.0, green / 255.0, blue / 255.0
 
 
+def unit_numbers(colors: object) -> bool:
+    """Whether ``colors`` holds only numbers in ``[0, 1]``, what every colour of the viewer is: no string, no NaN."""
+    values = np.asarray(colors)
+    return values.dtype.kind in "biuf" and bool(((values >= 0.0) & (values <= 1.0)).all())
+
+
 def rgb_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.ndarray:
     """Convert colours in ``[0, 1]`` to uint8 ``(*shape, 3)``, broadcasting a single colour; a colour that is not an
     RGB triple, or a count other than ``shape``, raises ``ShapeError``."""
@@ -99,14 +105,19 @@ class Theme:
         return f"Theme(dark={self.dark}, up={self.up!r})"
 
     def __post_init__(self) -> None:
-        """Raise ``ArgumentError`` unless ``up`` names a signed axis, such as ``"+z"``, ``hues`` is not empty and
-        ``sidebar_width`` is one of viser's three."""
+        """Raise ``ArgumentError`` unless ``up`` names a signed axis, such as ``"+z"``, ``hues`` is not empty,
+        ``sidebar_width`` is one of viser's three and ``ramp`` two colours of numbers in ``[0, 1]`` (another shape
+        raises ``ShapeError``)."""
         if self.up not in _UP_AXES:
             raise ArgumentError(f"up must be one of {list(_UP_AXES)}, got {self.up!r}")
         if self.sidebar_width not in _SIDEBAR_WIDTHS:
             raise ArgumentError(f"sidebar_width must be one of {list(_SIDEBAR_WIDTHS)}, got {self.sidebar_width!r}")
         if not self.hues:
             raise ArgumentError("hues must hold at least one colour")
+        if np.shape(self.ramp) != (2, 3):
+            raise ShapeError(f"ramp must be two RGB colours (low, high), got {self.ramp!r:.80}")
+        if not unit_numbers(self.ramp):
+            raise ArgumentError(f"ramp must be two colours of numbers in [0, 1], got {self.ramp!r:.80}")
 
     @property
     def up_vector(self) -> tuple[float, float, float]:

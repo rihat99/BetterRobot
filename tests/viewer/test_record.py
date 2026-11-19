@@ -254,6 +254,32 @@ def test_a_page_between_two_documents_is_polled_again(tmp_path: Path, monkeypatc
     assert refused
 
 
+@pytest.mark.slow
+def test_a_page_devtools_keeps_refusing_names_devtools_answer_not_the_viser_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A DevTools that refuses every evaluation (a dead session) was reported after a minute as a viser version
+    without the client internals record drives (R2 m2): at the deadline the error is DevTools' last answer."""
+    send = recorder._Page._send
+
+    def refuse(page: object, method: str, **params: object) -> dict:
+        if method == "Runtime.evaluate":
+            raise ArgumentError("Runtime.evaluate: Session with given id not found.")
+        return send(page, method, **params)
+
+    clock = iter(range(1_000_000))  # a second per reading: the wait's 60 s pass at once
+    monkeypatch.setattr(recorder._Page, "_send", refuse)
+    monkeypatch.setattr(recorder, "time", SimpleNamespace(monotonic=lambda: float(next(clock)), sleep=lambda _: None))
+    with socket.socket() as closed:  # a port nothing listens on
+        closed.bind(("127.0.0.1", 0))
+        port = closed.getsockname()[1]
+    viewer = Viewer(server=FakeServer(port=port), ground=False)
+    viewer.add(PointsLayer("p", np.zeros((1, 3))))
+    with pytest.raises(ArgumentError, match="evaluated for 60 s: Runtime.evaluate: Session with given id") as error:
+        viewer.record(tmp_path / "still.png", size=(64, 64), camera=_CAMERA)
+    assert "viser" not in str(error.value)
+
+
 def test_gpu_index_maps_to_its_pci_bus_and_the_browser_is_found_on_it(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(recorder, "glob", lambda pattern: ["VkLayer_MESA_device_select.json"])
     monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/nvidia-smi")

@@ -46,6 +46,22 @@ def test_urdf_shapes_round_trip(tmp_path: Path) -> None:
     assert collision_box.placement == pytest.approx((0.0, 0.0, 0.2, 0.0, 0.0, half, half), abs=1e-6)
 
 
+def test_an_mjcf_geom_takes_the_colour_mujoco_draws_it_in(tmp_path: Path) -> None:
+    """A geom that names a material is drawn in the material's colour unless it sets an rgba of its own, as MuJoCo's
+    renderer does; MuJoCo's compiled ``geom_rgba`` keeps the default grey for it (Spot's yellow and black parts)."""
+    path = tmp_path / "colours.xml"
+    path.write_text(
+        '<mujoco><asset><material name="wrap" rgba="0.9 0.7 0.2 1"/></asset><worldbody><body name="b">'
+        '<joint name="j" type="hinge"/><geom type="box" size=".1 .1 .1" material="wrap"/>'
+        '<geom type="box" size=".1 .1 .1" material="wrap" rgba="0 0 1 1"/><geom type="box" size=".1 .1 .1"/>'
+        "</body></worldbody></mujoco>"
+    )
+    geometry = load_geometry(path, load(path))
+    colours = [attached.shape.color for attached in geometry.shapes]
+    expected = [(0.9, 0.7, 0.2, 1.0), (0.0, 0.0, 1.0, 1.0), (0.5, 0.5, 0.5, 1.0)]
+    assert colours == [pytest.approx(colour) for colour in expected]
+
+
 def _capsule_arm() -> ModelBuilder:
     builder = ModelBuilder("arm")
     builder.add_body("base")

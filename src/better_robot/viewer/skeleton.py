@@ -3,7 +3,7 @@
 A skeleton is drawn from three unit meshes (a cylinder, a ball and a chamfered box), each instanced many times.
 ``build_skeleton`` solves the layout once, at the neutral configuration: sizes from the robot's extent and the mass
 each joint carries, one glyph per joint kind (a drum for a revolute joint, a sleeve and rail for a prismatic one, a ball for a
-spherical one, a cube for a free-flyer), bones between glyphs, hulls for the bodies that branch and end blocks for
+spherical one, a thin plate for a planar one, a block for a translation, a cube for a free-flyer), bones between glyphs, hulls for the bodies that branch and end blocks for
 the bodies that end a chain. Close joints never overlap: a drum slides along its own axis until it clears its
 neighbours and shrinks only when no slide does, so every axis line stays exact and joints that share a point (a
 hip, a waist, a knuckle) come out as a short stack of separate drums. Every block is rigid in one joint frame, so ``Skeleton.place`` poses a step with one pose composition per block. Without bodies (``hulls="none"``) the
@@ -35,10 +35,12 @@ from ..model import (
     JointFixed,
     JointFreeFlyer,
     JointHelical,
+    JointPlanar,
     JointPrismatic,
     JointRevolute,
     JointRevoluteUnbounded,
     JointSpherical,
+    JointTranslation,
     Mesh,
     Model,
     Sphere,
@@ -71,7 +73,8 @@ _SPACING = 0.35  # on rods, a drum is at most this share of its shortest bone, n
 _ARC = 24  # segments of a limit arc
 _KINDS = {
     JointFixed: "fixed", JointRevolute: "revolute", JointRevoluteUnbounded: "revolute", JointHelical: "revolute",
-    JointPrismatic: "prismatic", JointSpherical: "spherical", JointFreeFlyer: "free",
+    JointPrismatic: "prismatic", JointSpherical: "spherical", JointFreeFlyer: "free", JointPlanar: "planar",
+    JointTranslation: "translation",
 }  # fmt: skip
 #: Per joint kind, its blocks: (unit mesh, part, rigid in the parent group or in the child, scale over the radius).
 _GLYPHS = {
@@ -79,6 +82,8 @@ _GLYPHS = {
     "prismatic": (("boxes", "sleeve", False, (1.6, 1.6, 2 * _SLEEVE)), ("cylinders", "rail", True, (0.5, 0.5, 4.4 * _HALF))),
     "spherical": (("balls", "ball", False, (1.0, 1.0, 1.0)),),
     "free": (("boxes", "base", False, (1.5, 1.5, 1.5)),),
+    "planar": (("boxes", "plate", False, (2.0, 2.0, 0.4)),),  # a thin plate in the joint's xy plane
+    "translation": (("boxes", "block", False, (1.2, 1.2, 1.2)),),
     "other": (("balls", "marker", False, (1.0, 1.0, 1.0)),),
 }  # fmt: skip
 _Shade = Literal["joint", "face", "body", "bone", "stick"]
@@ -87,13 +92,14 @@ _Shade = Literal["joint", "face", "body", "bone", "stick"]
 #: that ends a chain) take the body's shade: no ball but a spherical joint's reads as a joint. A ``knob`` (the small
 #: ball that ends a chain of the stick figure, or its head) takes the shade of the balls but draws no joint.
 _ROLE: dict[str, _Shade] = {
-    "drum": "joint", "sleeve": "joint", "ball": "joint", "knob": "joint",
+    "drum": "joint", "sleeve": "joint", "ball": "joint", "knob": "joint", "plate": "joint", "block": "joint",
     "face": "face", "marker": "face", "base": "face",
     "bone": "bone", "hull": "bone", "end": "bone", "rod": "bone", "rail": "bone", "head": "bone", "cap": "bone",
     "stick": "stick",
 }  # fmt: skip
 _MESHES = ("cylinders", "balls", "boxes")
-_JOINT_PARTS = ("drum", "face", "sleeve", "ball", "marker")  # the blocks that draw a joint; a free base is no motor
+# The blocks that draw a joint; a free base is no motor.
+_JOINT_PARTS = ("drum", "face", "sleeve", "ball", "plate", "block", "marker")
 
 
 @final
@@ -264,7 +270,7 @@ class Skeleton:
     def glyphs(self, mesh: str, njoints: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """The blocks of ``mesh`` that draw joints: ``(rows (n,), joints (n, njoints) bool, faces (n,) bool)``.
 
-        A glyph of its kind (a drum and its faces, a sleeve, a spherical joint's ball, a marker) stands for its
+        A glyph of its kind (a drum and its faces, a sleeve, a ball, a plate, a block, a marker) stands for its
         joint, a ball of the stick figure for every joint of its cluster; ``faces`` marks the blocks in the dark
         shade of a drum's faces. A body, a bone, a stick or rod, a rail, a head, a knob, a cap and the cube of a free
         base draw no joint.
@@ -497,7 +503,7 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
         load[j] = recipe.size * float(own)
         radius[j] = recipe.size * float(np.clip(own, 0.5 * reference, 1.2 * reference))
         radius[j] *= _MARKER if kind[j] == "other" else 1.0
-        if kind[j] in ("spherical", "other") and tree.bones(j):
+        if kind[j] in ("spherical", "planar", "translation", "other") and tree.bones(j):  # glyphs that cannot slide
             radius[j] = min(radius[j], _FIXED_CAP * min(tree.bones(j)))
     return replace(tree, radius=radius, load=load)
 
@@ -558,7 +564,7 @@ def _solve(
     """
     origin = tree.origin
     solid = [j for j in tree.glyphs if j not in hidden and tree.kind[j] != "free"]  # the base cube sits in the hull
-    frame = {j: _matrix(from_z(tree.axis[j])) if j in tree.axis else np.eye(3) for j in solid}
+    frame = {j: _matrix(from_z(tree.axis[j])) if j in tree.axis else tree.rotation[j] for j in solid}  # as placed
     slide = {j: 0.0 for j in tree.glyphs}
     shrink = {j: 1.0 for j in tree.glyphs}
     for j in solid:  # a drum on a twist joint starts with its far face on the joint: a collar on the limb

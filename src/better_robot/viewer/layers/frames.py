@@ -6,7 +6,7 @@ from typing import Any, final, override
 
 import numpy as np
 
-from ...exceptions import ShapeError
+from ...exceptions import ArgumentError, ShapeError
 from ..layer import Bounds, Layer, as_frames, box
 
 
@@ -29,9 +29,13 @@ class FramesLayer(Layer):
             raise ShapeError(f"poses must be (F, 7) or (T, F, 7), got {self.poses.shape}")
         super().__init__(name, self.poses.shape[0])
         frames = self.poses.shape[1]
+        if scales is not None and np.asarray(scales).dtype.kind not in "biuf":
+            raise ArgumentError(f"scales must be numbers, one per frame, got {scales!r:.80}")
         self.scales = np.ones(frames, np.float32) if scales is None else np.ascontiguousarray(scales, dtype=np.float32)
         if self.scales.shape != (frames,):
             raise ShapeError(f"scales must be (F,) = ({frames},), one per frame, got {self.scales.shape}")
+        if not np.all(np.isfinite(self.scales) & (self.scales > 0.0)):
+            raise ArgumentError(f"scales must be positive and finite, got {self.scales.min()} to {self.scales.max()}")
         self._scales = self.scales.copy()  # the scales the node holds: a push writes them only when they change
         self.axes_length = axes_length
         self.axes_radius = axes_radius

@@ -217,8 +217,8 @@ shared by every robot in the viewer; a switch from code moves the control and le
 and a robot added later keeps its own style, collision and frames and moves the controls to them (`robot.style`,
 `robot.collision` and `robot.frames` read what a robot shows). The Style dropdown offers the
 styles of the robots still shown: removing the one robot with meshes takes `"meshes"` away, and a dropdown that showed
-it shows the first style left while every robot keeps its own; a robot that replaces another keeps its `style=`. `update(q)` shows new configurations of the same number of steps, for a live
-solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
+it shows the first style left while every robot keeps its own; a robot that replaces another keeps its `style=`. `update(q)` shows new configurations of the same number of steps, or one `(nq,)` at
+every step, for a live solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
 theme's hues that no other robot of the viewer is drawn in, unless `hue=` names one, so a robot that replaces
 another takes its hue back; `robot.hue` is the colour it is drawn in. The name defaults to the model's, so two robots of
 one model need a `name=` each, and `B` rollouts `(B, T, nq)` are `B` visuals, `q[b]` each.
@@ -234,8 +234,9 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
 
 - a revolute joint is a drum along its axis, with dark end faces that show which way the axis points; a prismatic
   joint is a sleeve that rides with its child on a rail that spans the joint's travel in the parent; a spherical
-  joint is a ball, and no other ball sits among the drums, where it would read as a ball joint; any other kind is a
-  small ball, and a free base is a cube;
+  joint is a ball, and no other ball sits among the drums, where it would read as a ball joint; a planar joint (a
+  mobile base) is a thin plate in its plane, a translation joint a small block, a free base a cube, and a kind
+  defined outside the library a small ball;
 - a glyph is as large as the motor that would carry its subtree: 26 mm times the cube root of that mass in kg, kept
   between 0.5 and 1.2 reference radii, so a wrist is smaller than its elbow and a chain narrows towards its tip;
 - no two joint glyphs go inside each other, neighbours in the tree or not: the larger glyph nearer the root keeps
@@ -315,13 +316,14 @@ by step, and a fixed base by its lowest over the loop, to stand the robot on the
 
 `opacity=0.35`, or `robot.set_opacity(0.35)` while the viewer runs, draws every style of a robot see-through: a
 ghost of a target or a reference motion beside or over the robot itself. Below 1 it casts and catches no shadow, a
-textured mesh file stays opaque, and the collision overlay and the triads keep their own look. The sidebar has no
+mesh file with its own colours or texture keeps them at that opacity (its material is made see-through), and the
+collision overlay and the triads keep their own look. The sidebar has no
 opacity control: the Robot section's controls are shared by every robot, so one slider would fade a ghost and its
 solid twin alike; an application adds its own slider in its own section.
 
 `joint_values=` colours the joint glyphs of the skeleton styles at each step, such as each joint's load
 `|tau| / effort limit`: one value per model joint, `(T, njoints)` with the visual's `T`, or `(njoints,)` for every
-step, in model order with joint 0, the universe, as a `Skin`'s weights are. `value_range=(low, high)`, `(0, 1)` by
+step of any clip (kept as a read-only view), in model order with joint 0, the universe, as a `Skin`'s weights are. `value_range=(low, high)`, `(0, 1)` by
 default, maps a value onto the theme's `ramp`, from a quiet steel at `low` to a warm orange at `high`, clamped
 beyond. A drum, a sleeve or a spherical joint's ball takes the colour (a drum's faces a darker shade of it), and a
 ball of the minimal stick figure takes the value of the largest magnitude among the joints it stands for. A NaN
@@ -349,6 +351,8 @@ the configuration `bind (nq,)` (`None` is `model.q_neutral`) and `weights (V, nj
 the universe included: a body model's weights over its own joints are scattered into those columns
 ([Use with BetterHuman](../guides/use-with-betterhuman.md)). `RobotVisual(model, q, skin=skin)` shows it as the
 `"meshes"` style, skinned in the browser.
+On viser 1.1.1 a connected browser goes blank when `viewer.remove` or `viewer.replace` takes a skinned surface
+away (a bug of viser's client, fixed upstream in viser pull request 791); reloading the page shows the scene again.
 
 ## Tools: a gizmo and numpy picking
 
