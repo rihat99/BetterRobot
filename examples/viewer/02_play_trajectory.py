@@ -1,7 +1,8 @@
 """Play an optimized trajectory beside a plot of its joint torques.
 
 The trajectory comes from the problem of ``examples/02_trajectory.py``; torques from
-inverse dynamics on finite-difference velocities and accelerations.
+inverse dynamics on finite-difference velocities and accelerations. Each joint's drum takes the colour of its load
+(``|tau|`` over the effort limit), and a see-through ghost of the robot stands where the motion ends.
 
     uv run python examples/viewer/02_play_trajectory.py
     uv run python examples/viewer/02_play_trajectory.py --check
@@ -70,8 +71,18 @@ def main() -> None:
     tau = joint_torques(model, q)
     print(f"{KNOTS} frames, peak torque {float(tau.abs().max()):.1f} N m")
 
+    load = torch.full((KNOTS, model.njoints), float("nan"), dtype=q.dtype)  # one value per joint: |tau| / effort
+    joints = [j for j, nv in enumerate(model.nvs) if nv == 1]
+    columns = [model.idx_vs[j] for j in joints]
+    load[:, joints] = tau[:, columns].abs() / model.effort_limit[columns]
+
     viewer = Viewer(fps=1.0 / DT, server=FakeServer() if args.check else None)
-    viewer.add(RobotVisual(model, q, geometry=br.io.load_geometry(URDF, model), root=URDF, frames=[FRAME]))
+    geometry = br.io.load_geometry(URDF, model)
+    robot = viewer.add(
+        RobotVisual(model, q, geometry=geometry, root=URDF, style="maximal", frames=[FRAME], joint_values=load,
+                    value_range=(0.0, 0.3))  # orange at 30 % of the effort limit
+    )  # fmt: skip
+    viewer.add(RobotVisual(model, q[-1], name="goal", style="maximal", hue=robot.hue, opacity=0.35))  # a ghost
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
     viewer.add_plot("torque", tau.numpy(), labels=moving)
     if args.check:
