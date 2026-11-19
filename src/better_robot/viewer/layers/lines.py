@@ -55,7 +55,9 @@ class LinesLayer(Layer):
     @override
     def build(self, scene: Any, root: str) -> None:
         self._lines = self._track(
-            scene.add_line_segments(f"{root}/lines", self.points[0], self._segment_colors(0), line_width=self.width)
+            scene.add_line_segments(
+                f"{root}/lines", self.points[0], self._segment_colors(0), thickness=self.width, thickness_units="screen"
+            )
         )
 
     @override

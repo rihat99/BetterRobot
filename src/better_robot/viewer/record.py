@@ -57,7 +57,7 @@ PROBE = r"""
   const root = m.scene && m.scene.__r3f && m.scene.__r3f.root;
   const state = root && typeof root.getState === 'function' ? root.getState() : null;
   if (state === null) return [...missing, '__viserMutable.scene.__r3f.root.getState'];
-  for (const key of ['advance', 'setFrameloop']) if (typeof state[key] !== 'function') missing.push('r3f state.' + key);
+  for (const key of ['advance', 'setFrameloop', 'setSize']) if (typeof state[key] !== 'function') missing.push('r3f state.' + key);
   if (!state.gl || typeof state.gl.setClearColor !== 'function') missing.push('r3f state.gl');
   return missing;
 })()
@@ -88,6 +88,7 @@ _RECORDER = r"""
     state.setFrameloop('never');
     const box = canvas.parentElement.parentElement;  // react-three-fiber's container; the GUI panel may dock beside it
     Object.assign(box.style, { position: 'fixed', left: '0px', top: '0px', width: width + 'px', height: height + 'px', zIndex: 2147483647 });
+    state.setSize(width, height);  // viser 1.1 sizes the renderer to its dock layout itself: the container alone no longer does
     for (let i = 0; i < 300 && canvas.getBoundingClientRect().width !== width; i++) await sleep(10);
     state.advance(performance.now());
     state.gl.setClearColor(background || '#ffffff', 1);

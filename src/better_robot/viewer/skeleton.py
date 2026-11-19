@@ -1280,7 +1280,7 @@ def _ball(tree: _Tree, rows: _Rows, anchor: int, radius: float, joint: int, base
     """The ball of ``radius`` at ``anchor`` of the cluster of ``joint``, or the cube of the floating root ``base``."""
     if base is None:
         rows.add(
-            "balls", "ball", tree.root[joint], rows.where[anchor], (radius,) * 3, owner=joint, anchors=(anchor,) * 2
+            "balls", "ball", tree.root[joint], rows.where[anchor], (radius,) * 3, owner=joint, anchors=(anchor, anchor)
         )
     else:
         side = (1.7 * radius,) * 3

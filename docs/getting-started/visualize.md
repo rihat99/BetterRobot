@@ -48,8 +48,9 @@ print(viewer.url, len(viewer.layers), robot.style)
 http://127.0.0.1:8080 2 meshes
 ```
 
-The sidebar's Robot section switches the robot between its meshes and two skeleton styles, and
-`robot.set_style("maximal")` does the same from code.
+The sidebar's Robot section switches the robot between its meshes and three skeleton styles (`"minimal"`,
+`"medium"`, `"maximal"`) and overlays its collision shapes, and `robot.set_style("medium")` or
+`robot.set_collision(True)` does the same from code.
 
 ## Step through the timeline
 

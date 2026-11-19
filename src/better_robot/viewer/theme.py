@@ -113,8 +113,9 @@ class Theme:
     def shade(self, hue: RGB, role: Literal["joint", "face", "body", "bone", "stick"], *, side: int = 0) -> RGB:
         """``hue`` as a part of ``role`` draws it: ``joint`` 10 % towards black, ``face`` 32 % towards black (drum
         faces), ``body`` the hue itself (meshes), ``bone`` 45 % towards white (the bodies of the maximal skeleton,
-        the rods of the medium one), ``stick`` 10 % towards white (the sticks of the minimal skeleton). A part on the left (``side=1``) takes the hue 35 % towards white
-        first, one on the right (``side=-1``) 25 % towards black (``SkeletonRecipe(sides=True)``)."""
+        the rods of the medium one), ``stick`` 10 % towards white (the sticks of the minimal skeleton). A part on the
+        left (``side=1``) takes the hue 35 % towards white first, one on the right (``side=-1``) 25 % towards black
+        (``SkeletonRecipe(sides=True)``)."""
         if role not in _SHADE_MIX or side not in _SIDE_MIX:
             raise ArgumentError(f"role must be one of {list(_SHADE_MIX)} and side -1, 0 or 1, got {role!r}, {side!r}")
         red, green, blue = hue
@@ -133,11 +134,11 @@ class Theme:
         server.gui.configure_theme(
             dark_mode=self.dark,
             brand_color=_uint8(self.accent),
-            control_layout="collapsible",
             control_width="medium",
             show_logo=False,
             show_share_button=False,
         )
+        server.gui.main_panel.dock_right()
         scene = server.scene
         scene.set_up_direction(self.up)
         ramp = np.linspace(0.0, 1.0, 256, dtype=np.float32)[:, None, None]

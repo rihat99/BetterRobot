@@ -12,9 +12,9 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
 
 ## Decision
 1. **One layer per robot.** `viewer.RobotVisual(model, q)` runs forward kinematics once over `q`, `(nq,)` or a clip
-   `(T, nq)`, and owns every way the robot is drawn: a style (`"meshes"`, `"minimal"`, `"maximal"`), a collision
-   overlay (the sphere set, else the collision shapes of the geometry) and frame triads (every moving joint, or
-   frames by id or name). `update(q)` shows new configurations of the same number of steps.
+   `(T, nq)`, and owns every way the robot is drawn: a style (`"meshes"`, `"minimal"`, `"medium"`, `"maximal"`), a
+   collision overlay (the sphere set, else the collision shapes of the geometry) and frame triads (every moving
+   joint, or frames by id or name). `update(q)` shows new configurations of the same number of steps.
 2. **Parts are built once and then hidden.** A style, the overlay and the triads are each built the first time
    they are shown; a switch only shows and hides them (another set of named frames is another triad node), and a
    step is written only to the parts on screen. `set_style`, `set_collision` and `set_frames` switch from code, and
@@ -28,8 +28,11 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    tapered limbs, trunks for the root body and the bodies that branch, and the ends of the chains (a sole, a finger
    block, a limb with a ball), in two tones: joints in the hue, bodies pale (`Theme.shade` role `bone`). `MINIMAL`
    draws one ball per cluster of close joints (a cube for a free base) and sticks between them, a stick and a small
-   ball on to the end of each body that ends a chain, and a ball for a trunk's head. `RobotVisual(minimal=,
-   maximal=)` takes others.
+   ball on to the end of each body that ends a chain, and a ball for a trunk's head. `MEDIUM` puts the maximal
+   glyphs on the minimal frame: `hulls="none"` with `glyphs="kind"` draws no body, and thin rods in the pale body
+   shade join the glyphs, with a rod and a small ball on to the end of each chain and a ball for a trunk's head
+   (`bones=0.35`, `size=0.7`), so the collision overlay can show the volume around the motors.
+   `RobotVisual(minimal=, medium=, maximal=)` takes others.
 4. **Sizes come from the robot, positions stay true.** Every glyph radius is a reference radius (a third of the
    mean bone, kept between 2 % and 4 % of the robot's size) times 0.8 to 1.2 by the joint's effort limit. Glyphs
    that would overlap slide along their own axis, so each stays on its true axis line, and shrink only when sliding
@@ -38,12 +41,15 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    Body sizes come from the collision shapes, else the sphere set, else the inertias; a collision mesh file that
    cannot be read is left out with a warning, since only the collision overlay draws it (and raises for it).
 5. **The layout is rigid.** It is computed once at `model.q_neutral`; every block is rigid in one joint frame,
-   except the minimal skeleton's cluster balls, each at the mean of its joints, and its sticks, whose two ends
-   move apart and together with the joints; a skeleton is at most three batched nodes (cylinders, balls, boxes) and one line node for limit arcs,
-   whatever the robot.
+   except the minimal skeleton's cluster balls, each at the mean of its joints, and the sticks of the minimal and
+   medium skeletons, whose two ends move apart and together with the joints; a skeleton is at most three batched
+   nodes (cylinders, balls, boxes) and one line node for limit arcs, whatever the robot.
 6. **Colour is the theme's.** A robot takes the first of the theme's hues that no other robot of its viewer is
    drawn in (or `hue=`; `RobotVisual.hue`), and the skeleton's parts take `theme.shade(hue, role, side=)`; the
-   overlay takes `theme.collision` and `theme.collision_opacity`.
+   overlay takes `theme.collision` and `theme.collision_opacity`, a pale neutral glass in both themes. Like every
+   mesh layer below opacity 1 it casts and catches no shadow (`Layer._surface`, a subclass hook beside `_track`,
+   `_store_opacity` and `_fade`): the shadow map ignores opacity, so a glass would throw a solid shadow and wear
+   the shadows of what it holds.
 7. **A skin is a mesh style.** `viewer.Skin(vertices, faces, *, weights, bind=None)` is shown as `"meshes"`, skinned
    in the browser.
 8. **The old adapters go.** `viewer.robot_skeleton`, `viewer.robot_meshes` and `viewer.SkeletonLayer` are removed,
@@ -88,6 +94,10 @@ server with no browser, at host load average 40 to 66 (the times are upper bound
   clusters (12 balls and the base cube) with 14 sticks between them, and a stick and a ball each for the two feet,
   the two hands and the head: 17 balls and 19 sticks. The Panda slides 5 glyphs and shrinks none. Building the
   G1's layout takes about 20 ms.
+- The G1's medium layout (with its sphere set): 13 glyphs slide, 315.5 mm in total, and none shrinks (its glyphs
+  are 0.7 of the maximal ones); it is 94 cylinders (29 drums, 29 faces, 36 rods), 5 balls (four ends and the head)
+  and the base cube, three nodes like the others, and a step writes what the maximal one writes plus the rods'
+  lengths.
 - `bounds` is the same in every style, so the camera does not jump on a style switch: a box per joint, per
   collision sphere and per collision shape that is not a mesh, and per block of the maximal skeleton on a body
   without one of those.
@@ -118,11 +128,14 @@ unreleased 0.3.0. The changelog and `docs/reference/migration-0.3.0.md` name the
 theme switch, a name clash, a joint kind from outside the library, one Style control for two robots, a second switch
 creates no node, the rotations of a step against forward kinematics and its exact writes, a collision mesh that does
 not load), `tests/viewer/test_skeleton.py` (the layout: no overlap inside a rigid group, mirrored slides, glyphs that
-narrow towards the tips, the Panda's rails over the fingers' travel, bone thickness, the G1's 13 clusters, end block
-sizes, a clip equals its steps, the shades, `hulls` and `body_hull`, limit arcs over the joint's range),
-`tests/viewer/test_fake_server.py` (the sidebar handles against viser), `tests/viewer/test_server_smoke.py` (on a
+narrow towards the tips, the medium glyphs of every kind on rods without bodies, none sized wider than its maximal
+one before the slide rule shrinks either, the Panda's rails over the fingers' travel, bone thickness, the G1's 13
+clusters, end block sizes, a clip equals its steps, the shades, `hulls` and `body_hull`, limit arcs over the joint's
+range),
+`tests/viewer/test_core.py` (a see-through mesh casts and catches no shadow), `tests/viewer/test_fake_server.py`
+(the sidebar handles against viser), `tests/viewer/test_server_smoke.py` (on a
 real server, a switch from code moves the shared control and no other robot), `tests/contract/test_api_snapshot.py`
-(the five names), `tests/contract/test_keyword_only.py` and `tests/contract/test_identifiers.py` (the signatures),
+(the six names), `tests/contract/test_keyword_only.py` and `tests/contract/test_identifiers.py` (the signatures),
 `tests/contract/test_name_words.py` (rule C-NAME-4 lets `RobotVisual` say frames).
 
 ## Open questions
