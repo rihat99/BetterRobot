@@ -281,7 +281,7 @@ Import from the package; the modules under it are private.
 | `better-robot[io-mjcf]` | `better-robot[mjcf]` | MuJoCo compiles MJCF |
 | `better-robot[dev]` | the dev dependency group | `uv sync --group dev`; `test-oracles` holds the parity oracles |
 | `better-robot[viewer]` with `viser>=1.0.18` | `better-robot[viewer]` with `viser>=1.0.30` and `pillow>=10` | |
-| `better-robot[viewer]` with `viser>=1.0.30` | `better-robot[viewer]` with `viser>=1.0.30,<1.1` | `Viewer.record` drives the client of viser 1.0 |
+| `better-robot[viewer]` with `viser>=1.0.30` | `better-robot[viewer]` with `viser>=1.1.1,<1.2` | `Viewer.record` drives the client of viser 1.1 |
 | `$FFMPEG` | `$BETTER_ROBOT_FFMPEG` | the ffmpeg that `Viewer.record` writes an `.mp4` with, else the one on `PATH` |
 | — | `better-robot[testing]` | pytest, for `better_robot.testing`'s pytest plugin |
 | Python 3.10 and 3.11 | Python 3.12 or newer | |
