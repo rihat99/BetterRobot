@@ -2,8 +2,9 @@
 
 A ``Viewer`` runs a viser server (``http://127.0.0.1:8080`` by default) and holds ``Layer``s under tags; a tag
 is toggled, offset and removed as one unit. Every layer is fed preloaded numpy arrays with a leading time
-axis ``(T, ...)`` (static input counts as ``T = 1``) and keeps them by reference. One ``Timeline`` drives all
-layers: ``show(k)`` pushes frame ``k``, ``layer.redraw()`` re-pushes one layer after in-place edits, ``serve()``
+axis ``(T, ...)`` (static input counts as ``T = 1``) and keeps them as float32 attributes (``layer.points``), the
+input itself when it already is C-contiguous float32. One ``Timeline`` drives all layers: ``show(k)`` pushes frame
+``k``, ``layer.redraw()`` re-pushes one layer after its arrays were edited in place, ``serve()``
 plays by wall clock until interrupted, ``save(path)`` writes a ``.viser`` recording for viser's static web client,
 and ``record(path)`` draws the live scene in a headless Chromium into a video (``.mp4`` or ``.webm``) or a still
 (``.png``). The ``Sidebar`` holds the controls in ordered sections; one ``Theme`` sets colours, lights and the
@@ -32,11 +33,15 @@ viewer.serve()  # plays and blocks until Ctrl-C
 from __future__ import annotations
 
 from .layer import Layer
-from .layers import ArrowsLayer, FramesLayer, GroundLayer, LinesLayer, PointsLayer
+from .layers.arrows import ArrowsLayer
+from .layers.camera import CameraLayer
+from .layers.frames import FramesLayer
+from .layers.ground import GroundLayer
 from .layers.image import ImagePanel
+from .layers.lines import LinesLayer
 from .layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.plot import PlotPanel
-from .layers.camera import CameraLayer
+from .layers.points import PointsLayer
 from .layers.skinned import SkinnedMeshLayer
 from .robot import RobotVisual, Skin
 from .sidebar import Sidebar
@@ -44,6 +49,7 @@ from .skeleton import MAXIMAL, MEDIUM, MINIMAL, SkeletonRecipe
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline
 from .viewer import Viewer
+from . import tools
 
 __all__ = [
     "DARK",
@@ -72,4 +78,5 @@ __all__ = [
     "Theme",
     "Timeline",
     "Viewer",
+    "tools",
 ]

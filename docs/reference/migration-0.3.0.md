@@ -224,7 +224,8 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `Theme.grid_cell`, `Theme.grid_section` | `Theme.grid` | a (cell, section) pair |
 | `Theme.robot`, `Theme.human` | `Theme.hue` | a robot or body takes `theme.hue(index)`, its parts `theme.shade(hue, role)` |
 | `Theme.joint`, `Theme.link`, `Theme.torque_ramp`, `Theme.over_limit` | `Theme.shade` | a skeleton takes its robot's hue and `theme.shade(hue, role)` for joints, drum faces, bodies and sticks; the torque colours went with `robot_skeleton(tau=)` |
-| `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target`, `Theme.control_width` | — | no layer read the colours, and an application passes its own; the sidebar keeps viser's medium width |
+| `Theme.point`, `Theme.force`, `Theme.torque`, `Theme.contact`, `Theme.target` | — | no layer read the colours, and an application passes its own |
+| `Theme.control_width` | `Theme.sidebar_width` | viser's `"small"`, `"medium"` (the default) or `"large"`; `Viewer.set_theme` keeps it |
 | `viewer.theme.colormap(values, *stops)` | — | nothing called it once the torque colours went; an application maps values to colours with numpy |
 | `ArrowsLayer(..., head_size=, line_width=, shaft_radius=None, head_radius=None)`, `ArrowsLayer.HEAD_FRACTION` | `ArrowsLayer(..., shaft_radius=0.006, head_radius=0.016, head_length=0.04)` | viser's solid arrows: no line shafts, the head keeps its size, so an arrow shorter than `head_length` is all head |
 | `CameraLayer(name, poses, *, fov, aspect, ...)` | `CameraLayer(name, poses, *, intrinsics, size, ...)` | the frustum from the `(3, 3)` matrix `K` of a `(W, H)` image, principal point included; `color=None` takes `Theme.text` |
@@ -234,8 +235,9 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `ArrowsLayer(name, origins, vectors, ...)`, `MeshLayer(name, vertices, faces, ...)`, `SpheresLayer(name, centers, radii, ...)` | `vectors=`, `faces=`, `radii=` | keyword-only after the second argument |
 | `RigidMeshLayer(name, meshes, body_poses, ...)`, `SkinnedMeshLayer(name, vertices, faces, weights, bind_poses, bone_poses, ...)` | `body_poses=`, `faces=`, `weights=`, `bind_poses=`, `bone_poses=` | keyword-only |
 | `MeshSpec(vertices, faces, body, origin, color, trimesh)`, `Theme(dark, brand_color, ...)` | `body=`, `origin=`, `dark=`, `accent=` | keyword-only fields |
-| `PoseGizmo(viewer, name, pose, **options)` (in `viewer.tools`) | `pose=`, `on_change=`, `scale=`, `depth_test=` | named options only; `pose` is `(7,)` |
-| `CameraFrustum`, `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` (in `viewer.tools`) | `fov=`, `vertices=`, `direction=`, `radius=`, `rect_min=` | keyword-only after the first two arguments |
+| `PoseGizmo(viewer, name, pose, **options)` (in `viewer.tools`) | `pose=`, `on_change=`, `scale=`, `translation=`, `on_top=` | named options only; `pose` is `(7,)`; `translation=False` replaces `disable_sliders=True, disable_axes=True`, `on_top=True` replaces `depth_test=False` |
+| `CameraFrustum(position, wxyz, fov, aspect)` (in `viewer.tools`) | `CameraFrustum(pose, *, fov, aspect)` | `pose (7,)` is `[x, y, z, qx, qy, qz, qw]`, quaternion scalar last; `CameraFrustum.from_camera` reorders viser's `wxyz` |
+| `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` (in `viewer.tools`) | `vertices=`, `direction=`, `radius=`, `rect_min=` | keyword-only after the first two arguments |
 | click callback event with `screen_pos ((x, y),)` and `event_type` | viser's click event | `Viewer.on_pointer("click", ...)` passes it: `screen_pos` is `(x, y)`, no `event_type` |
 | rect-select callback event with `screen_pos` | viser's rect-select event | its corners are `screen_min` and `screen_max` |
 | `Viewer.record(path, *, steps, size=(960, 540), fps, gpu=False, camera)` | `Viewer.record(path, *, size=(1920, 1080), fps, steps, camera, fov, gpu=None, bitrate)` | `gpu` is the `nvidia-smi` index of the GPU to draw on (`gpu=True` used whichever GPU EGL chose); the call returns the path it wrote |

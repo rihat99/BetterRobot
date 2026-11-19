@@ -627,8 +627,8 @@ class _FakeSerializer:
 
 @final
 class FakeServer:
-    """A ``viser.ViserServer`` without sockets: ``scene``, ``gui``, ``atomic()``, ``port``, the camera of new clients,
-    ``get_scene_serializer``, and ``sleep_forever`` / ``stop``, which return at once."""
+    """A ``viser.ViserServer`` without sockets: ``scene``, ``gui``, ``atomic()``, ``port`` (``get_host`` is loopback),
+    the camera of new clients, ``get_scene_serializer``, and ``sleep_forever`` / ``stop``, which return at once."""
 
     def __init__(self, port: int = 8080) -> None:
         self.scene = FakeScene()
@@ -642,6 +642,10 @@ class FakeServer:
     def __repr__(self) -> str:
         """One line: port and how many scene nodes and controls it holds."""
         return f"FakeServer(port={self.port}, nodes={len(self.scene.nodes)}, controls={len(self.gui.controls)})"
+
+    def get_host(self) -> str:
+        """Loopback, ``127.0.0.1``; nothing listens on it."""
+        return "127.0.0.1"
 
     def get_port(self) -> int:
         """The port given at construction; nothing listens on it."""

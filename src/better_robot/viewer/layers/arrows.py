@@ -19,6 +19,7 @@ class ArrowsLayer(Layer):
     every arrow); an arrow shorter than ``head_length`` is all head. An arrow is drawn only when its scaled length
     exceeds ``min_length`` and a ``(T, N)`` ``valid`` of ``Viewer.add`` keeps it: the others are left out of the step
     (use zero vectors for inactive contacts). ``colors`` is one RGB, ``(N, 3)``, or ``(T, N, 3)`` per step.
+    ``vectors`` keeps the arrays as given and ``scale`` is applied at each push.
     """
 
     def __init__(
@@ -35,7 +36,8 @@ class ArrowsLayer(Layer):
         min_length: float = 1e-6,
     ) -> None:
         self.origins = as_frames(origins, 2, name="origins", width=3)
-        self.vectors = as_frames(vectors, 2, name="vectors", width=3) * np.float32(scale)
+        self.vectors = as_frames(vectors, 2, name="vectors", width=3)
+        self.scale = float(scale)
         if self.origins.shape != self.vectors.shape:
             raise ShapeError(
                 f"origins and vectors must have the same shape, got {self.origins.shape} and {self.vectors.shape}"
@@ -71,7 +73,7 @@ class ArrowsLayer(Layer):
 
     @override
     def bounds(self, step: int) -> Bounds | None:
-        origins, tips = self.origins[step], self.origins[step] + self.vectors[step]
+        origins, tips = self.origins[step], self.origins[step] + self.vectors[step] * np.float32(self.scale)
         if self.valid is not None and self.valid.ndim == 2:
             origins, tips = origins[self.valid[step]], tips[self.valid[step]]
         return box(np.concatenate([origins, tips]))
@@ -79,7 +81,7 @@ class ArrowsLayer(Layer):
     def _shown(self, step: int) -> tuple[np.ndarray, np.ndarray]:
         """The arrows drawn at ``step``: ``points (M, 2, 3)`` (tail, tip) and ``colors (M, 3)`` uint8, without the
         ones not longer than ``min_length`` and the ones a ``(T, N)`` ``valid`` marks invalid."""
-        origins, vectors = self.origins[step], self.vectors[step]
+        origins, vectors = self.origins[step], self.vectors[step] * np.float32(self.scale)
         shown = np.linalg.norm(vectors, axis=-1) > self.min_length
         if self.valid is not None and self.valid.ndim == 2:
             shown &= self.valid[step]

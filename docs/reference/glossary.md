@@ -277,6 +277,10 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **cluster** | Joints close enough to share one ball in the minimal skeleton (`SkeletonRecipe(cluster=)`, a fraction of the robot's size). |
 | **trimesh** | The mesh library; `MeshSpec.trimesh` holds one of its meshes, with textures or vertex colours. |
 | **bitrate** | Bits per second of an encoded video; `Viewer.record(bitrate=)` trades file size for detail. |
+| **tool** | A helper on top of the viewer that holds callbacks and sits outside the step loop, unlike a layer: a gizmo or picking (`better_robot.viewer.tools`). |
+| **gizmo** | A handle in the scene a person drags to move or turn a pose (`tools.PoseGizmo`). |
+| **ray** | A half-line from an origin along a direction, as a click in the browser casts it into the scene (`tools.ray_hit`, `tools.nearest_on_ray`). |
+| **frustum, aspect** | What a browser's camera sees: its pose, its vertical field of view and its aspect, the view's width over its height (`tools.CameraFrustum`); picking projects points with it. |
 
 ## Testing
 
@@ -305,13 +309,14 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **GUI** | Graphical user interface: the viewer's sidebar controls (`Layer.build_gui`, `Sidebar.gui`). |
 | **`init`** | Initialize: `Solver.init(problem, x)` returns the first state. |
 | **I/O** | Input and output: reading robot descriptions (`better_robot.io`). |
-| **`min`** | Minimum (`ArrowsLayer(min_length=)`). |
+| **`min`, `max`** | Minimum and maximum (`ArrowsLayer(min_length=)`, `tools.vertices_in_rect(rect_max=)`). |
 | **`njoints`, `nframes`, `nbodies`, `nsteps`** | The numbers of joints (the universe included), frames, bodies and viewer steps. |
 | **`omega`, `w`, `W`** | ω, a rotation vector `(..., 3)`: an SO(3) tangent, axis times angle. `W` is its skew-symmetric matrix `(..., 3, 3)`. `w` and `omega` name the same quantity. |
 | **optim** | Optimization (`better_robot.optim`; `TorchOptim` runs a `torch.optim` optimizer). |
 | **`p`** | Points `(..., 3)` that a rotation or a pose acts on. |
 | **`q0`, `q1`, `q2`** | Numbered configurations: `difference(model, q0, q1)` goes from `q0` to `q1`, and `q0` starts a solve (`solve_ik(q0=)`). In `so3.slerp(q1, q2, t)`, two unit quaternions. |
 | **`R`** | A rotation matrix `(..., 3, 3)`. |
+| **rect** | Rectangle: the screen box a person drags in viser's rectangle selection (`tools.vertices_in_rect`). |
 | **repo, src** | Repository and source directory (`testing.dead_citations(repo_root)`, `testing.imported_packages(src_root, package)`). |
 | **`rho`** | ρ, a robust kernel's loss of a squared residual norm. |
 | **`s`** | Seconds, as a unit suffix (`timeout_s`). |
@@ -325,19 +330,19 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 
 These words keep their ordinary English meaning in public names.
 
-actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, axes, axis, azimuth, band, bone, border,
-box, build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color,
-column, component, consistently, constrained, corner, create, cylinder, dark, decrease, delta, dense, density,
-dependency, diagnostics, diagonal, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,
+actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, axes, axis, azimuth, band, bone, border, box,
+build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color, column,
+component, consistently, constrained, corner, create, cylinder, dark, decrease, delta, dense, density, dependency,
+diagnostics, diagonal, direction, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,
 estimate, evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize,
 flat, floor, folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, growth, half, head,
-height, high, history, host, identity, ignore, image, imported, index, inequality, install, inverse, iteration, keep,
-key, label, layout, length, light, limit, line, linearize, load, lock, loop, low, lower, masked, mass, match, matrix,
-mesh, mismatch, mode, multiplier, name, new, no, norm, normalize, object, of, offset, old, on, opacity, option,
-optional, order, orient, other, outer, output, package, page, pair, panel, parse, path, pause, penalty, permutation,
-pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii, radius, random,
-read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run, save, scalar, scale, scene,
-scheduler, search, section, segment, serializer, series, server, set, shading, shadow, shaft, show, side, size,
-skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere, squared, start, stop, target,
-testing, text, theme, time, timeout, to, toggle, tolerance, unknown, up, update, upper, valid, validate, value, vector,
-vertices, visible, voxel, weight, width, with, word
+height, high, history, hit, host, identity, ignore, image, imported, in, index, inequality, install, inverse, iteration,
+keep, key, label, layout, length, light, limit, line, linearize, load, lock, loop, low, lower, masked, mass, match,
+matrix, mesh, mismatch, mode, multiplier, name, nearest, new, no, norm, normalize, object, of, offset, old, on, opacity,
+option, optional, order, orient, other, outer, output, package, page, pair, panel, parse, path, pause, penalty,
+permutation, pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii,
+radius, random, read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run, save, scalar,
+scale, scene, scheduler, search, section, segment, serializer, series, server, set, shading, shadow, shaft, show, side,
+size, skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere, squared, start, stop,
+target, testing, text, theme, time, timeout, to, toggle, tolerance, top, unknown, up, update, upper, valid, validate,
+value, vector, vertices, visible, voxel, wait, weight, width, with, word

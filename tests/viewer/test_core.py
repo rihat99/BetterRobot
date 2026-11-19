@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import threading
 import time
 from typing import Any
@@ -12,7 +13,7 @@ import torch
 
 from better_robot.lie import so3
 from better_robot.viewer.layer import Layer
-from better_robot.viewer.layers import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer
+from better_robot.viewer import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.layers.skinned import SkinnedMeshLayer
@@ -176,6 +177,39 @@ def test_a_sidebar_button_may_change_the_fps_while_playing() -> None:
         viewer.timeline._halt()  # never join: after a deadlock the thread would never end
 
 
+class _Probe(Layer):
+    """Records ``(thread name, step)`` of every push; each push takes a little time, as a real one does."""
+
+    def __init__(self, nsteps: int) -> None:
+        super().__init__("probe", nsteps)
+        self.pushed: list[tuple[str, int]] = []
+
+    def build(self, scene: Any, root: str) -> None:
+        pass
+
+    def set_step(self, step: int) -> None:
+        self.pushed.append((threading.current_thread().name, step))
+        time.sleep(1e-4)
+
+
+def test_save_while_playing_records_each_step_once_and_playback_goes_on(tmp_path: Any) -> None:
+    viewer = Viewer(server=FakeServer(), fps=1000.0, ground=False)
+    probe = viewer.add(_Probe(200))
+    viewer.timeline.play()
+    time.sleep(0.05)
+    try:
+        probe.pushed.clear()
+        viewer.save(tmp_path / "clip.viser")
+        saved = [step for thread, step in probe.pushed[:200]]
+        assert saved == list(range(200)), "the playback thread pushed its steps between the saved ones"
+        assert viewer.timeline.playing
+    finally:
+        viewer.timeline.pause()
+    for fps in (0.0, -1.0, float("nan")):
+        with pytest.raises(ArgumentError, match="fps must be positive"):
+            viewer.save(tmp_path / "clip.viser", fps=fps)
+
+
 def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
     scene = FakeServer().scene
     poses = np.zeros((2, 3, 7), dtype=np.float32)
@@ -201,6 +235,24 @@ def test_frames_points_and_ground_layers_write_the_expected_arrays() -> None:
 
     GroundLayer(height=0.5).build(scene, "/g/ground")
     assert scene.nodes["/g/ground/grid"].props["position"] == (0.0, 0.0, 0.5)
+
+
+def test_a_layer_draws_its_array_attributes_so_an_edit_in_place_and_a_redraw_update_the_scene() -> None:
+    """One rule for every layer: the float32 attribute is what it draws. A C-contiguous float32 input is that
+    attribute (no copy of a big cloud); any other input is converted once, so the attribute is what to edit."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    cloud = np.zeros((3, 4, 3))  # numpy's default float64
+    points = viewer.add(PointsLayer("cloud", cloud))
+    origins = np.zeros((1, 2, 3), np.float32)
+    arrows = viewer.add(ArrowsLayer("forces", origins, vectors=np.ones((1, 2, 3), np.float32), scale=0.5))
+    assert points.points is not cloud and arrows.origins is origins
+    points.points[:, :, 2] += 0.5
+    arrows.vectors[0, 1] = (0.0, 0.0, 4.0)  # unscaled, as given: the scale applies at the push
+    viewer.show()
+    np.testing.assert_allclose(server.scene.nodes["/cloud/cloud/points"].points[:, 2], 0.5)
+    np.testing.assert_allclose(server.scene.nodes["/forces/forces/arrows"].points[1, 1], [0.0, 0.0, 2.0])
+    assert np.shares_memory(PointsLayer("static", origins[0]).points, origins)  # a static float32 cloud too
 
 
 def test_arrows_hide_zero_vectors() -> None:
@@ -325,6 +377,8 @@ def test_theme_shades_run_from_dark_drum_faces_to_pale_bones_with_bodies_in_the_
     assert theme.shade(hue, "body") == hue
     with pytest.raises(ArgumentError, match="role must be one of"):
         theme.shade(hue, "hull")  # pyright: ignore[reportArgumentType]
+    with pytest.raises(ShapeError, match="hue must be an RGB triple"):  # was the builtin error of an unpack
+        theme.shade((1.0, 0.0), "body")  # pyright: ignore[reportArgumentType]
 
 
 def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow() -> None:
@@ -340,11 +394,32 @@ def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow()
     assert not square["infinite_grid"] and square["width"] == 4.0
 
 
+def test_the_sidebar_width_is_the_themes_also_through_set_theme() -> None:
+    """Three applications use viser's "large" sidebar; set_theme used to put "medium" back."""
+    server = FakeServer()
+    viewer = Viewer(server=server, theme=Theme(sidebar_width="large"))
+    assert server.gui.theme["control_width"] == "large"
+    viewer.set_theme(dataclasses.replace(DARK, sidebar_width="large"))
+    assert server.gui.theme["control_width"] == "large" and server.gui.theme["dark_mode"]
+    viewer.set_theme(LIGHT)
+    assert server.gui.theme["control_width"] == "medium"
+    with pytest.raises(ArgumentError, match="sidebar_width must be one of"):
+        Theme(sidebar_width="wide")  # type: ignore[arg-type]
+
+
 def test_ground_plane_follows_the_theme_up_axis_unless_given() -> None:
-    viewer = Viewer(server=FakeServer(), theme=Theme(up="+y"), ground=False)
+    server = FakeServer()
+    viewer = Viewer(server=server, theme=Theme(up="+y"), ground=False)
     ground, explicit = GroundLayer(), GroundLayer("explicit", plane="xy")
     viewer.add([ground, explicit])
-    assert ground.plane == "xz" and explicit.plane == "xy"
+
+    def planes() -> tuple[str, str]:
+        return tuple(server.scene.nodes[f"/{name}/{name}/grid"].props["plane"] for name in ("ground", "explicit"))
+
+    assert planes() == ("xz", "xy") and ground.plane is None  # the argument stays as given
+    viewer.set_visible(ground, False)
+    viewer.set_theme(Theme(up="+x"))  # the grid is made again in the new plane, still hidden
+    assert planes() == ("yz", "xy") and not server.scene.nodes["/ground/ground/grid"].visible
     assert GroundLayer().bounds(0) is None  # the grid never drives the camera's framing
 
 
@@ -384,6 +459,45 @@ def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
     viewer.add([_skeleton(10, "clip")], tags="motion")
     assert server.gui.control("Step").props["max"] == 9
     assert [control.name for control in server.gui.controls].count("Timeline") == 1
+
+
+def test_the_images_section_follows_plots_before_an_applications_sections() -> None:
+    server = FakeServer()
+    sidebar = Sidebar(server, threading.RLock())
+    for name in ("Info", "Tuning", "Images", "Plots", "Layers"):
+        sidebar.section(name)
+    folders = sorted(
+        (control for control in server.gui.controls if control.kind == "GuiFolderHandle"), key=lambda f: f.order
+    )
+    assert [folder.label for folder in folders] == ["Layers", "Plots", "Images", "Tuning", "Info"]
+
+
+def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> None:
+    """A Style dropdown shared by a robot with meshes and one without loses "meshes" with the first; the choice it
+    showed goes to the first option left, and the layers still there follow it, as on a choice in the browser."""
+    server = FakeServer()
+    sidebar = Sidebar(server, threading.RLock())
+    chosen: dict[str, list[str]] = {"meshes": [], "skeleton": []}
+
+    class Robot:
+        def __init__(self, name: str, styles: tuple[str, ...]) -> None:
+            self.name, self.styles = name, styles
+
+        def build_gui(self, sidebar: Sidebar) -> None:
+            on_change = chosen[self.name].append
+            sidebar.dropdown("Robot", "Style", options=self.styles, value=self.styles[0], on_change=on_change)
+
+    with_meshes, skeleton = Robot("meshes", ("meshes", "minimal", "maximal")), Robot("skeleton", ("minimal", "maximal"))
+    sidebar.build(with_meshes)  # type: ignore[arg-type]
+    sidebar.build(skeleton)  # type: ignore[arg-type]
+    style = server.gui.control("Style")
+    assert style.options == ("meshes", "minimal", "maximal") and style.value == "meshes"
+    sidebar.remove(with_meshes)  # type: ignore[arg-type]
+    assert style.options == ("minimal", "maximal") and style.value == "minimal"
+    assert chosen == {"meshes": [], "skeleton": ["minimal"]}
+    style.value = "maximal"
+    style.fire(None)
+    assert chosen["skeleton"] == ["minimal", "maximal"]
 
 
 def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_set_visible() -> None:
@@ -619,3 +733,25 @@ def test_the_viewer_aims_after_each_add_until_aim_is_called() -> None:
     chosen = viewer.aim(steps=[0])
     viewer.add(_Box("third", 1))
     np.testing.assert_allclose(server.initial_camera.position, chosen[0])  # the user's aim holds
+
+
+def test_adding_a_layer_reads_the_bounds_of_the_others_only_after_they_were_pushed_again() -> None:
+    """The automatic aim of ``add`` keeps each layer's boxes, so building a scene of N robots is not quadratic, and
+    reads them again once a step reached the layer (``show``, ``redraw``, ``update``), the way its arrays change."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    first = viewer.add(_Box("first", 40))
+    assert len(first.read) == 32  # one read per sampled step
+    first.read.clear()
+    second = viewer.add(_Box("second", 40), offset=(0.0, 3.0, 0.0))
+    assert first.read == [] and len(second.read) == 32
+    viewer.show()  # a push: the arrays may have changed in place
+    viewer.add(_Box("third", 1))
+    assert len(first.read) == 32 and len(second.read) == 64
+    viewer.set_offset("second", (0.0, -3.0, 0.0))  # offsets and visibility are applied after the reads
+    viewer.set_visible("third", False)
+    second.read.clear()
+    viewer.add(_Box("fourth", 1))
+    assert second.read == []
+    remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
+    np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read

@@ -7,8 +7,10 @@ from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING, override
 
 import numpy as np
+import torch
 
 from ..exceptions import ArgumentError, ShapeError
+from ..lie import so3
 
 if TYPE_CHECKING:
     from .sidebar import Sidebar
@@ -22,6 +24,9 @@ def as_frames(
     array: np.ndarray | object, event_ndim: int, *, name: str = "array", width: int | None = None
 ) -> np.ndarray:
     """Promote an array to ``(T, ...)`` float32: a static array (no leading axis) becomes ``T = 1``.
+
+    A C-contiguous float32 array comes back without a copy (a view, for static input), so a layer shares the caller's
+    memory; any other input is converted once.
 
     ``event_ndim`` is the number of trailing axes of one step, e.g. 2 for joints ``(J, 3)``; ``width``, when given,
     is the size of the last axis. A wrong shape raises ``ShapeError`` naming the argument ``name``.
@@ -48,6 +53,20 @@ def box(points: np.ndarray) -> Bounds | None:
     return flat.min(axis=0), flat.max(axis=0)
 
 
+def from_z(direction: np.ndarray) -> np.ndarray:
+    """Shortest-arc ``xyzw`` rotations ``(..., 4)`` taking ``+z`` onto each ``direction (..., 3)`` (``so3.exp``).
+
+    A zero direction gives the identity, one opposite ``+z`` a half turn about ``x``.
+    """
+    unit = torch.from_numpy(np.asarray(direction, dtype=np.float64))
+    norm = torch.linalg.norm(unit, dim=-1, keepdim=True)
+    unit = torch.where(norm > 1e-12, unit / norm.clamp_min(1e-12), unit.new_tensor([0.0, 0.0, 1.0]))
+    turn = torch.stack([-unit[..., 1], unit[..., 0], torch.zeros_like(unit[..., 0])], dim=-1)  # z x unit
+    sine = torch.linalg.norm(turn, dim=-1, keepdim=True)
+    axis = torch.where(sine > 1e-9, turn / sine.clamp_min(1e-9), unit.new_tensor([1.0, 0.0, 0.0]))
+    return so3.exp(axis * torch.atan2(sine, unit[..., 2:])).numpy()
+
+
 def as_triangles(faces: np.ndarray) -> np.ndarray:
     """``faces`` as contiguous uint32 ``(F, 3)`` vertex indices of triangles; another shape raises ``ShapeError``."""
     out = np.ascontiguousarray(np.asarray(faces, dtype=np.uint32))
@@ -61,7 +80,10 @@ class Layer(ABC):
 
     A layer owns its preloaded arrays and the viser handles it creates in ``build``. The viewer
     calls ``set_step(k)`` to write slice ``k`` into those handles; a static layer has
-    ``nsteps == 1`` and is pushed once. Handles registered with ``_track`` get the default
+    ``nsteps == 1`` and is pushed once. The arrays are the layer's float32 ``(T, ...)`` attributes
+    (``PointsLayer.points``, ``FramesLayer.poses``, ...), read at each push: edit one in place and call ``redraw``
+    (or ``Viewer.show()``) to update the scene. An input that already is a C-contiguous float32 array is that
+    attribute, no copy, which keeps a big cloud single; any other input is converted once, so edit the attribute. Handles registered with ``_track`` get the default
     ``set_visible`` and ``dispose``; ``visible`` and ``set_visible`` are the one way to read and switch a layer, and
     an override of ``set_visible`` or ``dispose`` calls the base method.
 
@@ -127,7 +149,8 @@ class Layer(ABC):
 
         A layer of thin, spread-out parts may return one box per part, ``(lo (N, 3), hi (N, 3))``: ``aim`` frames the
         corners of every box, and one box round a robot is twice what the robot covers on screen. ``None`` (the
-        default) keeps the layer out of the framing, as for the ground grid.
+        default) keeps the layer out of the framing, as for the ground grid. The automatic aim of ``Viewer.add`` reads
+        it again only after the viewer pushed a step to the layer, the path every change of its arrays takes.
         """
         return None
 

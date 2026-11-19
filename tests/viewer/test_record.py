@@ -202,7 +202,9 @@ def test_a_sidebar_button_records_while_playing(monkeypatch: pytest.MonkeyPatch,
 
 def test_the_page_reaches_a_server_bound_to_every_interface_through_loopback() -> None:
     for host, origin in (("0.0.0.0", "http://127.0.0.1:8123"), ("localhost", "http://localhost:8123")):
-        page = recorder._Page(Viewer(server=FakeServer(), host=host, port=8123), (320, 180), _CAMERA, 0.7, None)
+        viewer = Viewer(server=FakeServer(port=8123))
+        viewer.host = host  # where a real server would listen; the stand-in is always on loopback
+        page = recorder._Page(viewer, (320, 180), _CAMERA, 0.7, None)
         page.__exit__()  # removes the browser profile; no browser started
         assert page.origin == origin
 
