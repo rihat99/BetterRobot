@@ -635,6 +635,7 @@ def _fit(
         if shrink <= 0.5:
             break
         shrink = max(0.5, 0.85 * shrink)
+    candidates = gaps = np.zeros(1)  # set by the first pass
     for reach, least in ((_REACH * radius, 0.5), (np.inf, _LEAST)):
         shrink = 1.0
         while True:
@@ -652,7 +653,7 @@ def _fit(
             if shrink <= least:
                 break
             shrink = max(least, 0.85 * shrink)
-    return float(candidates[np.argmax(gaps)]), shrink
+    return float(candidates[np.argmax(gaps)]), shrink  # nothing clears: the least penetration
 
 
 # ------------------------------------------------------------------------------------------------ hulls and end blocks
