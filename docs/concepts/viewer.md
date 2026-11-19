@@ -248,7 +248,9 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
   the drum stays in sight (`bones=0` draws none);
 - a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
   the tree branches (a torso, a pelvis, a palm), and stops short of the drums of its own waist and of its neck. A
-  head is a ball that stands above the trunk and every joint: the head of a neck chain (a Talos, an Atlas), a
+  fixed base that carries one joint reaches at most 4 of that joint's glyph radii from its centre, shrunk towards
+  the joint: an arm's stand (about 3) keeps its box, a Shadow hand's forearm becomes a block about the size of the
+  hand, and the bones of a fixed base stay inside its box. A head is a ball that stands above the trunk and every joint: the head of a neck chain (a Talos, an Atlas), a
   round second frame of the trunk, or over a trunk whose sensor frames rise above it (an H1); a quadruped's snout
   or the lidar on its back is no head. A body that ends a chain is a sole when it is flat, a block when a prismatic
   joint moves it (a finger), else a limb that tapers to the end of the body (a hand, a paw), with no ball at its

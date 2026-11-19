@@ -56,6 +56,7 @@ _SLEEVE = 0.6  # half length of a sleeve along its rail over the joint radius
 _MARKER = 0.6  # radius of the plain marker of an unlisted joint kind over the joint radius
 _TRUNK_PAD = 0.7  # a trunk hull pads its sphere centres by this share of their median radius
 _TRUNK = 0.8  # a trunk keeps this share of the half extents of its geometry: the skeleton is slimmer than the robot
+_MOUNT = 4.0  # a fixed base that carries one joint reaches at most this many of its glyph radii from its centre
 _TAPER = 0.8  # a maximal block's side at z = 0.5 over its side at z = -0.5: every body narrows towards +z
 _BODY = 0.7  # a maximal limb is this share of the thinner half width of its link's geometry across it
 _HEAD_CAP = 0.8  # a second frame of a body is a ball of at most this share of the body hull's smallest half extent
@@ -916,7 +917,10 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
     keeps its full box, so the hips sit in it (a Go2), and takes in the solid box of its inertia, so a stand-in shape
     does not leave the legs without a pelvis (an H1's 5 cm sphere). The box of a moving body with two or more child
     joints reaches their origins (a fixed base does not reach up to its arm, a pelvis not down to its hips): a chest
-    spans its shoulders (an H1, whose torso shape is a small block). One other frame may be the head, a ball on the
+    spans its shoulders (an H1, whose torso shape is a small block). A fixed base that carries one joint reaches at
+    most 4 of that joint's glyph radii from its centre, shrunk towards the point of its box nearest the joint: a
+    Panda's or an iiwa's stand (about 3) keeps its box, a Shadow hand's 15 x 15 x 23 cm forearm would dwarf the hand
+    (7.4); ``_maximal`` keeps the spine of a fixed base inside its box. One other frame may be the head, a ball on the
     body: the bulkiest that sits outside the body, is round (no more than twice as long as wide) and at least 0.3 of
     the body's smallest half extent, and no wider than 0.8 of it; sensors, antennas and columns draw nothing, unless
     ``body_hull`` makes them a box. A trunk without such a head whose frames rise above its body along the root
@@ -929,8 +933,9 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
     """
 
     def bulk(cloud: _Cloud) -> float:
-        extent = cloud.points.max(axis=0) - cloud.points.min(axis=0)
-        return float(np.sum(cloud.radii**3)) if cloud.radii is not None else float(np.prod(extent))
+        return (
+            float(np.sum(cloud.radii**3)) if cloud.radii is not None else float(np.prod(np.ptp(cloud.points, axis=0)))
+        )
 
     up = tree.rotation[tree.root[group]][:, 2]
     highest = max((float(tree.origin[j] @ up) for j in tree.glyphs), default=-np.inf)
@@ -965,6 +970,10 @@ def _trunk(tree: _Tree, recipe: SkeletonRecipe, group: int, clouds: Sequence[_Cl
                 _Hull(cloud.name, "hull", group, cloud.joint, center, cloud.rotation, np.full(3, radius), "balls")
             )
         else:
+            if uncut is None and group == 0 and len(tree.children[0]) == 1:  # a mount: an arm's stand, a forearm
+                shrink = min(1.0, _MOUNT * tree.radius[joint := tree.children[0][0]] / float(half.max()))
+                held = np.clip(cloud.rotation.T @ (tree.origin[joint] - center), -half, half)  # it keeps its joint
+                center, half = center + cloud.rotation @ ((1.0 - shrink) * held), shrink * half
             uncut = uncut or (center, cloud.rotation, half)
             hulls.append(
                 _tapered(tree, _Hull(cloud.name, "hull", group, cloud.joint, center, cloud.rotation, cut * half))
@@ -1343,6 +1352,10 @@ def _maximal(
                     np.min(main.half / np.maximum(np.abs(main.rotation.T @ toward), 1e-9))
                 )
             start = center[hull.group] if hull.group and hull.mesh != "balls" else start
+            if not hull.group and hull.mesh != "balls":  # a fixed base's spine stays in its box: a mount's box shrinks
+                start = hull.center + hull.rotation @ np.clip(
+                    hull.rotation.T @ (start - hull.center), -hull.half, hull.half
+                )
             across = tree.axis.get(hull.group)
             thick = thickness(hull.group) if hull.mesh != "balls" else recipe.bones * float(hull.half[0])  # a neck
             rows.bone(hull.body, start, hull.center, thick, hull.group or hull.body, across=across)

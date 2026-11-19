@@ -63,7 +63,9 @@ that 0.3.0 renames or removes, one table row each.
   NaN, the universe, a free base and the `"meshes"` style show none). A step writes one more array to each node that
   holds a glyph: on the G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step, and no node.
 - `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs as wide as
-  their link up to the size its mass gives, trunks for the bodies that branch, and where a chain ends a sole, a
+  their link up to the size its mass gives, trunks for the bodies that branch, a fixed base that carries one joint
+  at most 4 of that joint's glyph radii from its centre (a Shadow hand's forearm no larger than the hand), and
+  where a chain ends a sole, a
   finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
   spherical joint's among the drums, and a head only above a trunk; the drums of joints that share a point, such
   as a hip, cross as a universal joint's do, and any other glyph that would overlap slides along its own axis, at
