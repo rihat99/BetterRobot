@@ -77,7 +77,7 @@ class MeshLayer(Layer):
                 self.vertices[0][rows],
                 faces,
                 color=colour,
-                opacity=None if self.opacity >= 1.0 else self.opacity,
+                **self._surface(),
                 flat_shading=self.flat_shading,
             )
             self._nodes.append((self._track(node), rows))
@@ -181,7 +181,7 @@ class RigidMeshLayer(Layer):
                     spec.vertices,
                     spec.faces,
                     color=rgb_uint8(spec.color),
-                    opacity=None if self.opacity >= 1.0 else self.opacity,
+                    **self._surface(),
                 )
             self._nodes.append(self._track(node))
             if spec.trimesh is None:
@@ -260,7 +260,7 @@ class SpheresLayer(Layer):
                 batched_positions=self.centers[0],
                 batched_scales=self.radii,
                 batched_colors=self._colors if self._colors.ndim == 2 else self._colors[0],
-                opacity=None if self.opacity >= 1.0 else self.opacity,
+                **self._surface(),
                 lod="off",
             )
         )

@@ -486,16 +486,21 @@ def test_set_opacity_fades_mesh_surfaces_live_and_refuses_other_layers() -> None
     viewer.add([mesh])
     spheres = SpheresLayer("balls", np.zeros((2, 3)), radii=np.ones(2), opacity=1.0)
     viewer.add([spheres])
+    assert server.scene.nodes["/balls/balls/spheres"].props["cast_shadow"]  # opaque: it casts as any solid does
     mesh.set_opacity(0.4)
     spheres.set_opacity(0.4)
-    assert server.scene.nodes["/mesh/mesh/mesh"].opacity == 0.4 and mesh.opacity == 0.4
+    node = server.scene.nodes["/mesh/mesh/mesh"]
+    assert node.opacity == 0.4 and mesh.opacity == 0.4
     assert server.scene.nodes["/balls/balls/spheres"].opacity == 0.4
+    for faded in (node, server.scene.nodes["/balls/balls/spheres"]):  # the shadow map would draw a glass solid
+        assert not faded.cast_shadow and not faded.receive_shadow
     mesh.set_opacity(1.0)
-    assert server.scene.nodes["/mesh/mesh/mesh"].opacity is None  # viser's opaque
+    assert node.opacity is None and node.cast_shadow and node.receive_shadow  # viser's opaque
     mesh.set_opacity(0.6)
     viewer.remove(mesh)
-    viewer.add(mesh)  # built again with the opacity it keeps
-    assert server.scene.nodes["/mesh/mesh/mesh"].props["opacity"] == 0.6
+    viewer.add(mesh)  # built again with the opacity it keeps, and without shadows
+    props = server.scene.nodes["/mesh/mesh/mesh"].props
+    assert (props["opacity"], props["cast_shadow"], props["receive_shadow"]) == (0.6, False, False)
     with pytest.raises(ArgumentError, match=r"\(0, 1\]"):
         mesh.set_opacity(0.0)
     with pytest.raises(ArgumentError, match="draws no surface"):
