@@ -860,6 +860,21 @@ def test_adding_a_layer_reads_the_bounds_of_the_others_only_after_they_were_push
     np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read
 
 
+def test_a_redraw_while_hidden_drops_the_boxes_a_layer_shown_by_its_own_switch_is_framed_by() -> None:
+    """R1's probe: ``layer.set_visible(False)``, an edit, ``redraw()`` and ``layer.set_visible(True)`` left the automatic
+    aim on the old boxes, 13.9 m from a fresh fit."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    cloud = viewer.add(PointsLayer("cloud", np.zeros((1, 2, 3), np.float32)))
+    cloud.set_visible(False)
+    cloud.points[0, 1] = (0.0, 0.0, 10.0)
+    cloud.redraw()
+    cloud.set_visible(True)
+    viewer.add(PointsLayer("other", np.zeros((1, 1, 3), np.float32)))
+    remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
+    np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read
+
+
 def test_a_step_change_playback_or_a_longer_timeline_keeps_the_boxes_the_automatic_aim_read() -> None:
     """A plain step change carries no edit: building a scene while it plays or while its clips grow the timeline
     reads each layer's samples once."""

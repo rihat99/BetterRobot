@@ -422,12 +422,13 @@ class Viewer:
 
     def redraw(self, target: Layer | str) -> None:
         """Push the current step again to a visible layer, or to every visible layer carrying the tag ``target``, after
-        its arrays changed; ``Layer.redraw`` calls this."""
+        its arrays changed; ``Layer.redraw`` calls this. A hidden layer is pushed when ``set_visible`` shows it, and
+        its boxes for the automatic aim are read again either way."""
         with self.lock, self.server.atomic():
             for layer in self._targets(target):
+                entry = self._entry(layer)
+                entry.framed.clear()  # also while hidden: the layer's own switch may show it without a push
                 if layer.visible:
-                    entry = self._entry(layer)
-                    entry.framed.clear()
                     self._push(entry, self.timeline.step)
 
     def save(self, path: str | Path, *, fps: float | None = None) -> Path:
