@@ -69,6 +69,19 @@ def test_url_follows_viser_when_requested_port_is_taken() -> None:
             viewer.server.stop()
 
 
+def test_a_server_passed_in_gives_its_own_address() -> None:
+    """``Viewer(server=s)`` reports where ``s`` listens, not the default port, which another page may hold."""
+    import viser  # noqa: PLC0415 - the optional dependency this test exercises
+
+    server = viser.ViserServer(host="127.0.0.1", port=_free_port(), verbose=False)
+    try:
+        viewer = Viewer(server=server, port=8080)
+        assert (viewer.host, viewer.port) == ("127.0.0.1", server.get_port())
+        assert viewer.url == f"http://127.0.0.1:{server.get_port()}"
+    finally:
+        server.stop()
+
+
 class _BrokenPush(Layer):
     """Builds a point cloud, then raises on its first push."""
 

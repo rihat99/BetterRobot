@@ -79,7 +79,8 @@ class Viewer:
     skipped. ``lock`` is the one lock: adding and removing layers, every push and every sidebar callback hold it.
 
     ``server`` is the underlying ``viser.ViserServer`` (escape hatch for custom GUI); pass one in to reuse a server
-    or a fake in tests (``testing.FakeServer``, hence typed ``Any``). The default host is loopback only. ``ground``
+    or a fake in tests (``testing.FakeServer``, hence typed ``Any``), and ``host`` and ``port`` are ignored: ``url``
+    is the server's own address. The default host is loopback only. ``ground``
     adds a ``GroundLayer`` under the tag ``ground``. Until ``aim`` is called, the camera is aimed at the scene after
     each ``add``.
     """
@@ -99,10 +100,10 @@ class Viewer:
                 import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
 
             server = viser.ViserServer(host=host, port=port, verbose=False)
-            # viser moves to the next free port when ``port`` is taken; ``url`` (and record) must follow it.
-            port = server.get_port()
         self.server = server
-        self.host, self.port = host, port
+        # The server's own address: viser moves to the next free port when ``port`` is taken, and a server passed in
+        # listens where it was made. ``url`` and ``record`` must follow it.
+        self.host, self.port = server.get_host(), server.get_port()
         self.theme = theme
         self.theme.apply(server)
         self.lock = threading.RLock()  # the playback thread pushes while the main thread adds/removes

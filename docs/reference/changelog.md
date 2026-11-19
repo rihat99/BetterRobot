@@ -59,7 +59,7 @@ that 0.3.0 renames or removes, one table row each.
   a deforming one is one node per distinct colour (at most 64), each face in its first vertex's colour.
 - `PointsLayer` takes a list of `(N_t, 3)` arrays, a cloud whose size changes per step (`PointsLayer.counts`), with
   one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
-- `testing.FakeServer.scene.add_glb`.
+- `testing.FakeServer.scene.add_glb`, and `testing.FakeServer.get_host()` (loopback), as viser's server has.
 - `examples/viewer/00_showcase.py`: one page that shows the G1, the Panda and the Go2 as meshes or as the minimal
   or maximal skeleton, with the collision overlay, the frame triads, the light or dark theme and a looping motion.
 
@@ -140,6 +140,10 @@ that 0.3.0 renames or removes, one table row each.
 - `viewer.theme.colormap`: no replacement; nothing called it once the torque colours went, and an application maps
   values to colours with numpy.
 - `CameraLayer` from `viewer.layers.skinned`, a second path to it: use `better_robot.viewer.CameraLayer`.
+
+### Fixed
+- `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
+  opened whatever page listened there).
 
 ## v0.3.0 (2026-11-10)
 
