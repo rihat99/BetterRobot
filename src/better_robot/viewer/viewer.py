@@ -116,8 +116,9 @@ class Viewer:
     skipped. ``lock`` is the one lock: adding and removing layers, every push and every sidebar callback hold it.
 
     ``server`` is the underlying ``viser.ViserServer`` (escape hatch for custom GUI); pass one in to reuse a server
-    or a fake in tests (``testing.FakeServer``, hence typed ``Any``), and ``host`` and ``port`` are ignored: ``url``
-    is the server's own address. The default host is loopback only. ``ground``
+    or a fake in tests (``testing.FakeServer``, hence typed ``Any``), without ``host`` or ``port``, which are the
+    server's (``ArgumentError`` otherwise): ``url`` is its own address. Without a server, ``host`` defaults to
+    ``127.0.0.1``, loopback only, and ``port`` to 8080. ``ground``
     adds a ``GroundLayer`` under the tag ``ground``. Until ``aim`` is called, the camera is aimed at the scene after
     each ``add``, which reads a layer's ``bounds`` again only after ``redraw``, ``show()`` or ``set_visible``.
     """
@@ -125,8 +126,8 @@ class Viewer:
     def __init__(
         self,
         *,
-        host: str = "127.0.0.1",
-        port: int = 8080,
+        host: str | None = None,
+        port: int | None = None,
         fps: float = 30.0,
         theme: Theme = LIGHT,
         ground: bool = True,
@@ -136,7 +137,12 @@ class Viewer:
             with needs_extra("viewer"):
                 import viser  # noqa: PLC0415 - optional dependency, imported at the boundary
 
-            server = viser.ViserServer(host=host, port=port, verbose=False)
+            server = viser.ViserServer(host=host or "127.0.0.1", port=8080 if port is None else port, verbose=False)
+        elif host is not None or port is not None:
+            raise ArgumentError(
+                f"a server passed in listens where it was made; leave out host={host!r} and port={port!r}, or leave "
+                "out server"
+            )
         self.server = server
         # The server's own address: viser moves to the next free port when ``port`` is taken, and a server passed in
         # listens where it was made. ``url`` and ``record`` must follow it.

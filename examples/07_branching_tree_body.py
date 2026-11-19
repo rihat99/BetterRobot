@@ -47,7 +47,7 @@ def main() -> None:
     print(f"Root position: {state.joint_poses[0, :3]}")
 
     if not args.no_viewer:
-        viewer = br.Viewer(port=8081, server=br.testing.FakeServer() if args.check else None)
+        viewer = br.Viewer(server=br.testing.FakeServer()) if args.check else br.Viewer(port=8081)
         viewer.add(br.viewer.RobotVisual(model))  # no meshes for a programmatic body: the skeleton
         viewer.show()
         if args.check:

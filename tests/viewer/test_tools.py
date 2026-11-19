@@ -39,6 +39,9 @@ def test_gizmo_reports_poses_in_xyzw_order_and_fires_callbacks() -> None:
     np.testing.assert_allclose(seen[-1], [4.0, 5.0, 6.0, 0.0, 0.0, 0.0, 1.0])
     gizmo.pose = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     np.testing.assert_allclose(handle.wxyz, [0.0, 1.0, 0.0, 0.0])
+    with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):  # R1: the setter took any shape
+        gizmo.pose = [1.0, 2.0, 3.0]
+    np.testing.assert_allclose(handle.position, [0.0, 0.0, 0.0])
 
 
 def test_one_drag_reaches_the_gizmo_once() -> None:

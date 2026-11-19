@@ -191,6 +191,9 @@ that 0.3.0 renames or removes, one table row each.
 ### Fixed
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
   opened whatever page listened there).
+- `Viewer(server=s, host=, port=)` raises `ArgumentError` (the host and port were dropped silently: `url` is the
+  server's); `host` and `port` default to `None`, which is `127.0.0.1` and 8080 for the viewer's own server. A
+  `PoseGizmo.pose` that is not `(7,)` raises `ShapeError` when set, as it does at construction.
 - `Viewer.url` puts an IPv6 host in brackets (`http://[::1]:8080`; was `http://::1:8080`), so `record` reaches such a
   server, and a page Chromium cannot load raises `ArgumentError` naming its address at once (it was blamed on the
   viser version after a minute).
