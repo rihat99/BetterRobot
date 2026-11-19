@@ -7,7 +7,7 @@ and which call to reach for: `show`, `serve`, `save` or `record`.
 It lives in `better_robot.viewer`, is built on [viser](https://viser.studio), and is the top of the import stack:
 nothing else in the library imports it. viser is imported only when you create a `Viewer`.
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video><figcaption>One <code>RobotVisual</code> four ways: meshes, the maximal skeleton, the minimal skeleton, and the maximal one with joint frames, switched with <code>set_style</code> and <code>set_frames</code>.</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video><figcaption>One <code>RobotVisual</code> six ways: meshes, the minimal, medium and maximal skeletons, the maximal one with joint frames, and the medium one under the collision glass, switched with <code>set_style</code>, <code>set_frames</code> and <code>set_collision</code>.</figcaption></figure>
 
 ## A layer holds a whole clip
 
@@ -170,6 +170,8 @@ clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of fou
 | `"medium"` | the maximal glyphs on thin pale rods, no bodies | nothing but the model |
 | `"minimal"` | a stick figure: one ball per cluster of close joints, sticks between | nothing but the model |
 
+![One G1 in the four styles, left to right: meshes, the minimal skeleton, the medium skeleton and the maximal skeleton.](../images/robot_styles.png){ width="960" }
+
 `style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
 looked up under `root`, the description file or its folder, and under each folder above it, so `root=` is the path
 you loaded. Code without a viewer reads the same files the same way: `load_meshes(geometry, root=path)` returns one
@@ -278,6 +280,8 @@ width, and the heads of `MAXIMAL` as small pale balls. A drum outside a compound
 rod, so a wrist reads motor, rod, motor. It is the recipe `SkeletonRecipe(bones=0.35, hulls="none", size=0.7)`: with `hulls="none"` a
 skeleton of glyphs is a stick figure too. With no bodies drawn, the collision overlay is what shows the robot's
 volume around its motors.
+
+![The G1 in the medium style with collision=True: its motors and rods inside a pale grey glass of its collision shapes.](../images/robot_collision.png){ width="560" }
 
 All three take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
