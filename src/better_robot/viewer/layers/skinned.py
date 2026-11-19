@@ -112,7 +112,8 @@ class SkinnedMeshLayer(Layer):
         """A box per bone that carries vertices ``(lo (B, 3), hi (B, 3))``: the box of the vertices it carries at
         least a quarter of, turned with the bone; no vertex is skinned. It holds every vertex blended from such bones;
         on SMPL and SMPL-X under random poses it held every vertex and reached 2 to 5 cm beyond the skinned mesh's box
-        in the median, 16 cm at most."""
+        in the median, 16 cm at most. It assumes that weights under a quarter move a vertex little, which those skins
+        hold and another skin need not."""
         poses = self.bone_poses[step, self._carriers]
         turn = so3.to_matrix(torch.from_numpy(poses[:, 3:])).numpy()  # (B, 3, 3)
         centre, half = self._boxes
