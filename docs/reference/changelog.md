@@ -34,7 +34,8 @@ that 0.3.0 renames or removes, one table row each.
 - `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
   fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role, *, side=0)` (`side=1` a left part, lighter, `-1`
   a right one, darker), `accent`, `collision`, `text` and `ramp` (the low and the high end of a joint value's range,
-  a quiet steel and a warm orange), all colours RGB in `[0, 1]`, and `collision_opacity`.
+  a quiet steel and a warm orange; another count of colours raises `ShapeError`, a value outside `[0, 1]`
+  `ArgumentError`), all colours RGB in `[0, 1]`, and `collision_opacity`.
   `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
   that casts shadows and a fill light, one rig for meshes and solid colours.
 - `Theme(sidebar_width="medium")`: viser's `"small"`, `"medium"` or `"large"` sidebar, which `Viewer.set_theme`
@@ -49,16 +50,21 @@ that 0.3.0 renames or removes, one table row each.
   (skeletons), with a collision overlay (the sphere set, else the collision shapes, a pale see-through shell over any
   style, 0.2 % of the robot's size off the shapes so that it shows no stripes where it meets the meshes) and frame
   triads. Each part is built the first time
-  it is shown, not while its robot is hidden; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
-  viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
+  it is shown, not while its robot is hidden, and `robot.set_visible(True)` shows the viewer's step, as
+  `Viewer.set_visible` does; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
+  viewer runs, and `update(q)` shows new configurations, `(T, nq)` of the clip's length or `(nq,)` at every step.
+  A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
-  is drawn in, and `style`, `collision` and `frames` what it shows (record 0058).
+  is drawn in, and `style`, `collision` and `frames` what it shows (record 0058). A `hue` outside `[0, 1]`, a
+  collision switch that is not a bool, a string for `frames` and strings for `opacity`, `joint_values` or
+  `value_range` raise `ArgumentError` naming the argument.
 - `RobotVisual(opacity=)` and `RobotVisual.set_opacity`: every style drawn see-through, a ghost of a target or a
-  reference motion beside or over the robot; below 1 it casts and catches no shadow, and the collision overlay and
-  the triads keep their own look. A ghost costs nothing per step.
+  reference motion beside or over the robot; below 1 it casts and catches no shadow, a mesh file with its own
+  colours or texture (the Panda's, the Go2's) keeps them at that opacity through its material, and the collision
+  overlay and the triads keep their own look. A ghost costs nothing per step.
 - `RobotVisual(joint_values=, value_range=(0.0, 1.0))` and `RobotVisual.set_joint_values(values, *,
-  value_range=None)`: one value per model joint and step, `(T, njoints)` or `(njoints,)` with the universe as
-  column 0, such as a joint's load `|tau| / effort limit`, colours the joint glyphs of the skeleton styles through
+  value_range=None)`: one value per model joint and step, `(T, njoints)` or `(njoints,)` for every step of any
+  clip, with the universe as column 0, such as a joint's load `|tau| / effort limit`, colours the joint glyphs of the skeleton styles through
   `Theme.ramp` over the range, clamped (a minimal ball takes the value of the largest magnitude among its joints; a
   NaN, the universe, a free base and the `"meshes"` style show none). A step writes one more array to each node that
   holds a glyph: on the G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step, and no node.
@@ -67,7 +73,7 @@ that 0.3.0 renames or removes, one table row each.
   at most 4 of that joint's glyph radii from its centre (a Shadow hand's forearm no larger than the hand), and
   where a chain ends a sole, a
   finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
-  spherical joint's among the drums, and a head only above a trunk; the drums of joints that share a point, such
+  spherical joint's among the drums (a planar joint is a thin plate in its plane, a translation joint a block), and a head only above a trunk; the drums of joints that share a point, such
   as a hip, cross as a universal joint's do, and any other glyph that would overlap slides along its own axis, at
   most half its length, then shrinks), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on thin pale
   rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum outside
@@ -85,7 +91,8 @@ that 0.3.0 renames or removes, one table row each.
   the maximal skeleton's pale bodies and the medium one's rods.
 - `FramesLayer(scales=)`: one factor per frame `(F,)` on the length and thickness of its axes, an array that follows
   the array rule; `RobotVisual`'s triads take the glyph radius of their joint in the maximal skeleton, so a finger's triad
-  is a finger's size, where one length for all drew a hand's fingers as a bed of spikes.
+  is a finger's size, where one length for all drew a hand's fingers as a bed of spikes. A scale that is not a
+  positive, finite number raises `ArgumentError`.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
 - `viewer.load_meshes(geometry, *, root=None, collision=False)`: the display (or collision) shapes of a `Geometry`
   as `MeshSpec` arrays, `vertices (V, 3)`, `faces (F, 3)`, `body` and `origin`, for code without a viewer; mesh files
@@ -215,6 +222,11 @@ that 0.3.0 renames or removes, one table row each.
 - `tools.CameraFrustum.position` and `tools.CameraFrustum.wxyz`: use `CameraFrustum.pose`.
 
 ### Fixed
+- An MJCF geom that names a material and sets no `rgba` of its own takes the material's colour, as MuJoCo
+  draws it (it took MuJoCo's default grey: the menagerie's Spot lost its yellow, the UR5e and the Shadow hand
+  their tones).
+- The `"meshes"` style draws a mesh file whose material file is missing (an OBJ that names an absent `.mtl`,
+  as the menagerie's Spot does) in its shape's colour: it loaded as trimesh's grey stand-in texture, which drew black.
 - `Viewer(server=s)` takes `host`, `port` and so `url` from `s` (was the defaults, `127.0.0.1:8080`, so `record`
   opened whatever page listened there).
 - `Viewer(server=s, host=, port=)` raises `ArgumentError` (the host and port were dropped silently: `url` is the
@@ -223,7 +235,8 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.url` puts an IPv6 host in brackets (`http://[::1]:8080`; was `http://::1:8080`), so `record` reaches such a
   server, and a page Chromium cannot load raises `ArgumentError` naming its address at once (it was blamed on the
   viser version after a minute), also when DevTools refuses to evaluate while the page moves to its error page (a
-  loaded host met that refusal instead of the address).
+  loaded host met that refusal instead of the address); a page DevTools keeps refusing to evaluate in raises
+  `ArgumentError` with DevTools' last answer after the minute's wait, not the viser version.
 - The docs and `Viewer.add` said a layer keeps the caller's arrays by reference, and the docs' example edited a
   float64 cloud that the layer had copied. A layer keeps its arrays as float32 attributes (`layer.points`,
   `layer.poses`, `layer.valid`, ...), the input itself only when it already is C-contiguous float32: edit the

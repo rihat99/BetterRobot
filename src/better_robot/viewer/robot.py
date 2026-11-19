@@ -21,6 +21,7 @@ import warnings
 from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import KW_ONLY, dataclass
+from numbers import Real
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast, final, override
 
@@ -50,7 +51,7 @@ from .skeleton import (
     unit_box,
     unit_cylinder,
 )
-from .theme import LIGHT, RGB, Theme, linear_uint8
+from .theme import LIGHT, RGB, Theme, linear_uint8, unit_numbers
 
 if TYPE_CHECKING:
     from ..model.model import Model
@@ -205,12 +206,13 @@ class RobotVisual(Layer):
     controls to it (``style``, ``collision`` and ``frames`` read it).
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
-    theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
-    raises ``ShapeError``. ``name`` defaults to the model's name. ``opacity`` in ``(0, 1]`` draws every style see-through,
-    a ghost of the robot beside or over another (``set_opacity`` changes it); below 1 it casts and catches no shadow,
-    a textured mesh file stays opaque, and the overlay and the triads keep their own look. ``joint_values`` colours
-    the joint glyphs of the skeleton styles at each step through the theme's ``ramp`` over ``value_range``, such as a
-    joint's load (``set_joint_values``).
+    theme's hues that no other robot of the viewer is drawn in (``hue``); a ``hue`` that is not three numbers raises
+    ``ShapeError``, one outside ``[0, 1]`` ``ArgumentError``. ``name`` defaults to the model's name. ``opacity`` in
+    ``(0, 1]`` draws every style see-through, a ghost of the robot beside or over another (``set_opacity`` changes
+    it); below 1 it casts and catches no shadow, a mesh file with its own colours or texture keeps them at that
+    opacity, and the overlay and the triads keep their own look. ``joint_values`` colours the joint glyphs of the
+    skeleton styles at each step through the theme's ``ramp`` over ``value_range``, such as a joint's load
+    (``set_joint_values``).
     """
 
     def __init__(
@@ -237,6 +239,8 @@ class RobotVisual(Layer):
     ) -> None:
         if hue is not None and np.shape(hue) != (3,):
             raise ShapeError(f"hue must be an RGB triple, got {hue!r}")
+        if hue is not None and not unit_numbers(hue):
+            raise ArgumentError(f"hue must be three numbers in [0, 1], got {hue!r}")
         self.model, self.geometry, self.spheres, self.skin = model, geometry, spheres, skin
         self.q, self._poses = self._solve(q)
         super().__init__(name or model.name, self._poses.shape[0], tags=tags)
@@ -269,8 +273,7 @@ class RobotVisual(Layer):
         self.joint_values: np.ndarray | None = None
         self.value_range = (0.0, 1.0)
         self.set_joint_values(joint_values, value_range=value_range)
-        if collision:
-            self.set_collision(visible=True)
+        self.set_collision(collision)
         self.set_frames(frames)
 
     # ------------------------------------------------------------------ the configurations
@@ -292,12 +295,18 @@ class RobotVisual(Layer):
         return q, np.ascontiguousarray(poses.cpu().numpy(), dtype=np.float32)
 
     def update(self, q: torch.Tensor | np.ndarray) -> None:
-        """Show the configurations ``q``, ``(nq,)`` or ``(T, nq)`` with the ``T`` the visual was made with: one
-        forward-kinematics pass, then the shown parts are redrawn. A clip of another length is a new visual
+        """Show the configurations ``q``, ``(T, nq)`` with the ``T`` the visual was made with or ``(nq,)`` for every
+        step: one forward-kinematics pass, then the shown parts are redrawn. A clip of another length is a new visual
         (``Viewer.replace``)."""
+        every = np.ndim(q) == 1  # one configuration for every step, as joint_values (njoints,) is
         q, poses = self._solve(q)
-        if poses.shape[0] != self.nsteps:
-            raise ShapeError(f"q must keep the {self.nsteps} steps of robot {self.name!r}, got {poses.shape[0]}")
+        if every:
+            q = q.expand(self.nsteps, -1).clone()
+        elif poses.shape[0] != self.nsteps:
+            raise ShapeError(
+                f"q must be (nq,) for every step or keep the {self.nsteps} steps of robot {self.name!r}, got "
+                f"{poses.shape[0]}"
+            )
         with self._lock():
             self.q = q
             self._poses[...] = poses  # the parts read this array
@@ -321,35 +330,42 @@ class RobotVisual(Layer):
         universe, a free base and the joints without a glyph keep the robot's colours, and the ``"meshes"`` style draws
         no joint, so it shows no value. ``values=None`` takes the values away. A step costs one more write, of the
         colours, to each skeleton node that holds a glyph. ``(T, njoints)`` float32 values are kept without a copy
-        (``joint_values``): an edit in place and ``redraw()`` show it.
+        (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
+        kept as a read-only ``(T, njoints)`` view of it.
 
-        Values of another shape raise ``ShapeError``; a ``value_range`` that is not two finite numbers, low below
-        high, raises ``ArgumentError``.
+        Values of another shape raise ``ShapeError``, values that are not numbers (strings) and a ``value_range`` that
+        is not two finite numbers, low below high, ``ArgumentError``.
         """
         if value_range is not None:
             if np.shape(value_range) != (2,):
                 raise ShapeError(f"value_range must be two numbers (low, high), got {value_range!r}")
-            low, high = (float(end) for end in value_range)
-            if not (np.isfinite(low) and np.isfinite(high) and low < high):
+            low, high = value_range
+            real = isinstance(low, Real) and isinstance(high, Real)  # float() would read a string
+            if not (real and np.isfinite(low) and np.isfinite(high) and low < high):
                 raise ArgumentError(f"value_range must be two finite numbers, low below high, got {value_range!r}")
-            value_range = (low, high)
+            value_range = (float(low), float(high))
         if values is not None:
-            values = np.asarray(values.detach().cpu() if isinstance(values, torch.Tensor) else values, np.float32)
-            values = np.ascontiguousarray(values[None] if values.ndim == 1 else values)
+            values = np.asarray(values.detach().cpu() if isinstance(values, torch.Tensor) else values)
+            if values.dtype.kind not in "biuf":  # numpy would read "0.5" as a number
+                raise ArgumentError(f"joint_values must be numbers, got {values.dtype} values")
+            values = values.astype(np.float32, copy=False)
+            row = values.shape == (self.model.njoints,)  # one row for every step: a read-only view, not T copies
+            values = np.broadcast_to(values, (self.nsteps, values.shape[0])) if row else np.ascontiguousarray(values)
             if values.shape != (self.nsteps, self.model.njoints):
                 raise ShapeError(
-                    f"joint_values must be (njoints,) or (T, njoints) = ({self.nsteps}, {self.model.njoints}) for robot "
-                    f"{self.name!r}, one value per model joint (the universe included) and step, got {values.shape}"
+                    f"joint_values must be (njoints,) = ({self.model.njoints},) for every step or (T, njoints) = "
+                    f"({self.nsteps}, {self.model.njoints}) for robot {self.name!r}, one value per model joint (the "
+                    f"universe included) and step, got {values.shape}"
                 )
         with self._lock():
             self.joint_values = values
             self.value_range = self.value_range if value_range is None else value_range
             for part in _SKELETONS:
                 if part in self._parts:
-                    blocks = self._parts[part][1][0]
-                    blocks.values, blocks.value_range = values, self.value_range  # type: ignore[attr-defined]
+                    blocks = self._blocks(part)
+                    blocks.values, blocks.value_range = values, self.value_range
                     if values is None:
-                        blocks.recolor(self.hue, self._theme)  # type: ignore[attr-defined]
+                        blocks.recolor(self.hue, self._theme)
             if self.viewer is not None:
                 self.redraw()
             elif self._scene is not None:
@@ -362,6 +378,10 @@ class RobotVisual(Layer):
 
     def _shown(self) -> tuple[str, ...]:
         return (self.style, *(("collision",) if self._collision else ()), *(("frames",) if self._frames else ()))
+
+    def _blocks(self, part: str) -> _Blocks:
+        """The layer of the built skeleton style ``part``."""
+        return cast("_Blocks", self._parts[part][1][0])
 
     def _skeleton(self, part: str) -> Skeleton:
         if part not in self._skeletons:
@@ -506,6 +526,8 @@ class RobotVisual(Layer):
 
     def set_collision(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
         """Show or hide the collision overlay: the spheres, or the collision shapes of the geometry."""
+        if not isinstance(visible, bool):
+            raise ArgumentError(f"collision must be True or False, got {visible!r}")
         if visible and not self._has_collision:
             raise ArgumentError(f"robot {self.name!r} has no spheres and no collision shapes to overlay")
         self._collision = visible
@@ -514,6 +536,8 @@ class RobotVisual(Layer):
 
     def set_frames(self, frames: bool | Sequence[int | str]) -> None:  # noqa: FBT001 - the switch is the main operand
         """Draw a triad per moving joint (``True``), per frame of ``frames`` (ids or names), or none (``False``)."""
+        if isinstance(frames, str):  # a string is a sequence of one-letter names
+            raise ArgumentError(f"frames must be True, False or a sequence of frame ids or names, got {frames!r}")
         chosen = frames if isinstance(frames, bool) else tuple(self.model.frame_id(frame) for frame in frames)
         with self._lock():  # the playback thread must not push a step to the node being dropped
             if chosen and chosen != self._triads:  # another set of frames is another node
@@ -593,7 +617,7 @@ class RobotVisual(Layer):
         self._theme = theme
         for part in _SKELETONS:
             if part in self._parts:
-                self._parts[part][1][0].recolor(self.hue, theme)  # type: ignore[attr-defined]
+                self._blocks(part).recolor(self.hue, theme)
         stale = {
             "meshes": body != theme.shade(self.hue, "body"),
             "collision": overlay != (theme.collision, theme.collision_opacity),
@@ -673,8 +697,11 @@ class RobotVisual(Layer):
 
     @override
     def set_visible(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
+        """Show or hide the robot; shown, it is caught up to its viewer's step, as ``Viewer.set_visible`` does."""
         super().set_visible(visible)
         self._apply()
+        if visible:
+            self.redraw()
 
     @override
     def dispose(self) -> None:
@@ -766,8 +793,11 @@ def _axes(world: np.ndarray) -> np.ndarray:
     return np.abs(so3.act(rotations, eye).numpy())
 
 
-#: Per unit mesh, its half extent along x, y and z over its scale.
-_HALF_EXTENT = {"cylinders": (1.0, 1.0, 0.5), "balls": (1.0, 1.0, 1.0), "boxes": (0.5, 0.5, 0.5)}
+#: Per unit mesh, its half extent along x, y and z over its scale, read off the mesh (a taper only narrows a box).
+_HALF_EXTENT = {
+    mesh: np.abs(unit()[0]).max(axis=0)
+    for mesh, unit in (("cylinders", unit_cylinder), ("balls", unit_ball), ("boxes", unit_box))
+}
 
 
 @final
@@ -803,14 +833,16 @@ def _shape_spec(
     tessellated by trimesh; each vertex moved ``margin`` metres out along its normal."""
     with needs_extra("meshes"):
         import trimesh  # noqa: PLC0415 - optional dependency, imported at the boundary
+        from trimesh.visual.material import empty_material  # noqa: PLC0415
 
     source = None
     if isinstance(shape, Mesh):
         mesh = load(body, shape).copy()  # the loaded one stays unscaled for the next shape that names its file
         mesh.apply_scale(shape.scale)
-        visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look
-        kind = None if visual is None else visual.kind
-        varied = kind == "texture" or (
+        visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look, but not
+        kind = None if visual is None else visual.kind  # trimesh's grey stand-in for a missing material file (black)
+        textured = kind == "texture" and hash(visual.material) != hash(empty_material())
+        varied = textured or (
             kind in ("vertex", "face") and len(np.unique(np.asarray(getattr(visual, f"{kind}_colors")), axis=0)) > 1
         )
         source = mesh if own_colors and varied else None

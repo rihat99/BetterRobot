@@ -108,7 +108,10 @@ def _shapes(mujoco: ModuleType, compiled: Any, spec: Any, body: int, offset: np.
             pose = se3.compose_raw(pose, se3.inverse_raw(_pose(compiled.mesh_pos[data], compiled.mesh_quat[data])))
         tx, ty, tz, qx, qy, qz, qw = pose.tolist()
         placement = (tx, ty, tz, qx, qy, qz, qw)
-        red, green, blue, alpha = (float(value) for value in compiled.geom_rgba[geom])
+        rgba, material = compiled.geom_rgba[geom], int(compiled.geom_matid[geom])
+        if material >= 0 and (rgba == (0.5, 0.5, 0.5, 1.0)).all():  # as MuJoCo draws it: a geom's own rgba is
+            rgba = compiled.mat_rgba[material]  # any but the default, which leaves it its material's colour
+        red, green, blue, alpha = (float(value) for value in rgba)
         color = (red, green, blue, alpha)
         shape: Shape
         if geom_type == mujoco.mjtGeom.mjGEOM_SPHERE:

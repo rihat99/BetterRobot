@@ -355,7 +355,15 @@ class FakeScene:
         return handle
 
     def add_glb(
-        self, name: str, glb_data: bytes, *, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True
+        self,
+        name: str,
+        glb_data: bytes,
+        *,
+        cast_shadow: bool = True,
+        receive_shadow: bool | float = True,
+        wxyz: Any = _IDENTITY,
+        position: Any = _ORIGIN,
+        visible: bool = True,
     ) -> FakeHandle:
         """viser's binary glTF asset: a ``GlbHandle``."""
         return self._node("GlbHandle", locals())

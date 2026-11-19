@@ -270,6 +270,7 @@ class _Page:
         self._buffer = b""
         self._id = 0
         self._session = ""
+        self._failure = ""  # why the last eval with check off returned None: DevTools' refusal or a page error
         self._prime = ""  # DRI_PRIME of the requested GPU
 
     def __enter__(self) -> _Page:
@@ -349,6 +350,8 @@ class _Page:
                         "server must be reachable at that address from this host"
                     )
             if time.monotonic() > deadline:
+                if missing is None:  # the page never answered: say what DevTools did, not the viser version
+                    raise ArgumentError(f"the viewer's page could not be evaluated for 60 s: {self._failure}")
                 raise OptionalDependencyError(
                     f"viser {version('viser')} with the client internals Viewer.record drives (missing: {missing})",
                     install="uv sync --extra viewer, which installs the viser version the lock pins",
@@ -412,15 +415,18 @@ class _Page:
             result = self._send(
                 "Runtime.evaluate", expression=expression, awaitPromise=True, returnByValue=True, session=self._session
             )
-        except ArgumentError:  # DevTools' refusal while the page navigates: the wait polls again
+        except ArgumentError as error:  # DevTools' refusal while the page navigates: the wait polls again
             if check:
                 raise
+            self._failure = str(error)
             return None
         if "exceptionDetails" in result:
-            if not check:
-                return None
             details = result["exceptionDetails"]
-            raise ArgumentError(f"the recording page failed: {details.get('exception', details).get('description')}")
+            failure = f"the recording page failed: {details.get('exception', details).get('description')}"
+            if check:
+                raise ArgumentError(failure)
+            self._failure = failure
+            return None
         return result["result"].get("value")
 
     def _send(self, method: str, *, session: str = "", **params: Any) -> dict:

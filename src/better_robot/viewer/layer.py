@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from numbers import Real
 from typing import Any, TYPE_CHECKING, override
 
 import numpy as np
@@ -197,8 +198,8 @@ class Layer(ABC):
 
     def _store_opacity(self, opacity: float) -> None:
         """Keep ``opacity`` once it is in ``(0, 1]``: the one check of the constructors and ``set_opacity``."""
-        if not 0.0 < opacity <= 1.0:
-            raise ArgumentError(f"opacity must be in (0, 1], got {opacity}")
+        if not isinstance(opacity, Real) or not 0.0 < opacity <= 1.0:  # a string is no number, though float() reads one
+            raise ArgumentError(f"opacity must be in (0, 1], got {opacity!r}")
         self.opacity = float(opacity)
 
     def _surface(self) -> dict[str, Any]:
