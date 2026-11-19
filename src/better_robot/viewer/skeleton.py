@@ -79,8 +79,8 @@ _Shade = Literal["joint", "face", "body", "bone", "stick"]
 #: The shade each part of the skeleton takes from the robot's hue: light bodies, mid drums, dark drum faces.
 _ROLE: dict[str, _Shade] = {
     "drum": "joint", "sleeve": "joint", "ball": "joint", "tip": "joint",
-    "face": "face", "rail": "face", "marker": "face", "base": "face",
-    "bone": "bone", "fill": "bone", "hull": "bone", "end": "bone", "rod": "bone",
+    "face": "face", "marker": "face", "base": "face",
+    "bone": "bone", "fill": "bone", "hull": "bone", "end": "bone", "rod": "bone", "rail": "bone",
     "stick": "stick",
 }  # fmt: skip
 _MESHES = ("cylinders", "balls", "boxes")
@@ -299,7 +299,8 @@ def build_skeleton(
     tree, merged = _compounds(tree, recipe.size)
     # joint_size scales a glyph after the size rules, so the glyphs after it keep theirs
     drawn = replace(tree, radius={j: factor[j] * tree.radius[j] for j in tree.glyphs})
-    hidden = merged | {j for j in tree.glyphs if drawn.radius[j] <= 0.0}
+    mimics = {j for j in tree.glyphs if _mimic(tree, j)}
+    hidden = merged | mimics | {j for j in tree.glyphs if drawn.radius[j] <= 0.0}
     if not recipe.twists:
         hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
     slide, shrink = _solve(drawn, hidden, clouds)
@@ -515,6 +516,13 @@ def _compounds(tree: _Tree, size: float) -> tuple[_Tree, set[int]]:
     balls = set(head.values())
     kind = tuple("spherical" if j in balls else k for j, k in enumerate(tree.kind))
     return replace(tree, kind=kind, axis={j: a for j, a in tree.axis.items() if j not in balls}), set(head)
+
+
+def _mimic(tree: _Tree, joint: int) -> bool:
+    """Whether ``joint`` is a revolute mimic joint: it moves as its source does and has no motor of its own, so it
+    draws no glyph (a gripper's linkage). A mimic slider keeps its sleeve: two fingers that close on each other
+    read as a pair."""
+    return tree.kind[joint] == "revolute" and tree.model.mimic_source_ids[joint] != joint
 
 
 def _twists(tree: _Tree, joint: int, after: Sequence[int]) -> bool:
@@ -869,6 +877,10 @@ def _end(
     thin, mid, _ = np.sort(np.ptp(local, axis=0))
     low, high = local.min(axis=0) - pad, local.max(axis=0) + pad
     middle, half = (low + high) / 2, (high - low) / 2
+    if isinstance(tree.model.joints[group], JointRevoluteUnbounded):  # a body round its endless axis: a wheel
+        axial = rotation.T @ tree.axis[group]
+        if np.linalg.norm(middle - (middle @ axial) * axial) < 0.25 * radius:
+            return []  # its drum is the wheel
     if thin >= _FLAT * mid and tree.kind[group] != "prismatic":  # a limb; a slider is a block
         tip = float(np.clip(np.sort(half)[1], _TIP[0] * radius, _TIP[1] * radius))
         end, centred = _tip(tree, recipe, group, clouds)
@@ -1219,7 +1231,8 @@ def _stick_figure(
     balls it joins. A leaf joint without an end block gets a stick on to the end of its body (``_knob``) and a small
     ball there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length. A trunk's
     head (``_heads``) is a ball as small as a joint's on a stick from the trunk. Then a ball takes the mean
-    ``factor`` (``joint_size``) of its joints; a ball of factor 0 is not drawn, and its sticks keep their thickness.
+    ``factor`` (``joint_size``) of its joints; a ball of factor 0, or of mimic joints only (``_mimic``), is not
+    drawn, and its sticks keep their thickness.
 
     With ``glyphs``, the slide, drawn radius and undrawn radius of every joint (``build_skeleton``), each joint is
     its own cluster and draws the glyph of its kind instead of a ball, its sticks meeting at the glyph's centre.
@@ -1232,7 +1245,7 @@ def _stick_figure(
             continue
         where = center[c] if glyphs is not None else tree.origin[joints].mean(axis=0)
         radius[c] = glyphs[2][c] if glyphs is not None else float(np.mean([tree.radius[j] for j in joints]))
-        share[c] = float(np.mean([factor[j] for j in joints]))
+        share[c] = 0.0 if all(_mimic(tree, j) for j in joints) else float(np.mean([factor[j] for j in joints]))
         floating = [j for j in joints if tree.kind[j] == "free" and tree.group[j] == 0]
         if floating:
             base[c] = floating[0]
