@@ -204,7 +204,9 @@ maximal ('meshes', 'minimal', 'medium', 'maximal') ('minimal', 'medium', 'maxima
 ```
 
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
-that, so switching back creates nothing, and a step is written only to the parts on screen. `set_style`,
+that, so switching back creates nothing, and a step is written only to the parts on screen. A hidden robot builds
+nothing: a part switched on while it is hidden is built when it is shown, so a Style choice with seven robots kept
+hidden builds one skeleton. `set_style`,
 `set_collision` and `set_frames` switch them from code; the sidebar's Robot section has the same three controls,
 shared by every robot in the viewer; a switch from code moves the control and leaves the other robots as they are,
 and a robot added later keeps its own style, collision and frames and moves the controls to them (`robot.style`,

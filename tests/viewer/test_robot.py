@@ -287,6 +287,22 @@ def test_robot_visual_builds_a_style_once_and_switches_by_visibility() -> None:
         robot.set_style("meshes")
 
 
+def test_a_hidden_robot_builds_a_part_switched_on_only_when_it_is_shown() -> None:
+    """The showcase keeps seven robots hidden: a Style or Collision switch built the new part of each of them."""
+    robot, server, viewer = _g1_visual(style="maximal")
+    viewer.set_visible(robot, False)
+    nodes = set(server.scene.nodes)
+    robot.set_style("minimal")
+    robot.set_collision(visible=True)
+    robot.set_frames(True)
+    assert set(server.scene.nodes) == nodes  # nothing built while hidden
+    viewer.set_visible(robot, True)
+    path = "/g1_29dof/g1_29dof"
+    for part in ("minimal", "collision", "frames"):
+        assert server.scene.nodes[f"{path}/{part}"].visible
+    assert not server.scene.nodes[f"{path}/maximal"].visible
+
+
 def test_robot_visual_update_equals_building_with_that_configuration() -> None:
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     velocity = 0.5 * torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)

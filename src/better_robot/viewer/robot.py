@@ -197,11 +197,11 @@ class RobotVisual(Layer):
     draw the skeleton of the recipes ``minimal``, ``medium`` and ``maximal``. ``style=None`` is ``"meshes"`` when
     there is something to show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without
     them the collision shapes of ``geometry``, as a pale glass shell over any style; ``frames`` draws a triad per
-    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown;
-    ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs, and the sidebar gets the
-    same three controls, shared by every robot in the viewer: a switch from code moves the control and leaves the
-    other robots as they are, and a robot added later keeps its own state and moves the controls to it (``style``,
-    ``collision`` and ``frames`` read it).
+    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown, not
+    while the robot is hidden; ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs,
+    and the sidebar gets the same three controls, shared by every robot in the viewer: a switch from code moves the
+    control and leaves the other robots as they are, and a robot added later keeps its own state and moves the
+    controls to it (``style``, ``collision`` and ``frames`` read it).
 
     ``q`` is ``(nq,)`` or a clip ``(T, nq)``; ``None`` is ``model.q_neutral``. ``hue=None`` takes the first of the
     theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
@@ -467,11 +467,12 @@ class RobotVisual(Layer):
             frame.remove()
 
     def _apply(self) -> None:
-        """Build what is shown for the first time, show and hide the parts' frames, push the step to the new ones."""
+        """Build what is shown for the first time, show and hide the parts' frames, push the step to the new ones. A
+        hidden robot builds nothing: a part switched on while it is hidden is built when it is shown."""
         if self._scene is None:
             return
         with self._lock():
-            for part in self._shown():
+            for part in self._shown() if self._visible else ():
                 if part not in self._parts:
                     frame = self._scene.add_frame(f"{self._path}/{part}", show_axes=False)
                     layers = self._make(part)

@@ -16,7 +16,7 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    collision overlay (the sphere set, else the collision shapes of the geometry) and frame triads (every moving
    joint, or frames by id or name). `update(q)` shows new configurations of the same number of steps.
 2. **Parts are built once and then hidden.** A style, the overlay and the triads are each built the first time
-   they are shown; a switch only shows and hides them (another set of named frames is another triad node), and a
+   they are shown, so a hidden robot builds none; a switch only shows and hides them (another set of named frames is another triad node), and a
    step is written only to the parts on screen. `set_style`, `set_collision` and `set_frames` switch from code, and
    the sidebar's Robot section holds one Style dropdown, one Collision box and one Frames box for every robot in the
    viewer: a choice there switches every robot, and a switch from code moves the control through
