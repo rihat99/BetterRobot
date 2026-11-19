@@ -67,11 +67,11 @@ that 0.3.0 renames or removes, one table row each.
   at most 4 of that joint's glyph radii from its centre (a Shadow hand's forearm no larger than the hand), and
   where a chain ends a sole, a
   finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
-  spherical joint's among the drums, and a head only above a trunk; the drums of joints that share a point, such
-  as a hip, cross as a universal joint's do, and any other glyph that would overlap slides along its own axis, at
-  most half its length, then shrinks), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on thin pale
-  rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum outside
-  a compound at most 0.35 of its shortest rod: `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
+  spherical joint's among the drums, and a head only above a trunk; no joint glyph goes inside another: one that would touch
+  a glyph nearer the root slides along its own axis until it clears, at most 1.75 of its radii, else it shrinks
+  and slides less, so the joints of a hip stand as a short staggered stack of drums), `viewer.MEDIUM` (the same glyphs, laid out by the same rules, on thin pale
+  rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum at most
+  0.35 of its shortest rod: `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
   `viewer.MINIMAL` (one
   ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
   joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid

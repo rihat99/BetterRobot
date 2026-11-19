@@ -36,21 +36,22 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    each chain closed by a round cap of its width and the maximal heads as small pale balls (`bones=0.35`,
    `size=0.7`), so the collision overlay can show the volume around the motors.
    `RobotVisual(minimal=, medium=, maximal=)` takes others.
-4. **Sizes come from the robot, positions stay true.** A glyph is as large as the motor that would carry its
-   subtree: 26 mm times the cube root of the subtree's mass in kg, kept between 0.5 and 1.2 reference radii (a
-   third of the mean bone, kept between 2 % and 3 % of the robot's size), so a wrist is smaller than its elbow and
-   a chain narrows towards its tip; a robot without mass takes the reference. The drums of joints that nearly share
-   a point (a compound: a hip, a waist, a knuckle) cross there, as a universal joint's do: each stays on its own
-   axis at 0.85 of the drum before it, never under 0.7 of its own size, and one whose joint sits inside another
-   slides along its axis to centre on it. Any other glyph that would overlap slides along its own axis, at most
-   half its length, so each stays on its true axis line, and shrinks only when sliding is not enough; no glyph is
-   wider than the one before it (unless `joint_size` makes it so), and a glyph that ends a chain shrinks at its
-   place before it slides. On rods a drum outside a compound is at most 0.35 of its shortest rod, so a wrist reads
-   motor, rod, motor. A maximal limb is `bones` glyph radii wide, or 0.7 of its link's thinner half width when that
-   is more, up to 0.8 of the radius its mass gives (a thigh is wider than its shin), and starts or ends on the side
-   of a narrower drum it joins. Body sizes come from the collision shapes, else the sphere set, else the inertias;
-   a collision mesh file that cannot be read is left out with a warning, since only the collision overlay draws it
-   (and raises for it).
+4. **Sizes come from the robot, positions stay true.** A glyph is as large as the motor that would carry its subtree:
+   26 mm times the cube root of the subtree's mass in kg, kept between 0.5 and 1.2 reference radii (a third of the
+   mean bone, kept between 2 % and 3 % of the robot's size), so a wrist is smaller than its elbow and a chain narrows
+   towards its tip; a robot without mass takes the reference. No two joint glyphs ever go inside each other,
+   neighbours in the tree or not: in the order of the tree, the larger glyph nearer the root first (and a drum on the
+   root body's mid plane with its axis across it before any), each glyph that would touch one placed before it slides
+   along its own axis until it clears it by a tenth of its radius, so it stays on its true axis line; when that takes
+   more than 1.75 of its radii it shrinks, down to half its size, and slides less, and only when no size clears that
+   close may it slide farther or shrink further. Joints that share a point (a hip, a waist, a knuckle) so come out as
+   a short staggered stack of separate drums, mirror joints as mirror images; no glyph is wider than the one before
+   it (unless `joint_size` makes it so), and a glyph that ends a chain shrinks at its place before it slides. On rods
+   a drum is at most 0.35 of its shortest rod, so a wrist reads motor, rod, motor. A maximal limb is `bones` glyph
+   radii wide, or 0.7 of its link's thinner half width when that is more, up to 0.8 of the radius its mass gives (a
+   thigh is wider than its shin), and starts or ends on the side of a narrower drum it joins. Body sizes come from
+   the collision shapes, else the sphere set, else the inertias; a collision mesh file that cannot be read is left
+   out with a warning, since only the collision overlay draws it (and raises for it).
 5. **The layout is rigid.** It is computed once at `model.q_neutral`; every block is rigid in one joint frame,
    except the minimal skeleton's cluster balls, each at the mean of its joints, and the sticks of the minimal and
    medium skeletons, whose two ends move apart and together with the joints; a skeleton is at most three batched
@@ -136,6 +137,8 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
   as the robot moves.
 - Scale glyphs down until they do not overlap, without sliding: the hip's three drums become too small to read.
 - A compound as one ball: it reads as a ball joint, which a G1's hips and wrists are not.
+- The drums of a compound crossing as a universal joint's: a drum inside another reads as glyphs gone into each
+  other, which the owner rejected.
 - A glyph sized by its joint's effort limit (0.8 to 1.2 of the reference): the G1's wrist roll was as wide as its
   elbow, and every drum of a Talos or a UR5e alike.
 - Options as keyword arguments of `RobotVisual` instead of a recipe value: eleven more parameters, twice (one set
@@ -152,8 +155,8 @@ unreleased 0.3.0. The changelog and `docs/reference/migration-0.3.0.md` name the
 `tests/viewer/test_robot.py` (styles, the overlay, triads by id or name, a skin, `bounds`, remove and add again, a
 theme switch, a name clash, a joint kind from outside the library, one Style control for two robots, a second switch
 creates no node, the rotations of a step against forward kinematics and its exact writes, a collision mesh that does
-not load), `tests/viewer/test_skeleton.py` (the layout: no overlap inside a rigid group but the crossing drums of a
-compound, mirrored slides, glyphs that narrow towards the tips, a drum on its axis within its length of its joint,
+not load), `tests/viewer/test_skeleton.py` (the layout: no joint glyph inside another on the G1 and the
+Panda, mirrored slides, glyphs that narrow towards the tips, a drum on its axis by its joint,
 a hinge a drum and a slider a sleeve, never a ball, a neck's head above its trunk, the medium glyphs of every kind
 on rods without bodies, none sized wider than its maximal one before the slide rule shrinks either, rods between
 the G1's wrist drums, its chest above its waist drums, maximal limbs from their links, the Panda's rails over the

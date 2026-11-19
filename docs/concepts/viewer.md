@@ -238,12 +238,13 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
   small ball, and a free base is a cube;
 - a glyph is as large as the motor that would carry its subtree: 26 mm times the cube root of that mass in kg, kept
   between 0.5 and 1.2 reference radii, so a wrist is smaller than its elbow and a chain narrows towards its tip;
-- joints that share a point, such as a hip's pitch, roll and yaw, form a compound and cross as the drums of a
-  universal joint do: each drum stays on its own axis at 0.85 of the one before it (never under 0.7 of its own
-  size), and one whose joint sits inside another slides along its axis to centre on it, both faces standing out.
-  Any other drum that would overlap a neighbour slides along its own axis, at most half its length, and only then
-  shrinks; a joint that ends a chain shrinks at its place first, as no glyph is wider than the one before it
-  unless `joint_size` makes it so;
+- no two joint glyphs go inside each other, neighbours in the tree or not: the larger glyph nearer the root keeps
+  its place (a drum on the root body's mid plane with its axis across it first, so a waist stays symmetric), and
+  each later glyph that would touch one slides along its own axis until it clears it, so it stays on its true axis
+  line; when that takes more than 1.75 of its radii it shrinks, down to half, and slides less. Joints that share a
+  point, such as a hip's pitch, roll and yaw, so come out as a short staggered stack of separate drums, mirror
+  joints as mirror images; a joint that ends a chain shrinks at its place first, as no glyph is wider than the one
+  before it unless `joint_size` makes it so;
 - a limb joins each joint to its parent: a faceted block that narrows towards the child, `bones` times the glyph
   radius wide, or 0.7 of its link's thinner half width when that is more, up to 0.8 of the radius its mass gives
   (a thigh is wider than its shin); where it is wider than a drum it joins, it starts or ends on the drum's side, so
@@ -275,7 +276,7 @@ robot's size, and `MINIMAL` draws it at 0.62.
 `MEDIUM` sits between them: the joints as `MAXIMAL` draws them (a glyph per kind, at 0.7 of their size, laid out
 by the same slide rule) and the bodies as `MINIMAL` does, thin rods (0.35 of the glyph radius) in the pale body
 shade from glyph to glyph, a rod on to the end of each body that ends a chain, closed by a round cap of its own
-width, and the heads of `MAXIMAL` as small pale balls. A drum outside a compound is at most 0.35 of its shortest
+width, and the heads of `MAXIMAL` as small pale balls. A drum is at most 0.35 of its shortest
 rod, so a wrist reads motor, rod, motor. It is the recipe `SkeletonRecipe(bones=0.35, hulls="none", size=0.7)`: with `hulls="none"` a
 skeleton of glyphs is a stick figure too. With no bodies drawn, the collision overlay is what shows the robot's
 volume around its motors.
