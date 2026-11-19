@@ -770,3 +770,19 @@ def test_adding_a_layer_reads_the_bounds_of_the_others_only_after_they_were_push
     assert second.read == []
     remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
     np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read
+
+
+def test_a_step_change_playback_or_a_longer_timeline_keeps_the_boxes_the_automatic_aim_read() -> None:
+    """A plain step change carries no edit: building a scene while it plays or while its clips grow the timeline
+    reads each layer's samples once."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    first = viewer.add(_Box("first", 40))
+    first.read.clear()
+    viewer.show(5)
+    second = viewer.add(_Box("second", 60), pose=(0.0, 3.0, 0.0))  # a longer clip: the timeline grows
+    viewer.timeline.step = 50  # what playback does
+    viewer.add(_Box("third", 90))
+    assert first.read == [] and len(second.read) == 32
+    remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
+    np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read

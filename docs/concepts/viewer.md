@@ -104,10 +104,11 @@ callback runs under `viewer.lock`, the one lock of adding, removing and pushing 
 `BetterRobotError` shows it as a red notification in the browser and the control returns to its previous value.
 
 Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the boxes of the visible
-layers' `Layer.bounds` over the clip (at most 32 steps are read), centred in a front three-quarter view of a robot
-facing `+x` at the nearest distance where every corner of every box lies inside four fifths of a 16:9 view. Each
-layer's boxes are read once and again only after a step reaches the layer (`show`, `redraw`, `update`), so the
-sixteenth robot added costs what the first did. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself
+layers' `Layer.bounds` over their whole clips (at most 32 evenly spaced samples of each layer are read), centred in a
+front three-quarter view of a robot facing `+x` at the nearest distance where every corner of every box lies inside
+four fifths of a 16:9 view. Each sample's boxes are read once and again only after a push that follows an edit
+(`redraw`, `show()`, `set_visible`, `RobotVisual.update`); a step change, playback or a longer timeline keeps them,
+so the sixteenth robot added costs what the first did. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself
 and reads every visible layer afresh.
 
 ## One timeline drives every layer
