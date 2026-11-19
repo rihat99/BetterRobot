@@ -295,12 +295,18 @@ class RobotVisual(Layer):
         return q, np.ascontiguousarray(poses.cpu().numpy(), dtype=np.float32)
 
     def update(self, q: torch.Tensor | np.ndarray) -> None:
-        """Show the configurations ``q``, ``(nq,)`` or ``(T, nq)`` with the ``T`` the visual was made with: one
-        forward-kinematics pass, then the shown parts are redrawn. A clip of another length is a new visual
+        """Show the configurations ``q``, ``(T, nq)`` with the ``T`` the visual was made with or ``(nq,)`` for every
+        step: one forward-kinematics pass, then the shown parts are redrawn. A clip of another length is a new visual
         (``Viewer.replace``)."""
+        every = np.ndim(q) == 1  # one configuration for every step, as joint_values (njoints,) is
         q, poses = self._solve(q)
-        if poses.shape[0] != self.nsteps:
-            raise ShapeError(f"q must keep the {self.nsteps} steps of robot {self.name!r}, got {poses.shape[0]}")
+        if every:
+            q = q.expand(self.nsteps, -1).clone()
+        elif poses.shape[0] != self.nsteps:
+            raise ShapeError(
+                f"q must be (nq,) for every step or keep the {self.nsteps} steps of robot {self.name!r}, got "
+                f"{poses.shape[0]}"
+            )
         with self._lock():
             self.q = q
             self._poses[...] = poses  # the parts read this array

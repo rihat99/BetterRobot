@@ -215,8 +215,8 @@ shared by every robot in the viewer; a switch from code moves the control and le
 and a robot added later keeps its own style, collision and frames and moves the controls to them (`robot.style`,
 `robot.collision` and `robot.frames` read what a robot shows). The Style dropdown offers the
 styles of the robots still shown: removing the one robot with meshes takes `"meshes"` away, and a dropdown that showed
-it shows the first style left while every robot keeps its own; a robot that replaces another keeps its `style=`. `update(q)` shows new configurations of the same number of steps, for a live
-solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
+it shows the first style left while every robot keeps its own; a robot that replaces another keeps its `style=`. `update(q)` shows new configurations of the same number of steps, or one `(nq,)` at
+every step, for a live solver; a clip of another length is a new visual (`viewer.replace(old, new)`). Each robot takes the first of the
 theme's hues that no other robot of the viewer is drawn in, unless `hue=` names one, so a robot that replaces
 another takes its hue back; `robot.hue` is the colour it is drawn in. The name defaults to the model's, so two robots of
 one model need a `name=` each, and `B` rollouts `(B, T, nq)` are `B` visuals, `q[b]` each.

@@ -370,6 +370,31 @@ def test_robot_visual_update_equals_building_with_that_configuration() -> None:
         updated.update(torch.stack([q, q]))
 
 
+def test_robot_visual_update_with_one_configuration_holds_it_at_every_step_of_the_clip() -> None:
+    """``update(q (nq,))`` on a clip of three steps draws ``q`` at each step, as ``joint_values (njoints,)`` does; a
+    ``(T, nq)`` of another length still raises."""
+    model = br.load(panda_urdf())
+    generator = torch.Generator().manual_seed(1)
+    clip = torch.stack([model.random_configuration(generator=generator) for _ in range(3)])
+    q = model.random_configuration(generator=generator)
+    servers, viewers = (FakeServer(), FakeServer()), []
+    for server in servers:
+        viewers.append(Viewer(server=server, ground=False))
+    updated = viewers[0].add(RobotVisual(model, clip, style="maximal"))
+    built = viewers[1].add(RobotVisual(model, q.expand(3, -1), style="maximal"))
+    updated.update(q)
+    assert torch.equal(updated.q, built.q)
+    for step in range(3):
+        for viewer in viewers:
+            viewer.show(step)
+        np.testing.assert_allclose(updated.bounds(step)[0], built.bounds(step)[0], atol=1e-6)
+        for name, node in servers[1].scene.nodes.items():
+            if "batched_positions" in node.props:
+                np.testing.assert_allclose(_positions(servers[0].scene.nodes[name]), _positions(node), atol=1e-6)
+    with pytest.raises(ShapeError, match="steps"):
+        updated.update(q[None])
+
+
 def test_robot_visual_refuses_a_hue_that_is_not_three_numbers() -> None:
     model = br.load(panda_urdf())
     with pytest.raises(ShapeError, match="hue"):

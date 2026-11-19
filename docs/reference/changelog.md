@@ -52,7 +52,8 @@ that 0.3.0 renames or removes, one table row each.
   triads. Each part is built the first time
   it is shown, not while its robot is hidden, and `robot.set_visible(True)` shows the viewer's step, as
   `Viewer.set_visible` does; `set_style`, `set_collision`, `set_frames` and the sidebar's Robot section switch them while the
-  viewer runs, and `update(q)` shows new configurations. A robot takes the first of the theme's hues that no other
+  viewer runs, and `update(q)` shows new configurations, `(T, nq)` of the clip's length or `(nq,)` at every step.
+  A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
   is drawn in, and `style`, `collision` and `frames` what it shows (record 0058). A `hue` outside `[0, 1]`, a
   collision switch that is not a bool, a string for `frames` and strings for `opacity`, `joint_values` or
