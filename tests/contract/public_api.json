@@ -689,5 +689,18 @@
   "better_robot.viewer.Viewer.set_visible": "function(self, target: 'Layer | str', visible: 'bool') -> 'None'",
   "better_robot.viewer.Viewer.show": "function(self, step: 'int | None' = None) -> 'None'",
   "better_robot.viewer.Viewer.tags": "property",
-  "better_robot.viewer.Viewer.url": "property"
+  "better_robot.viewer.Viewer.url": "property",
+  "better_robot.viewer.tools": "module",
+  "better_robot.viewer.tools.CameraFrustum": "class(object)(pose: 'np.ndarray', *, fov: 'float', aspect: 'float') -> None",
+  "better_robot.viewer.tools.CameraFrustum.from_camera": "classmethod(cls, camera: 'Any') -> 'CameraFrustum'",
+  "better_robot.viewer.tools.PoseGizmo": "class(object)(viewer: 'Viewer', name: 'str', *, pose: 'np.ndarray', on_change: 'Callable[[np.ndarray], None] | None' = None, scale: 'float' = 0.15, translation: 'bool' = True, on_top: 'bool' = False) -> 'None'",
+  "better_robot.viewer.tools.PoseGizmo.on_change": "function(self, callback: 'Callable[[np.ndarray], None]') -> 'None'",
+  "better_robot.viewer.tools.PoseGizmo.pose": "property",
+  "better_robot.viewer.tools.PoseGizmo.remove": "function(self) -> 'None'",
+  "better_robot.viewer.tools.PoseGizmo.wait": "function(self, timeout: 'float | None' = None) -> 'bool'",
+  "better_robot.viewer.tools.nearest_on_ray": "function(points: 'np.ndarray', origin: 'np.ndarray', *, direction: 'np.ndarray', radius: 'float') -> 'int | None'",
+  "better_robot.viewer.tools.project": "function(vertices: 'np.ndarray', camera: 'CameraFrustum') -> 'tuple[np.ndarray, np.ndarray]'",
+  "better_robot.viewer.tools.ray_hit": "function(origin: 'np.ndarray', direction: 'np.ndarray', *, vertices: 'np.ndarray', faces: 'np.ndarray') -> 'tuple[np.ndarray, int] | None'",
+  "better_robot.viewer.tools.vertices_in_rect": "function(vertices: 'np.ndarray', camera: 'CameraFrustum', *, rect_min: 'np.ndarray', rect_max: 'np.ndarray') -> 'np.ndarray'",
+  "better_robot.viewer.tools.vertices_in_sphere": "function(vertices: 'np.ndarray', center: 'np.ndarray', *, radius: 'float') -> 'np.ndarray'"
 }
