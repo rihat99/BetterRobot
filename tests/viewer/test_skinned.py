@@ -18,7 +18,8 @@ from better_robot.testing import FakeServer
 
 def test_bounds_hold_every_skinned_vertex_without_skinning_one(monkeypatch: pytest.MonkeyPatch) -> None:
     """A chain of six bones in a tube of 600 vertices, each weighted to its two nearest bones, bent at random: the
-    bones' boxes hold every skinned vertex, and reading them skins nothing (bounds are cheap, viewer/CLAUDE.md)."""
+    bones' boxes hold every skinned vertex, and reading them skins nothing (bounds are cheap,
+    src/better_robot/viewer/CLAUDE.md)."""
     rng = np.random.default_rng(0)
     joints = np.stack([np.zeros(6), np.zeros(6), np.arange(6) * 0.3], axis=1)  # (6, 3) a chain along +z
     vertices = (rng.random((600, 3)) * [0.2, 0.2, 1.8] - [0.1, 0.1, 0.0]).astype(np.float32)
