@@ -231,6 +231,29 @@ def test_a_page_that_does_not_load_names_its_address_not_the_viser_version(tmp_p
     assert time.monotonic() - started < 30.0
 
 
+@pytest.mark.slow
+def test_a_page_between_two_documents_is_polled_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """While Chromium moves to its error page DevTools refuses to evaluate (no execution context); on a loaded host
+    the full tier met that refusal instead of the address. The wait polls again and still names the address."""
+    send, refused = recorder._Page._send, []
+
+    def refuse_once(page: object, method: str, **params: object) -> dict:
+        if method == "Runtime.evaluate" and not refused:
+            refused.append(method)
+            raise ArgumentError("Runtime.evaluate: Cannot find default execution context")
+        return send(page, method, **params)
+
+    monkeypatch.setattr(recorder._Page, "_send", refuse_once)
+    with socket.socket() as closed:  # a port nothing listens on
+        closed.bind(("127.0.0.1", 0))
+        port = closed.getsockname()[1]
+    viewer = Viewer(server=FakeServer(port=port), ground=False)
+    viewer.add(PointsLayer("p", np.zeros((1, 3))))
+    with pytest.raises(ArgumentError, match=rf"could not load the viewer's page from http://127.0.0.1:{port}"):
+        viewer.record(tmp_path / "still.png", size=(64, 64), camera=_CAMERA)
+    assert refused
+
+
 def test_gpu_index_maps_to_its_pci_bus_and_the_browser_is_found_on_it(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(recorder, "glob", lambda pattern: ["VkLayer_MESA_device_select.json"])
     monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/nvidia-smi")
