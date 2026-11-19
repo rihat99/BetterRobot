@@ -92,8 +92,10 @@ callback runs under `viewer.lock`, the one lock of adding, removing and pushing 
 
 Until you call `aim`, the viewer points the browsers' camera at the scene after each `add`: the boxes of the visible
 layers' `Layer.bounds` over the clip (at most 32 steps are read), centred in a front three-quarter view of a robot
-facing `+x` at the nearest distance where every corner of every box lies inside four fifths of a 16:9 view. `aim(steps=, azimuth=, elevation=, fov=)` chooses
-the view yourself.
+facing `+x` at the nearest distance where every corner of every box lies inside four fifths of a 16:9 view. Each
+layer's boxes are read once and again only after a step reaches the layer (`show`, `redraw`, `update`), so the
+sixteenth robot added costs what the first did. `aim(steps=, azimuth=, elevation=, fov=)` chooses the view yourself
+and reads every visible layer afresh.
 
 ## One timeline drives every layer
 

@@ -59,6 +59,9 @@ class _Entry:
     node: Any  # the frame at ``root``; hidden on samples the layer's ``valid`` marks invalid
     times: np.ndarray | None = None  # ``add(times=)``: sample times (nsteps,) in seconds; None = one sample per step
     step: int = -1  # last step pushed; -1 = never
+    # The automatic aim's read of the layer's boxes: (samples, low (M, 3), high (M, 3)); None once a step is pushed to
+    # the layer, the one way its arrays reach the scene, so adding a robot does not read every other robot again.
+    framed: tuple[tuple[int, ...], np.ndarray, np.ndarray] | None = None
 
 
 @final
@@ -82,7 +85,7 @@ class Viewer:
     or a fake in tests (``testing.FakeServer``, hence typed ``Any``), and ``host`` and ``port`` are ignored: ``url``
     is the server's own address. The default host is loopback only. ``ground``
     adds a ``GroundLayer`` under the tag ``ground``. Until ``aim`` is called, the camera is aimed at the scene after
-    each ``add``.
+    each ``add``, which reads a layer's ``bounds`` again only after a step was pushed to it.
     """
 
     def __init__(
@@ -189,7 +192,7 @@ class Viewer:
             self._timeline_gui()
             self._sync_layers_section()
             if not self._aimed:
-                self._point_cameras(*self._framing(None, _AZIMUTH, _ELEVATION, _FOV), _FOV)
+                self._point_cameras(*self._framing(None, _AZIMUTH, _ELEVATION, _FOV, remember=True), _FOV)
         return layers
 
     def _check_layers(
@@ -498,19 +501,24 @@ class Viewer:
         return position, look_at
 
     def _framing(
-        self, steps: Sequence[int] | None, azimuth: float, elevation: float, fov: float
+        self, steps: Sequence[int] | None, azimuth: float, elevation: float, fov: float, *, remember: bool = False
     ) -> tuple[np.ndarray, np.ndarray]:
-        """``(position, look_at)`` of ``aim``, without moving a camera."""
+        """``(position, look_at)`` of ``aim``, without moving a camera; ``remember`` keeps each layer's boxes for the
+        next call (the automatic aim of ``add``)."""
         steps = list(range(self.timeline.nsteps)) if steps is None else list(steps)
         if len(steps) > _AIM_STEPS:
             steps = [steps[int(index)] for index in np.linspace(0, len(steps) - 1, _AIM_STEPS).round()]
-        boxes = [box for step in steps for box in self._boxes_at(step)] or [_EMPTY_SCENE]
-        # Every corner of every box, not the corners of one box round them all: seen from above, the far and near
-        # corners of that box lie far outside what a thin moving robot covers, and the robot came out half the size.
-        ends = np.array([[x, y, z] for x in (0, 1) for y in (0, 1) for z in (0, 1)], dtype=bool)  # (8, 3)
-        corners = np.concatenate(
-            [np.where(ends, hi.reshape(-1, 1, 3), lo.reshape(-1, 1, 3)).reshape(-1, 3) for lo, hi in boxes]
-        )
+        lows, highs = [np.empty((0, 3))], [np.empty((0, 3))]
+        for entry in self._entries:
+            if entry.layer.visible:
+                low, high = self._read_bounds(entry, steps, remember=remember)
+                offset = self._tags[entry.layer.tags[0]].offset
+                shift = np.zeros(3) if offset is None else np.asarray(offset, dtype=np.float64)
+                lows.append(low + shift)
+                highs.append(high + shift)
+        low, high = np.concatenate(lows), np.concatenate(highs)
+        if not len(low):  # nothing visible has bounds
+            low, high = _EMPTY_SCENE[0][None], _EMPTY_SCENE[1][None]
         up = np.asarray(self.theme.up_vector)
         side = np.cross(np.array([0.0, 0.0, 1.0]) if abs(up[2]) < 0.9 else np.array([1.0, 0.0, 0.0]), up)
         side /= np.linalg.norm(side)
@@ -520,33 +528,45 @@ class Viewer:
         right = np.cross(up, direction)
         right /= np.linalg.norm(right)
         screen_up = np.cross(direction, right)
-        # Centred along the view's own axes (measured from the middle of the corners, which keeps one box exactly on
-        # its centre); then the nearest distance at which every corner projects inside the filled part of a 16:9 view.
+        # Every corner of every box counts, not the corners of one box round them all: seen from above, the far and
+        # near corners of that box lie far outside what a thin moving robot covers, and the robot came out half the
+        # size. The corners are never listed: over a box of centre c and half extent h, x . w peaks at
+        # c . w + h . |w|, so each linear bound below is one product per box.
+        middle = (low.min(axis=0) + high.max(axis=0)) / 2.0
+        centre, half = (low + high) / 2.0 - middle, (high - low) / 2.0  # (M, 3), from the middle: one box stays exact
         axes = np.stack([right, screen_up, direction])
-        middle = (corners.min(axis=0) + corners.max(axis=0)) / 2.0
-        seen = (corners - middle) @ axes.T
-        center = middle + (seen.min(axis=0) + seen.max(axis=0)) / 2.0 @ axes
-        offsets = corners - center
+        seen, reach = centre @ axes.T, half @ np.abs(axes).T  # (M, 3) along the view's own axes
+        center = middle + ((seen - reach).min(axis=0) + (seen + reach).max(axis=0)) / 2.0 @ axes
+        # The nearest distance at which every corner projects inside the filled part of a 16:9 view: a corner at
+        # offset o from the centre needs o . direction + |o . screen_up| / tan_y, and the same across the width.
         tan_y = _AIM_FILL * math.tan(fov / 2.0)
-        reach = np.maximum(np.abs(offsets @ screen_up) / tan_y, np.abs(offsets @ right) / (tan_y * _AIM_ASPECT))
-        distance = max(float(np.max(offsets @ direction + reach)), 1e-3)
+        tall, wide = screen_up / tan_y, right / (tan_y * _AIM_ASPECT)
+        edges = np.stack([direction + tall, direction - tall, direction + wide, direction - wide])
+        offsets = centre - (center - middle)
+        distance = max(float((offsets @ edges.T + half @ np.abs(edges).T).max()), 1e-3)
         return center + distance * direction, center
 
-    def _boxes_at(self, step: int) -> list[tuple[np.ndarray, np.ndarray]]:
-        """``Layer.bounds`` of the visible layers at timeline ``step`` (each one box or a stack of boxes), offsets of
-        their first tags applied."""
-        boxes = []
-        for entry in self._entries:
-            layer = entry.layer
-            index = self._index(entry, step)
-            if not layer.visible or (layer.valid is not None and layer.valid.ndim == 1 and not layer.valid[index]):
+    def _read_bounds(self, entry: _Entry, steps: list[int], *, remember: bool) -> tuple[np.ndarray, np.ndarray]:
+        """``(low (M, 3), high (M, 3))``: ``Layer.bounds`` of ``entry``'s layer (each one box or a stack of boxes) at
+        the samples that timeline ``steps`` show, each sample read once, without its tag's offset; a sample its
+        ``(T,)`` ``valid`` marks invalid is skipped. With ``remember`` they are kept in ``entry.framed`` and served
+        from there until the layer is pushed a step."""
+        layer = entry.layer
+        samples = tuple(dict.fromkeys(self._index(entry, step) for step in steps))
+        if remember and entry.framed is not None and entry.framed[0] == samples:
+            return entry.framed[1], entry.framed[2]
+        lows, highs = [np.empty((0, 3))], [np.empty((0, 3))]
+        for sample in samples:
+            if layer.valid is not None and layer.valid.ndim == 1 and not layer.valid[sample]:
                 continue
-            bounds = layer.bounds(index)
+            bounds = layer.bounds(sample)
             if bounds is not None:
-                offset = self._tags[layer.tags[0]].offset
-                shift = np.zeros(3) if offset is None else np.asarray(offset, dtype=np.float64)
-                boxes.append((np.asarray(bounds[0], np.float64) + shift, np.asarray(bounds[1], np.float64) + shift))
-        return boxes
+                lows.append(np.asarray(bounds[0], dtype=np.float64).reshape(-1, 3))
+                highs.append(np.asarray(bounds[1], dtype=np.float64).reshape(-1, 3))
+        low, high = np.concatenate(lows), np.concatenate(highs)
+        if remember:
+            entry.framed = (samples, low, high)
+        return low, high
 
     def _point_cameras(self, position: np.ndarray, look_at: np.ndarray, fov: float) -> None:
         for camera in [self.server.initial_camera, *(client.camera for client in self.server.get_clients().values())]:
@@ -690,6 +710,7 @@ class Viewer:
         if force or step != entry.step:
             entry.layer.set_step(step)
             entry.step = step
+            entry.framed = None
             valid = entry.layer.valid
             # Hidden on an invalid sample through its frame, so the layer's own switch stays on.
             shown = valid is None or valid.ndim != 1 or bool(valid[step])

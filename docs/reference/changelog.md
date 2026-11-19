@@ -22,7 +22,9 @@ that 0.3.0 renames or removes, one table row each.
 - `Layer.bounds(step)`: the world box `(lo, hi)` of what a layer draws, or one box per part `(lo (N, 3), hi (N, 3))`
   for a layer of thin, spread-out parts, which `Viewer.aim` and `Viewer.record` frame
   (over at most 32 sampled steps; `Viewer.aim(fov=)`). Until `aim` is called, the viewer aims
-  the camera after each `add`.
+  the camera after each `add`; it reads a layer's bounds again only after a step was pushed to the layer and fits
+  the boxes without listing their corners, so the sixteenth G1 added takes about what the first does (81 and 62 ms,
+  maximal style, 300 steps; the sixteenth took 1.7 to 2.5 s).
 - `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
   `Layer.viewer` is the viewer the layer was added to.
 - `Viewer.serve()` plays the timeline and serves the page until interrupted; `Viewer.set_theme(theme)` applies a

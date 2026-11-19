@@ -647,3 +647,25 @@ def test_the_viewer_aims_after_each_add_until_aim_is_called() -> None:
     chosen = viewer.aim(steps=[0])
     viewer.add(_Box("third", 1))
     np.testing.assert_allclose(server.initial_camera.position, chosen[0])  # the user's aim holds
+
+
+def test_adding_a_layer_reads_the_bounds_of_the_others_only_after_they_were_pushed_again() -> None:
+    """The automatic aim of ``add`` keeps each layer's boxes, so building a scene of N robots is not quadratic, and
+    reads them again once a step reached the layer (``show``, ``redraw``, ``update``), the way its arrays change."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    first = viewer.add(_Box("first", 40))
+    assert len(first.read) == 32  # one read per sampled step
+    first.read.clear()
+    second = viewer.add(_Box("second", 40), offset=(0.0, 3.0, 0.0))
+    assert first.read == [] and len(second.read) == 32
+    viewer.show()  # a push: the arrays may have changed in place
+    viewer.add(_Box("third", 1))
+    assert len(first.read) == 32 and len(second.read) == 64
+    viewer.set_offset("second", (0.0, -3.0, 0.0))  # offsets and visibility are applied after the reads
+    viewer.set_visible("third", False)
+    second.read.clear()
+    viewer.add(_Box("fourth", 1))
+    assert second.read == []
+    remembered = np.asarray(server.initial_camera.position), np.asarray(server.initial_camera.look_at)
+    np.testing.assert_allclose(remembered, viewer.aim())  # the view of a fresh read

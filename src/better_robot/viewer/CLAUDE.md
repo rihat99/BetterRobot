@@ -24,7 +24,8 @@ The design is `docs/concepts/viewer.md`; read it first.
 - Default host is `127.0.0.1`; tests use the stand-in `better_robot.testing.FakeServer`, plus one loopback smoke test.
 - A layer that should frame the camera of `Viewer.record` and `Viewer.aim` implements `bounds(step)` (a world box
   `(lo (3,), hi (3,))`, or a box per part `(N, 3)` when one box would be mostly empty, as `RobotVisual` does; cheap:
-  no per-vertex work); the default `None` keeps it out of the fit.
+  no per-vertex work); the default `None` keeps it out of the fit. The automatic aim of `add` keeps each layer's
+  boxes (`_Entry.framed`) until `_push` runs its `set_step`, so a change that bypasses the push is not framed.
 - Sidebar callbacks run under `viewer.lock`, and the playback thread takes that lock for each step: it must never
   wait for it without a timeout and a look at whether playback stopped, or `Timeline.pause` (which joins it) hangs
   in a callback that calls `set_fps` or `record`.

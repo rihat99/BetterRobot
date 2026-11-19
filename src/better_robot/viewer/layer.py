@@ -127,7 +127,8 @@ class Layer(ABC):
 
         A layer of thin, spread-out parts may return one box per part, ``(lo (N, 3), hi (N, 3))``: ``aim`` frames the
         corners of every box, and one box round a robot is twice what the robot covers on screen. ``None`` (the
-        default) keeps the layer out of the framing, as for the ground grid.
+        default) keeps the layer out of the framing, as for the ground grid. The automatic aim of ``Viewer.add`` reads
+        it again only after the viewer pushed a step to the layer, the path every change of its arrays takes.
         """
         return None
 
