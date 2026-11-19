@@ -205,6 +205,10 @@ that 0.3.0 renames or removes, one table row each.
   in `Viewer.add` with the library's error (was the builtin error of an unpack).
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
+- [Use with BetterHuman](../guides/use-with-betterhuman.md) names BetterHuman's actual API (`HumanModel`,
+  `Identity.forward(q, streams=)`, the `vertices` property, `joint_translations`) and shows a body in BetterRobot's
+  viewer: `RobotVisual(identity.model, q, skin=Skin(...))` with the weights scattered by `joint_ids`, beside a G1
+  through a tag pose, recorded to mp4; its viewer fences run in the docs tests on a stand-in body.
 
 ## v0.3.0 (2026-11-10)
 
