@@ -232,8 +232,9 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
 
 - a revolute joint is a drum along its axis, with dark end faces that show which way the axis points; a prismatic
   joint is a sleeve that rides with its child on a rail that spans the joint's travel in the parent; a spherical
-  joint is a ball, and no other ball sits among the drums, where it would read as a ball joint; any other kind is a
-  small ball, and a free base is a cube;
+  joint is a ball, and no other ball sits among the drums, where it would read as a ball joint; a planar joint (a
+  mobile base) is a thin plate in its plane, a translation joint a small block, a free base a cube, and a kind
+  defined outside the library a small ball;
 - a glyph is as large as the motor that would carry its subtree: 26 mm times the cube root of that mass in kg, kept
   between 0.5 and 1.2 reference radii, so a wrist is smaller than its elbow and a chain narrows towards its tip;
 - joints that share a point, such as a hip's pitch, roll and yaw, form a compound and cross as the drums of a

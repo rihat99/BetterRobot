@@ -18,10 +18,12 @@ from better_robot.model import (
     Box,
     Geometry,
     JointFixed,
+    JointPlanar,
     JointPrismatic,
     JointRevolute,
     JointRevoluteUnbounded,
     JointSpherical,
+    JointTranslation,
     Model,
 )
 from better_robot.viewer import LIGHT, RobotVisual
@@ -30,7 +32,7 @@ from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, MINIMAL, Skeleton, Ske
 from better_robot.exceptions import ArgumentError, UnknownNameError
 from tests.support.robots import g1_urdf, panda_urdf
 
-_GLYPH_PARTS = ("drum", "sleeve", "ball", "marker", "base")
+_GLYPH_PARTS = ("drum", "sleeve", "ball", "plate", "block", "marker", "base")
 
 
 def _g1() -> tuple[Model, collision.RobotSpheres]:
@@ -109,14 +111,15 @@ def _gantry(builder: br.io.ModelBuilder) -> None:
 
 
 def _planar(builder: br.io.ModelBuilder) -> None:
-    """A planar root, then a spherical, a helical and a revolute joint."""
-    for body in ("base", "a", "b", "c"):
+    """A planar root, then a spherical, a helical, a revolute and a translation joint."""
+    for body in ("base", "a", "b", "c", "d"):
         builder.add_body(body, mass=1.0)
     builder.add_planar("slide", parent="world", child="base")
     builder.add_spherical("ball", parent="base", child="a", origin=_at(z=0.3))
     builder.add_helical("screw", parent="a", child="b", axis=(0.0, 0.0, 1.0), pitch=0.01, origin=_at(z=0.3),
                         lower=-3.0, upper=3.0)  # fmt: skip
     builder.add_revolute("tip", parent="b", child="c", origin=_at(z=0.3), **_HINGE)
+    builder.add_joint("shift", kind=JointTranslation(), parent="c", child="d", origin=_at(z=0.3))
 
 
 def _hand(builder: br.io.ModelBuilder) -> None:
@@ -346,7 +349,7 @@ def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
 def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> None:
     """The medium skeleton is the stick figure with a glyph per joint kind: every kind the maximal one draws (the mixed
-    robot has a drum, a sleeve on its rail, a ball, a free-flyer cube and a marker), none sized wider than its
+    robot has a drum, a sleeve on its rail, a ball, a free-flyer cube and a planar plate), none sized wider than its
     maximal glyph before the slide rule shrinks either, on rods that follow their ends; no limb, trunk or end block
     (a chain ends in a round cap of its rod), and its boxes are not tapered."""
     model, spheres = _ROBOTS[robot]()
@@ -359,7 +362,7 @@ def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> No
     rods = np.array(medium.cylinders.part) == "rod"
     assert rods.any() and (medium.cylinders.anchors[rods, 0] >= 0).all() and medium.taper == 1.0
     if robot == "mixed":
-        assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "marker", "rod", "cap"}
+        assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "plate", "rod", "cap"}
 
     def sized(skeleton: Skeleton, mesh: str) -> dict[tuple[int, str], float]:  # (joint, part) -> radius unshrunk
         blocks = getattr(skeleton, mesh)
@@ -376,9 +379,9 @@ def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> No
 @pytest.mark.parametrize("name", [*_SYNTHETIC, "mixed", "g1", "panda"])
 @pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
 def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe: SkeletonRecipe) -> None:
-    """With a glyph per joint kind, every revolute joint with a motor of its own is a drum and every prismatic joint
-    a sleeve, alone or in a compound: a ball is the glyph of a spherical joint (the owner on a G1 drawn with balls
-    at its hips: "not acceptable"). The only other balls are at most one head per trunk and, on rods, the round cap
+    """With a glyph per joint kind, every revolute joint with a motor of its own is a drum, every prismatic joint
+    a sleeve, alone or in a compound, a planar joint a thin plate and a translation a block: a ball is the glyph of a
+    spherical joint (the owner on a G1 drawn with balls at its hips: "not acceptable"; R2 m3: a planar base too). The only other balls are at most one head per trunk and, on rods, the round cap
     of a chain's last rod, no wider than the rod; both in the pale shade of the bodies. A chain's end, a hidden
     joint and a quadruped's snout draw no ball."""
     if name in _SYNTHETIC:
@@ -393,6 +396,9 @@ def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe:
     drawn = {(part, owner) for mesh in ("cylinders", "boxes") for part, owner in _parts(skeleton, mesh)}
     assert {j for j in hinges if ("drum", j) not in drawn} == set(), name
     assert {j for j in sliders if ("sleeve", j) not in drawn} == set(), name
+    for kind, part in ((JointPlanar, "plate"), (JointTranslation, "block")):
+        joints = {j for j, joint in enumerate(model.joints) if isinstance(joint, kind)}
+        assert {j for j in joints if (part, j) not in drawn} == set(), (name, part)
     spherical = {j for j, joint in enumerate(model.joints) if isinstance(joint, JointSpherical)}
     kids = np.bincount(np.asarray(model.parent_joint_ids[1:]), minlength=model.njoints)
     trunks = 1 + int((kids[1:] >= 2).sum())  # the root, and every joint with two or more child joints
@@ -400,7 +406,7 @@ def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe:
     colors = skeleton.colors(hue, LIGHT)["balls"]
     balls = zip(_parts(skeleton, "balls"), skeleton.balls.scale, colors, strict=True)
     for (part, owner), scale, color in balls:
-        assert part in ("ball", "marker", "head", "cap"), (name, part)
+        assert part in ("ball", "head", "cap"), (name, part)
         assert part != "ball" or owner in spherical, (name, model.joint_names[owner])
         assert part != "cap" or (recipe is MEDIUM and scale.max() <= MEDIUM.bones * skeleton.radius + 1e-12), name
         if part in ("head", "cap"):
