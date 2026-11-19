@@ -692,6 +692,7 @@
   "better_robot.viewer.Viewer.show": "function(self, step: 'int | None' = None) -> 'None'",
   "better_robot.viewer.Viewer.tags": "property",
   "better_robot.viewer.Viewer.url": "property",
+  "better_robot.viewer.load_meshes": "function(geometry: 'Geometry', *, root: 'str | Path | None' = None, collision: 'bool' = False) -> 'list[MeshSpec]'",
   "better_robot.viewer.tools": "module",
   "better_robot.viewer.tools.CameraFrustum": "class(object)(pose: 'np.ndarray', *, fov: 'float', aspect: 'float') -> None",
   "better_robot.viewer.tools.CameraFrustum.from_camera": "classmethod(cls, camera: 'Any') -> 'CameraFrustum'",
