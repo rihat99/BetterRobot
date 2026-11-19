@@ -662,6 +662,11 @@ def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_nod
         np.testing.assert_array_equal(painted[i], linear_uint8(high[blocks.part[i]]))
     viewer.show(0)
     assert (server.scene.nodes[node].batched_colors[knees[0]] == linear_uint8(LIGHT.ramp[0])).all()
+    robot.set_joint_values(values[1])  # one row holds for every step of the clip
+    viewer.show(0)
+    np.testing.assert_array_equal(server.scene.nodes[node].batched_colors, painted)
+    assert robot.joint_values is not None and robot.joint_values.shape == (2, model.njoints)
+    assert RobotVisual(model, q, joint_values=torch.from_numpy(values[0])).joint_values.shape == (2, model.njoints)
     robot.set_joint_values(None)
     np.testing.assert_array_equal(server.scene.nodes[node].batched_colors, hue)
 

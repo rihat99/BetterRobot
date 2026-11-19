@@ -316,7 +316,7 @@ solid twin alike; an application adds its own slider in its own section.
 
 `joint_values=` colours the joint glyphs of the skeleton styles at each step, such as each joint's load
 `|tau| / effort limit`: one value per model joint, `(T, njoints)` with the visual's `T`, or `(njoints,)` for every
-step, in model order with joint 0, the universe, as a `Skin`'s weights are. `value_range=(low, high)`, `(0, 1)` by
+step of any clip (kept as a read-only view), in model order with joint 0, the universe, as a `Skin`'s weights are. `value_range=(low, high)`, `(0, 1)` by
 default, maps a value onto the theme's `ramp`, from a quiet steel at `low` to a warm orange at `high`, clamped
 beyond. A drum, a sleeve or a spherical joint's ball takes the colour (a drum's faces a darker shade of it), and a
 ball of the minimal stick figure takes the value of the largest magnitude among the joints it stands for. A NaN

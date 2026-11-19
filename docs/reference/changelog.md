@@ -57,8 +57,8 @@ that 0.3.0 renames or removes, one table row each.
   reference motion beside or over the robot; below 1 it casts and catches no shadow, and the collision overlay and
   the triads keep their own look. A ghost costs nothing per step.
 - `RobotVisual(joint_values=, value_range=(0.0, 1.0))` and `RobotVisual.set_joint_values(values, *,
-  value_range=None)`: one value per model joint and step, `(T, njoints)` or `(njoints,)` with the universe as
-  column 0, such as a joint's load `|tau| / effort limit`, colours the joint glyphs of the skeleton styles through
+  value_range=None)`: one value per model joint and step, `(T, njoints)` or `(njoints,)` for every step of any
+  clip, with the universe as column 0, such as a joint's load `|tau| / effort limit`, colours the joint glyphs of the skeleton styles through
   `Theme.ramp` over the range, clamped (a minimal ball takes the value of the largest magnitude among its joints; a
   NaN, the universe, a free base and the `"meshes"` style show none). A step writes one more array to each node that
   holds a glyph: on the G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step, and no node.

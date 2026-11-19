@@ -321,7 +321,8 @@ class RobotVisual(Layer):
         universe, a free base and the joints without a glyph keep the robot's colours, and the ``"meshes"`` style draws
         no joint, so it shows no value. ``values=None`` takes the values away. A step costs one more write, of the
         colours, to each skeleton node that holds a glyph. ``(T, njoints)`` float32 values are kept without a copy
-        (``joint_values``): an edit in place and ``redraw()`` show it.
+        (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
+        kept as a read-only ``(T, njoints)`` view of it.
 
         Values of another shape raise ``ShapeError``; a ``value_range`` that is not two finite numbers, low below
         high, raises ``ArgumentError``.
@@ -335,11 +336,15 @@ class RobotVisual(Layer):
             value_range = (low, high)
         if values is not None:
             values = np.asarray(values.detach().cpu() if isinstance(values, torch.Tensor) else values, np.float32)
-            values = np.ascontiguousarray(values[None] if values.ndim == 1 else values)
+            if values.shape == (self.model.njoints,):  # one row for every step: a read-only view, not T copies
+                values = np.broadcast_to(values, (self.nsteps, self.model.njoints))
+            else:
+                values = np.ascontiguousarray(values)
             if values.shape != (self.nsteps, self.model.njoints):
                 raise ShapeError(
-                    f"joint_values must be (njoints,) or (T, njoints) = ({self.nsteps}, {self.model.njoints}) for robot "
-                    f"{self.name!r}, one value per model joint (the universe included) and step, got {values.shape}"
+                    f"joint_values must be (njoints,) = ({self.model.njoints},) for every step or (T, njoints) = "
+                    f"({self.nsteps}, {self.model.njoints}) for robot {self.name!r}, one value per model joint (the "
+                    f"universe included) and step, got {values.shape}"
                 )
         with self._lock():
             self.joint_values = values
