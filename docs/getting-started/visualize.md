@@ -4,7 +4,7 @@ You open the browser viewer, show the Panda moving along a trajectory, step thro
 video through a headless browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video>
-<figcaption>One <code>RobotVisual</code> four ways: meshes, the maximal skeleton, the minimal skeleton, and the maximal one with joint frames, switched with <code>set_style</code> and <code>set_frames</code>.</figcaption></figure>
+<figcaption>One <code>RobotVisual</code> six ways: meshes, the minimal, medium and maximal skeletons, the maximal one with joint frames, and the medium one under the collision glass, switched with <code>set_style</code>, <code>set_frames</code> and <code>set_collision</code>.</figcaption></figure>
 
 ## Make a clip to show
 
