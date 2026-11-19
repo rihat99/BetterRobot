@@ -185,6 +185,9 @@ that 0.3.0 renames or removes, one table row each.
   wrote it into `plane`, which now stays as given).
 - `Viewer(fps=nan)` and `Timeline(fps=nan)` raise `ArgumentError`, as `Viewer.set_fps` does; `Viewer.show(True)`
   is refused (a bool showed step 1).
+- A sidebar dropdown shared by several layers drops the options of a layer that is removed and that no other
+  offers: the Style dropdown kept `"meshes"` after the one robot with meshes went, and choosing it changed nothing.
+  When the option shown goes, the dropdown shows the first one left and the remaining layers follow it.
 - `Viewer.save` pauses playback while it saves and shows the step it showed before, as `record` does: the playback
   thread's steps landed between the saved ones. It refuses an `fps` that is not positive (`0` meant the timeline's).
 

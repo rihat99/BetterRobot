@@ -445,6 +445,34 @@ def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
     assert [control.name for control in server.gui.controls].count("Timeline") == 1
 
 
+def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> None:
+    """A Style dropdown shared by a robot with meshes and one without loses "meshes" with the first; the choice it
+    showed goes to the first option left, and the layers still there follow it, as on a choice in the browser."""
+    server = FakeServer()
+    sidebar = Sidebar(server, threading.RLock())
+    chosen: dict[str, list[str]] = {"meshes": [], "skeleton": []}
+
+    class Robot:
+        def __init__(self, name: str, styles: tuple[str, ...]) -> None:
+            self.name, self.styles = name, styles
+
+        def build_gui(self, sidebar: Sidebar) -> None:
+            on_change = chosen[self.name].append
+            sidebar.dropdown("Robot", "Style", options=self.styles, value=self.styles[0], on_change=on_change)
+
+    with_meshes, skeleton = Robot("meshes", ("meshes", "minimal", "maximal")), Robot("skeleton", ("minimal", "maximal"))
+    sidebar.build(with_meshes)  # type: ignore[arg-type]
+    sidebar.build(skeleton)  # type: ignore[arg-type]
+    style = server.gui.control("Style")
+    assert style.options == ("meshes", "minimal", "maximal") and style.value == "meshes"
+    sidebar.remove(with_meshes)  # type: ignore[arg-type]
+    assert style.options == ("minimal", "maximal") and style.value == "minimal"
+    assert chosen == {"meshes": [], "skeleton": ["minimal"]}
+    style.value = "maximal"
+    style.fire(None)
+    assert chosen["skeleton"] == ["minimal", "maximal"]
+
+
 def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_set_visible() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)  # the ground's tag is never listed
