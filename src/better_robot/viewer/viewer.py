@@ -36,6 +36,7 @@ _AIM_FILL = 0.8  # share of a 16:9 view's height (or width) the framed box spans
 _AIM_ASPECT = 16.0 / 9.0
 #: The default view of ``aim``: from the front-right of an x-forward robot, 30 degrees off its front, and from above.
 _AZIMUTH, _ELEVATION = math.radians(60.0), math.radians(25.0)
+_UNIT = 1e-3  # how far from 1 a pose's quaternion norm may be; within it the quaternion is normalised
 
 
 def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
@@ -49,14 +50,25 @@ def _as_times(times: np.ndarray | Sequence[float]) -> np.ndarray:
 
 
 def _as_pose(pose: np.ndarray | Sequence[float]) -> np.ndarray:
-    """``add``'s and ``set_pose``'s ``pose`` as float64 ``(7,)``: a translation ``(3,)`` gains the identity rotation."""
-    pose = np.asarray(pose, dtype=np.float64)
+    """``add``'s and ``set_pose``'s ``pose`` as a new float64 ``(7,)`` of finite numbers: a translation ``(3,)`` gains
+    the identity rotation, and a quaternion whose norm is within ``1e-3`` of 1 is normalised (one further off
+    raises)."""
+    try:
+        pose = np.array(pose, dtype=np.float64)
+    except (TypeError, ValueError) as error:
+        raise ArgumentError(
+            f"pose must be numbers [tx, ty, tz, qx, qy, qz, qw] or [tx, ty, tz], got {pose!r}"
+        ) from error
     if pose.shape == (3,):
         pose = np.concatenate([pose, [0.0, 0.0, 0.0, 1.0]])
     if pose.shape != (7,):
         raise ShapeError(f"pose must be (7,) [tx, ty, tz, qx, qy, qz, qw] or a translation (3,), got {pose.shape}")
-    if not abs(np.linalg.norm(pose[3:]) - 1.0) < 1e-3:
+    if not np.all(np.isfinite(pose)):
+        raise ArgumentError(f"pose must be finite, got {pose.tolist()}")
+    norm = np.linalg.norm(pose[3:])
+    if not abs(norm - 1.0) < _UNIT:
         raise ArgumentError(f"the quaternion [qx, qy, qz, qw] of pose must have unit norm, got {pose[3:].tolist()}")
+    pose[3:] /= norm
     return pose
 
 
@@ -330,8 +342,8 @@ class Viewer:
     def set_pose(self, tag: str, pose: np.ndarray | Sequence[float]) -> None:
         """Place the layers whose first tag is ``tag`` at ``pose``, as ``add(..., pose=)`` does, e.g. from a
         side-by-side slider: the pose ``(7,)`` ``[tx, ty, tz, qx, qy, qz, qw]`` of the tag's frame in the world, or a
-        translation ``(3,)``. The layers' arrays stay in the tag's frame; ``aim``, ``record`` and ``save`` show them
-        placed."""
+        translation ``(3,)``, finite, with a quaternion whose norm is within ``1e-3`` of 1 (it is normalised). The
+        layers' arrays stay in the tag's frame; ``aim``, ``record`` and ``save`` show them placed."""
         pose = _as_pose(pose)
         with self.lock:
             if tag not in self._tags:

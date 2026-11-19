@@ -87,9 +87,10 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.set_pose(tag, pose)` and `Viewer.add(pose=)` place a tag's frame at a pose `(7,)` `[tx, ty, tz, qx, qy,
   qz, qw]`, or a translation `(3,)` (were `set_offset(group, offset)` and `add(offset=)`, a translation only), so a
   y-up body stands beside a z-up robot without turning its arrays; `aim`, `record` and `save` show the tag placed.
-  `Layer.bounds` is the box in the frame of the layer's first tag. `Viewer.pose(tag)` reads the pose back, and the
-  picking functions `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` and `project` take it as
-  `pose=` to pick on the arrays of a placed tag.
+  `Layer.bounds` is the box in the frame of the layer's first tag. A pose must be finite numbers, and a quaternion
+  whose norm is within `1e-3` of 1 is normalised (one further off raises). `Viewer.pose(tag)` reads the pose back,
+  and the picking functions `ray_hit`, `nearest_on_ray`, `vertices_in_sphere`, `vertices_in_rect` and `project`
+  take it as `pose=` to pick on the arrays of a placed tag.
 - `Viewer(theme=LIGHT)` (was `None`); `Viewer.replace(old, new)` keeps `old`'s tags and sidebar rows.
 - `Layer.build_gui(sidebar)` takes the viewer's `Sidebar` (was viser's GUI API); `PlotPanel` and `ImagePanel` sit in
   the sidebar's Plots and Images sections.

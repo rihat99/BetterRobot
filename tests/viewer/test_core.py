@@ -116,6 +116,25 @@ def test_set_pose_places_a_tag_after_it_was_added_and_aim_frames_it_turned() -> 
     assert [layer.name for layer in viewer.layers] == ["p"]  # refused before anything was built
 
 
+def test_a_pose_of_non_finite_or_non_numeric_values_is_refused_and_a_near_unit_quaternion_is_normalised() -> None:
+    """R1's probe: a NaN or inf translation and ``None`` inside were accepted (the camera turned NaN), a string or a
+    ragged pose raised numpy's builtin error, and a norm of 1.0009 reached viser as it was."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    refused = [[np.nan, 0, 0, 0, 0, 0, 1], [np.inf, 0, 0], [0, 0, None], "abc", [0, 0, [0]]]
+    for pose in refused:
+        with pytest.raises(ArgumentError, match="pose must be"):
+            viewer.add(PointsLayer("q", np.zeros((1, 3))), pose=pose)
+    assert viewer.layers == []
+    given = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0009])
+    viewer.add(PointsLayer("q", np.zeros((1, 3))), pose=given)
+    np.testing.assert_allclose(server.scene.nodes["/q"].wxyz, [1.0, 0.0, 0.0, 0.0])
+    np.testing.assert_allclose(viewer.pose("q"), [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+    assert given[6] == 1.0009  # the caller's array is left as it was
+    with pytest.raises(ArgumentError, match="unit norm"):
+        viewer.set_pose("q", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0011])
+
+
 def test_timeline_clamps_loops_and_drives_the_gui_slider() -> None:
     timeline = Timeline(5, fps=100.0)
     seen: list[int] = []
