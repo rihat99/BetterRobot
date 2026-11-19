@@ -353,12 +353,35 @@ def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: Skel
     assert joined.sum() >= len(glyphs) - 1  # every glyph but a free-flyer's cube inside its hull holds a bone end
 
 
-def test_g1_minimal_has_13_clusters() -> None:
+def test_g1_minimal_clusters_close_joints_alike_on_both_sides_and_without_geometry() -> None:
     model, spheres = _g1()
-    clusters = build_skeleton(model, MINIMAL, spheres=spheres).clusters
-    assert len(clusters) == 13
-    assert {"left_hip_pitch_joint", "left_hip_roll_joint"} in [set(cluster) for cluster in clusters]
-    assert len(build_skeleton(model, MINIMAL).clusters) == 13  # the clusters do not depend on the geometry
+
+    def clusters(skeleton: Skeleton) -> list[str]:  # a cluster's ball follows its joints: heads and knobs are rigid
+        return [model.joint_names[o] for o, (a, _) in zip(skeleton.balls.owner, skeleton.balls.anchors) if a >= 0]
+
+    owners = clusters(build_skeleton(model, MINIMAL, spheres=spheres))
+    assert "left_hip_pitch_joint" in owners and "left_hip_roll_joint" not in owners  # one ball for the pair
+    assert sorted(o.replace("left_", "right_") for o in owners if o.startswith("left_")) == sorted(
+        o for o in owners if o.startswith("right_")
+    )
+    assert sorted(clusters(build_skeleton(model, MINIMAL))) == sorted(
+        owners
+    )  # the clusters do not depend on the geometry
+
+
+@pytest.mark.parametrize("robot", ["g1", "panda"])
+def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str) -> None:
+    """A drum slides along its own axis by at most one half length, after a twist joint's collar offset of one
+    more: it never leaves its joint."""
+    model, spheres = _ROBOTS[robot]()
+    poses = _poses(model)
+    drums = _drums(build_skeleton(model, MAXIMAL, spheres=spheres), poses)
+    assert drums
+    for joint, (center, rotation, half) in drums.items():
+        offset = center - poses[joint, :3]
+        along = float(offset @ rotation[:, 2])
+        np.testing.assert_allclose(offset, along * rotation[:, 2], atol=1e-6)
+        assert abs(along) <= 2.0 * half[2] + 1e-9, (model.joint_names[joint], along, half[2])
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])

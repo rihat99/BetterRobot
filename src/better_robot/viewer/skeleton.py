@@ -192,8 +192,7 @@ class Skeleton:
 
     ``scale`` is the robot's size (diagonal of the box of its joint origins at neutral) and ``radius`` the reference
     glyph radius. ``slides`` (metres along the joint's own axis) and ``shrinks`` (factor in ``[0.5, 1]``) list, by
-    joint name, the glyphs the layout moved or shrank; ``clusters`` the joint names behind each ball of a
-    ``glyphs="ball"`` recipe. ``taper`` is the ``unit_box`` the boxes are drawn with: 0.8 for the maximal layout,
+    joint name, the glyphs the layout moved or shrank. ``taper`` is the ``unit_box`` the boxes are drawn with: 0.8 for the maximal layout,
     whose bodies narrow towards their +z, 1 (a cube) for a stick figure.
     """
 
@@ -210,7 +209,6 @@ class Skeleton:
     line_local: np.ndarray  # (L, 2, 3)
     slides: Mapping[str, float]
     shrinks: Mapping[str, float]
-    clusters: tuple[tuple[str, ...], ...]
 
     def place(self, joint_poses: np.ndarray) -> dict[str, tuple[np.ndarray, np.ndarray]]:
         """World poses and scales of every block at ``joint_poses (..., njoints, 7)``.
@@ -296,8 +294,8 @@ def build_skeleton(
     factor = {j: recipe.joint_size.get(model.joint_names[j], 1.0) for j in tree.glyphs}
     rows = _Rows(tree, recipe)
     if recipe.glyphs == "ball":
-        clusters = _stick_figure(tree, recipe, rows, clouds, factor=factor)
-        return rows.pack(slides={}, shrinks={}, clusters=clusters)
+        _stick_figure(tree, recipe, rows, clouds, factor=factor)
+        return rows.pack(slides={}, shrinks={})
     tree, merged = _compounds(tree, recipe.size)
     # joint_size scales a glyph after the size rules, so the glyphs after it keep theirs
     drawn = replace(tree, radius={j: factor[j] * tree.radius[j] for j in tree.glyphs})
@@ -315,7 +313,6 @@ def build_skeleton(
     return rows.pack(
         slides={model.joint_names[j]: s for j, s in slide.items() if abs(s) > 1e-9},
         shrinks={model.joint_names[j]: k for j, k in shrink.items() if k < 1.0},
-        clusters=(),
     )
 
 
@@ -1034,9 +1031,7 @@ class _Rows:
                 anchors=(start, end),
             )
 
-    def pack(
-        self, *, slides: Mapping[str, float], shrinks: Mapping[str, float], clusters: tuple[tuple[str, ...], ...]
-    ) -> Skeleton:
+    def pack(self, *, slides: Mapping[str, float], shrinks: Mapping[str, float]) -> Skeleton:
         """The finished ``Skeleton``: every world placement expressed in its joint's frame."""
         tree = self.tree
         packed = {}
@@ -1075,7 +1070,6 @@ class _Rows:
             line_local=line_local,
             slides=slides,
             shrinks=shrinks,
-            clusters=clusters,
         )
 
 
@@ -1225,8 +1219,8 @@ def _stick_figure(
     tree: _Tree, recipe: SkeletonRecipe, rows: _Rows, clouds: Mapping[int, list[_Cloud]], *,
     factor: Mapping[int, float],
     glyphs: tuple[Mapping[int, float], Mapping[int, float], Mapping[int, float]] | None = None,
-) -> tuple[tuple[str, ...], ...]:  # fmt: skip
-    """Sticks between the joints, and a ball per cluster of close joints; returns the joint names behind each ball.
+) -> None:  # fmt: skip
+    """Sticks between the joints, and a ball per cluster of close joints.
 
     A ball sits at the mean of its member origins at every step; the cluster of a free-flyer root is rigid in the
     root body and drawn as a cube. A ball is at most 0.4 of its shortest stick, and a stick never thicker than the
@@ -1280,7 +1274,6 @@ def _stick_figure(
     for start, end, owner in sticks:
         balls = [ball[a] for a in (start, end) if ball.get(a, 0.0) > 0.0]
         rows.stick(start, end, min([recipe.bones * tree.reference, *balls]), owner, part=part)
-    return () if glyphs is not None else tuple(tuple(tree.model.joint_names[j] for j in members[c]) for c in anchor)
 
 
 def _ball(tree: _Tree, rows: _Rows, anchor: int, radius: float, joint: int, base: int | None) -> None:
