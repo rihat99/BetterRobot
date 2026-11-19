@@ -14,9 +14,11 @@ nothing else in the library imports it. viser is imported only when you create a
 A `Layer` is one named thing in the scene: a point cloud, a skeleton, rigid meshes, coordinate frames, arrows.
 You give it every frame up front as numpy arrays with a leading time axis `(T, ...)`. Static input counts as
 `T = 1`. The layer keeps them as float32 attributes (`points.points`, `frames.poses`, ...) that it reads at every
-push, so editing one in place and calling `layer.redraw()` updates the scene without rebuilding anything. A
-C-contiguous float32 input is that attribute itself, no copy, which keeps a big cloud in memory once; any other
-input (numpy's default float64, a list) is converted once, so edit the layer's attribute, not your input.
+push, so editing one in place and calling `layer.redraw()` updates the scene without rebuilding anything; so does
+`SpheresLayer.radii`, while a skin's rest arrays (`vertices`, `bind_poses`, `weights`) and a chart's `series` are sent
+once, when the layer is built. A C-contiguous float32 input is that attribute itself, no copy, which keeps a big cloud
+in memory once; any other input (numpy's default float64, a strided view, a list) is converted once, so edit the
+layer's attribute, not your input.
 
 ![The Viewer shows layers that each hold a whole clip; `record` draws the same scene in a headless Chromium.](../figures/viewer_layers.svg)
 

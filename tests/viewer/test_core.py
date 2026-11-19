@@ -289,6 +289,32 @@ def test_a_layer_draws_its_array_attributes_so_an_edit_in_place_and_a_redraw_upd
     assert np.shares_memory(PointsLayer("static", origins[0]).points, origins)  # a static float32 cloud too
 
 
+def test_radii_and_a_static_coloured_mesh_follow_the_array_rule_and_no_layer_keeps_a_strided_view() -> None:
+    """R1's probe: an edit of ``SpheresLayer.radii`` or of a static coloured ``MeshLayer``'s vertices plus a redraw
+    wrote nothing, and ``radii`` and a skin's rest arrays kept a non-contiguous float32 view of the caller's array."""
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    balls = viewer.add(SpheresLayer("balls", np.zeros((2, 2, 3)), radii=np.ones(2, np.float32)))
+    triangle = np.eye(3, dtype=np.float32)
+    mesh = viewer.add(MeshLayer("scan", triangle, faces=[[0, 1, 2]], colors=np.eye(3)))
+    scan, mark = server.scene.nodes["/scan/scan/mesh"], len(server.scene.log)
+    viewer.show(1)
+    viewer.show()  # a forced push sends nothing that did not change
+    assert ("/balls/balls/spheres", "batched_scales") not in server.scene.log[mark:] and scan.writes == []
+    balls.radii[0] = 3.0
+    mesh.vertices[0, 0] = (5.0, 0.0, 0.0)
+    viewer.show()
+    np.testing.assert_allclose(server.scene.nodes["/balls/balls/spheres"].batched_scales, [3.0, 1.0])
+    assert scan.writes == ["glb_data"] and scan.glb_data != scan.props["glb_data"]
+    strided = np.zeros((6, 3), np.float32)[::2]
+    rest = np.tile(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0], np.float32), (2, 2))[:, :7]
+    skin = SkinnedMeshLayer(
+        "skin", strided, faces=[[0, 1, 2]], weights=np.full((3, 2), 0.5), bind_poses=rest, bone_poses=rest[None]
+    )
+    assert not np.shares_memory(SpheresLayer("s", strided, radii=strided[:, 0]).radii, strided)
+    assert not np.shares_memory(skin.vertices, strided) and not np.shares_memory(skin.bind_poses, rest)
+
+
 def test_arrows_hide_zero_vectors() -> None:
     scene = FakeServer().scene
     arrows = ArrowsLayer(

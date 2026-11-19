@@ -5,8 +5,10 @@ The design is `docs/concepts/viewer.md`; read it first.
 - Public callables take at most two positional parameters (a layer: its name and main array); the rest are
   keyword-only.
 - Layers take numpy `(T, ...)` arrays (`as_frames` promotes static input to `T = 1`) and keep them as float32
-  attributes, without a copy when the input already is C-contiguous float32: edits of the attribute in place plus
-  `redraw()` or `viewer.show()` update the scene. Per step write arrays into existing handles; never create or
+  attributes, without a copy when the input already is C-contiguous float32 (`np.ascontiguousarray`, never
+  `np.asarray`, which keeps a strided view): edits of the attribute in place plus `redraw()` or `viewer.show()`
+  update the scene. A static array a node holds is written again only when it changed (a skin's rest arrays and a
+  chart's series are the documented exceptions, sent at build). Per step write arrays into existing handles; never create or
   remove nodes during playback.
 - `Viewer.show` is the only step-push path (one `server.atomic()` block). Keep `set_step` free of
   torch and FK; adapters precompute.

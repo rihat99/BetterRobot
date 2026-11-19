@@ -22,8 +22,9 @@ class MeshLayer(Layer):
     """One triangle mesh: static ``vertices (V, 3)`` or deforming ``(T, V, 3)``, ``faces (F, 3)``.
 
     ``colors (V, 3)`` colours each vertex instead of the one ``color``, the same at every step. A static mesh sends
-    them in one GLB node, blended across each face and always opaque; a deforming one becomes one node per distinct
-    colour, at most 64, each face taking the colour of its first vertex.
+    them in one GLB node, blended across each face and always opaque (sent again by a push after its ``vertices``
+    changed); a deforming one becomes one node per distinct colour, at most 64, each face taking the colour of its
+    first vertex.
     """
 
     def __init__(
@@ -51,25 +52,13 @@ class MeshLayer(Layer):
         elif self.nsteps > 1:
             self._parts = _split_by_colour(self.faces, self.colors)
         self._nodes: list[tuple[Any, np.ndarray | slice]] = []
+        self._glb: tuple[Any, np.ndarray] | None = None  # a static coloured mesh: its node and the vertices it holds
 
     @override
     def build(self, scene: Any, root: str) -> None:
         self._nodes = []
         if self.colors is not None and self.nsteps == 1:
-            from trimesh import Trimesh  # noqa: PLC0415 - viser's own dependency, loaded for a coloured static mesh
-            from trimesh.visual import TextureVisuals  # noqa: PLC0415
-            from trimesh.visual.material import PBRMaterial  # noqa: PLC0415
-
-            # Without a material glTF's default is a metal, black without an environment map: give the matte one of
-            # the plain meshes. glTF's vertex colours are linear, the plain meshes' sRGB; without normals the mesh is
-            # drawn faceted.
-            visual = TextureVisuals(material=PBRMaterial(metallicFactor=0.0, roughnessFactor=1.0))
-            linear = linear_uint8(self.colors / 255.0)
-            visual.vertex_attributes["color"] = np.concatenate([linear, np.full_like(linear[:, :1], 255)], 1)
-            mesh = Trimesh(self.vertices[0], self.faces, visual=visual, process=False)
-            self._track(
-                scene.add_glb(f"{root}/mesh", mesh.export(file_type="glb", include_normals=not self.flat_shading))
-            )
+            self._glb = self._track(scene.add_glb(f"{root}/mesh", self._export())), self.vertices[0].copy()
             return
         for index, (colour, rows, faces) in enumerate(self._parts):
             node = scene.add_mesh_simple(
@@ -90,11 +79,31 @@ class MeshLayer(Layer):
     def set_step(self, step: int) -> None:
         for node, rows in self._nodes:
             node.vertices = self.vertices[step][rows]
+        # A static mesh is pushed only by redraw, show() and the like: the GLB goes again only after an edit.
+        if self._glb is not None and not np.array_equal(self._glb[1], self.vertices[0]):
+            self._glb[0].glb_data = self._export()
+            self._glb = self._glb[0], self.vertices[0].copy()
 
     def set_opacity(self, opacity: float) -> None:
         """Draw the mesh at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a static mesh with
         ``colors`` stays opaque."""
         self._fade(opacity, [node for node, _ in self._nodes])
+
+    def _export(self) -> bytes:
+        """The static coloured mesh as a GLB."""
+        from trimesh import Trimesh  # noqa: PLC0415 - viser's own dependency, loaded for a coloured static mesh
+        from trimesh.visual import TextureVisuals  # noqa: PLC0415
+        from trimesh.visual.material import PBRMaterial  # noqa: PLC0415
+
+        # Without a material glTF's default is a metal, black without an environment map: give the matte one of the
+        # plain meshes. glTF's vertex colours are linear, the plain meshes' sRGB; without normals the mesh is drawn
+        # faceted.
+        assert self.colors is not None
+        visual = TextureVisuals(material=PBRMaterial(metallicFactor=0.0, roughnessFactor=1.0))
+        linear = linear_uint8(self.colors / 255.0)
+        visual.vertex_attributes["color"] = np.concatenate([linear, np.full_like(linear[:, :1], 255)], 1)
+        mesh = Trimesh(self.vertices[0], self.faces, visual=visual, process=False)
+        return mesh.export(file_type="glb", include_normals=not self.flat_shading)
 
 
 def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.ndarray, np.ndarray | slice, np.ndarray]]:
@@ -234,7 +243,7 @@ class SpheresLayer(Layer):
     ) -> None:
         self.centers = as_frames(centers, 2, name="centers", width=3)
         super().__init__(name, self.centers.shape[0])
-        self.radii = np.asarray(radii, dtype=np.float32)
+        self.radii = np.ascontiguousarray(radii, dtype=np.float32)
         if self.radii.shape != (self.centers.shape[1],):
             raise ShapeError(f"radii must be (S,) = ({self.centers.shape[1]},), one per sphere, got {self.radii.shape}")
         colors = np.asarray(colors, dtype=np.float32)
@@ -244,6 +253,7 @@ class SpheresLayer(Layer):
         self._store_opacity(opacity)
         self._elements = self.centers.shape[1]
         self._spheres: Any = None
+        self._scales = self.radii.copy()  # the radii the node holds: a push writes them only when they change
 
     @override
     def build(self, scene: Any, root: str) -> None:
@@ -258,7 +268,7 @@ class SpheresLayer(Layer):
                 sphere.faces.astype(np.uint32),
                 batched_wxyzs=np.tile(np.array([1.0, 0.0, 0.0, 0.0], np.float32), (n, 1)),
                 batched_positions=self.centers[0],
-                batched_scales=self.radii,
+                batched_scales=self._scales,
                 batched_colors=self._colors if self._colors.ndim == 2 else self._colors[0],
                 **self._surface(),
                 lod="off",
@@ -277,8 +287,10 @@ class SpheresLayer(Layer):
         self._spheres.batched_positions = self.centers[step]
         if self._colors.ndim == 3:
             self._spheres.batched_colors = self._colors[step]
-        if self.valid is not None and self.valid.ndim == 2:
-            self._spheres.batched_scales = self.radii * self.valid[step]  # radius 0 hides an invalid sphere
+        hidden = self.valid is not None and self.valid.ndim == 2
+        scales = self.radii * self.valid[step] if hidden else self.radii  # radius 0 hides an invalid sphere
+        if not np.array_equal(scales, self._scales):  # an edit of radii, or another mask
+            self._spheres.batched_scales = self._scales = scales.copy()
 
     def set_opacity(self, opacity: float) -> None:
         """Draw the spheres at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild."""
