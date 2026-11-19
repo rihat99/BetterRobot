@@ -582,7 +582,6 @@ class FakeGui:
     def configure_theme(
         self,
         *,
-        control_layout: str = "floating",
         control_width: str = "medium",
         dark_mode: bool = False,
         show_logo: bool = True,

@@ -95,6 +95,12 @@ def test_every_stand_in_method_binds_like_viser(fake: type, real: type) -> None:
         _assert_binds_like(getattr(fake, name), getattr(real, name), f"{fake.__name__}.{name}")
 
 
+def test_the_stand_in_theme_takes_no_parameter_viser_deprecates() -> None:
+    """R1's grep: ``configure_theme(control_layout=)``, which viser 1.1 deprecates for the main panel's placement, stayed
+    on the stand-in although nothing passes it any more."""
+    assert "control_layout" not in inspect.signature(FakeGui.configure_theme).parameters
+
+
 @pytest.mark.slow
 def test_a_tab_group_adds_tabs_like_viser() -> None:
     _assert_binds_like(FakeHandle.add_tab, viser.GuiTabGroupHandle.add_tab, "FakeHandle.add_tab")
