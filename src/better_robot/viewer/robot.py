@@ -208,9 +208,9 @@ class RobotVisual(Layer):
     theme's hues that no other robot of the viewer is drawn in (``hue``), and a ``hue`` that is not three numbers
     raises ``ShapeError``. ``name`` defaults to the model's name. ``opacity`` in ``(0, 1]`` draws every style see-through,
     a ghost of the robot beside or over another (``set_opacity`` changes it); below 1 it casts and catches no shadow,
-    a textured mesh file stays opaque, and the overlay and the triads keep their own look. ``joint_values`` colours
-    the joint glyphs of the skeleton styles at each step through the theme's ``ramp`` over ``value_range``, such as a
-    joint's load (``set_joint_values``).
+    a mesh file with its own colours or texture keeps them at that opacity, and the overlay and the triads keep their
+    own look. ``joint_values`` colours the joint glyphs of the skeleton styles at each step through the theme's
+    ``ramp`` over ``value_range``, such as a joint's load (``set_joint_values``).
     """
 
     def __init__(

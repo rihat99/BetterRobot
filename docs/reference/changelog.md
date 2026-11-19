@@ -54,8 +54,9 @@ that 0.3.0 renames or removes, one table row each.
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
   is drawn in, and `style`, `collision` and `frames` what it shows (record 0058).
 - `RobotVisual(opacity=)` and `RobotVisual.set_opacity`: every style drawn see-through, a ghost of a target or a
-  reference motion beside or over the robot; below 1 it casts and catches no shadow, and the collision overlay and
-  the triads keep their own look. A ghost costs nothing per step.
+  reference motion beside or over the robot; below 1 it casts and catches no shadow, a mesh file with its own
+  colours or texture (the Panda's, the Go2's) keeps them at that opacity through its material, and the collision
+  overlay and the triads keep their own look. A ghost costs nothing per step.
 - `RobotVisual(joint_values=, value_range=(0.0, 1.0))` and `RobotVisual.set_joint_values(values, *,
   value_range=None)`: one value per model joint and step, `(T, njoints)` or `(njoints,)` for every step of any
   clip, with the universe as column 0, such as a joint's load `|tau| / effort limit`, colours the joint glyphs of the skeleton styles through

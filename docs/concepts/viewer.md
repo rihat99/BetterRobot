@@ -310,7 +310,8 @@ by step, and a fixed base by its lowest over the loop, to stand the robot on the
 
 `opacity=0.35`, or `robot.set_opacity(0.35)` while the viewer runs, draws every style of a robot see-through: a
 ghost of a target or a reference motion beside or over the robot itself. Below 1 it casts and catches no shadow, a
-textured mesh file stays opaque, and the collision overlay and the triads keep their own look. The sidebar has no
+mesh file with its own colours or texture keeps them at that opacity (its material is made see-through), and the
+collision overlay and the triads keep their own look. The sidebar has no
 opacity control: the Robot section's controls are shared by every robot, so one slider would fade a ghost and its
 solid twin alike; an application adds its own slider in its own section.
 

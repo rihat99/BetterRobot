@@ -453,6 +453,57 @@ def test_a_ghost_robot_draws_every_style_see_through_and_without_shadows() -> No
         robot.set_opacity(0.0)
 
 
+def test_a_ghost_keeps_the_own_colours_and_texture_of_its_mesh_files_see_through(tmp_path: Path) -> None:
+    """A mesh file with its own texture or colours (a Panda's, a Go2's) is sent as a GLB whose material takes the
+    ghost's opacity, blended, with the texture and the colours kept and no shadow; opaque again, it is the file's
+    own GLB with shadows (R2 M1: such a robot stayed solid)."""
+    import json  # noqa: PLC0415 - one test reads a GLB's JSON chunk
+
+    import trimesh  # noqa: PLC0415 - optional dependency of the viewer
+    from PIL import Image  # noqa: PLC0415
+
+    textured = trimesh.creation.box(extents=(0.1, 0.1, 0.1))
+    texture = Image.new("RGB", (2, 2), (200, 30, 30))
+    textured.visual = trimesh.visual.TextureVisuals(uv=textured.vertices[:, :2] + 0.5, image=texture)
+    textured.export(tmp_path / "textured.glb")
+    painted = trimesh.creation.box(extents=(0.1, 0.1, 0.1))
+    painted.visual.face_colors = np.where(np.arange(12)[:, None] < 6, (200, 30, 30, 255), (30, 30, 200, 255))
+    painted.export(tmp_path / "painted.ply")
+    urdf = tmp_path / "r.urdf"
+    urdf.write_text(
+        '<robot name="r"><link name="base"><visual><geometry><mesh filename="textured.glb"/></geometry></visual>'
+        '</link><link name="arm"><visual><geometry><mesh filename="painted.ply"/></geometry></visual></link>'
+        '<joint name="hinge" type="revolute"><parent link="base"/><child link="arm"/><origin xyz="0 0 0.3"/>'
+        '<axis xyz="0 1 0"/><limit lower="-1" upper="1" effort="10" velocity="1"/></joint></robot>'
+    )
+    model = br.load(urdf)
+    server = FakeServer()
+    robot = Viewer(server=server, ground=False).add(
+        RobotVisual(model, geometry=br.io.load_geometry(urdf, model), root=urdf, opacity=0.35)
+    )
+    nodes = [server.scene.nodes[f"/r/r/meshes/mesh_{k}"] for k in range(2)]
+
+    def look(node: object) -> tuple[dict[str, object], tuple[object, object]]:
+        """The node's glTF JSON and its two shadow switches."""
+        glb = vars(node).get("glb_data", node.props["glb_data"])  # type: ignore[attr-defined]
+        shadows = tuple(vars(node).get(key, node.props[key]) for key in ("cast_shadow", "receive_shadow"))  # type: ignore[attr-defined]
+        return json.loads(glb[20 : 20 + int.from_bytes(glb[12:16], "little")]), shadows
+
+    for opacity in (0.35, 0.6):
+        robot.set_opacity(opacity)
+        for node in nodes:
+            gltf, shadows = look(node)
+            (material,) = gltf["materials"]
+            assert node.kind == "GlbHandle" and shadows == (False, False) and material["alphaMode"] == "BLEND"
+            assert material["pbrMetallicRoughness"]["baseColorFactor"][3] == pytest.approx(opacity, abs=0.003)
+        assert len(look(nodes[0])[0]["images"]) == 1  # the texture stays
+        assert "COLOR_0" in look(nodes[1])[0]["meshes"][0]["primitives"][0]["attributes"]  # so do the face colours
+    robot.set_opacity(1.0)
+    for node in nodes:
+        gltf, shadows = look(node)
+        assert shadows == (True, True) and all("alphaMode" not in material for material in gltf.get("materials", []))
+
+
 def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> None:
     model = br.load(panda_urdf())
     server = FakeServer()

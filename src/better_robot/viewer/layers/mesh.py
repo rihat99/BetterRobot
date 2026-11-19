@@ -129,8 +129,8 @@ def _split_by_colour(faces: np.ndarray, colors: np.ndarray) -> list[tuple[np.nda
 class MeshSpec:
     """One rigid mesh attached to ``body`` at ``origin`` (``(7,)`` xyzw pose in the body frame).
 
-    ``trimesh`` keeps a textured/vertex-coloured source for ``add_mesh_trimesh``; otherwise the
-    mesh is sent as ``vertices``/``faces`` with one ``color``.
+    ``trimesh`` keeps a source with its own colours or texture, sent as a GLB; otherwise the mesh is sent as
+    ``vertices``/``faces`` with one ``color``.
     """
 
     vertices: np.ndarray
@@ -180,14 +180,17 @@ class RigidMeshLayer(Layer):
         ).reshape(-1, 8, 3)
         self._nodes: list[Any] = []
         self._plain: list[Any] = []  # the nodes of meshes without their own colours, which take an opacity
+        self._own: list[tuple[Any, Any]] = []  # (node, trimesh) of each mesh with its own colours: a GLB
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        self._nodes, self._plain = [], []
+        self._nodes, self._plain, self._own = [], [], []
         for index, spec in enumerate(self.meshes):
             name = f"{root}/mesh_{index}"
             if spec.trimesh is not None:
-                node = scene.add_mesh_trimesh(name, spec.trimesh)
+                shadows = {key: value for key, value in self._surface().items() if key != "opacity"}
+                node = scene.add_glb(name, glb_data=_glb(spec.trimesh, self.opacity), **shadows)
+                self._own.append((node, spec.trimesh))
             else:
                 node = scene.add_mesh_simple(
                     name,
@@ -196,9 +199,8 @@ class RigidMeshLayer(Layer):
                     color=rgb_uint8(spec.color),
                     **self._surface(),
                 )
-            self._nodes.append(self._track(node))
-            if spec.trimesh is None:
                 self._plain.append(node)
+            self._nodes.append(self._track(node))
 
     @override
     def bounds(self, step: int) -> Bounds | None:
@@ -224,9 +226,39 @@ class RigidMeshLayer(Layer):
         ).numpy()
 
     def set_opacity(self, opacity: float) -> None:
-        """Draw the meshes at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a textured or
-        vertex-coloured mesh (``MeshSpec.trimesh``) stays opaque."""
+        """Draw the meshes at ``opacity`` in ``(0, 1]`` (1 is opaque), live and after a rebuild; a mesh with its own
+        colours or texture (``MeshSpec.trimesh``) keeps them, at that opacity (its GLB is sent again)."""
         self._fade(opacity, self._plain)
+        for node, mesh in self._own:
+            node.glb_data = _glb(mesh, opacity)
+            node.cast_shadow = node.receive_shadow = opacity >= 1.0
+
+
+def _glb(mesh: Any, opacity: float) -> bytes:
+    """``mesh``, a ``trimesh.Trimesh`` with its own colours or texture, as a GLB drawn at ``opacity``.
+
+    Below 1 its material's alpha is scaled and blended, so the colours and the texture stay; vertex or face colours
+    take glTF's default material, the one they are drawn with at 1, made see-through.
+    """
+    if opacity < 1.0:
+        from trimesh.visual import TextureVisuals  # noqa: PLC0415 - viser's own dependency, loaded for a ghost
+        from trimesh.visual.material import PBRMaterial  # noqa: PLC0415
+
+        mesh = mesh.copy()  # the source keeps its material for the next opacity
+        if mesh.visual.kind == "texture":
+            material = mesh.visual.material
+            if not isinstance(material, PBRMaterial):
+                material = mesh.visual.material = material.to_pbr()
+        else:
+            colors, material = mesh.visual.vertex_colors, PBRMaterial(metallicFactor=1.0, roughnessFactor=1.0)
+            mesh.visual = TextureVisuals(material=material)
+            mesh.visual.vertex_attributes["color"] = colors
+        factor = material.baseColorFactor if material.baseColorFactor is not None else np.full(4, 255, np.uint8)
+        material.baseColorFactor = [*factor[:3], round(float(factor[3]) * opacity)]
+        material.alphaMode = "BLEND"
+    glb = mesh.export(file_type="glb")
+    assert isinstance(glb, bytes)
+    return glb
 
 
 @final
