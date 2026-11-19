@@ -8,8 +8,8 @@ that 0.3.0 renames or removes, one table row each.
 ## Unreleased
 
 ### Added
-- `viewer.Sidebar`: the viewer's controls in ordered sections (Timeline, Robot, Layers, Plots, an application's
-  sections in creation order, Info). A control is shared by `(section, label)`, so one control drives every layer
+- `viewer.Sidebar`: the viewer's controls in ordered sections (Timeline, Robot, Layers, Plots, Images, an
+  application's sections in creation order, Info). A control is shared by `(section, label)`, so one control drives every layer
   that asks for it; every callback runs under `Viewer.lock`, and a `BetterRobotError` raised in one returns the
   control to its previous value and shows a red notification in the browser. `Viewer.sidebar` is the viewer's one.
 - `Sidebar.set_value(section, label, *, value)` shows a value on a control without running its callbacks;

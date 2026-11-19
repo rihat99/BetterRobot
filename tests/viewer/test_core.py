@@ -461,6 +461,17 @@ def test_timeline_controls_appear_only_once_a_layer_has_several_steps() -> None:
     assert [control.name for control in server.gui.controls].count("Timeline") == 1
 
 
+def test_the_images_section_follows_plots_before_an_applications_sections() -> None:
+    server = FakeServer()
+    sidebar = Sidebar(server, threading.RLock())
+    for name in ("Info", "Tuning", "Images", "Plots", "Layers"):
+        sidebar.section(name)
+    folders = sorted(
+        (control for control in server.gui.controls if control.kind == "GuiFolderHandle"), key=lambda f: f.order
+    )
+    assert [folder.label for folder in folders] == ["Layers", "Plots", "Images", "Tuning", "Info"]
+
+
 def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> None:
     """A Style dropdown shared by a robot with meshes and one without loses "meshes" with the first; the choice it
     showed goes to the first option left, and the layers still there follow it, as on a choice in the browser."""

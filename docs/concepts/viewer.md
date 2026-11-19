@@ -81,8 +81,8 @@ clips side by side; `set_offset(tag, (x, y, z))` moves a tag again later, such a
 
 ## The sidebar, the camera and the theme
 
-`viewer.sidebar` holds the controls in sections with a fixed order: Timeline, Robot, Layers, Plots, then the sections
-an application creates, Info last. The Timeline section, shown once the timeline has more than one step, holds a
+`viewer.sidebar` holds the controls in sections with a fixed order: Timeline, Robot, Layers, Plots, Images, then the
+sections an application creates, Info last. The Timeline section, shown once the timeline has more than one step, holds a
 Play box, the Step slider, a Speed choice (0.25x to 2x, taken while playing) and Loop. `sidebar.checkbox`, `dropdown`, `slider` and `button` take a section and a label
 and return viser's control; asking again for the same section and label returns the same control and adds the
 callback, so one control drives every layer that asked for it, and it goes when the last of them is removed.

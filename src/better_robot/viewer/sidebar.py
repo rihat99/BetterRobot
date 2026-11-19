@@ -12,8 +12,8 @@ from ..exceptions import ArgumentError, BetterRobotError, UnknownNameError
 if TYPE_CHECKING:
     from .layer import Layer
 
-#: Where the viewer's own sections sit; a section an application creates goes after Plots, in creation order.
-_ORDER = {"Timeline": 0.0, "Robot": 10.0, "Layers": 20.0, "Plots": 30.0, "Info": 90.0}
+#: Where the viewer's own sections sit; a section an application creates goes after Images, in creation order.
+_ORDER = {"Timeline": 0.0, "Robot": 10.0, "Layers": 20.0, "Plots": 30.0, "Images": 35.0, "Info": 90.0}
 _APPLICATION_ORDER = 40.0
 
 
@@ -39,10 +39,10 @@ class Sidebar:
     """The viewer's controls: sections (viser folders) in a fixed order, holding controls shared by
     ``(section, label)``.
 
-    A section appears with its first control: Timeline, Robot, Layers, Plots, then the sections an application
-    creates in creation order, Info last. Asking again for a ``(section, label)`` that exists returns the same control
-    and adds the callback to it, so one "Style" dropdown drives every robot; a control and its section go when the
-    last layer that asked for them is removed. Every callback runs under the viewer's lock. A ``BetterRobotError``
+    A section appears with its first control: Timeline, Robot, Layers, Plots, Images, then the sections an
+    application creates in creation order, Info last. Asking again for a ``(section, label)`` that exists returns the
+    same control and adds the callback to it, so one "Style" dropdown drives every robot; a control and its section
+    go when the last layer that asked for them is removed. Every callback runs under the viewer's lock. A ``BetterRobotError``
     raised in one becomes a red notification in the browser and the control returns to its previous value; any other
     exception propagates. ``gui`` is viser's GUI API, for what the sidebar does not make (a chart, an image): add it
     inside ``with sidebar.section(name):``.
