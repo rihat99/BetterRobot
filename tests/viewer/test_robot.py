@@ -126,6 +126,22 @@ def test_load_meshes_gives_the_shapes_as_arrays_the_overlay_draws() -> None:
         load_meshes(geometry, root=panda_urdf())
 
 
+def test_a_mesh_file_whose_material_file_is_missing_takes_the_shapes_colour(tmp_path: Path) -> None:
+    """An OBJ with texture coordinates that names a missing material file (the menagerie's Spot) loads as a texture
+    of trimesh's grey stand-in, which drew black: it has no look of its own and takes the shape's colour."""
+    (tmp_path / "part.obj").write_text(
+        "mtllib material.mtl\nusemtl material_0\nv 0 0 0\nv 0.1 0 0\nv 0 0.1 0\nv 0 0 0.1\n"
+        "vt 0 0\nvt 1 0\nvt 0 1\nvt 1 1\nf 1/1 3/3 2/2\nf 1/1 2/2 4/4\nf 1/1 4/4 3/3\nf 2/2 3/3 4/4\n"
+    )
+    urdf = tmp_path / "r.urdf"
+    urdf.write_text(
+        '<robot name="r"><link name="base"><visual><geometry><mesh filename="part.obj"/></geometry>'
+        '<material name="wrap"><color rgba="0.9 0.7 0.2 1"/></material></visual></link></robot>'
+    )
+    (spec,) = load_meshes(br.io.load_geometry(urdf, br.load(urdf)), root=urdf)
+    assert spec.trimesh is None and spec.color == pytest.approx((0.9, 0.7, 0.2))
+
+
 def test_load_meshes_refuses_a_model_for_the_geometry_and_a_collision_that_is_not_a_bool() -> None:
     """A ``Model`` in place of its ``Geometry`` raised the builtin ``AttributeError`` of a missing ``shapes``, and
     ``collision="yes"`` matched no shape and returned ``[]`` (R1 n4): both are the library's ``ArgumentError``."""

@@ -813,9 +813,10 @@ def _shape_spec(
     if isinstance(shape, Mesh):
         mesh = load(body, shape).copy()  # the loaded one stays unscaled for the next shape that names its file
         mesh.apply_scale(shape.scale)
-        visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look
-        kind = None if visual is None else visual.kind
-        varied = kind == "texture" or (
+        visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look, but not
+        kind = None if visual is None else visual.kind  # trimesh's grey stand-in for a missing material file (black)
+        textured = kind == "texture" and hash(visual.material) != hash(trimesh.visual.material.empty_material())
+        varied = textured or (
             kind in ("vertex", "face") and len(np.unique(np.asarray(getattr(visual, f"{kind}_colors")), axis=0)) > 1
         )
         source = mesh if own_colors and varied else None
