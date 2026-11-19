@@ -48,8 +48,10 @@ def linear_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.nda
     return (linear * 255.0 + 0.5).astype(np.uint8)
 
 
-def _uint8(color: RGB) -> tuple[int, int, int]:
-    red, green, blue = (int(c) for c in rgb_uint8(color))
+def rgb_ints(color: RGB) -> tuple[int, int, int]:
+    """One colour in ``[0, 1]`` as the three ints in 0-255 a property of viser's theme or grid takes (an array would
+    reach the browser as bytes)."""
+    red, green, blue = rgb_uint8(color).tolist()
     return red, green, blue
 
 
@@ -133,7 +135,7 @@ class Theme:
         """
         server.gui.configure_theme(
             dark_mode=self.dark,
-            brand_color=_uint8(self.accent),
+            brand_color=rgb_ints(self.accent),
             control_width="medium",
             show_logo=False,
             show_share_button=False,
