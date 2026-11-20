@@ -196,7 +196,7 @@ def test_pose_gizmo_takes_one_pose() -> None:
 def _panda_collision_overlay() -> None:
     model = br.load(panda_urdf())
     geometry = br.io.load_geometry(panda_urdf(), model)
-    robot = RobotVisual(model, geometry=geometry, root=panda_urdf(), style="maximal", collision=True)
+    robot = RobotVisual(model, geometry=geometry, root=panda_urdf(), style="medium", collision=True)
     Viewer(server=FakeServer(), ground=False).add(robot)  # the overlay's meshes are loaded when it is built
 
 
