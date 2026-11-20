@@ -19,8 +19,8 @@ The names you will use:
 
 ## Inverse kinematics on a batch
 
-`solve_ik` takes a target pose per frame and a start `q0`. With `seeds=8` it also tries 8 random starts per problem
-and keeps the best.
+`solve_ik` takes a target pose per frame and a start `q0`. With `seeds=8` it solves 8 starts per target in one batch,
+`q0` and 7 random ones, and keeps the one that got closest.
 
 ```python
 import torch
