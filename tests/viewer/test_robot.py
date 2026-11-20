@@ -574,18 +574,28 @@ def test_robot_visual_frames_are_every_moving_joint_or_the_named_frames() -> Non
 def test_a_triad_is_as_large_as_the_glyph_of_its_joint() -> None:
     """One length for every triad drew a Shadow hand's fingers as a bed of spikes: a triad now follows its joint's
     glyph in the medium skeleton, as large on a hip as a hip's drum and on a wrist as a wrist's (on the G1 the hip's
-    is 1.18 times the wrist's)."""
-    robot, server, _ = _g1_visual(frames=True)
-    model = robot.model
+    is 1.18 times the wrist's). Over the meshes, which reach about twice a glyph's radius and hid the triads, every
+    triad is 1.75 times that, and a switch to a skeleton style returns it to its glyph's size."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    weights = np.zeros((3, model.njoints), dtype=np.float32)
+    weights[:, 1] = 1.0
+    skin = Skin(0.05 * np.eye(3, dtype=np.float32), np.array([[0, 1, 2]]), weights=weights)  # the meshes style
+    robot, server, _ = _g1_visual(frames=True, skin=skin, style="medium")
     moving = [j for j in range(1, model.njoints) if model.nqs[j] == 1 or j == 1]  # the base and the 29 revolute ones
-    scales = server.scene.nodes["/g1_29dof/g1_29dof/frames/axes"].props["batched_scales"]
-    np.testing.assert_allclose(scales, robot._skeleton("medium").radii[moving], rtol=1e-6)
-    size = dict(zip((model.joint_names[j] for j in moving), scales, strict=True))
+    radii = robot._skeleton("medium").radii[moving]
+
+    def scales() -> np.ndarray:
+        return server.scene.nodes["/g1_29dof/g1_29dof/frames/axes"].props["batched_scales"]
+
+    np.testing.assert_allclose(scales(), radii, rtol=1e-6)
+    size = dict(zip((model.joint_names[j] for j in moving), scales(), strict=True))
     assert size["left_hip_pitch_joint"] > 1.15 * size["left_wrist_yaw_joint"] > 0.0
     assert size["left_hip_pitch_joint"] == size["right_hip_pitch_joint"]  # mirror sides match
+    for style, factor in (("meshes", 1.75), ("minimal", 1.0), ("meshes", 1.75), ("medium", 1.0)):
+        robot.set_style(style)
+        np.testing.assert_allclose(scales(), factor * radii, rtol=1e-6, err_msg=style)
     robot.set_frames(["left_wrist_yaw_link"])  # a frame takes the glyph of its joint
-    named = server.scene.nodes["/g1_29dof/g1_29dof/frames/axes"].props["batched_scales"]
-    np.testing.assert_allclose(named, [size["left_wrist_yaw_joint"]])
+    np.testing.assert_allclose(scales(), [size["left_wrist_yaw_joint"]])
 
 
 @pytest.mark.parametrize("frames", [True, ["panda_hand"]])
