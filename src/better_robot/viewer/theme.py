@@ -1,4 +1,4 @@
-"""``Theme``: the one source of the viewer's colours, lights and backdrop, shared by every layer and app on it."""
+"""``Theme``: the one source of the viewer's colours and backdrop, shared by every layer and app on it."""
 
 from __future__ import annotations
 
@@ -16,10 +16,6 @@ _SIDEBAR_WIDTHS = ("small", "medium", "large")  # viser's control_width
 _SHADE_MIX = {"joint": -0.10, "face": -0.32, "body": 0.0, "bone": 0.45, "stick": 0.10}
 #: How far ``shade`` first mixes the hue of a part on the left (1) or the right (-1) side, the same way.
 _SIDE_MIX = {1: 0.35, 0: 0.0, -1: -0.25}
-#: Directions the key and fill lights shine from, for a z-up scene; ``apply`` turns them to the theme's ``up``.
-_KEY_LIGHT = (-2.0, -3.0, 4.0)
-_FILL_LIGHT = (3.0, -1.5, 1.0)
-_HEMISPHERE_GROUND = (150, 150, 160)
 
 
 def _srgb(red: int, green: int, blue: int) -> RGB:
@@ -65,10 +61,10 @@ def rgb_ints(color: RGB) -> tuple[int, int, int]:
 @final
 @dataclass(frozen=True, kw_only=True)
 class Theme:
-    """Colours (RGB in ``[0, 1]``, as every layer takes them), lights and the up axis of a viewer.
+    """Colours (RGB in ``[0, 1]``, as every layer takes them) and the up axis of a viewer.
 
     ``backdrop`` is the page's vertical gradient (top, bottom), ``grid`` the ground's cell and section lines,
-    ``shadow`` the opacity of shadows on the ground, ``lights`` the intensities (ambient, hemisphere, key, fill).
+    ``shadow`` the opacity of shadows on the ground.
     ``hues`` are the robots' colours in the order robots are added (``hue(k)``), ``shade`` derives a part's colour
     from a hue, ``accent`` colours the GUI and the tools, ``collision`` and ``collision_opacity`` the collision
     overlay, ``text`` labels and the default ink of lines and camera frustums. ``ramp`` holds the colours of the low
@@ -82,9 +78,7 @@ class Theme:
     grid: tuple[RGB, RGB] = (_srgb(218, 219, 224), _srgb(204, 206, 212))
     shadow: float = 0.22
     up: str = "+z"
-    lights: tuple[float, float, float, float] = (0.25, 0.5, 2.6, 0.3)  # little ambient: white meshes keep their form
     hues: tuple[RGB, ...] = (
-        # Light mid-tones: the rig draws a side away from the key light at about half the colour given.
         _srgb(116, 190, 140),  # green
         _srgb(245, 166, 92),  # orange; a darker or redder one turns brown in its own shade
         _srgb(104, 152, 222),  # blue
@@ -148,12 +142,8 @@ class Theme:
         return red, green, blue
 
     def apply(self, server: Any) -> None:
-        """Send the theme to a viser server: GUI colours and width, up axis, the backdrop gradient and the light rig.
-
-        viser's default lights and its environment map are switched off: meshes and solid colours share one rig, an
-        ambient, a hemisphere, a key light that casts shadows and a fill light, as scene nodes under ``/theme``.
-        Applying another theme replaces them.
-        """
+        """Send the theme to a viser server: GUI colours and width, up axis and the backdrop gradient. It adds no
+        light: viser's default lights and environment map light the scene."""
         server.gui.configure_theme(
             dark_mode=self.dark,
             brand_color=rgb_ints(self.accent),
@@ -167,22 +157,6 @@ class Theme:
         ramp = np.linspace(0.0, 1.0, 256, dtype=np.float32)[:, None, None]
         top, bottom = np.asarray(self.backdrop[0], np.float32), np.asarray(self.backdrop[1], np.float32)
         scene.set_background_image(np.repeat(rgb_uint8((1.0 - ramp) * top + ramp * bottom), 2, axis=1), format="png")
-        scene.configure_default_lights(enabled=False, cast_shadow=False)
-        scene.configure_environment_map(None)  # viser's default city map washes solid colours out to pastel
-        ambient, hemisphere, key, fill = self.lights
-        scene.add_light_ambient("/theme/ambient", intensity=ambient)
-        scene.add_light_hemisphere(
-            "/theme/hemisphere", sky_color=(255, 255, 255), ground_color=_HEMISPHERE_GROUND, intensity=hemisphere
-        )
-        scene.add_light_directional("/theme/key", intensity=key, cast_shadow=True, position=self._from_z_up(_KEY_LIGHT))
-        scene.add_light_directional("/theme/fill", intensity=fill, position=self._from_z_up(_FILL_LIGHT))
-
-    def _from_z_up(self, vector: tuple[float, float, float]) -> tuple[float, float, float]:
-        """``vector`` given for a z-up scene, turned so that its z component lies along ``up``."""
-        x, y, z = vector
-        axis, sign = "xyz".index(self.up[-1]), -1.0 if self.up.startswith("-") else 1.0
-        turned = {0: (sign * z, x, y), 1: (y, sign * z, x), 2: (x, y, sign * z)}[axis]
-        return turned
 
 
 LIGHT = Theme()

@@ -445,10 +445,11 @@ def test_theme_shades_run_from_dark_drum_faces_to_pale_bones_with_bodies_in_the_
         theme.shade((1.0, 0.0), "body")  # pyright: ignore[reportArgumentType]
 
 
-def test_theme_lights_meshes_and_colours_alike_and_the_ground_takes_its_shadow() -> None:
+def test_the_theme_leaves_visers_lights_alone_and_the_ground_takes_its_shadow() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    assert server.scene.environment is not None and server.scene.environment["hdri"] is None  # no pastel wash
+    assert server.scene.default_lights is None and server.scene.environment is None  # viser's own lighting
+    assert not [name for name, node in server.scene.nodes.items() if "Light" in node.kind]
     grid = server.scene.nodes["/ground/ground/grid"].props
     assert grid["infinite_grid"] and grid["shadow_opacity"] == LIGHT.shadow
     viewer.set_theme(DARK)

@@ -340,7 +340,7 @@ def _ball_viewer(theme: Theme) -> Viewer:
 
 
 def _step_of(rgb: list[int]) -> int:
-    """The step whose colour has the bright channels of ``rgb``; the theme's lights lift the dark ones."""
+    """The step whose colour has the bright channels of ``rgb``; the lights lift the dark ones."""
     bright = tuple(bool(value > (min(rgb) + max(rgb)) / 2) for value in rgb)
     return [tuple(bool(c) for c in color) for color in _STEP_COLORS].index(bright)
 
