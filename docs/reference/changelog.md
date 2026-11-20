@@ -31,13 +31,13 @@ that 0.3.0 renames or removes, one table row each.
   `Layer.viewer` is the viewer the layer was added to.
 - `Viewer.serve()` plays the timeline and serves the page until interrupted; `Viewer.set_theme(theme)` applies a
   theme to the page and to every layer; `Viewer(ground=True)` adds the ground grid under the tag `ground`.
-- `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `lights` (ambient, hemisphere, key,
-  fill), `hues` with `Theme.hue(index)`, `Theme.shade(hue, role, *, side=0)` (`side=1` a left part, lighter, `-1`
+- `Theme` tokens `backdrop` (the page's vertical gradient), `grid`, `shadow`, `hues` with `Theme.hue(index)`,
+  `Theme.shade(hue, role, *, side=0)` (`side=1` a left part, lighter, `-1`
   a right one, darker), `accent`, `collision`, `text` and `ramp` (the low and the high end of a joint value's range,
   a quiet steel and a warm orange; another count of colours raises `ShapeError`, a value outside `[0, 1]`
   `ArgumentError`), all colours RGB in `[0, 1]`, and `collision_opacity`.
-  `Theme.apply` switches viser's default lights and environment map off for an ambient, a hemisphere, a key light
-  that casts shadows and a fill light, one rig for meshes and solid colours.
+  `Theme.apply` leaves viser's default lights and environment map as viser sets them (it switched the lights'
+  shadows off), so the ground takes the robots' shadows.
 - `Theme(sidebar_width="medium")`: viser's `"small"`, `"medium"` or `"large"` sidebar, which `Viewer.set_theme`
   keeps; it put `"medium"` back over an application's own `configure_theme(control_width=)`.
 - `testing.FakeServer` keeps the lights, the background image, arrows, button groups, folders and dropdown options,

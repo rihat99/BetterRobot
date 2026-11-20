@@ -164,7 +164,7 @@ def test_the_controls_an_app_adds_read_back_their_initial_values() -> None:
 def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> None:
     server = FakeServer()
     server.clients[0] = FakeClient()
-    viewer = Viewer(server=server)  # its ground and the theme's lights and backdrop included
+    viewer = Viewer(server=server)  # its ground and the theme's backdrop included
     rng = np.random.default_rng(0)
     points = rng.normal(size=(3, 8, 3)).astype(np.float32)
     faces = np.array([[0, 1, 2], [2, 3, 4]])
