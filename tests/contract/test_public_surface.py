@@ -136,12 +136,11 @@ def test_docs_and_examples_take_first_level_names_from_the_root() -> None:
     Reads the syntax tree of every example and of every page's ``python`` fences, joined in order as they run:
     ``ImportFrom`` names, multi-line ones included, and attribute chains over any binding of a subpackage
     (``br.terms``, ``from better_robot import kinematics``, ``import better_robot.dynamics as dyn``). Contract pages
-    show library-internal imports and the changelog tells history, so ``docs/contracts`` and the changelog are not
-    read.
+    show library-internal imports, so ``docs/contracts`` is not read.
     """
     sources = {path: (REPO / path).read_text() for path in _tracked("examples/*.py")}
     for path in _tracked("README.md", "docs/*.md"):
-        if not path.startswith("docs/contracts/") and path != "docs/reference/changelog.md":
+        if not path.startswith("docs/contracts/"):
             fences = PYTHON_FENCE.finditer((REPO / path).read_text())
             sources[path] = "\n".join(textwrap.dedent(fence["body"]) for fence in fences)
     offenders = [

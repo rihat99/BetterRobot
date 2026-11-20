@@ -6,7 +6,7 @@ be tracked (from the repository root; a Markdown link from its page, a ``mkdocs.
 citation is always dead. The dead citations that exist today sit in ``tests/contract/ratchets/dead_citations.json``
 (``"<file>: <citation>"`` to the reason); the ratchet only shrinks, and the fix that resolves a citation removes its
 entry. Permanent exceptions: the resolver's and the edge walker's test cases and this module's own exception list. A
-docs page outside the changelog and the migration pages tells no history: no plan code, no "no longer", no "was moved".
+docs page tells no history: no plan code, no "no longer", no "was moved".
 Tracked text also names no code of the plan that wrote it (a work package, lane, ruling or phase), which nothing in
 the repository defines.
 """
@@ -16,7 +16,6 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-from fnmatch import fnmatch
 from pathlib import Path
 
 from better_robot.testing import dead_citations
@@ -51,17 +50,15 @@ def test_citation_ratchet_has_no_stale_entries() -> None:
 
 
 HISTORY = re.compile(r"\bP\d+-[A-Z]|\bruling R-\d|(?i:\bno\s+longer\b|\bwas\s+moved\b)")
-HISTORY_PAGES = ("docs/reference/changelog.md", "docs/reference/migration-*.md")
 
 
 def test_docs_pages_tell_no_history() -> None:
     """A docs page says what holds for a reader with no history (principle 7.9); what changed, and the plan code
-    that changed it, belong in the changelog and the migration pages."""
+    that changed it, belong in the commit message."""
     found = []
     for page in sorted((REPO / "docs").rglob("*.md")):
         relative = page.relative_to(REPO).as_posix()
-        if not any(fnmatch(relative, pattern) for pattern in HISTORY_PAGES):
-            found += [f"{relative}: {' '.join(match[0].split())}" for match in HISTORY.finditer(page.read_text())]
+        found += [f"{relative}: {' '.join(match[0].split())}" for match in HISTORY.finditer(page.read_text())]
     assert not found, "state what holds now instead:\n  " + "\n  ".join(found)
 
 

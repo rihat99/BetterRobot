@@ -1,43 +1,38 @@
 ---
 name: release
-description: Prepare a BetterRobot release - public-API diff, version, changelog section, release tier. Use when a task prepares or checks a release; the tag and the downstream pins stay with the owner.
+description: Prepare a BetterRobot release - public-API diff, version, release tier. Use when a task prepares or checks a release; the tag and the downstream pins stay with the owner.
 ---
 
 # Prepare a BetterRobot release
 
-A release is one commit and one tag. The commit raises the version and dates the changelog section, the release
-tier passes on it, the tag names it, and BetterHuman pins it. Run the steps in order on a clean checkout of the
-commit to release; each step names the check that holds it. The tag, the push and the revision BetterHuman pins are
-the owner's steps. No version has a tag yet: 0.2.0 (2026-04-11) has none.
+A release is one commit and one tag. The commit raises the version, the release tier passes on it, the tag names
+it, and BetterHuman pins it. Run the steps in order on a clean checkout of the commit to release; each step names the
+check that holds it. The tag, the push and the revision BetterHuman pins are the owner's steps. No version has a tag
+yet: the first release is 0.1.0, the version `pyproject.toml` already holds, and its tag will be `v0.1.0`.
 
 ## Review the public-API diff
 
 `tools/api_snapshot.py --diff` prints the public paths added (`+`), removed (`-`) and changed (`~`) since an older
-snapshot. The older snapshot is the last release's `tests/contract/public_api.json`. For 0.3.0 it is
-`tests/contract/public_api_before_0.3.0.json`, the public tree of the last 0.2 commit, since 0.2.0 has no tag:
+snapshot. The older snapshot is the last release tag's `tests/contract/public_api.json`; 0.1.0, the first release,
+has none to compare with:
 
 ```bash
-# for 0.3.0
-uv run python tools/api_snapshot.py --diff tests/contract/public_api_before_0.3.0.json
-# for the release after it
-git show v0.3.0:tests/contract/public_api.json > /tmp/public_api_0.3.0.json
-uv run python tools/api_snapshot.py --diff /tmp/public_api_0.3.0.json
+# for the release after 0.1.0
+git show v0.1.0:tests/contract/public_api.json > /tmp/public_api_0.1.0.json
+uv run python tools/api_snapshot.py --diff /tmp/public_api_0.1.0.json
 ```
 
-Every `-` path is a Removed entry of the changelog that names its replacement, and a row of the migration page;
-every `+` path has a docstring and an Added entry. `tests/contract/test_changelog.py` checks the Removed entries
-and the 0.3.0 migration page, `tests/contract/test_docstrings.py` the docstrings; a reviewer checks the Added
-entries. A minor release may change or remove public names; a patch release changes no public signature (rule
+Every `+` path has a docstring (`tests/contract/test_docstrings.py`), and every `-` or `~` path came with a commit
+message that names its replacement (rule C-EXT-4 in `docs/contracts/08-extension-points.md`); a reviewer checks the
+messages. A minor release may change or remove public names; a patch release changes no public signature (rule
 C-EXT-6 in `docs/contracts/public-surface.md`).
 
-## Raise the version and close the changelog section
+## Raise the version
 
-One commit, `Release: X.Y.Z`, holds three changes:
+One commit, `Release: X.Y.Z`, holds two changes; 0.1.0 needs neither, since both files already hold it:
 
 1. `version` in `pyproject.toml` becomes `0.MINOR.PATCH` (`tests/contract/test_versioning.py`).
-2. In `docs/reference/changelog.md`, the `## Unreleased` heading becomes `## vX.Y.Z (YYYY-MM-DD)` with the day of
-   the release, and a new, empty `## Unreleased` heading opens the file (`tests/contract/test_changelog.py`).
-3. `uv lock` writes the version into `uv.lock`. The release tier starts with `uv lock --check` and the hooks run
+2. `uv lock` writes the version into `uv.lock`. The release tier starts with `uv lock --check` and the hooks run
    through `uv run --locked`; both fail on a lockfile that holds the old version.
 
 ```bash
@@ -61,18 +56,18 @@ removal version and a test that fails when that version is reached.
 
 ## Tag the release (the owner)
 
-The owner tags the release commit with the changelog heading's name and pushes the tag:
+The owner tags the release commit `vX.Y.Z` and pushes the tag:
 
 ```bash
-git tag -a v0.3.0 -m "BetterRobot 0.3.0"
-git push origin v0.3.0
+git tag -a v0.1.0 -m "BetterRobot 0.1.0"
+git push origin v0.1.0
 ```
 
 ## Move the downstream pins (the owner)
 
 BetterHuman depends on one BetterRobot commit, named under `[tool.uv.sources]` in its `pyproject.toml`:
 `better-robot = { git = "https://github.com/rihat99/BetterRobot", rev = "<sha>" }`. After the tag is pushed, set
-`rev` to the tagged commit, which `git rev-parse v0.3.0^{commit}` prints, then run `uv lock` and the full tier in
+`rev` to the tagged commit, which `git rev-parse v0.1.0^{commit}` prints, then run `uv lock` and the full tier in
 BetterHuman. A pin never names a branch.
 
 ## Once per clone

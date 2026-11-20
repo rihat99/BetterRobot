@@ -3,7 +3,7 @@
 ``tests/contract/public_api.json`` maps every path of the ``__all__`` tree to one line describing it
 (``better_robot.testing.public_api``). ``--write`` rewrites it after an intended API change; ``--check`` prints the
 differences and exits 1 when the package does not match it; ``--diff OLD.json`` prints the paths added (``+``),
-removed (``-``) and changed (``~``) since an older snapshot, the draft of the next migration table.
+removed (``-``) and changed (``~``) since an older snapshot, such as the last release's.
 
     uv run python tools/api_snapshot.py --check
     uv run python tools/api_snapshot.py --diff old_public_api.json
