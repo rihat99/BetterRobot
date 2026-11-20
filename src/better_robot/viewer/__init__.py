@@ -13,8 +13,8 @@ backdrop. ``PointsLayer`` (a list of arrays is a cloud whose size changes), ``Li
 
 A robot is one layer, ``RobotVisual(model, q)``: it runs forward kinematics over ``q (nq,)`` or a clip ``(T, nq)``
 and shows the robot as its ``"meshes"`` (a ``Geometry`` from ``io.load_geometry``, or a ``Skin``) or as a
-``"minimal"``, ``"medium"`` or ``"maximal"`` skeleton laid out by a ``SkeletonRecipe`` (``MINIMAL``, ``MEDIUM``,
-``MAXIMAL``), with a collision overlay and frame triads; the style switches while the viewer runs and ``update(q)``
+``"minimal"`` or ``"medium"`` skeleton laid out by a ``SkeletonRecipe`` (``MINIMAL``, ``MEDIUM``), with a
+collision overlay and frame triads; the style switches while the viewer runs and ``update(q)``
 shows new configurations. ``load_meshes(geometry, root=)`` gives a geometry's shapes as arrays (``MeshSpec``) to code
 without a viewer.
 ``viewer.tools`` adds a draggable ``PoseGizmo`` and numpy picking (``ray_hit``, ``vertices_in_sphere``,
@@ -46,7 +46,7 @@ from .layers.points import PointsLayer
 from .layers.skinned import SkinnedMeshLayer
 from .robot import RobotVisual, Skin, load_meshes
 from .sidebar import Sidebar
-from .skeleton import MAXIMAL, MEDIUM, MINIMAL, SkeletonRecipe
+from .skeleton import MEDIUM, MINIMAL, SkeletonRecipe
 from .theme import DARK, LIGHT, Theme
 from .timeline import Timeline
 from .viewer import Viewer
@@ -55,7 +55,6 @@ from . import tools
 __all__ = [
     "DARK",
     "LIGHT",
-    "MAXIMAL",
     "MEDIUM",
     "MINIMAL",
     "ArrowsLayer",

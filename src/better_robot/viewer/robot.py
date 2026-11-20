@@ -6,7 +6,7 @@ from better_robot.viewer import RobotVisual, Viewer
 
 model = br.load("panda.urdf")
 viewer = Viewer()
-robot = viewer.add(RobotVisual(model, style="maximal"))
+robot = viewer.add(RobotVisual(model, style="medium"))
 robot.update(model.q_neutral)  # a new configuration, or a clip (T, nq) of as many steps
 viewer.serve()
 ```
@@ -40,17 +40,7 @@ from .layers.frames import FramesLayer
 from .layers.mesh import MeshSpec, RigidMeshLayer, SpheresLayer
 from .layers.skinned import SkinnedMeshLayer
 from .sidebar import Sidebar
-from .skeleton import (
-    MAXIMAL,
-    MEDIUM,
-    MINIMAL,
-    Skeleton,
-    SkeletonRecipe,
-    build_skeleton,
-    unit_ball,
-    unit_box,
-    unit_cylinder,
-)
+from .skeleton import MEDIUM, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton, unit_ball, unit_box, unit_cylinder
 from .theme import LIGHT, RGB, Theme, linear_uint8, unit_numbers
 
 if TYPE_CHECKING:
@@ -59,9 +49,9 @@ if TYPE_CHECKING:
 
 # ------------------------------------------------------------------------------------------------ the robot visual
 
-Style = Literal["meshes", "minimal", "medium", "maximal"]
+Style = Literal["meshes", "minimal", "medium"]
 
-_STYLES = ("meshes", "minimal", "medium", "maximal")
+_STYLES = ("meshes", "minimal", "medium")
 _SKELETONS = _STYLES[1:]
 _TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the glyph radius of the joint it hangs on
 _GLASS = 0.002  # the collision glass stands this share of the robot's size off its shapes: clear of the meshes
@@ -108,7 +98,7 @@ class _Blocks(Layer):
 
     @override
     def build(self, scene: Any, root: str) -> None:
-        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box(taper=self.skeleton.taper)}
+        meshes = {"cylinders": unit_cylinder(), "balls": unit_ball(), "boxes": unit_box()}
         colors = self._shade()
         for mesh, (world, scale) in self.skeleton.place(self.poses[0]).items():
             if len(world):  # viser's batched nodes do not take zero instances
@@ -156,8 +146,8 @@ class _Blocks(Layer):
         return self._colors
 
     def _paint(self, values: np.ndarray) -> None:
-        """Colour each glyph by its joint's value in ``values (njoints,)``, a ball of the stick figure by the value of
-        the largest magnitude among its joints; a glyph without a value (NaN) keeps its colour."""
+        """Colour each glyph by its joint's value in ``values (njoints,)``, a ball of the minimal skeleton by the value
+        of the largest magnitude among its joints; a glyph without a value (NaN) keeps its colour."""
         low, high = self.value_range
         for mesh, (rows, joints, ends) in self._ends.items():
             picked = np.where(joints, values, np.nan)  # (n, njoints)
@@ -167,12 +157,6 @@ class _Blocks(Layer):
             colors = self._colors[mesh].copy()
             colors[rows[valued]] = ends[valued, 0] + share[valued] * (ends[valued, 1] - ends[valued, 0])
             self._nodes[mesh].batched_colors = linear_uint8(colors)
-
-    @override
-    def _surface(self) -> dict[str, Any]:
-        surface = super()._surface()
-        surface["receive_shadow"] &= self.skeleton.taper == 1.0  # a tapered block's own shadow streaks its faces
-        return surface
 
     @override
     def set_opacity(self, opacity: float) -> None:
@@ -192,12 +176,12 @@ class _Blocks(Layer):
 
 @final
 class RobotVisual(Layer):
-    """One robot: its ``model`` at the configurations ``q``, shown in one of four styles.
+    """One robot: its ``model`` at the configurations ``q``, shown in one of three styles.
 
     ``"meshes"`` draws the visual shapes of ``geometry`` (mesh files are found under ``root``, the description file
-    or its folder, and under each folder above it) or the ``skin``; ``"minimal"``, ``"medium"`` and ``"maximal"``
-    draw the skeleton of the recipes ``minimal``, ``medium`` and ``maximal``. ``style=None`` is ``"meshes"`` when
-    there is something to show as meshes, else ``"maximal"``. ``collision`` overlays the ``spheres``, or without
+    or its folder, and under each folder above it) or the ``skin``; ``"minimal"`` and ``"medium"`` draw the skeleton
+    of the recipes ``minimal`` and ``medium``. ``style=None`` is ``"meshes"`` when there is something to show as
+    meshes, else ``"medium"``. ``collision`` overlays the ``spheres``, or without
     them the collision shapes of ``geometry``, as a pale glass shell over any style; ``frames`` draws a triad per
     moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown, not
     while the robot is hidden; ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs,
@@ -228,7 +212,6 @@ class RobotVisual(Layer):
         style: Style | None = None,
         minimal: SkeletonRecipe = MINIMAL,
         medium: SkeletonRecipe = MEDIUM,
-        maximal: SkeletonRecipe = MAXIMAL,
         hue: RGB | None = None,
         opacity: float = 1.0,
         joint_values: torch.Tensor | np.ndarray | None = None,
@@ -246,13 +229,13 @@ class RobotVisual(Layer):
         super().__init__(name or model.name, self._poses.shape[0], tags=tags)
         self._store_opacity(opacity)
         self._root_folder = None if root is None else Path(root)
-        self._recipes = {"minimal": minimal, "medium": medium, "maximal": maximal}
+        self._recipes = {"minimal": minimal, "medium": medium}
         self._skeletons: dict[str, Skeleton] = {}
         self._fit: _Fit | None = None  # what bounds needs that no step changes, the first time it is asked
         self._meshes: dict[str, Any] = {}  # mesh file name -> its trimesh, read once: a theme or style switch reuses it
         visual = geometry is not None and any(not attached.collision for attached in geometry.shapes)
         self.styles: tuple[Style, ...] = _STYLES if visual or skin is not None else _SKELETONS
-        self.style: Style = style or ("meshes" if "meshes" in self.styles else "maximal")
+        self.style: Style = style or ("meshes" if "meshes" in self.styles else "medium")
         if self.style not in self.styles:
             raise ArgumentError(
                 f"style must be one of {list(self.styles)} for robot {self.name!r}, got {self.style!r}; 'meshes' "
@@ -440,7 +423,7 @@ class RobotVisual(Layer):
         if part == "frames":  # a triad reaches one glyph radius out of its joint's drum: a finger's is a finger's size
             joints = self._triad_joints()
             poses = np.zeros((self.nsteps, len(joints), 7), np.float32)
-            scales = self._skeleton("maximal").radii[joints]
+            scales = self._skeleton("medium").radii[joints]
             layer = FramesLayer(part, poses, axes_length=_TRIAD[0], axes_radius=_TRIAD[1], scales=scales)
             return [self._derive(part, layer)]
         if part == "collision" and self.spheres is not None:
@@ -454,7 +437,7 @@ class RobotVisual(Layer):
         color = self._theme.collision if collision else self._theme.shade(self.hue, "body")
         # viser has no depth offset: glass on a surface it shares with the meshes (the same file, or a hull that
         # meets it) would show stripes of each in turn, so it stands a little off along its normals
-        margin = _GLASS * self._skeleton("maximal").scale if collision else 0.0
+        margin = _GLASS * self._skeleton("medium").scale if collision else 0.0
         specs = [
             _shape_spec(attached.body, attached.shape, self._mesh, color, own_colors=not collision, margin=margin)
             for attached in shapes
@@ -630,7 +613,7 @@ class RobotVisual(Layer):
     @override
     def bounds(self, step: int) -> Bounds | None:
         """A box per joint (a point), per collision sphere and per collision shape that is not a mesh (each exact),
-        per block of the maximal skeleton on a rigid body without one of those, and per bone of the ``skin`` that
+        per block of the medium skeleton on a rigid body without one of those, and per bone of the ``skin`` that
         carries vertices (``SkinnedMeshLayer.bounds``: no vertex is skinned), ``(lo (N, 3), hi (N, 3))``: the robot's
         extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
         """
@@ -663,7 +646,7 @@ class RobotVisual(Layer):
 
     def _fitted(self) -> _Fit:
         """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, which
-        blocks of the maximal skeleton sit on a body that neither covers, and the skin's boxes per bone."""
+        blocks of the medium skeleton sit on a body that neither covers, and the skin's boxes per bone."""
         model = self.model
         anchor = list(range(model.njoints))  # the joint each body is welded to
         for j in range(1, model.njoints):
@@ -675,7 +658,7 @@ class RobotVisual(Layer):
         shapes = [shape for shape in self.geometry.shapes if shape.collision] if self.geometry is not None else []
         shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
         covered |= {anchor[attached.body] for attached in shapes}
-        skeleton = self._skeleton("maximal")
+        skeleton = self._skeleton("medium")
         skin = None
         if self.skin is not None:  # never built: its boxes per bone follow the joint poses that update writes
             skin = SkinnedMeshLayer(
@@ -793,7 +776,7 @@ def _axes(world: np.ndarray) -> np.ndarray:
     return np.abs(so3.act(rotations, eye).numpy())
 
 
-#: Per unit mesh, its half extent along x, y and z over its scale, read off the mesh (a taper only narrows a box).
+#: Per unit mesh, its half extent along x, y and z over its scale, read off the mesh.
 _HALF_EXTENT = {
     mesh: np.abs(unit()[0]).max(axis=0)
     for mesh, unit in (("cylinders", unit_cylinder), ("balls", unit_ball), ("boxes", unit_box))
@@ -809,7 +792,7 @@ class _Fit:
     bodies: list[int]  # per collision shape that is not a mesh, the body it is on
     placements: torch.Tensor  # (P, 7): its placement on that body
     sizes: np.ndarray  # (P, 6): what its world box needs (``_sizes``)
-    skeleton: Skeleton  # the maximal skeleton
+    skeleton: Skeleton  # the medium skeleton
     keep: dict[str, np.ndarray]  # per unit mesh, (N,): whether a block is on a body that no sphere or shape covers
     skin: SkinnedMeshLayer | None  # the skin's layer, never built, for its boxes per bone
 
