@@ -16,7 +16,7 @@ why it is wanted, what must exist first, and when it is planned:
 - **maybe**: kept open; it starts only if a concrete need appears.
 
 No brick starts without an owner decision. The API is not frozen during alpha,
-so a brick may change a public signature; the [changelog](changelog.md) records it.
+so a brick may change a public signature; its commit message says it.
 
 ### Landed in this version (now)
 
@@ -182,4 +182,4 @@ viser stays the only backend; no own three.js client is planned.
 3. Add focused success, failure, and parity tests.
 4. Remove the explicit raise and its file from the marker block in the same
    patch.
-5. Update the relevant concept, reference page, and changelog.
+5. Update the relevant concept and reference page.

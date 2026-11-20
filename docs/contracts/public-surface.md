@@ -16,8 +16,8 @@ maintainers keep in return, and which changes count as compatible.
 
 ## Horizons
 
-- Python API before 1.0: a minor release may change or remove a public name, with a migration line in the
-  changelog; a patch release changes no public signature (C-EXT-6). This major keeps no deprecated alias (C-EXT-4).
+- Python API before 1.0: a minor release may change or remove a public name, and the commit message names the
+  replacement; a patch release changes no public signature (C-EXT-6). This major keeps no deprecated alias (C-EXT-4).
 - Files: BetterRobot writes no model file; it reads
   URDF and MJCF as their own specifications define them, within the loaders' documented scope.
 - Numerical results: within the documented tolerance of the named oracle (Pinocchio or MuJoCo in

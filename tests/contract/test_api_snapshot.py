@@ -2,7 +2,7 @@
 
 Every path of the ``__all__`` tree with its kind and signature (``better_robot.testing.public_api``) is tracked, so
 a change to the public surface is a reviewed edit of the snapshot, never a side effect. After an intended change:
-``uv run python tools/api_snapshot.py --check`` lists it, ``--write`` records it, and the changelog says it.
+``uv run python tools/api_snapshot.py --check`` lists it, ``--write`` records it, and the commit message says it.
 """
 
 from __future__ import annotations

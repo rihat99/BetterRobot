@@ -51,7 +51,7 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
   (the `CAP` of `tests/contract/test_pyright_ratchet.py`), keyword_only 6, value_checks 3, vocabulary 3; the other
   five are empty.
 - The public API equals `tests/contract/public_api.json` (`tests/contract/test_api_snapshot.py`); an intended change
-  is recorded with `uv run python tools/api_snapshot.py --write` and an entry in `docs/reference/changelog.md`.
+  is recorded with `uv run python tools/api_snapshot.py --write`, and the commit message says it.
 - `lie` and `spatial` keep 100 % line and branch coverage (the coverage step of `tools/release_tier.sh`).
 
 ## Absences, each with its enforcer
@@ -80,8 +80,8 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - No deprecated alias or shim in this major (`tests/contract/test_versioning.py`).
 - No module named `utils`, `common`, `misc` or `helpers`, and no word of a public name outside
   `docs/reference/glossary.md` (`tests/contract/test_vocabulary.py`).
-- No dead path citation and no line-number citation in tracked text, and no history on a docs page outside the
-  changelog and the migration pages (`tests/contract/test_citations.py`).
+- No dead path citation and no line-number citation in tracked text, and no history on a docs page
+  (`tests/contract/test_citations.py`).
 - No tracked symlink, file over 1 MiB, or directory without a tracked file (`tests/contract/test_repository_layout.py`).
 - No agent file over its length and no capitals for emphasis (`tests/contract/test_agent_files.py`).
 

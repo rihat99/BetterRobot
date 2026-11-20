@@ -67,7 +67,7 @@ Enforcement: `tests/contract/test_public_surface.py`, `tests/contract/test_submo
 
 ## C-EXT-4 This major keeps no deprecated alias (MUST)
 
-A public name that changes is renamed or removed outright, and the changelog's entry names the replacement; there is
+A public name that changes is renamed or removed outright, and the commit message names the replacement; there is
 no alias that warns. The first deprecation of a later release brings a table of deprecated names with their removal
 version and a test that fails when that version is reached (principle 8.9); it changes this rule. Internal names are
 renamed outright.
@@ -88,10 +88,10 @@ Enforcement: `tests/contract/test_layer_dependencies.py`; `[review]`.
 
 ## C-EXT-6 Pre-1.0 versioning: minor releases may break (MUST)
 
-Until 1.0 the version is `0.MINOR.PATCH`. A minor release may change or remove public API, and every such change is
-in the changelog with its migration; a patch release changes no public signature. A public signature changes only
-together with the tracked snapshot `tests/contract/public_api.json`, so no change reaches a release unnoticed. The
-public surface and the horizon of each kind of artifact are on [Public surface](public-surface.md).
+Until 1.0 the version is `0.MINOR.PATCH`. A minor release may change or remove public API, and the commit message
+of every such change names the replacement; a patch release changes no public signature. A public signature changes
+only together with the tracked snapshot `tests/contract/public_api.json`, so no change reaches a release unnoticed.
+The public surface and the horizon of each kind of artifact are on [Public surface](public-surface.md).
 
 Enforcement: `tests/contract/test_versioning.py::test_version_is_pre_1_0`; `tests/contract/test_api_snapshot.py`.
 

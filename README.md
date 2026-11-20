@@ -4,7 +4,7 @@ BetterRobot is a PyTorch library for batched, differentiable robot kinematics, d
 
 ![Sixteen Panda arms, each at its own inverse-kinematics answer, all solved in one batched call](docs/images/readme_ik.gif)
 
-> **Status:** this is an early version (0.3.0) in active development, and breaking changes may happen. Development happens on the `dev` branch.
+> **Status:** this is an early version (0.1.0) in active development, and breaking changes may happen. Development happens on the `dev` branch.
 
 ## Install
 
