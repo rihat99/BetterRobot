@@ -54,6 +54,9 @@ Style = Literal["meshes", "minimal", "medium"]
 _STYLES = ("meshes", "minimal", "medium")
 _SKELETONS = _STYLES[1:]
 _TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the glyph radius of the joint it hangs on
+#: Over the meshes the triads grow by this factor: a link's mesh reaches about twice its joint's medium glyph radius
+#: (G1 median 2.1), which hid them; on the skeletons they keep their size, one radius out of the drum.
+_TRIAD_OVER_MESHES = 1.75
 #: Directions in which ``bounds`` keeps a collision mesh's furthest vertex: a box round a turned foot stood a Cassie
 #: 8 cm off the ground, these vertices within a few millimetres of the mesh's lowest point.
 _AROUND = unit_ball(8, 16)[0].astype(np.float64)
@@ -186,7 +189,8 @@ class RobotVisual(Layer):
     of the recipes ``minimal`` and ``medium``. ``style=None`` is ``"meshes"`` when there is something to show as
     meshes, else ``"medium"``. ``collision`` overlays the ``spheres``, or without
     them the collision shapes of ``geometry``, as a pale glass shell over any style; ``frames`` draws a triad per
-    moving joint (``True``) or per frame given, by id or name. Every part is built the first time it is shown, not
+    moving joint (``True``) or per frame given, by id or name, sized by its joint's glyph and larger over the meshes,
+    which would hide it. Every part is built the first time it is shown, not
     while the robot is hidden; ``set_style``, ``set_collision`` and ``set_frames`` switch them while the viewer runs,
     and the sidebar gets the same three controls, shared by every robot in the viewer: a switch from code moves the
     control and leaves the other robots as they are, and a robot added later keeps its own state and moves the
@@ -426,7 +430,7 @@ class RobotVisual(Layer):
         if part == "frames":  # a triad reaches one glyph radius out of its joint's drum: a finger's is a finger's size
             joints = self._triad_joints()
             poses = np.zeros((self.nsteps, len(joints), 7), np.float32)
-            scales = self._skeleton("medium").radii[joints]
+            scales = self._skeleton("medium").radii[joints] * (_TRIAD_OVER_MESHES if self.style == "meshes" else 1.0)
             layer = FramesLayer(part, poses, axes_length=_TRIAD[0], axes_radius=_TRIAD[1], scales=scales)
             return [self._derive(part, layer)]
         if part == "collision" and self.spheres is not None:
@@ -506,8 +510,11 @@ class RobotVisual(Layer):
         """Show the robot as ``style``; the first use of a style builds its nodes, later ones only show them."""
         if style not in self.styles:
             raise ArgumentError(f"style must be one of {list(self.styles)} for robot {self.name!r}, got {style!r}")
-        self.style = style
-        self._apply()
+        with self._lock():  # the triads over the meshes are larger: another size is another node
+            if (style == "meshes") != (self.style == "meshes"):
+                self._drop("frames")
+            self.style = style
+            self._apply()
         self._show("Style", style)
 
     def set_collision(self, visible: bool) -> None:  # noqa: FBT001 - the switch is the main operand
