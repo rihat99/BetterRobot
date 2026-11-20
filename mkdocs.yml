@@ -98,62 +98,14 @@ plugins:
 
 nav:
   - Home: index.md
-  - Getting started:
-      - getting-started/installation.md
-      - getting-started/first-model.md
-      - getting-started/forward-kinematics.md
-      - getting-started/inverse-kinematics.md
-      - getting-started/floating-base.md
-      - getting-started/trajectories.md
-      - getting-started/gpu-and-batching.md
-      - getting-started/visualize.md
-  - Concepts:
-      - concepts/architecture.md
-      - concepts/model-and-state.md
-      - concepts/joints-bodies-frames.md
-      - concepts/lie-and-spatial.md
-      - concepts/kinematics-and-jacobians.md
-      - concepts/dynamics.md
-      - concepts/optimization.md
-      - concepts/time-and-structure.md
-      - concepts/collision.md
-      - concepts/viewer.md
-      - concepts/io.md
-  - Guides:
-      - guides/load-a-robot.md
-      - guides/avoid-collisions.md
-      - guides/record-a-video.md
-      - guides/write-a-term.md
-      - guides/own-the-loop.md
-      - guides/hard-constraints.md
-      - guides/constrained-ik.md
-      - guides/track-targets.md
-      - guides/avoidance-demos.md
-      - guides/fit-a-clip.md
-      - guides/differentiate.md
-      - guides/benchmark-and-profile.md
-      - guides/use-with-betterhuman.md
-      - guides/extend.md
-      - guides/run-the-tests.md
-      - guides/release.md
-  - Reference:
-      - API:
-          - better_robot: reference/api/better_robot.md
-          - model: reference/api/model.md
-          - io: reference/api/io.md
-          - lie: reference/api/lie.md
-          - spatial: reference/api/spatial.md
-          - kinematics: reference/api/kinematics.md
-          - dynamics: reference/api/dynamics.md
-          - collision: reference/api/collision.md
-          - optim: reference/api/optim.md
-          - terms: reference/api/terms.md
-          - viewer: reference/api/viewer.md
-          - testing: reference/api/testing.md
-          - exceptions: reference/api/exceptions.md
-      - reference/effects.md
-      - reference/tests.md
-      - reference/glossary.md
-      - reference/changelog.md
-      - reference/migration-0.3.0.md
-      - reference/roadmap.md
+  - Install and quickstart: install.md
+  - Modules:
+      - Model and io: model-and-io.md
+      - Lie and spatial: lie-and-spatial.md
+      - Kinematics: kinematics.md
+      - Dynamics: dynamics.md
+      - Optimization and terms: optim-and-terms.md
+      - Collision: collision.md
+      - Viewer: viewer.md
+      - Errors and testing: errors-and-testing.md
+  - Changelog: reference/changelog.md
