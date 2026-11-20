@@ -54,6 +54,9 @@ Style = Literal["meshes", "minimal", "medium"]
 _STYLES = ("meshes", "minimal", "medium")
 _SKELETONS = _STYLES[1:]
 _TRIAD = (2.0, 0.05)  # length and thickness of a frame's axes, over the glyph radius of the joint it hangs on
+#: Directions in which ``bounds`` keeps a collision mesh's furthest vertex: a box round a turned foot stood a Cassie
+#: 8 cm off the ground, these vertices within a few millimetres of the mesh's lowest point.
+_AROUND = unit_ball(8, 16)[0].astype(np.float64)
 _GLASS = 0.002  # the collision glass stands this share of the robot's size off its shapes: clear of the meshes
 
 
@@ -613,9 +616,10 @@ class RobotVisual(Layer):
     @override
     def bounds(self, step: int) -> Bounds | None:
         """A box per joint (a point), per collision sphere and per collision shape that is not a mesh (each exact),
-        per block of the medium skeleton on a rigid body without one of those, and per bone of the ``skin`` that
-        carries vertices (``SkinnedMeshLayer.bounds``: no vertex is skinned), ``(lo (N, 3), hi (N, 3))``: the robot's
-        extent in any style. A sole or a foot with such a shape gives the lowest point to stand a robot on.
+        per extreme vertex of a collision mesh (a point, ``_AROUND``), per block of the medium skeleton on a rigid
+        body without one of those, and per bone of the ``skin`` that carries vertices (``SkinnedMeshLayer.bounds``:
+        no vertex is skinned), ``(lo (N, 3), hi (N, 3))``: the robot's extent in any style. A sole or a foot with such
+        a shape gives the lowest point to stand a robot on.
         """
         model, poses = self.model, torch.from_numpy(self._poses[step])
         fit = self._fit = self._fit or self._fitted()
@@ -633,6 +637,10 @@ class RobotVisual(Layer):
             reach += sizes[:, 4:5] * np.sqrt(np.clip(1.0 - axis**2, 0.0, None)) + sizes[:, 5:]
             lows.append(world[:, :3] - reach)
             highs.append(world[:, :3] + reach)
+        if len(fit.points):
+            points = se3.act(poses[fit.point_bodies], fit.points.to(poses.dtype)).numpy()
+            lows.append(points)
+            highs.append(points)
         for mesh, (world, scale) in fit.skeleton.place(self._poses[step]).items():
             keep = fit.keep[mesh]
             reach = np.einsum("nk,nkc->nc", (scale * _HALF_EXTENT[mesh])[keep], _axes(world[keep]))  # its world box
@@ -645,7 +653,8 @@ class RobotVisual(Layer):
         return np.concatenate(lows), np.concatenate(highs)
 
     def _fitted(self) -> _Fit:
-        """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, which
+        """What ``bounds`` reads that no step changes: the sphere radii, the shapes that are not meshes, the extreme
+        vertices of the meshes, which
         blocks of the medium skeleton sit on a body that neither covers, and the skin's boxes per bone."""
         model = self.model
         anchor = list(range(model.njoints))  # the joint each body is welded to
@@ -656,8 +665,15 @@ class RobotVisual(Layer):
             radii = self.spheres.radii.detach().cpu().numpy()[:, None]
             covered |= {anchor[model.frame_parent_joint_ids[f]] for f in self.spheres.frame_ids.tolist()}
         shapes = [shape for shape in self.geometry.shapes if shape.collision] if self.geometry is not None else []
+        points, point_bodies = [], []  # a mesh's vertices that reach furthest along _AROUND, in its body's frame
+        for body, mesh in ((attached.body, attached.shape) for attached in shapes):
+            if isinstance(mesh, Mesh) and (found := self._vertices(body, mesh)) is not None:  # unread: it warned
+                found = found * mesh.scale
+                found = torch.from_numpy(found[np.unique((found @ _AROUND.T).argmax(axis=0))])
+                points.append(se3.act(torch.tensor(mesh.placement, dtype=found.dtype), found))
+                point_bodies += [body] * len(found)
         shapes = [attached for attached in shapes if not isinstance(attached.shape, Mesh)]
-        covered |= {anchor[attached.body] for attached in shapes}
+        covered |= {anchor[attached.body] for attached in shapes} | {anchor[body] for body in point_bodies}
         skeleton = self._skeleton("medium")
         skin = None
         if self.skin is not None:  # never built: its boxes per bone follow the joint poses that update writes
@@ -670,6 +686,8 @@ class RobotVisual(Layer):
             bodies=[attached.body for attached in shapes],
             placements=torch.tensor([attached.shape.placement for attached in shapes], dtype=torch.float64),
             sizes=np.array([_sizes(attached.shape) for attached in shapes], dtype=np.float64).reshape(-1, 6),
+            points=torch.cat(points) if points else torch.zeros(0, 3, dtype=torch.float64),
+            point_bodies=point_bodies,
             skeleton=skeleton,
             keep={
                 mesh: np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
@@ -792,6 +810,8 @@ class _Fit:
     bodies: list[int]  # per collision shape that is not a mesh, the body it is on
     placements: torch.Tensor  # (P, 7): its placement on that body
     sizes: np.ndarray  # (P, 6): what its world box needs (``_sizes``)
+    points: torch.Tensor  # (K, 3): the extreme vertices of the collision meshes, each in its body's frame
+    point_bodies: list[int]  # (K,): the body each is on
     skeleton: Skeleton  # the medium skeleton
     keep: dict[str, np.ndarray]  # per unit mesh, (N,): whether a block is on a body that no sphere or shape covers
     skin: SkinnedMeshLayer | None  # the skin's layer, never built, for its boxes per bone

@@ -621,6 +621,32 @@ def test_robot_visual_bounds_are_the_box_of_the_robot_at_the_step() -> None:
         assert (high <= (centers[step] + radii).max(axis=0) + 0.05).all()
 
 
+def test_robot_visual_bounds_reach_the_collision_meshes_and_no_further() -> None:
+    """A body with only collision meshes is bounded by each mesh's furthest vertices, not by the thinner skeleton:
+    along every axis the boxes reach within 1 % of the robot's size of its shapes (a Cassie was cut by the top of
+    the view) and never past its shapes and joints (a box round each mesh stood a Cassie 8 cm off the ground)."""
+    model = br.load(panda_urdf())
+    geometry = br.io.load_geometry(panda_urdf(), model)
+    q = torch.stack([model.random_configuration(generator=torch.Generator().manual_seed(i)) for i in range(4)])
+    robot = RobotVisual(model, q, geometry=geometry, root=panda_urdf())
+    poses = br.forward_kinematics(model, q).joint_poses.double()
+    specs = load_meshes(geometry, root=panda_urdf(), collision=True)  # the nine meshes and the finger boxes
+    for step in range(4):
+        lows, highs = robot.bounds(step)
+        world = np.concatenate([
+            br.lie.se3.act(
+                compose(poses[step, spec.body], torch.from_numpy(spec.origin).double()),
+                torch.from_numpy(spec.vertices).double(),
+            ).numpy()
+            for spec in specs
+        ] + [poses[step, 1:, :3].numpy()])  # fmt: skip
+        assert (lows.min(axis=0) <= world.min(axis=0) + 0.01 * 1.044).all()  # of the arm's size
+        assert (highs.max(axis=0) >= world.max(axis=0) - 0.01 * 1.044).all()
+        assert (lows.min(axis=0) >= world.min(axis=0) - 1e-5).all() and (
+            highs.max(axis=0) <= world.max(axis=0) + 1e-5
+        ).all()
+
+
 def test_robot_visual_bounds_hold_a_skin_that_reaches_past_the_joints_also_after_update() -> None:
     """A sail of a skin on the Panda's hand reaches 0.6 m past every joint: the boxes per bone hold each skinned
     vertex at each step, in a skeleton style too, and follow ``update``."""

@@ -164,11 +164,14 @@ that 0.3.0 renames or removes, one table row each.
 - `Viewer.aim` and `Viewer.record` centre the boxes of the bounds in the view, at the nearest distance where every
   corner of every box lies inside 80 % of a 16:9 view (was the bounding sphere with a 15 % margin, which left the
   robot a fifth of the height), seen from azimuth 60 degrees (was 35): a front three-quarter view of a robot facing
-  `+x`. `RobotVisual.bounds` is a box per joint, per collision sphere and collision shape that is not a mesh (exact),
-  per block of the maximal skeleton on a body without one, and per bone of a `Skin` that carries vertices (the boxes
-  of `SkinnedMeshLayer.bounds`: 0.14 ms more per call for a skin of SMPL-X size on the G1), so a clip of a G1 sweeping its joints fills 73 % of
-  the frame's height (one box round the clip left it at 42 %) and the lowest point of a G1 or a Go2 is its soles'
-  (within 1 mm of the meshes; the blocks reached 3 to 7 cm below).
+  `+x`. `RobotVisual.bounds` is a box per joint, per collision sphere and collision shape that is not a mesh (exact), a
+  point per furthest vertex of a collision mesh in 114 directions, per block of the medium skeleton on a body
+  without one, and per bone of a `Skin` that carries vertices (the boxes of `SkinnedMeshLayer.bounds`: 0.14 ms more
+  per call for a skin of SMPL-X size on the G1), so a clip of a G1 sweeping its joints fills 71 % of the frame's
+  height (one box round the clip left it at 42 %), the lowest point of a G1, a Go2 or a Cassie is its soles' (within
+  1 mm of the meshes; the blocks reached 3 to 7 cm below, a box round each mesh 8 cm below a Cassie), and no robot
+  drawn by its meshes is cut by the frame's edge (the furthest vertices fall short of a mesh by at most 1 % of the
+  robot's size).
 - `CameraLayer(name, poses, *, intrinsics, size, scale=0.3, color=None, image=None)` (was `fov=`, `aspect=`): the
   frustum's edges from the intrinsics `K` of a `(W, H)` image, an off-centre principal point included, and the image
   on its cut; viser's own frustum has no principal point. It frames `Viewer.aim` too (`bounds`).
