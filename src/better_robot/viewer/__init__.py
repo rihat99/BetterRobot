@@ -7,7 +7,7 @@ input itself when it already is C-contiguous float32. One ``Timeline`` drives al
 ``k``, ``layer.redraw()`` re-pushes one layer after its arrays were edited in place, ``serve()``
 plays by wall clock until interrupted, ``save(path)`` writes a ``.viser`` recording for viser's static web client,
 and ``record(path)`` draws the live scene in a headless Chromium into a video (``.mp4`` or ``.webm``) or a still
-(``.png``). The ``Sidebar`` holds the controls in ordered sections; one ``Theme`` sets colours, lights and the
+(``.png``). The ``Sidebar`` holds the controls in ordered sections; one ``Theme`` sets the colours and the
 backdrop. ``PointsLayer`` (a list of arrays is a cloud whose size changes), ``LinesLayer``, ``ArrowsLayer``,
 ``MeshLayer`` (one colour or one per vertex) and ``CameraLayer`` (a frustum from the intrinsics ``K``) draw data.
 

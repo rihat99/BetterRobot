@@ -95,9 +95,9 @@ class MeshLayer(Layer):
         from trimesh.visual import TextureVisuals  # noqa: PLC0415
         from trimesh.visual.material import PBRMaterial  # noqa: PLC0415
 
-        # Without a material glTF's default is a metal, black without an environment map: give the matte one of the
-        # plain meshes. glTF's vertex colours are linear, the plain meshes' sRGB; without normals the mesh is drawn
-        # faceted.
+        # Without a material trimesh sends its empty textured one, drawn black, and glTF's default is a metal, drawn
+        # darker than a plain mesh: give the matte one of the plain meshes. glTF's vertex colours are linear, the
+        # plain meshes' sRGB; without normals the mesh is drawn faceted.
         assert self.colors is not None
         visual = TextureVisuals(material=PBRMaterial(metallicFactor=0.0, roughnessFactor=1.0))
         linear = linear_uint8(self.colors / 255.0)
