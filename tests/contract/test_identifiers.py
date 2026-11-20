@@ -1,7 +1,7 @@
 """A public function parameter that names a frame, joint or body takes the id or the name, ``int | str`` (C-API-4).
 
 The signatures come from the tracked snapshot ``tests/contract/public_api.json``. ``ModelBuilder`` is the permanent
-exception: it names bodies before any id exists, so its parameters take names only (record 0029). An annotation
+exception: it names bodies before any id exists, so its parameters take names only. An annotation
 can say ``int | str`` while the body refuses one, so every ``_public_ops`` case with an identifier also runs with
 the id and with the name.
 """

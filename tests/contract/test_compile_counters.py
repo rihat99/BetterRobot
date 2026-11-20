@@ -1,4 +1,4 @@
-"""The CPU counters of the hot entry points never grow (decision record 0011, principle 5.8).
+"""The CPU counters of the hot entry points never grow (principle 5.8).
 
 ``benchmarks/run.py --counters-only`` measures on CPU, for every counter row its docstring lists, the graph breaks,
 recompiles, top-level operators and host-syncing operators, and compares them with
@@ -43,7 +43,7 @@ def test_cpu_counters_stay_within_their_thresholds(tmp_path: Path) -> None:
     env = {**os.environ, "BETTER_ROBOT_INTERNAL_CHECKS": "0"}
     completed = subprocess.run(command, cwd=REPO, env=env, capture_output=True, text=True, timeout=900, check=False)
     assert completed.returncode == 0, (
-        "a CPU counter is above its threshold (record 0011): remove what added it; a change that needs it, or that "
+        "a CPU counter is above its threshold: remove what added it; a change that needs it, or that "
         "lowers one, rewrites benchmarks/thresholds/ on a clean commit in a commit of its own with a Why: line\n"
         + completed.stdout[-4000:]
         + completed.stderr[-2000:]

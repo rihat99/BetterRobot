@@ -1,4 +1,4 @@
-"""Every joint kind honours the ``JointModel`` contract (record 0013), checked by ``check_joint_model``."""
+"""Every joint kind honours the ``JointModel`` contract, checked by ``check_joint_model``."""
 
 from __future__ import annotations
 

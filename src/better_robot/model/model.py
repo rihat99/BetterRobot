@@ -1,4 +1,4 @@
-"""``Model``: one flat frozen record of a robot (decision records 0009, 0010, 0011)."""
+"""``Model``: one flat frozen record of a robot."""
 
 from __future__ import annotations
 
@@ -326,10 +326,10 @@ class Model:
         The flags of the tensor fields are in the key so that ``requires_grad_()`` on a model tensor after a query,
         an in-place edit C-STATE-1 forbids, still gets a fresh value. A value made under ``torch.inference_mode`` is
         an inference tensor, which a later autograd call cannot save for backward, so it is served only under
-        inference mode, where autograd records nothing, ``enable_grad`` or not (record 0052). Under
+        inference mode, where autograd records nothing, ``enable_grad`` or not. Under
         ``torch.compile`` the memo is read, never written, under the grad mode alone (Dynamo cannot trace the
         inference-mode check; such a value is never an inference tensor), so a value an eager call stored enters the
-        graph as an input and a missing one is derived in the graph (record 0053).
+        graph as an input and a missing one is derived in the graph.
         """
         flags = tuple(getattr(self, name).requires_grad for name in _TENSOR_FIELDS)
         if torch.compiler.is_compiling():

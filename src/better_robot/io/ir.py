@@ -1,4 +1,4 @@
-"""The intermediate representation: what a parser or ``ModelBuilder`` emits and ``build_model`` reads (record 0015).
+"""The intermediate representation: what a parser or ``ModelBuilder`` emits and ``build_model`` reads.
 
 The records are plain, editable and unordered: parse or build several, merge or edit their lists, then build one
 ``Model``. Names tie the records together (a joint names its two bodies, a frame and a shape their body);

@@ -18,8 +18,8 @@ tools and the `test-oracles` group with Pinocchio and SciPy). Then each tier is 
 Measured at commit `f4390df` on a shared AMD EPYC 9654 host (384 threads), load average 11 to 90: fast 15.7 to
 16.2 s and full 264 to 275 s as pytest reports them (`uv run` adds about 3 s), release 626 s.
 
-The tiers are those of records [0033](../contracts/decisions/0033-test-tiers.md) and
-[0046](../contracts/decisions/0046-test-tier-selection.md). The release tier stops at its first failure. It checks
+The tiers are those of records 0033 and
+0046. The release tier stops at its first failure. It checks
 the lockfile (`uv lock --check`) and that torch can use GPU `<index>`, the `nvidia-smi` index of a GPU nobody else
 is using (the run stops there when torch cannot). Then it runs ruff check and ruff format --check, the public-API
 snapshot check (`tools/api_snapshot.py --check`), the strict docs build, the `cuda` tests and the CUDA counters
@@ -31,7 +31,7 @@ robot in sight, so every line and branch is reachable from a unit test and the g
 uv run coverage run --branch --source=src/better_robot/lie,src/better_robot/spatial -m pytest tests/lie tests/spatial -q -m "not cuda" && uv run coverage report --fail-under=100
 ```
 
-Every tier runs the internal invariants (decision record 0021): `tests/conftest.py` sets
+Every tier runs the internal invariants: `tests/conftest.py` sets
 `BETTER_ROBOT_INTERNAL_CHECKS=1` unless the environment sets it, so a library bug that breaks an invariant fails
 a test. The release tier's second full run sets it to `0`, the configuration users get. The benchmarks set it to
 `0` too: an invariant reads tensor values, a host sync per call.
@@ -55,8 +55,7 @@ in `tests/viewer/test_record.py`, record a real scene through a headless
 Chromium: put `chromium`, `google-chrome` or `chrome-headless-shell` on `PATH`, or point `BETTER_ROBOT_CHROME` at
 one. On a machine without `libasound.so.2` Chromium exits at start; point `BETTER_ROBOT_CHROME` at a wrapper script
 that adds a copy of the library to `LD_LIBRARY_PATH` (for example extracted from the `libasound2` package) and
-then runs the browser. Both stay in the full tier on purpose (record
-[0046](../contracts/decisions/0046-test-tier-selection.md)): the pages, the examples and the screenshot are what a
+then runs the browser. Both stay in the full tier on purpose: the pages, the examples and the screenshot are what a
 reader runs and sees.
 
 ## Check the docs pages

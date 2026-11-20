@@ -19,7 +19,7 @@ class JointModel(ABC):
     ``manifold`` (how ``kinematics.integrate`` and ``kinematics.difference`` step its coordinates) and ``axis`` (the
     axis in the joint frame of a revolute, prismatic or helical joint, a tuple of three finite floats of unit norm
     checked by `check_axis` at construction, ``None`` for the other kinds). The kinds are final frozen dataclasses
-    whose fields are the joint's data (record 0013): two joints with equal fields are equal.
+    whose fields are the joint's data: two joints with equal fields are equal.
     ``q`` and ``v`` below are the joint's own slices, ``(B..., nq)`` and ``(B..., nv)``; every method broadcasts over
     the leading axes and returns tensors on the dtype and device of ``q``.
     """

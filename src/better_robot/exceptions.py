@@ -1,4 +1,4 @@
-"""One error tree under ``BetterRobotError`` (decision record 0020).
+"""One error tree under ``BetterRobotError``.
 
 Every error the library raises derives from ``BetterRobotError`` and from the builtin a caller already knows:
 ``ValueError`` for a wrong structure or argument, ``KeyError`` for an unknown name, ``ImportError`` for a missing

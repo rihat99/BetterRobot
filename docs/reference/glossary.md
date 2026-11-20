@@ -220,7 +220,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **device** | Where a tensor lives, such as the CPU or one CUDA GPU. |
 | **dtype** | The tensor's numeric type, such as `torch.float32` or `torch.float64`. |
 | **compute pass** | One complete operation over the robot, such as FK or RNEA. |
-| **compiled** | A call turned by `torch.compile` into one graph of fused kernels, made on request by `kinematics.compiled` (record [0053](../contracts/decisions/0053-compiled-entry-point.md)); eager, the default, runs each torch operator as it comes. |
+| **compiled** | A call turned by `torch.compile` into one graph of fused kernels, made on request by `kinematics.compiled`; eager, the default, runs each torch operator as it comes. |
 
 ## Geometry and collision
 

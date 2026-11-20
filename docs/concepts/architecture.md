@@ -130,7 +130,7 @@ ShapeError
 
 ## Public API is what `__all__` lists
 
-The root namespace is deliberately small (decision record 0019). `better_robot.__all__` lists the twelve
+The root namespace is deliberately small. `better_robot.__all__` lists the twelve
 subpackages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`, `collision`, `io`, `optim`, `terms`,
 `viewer`, `testing`) and the fourteen names a first script needs: `load`, `Model`, `ModelBuilder`, `JointFreeFlyer`,
 `forward_kinematics`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, `inverse_dynamics`, `mass_matrix`,

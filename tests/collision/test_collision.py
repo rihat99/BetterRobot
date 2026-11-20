@@ -138,7 +138,7 @@ def test_centers_match_manual_fk_and_pairs(panda):
 
 
 def test_from_frames_agree(panda):
-    """Spheres and capsules resolve a frame name and its id to one frame and reject the same bad frames (record 0029)."""
+    """Spheres and capsules resolve a frame name and its id to one frame and reject the same bad frames."""
     name = "panda_hand"
     frame = panda.frame_id(name)
     sphere, capsule = ((0.0, 0.0, 0.0), 0.05), ((0.0, 0.0, 0.0), (0.0, 0.0, 0.1), 0.05)

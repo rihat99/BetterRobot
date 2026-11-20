@@ -305,8 +305,8 @@ def test_finite_difference_any_order_in_world_translation_and_velocity_limit(g1)
     assert max(optim.check_jacobian(problem).values()) < 1e-9
 
 
-# A joint kind that stores a rotation vector: nq == nv == 3, but on its own manifold (record 0005 rejected this storage
-# for the library's ball joint; a user kind may still choose it, record 0025).
+# A joint kind that stores a rotation vector: nq == nv == 3, but on its own manifold (the library's ball joint does
+# not store this, singular at pi; a user kind may still choose it).
 ROTATION_VECTOR = JointManifold(
     name="rotation_vector",
     nq=3,

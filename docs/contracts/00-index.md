@@ -22,7 +22,6 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | [08 Extension points](08-extension-points.md) | terms, joint kinds, loaders, adding solvers/layers/packages, no deprecated alias, pre-1.0 versioning |
 | [09 Performance](09-performance.md) | no host sync, batch not loop, compilation only on request and no kernel, benchmarks |
 | [10 Docs and tests](10-docs-tests.md) | docstring format, no Sphinx roles, executable snippets |
-| [Decisions](decisions/index.md) | architecture decision records (ADRs) |
 
 ## Enforcement matrix
 
@@ -83,9 +82,9 @@ This table repeats the pages' `Enforcement:` paragraphs, and `tests/contract/tes
 two differ: every enforcer exists today (no planned one), and a rule that only `[review]` checks waits in
 `tests/contract/ratchets/review_only.json` for a test or its deletion (the file is empty).
 
-## When to write an ADR
+## Changes the owner decides
 
-Write an architecture decision record (ADR) under `decisions/` when a change does any of the following:
+Ask the owner before a change that does any of the following:
 
 - adds, removes or re-orders a package in the import DAG (`07`), or adds an edge to its edge table;
 - changes a public data layout (pose order, twist order, batch convention, `nq`/`nv` semantics);
@@ -93,6 +92,4 @@ Write an architecture decision record (ADR) under `decisions/` when a change doe
 - replaces a dependency the public API exposes (for example the viewer backend);
 - rejects a contract rule for a whole package.
 
-A bug fix, a new term, a new loader function, or a rename inside one package does not need one.
-Only the owner accepts an ADR: one the integrator writes is `Proposed (integrator, awaiting owner)` until then. An
-accepted ADR changes only in its Status line; a new ADR supersedes it or amends part of it.
+A bug fix, a new term, a new loader function, or a rename inside one package does not need to ask.

@@ -1,4 +1,4 @@
-"""The field names of ``Model`` and ``KinematicState`` tell their shape and type (C-NAME-2, record 0023, principle 3.3).
+"""The field names of ``Model`` and ``KinematicState`` tell their shape and type (C-NAME-2, principle 3.3).
 
 A tensor field is plural exactly when its documented shape has an axis over named things (``njoints``, ``nframes``,
 ``nbodies``, ``J``, ``V``); a tuple field holds one entry per joint, body or frame, so it is plural. A field of
@@ -19,7 +19,7 @@ from better_robot.model import Model
 
 ENTITY_AXES = re.compile(r"\b(njoints|nframes|nbodies|J|V)\b")
 COORDINATE_FIELDS = {
-    name: "the width and start of each joint's slice of q or v, not ids of joints, bodies or frames (record 0009)"
+    name: "the width and start of each joint's slice of q or v, not ids of joints, bodies or frames"
     for name in ("nqs", "nvs", "idx_qs", "idx_vs", "nqs_full", "nvs_full", "idx_qs_full", "idx_vs_full")
 }
 

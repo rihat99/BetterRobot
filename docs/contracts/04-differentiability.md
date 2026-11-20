@@ -2,7 +2,7 @@
 
 Everything that maps floats to floats is a `torch.autograd` graph and a `torch.func` (`vmap`, `grad`,
 `jacrev`) transformable function. This is the reason the library exists; a non-differentiable public path is a
-documented exception, never a default. See ADR [0001](decisions/0001-torch-only.md).
+documented exception, never a default.
 
 ## C-DIFF-1 Every public float operation is differentiable (MUST)
 
@@ -66,9 +66,8 @@ reason for `C-DEP-3` (`07`): `torch.set_grad_enabled`, `torch.set_default_dtype`
 `torch.use_deterministic_algorithms` belong to the user's program, never to the library. This section has no
 rule ID of its own; those two rules and their enforcers cover it.
 
-## Derivatives: see ADR 0007
+## Derivatives
 
 Partial derivatives of kinematics and dynamics are tangent-space (`nv`), per sample `(B..., n_out, nv)`, one
 public `<quantity>_derivatives` entry per quantity, autograd first with analytic code as a later drop-in behind
-the same signature. The public FK, RNEA and CRBA paths must stay `torch.compile(fullgraph=True)`-clean. See ADR
-[0007](decisions/0007-derivatives-contract.md).
+the same signature. The public FK, RNEA and CRBA paths must stay `torch.compile(fullgraph=True)`-clean.

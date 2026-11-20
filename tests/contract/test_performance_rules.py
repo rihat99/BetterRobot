@@ -25,7 +25,7 @@ from ._public_ops import CASE_NAMES, build_case
 SRC = Path(__file__).resolve().parents[2] / "src" / "better_robot"
 BATCHES = (2, 7)
 # Kernel builders, the compiler's process-wide state (its configs, decomposition tables, stance), a second compiler
-# and custom operators: no module of src may name them, imported or as an attribute (record 0053).
+# and custom operators: no module of src may name them, imported or as an attribute.
 FORBIDDEN = (
     "torch.utils.cpp_extension",
     "triton",
@@ -39,7 +39,7 @@ FORBIDDEN = (
 )
 # The parts of torch.compiler that neither compile nor change a setting.
 COMPILER_READS = ("torch.compiler.is_compiling", "torch.compiler.assume_constant_result")
-# The one function that calls torch.compile, once, on the caller's request (record 0053).
+# The one function that calls torch.compile, once, on the caller's request.
 ENTRY_POINT = ("src/better_robot/kinematics/compilation.py", "compiled")
 
 
@@ -135,8 +135,8 @@ def _under(name: str, prefixes: tuple[str, ...]) -> bool:
 
 def test_only_the_entry_point_compiles_and_nothing_builds_a_kernel() -> None:
     """C-PERF-5: compilation is the caller's request through ``kinematics.compiled``, which calls ``torch.compile``
-    once (record 0053); nothing else compiles, changes a compiler setting or builds a kernel, and the only
-    implementation is torch (record 0001)."""
+    once; nothing else compiles, changes a compiler setting or builds a kernel, and the only
+    implementation is torch."""
     found = []
     for path in sorted(SRC.rglob("*.py")):
         relative = str(path.relative_to(SRC))

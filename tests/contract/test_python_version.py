@@ -1,4 +1,4 @@
-"""One Python version, 3.12, is the floor, the development version and ruff's target (decision record 0034)."""
+"""One Python version, 3.12, is the floor, the development version and ruff's target."""
 
 from __future__ import annotations
 

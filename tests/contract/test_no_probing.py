@@ -1,4 +1,4 @@
-"""No probing in ``src`` (principles 4.2; records 0036, 0037, 0022): no ``getattr(x, "literal", ...)``, no
+"""No probing in ``src`` (principles 4.2): no ``getattr(x, "literal", ...)``, no
 ``hasattr`` and no ``except AttributeError``; a typed adapter reads attributes directly and fails loudly. Another object's ``_`` attribute is ruff's
 ``SLF001``, which ``tests/contract/test_ruff_ratchets.py`` checks."""
 

@@ -1,4 +1,4 @@
-"""MJCF parser: MuJoCo compiles the file and ``parse_mjcf`` reads the compiled ``MjModel`` (record 0036).
+"""MJCF parser: MuJoCo compiles the file and ``parse_mjcf`` reads the compiled ``MjModel``.
 
 MuJoCo resolves defaults, units (``compiler angle="degree"``), ``limited="auto"``, ``euler`` and ``axisangle``
 orientations, ``fromto`` geoms and geom-derived inertias, so nothing here re-implements them. Oracle:

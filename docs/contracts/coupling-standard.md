@@ -2,7 +2,7 @@
 
 The shapes, layouts, identifiers and file formats through which BetterHuman, BetterVideoReconstruction and
 BetterRetarget read BetterRobot. The standard changes only by addition: removing or changing a line needs a decision
-record that shows each consumer's migration (record [0026](decisions/0026-coupling-standard-page.md)). It names no
+record that shows each consumer's migration. It names no
 function, so a function can be renamed without touching it. Units are SI (metres, radians, kilograms, seconds).
 `B...` are the leading batch axes of an input, `I...` those of the model's values.
 
@@ -73,9 +73,6 @@ ids        joint, frame and body: an int id or a str name at every public bounda
 names      exactly as the description gives them; every body has a frame of its own name
 ```
 
-Joint order is record [0012](decisions/0012-one-joint-order.md); identifiers are record
-[0029](decisions/0029-frames-and-identifiers.md).
-
 ## Batch axes
 
 ```text
@@ -85,7 +82,7 @@ no batch   every other model value (limits, armature, damping, gravity, q_neutra
 optim      a variable is (B, *event): one leading batch axis, the same B for every variable of a problem
 ```
 
-Batch axes are record [0028](decisions/0028-batch-axes.md): forward kinematics, Jacobians and inverse dynamics
+Forward kinematics, Jacobians and inverse dynamics
 broadcast an input batch against an identity batch, and `optim` keeps one batch axis as the one exception.
 
 ## Files
@@ -101,7 +98,5 @@ better_human.frame_set  read, write  BetterHuman   format and format_version fie
 no BetterRobot model file: a model is rebuilt from its description
 ```
 
-The formats are record [0030](decisions/0030-formats-in-the-standard.md); the MJCF scope is record
-[0036](decisions/0036-mjcf-compile-through-mujoco.md) and the missing model file record
-[0032](decisions/0032-br-serialization-non-goal.md). BetterHuman checks its three formats in
+BetterHuman checks its three formats in
 `BetterHuman/tests/contract/test_formats.py`; each one's spec is a page of BetterHuman's documentation.

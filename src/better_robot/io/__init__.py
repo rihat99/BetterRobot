@@ -72,7 +72,7 @@ def load(
 
 
 def load_geometry(path: str | Path, model: Model) -> Geometry:
-    """The ``Geometry`` of the description at ``path`` for ``model``, which ``load(path)`` built (record 0016)."""
+    """The ``Geometry`` of the description at ``path`` for ``model``, which ``load(path)`` built."""
     return build_geometry(parse(path), model)
 
 

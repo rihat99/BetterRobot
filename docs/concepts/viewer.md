@@ -425,7 +425,7 @@ Today `CameraLayer(image=...)` and `ImagePanel` accept it (decoding video frames
 ## Limits
 
 - One integer timeline per viewer. Per-layer `times` resample onto it; there is no continuous time axis.
-- viser is the only backend ([ADR 0004](../contracts/decisions/0004-viser-viewer.md)).
+- viser is the only backend.
 - No GUI brick beyond the sidebar: `viewer.sidebar.gui` (viser's GUI API) inside `with viewer.sidebar.section(name):`
   is the sanctioned API for studio-style panels built on the viewer.
 - `record` needs a headless Chromium (`BETTER_ROBOT_CHROME`); `save` does not.

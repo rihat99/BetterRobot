@@ -22,8 +22,8 @@ from ._ratchet_sites import counts
 
 MAX_POSITIONAL = 2
 PERMANENT: dict[str, tuple[int, str]] = {
-    "better_robot.kinematics.integrate": (3, "record 0013 decides the call integrate(model, q, v): the step q (+) v"),
-    "better_robot.kinematics.difference": (3, "record 0013 decides the call difference(model, q0, q1): q1 (-) q0"),
+    "better_robot.kinematics.integrate": (3, "the call integrate(model, q, v) reads as the step q (+) v"),
+    "better_robot.kinematics.difference": (3, "the call difference(model, q0, q1) reads as q1 (-) q0"),
 }
 ALLOWED: dict[str, int] = {
     **{path: count for path, (count, _) in PERMANENT.items()},

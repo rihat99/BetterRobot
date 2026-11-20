@@ -5,7 +5,7 @@ rows (a row gives way once its multiplier reaches a cap that ``weight`` sets). A
 ``lower == upper``, a one-sided row has an infinite bound, a box on ``x`` is identity rows. The method is the
 alternating direction method of multipliers in the form OSQP uses (one factorization of ``H + penalty · rowsᵀ rows``
 per call, then ``iterations`` steps of three matrix-vector products each), followed by one active-set step that is
-kept where it lands on the exact solution (decision record 0054). Every batch element runs the same steps, with no
+kept where it lands on the exact solution. Every batch element runs the same steps, with no
 Python branch on a tensor value and no host read, so the whole solve traces as one graph. It is made to be called
 once per step of an outer loop and started from its own last answer: accuracy comes from those repeated warm calls,
 not from one call.

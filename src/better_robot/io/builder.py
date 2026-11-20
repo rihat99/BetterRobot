@@ -1,8 +1,8 @@
 """``ModelBuilder``: a robot written in Python, body by body and joint by joint, as the ``IRModel`` that
-``build_model`` turns into a ``Model`` (record 0015).
+``build_model`` turns into a ``Model``.
 
 Each ``add_<kind>`` helper takes the data of its kind as keywords and builds the ``JointModel`` there, so a bad axis
-fails at the call, not at the build. ``add_joint`` takes any ``JointModel`` instance (record 0025), which is how a
+fails at the call, not at the build. ``add_joint`` takes any ``JointModel`` instance, which is how a
 kind written outside the package enters without a registry. A description that cannot be a robot raises
 ``ModelError``; a body name not added before raises ``UnknownNameError``.
 """

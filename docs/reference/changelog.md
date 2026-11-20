@@ -54,7 +54,7 @@ that 0.3.0 renames or removes, one table row each.
   viewer runs, and `update(q)` shows new configurations, `(T, nq)` of the clip's length or `(nq,)` at every step.
   A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
-  is drawn in, and `style`, `collision` and `frames` what it shows (record 0058). A `hue` outside `[0, 1]`, a
+  is drawn in, and `style`, `collision` and `frames` what it shows. A `hue` outside `[0, 1]`, a
   collision switch that is not a bool, a string for `frames` and strings for `opacity`, `joint_values` or
   `value_range` raise `ArgumentError` naming the argument.
 - `RobotVisual(opacity=)` and `RobotVisual.set_opacity`: every style drawn see-through, a ghost of a target or a
@@ -277,9 +277,9 @@ that 0.3.0 renames or removes, one table row each.
   `"equality"` and `"inequality"`, and `Term.lower` and `Term.upper` carry the bounds. A constraint term is no part
   of the loss. `optim.SequentialQP(damping=, gain=0.5, tolerance=1e-4, gradient_tolerance=, step_tolerance=)` holds
   them: each step is one `solve_qp` program (the damped Gauss-Newton model under the linearized constraint terms
-  and the box of the bounds), scaled back to a step radius and taken where it lowers an L1 merit (record 0055).
+  and the box of the bounds), scaled back to a step radius and taken where it lowers an L1 merit.
   `State.x` is the last iterate within `tolerance` of every bound, the iterate is `State.extra["iterate"]`, and the
-  `violation` diagnostic reports the distance of `State.x` per step (record 0056). `tolerance` must be above 0;
+  `violation` diagnostic reports the distance of `State.x` per step. `tolerance` must be above 0;
   `State.extra["radius"]` is new and a warm key with `damping`, `growth` and `qp`. A constraint term's weight is
   a number at least 0 (0 switches the term off, a negative number raises `ArgumentError`) or a tensor whose entry 0
   switches its row off. The other solvers, `solve_constrained` and `solve_layer` raise `ArgumentError` on a problem
@@ -290,10 +290,10 @@ that 0.3.0 renames or removes, one table row each.
   the bounds at the same gain (a discrete barrier), each step entry within the required `step`. The step is taken:
   the program holds each row with a reserve, and its step is clamped to the box, moved back onto the rows it
   leaves and scaled back where that is not enough. The targets move between calls through `Problem.with_(data=)`;
-  the solution is the warm start of the next call (record 0057; [Track moving targets](../guides/track-targets.md)).
+  the solution is the warm start of the next call ([Track moving targets](../guides/track-targets.md)).
 - `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None) -> QPSolution`:
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
-  fixed number of ADMM steps and one active-set step, in float64, with no host read (record 0054). Accuracy comes
+  fixed number of ADMM steps and one active-set step, in float64, with no host read. Accuracy comes
   from repeated warm calls, not from `iterations`. The rows are L1-elastic: a row gives way once its multiplier
   would pass a cap, `weight` (a positive Python number) times the larger of `|g|∞` and the largest diagonal entry
   of `H`. `QPSolution` has `x`, `dual`, `primal_residual`, `dual_residual`, `penalty` and `exact` (the mask of the
@@ -383,8 +383,7 @@ that 0.3.0 renames or removes, one table row each.
   pair, for pairs that sit closer than the common margin in the rest pose.
 - `kinematics.compiled(fn, *, mode="default" | "reduce-overhead")`: an opt-in `torch.compile` of a function that
   calls the library, one graph family per grad mode and argument kind, each compiled on its second call; under
-  `"reduce-overhead"` (CUDA graphs) each result is the caller's own (record
-  [0053](../contracts/decisions/0053-compiled-entry-point.md)). A compiled call reads the model's memoised values
+  `"reduce-overhead"` (CUDA graphs) each result is the caller's own. A compiled call reads the model's memoised values
   instead of deriving them again, and small batched products compile to fused kernels: at batch 4096 on one CPU
   core (float32) the compiled FK runs 5.2 times faster than this release's eager on the Panda arm and 3.7 times on
   the G1 humanoid, inverse dynamics 4.0 and 3.3 times.
@@ -504,8 +503,7 @@ that 0.3.0 renames or removes, one table row each.
   centre times `kinematics.point_jacobian`), 5-47x cheaper to linearize than autodiff at batch 64 to 1024 on one
   CPU core (Panda, float64), and their hinge is C1: `gap² / (2 margin)` inside the margin band, `gap - margin / 2`
   beyond it, so a soft clearance settles deeper inside the margin than with the 0.2 hinge at the same weight.
-  A `distance_fn` keeps entry `s` on centre `s` and runs under `torch.func` (record
-  [0051](../contracts/decisions/0051-distance-functions-for-the-analytic-jacobian.md)); any other function takes
+  A `distance_fn` keeps entry `s` on centre `s` and runs under `torch.func`; any other function takes
   the autodiff route through `optim.TermFn(fn=term.fn, reads=term.reads)`.
 - `Problem.linearize` raises `ShapeError` naming `window=1` when an analytic Jacobian block does not have the term's
   shape, as when a per-knot term (`frame_pose`, the clearance terms) reads a time variable without `window=`.

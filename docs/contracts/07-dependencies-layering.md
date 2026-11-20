@@ -2,7 +2,7 @@
 
 The packages under `src/better_robot/` import each other along one edge table, the `ALLOWED` table in
 `tests/contract/test_layer_dependencies.py`: one row per package, naming the packages it may import. The table has no
-cycle, and a new package or a new edge goes through an ADR (`00-index`, "When to write an ADR"). The root
+cycle, and a new package or a new edge is the owner's decision (`00-index`, "Changes the owner decides"). The root
 `src/better_robot/__init__.py` re-exports the packages and has no row.
 
 The table is printed once, where `tests/docs/test_codemap.py` checks it against `ALLOWED`: on the architecture page,
@@ -12,10 +12,10 @@ The table is printed once, where `tests/docs/test_codemap.py` checks it against 
 
 A package imports only the packages its row names. No row names `viewer`, `terms` or `testing`: no other package
 depends on them. `dynamics` and `collision` import `kinematics`: `dynamics` reads the state's world column table
-and geometry (`KinematicState.jacobian_columns`, `KinematicState.world_geometry`, record 0041) and the Jacobian
+and geometry (`KinematicState.jacobian_columns`, `KinematicState.world_geometry`) and the Jacobian
 plan of `src/better_robot/kinematics/_plans.py`. `collision` imports `lie` for the one input validator,
-`src/better_robot/lie/_checks.py` (record 0049, proposed). `testing` imports `optim` for its robust-kernel checker,
-`better_robot.testing.check_robust_kernel` (record 0050, proposed). Outside the package, `lie`, `spatial` and
+`src/better_robot/lie/_checks.py`. `testing` imports `optim` for its robust-kernel checker,
+`better_robot.testing.check_robust_kernel`. Outside the package, `lie`, `spatial` and
 `optim` import torch and nothing else: `optim` knows nothing about robots, and `terms` adapts robots to it.
 
 ```python { .no-run }
@@ -64,10 +64,10 @@ thread counts. Those are the user's.
 
 Enforcement: `[ruff:TID251]` (banned-api table in `pyproject.toml`).
 
-## C-DEP-4 Adding a dependency needs an ADR and a manifest entry (MUST)
+## C-DEP-4 Adding a dependency needs the owner's decision and a manifest entry (MUST)
 
-A new runtime dependency goes through an ADR and into `pyproject.toml` (`dependencies` for required,
+A new runtime dependency is the owner's decision and goes into `pyproject.toml` (`dependencies` for required,
 `[project.optional-dependencies]` for an extra). No `pip install` in scripts, no vendored copies.
 
 Enforcement: `tests/contract/test_optional_imports.py` (every outside import is declared in `pyproject.toml`);
-`[review]` (the ADR).
+`[review]` (the owner's decision).

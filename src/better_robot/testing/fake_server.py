@@ -1,4 +1,4 @@
-"""``FakeServer``: the shipped stand-in for ``viser.ViserServer`` (decision records 0022 and 0035).
+"""``FakeServer``: the shipped stand-in for ``viser.ViserServer``.
 
 No sockets and no viser import. Each viser call the viewer makes, and each GUI call of an app built on it
 (BetterHuman's studio: dropdowns, text and number fields, markdown, tabs), is declared here by name with viser's

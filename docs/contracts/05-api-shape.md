@@ -37,7 +37,7 @@ def solve_ik(model, targets, q0, solver=None, iterations=100): ...
 
 Enforcement: `tests/contract/test_keyword_only.py` (inspects every `__all__` callable). Its permanent list holds
 `kinematics.integrate(model, q, v)` and `kinematics.difference(model, q0, q1)`, whose third argument is the
-operand of `q (+) v` and `q1 (-) q0` (record [0013](decisions/0013-joint-kinds.md)); the shrink-only ratchet
+operand of `q (+) v` and `q1 (-) q0`; the shrink-only ratchet
 `tests/contract/ratchets/keyword_only.json` holds `lie.so3.slerp` and `lie.se3.sclerp`, whose `t` is positional
 today.
 
@@ -54,7 +54,7 @@ Any public function parameter that identifies a frame, joint or body (`frame`, `
 accepts the id *or* the name; `Model.frame_id`, `Model.joint_id` and `Model.body_id` resolve either to the id, and an
 unknown name raises `UnknownNameError` listing the valid names. `ModelBuilder` names bodies before any id exists,
 so it takes names only; records that hold resolved data (`model.AttachedShape.body`, `viewer.MeshSpec.body`, the
-`frame_ids` of `collision.RobotSpheres`) hold ids (record [0029](decisions/0029-frames-and-identifiers.md)).
+`frame_ids` of `collision.RobotSpheres`) hold ids.
 
 ```python { .no-run }
 # good  (src/better_robot/terms/robot.py::frame_pose)

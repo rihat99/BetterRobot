@@ -11,7 +11,7 @@ from typing import TypeAlias, cast
 import pytest
 import torch
 
-# Record 0021: every test tier runs the internal invariants. Set before ``pytest_plugins`` imports better_robot,
+# Every test tier runs the internal invariants. Set before ``pytest_plugins`` imports better_robot,
 # because ``_internal_checks`` reads the switch once, at import; an explicit value (``0`` for timing) wins.
 os.environ.setdefault("BETTER_ROBOT_INTERNAL_CHECKS", "1")
 

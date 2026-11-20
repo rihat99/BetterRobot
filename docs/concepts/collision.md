@@ -201,7 +201,7 @@ for `sphere_clearance`, entry `s` reading centre `s` only and transformable by `
 solvers do not change (contract [08, collision section](../contracts/08-extension-points.md), which also gives the
 autodiff route for any other function). Robot geometry built from the IR (capsules read
 from a model file, shapes fitted to meshes), closest points and contact follow
-record [0016: geometry is a value, not a field of `Model`](../contracts/decisions/0016-geometry-out-of-model.md).
+record 0016: geometry is a value, not a field of `Model`.
 
 ## Where next
 

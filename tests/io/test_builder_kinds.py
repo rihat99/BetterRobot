@@ -102,7 +102,7 @@ def test_add_free_flyer_root_builds_and_runs_fk():
 @final
 @dataclass(frozen=True)
 class _Slider(JointModel):
-    """An out-of-tree kind: a translation along ``-z`` (record 0025: a kind subclasses ``JointModel``)."""
+    """An out-of-tree kind: a translation along ``-z`` (a kind subclasses ``JointModel``)."""
 
     nq: ClassVar[int] = 1
     nv: ClassVar[int] = 1

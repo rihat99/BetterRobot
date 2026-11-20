@@ -6,7 +6,7 @@ is a pure function of the model's static mimic fields.
 
 ``integrate`` and ``difference`` are the retraction and the tangent of the public coordinates. The coordinates are
 grouped by `JointManifold`: each group is one batched call of the manifold's own map over the gathered coordinate
-columns, so every joint kind on a manifold shares one formula (record 0013). Mimic targets have no public
+columns, so every joint kind on a manifold shares one formula. Mimic targets have no public
 coordinates and take no part.
 """
 

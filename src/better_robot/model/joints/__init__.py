@@ -1,8 +1,8 @@
-"""The joint kinds: final frozen dataclasses under the abstract `JointModel` (record 0013), one file per kind.
+"""The joint kinds: final frozen dataclasses under the abstract `JointModel`, one file per kind.
 
 Each kind declares ``nq``, ``nv``, its `JointManifold` and ``axis``, and implements ``placement``, ``motion_subspace``,
 ``neutral`` and ``random``. `io.build_model` selects a kind for each joint of a parsed model; a new kind subclasses
-`JointModel` (record 0025) and is checked by `better_robot.testing.check_joint_model`.
+`JointModel` and is checked by `better_robot.testing.check_joint_model`.
 """
 
 from __future__ import annotations

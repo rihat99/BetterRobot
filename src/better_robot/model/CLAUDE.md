@@ -3,8 +3,8 @@
 The field table is the `Model` class docstring (`model.py`); the plan sharing between copies is explained beside
 `_plan_owner`.
 
-- A model is a value: never edit its tensors in place. Queries memoise placement matrices and inertias on the model
-  (record 0040), so an edited model keeps serving the old values.
+- A model is a value: never edit its tensors in place. Queries memoise placement matrices and inertias on the model,
+  so an edited model keeps serving the old values.
   ```python
   # Right: a validated copy that shares the plans and starts with an empty value memo.
   model = model.with_values(joint_placements=placements)

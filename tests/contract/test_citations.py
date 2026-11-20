@@ -5,9 +5,8 @@ be tracked (from the repository root; a Markdown link from its page, a ``mkdocs.
 ``path::symbol`` must name a symbol the Python file defines along its full dotted path, and a ``<path>:<line>``
 citation is always dead. The dead citations that exist today sit in ``tests/contract/ratchets/dead_citations.json``
 (``"<file>: <citation>"`` to the reason); the ratchet only shrinks, and the fix that resolves a citation removes its
-entry. Permanent exceptions: the resolver's and the edge walker's test cases, this module's own exception list, and
-citations in accepted ADRs, whose text never changes after acceptance (principle 8.2). A docs page outside the
-changelog, the migration pages and the records tells no history: no plan code, no "no longer", no "was moved".
+entry. Permanent exceptions: the resolver's and the edge walker's test cases and this module's own exception list. A
+docs page outside the changelog and the migration pages tells no history: no plan code, no "no longer", no "was moved".
 Tracked text also names no code of the plan that wrote it (a work package, lane, ruling or phase), which nothing in
 the repository defines.
 """
@@ -27,77 +26,16 @@ CITATION_RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets
 EXEMPT_FILES: dict[str, str] = {
     "tests/testing/test_citations.py": "its cases write dead citations into a tmp_path repository on purpose",
     "tests/testing/test_import_edges.py": "its cases write package files into tmp_path, named relative to the package",
-    "tests/contract/test_citations.py": "its exception list below repeats the dead citations it exempts",
+    "tests/contract/test_citations.py": "its docstring spells a plan-code path as an example of what it rejects",
 }
 PLAN_CODE = re.compile(
     r"\bwp/[A-Z]|\blane [A-D]\b|\bR-\d+\b|\(P-\d+\)|\bP\d+-D\d+\b|\bPhase \d+ pass|\bowning WP\b|\bwork package\b"
 )
 TEXT_SUFFIXES = (".md", ".py", ".toml", ".yml", ".yaml", ".json")
-# Accepted records are never edited (principle 8.2), so their historical citations stay as written, each with the reason.
-_PACKAGE_RELATIVE = "written relative to src/better_robot/, as records of that date did"
-_BETTERHUMAN = "a BetterHuman path, written relative to BetterHuman/"
-FROZEN_RECORD_CITATIONS: dict[str, str] = {
-    "docs/contracts/decisions/0001-torch-only.md: tests/contract/test_import_dag.py": "now test_layer_dependencies.py",
-    "docs/contracts/decisions/0003-terms-plain-functions.md: tests/contract/test_import_dag.py": (
-        "now test_layer_dependencies.py"
-    ),
-    "docs/contracts/decisions/0004-viser-viewer.md: tests/contract/test_import_dag.py": "now test_layer_dependencies.py",
-    "docs/contracts/decisions/0004-viser-viewer.md: tests/contract/test_optional_deps.py": "now test_optional_imports.py",
-    "docs/contracts/decisions/0003-terms-plain-functions.md: tests/contract/test_protocols.py": (
-        "trashed with the JointModel protocol (0013); C-EXT-1 is review-enforced"
-    ),
-    "docs/contracts/decisions/0040-model-value-memo.md: src/better_robot/kinematics/_fk_lean.py::placement_matrices": (
-        "now src/better_robot/kinematics/_fk.py::joint_map and world_frames"
-    ),
-    "docs/contracts/decisions/0035-shared-testing-module.md: scripts/docs_screenshots.mjs": (
-        "now tools/docs_screenshots.mjs, the one copy both repositories use"
-    ),
-    "docs/contracts/decisions/0009-model-flat-frozen-record.md: data_model/model.py::Model": (
-        "the package was data_model; now src/better_robot/model/model.py::Model"
-    ),
-    "docs/contracts/decisions/0009-model-flat-frozen-record.md: terms/robot.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0011-caches-and-plans.md: dynamics/_world.py::get_dynamics_plan": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0011-caches-and-plans.md: dynamics/state.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0011-caches-and-plans.md: kinematics/_fk_lean.py::placement_matrices": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0011-caches-and-plans.md: kinematics/_jacobian_columns.py::get_plan": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0012-one-joint-order.md: core/rig.py": _BETTERHUMAN,
-    "docs/contracts/decisions/0012-one-joint-order.md: families/mhr_rig.py": _BETTERHUMAN,
-    "docs/contracts/decisions/0012-one-joint-order.md: families/soma_rig.py": _BETTERHUMAN,
-    "docs/contracts/decisions/0012-one-joint-order.md: io/build_model.py::build_model": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0013-joint-kinds.md: joint_models/revolute.py::_Revolute": (
-        "the JointModel classes 0013 itself replaced"
-    ),
-    "docs/contracts/decisions/0013-joint-kinds.md: viewer/layers/skeleton.py::_MARKER": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0014-tensor-functions-for-lie-and-spatial.md: dynamics/_world.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0014-tensor-functions-for-lie-and-spatial.md: lie/types.py::SE3": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0014-tensor-functions-for-lie-and-spatial.md: spatial/ops.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0015-io-entry-points.md: families/mhr_rig.py": _BETTERHUMAN,
-    "docs/contracts/decisions/0015-io-entry-points.md: io/build_model.py::build_model": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0016-geometry-out-of-model.md: io/build_model.py::build_model": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0016-geometry-out-of-model.md: viewer/robot.py::robot_meshes": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0021-validation-ladder.md: kinematics/state.py::_validate_q": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0022-viewer-boundary.md: viewer/_math.py::compose_poses": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0022-viewer-boundary.md: viewer/layer.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0022-viewer-boundary.md: viewer/robot.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0022-viewer-boundary.md: viz/studio/layers.py::_quat_matrix": _BETTERHUMAN,
-    "docs/contracts/decisions/0024-surface-trim.md: spatial/ops.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0024-surface-trim.md: viewer/app.py": (
-        "a BetterRetarget file, named as such in the sentence"
-    ),
-    "docs/contracts/decisions/0036-mjcf-compile-through-mujoco.md: io/parsers/mjcf.py::parse_mjcf": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0037-urdf-typed-adapter.md: io/parsers/urdf.py": _PACKAGE_RELATIVE,
-    "docs/contracts/decisions/0038-remove-downloader-and-registry.md: io/assets.py::CachedDownloadResolver": (
-        _PACKAGE_RELATIVE
-    ),
-}
 
 
 def _dead() -> set[str]:
-    return {
-        entry
-        for entry in dead_citations(REPO)
-        if entry.split(": ", 1)[0] not in EXEMPT_FILES and entry not in FROZEN_RECORD_CITATIONS
-    }
+    return {entry for entry in dead_citations(REPO) if entry.split(": ", 1)[0] not in EXEMPT_FILES}
 
 
 def test_cited_paths_resolve() -> None:
@@ -113,12 +51,12 @@ def test_citation_ratchet_has_no_stale_entries() -> None:
 
 
 HISTORY = re.compile(r"\bP\d+-[A-Z]|\bruling R-\d|(?i:\bno\s+longer\b|\bwas\s+moved\b)")
-HISTORY_PAGES = ("docs/reference/changelog.md", "docs/reference/migration-*.md", "docs/contracts/decisions/[0-9]*.md")
+HISTORY_PAGES = ("docs/reference/changelog.md", "docs/reference/migration-*.md")
 
 
 def test_docs_pages_tell_no_history() -> None:
     """A docs page says what holds for a reader with no history (principle 7.9); what changed, and the plan code
-    that changed it, belong in the changelog, the migration pages and the records."""
+    that changed it, belong in the changelog and the migration pages."""
     found = []
     for page in sorted((REPO / "docs").rglob("*.md")):
         relative = page.relative_to(REPO).as_posix()

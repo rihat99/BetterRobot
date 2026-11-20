@@ -1,4 +1,4 @@
-"""One switch guards every check that reads tensor values (decision record 0021, principle 6.8).
+"""One switch guards every check that reads tensor values (principle 6.8).
 
 ``better_robot._internal_checks`` reads ``BETTER_ROBOT_INTERNAL_CHECKS`` once, at import, and no other module reads
 it. A value-reading check is an ``if`` that raises and whose test reads tensor values (``bool``, ``float`` or ``int``
@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 import torch
 
-# Private on purpose: record 0021's switch is an environment variable and this module, with no public name; this is
+# Private on purpose: the internal-checks switch is an environment variable and this module, with no public name; this is
 # its contract test.
 from better_robot import _internal_checks
 from better_robot._internal_checks import check_unit_quaternions

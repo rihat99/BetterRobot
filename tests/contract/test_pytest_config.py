@@ -1,4 +1,4 @@
-"""pytest runs strictly (principle 6.10, decision record 0033): every misconfiguration fails and names itself.
+"""pytest runs strictly (principle 6.10): every misconfiguration fails and names itself.
 
 A mistyped marker, an unknown config key, an xfail that starts passing, an empty parameter set and a new warning
 each fail the run. Each warning filter besides ``error`` names its warning and sits under a comment giving the

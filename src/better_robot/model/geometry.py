@@ -1,4 +1,4 @@
-"""``Geometry``: the shapes attached to a robot's bodies, a value beside ``Model`` (decision record 0016).
+"""``Geometry``: the shapes attached to a robot's bodies, a value beside ``Model``.
 
 A shape record carries its own placement and colour; ``AttachedShape`` fixes it to a body of the model and says
 whether it is collision geometry; ``Geometry`` is the tuple of those. ``io.build_geometry`` and ``io.load_geometry``

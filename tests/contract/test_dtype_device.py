@@ -1,5 +1,5 @@
 """C-TENS-1/2: public kinematics, dynamics, Lie and spatial ops preserve the input dtype and device, the robot
-passes refuse a tensor input in another dtype than the model's (record 0021: no silent promotion), and leading batch
+passes refuse a tensor input in another dtype than the model's (no silent promotion), and leading batch
 axes ``(2,)`` and ``(3, 1)`` give each element the result it has alone. The entry points are every public function
 of those packages (``_public_ops``), less the reasoned ``NOT_DRIVEN`` ones."""
 

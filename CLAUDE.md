@@ -34,7 +34,7 @@ what each group of tests guards.
 - The full tier needs a headless Chromium for `tests/viewer/test_record.py` (`chromium`, `google-chrome` or
   `chrome-headless-shell` on `PATH`, or `BETTER_ROBOT_CHROME` pointing at one) and the `robot_descriptions` cache,
   which the docs and example tests fill from the network on first use. Unit, contract and parity tests run offline
-  on the tracked robots of `tests/fixtures/robots/` (record 0039).
+  on the tracked robots of `tests/fixtures/robots/`.
 - `tests/conftest.py` sets `BETTER_ROBOT_INTERNAL_CHECKS=1` unless the environment sets it; `benchmarks/run.py`
   refuses `1`, because the invariants read tensor values. Do not export it in a shell that runs both.
 
@@ -64,10 +64,10 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - `lie`, `spatial` and `optim` import nothing outside the package but torch, `optim` knows nothing about robots, and
   `import better_robot` loads no optional package (`tests/contract/test_optional_imports.py`).
 - No host sync and no Python branch on a tensor value in the hot paths (`tests/contract/test_hot_path_lint.py`).
-- No `torch.compile` call in `src` outside `kinematics.compiled`, the opt-in entry point (record 0053); no use of
+- No `torch.compile` call in `src` outside `kinematics.compiled`, the opt-in entry point; no use of
   `torch._dynamo`, `torch._inductor`, `torch.jit`, `torch.library`, of `torch.compiler` beyond `is_compiling` and
   `assume_constant_result`, or of a kernel builder (`tests/contract/test_performance_rules.py`); torch is the only
-  backend (record 0001).
+  backend.
 - No cache beyond `Model._plans`, `Model._memo`, `KinematicState._memo` and the band layout's `lru_cache` in
   `src/better_robot/optim/linearization.py` (reasoned in `FUNCTOOLS_CACHES`), no `object.__setattr__`, no read of a
   tensor's `_version` (`tests/contract/test_caches.py`).
@@ -75,14 +75,14 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
   (`tests/contract/test_no_inplace.py`); no public dataclass is mutable outside the reasoned list
   (`tests/contract/test_frozen.py`).
 - No registry and no `register_*` function: a joint kind, term, parser, layer or solver is passed where it is used
-  (`tests/contract/test_extension_points.py`, record 0025).
+  (`tests/contract/test_extension_points.py`).
 - No builtin `ValueError`, `TypeError`, `RuntimeError`, `KeyError` or `IndexError` raised in `src` outside the
   reasoned `PLAIN_RAISES`: every error is a class of `better_robot.exceptions` (`tests/contract/test_error_tree.py`).
 - No deprecated alias or shim in this major (`tests/contract/test_versioning.py`).
 - No module named `utils`, `common`, `misc` or `helpers`, and no word of a public name outside
   `docs/reference/glossary.md` (`tests/contract/test_vocabulary.py`).
 - No dead path citation and no line-number citation in tracked text, and no history on a docs page outside the
-  changelog, the migration pages and the records (`tests/contract/test_citations.py`).
+  changelog and the migration pages (`tests/contract/test_citations.py`).
 - No tracked symlink, file over 1 MiB, or directory without a tracked file (`tests/contract/test_repository_layout.py`).
 - No agent file over its length and no capitals for emphasis (`tests/contract/test_agent_files.py`).
 
@@ -112,9 +112,8 @@ file); no test checks them, a reviewer does.
 - One obvious place per concept (Law 2); prefer a few deep modules to many tiny ones, and a family of modules
   becomes a folder at three (1.2, 3.8).
 - Delete only after a search shows no caller; back every claim in a report with its command and output (4.1, 10.5).
-- Update the docs and the nearest agent file in the change that changes a contract. A change of a contract or a
-  layout gets a decision record (`docs/contracts/00-index.md` says when); an accepted record changes only in its
-  Status line (`tests/contract/test_decision_records.py`).
+- Update the docs and the nearest agent file in the change that changes a contract. Ask the owner before a change
+  of a contract or a layout (`docs/contracts/00-index.md` says which).
 - Before reopening a settled idea, read "Commonly rejected" in `docs/contracts/scope.md`.
 
 ## Where things live

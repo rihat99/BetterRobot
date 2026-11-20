@@ -269,7 +269,7 @@ The iterate leaves a curved constraint by what its rows do not see, and later st
 benchmark's IK scenes (1024 targets, 50 steps, float64, margin 0.02 m) accepted iterates left the clearances by up
 to 0.37 m (Panda floor) and 0.05 to 0.19 m on the other scenes with clearances. `State.x` is therefore the last
 iterate that was within `tolerance` of every bound, in the terms' own units, or the closest one before any was
-([record 0056](../contracts/decisions/0056-sequential-qp-reports-its-last-point-within-tolerance.md)). A solve that
+(record 0056). A solve that
 starts within `tolerance` returns a point within it after any number of steps; where no later iterate comes back
 within it, that point is the unmoved start (G1 self-collision: 104 of 1024 targets, G1 all: 155).
 `Result.diagnostics[phase]["violation"]` is the largest distance of that point from the bounds per step, and
@@ -283,7 +283,7 @@ find. In float32 a problem whose loss stays large at the optimum stops where a s
 rounding of that loss.
 [Constrained inverse kinematics](../guides/constrained-ik.md) uses the solver on a robot and compares it with the
 hinged cost and with `solve_constrained`;
-[record 0055](../contracts/decisions/0055-constraint-terms-and-sequential-qp.md) has the alternatives.
+record 0055 has the alternatives.
 
 ### One step per call: `track`
 
@@ -300,7 +300,7 @@ step. The program's step may be inexact, so two things keep the step taken on th
 row with a reserve (a tenth of what a step as long as the last one can change the row by), and its step is
 clamped to the box, moved the least distance back onto the rows it leaves, then scaled back until it leaves no
 row by more than 1e-6. The scale-back gives a step up where rows conflict. [Track moving targets](../guides/track-targets.md) measures how far rows hold per step size;
-[record 0057](../contracts/decisions/0057-differential-ik-is-one-track-call-per-tick.md) has the alternatives.
+record 0057 has the alternatives.
 
 ## A quadratic program per step
 
@@ -375,7 +375,7 @@ multipliers needed stayed at least 28 times under the cap), and rows that had be
 warm calls at 7 variables and 23 at 35 variables with 150 rows. A zero row whose bounds exclude 0 never holds: its
 multiplier stays at the cap and the other rows are solved as without it.
 The solve runs in float64, the same steps for every batch element, with no host read, and returns no gradient
-([record 0054](../contracts/decisions/0054-quadratic-programs-by-admm-and-one-active-set-step.md)).
+(record 0054).
 
 ## Reserved vocabulary
 

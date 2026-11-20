@@ -1,4 +1,4 @@
-"""The public API equals its snapshot, ``tests/contract/public_api.json`` (decision record 0024).
+"""The public API equals its snapshot, ``tests/contract/public_api.json``.
 
 Every path of the ``__all__`` tree with its kind and signature (``better_robot.testing.public_api``) is tracked, so
 a change to the public surface is a reviewed edit of the snapshot, never a side effect. After an intended change:

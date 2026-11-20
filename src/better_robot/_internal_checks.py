@@ -1,4 +1,4 @@
-"""One switch for the internal invariants that read tensor values (decision record 0021, principle 6.8).
+"""One switch for the internal invariants that read tensor values (principle 6.8).
 
 ``ENABLED`` reads the environment variable ``BETTER_ROBOT_INTERNAL_CHECKS`` once, at import; ``"1"`` turns the checks
 on. A check here verifies the library's own result, so it fails only on a bug in the library, never on a caller's

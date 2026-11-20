@@ -1,10 +1,10 @@
-"""Every public type has a short repr (principle 4.9, decision record 0009): one line, under 200 characters, its name,
+"""Every public type has a short repr (principle 4.9): one line, under 200 characters, its name,
 and its own (the default ``<module.Class object at 0x...>`` tells a reader nothing).
 
 ``BUILDERS`` builds each public class of the ``__all__`` tree (``better_robot.testing.public_objects``, each class
 once, under the first path that lists it) from the test fixtures, with arrays large enough that a repr printing
 them fails. ``NO_INSTANCE`` holds the permanent, reasoned exceptions. ``repr(model)`` also names its sizes, dtype
-and device (record 0009).
+and device.
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@ description: Add a built-in joint kind to BetterRobot, a JointModel subclass und
 
 # Add a built-in joint kind
 
-A joint kind is a final frozen dataclass under the abstract `JointModel` (record 0013, rule C-EXT-2 in
+A joint kind is a final frozen dataclass under the abstract `JointModel` (rule C-EXT-2 in
 `docs/contracts/08-extension-points.md`). Its members and the `check_joint_model` contract are in
 `docs/guides/extend.md`, section "A joint kind"; `src/better_robot/model/joints/helical.py` is a complete example.
 

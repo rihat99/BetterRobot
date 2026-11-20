@@ -42,7 +42,7 @@ Enforcement: `tests/contract/test_contract_matrix.py`.
 
 A test is justified when it fixes a bug, guards an invariant (`tests/contract/`), checks Pinocchio parity
 (`tests/parity/`), or is the cheapest verification of a change. Never weaken, skip or `xfail` a contract or
-parity test to land a change; fix the code or open an ADR.
+parity test to land a change; fix the code or ask the owner.
 
 Enforcement: `tests/contract/test_no_skips.py` (no skip or xfail, whatever spells it); `[review]`.
 

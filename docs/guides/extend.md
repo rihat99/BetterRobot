@@ -1,13 +1,13 @@
 # Extend BetterRobot
 
 Five kinds of brick plug into BetterRobot: a joint kind, a term, a parser function, a viewer layer and a solver.
-None of them is registered anywhere (record 0025): you build the object and pass it where it is used. Each section
+None of them is registered anywhere: you build the object and pass it where it is used. Each section
 below gives the contract and a program that runs on its own: the docs tests run every fence of this page once in
 page order, and each fence again alone in a fresh interpreter. The normative rules are in [contracts/08-extension-points](../contracts/08-extension-points.md).
 
 ## A joint kind
 
-A joint kind subclasses the abstract `JointModel` as a final frozen dataclass (records 0013 and 0025); the built-in
+A joint kind subclasses the abstract `JointModel` as a final frozen dataclass; the built-in
 kinds in `src/better_robot/model/joints/` (`revolute.py`, `prismatic.py`, `planar.py`, ...) are the reference
 implementations, one file per kind.
 

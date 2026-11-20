@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = []
 # ///
-"""Find hot-path patterns that break ``torch.compile`` or CUDA throughput (C-TENS-4, decision record 0021).
+"""Find hot-path patterns that break ``torch.compile`` or CUDA throughput (C-TENS-4).
 
 Walks the AST of every file under ``src/better_robot/{kinematics,dynamics,lie,spatial,terms}`` and of
 ``src/better_robot/optim/{solvers,linear,linearization}.py`` (the hot paths of C-TENS-4) and reports each forbidden

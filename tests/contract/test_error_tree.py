@@ -1,4 +1,4 @@
-"""One error tree under ``BetterRobotError`` (decision record 0020, C-ERR-2).
+"""One error tree under ``BetterRobotError`` (C-ERR-2).
 
 Every class in ``exceptions.__all__`` derives from ``BetterRobotError`` and from the builtin the record names, is
 raised somewhere in ``src`` (a class nobody raises is deleted), the boundary guards raise the typed class, and

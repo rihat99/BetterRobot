@@ -43,7 +43,7 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_pytest_config.py` | pytest runs strictly: unknown markers and config keys, passing xfails, empty parameter sets and new warnings fail |
 | `test_python_version.py` | `.python-version`, `requires-python` and ruff's target agree on Python 3.12 |
 | `test_fixtures.py` | every test robot has its licence and provenance |
-| `test_repository_layout.py` | the tracked top-level entries are the standard set; each `src` package has its `tests/` folder and every other `tests/` folder is a named suite; no tracked symlink and no tracked file over 1 MiB (record [0039](../contracts/decisions/0039-test-robot-fixtures.md)); no directory under `src/`, `tests/` or `tools/` without a tracked file |
+| `test_repository_layout.py` | the tracked top-level entries are the standard set; each `src` package has its `tests/` folder and every other `tests/` folder is a named suite; no tracked symlink and no tracked file over 1 MiB; no directory under `src/`, `tests/` or `tools/` without a tracked file |
 | `test_citations.py` | every repository path and `path::symbol` cited in tracked text resolves; no line number is cited; a docs page outside the changelog, the migration pages and the records tells no history and names no plan code |
 | `test_agent_files.py` | the root `CLAUDE.md` is at most 200 lines and a nested one 60; no capitals for emphasis in an agent file or skill; `AGENTS.md` is one line naming `CLAUDE.md`; the shared `.claude/` files are tracked and the rest ignored |
 | `test_extension_points.py` | every extension point is a base class or a plain function: no `register_*` function, no module-level mutable registry (see [Extend BetterRobot](../guides/extend.md)) |
@@ -51,10 +51,9 @@ A parity failure means the library changed its answer. Fix the code, not the tol
 | `test_api_snapshot.py` | the public API equals its snapshot, `tests/contract/public_api.json` |
 | `test_contract_matrix.py` | the enforcement matrix of the contracts index matches what every contract page says |
 | `test_coupling_standard.py` | every line of the [coupling standard](../contracts/coupling-standard.md) against the library; the page's lines only grow (frozen copy `coupling_standard_lines.txt`) |
-| `test_decision_records.py` | every decision record follows the template, has an allowed status and an index row, and an accepted record keeps its accepted text |
 | `test_dtype_device.py`, `test_no_inplace.py`, `test_state_attachment.py` | public ops keep the input dtype and device, give each batch element its own result, refuse another dtype, never write their inputs, and refuse a state of another model; their results are the [effects table](effects.md) |
 | `test_error_tree.py` | every error the library raises is in one tree under `BetterRobotError` |
-| `test_frozen.py`, `test_model_fields.py`, `test_hashing.py`, `test_caches.py` | public records are frozen, `Model` is one flat record, equality and `structure_key` follow record 0010, caches and plans follow records 0011 and 0040 |
+| `test_frozen.py`, `test_model_fields.py`, `test_hashing.py`, `test_caches.py` | public records are frozen, `Model` is one flat record, equality and `structure_key` compare values, and the caches are the listed few |
 | `test_identifiers.py`, `test_keyword_only.py`, `test_name_words.py`, `test_se3_vocabulary.py` | a frame, joint or body parameter takes `int \| str`; at most two positional arguments; layouts, units and SE(3) words in public names |
 | `test_internal_checks.py`, `test_no_probing.py` | one switch guards every check that reads tensor values; no `getattr` with a literal and no `hasattr` in `src` |
 | `test_performance_rules.py` | a batch of two and a batch of seven dispatch the same torch operators (slow); `torch.compile` appears once, in `kinematics.compiled`, and no module names the compiler's modules or settings, `torch.jit`, `torch.library` or a kernel builder, import aliases resolved |

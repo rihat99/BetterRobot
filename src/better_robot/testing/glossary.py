@@ -1,4 +1,4 @@
-"""A glossary page as data, and the words of a name spelled with its entries (principle 3.9, decision record 0027).
+"""A glossary page as data, and the words of a name spelled with its entries (principle 3.9).
 
 BetterRobot's page ``docs/reference/glossary.md`` is the one copy: a wheel ships it beside this module as
 ``glossary.md`` (the build includes it, ``pyproject.toml``), and a source checkout reads it from ``docs/``. So a
