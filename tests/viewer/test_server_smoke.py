@@ -146,10 +146,10 @@ def test_a_switch_from_code_moves_the_shared_control_and_no_other_robot() -> Non
         first.set_collision(True)
         first.set_frames(["pelvis"])
         assert (style.value, overlay.value, frames.value) == ("minimal", True, True)
-        assert ran == [] and (first.style, second.style) == ("minimal", "maximal")
+        assert ran == [] and (first.style, second.style) == ("minimal", "medium")
         first.set_frames(False)
         assert frames.value is False and ran == []
-        style.value = "maximal"  # as a browser's choice: every robot follows
-        assert ran == ["maximal"] and first.style == "maximal"
+        style.value = "medium"  # as a browser's choice: every robot follows
+        assert ran == ["medium"] and first.style == "medium"
     finally:
         viewer.server.stop()

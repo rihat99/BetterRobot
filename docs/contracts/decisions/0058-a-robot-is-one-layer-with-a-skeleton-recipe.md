@@ -12,7 +12,7 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
 
 ## Decision
 1. **One layer per robot.** `viewer.RobotVisual(model, q)` runs forward kinematics once over `q`, `(nq,)` or a clip
-   `(T, nq)`, and owns every way the robot is drawn: a style (`"meshes"`, `"minimal"`, `"medium"`, `"maximal"`), a
+   `(T, nq)`, and owns every way the robot is drawn: a style (`"meshes"`, `"minimal"`, `"medium"`), a
    collision overlay (the sphere set, else the collision shapes of the geometry) and frame triads (every moving
    joint, or frames by id or name, each the size of its joint's glyph). `update(q)` shows new configurations of the same number of steps.
 2. **Parts are built once and then hidden.** A style, the overlay and the triads are each built the first time
@@ -22,47 +22,36 @@ the viewer's backend and its boundary; neither says how a robot is drawn.
    viewer: a choice there switches every robot, and a switch from code moves the control through
    `Sidebar.set_value`, which runs no callback, so the other robots stay as they are.
 3. **The skeleton is a recipe.** `viewer.SkeletonRecipe` (frozen, keyword-only) holds the choices: `glyphs`,
-   `bones`, `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, and the per-name overrides `joint_size`,
-   `body_hull`, `color`. `MAXIMAL` draws a glyph per joint kind (a drum for a revolute joint, a sleeve riding on
-   a rail that spans the travel for a prismatic one, a ball for a spherical one, a cube for a free base), slim
-   tapered limbs, trunks for the root body and the bodies that branch, and the ends of the chains (a sole, a finger
-   block, a limb that tapers to the end of its body, with no ball at its tip), in two tones: joints in the hue,
-   bodies pale (`Theme.shade` role `bone`). No ball sits among the drums but a spherical joint's, where it would
-   read as a ball joint, and a head is a ball only where it stands above a trunk and every joint (the end of a
-   neck, a round second frame of the trunk). `MINIMAL` draws one ball per cluster of close joints (a cube for a
-   free base) and sticks between them, a stick and a small ball on to the end of each body that ends a chain, and
-   a ball for a trunk's head. `MEDIUM` puts the maximal glyphs on the minimal frame: `hulls="none"` with
-   `glyphs="kind"` draws no body, and thin rods in the pale body shade join the glyphs, with a rod on to the end of
-   each chain closed by a round cap of its width and the maximal heads as small pale balls (`bones=0.35`,
-   `size=0.7`), so the collision overlay can show the volume around the motors.
-   `RobotVisual(minimal=, medium=, maximal=)` takes others.
+   `bones`, `limits`, `cluster`, `twists`, `sides`, `size`, and the per-joint overrides `joint_size` and `color`.
+   `MEDIUM`, the defaults, draws a glyph per joint kind (a drum for a revolute joint, a sleeve riding on a rail that
+   spans the travel for a prismatic one, a ball for a spherical one, a cube for a free base) on thin rods in the
+   pale body shade, with a rod on to the end of each chain closed by a round cap of its width, in two tones: joints
+   in the hue, rods pale (`Theme.shade` role `bone`; `bones=0.35`, `size=0.7`). No ball sits among the drums but a
+   spherical joint's, where it would read as a ball joint, and a head is a small pale ball only where it stands
+   above a trunk and every joint (the end of a neck, a round second frame of the trunk). It draws no body, so the
+   collision overlay can show the volume around the motors. `MINIMAL` draws one ball per cluster of close joints (a
+   cube for a free base) and sticks between them, a stick and a small ball on to the end of each body that ends a
+   chain, and a ball for a trunk's head. `RobotVisual(minimal=, medium=)` takes others.
 4. **Sizes come from the robot, positions stay true.** A glyph is as large as the motor that would carry its subtree:
-   26 mm times the cube root of the subtree's mass in kg, kept between 0.65 and 1.2 reference radii (a third of the
-   mean bone, kept between 2 % and 3 % of the robot's size; a ball of the minimal skeleton between 0.5 and 1.2), so a
+   26 mm times the cube root of the subtree's mass in kg, kept under 1.2 reference radii (a third of the mean bone,
+   kept between 2 % and 3 % of the robot's size) and at least 2.5 rod radii, 0.875 of them (a ball of the minimal
+   skeleton at least 0.5), so a
    wrist is smaller than its elbow and a chain narrows towards its tip, while a wrist, an ankle or a knee still reads
    as a motor at the distance of the whole robot (the owner found the G1's wrists, a Go2's knees and a UR5e's wrist
    too small at 0.5); a joint inside a chain that carries grams (a finger of a hand on an arm) is at most twice its
    mass size instead, and a joint that ends a chain at least half a reference radius, no thicker than the body it
-   moves; a robot without mass takes the reference. A maximal drum is never thinner than a limb it joins: its radius
-   is at least the limb's half width over 0.8, so both its faces stand out of it, also where the limb's link runs
-   between two joints at one point (a Panda's base collar under its shoulder, its link along the collar's axis). No
-   two joint glyphs ever go inside each other,
+   moves; a robot without mass takes the reference. No two joint glyphs ever go inside each other,
    neighbours in the tree or not: in the order of the tree, the larger glyph nearer the root first (and a drum on the
    root body's mid plane with its axis across it before any), each glyph that would touch one placed before it slides
    along its own axis until it clears it by a tenth of its radius, so it stays on its true axis line; when that takes
    more than 1.75 of its radii it shrinks, down to 0.7 of its size, and slides less; when no size down to 0.7 clears
    that close it slides farther at 0.7, and only when no slide clears may it shrink further; one that clears at no
    size down to a tenth of its own is not drawn. Joints that share a point (a hip, a waist, a knuckle) so come out as
-   a short staggered stack of separate drums, mirror joints as mirror images. On rods
-   a drum is at most 0.35 of its shortest rod, so a wrist reads motor, rod, motor, and at least 2.5 rod radii, and a
-   rod is no thicker than 1 / 2.5 of the drums it joins; a free base's cube is laid out with the drums. A maximal limb
-   is `bones` glyph
-   radii wide, or 0.7 of its link's thinner half width when that is more, up to 0.8 of the radius its mass gives (a
-   thigh is wider than its shin), and starts or ends on the side of a narrower drum it joins. A trunk stops short of
-   the drums of its waist and its neck, and a fixed base of the collars that stand on it (an iiwa's base joint),
-   keeping half its height. Body sizes come from
-   the collision shapes, else the sphere set, else the inertias; a collision mesh file that cannot be read is left
-   out with a warning, since only the collision overlay draws it (and raises for it).
+   a short staggered stack of separate drums, mirror joints as mirror images. A drum is at most 0.35 of its shortest
+   rod, so a wrist reads motor, rod, motor, and a rod is no thicker than 1 / 2.5 of the drums it joins; a free base's
+   cube is laid out with the drums. Leaf glyphs, heads and the ends of chains take their sizes from the collision
+   shapes, else the sphere set, else the inertias; a collision mesh file that cannot be read is left out with a
+   warning, since only the collision overlay draws it (and raises for it).
 5. **The layout is rigid.** It is computed once at `model.q_neutral`; every block is rigid in one joint frame,
    except the minimal skeleton's cluster balls, each at the mean of its joints, and the sticks of the minimal and
    medium skeletons, whose two ends move apart and together with the joints; a skeleton is at most three batched
@@ -90,10 +79,10 @@ from better_robot.viewer import RobotVisual, SkeletonRecipe, Viewer
 
 viewer = Viewer()
 robot = viewer.add(RobotVisual(model, q, geometry=geometry, root=URDF, spheres=spheres, frames=["panda_hand"]))
-robot.set_style("maximal")       # built now; "meshes" stays in the scene, hidden
+robot.set_style("medium")        # built now; "meshes" stays in the scene, hidden
 robot.set_collision(True)        # the sphere set, faint, over any style
 robot.update(q_next)             # one kinematics pass, then a redraw
-viewer.add(RobotVisual(model, q, name="ghost", maximal=SkeletonRecipe(limits=True)), pose=(0.0, 1.0, 0.0))
+viewer.add(RobotVisual(model, q, name="ghost", medium=SkeletonRecipe(limits=True)), pose=(0.0, 1.0, 0.0))
 ```
 
 ## Consequences
@@ -110,8 +99,6 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
 | minimal, overlay, triads | 5 | 9 | 4.6 | 0.81 |
 | medium | 3 | 6 | 4.7 | 0.73 |
 | medium, overlay, triads | 5 | 9 | 7.1 | 0.79 |
-| maximal | 3 | 7 | 3.6 | 0.41 |
-| maximal, overlay, triads | 5 | 10 | 6.1 | 0.46 |
 
 - Each part adds one grouping frame node; the message counts include one timeline message. A second switch to a
   style creates no node. `update` of a `(300, nq)` clip takes 8.3 ms, a live `update` of one configuration with
@@ -119,25 +106,24 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
 - A step writes positions and rotations to each skeleton and triad node (positions only to the overlay's spheres,
   points to the limit arcs); the stick node of a minimal skeleton also writes its lengths, because a stick between
   two moving balls stretches, and so does the rod node of a medium one.
-- The G1's maximal layout (with its sphere set): 14 glyphs slide, 738.2 mm in total, and 4 shrink (the waist yaw
-  to 0.61, the waist roll to 0.72, the wrist yaws to 0.85); it is 58 cylinders (29 drums, 29 faces), 1 ball (the
-  head) and 39 boxes (32 limbs, 4 ends, 2 trunks and the base). Its minimal layout is 18 balls and 22 sticks beside
-  the base cube. The Panda's maximal layout slides 5 glyphs, 347.7 mm, and shrinks none. Its smallest drum is 0.47
-  (G1) and 0.46 (Panda) of its largest before the layout shrinks either, 0.75 and 0.79 on rods. Building the G1's
-  layout takes 7 ms (minimal), 24 ms (medium) and 35 ms (maximal).
+- The G1's minimal layout is 18 balls and 22 sticks beside the base cube. Its smallest drum is 0.75 (G1) and 0.79
+  (Panda) of its largest before the layout shrinks either. Building the G1's layout takes 7 ms (minimal) and 24 ms
+  (medium).
 - The G1's medium layout (with its sphere set): 12 glyphs slide, 355.5 mm in total, and 7 shrink (the ankle and
   shoulder rolls and the waist roll to 0.72, the wrist yaws to 0.85); it is 95 cylinders (29 drums, 29 faces, 37
   rods), 5 balls (the caps of the four ends and the head) and the base cube, three nodes like the others, and a
-  step writes what the maximal one writes plus the rods' lengths.
+  step writes their positions and rotations plus the rods' lengths.
 - `bounds` is the same in every style, so the camera does not jump on a style switch: a box per joint, per
-  collision sphere and per collision shape that is not a mesh, per block of the maximal skeleton on a body
-  without one of those, and per bone of a skin that carries vertices.
+  collision sphere and per collision shape that is not a mesh, a point per furthest vertex of a collision mesh in
+  114 directions, per block of the medium skeleton on a body without one of those, and per bone of a skin that
+  carries vertices. A robot stood on its lowest point stands on its soles in the meshes style; a skeleton rests at
+  the height of its meshes, above the ground by the depth of a sole.
 - A switch from code moves the shared sidebar control and switches no other robot, and a robot added later keeps
   its own arguments and moves the controls to them, so the controls show the robot switched or added last, and the
   other robots may show another style, overlay or triads than it does.
 - Torque colouring (`robot_skeleton(tau=)`) is `joint_values=`, each joint's `|tau|` over its effort limit: on the
-  G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step and no node (minimal 0.83, medium 0.88, maximal
-  0.53 ms per step with values, at load average 16); a ghost at opacity 0.35 costs nothing per step. `end_points=`
+  G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step and no node (minimal 0.83 and medium 0.88
+  ms per step with values, at load average 16); a ghost at opacity 0.35 costs nothing per step. `end_points=`
   has no replacement.
 
 ## Alternatives
@@ -154,9 +140,6 @@ skeleton rows after the layout rules of item 4 at about 40 (the times are upper 
   other, which the owner rejected.
 - A glyph sized by its joint's effort limit (0.8 to 1.2 of the reference): the G1's wrist roll was as wide as its
   elbow, and every drum of a Talos or a UR5e alike.
-- A floor of 0.8 reference radii in the maximal style: the G1's wrists became a chunky cluster, which the owner's
-  first request named beside the ones too small. A drum only as wide as the limb it joins: its faces sank into a
-  Go2's or a Spot's legs.
 - Options as keyword arguments of `RobotVisual` instead of a recipe value: eleven more parameters, twice (one set
   per skeleton style).
 - A control per robot in the sidebar: the Robot section grows with the number of robots; comparison scenes have
@@ -172,14 +155,11 @@ unreleased 0.3.0. The changelog and `docs/reference/migration-0.3.0.md` name the
 theme switch, a name clash, a joint kind from outside the library, one Style control for two robots, a second switch
 creates no node, the rotations of a step against forward kinematics and its exact writes, a collision mesh that does
 not load), `tests/viewer/test_skeleton.py` (the layout: no joint glyph inside another on the G1 and the
-Panda, mirrored slides, glyphs that narrow towards the tips, a maximal drum no thinner than the limbs that end on
-it, a robot's drums within a narrow range of sizes and over the floor, a drum on its axis by its joint,
-a hinge a drum and a slider a sleeve, never a ball, a neck's head above its trunk, the medium glyphs of every kind
-on rods without bodies, none sized wider than its maximal one before the slide rule shrinks either, rods between
-the G1's wrist drums, its chest above its waist drums, maximal limbs from their links, the Panda's rails over the
-fingers' travel, bone thickness, the G1's clusters alike on both sides, end block sizes, the size rule, a clip
-equals its steps, the shades, `hulls` and `body_hull`, limit arcs over the joint's range, a recipe value that is
-not finite),
+Panda, mirrored slides, a robot's drums within a narrow range of sizes and over the floor, a drum on its axis by its
+joint, a hinge a drum and a slider a sleeve, never a ball, a neck's head above its trunk, a glyph of every kind on
+rods, rods between the G1's wrist drums, the Panda's rails over the fingers' travel, rod thickness, the G1's
+clusters alike on both sides, the size rule, a clip equals its steps, the shades, a chain that ends in a round cap,
+limit arcs over the joint's range, a recipe value that is not finite or a colour for a name that is not a joint),
 `tests/viewer/test_core.py` (a see-through mesh casts and catches no shadow), `tests/viewer/test_fake_server.py`
 (the sidebar handles against viser), `tests/viewer/test_server_smoke.py` (on a
 real server, a switch from code moves the shared control and no other robot), `tests/contract/test_api_snapshot.py`
@@ -187,5 +167,6 @@ real server, a switch from code moves the shared control and no other robot), `t
 `tests/contract/test_name_words.py` (rule C-NAME-4 lets `RobotVisual` say frames).
 
 ## Open questions
-- A triad of a named frame is sized like a joint's (two glyph radii long), so one inside a hull or a mesh shows
-  only the axes that leave it. A size of its own for named frames would be one more constant.
+- A triad of a named frame is sized like a joint's (two glyph radii long), so one inside a mesh shows only the axes
+  that leave it. A size of its own for named frames would be one more constant. The triads follow the medium
+  glyphs, so on a G1 or a Panda drawn as meshes most of them stay inside the meshes.

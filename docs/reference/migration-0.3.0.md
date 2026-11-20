@@ -204,8 +204,8 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | 0.2 | 0.3.0 | note |
 |---|---|---|
 | `viewer.RobotView`, `viewer.robot_layers` | `viewer.RobotVisual` | one layer: `RobotVisual(model, q, geometry=, root=, spheres=)` with `style=`, `collision=` and `frames=`; `update(q)` shows new configurations |
-| `viewer.skeleton_spec`, `viewer.spread_offsets` | `viewer.SkeletonRecipe` | the skeleton is laid out inside `RobotVisual`; a `SkeletonRecipe` (`RobotVisual(maximal=, minimal=)`) sets how |
-| `viewer.robot_skeleton(model, joint_poses, ...)` | `viewer.RobotVisual` | `RobotVisual(model, q, style="maximal")` or `"minimal"`; it runs the forward kinematics itself. The torque colours (`tau=`) are `RobotVisual(joint_values=)`, each joint's torque over its effort limit; `end_points=` has no replacement |
+| `viewer.skeleton_spec`, `viewer.spread_offsets` | `viewer.SkeletonRecipe` | the skeleton is laid out inside `RobotVisual`; a `SkeletonRecipe` (`RobotVisual(medium=, minimal=)`) sets how |
+| `viewer.robot_skeleton(model, joint_poses, ...)` | `viewer.RobotVisual` | `RobotVisual(model, q, style="medium")` or `"minimal"`; it runs the forward kinematics itself. The torque colours (`tau=`) are `RobotVisual(joint_values=)`, each joint's torque over its effort limit; `end_points=` has no replacement |
 | `robot_meshes(model, *, collision, default_color)` | `viewer.RobotVisual`, `viewer.load_meshes` | `RobotVisual(model, q, geometry=io.load_geometry(path, model), root=path)` draws the display shapes; `collision=True` overlays the collision shapes; `load_meshes(geometry, root=path, collision=)` returns them as `MeshSpec` arrays |
 | `Layer.times`, `Layer.root` | `Viewer.add(..., times=)` | the viewer keeps what each `add` set; `Layer.elements` is read-only |
 | `Viewer.add(layer, group)`, `Viewer.add_plot(..., group=)` | `Viewer.add(layers, *, tags)`, `Viewer.add_plot(..., tags=)` | one layer or an iterable of layers, returned as given; a layer's first tag is its scene parent `/<tag>/<name>`; `offset=` is `pose=` |
@@ -233,7 +233,7 @@ Motions and forces are `(..., 6)` tensors, linear part first. An inertia is a pa
 | `CameraLayer(name, poses, *, fov, aspect, ...)` | `CameraLayer(name, poses, *, intrinsics, size, ...)` | the frustum from the `(3, 3)` matrix `K` of a `(W, H)` image, principal point included; `color=None` takes `Theme.text` |
 | `viewer.layers.skinned.CameraLayer` | `viewer.CameraLayer` | the same class; `viewer.layers.skinned` re-exported it, a second path to it |
 | `Timeline(nsteps=1, fps=30.0, loop=True)` | `Timeline(nsteps, *, fps=30.0, loop=True)` | |
-| `SkeletonLayer(name, joints, parents, ...)` | `viewer.RobotVisual` | a model's skeleton is `RobotVisual(model, q, style="minimal")` or `"maximal"`; joint positions without a model are a `SpheresLayer` or a `PointsLayer` |
+| `SkeletonLayer(name, joints, parents, ...)` | `viewer.RobotVisual` | a model's skeleton is `RobotVisual(model, q, style="minimal")` or `"medium"`; joint positions without a model are a `SpheresLayer` or a `PointsLayer` |
 | `ArrowsLayer(name, origins, vectors, ...)`, `MeshLayer(name, vertices, faces, ...)`, `SpheresLayer(name, centers, radii, ...)` | `vectors=`, `faces=`, `radii=` | keyword-only after the second argument |
 | `RigidMeshLayer(name, meshes, body_poses, ...)`, `SkinnedMeshLayer(name, vertices, faces, weights, bind_poses, bone_poses, ...)` | `body_poses=`, `faces=`, `weights=`, `bind_poses=`, `bone_poses=` | keyword-only |
 | `MeshSpec(vertices, faces, body, origin, color, trimesh)`, `Theme(dark, brand_color, ...)` | `body=`, `origin=`, `dark=`, `accent=` | keyword-only fields |

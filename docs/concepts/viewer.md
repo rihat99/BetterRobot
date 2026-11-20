@@ -7,7 +7,7 @@ and which call to reach for: `show`, `serve`, `save` or `record`.
 It lives in `better_robot.viewer`, is built on [viser](https://viser.studio), and is the top of the import stack:
 nothing else in the library imports it. viser is imported only when you create a `Viewer`.
 
-<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video><figcaption>One <code>RobotVisual</code> six ways: meshes, the minimal, medium and maximal skeletons, the maximal one with joint frames, and the medium one under the collision glass, switched with <code>set_style</code>, <code>set_frames</code> and <code>set_collision</code>.</figcaption></figure>
+<figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video><figcaption>One <code>RobotVisual</code> four ways: meshes, the minimal and medium skeletons, the medium one with joint frames and under the collision glass, switched with <code>set_style</code>, <code>set_frames</code> and <code>set_collision</code>.</figcaption></figure>
 
 ## A layer holds a whole clip
 
@@ -161,18 +161,17 @@ viewer.serve()  # plays and blocks until Ctrl-C
 ## A robot is one layer
 
 `RobotVisual(model, q)` is a whole robot: it runs forward kinematics once over `q`, one configuration `(nq,)` or a
-clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of four styles.
+clip `(T, nq)` (`None` is `model.q_neutral`), and draws the result in one of three styles.
 
 | Style | Draws | Needs |
 |---|---|---|
 | `"meshes"` | the display shapes of a `Geometry` (`io.load_geometry`), or a `Skin` | `geometry=` with display shapes, or `skin=` |
-| `"maximal"` | a skeleton with one glyph per joint, limbs, trunks and the ends of the chains | nothing but the model |
-| `"medium"` | the maximal glyphs on thin pale rods, no bodies | nothing but the model |
+| `"medium"` | a skeleton with one glyph per joint on thin pale rods | nothing but the model |
 | `"minimal"` | a stick figure: one ball per cluster of close joints, sticks between | nothing but the model |
 
-![One G1 in the four styles, left to right: meshes, the minimal skeleton, the medium skeleton and the maximal skeleton.](../images/robot_styles.png){ width="960" }
+![One G1 in the three styles, left to right: meshes, the minimal skeleton and the medium skeleton.](../images/robot_styles.png){ width="960" }
 
-`style=None` picks `"meshes"` when there is something to show as meshes and `"maximal"` otherwise. Mesh files are
+`style=None` picks `"meshes"` when there is something to show as meshes and `"medium"` otherwise. Mesh files are
 looked up under `root`, the description file or its folder, and under each folder above it, so `root=` is the path
 you loaded. Code without a viewer reads the same files the same way: `load_meshes(geometry, root=path)` returns one
 `MeshSpec` per display shape (`collision=True`: per collision shape), `vertices (V, 3)` and `faces (F, 3)` with the
@@ -181,7 +180,7 @@ the collision shapes of the geometry, as a pale see-through shell over any style
 `Theme.collision_opacity`, casting and catching no shadow). The shell stands 0.2 % of the robot's size off its
 shapes, along their normals (2 mm on a 1 m arm): viser has no depth offset, and glass on the very surface of a
 display mesh (a G1 names one file for both) shows stripes of each in turn. `frames=True` draws a triad at every
-moving joint and `frames=[...]` at the frames listed, by id or name, each as large as the maximal skeleton's glyph of
+moving joint and `frames=[...]` at the frames listed, by id or name, each as large as the medium skeleton's glyph of
 its joint, so a finger's triad is a finger's size and a hip's a hip's.
 
 ```python
@@ -201,11 +200,11 @@ q = mid + 0.5 * half * torch.sin(phase + torch.arange(model.nq) * 0.7)   # q (30
 robot = viewer.add(RobotVisual(model, q, geometry=geometry, root=URDF, frames=["panda_hand"]))
 ghost = viewer.add(RobotVisual(model, q, name="ghost", style="minimal"), pose=(0.0, 1.0, 0.0))
 ghost.update(q.flip(0))            # the same clip played backwards: one kinematics pass, then a redraw
-robot.set_style("maximal")         # built now, the first time it is shown; "meshes" stays in the scene, hidden
+robot.set_style("medium")          # built now, the first time it is shown; "meshes" stays in the scene, hidden
 print(robot.style, robot.styles, ghost.styles)
 ```
 ```output
-maximal ('meshes', 'minimal', 'medium', 'maximal') ('minimal', 'medium', 'maximal')
+medium ('meshes', 'minimal', 'medium') ('minimal', 'medium')
 ```
 
 Each part (a style, the collision overlay, the frames) is built the first time it is shown and only hidden after
@@ -225,12 +224,12 @@ one model need a `name=` each, and `B` rollouts `(B, T, nq)` are `B` visuals, `q
 
 ### The skeleton
 
-The three skeleton styles are laid out by a `SkeletonRecipe`; `MAXIMAL`, `MEDIUM` and `MINIMAL` are the presets
-and `RobotVisual(maximal=, medium=, minimal=)` takes your own. Sizes come from the robot: every radius is a fraction
-of the robot's size, so a hand and a humanoid read the same on screen. The layout is computed once, at
-`model.q_neutral`, and every block is rigid in one joint frame, so a step only moves blocks.
+The two skeleton styles are laid out by a `SkeletonRecipe`; `MEDIUM` and `MINIMAL` are the presets and
+`RobotVisual(medium=, minimal=)` takes your own. Sizes come from the robot: every radius is a fraction of the
+robot's size, so a hand and a humanoid read the same on screen. The layout is computed once, at `model.q_neutral`,
+and every block is rigid in one joint frame, so a step only moves blocks.
 
-`MAXIMAL` draws what the joints are, in two tones of the robot's hue: joints in the hue, bodies pale.
+`MEDIUM` draws what the joints are, in two tones of the robot's hue: joints in the hue, rods pale.
 
 - a revolute joint is a drum along its axis, with dark end faces that show which way the axis points; a prismatic
   joint is a sleeve that rides with its child on a rail that spans the joint's travel in the parent; a spherical
@@ -238,13 +237,11 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
   mobile base) is a thin plate in its plane, a translation joint a small block, a free base a cube, and a kind
   defined outside the library a small ball;
 - a glyph is as large as the motor that would carry its subtree: 26 mm times the cube root of that mass in kg, kept
-  between 0.65 and 1.2 reference radii, so a wrist is smaller than its elbow, a chain narrows towards its tip, and a
-  wrist, an ankle or a knee still reads as a motor at the distance of the whole robot (a joint inside a chain that
-  carries grams, a finger of a hand on an arm, is at most twice its mass size instead, and a joint that ends a
-  chain at least half a reference radius and no thicker than the body it moves);
-- a drum is never thinner than a limb it joins: its radius is at least the limb's half width over 0.8, so both its
-  faces stand out of the limb (a Go2's knee under its thigh, a UR5e's joints between its tubes, a Panda's base
-  collar under its shoulder drum, whose link runs along the collar's axis);
+  under 1.2 reference radii and at least 2.5 rod radii, so a wrist is smaller than its elbow, a chain narrows
+  towards its tip, and a wrist, an ankle or a knee still reads as a motor at the distance of the whole robot (a
+  joint inside a chain that carries grams, a finger of a hand on an arm, is at most twice its mass size instead,
+  and a joint that ends a chain at least half a reference radius and no thicker than the body it moves); all of it
+  at `size` 0.7 of the reference;
 - no two joint glyphs go inside each other, neighbours in the tree or not: the larger glyph nearer the root keeps
   its place (a drum on the root body's mid plane with its axis across it first, so a waist stays symmetric), and
   each later glyph that would touch one slides along its own axis until it clears it, so it stays on its true axis
@@ -253,63 +250,47 @@ of the robot's size, so a hand and a humanoid read the same on screen. The layou
   to a tenth of its own is not drawn (a hand whose finger joints sit 7 mm apart). Joints that share a point, such
   as a hip's pitch, roll and yaw, so come out as a short staggered stack of separate drums, mirror joints as mirror
   images;
-- a limb joins each joint to its parent: a faceted block that narrows towards the child, `bones` times the glyph
-  radius wide, or 0.7 of its link's thinner half width when that is more, up to 0.8 of the radius its mass gives
-  (a thigh is wider than its shin); where it is wider than a drum it joins, it starts or ends on the drum's side, so
-  the drum stays in sight (`bones=0` draws none);
-- a trunk, a block that narrows towards the joint it hangs from, stands for the root body and for every body where
-  the tree branches (a torso, a pelvis, a palm), and stops short of the drums of its own waist and of its neck; a
-  fixed base also of the collars that stand on it, keeping half its height (an iiwa's base joint, an Allegro's
-  finger bases), which would otherwise show only their rims. A
-  fixed base that carries one joint reaches at most 4 of that joint's glyph radii from its centre, shrunk towards
-  the joint: an arm's stand (about 3) keeps its box, a Shadow hand's forearm becomes a block about the size of the
-  hand, and the bones of a fixed base stay inside its box. A head is a ball that stands above the trunk and every joint: the head of a neck chain (a Talos, an Atlas), a
-  round second frame of the trunk, or over a trunk whose sensor frames rise above it (an H1); a quadruped's snout
-  or the lidar on its back is no head. A body that ends a chain is a sole when it is flat, a block when a prismatic
-  joint moves it (a finger), else a limb that tapers to the end of the body (a hand, a paw), with no ball at its
-  tip. Their sizes come from the collision shapes of the geometry, else from the sphere set, else from the
-  inertias, so a sphere set shown as the collision overlay does not change a robot that has collision shapes. A
-  collision mesh file that cannot be read is left out with a warning that names it, while the collision overlay,
-  which draws the file, raises `ModelError`. `hulls="all"` also gives a trunk to the bodies with one child joint,
-  `"none"` draws neither; `body_hull={frame: bool}` decides one body.
+- thin rods (`bones`, 0.35 of the reference radius) in the pale shade run from glyph to glyph, and on to the end of
+  each body that ends a chain, closed by a round cap of their own width. A drum is at most 0.35 of its shortest
+  rod, so a wrist reads motor, rod, motor, and a rod is no thicker than 1 / 2.5 of the drums it joins, so every drum
+  stands out of its rods; a free base's cube is laid out with the drums, so a waist's drums clear it (`bones=0`
+  draws no rods);
+- a head is a pale ball of the reference radius that stands above the trunk and every joint: the head of a neck
+  chain (a Talos, an Atlas), a round second frame of the trunk, or over a trunk whose sensor frames rise above it
+  (an H1); a quadruped's snout or the lidar on its back is no head.
+
+Leaf glyphs, heads and the rods that end a chain are sized from the collision shapes of the geometry, else from the
+sphere set, else from the inertias, so a sphere set shown as the collision overlay does not change a robot that has
+collision shapes. A collision mesh file that cannot be read is left out with a warning that names it, while the
+collision overlay, which draws the file, raises `ModelError`. `MEDIUM` is `SkeletonRecipe()`, the defaults. With no
+bodies drawn, the collision overlay is what shows the robot's volume around its motors.
 
 `MINIMAL` draws the least that still reads as the robot: joints closer than `cluster` times the robot's size share
 one ball (a three-joint shoulder is one ball), a joint that only twists its limb gets none (`twists=False`), and
 sticks join the balls. A leaf joint's stick runs on to the end of its body and ends in a small ball, rigid in the
 leaf's frame: to the far end of its geometry (the paw of a Go2, the toe of a G1's sole, a hand, a finger), so
 the figure stands on its feet; without geometry, to its farthest frame when that frame lies past the middle of the
-body its inertia spans (a foot, a tool tip). The maximal limb of a hand or a paw ends at the same place. A
-trunk's head is a ball as small as a joint's, on a stick from the trunk (here a quadruped's snout counts). Balls
-and drums follow one size rule: the reference radius is a third of the mean bone, kept between 2 % and 3 % of the
-robot's size, and `MINIMAL` draws it at 0.62.
-
-`MEDIUM` sits between them: the joints as `MAXIMAL` draws them (a glyph per kind, at 0.7 of their size, laid out
-by the same slide rule) and the bodies as `MINIMAL` does, thin rods (0.35 of the glyph radius) in the pale body
-shade from glyph to glyph, a rod on to the end of each body that ends a chain, closed by a round cap of its own
-width, and the heads of `MAXIMAL` as small pale balls. A drum is at most 0.35 of its shortest
-rod, so a wrist reads motor, rod, motor, and at least 2.5 rod radii, and a rod is no thicker than 1 / 2.5 of the
-drums it joins, so every drum stands out of its rods; a free base's cube is laid out with the drums, so a waist's
-drums clear it. It is the recipe `SkeletonRecipe(bones=0.35, hulls="none", size=0.7)`: with `hulls="none"` a
-skeleton of glyphs is a stick figure too. With no bodies drawn, the collision overlay is what shows the robot's
-volume around its motors.
+body its inertia spans (a foot, a tool tip). A trunk's head is a ball as small as a joint's, on a stick from the
+trunk (here a quadruped's snout counts). Balls and drums follow one size rule: the reference radius is a third of
+the mean bone, kept between 2 % and 3 % of the robot's size, and `MINIMAL` draws it at 0.62.
 
 ![The G1 in the medium style with collision=True: its motors and rods inside a pale grey glass of its collision shapes.](../images/robot_collision.png){ width="560" }
 
-All three take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
+Both take `limits=True` (an arc over each bounded revolute joint's range with a tick at the current angle),
 `sides=True` (the left side lighter, the right darker), `size` (a multiplier of every glyph), `joint_size={joint:
-multiplier}` and `color={joint or frame: rgb}`. A `joint_size` factor scales that one glyph after the size rules:
-0 hides it and the bones run on through its place, the glyphs after it keep their size, and above 1 it may be wider
+multiplier}` and `color={joint: rgb}`. A `joint_size` factor scales that one glyph after the size rules:
+0 hides it and the rods run on through its place, the glyphs after it keep their size, and above 1 it may be wider
 than the glyph before it; a minimal ball takes the mean factor of its joints.
 
 ```python
-from better_robot.viewer import MAXIMAL, SkeletonRecipe
+from better_robot.viewer import MEDIUM, SkeletonRecipe
 
 recipe = SkeletonRecipe(limits=True, sides=True, joint_size={"panda_finger_joint2": 0.0})
-viewer.add(RobotVisual(model, q, name="limits", maximal=recipe), pose=(0.0, -1.0, 0.0))
-print(MAXIMAL.glyphs, MAXIMAL.hulls, recipe.limits)
+viewer.add(RobotVisual(model, q, name="limits", medium=recipe), pose=(0.0, -1.0, 0.0))
+print(MEDIUM.glyphs, MEDIUM.size, recipe.limits)
 ```
 ```output
-kind auto True
+kind 0.7 True
 ```
 
 A skeleton is at most three batched nodes, one per unit mesh (cylinder, ball, box), plus one line node for the
@@ -317,8 +298,8 @@ limit arcs; with the sphere overlay and the frames a robot is at most six drawin
 collision shapes is one node per shape (17 on the Panda), and a step writes positions and rotations to each node on
 screen (the sticks of a minimal skeleton and the rods of a medium one also their lengths). Each mesh file is read
 once per robot, however often its style, overlay or theme is switched. `bounds` is
-a box per joint, per collision sphere and collision shape that is not a mesh (exact), per block of the maximal
-skeleton on a body without one, and per bone of a skin that carries vertices (no vertex is skinned), in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
+a box per joint, per collision sphere and collision shape that is not a mesh (exact), a point per furthest vertex of
+a collision mesh in 114 directions, per block of the medium skeleton on a body without one, and per bone of a skin that carries vertices (no vertex is skinned), in every style, so `Viewer.aim` frames a robot the same way whatever it is drawn as,
 and by what it covers: one box round a moving robot is about twice that on screen. Its lowest point is the lowest
 point of a sole or a foot with a collision shape: `examples/viewer/00_showcase.py` lifts a floating base by it, step
 by step, and a fixed base by its lowest over the loop, to stand the robot on the ground.

@@ -113,15 +113,15 @@ def _drive_the_sidebar(viewer: Viewer) -> None:
         raise ArgumentError(f"cannot show {value}")
 
     sidebar, server = viewer.sidebar, viewer.server
-    sidebar.dropdown("Robot", "Style", options=("meshes", "maximal"), value="meshes", on_change=refuse)
+    sidebar.dropdown("Robot", "Style", options=("meshes", "medium"), value="meshes", on_change=refuse)
     sidebar.slider("Robot", "Size", low=0.5, high=2.0, step=0.1, value=1.0, on_change=print)
     sidebar.checkbox("Robot", "Frames", value=False, on_change=print).value = True
     sidebar.button("Robot", "Reset", on_click=print).fire()
     style = server.gui.control("Style")
-    style.value = "maximal"
+    style.value = "medium"
     style.fire(SimpleNamespace(client=server.clients[0]))  # refused: back to "meshes", a notification shown
     assert style.value == "meshes" and server.clients[0].notifications[0]["color"] == "red"
-    robot = RobotVisual(br.load(panda_urdf()), maximal=SkeletonRecipe(limits=True), frames=True)
+    robot = RobotVisual(br.load(panda_urdf()), medium=SkeletonRecipe(limits=True), frames=True)
     viewer.add(robot).set_style("minimal")  # a robot joins the Robot section made above; both its skeletons are built
     sidebar.remove("Robot")
     viewer.layers[1].redraw()

@@ -1,4 +1,4 @@
-"""The skeleton layout: glyphs of one rigid group stay clear, bones are thinner than their glyphs, end blocks small."""
+"""The skeleton layout: glyphs of one rigid group stay clear, rods and sticks are thinner than their glyphs."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from better_robot.model import (
     Model,
 )
 from better_robot.viewer import LIGHT, RobotVisual
-from better_robot.viewer.skeleton import MAXIMAL, MEDIUM, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton
+from better_robot.viewer.skeleton import MEDIUM, MINIMAL, Skeleton, SkeletonRecipe, build_skeleton
 
 from better_robot.exceptions import ArgumentError, UnknownNameError
 from tests.support.robots import g1_urdf, panda_urdf
@@ -301,18 +301,17 @@ _MEETING = {"mixed": {("mast", "shoulder")}}
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed", "planar"])
-@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
-def test_no_joint_glyph_goes_inside_another(robot: str, recipe: SkeletonRecipe) -> None:
+def test_no_joint_glyph_goes_inside_another(robot: str) -> None:
     """No two joint glyphs overlap at neutral, neighbours in the tree or not (a hip's three drums, a waist beside the
     hips, the fingers, a planar plate or a translation block beside a drum): each slides along its own axis or
     shrinks. The glyphs of one rigid group (a joint with its child joints, and siblings) stay clear in every pose,
     because a drum is rigid in its parent group and symmetric about its axis."""
     if robot in _SYNTHETIC:
         model, geometry = _synthetic(robot)
-        skeleton = build_skeleton(model, recipe, geometry=geometry)
+        skeleton = build_skeleton(model, MEDIUM, geometry=geometry)
     else:
         model, spheres = _ROBOTS[robot]()
-        skeleton = build_skeleton(model, recipe, spheres=spheres)
+        skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
     names, meeting = model.joint_names, _MEETING.get(robot, set())
     solids = _solids(skeleton, _poses(model))
     pairs = itertools.combinations(sorted(solids), 2)
@@ -325,7 +324,7 @@ def test_no_joint_glyph_goes_inside_another(robot: str, recipe: SkeletonRecipe) 
 
 def test_g1_slides_are_mirror_images() -> None:
     model, spheres = _g1()
-    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
     assert skeleton.slides  # the hips, shoulders and wrists are close enough to need slides
     for name, slide in skeleton.slides.items():
         if name.startswith("left_"):
@@ -345,110 +344,52 @@ def test_g1_slides_are_mirror_images() -> None:
         np.testing.assert_allclose(drums[j][2], drums[other][2], atol=1e-9)
 
 
-def test_g1_maximal_glyphs_narrow_towards_the_tips() -> None:
-    """A drum is sized no wider than the drum before it (before the layout shrinks either)."""
-    model, spheres = _g1()
-    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
-    drums, anchor = _drums(skeleton, _poses(model)), _anchors(model)
-    size = {j: half[0] / skeleton.shrinks.get(model.joint_names[j], 1.0) for j, (_, _, half) in drums.items()}
-    pairs = [(anchor[model.parent_joint_ids[j]], j) for j in drums if anchor[model.parent_joint_ids[j]] in drums]
-    assert pairs
-    for parent, child in pairs:
-        assert size[child] <= size[parent] + 1e-12, (model.joint_names[parent], model.joint_names[child])
-
-
 @pytest.mark.parametrize("robot", ["g1", "panda"])
-def test_a_maximal_drum_is_sized_no_thinner_than_the_limbs_that_end_on_it(robot: str) -> None:
-    """A motor is never thinner than the body it drives: before the layout shrinks it, a drum's half length (so its
-    radius too) is at least the half width of each limb end in or on it, at a limb's wide start and at its narrowed
-    (``taper``) far end, so both its faces stand out. Also a collar whose child joint sits on its own joint: the
-    Panda's base collar under its shoulder drum (its link a limb along the collar's axis)."""
-    model, spheres = _ROBOTS[robot]()
-    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
-    placed = skeleton.place(_poses(model))
-    world, scale = placed["boxes"]
-    axes = _rotations(world[:, 3:])[:, :, 2]
-    ends = [  # (point, half width) of each end of each limb
-        (world[i, :3] + sign * 0.5 * scale[i, 2] * axes[i], width * scale[i, 0] / 2)
-        for i in range(len(skeleton.boxes))
-        if skeleton.boxes.part[i] == "bone"
-        for sign, width in ((-1.0, 1.0), (1.0, skeleton.taper))
-    ]
-    world, scale = placed["cylinders"]
-    drums = [i for i in range(len(skeleton.cylinders)) if skeleton.cylinders.part[i] == "drum"]
-    for i in drums:
-        name = model.joint_names[skeleton.cylinders.owner[i]]
-        widths = [half for point, half in ends if np.linalg.norm(point - world[i, :3]) <= 1.3 * scale[i, 0]]
-        assert widths, name  # every drum joins a limb here: in it, or on its side
-        assert scale[i, 2] / 2 / skeleton.shrinks.get(name, 1.0) >= max(widths) - 1e-6, name
-
-
-@pytest.mark.parametrize("robot", ["g1", "panda"])
-@pytest.mark.parametrize(("recipe", "least"), [(MEDIUM, 0.7), (MAXIMAL, 0.45)], ids=["medium", "maximal"])
-def test_the_drums_of_one_robot_keep_a_narrow_range_of_sizes(robot: str, recipe: SkeletonRecipe, least: float) -> None:
+def test_the_drums_of_one_robot_keep_a_narrow_range_of_sizes(robot: str) -> None:
     """No joint is too small beside the others: before the layout shrinks them, a robot's smallest drum is at least
-    ``least`` of its largest. Measured: on rods 0.75 (G1) and 0.79 (Panda), where the floor of 2.5 rod radii lifts
-    the G1's wrists and ankles (0.43 under a floor of half the reference radius); in maximal 0.47 and 0.46, where
-    the limb floor widens an arm's proximal drums up to their mass size (the Panda's base collar 2.13 reference
-    radii, its last wrist drum 0.97) and the floor of 0.65 reference radii holds the G1's wrists."""
+    0.7 of its largest. Measured: 0.75 (G1) and 0.79 (Panda), where the floor of 2.5 rod radii lifts the G1's wrists
+    and ankles (0.43 under a floor of half the reference radius)."""
     model, spheres = _ROBOTS[robot]()
-    skeleton = build_skeleton(model, recipe, spheres=spheres)
+    skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
     blocks = skeleton.cylinders
     radii = [
         blocks.scale[i, 0] / skeleton.shrinks.get(model.joint_names[blocks.owner[i]], 1.0)
         for i in range(len(blocks))
         if blocks.part[i] == "drum"
     ]
-    assert min(radii) >= least * max(radii)
-    floor = 2.5 * MEDIUM.bones if recipe is MEDIUM else 0.65  # reference radii: no wrist or ankle reads as a bead
+    assert min(radii) >= 0.7 * max(radii)
+    floor = 2.5 * MEDIUM.bones  # reference radii: no wrist or ankle reads as a bead
     assert min(radii) >= floor * skeleton.radius * (1 - 1e-6)
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
-def test_medium_draws_the_maximal_glyphs_on_rods_and_no_bodies(robot: str) -> None:
-    """The medium skeleton is the stick figure with a glyph per joint kind: every kind the maximal one draws (the mixed
-    robot has a drum, a sleeve on its rail, a ball, a free-flyer cube and a planar plate), none sized wider than its
-    maximal glyph before the slide rule shrinks either, on rods that follow their ends; no limb, trunk or end block
-    (a chain ends in a round cap of its rod), and its boxes are not tapered."""
+def test_medium_draws_a_glyph_per_joint_kind_on_rods(robot: str) -> None:
+    """The medium skeleton is the stick figure with a glyph per joint kind (the mixed robot has a drum, a sleeve on
+    its rail, a ball, a free-flyer cube and a planar plate) on rods that follow their ends; no stick, and a chain ends
+    in a round cap of its rod."""
     model, spheres = _ROBOTS[robot]()
-    medium, maximal = build_skeleton(model, MEDIUM, spheres=spheres), build_skeleton(model, MAXIMAL, spheres=spheres)
+    medium = build_skeleton(model, MEDIUM, spheres=spheres)
     parts = {mesh: set(getattr(medium, mesh).part) for mesh in ("cylinders", "balls", "boxes")}
-    glyphs = {mesh: {part for part in getattr(maximal, mesh).part if part in (*_GLYPH_PARTS, "face", "rail")}
-              for mesh in ("cylinders", "balls", "boxes")}  # fmt: skip
-    assert all(glyphs[mesh] <= parts[mesh] for mesh in glyphs), (glyphs, parts)
-    assert not set.union(*parts.values()) & {"bone", "hull", "end", "stick"}
+    assert "stick" not in set.union(*parts.values())
     rods = np.array(medium.cylinders.part) == "rod"
-    assert rods.any() and (medium.cylinders.anchors[rods, 0] >= 0).all() and medium.taper == 1.0
+    assert rods.any() and (medium.cylinders.anchors[rods, 0] >= 0).all()
     if robot == "mixed":
         assert set.union(*parts.values()) == {"drum", "face", "sleeve", "rail", "ball", "base", "plate", "rod", "cap"}
 
-    def sized(skeleton: Skeleton, mesh: str) -> dict[tuple[int, str], float]:  # (joint, part) -> radius unshrunk
-        blocks = getattr(skeleton, mesh)
-        rows = zip(blocks.owner, blocks.part, blocks.scale, strict=True)
-        names = model.joint_names
-        return {(int(o), p): s[0] / skeleton.shrinks.get(names[o], 1.0) for o, p, s in rows if p in _GLYPH_PARTS}
-
-    for mesh in ("cylinders", "balls", "boxes"):
-        wide = sized(maximal, mesh)
-        for key, radius in sized(medium, mesh).items():
-            assert radius <= wide.get(key, np.inf) + 1e-12, (model.joint_names[key[0]], key[1])
-
 
 @pytest.mark.parametrize("name", [*_SYNTHETIC, "mixed", "g1", "panda"])
-@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
-def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe: SkeletonRecipe) -> None:
+def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str) -> None:
     """With a glyph per joint kind, every revolute joint with a motor of its own is a drum, every prismatic joint
     a sleeve, alone or beside others, a planar joint a thin plate and a translation a block: a ball is the glyph of a
     spherical joint (the owner on a G1 drawn with balls at its hips: "not acceptable"; R2 m3: a planar base too). The
-    only other balls are at most one head per trunk and, on rods, the round cap
-    of a chain's last rod, no wider than the rod; both in the pale shade of the bodies. A chain's end, a hidden
-    joint and a quadruped's snout draw no ball."""
+    only other balls are at most one head per trunk and the round cap of a chain's last rod, no wider than the rod;
+    both in the rods' pale shade. A chain's end, a hidden joint and a quadruped's snout draw no ball."""
     if name in _SYNTHETIC:
         model, geometry = _synthetic(name)
-        skeleton = build_skeleton(model, recipe, geometry=geometry)
+        skeleton = build_skeleton(model, MEDIUM, geometry=geometry)
     else:
         model, spheres = _ROBOTS[name]()
-        skeleton = build_skeleton(model, recipe, spheres=spheres)
+        skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
     hinges = {j for j, joint in enumerate(model.joints) if isinstance(joint, (JointRevolute, JointRevoluteUnbounded))}
     hinges -= {j for j in hinges if model.mimic_source_ids[j] != j}  # a linkage that follows its source: no motor
     sliders = {j for j, joint in enumerate(model.joints) if isinstance(joint, JointPrismatic)}
@@ -467,36 +408,23 @@ def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str, recipe:
     for (part, owner), scale, color in balls:
         assert part in ("ball", "head", "cap"), (name, part)
         assert part != "ball" or owner in spherical, (name, model.joint_names[owner])
-        assert part != "cap" or (recipe is MEDIUM and scale.max() <= MEDIUM.bones * skeleton.radius + 1e-12), name
+        assert part != "cap" or scale.max() <= MEDIUM.bones * skeleton.radius + 1e-12, name
         if part in ("head", "cap"):
             np.testing.assert_allclose(color, LIGHT.shade(hue, "bone"), atol=1e-6)
     assert skeleton.balls.part.count("head") <= trunks, name
 
 
-@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
-def test_a_neck_ends_in_a_head_that_stands_above_its_trunk(recipe: SkeletonRecipe) -> None:
+def test_a_neck_ends_in_a_head_that_stands_above_its_trunk() -> None:
     """A chain of at most two joints that leaves a trunk above every other joint and ends in round geometry is a
-    neck: it ends in one pale ball in the middle of that geometry (maximal: 0.8 of its middle half extent; medium:
-    the reference radius), and the trunk's body stops under the neck's drums (a Talos, an Atlas)."""
+    neck: it ends in one pale ball of the reference radius in the middle of that geometry (a Talos, an Atlas)."""
     model, geometry = _synthetic("bust")
-    skeleton = build_skeleton(model, recipe, geometry=geometry)
-    tilt, pan = model.joint_names.index("tilt"), model.joint_names.index("pan")
-    (balls, _), (boxes, sides) = (skeleton.place(_poses(model))[mesh] for mesh in ("balls", "boxes"))
+    skeleton = build_skeleton(model, MEDIUM, geometry=geometry)
+    tilt = model.joint_names.index("tilt")
+    balls, _ = skeleton.place(_poses(model))["balls"]
     heads = [i for i, (_, owner) in enumerate(_parts(skeleton, "balls")) if owner == tilt]
     assert len(heads) == 1 and skeleton.balls.part[heads[0]] == "head"
     np.testing.assert_allclose(balls[heads[0], :3], [0.0, 0.0, 0.42], atol=1e-6)
-    np.testing.assert_allclose(skeleton.balls.scale[heads[0]], 0.064 if recipe is MAXIMAL else skeleton.radius)
-    if recipe is MAXIMAL:
-        cylinders, (drums, lengths) = skeleton.cylinders, skeleton.place(_poses(model))["cylinders"]
-        neck = [
-            i
-            for i, (part, owner) in enumerate(_parts(skeleton, "cylinders"))
-            if part == "drum" and owner in (pan, tilt)
-        ]
-        reach = [drums[i, 2] - np.abs(_rotations(drums[[i], 3:])[0][2]) @ (lengths[i] * [1.0, 1.0, 0.5]) for i in neck]
-        chest = [i for i, part in enumerate(skeleton.boxes.part) if part == "hull"]
-        top = [boxes[i, 2] + np.abs(_rotations(boxes[[i], 3:])[0][2]) @ (sides[i] / 2) for i in chest]
-        assert cylinders.part and max(top) <= min(reach) + 1e-9
+    np.testing.assert_allclose(skeleton.balls.scale[heads[0]], skeleton.radius)
 
 
 def test_g1_medium_wrist_keeps_rod_between_its_drums() -> None:
@@ -524,48 +452,24 @@ def test_g1_medium_wrist_keeps_rod_between_its_drums() -> None:
         assert reach(joint, direction)[0] > reach(before, direction)[1]  # rod shows between them
 
 
-def test_g1_chest_stops_above_its_waist_drums() -> None:
-    """A trunk's body stops short of the drums of the joints in series that lead to it: the G1's waist drums stand
-    between its chest and its pelvis instead of half inside the chest."""
-    model, spheres = _g1()
-    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
-    (boxes, sides), (drums, lengths) = (skeleton.place(_poses(model))[mesh] for mesh in ("boxes", "cylinders"))
-    chest = model.joint_names.index("waist_pitch_joint")
-    hull = next(
-        i
-        for i, (part, body) in enumerate(zip(skeleton.boxes.part, skeleton.boxes.body))
-        if part == "hull" and body == chest
-    )
-    bottom = boxes[hull, 2] - np.abs(_rotations(boxes[[hull], 3:])[0][2]) @ (sides[hull] / 2)
-    waist = {model.joint_names.index(f"waist_{name}_joint") for name in ("yaw", "roll", "pitch")}
-    tops = [
-        drums[i, 2] + np.abs(_rotations(drums[[i], 3:])[0][2]) @ (lengths[i] * [1.0, 1.0, 0.5])
-        for i, (part, owner) in enumerate(_parts(skeleton, "cylinders"))
-        if part == "drum" and owner in waist
-    ]
-    assert len(tops) == 3 and bottom >= max(tops) - 1e-9
-
-
 def _parts(skeleton: Skeleton, mesh: str) -> list[tuple[str, int]]:
     blocks = getattr(skeleton, mesh)
     return [(part, int(owner)) for part, owner in zip(blocks.part, blocks.owner, strict=True)]
 
 
-def test_panda_rails_span_the_finger_travel_in_the_hand_and_the_sleeves_mirror_each_other() -> None:
+def test_panda_rails_span_the_finger_travel_in_the_hand() -> None:
     model, spheres = _panda()
-    skeleton = build_skeleton(model, MAXIMAL, spheres=spheres)
+    skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
     cylinders = skeleton.cylinders
     rails = [i for i, part in enumerate(cylinders.part) if part == "rail"]
     assert len(rails) == 2 and {int(cylinders.body[i]) for i in rails} == {model.joint_names.index("panda_joint7")}
     np.testing.assert_allclose(cylinders.scale[rails, 2], 0.04, atol=1e-6)  # the 4 cm each finger travels
-    assert skeleton.slides["panda_finger_joint1"] == pytest.approx(skeleton.slides["panda_finger_joint2"], abs=1e-9)
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
-@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
+@pytest.mark.parametrize("recipe", [MEDIUM, MINIMAL], ids=["medium", "minimal"])
 def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: SkeletonRecipe) -> None:
-    """A bone's end inside a glyph is no wider than that glyph, at its wide start and at its narrowed (``taper``)
-    far end; a maximal limb wider than a glyph it joins starts or ends on that glyph's side instead."""
+    """A rod's or a stick's end inside a glyph is no wider than that glyph."""
     model, spheres = _ROBOTS[robot]()
     skeleton = build_skeleton(model, recipe, spheres=spheres)
     placed = skeleton.place(_poses(model))
@@ -576,43 +480,22 @@ def test_bone_is_never_thicker_than_the_glyphs_it_joins(robot: str, recipe: Skel
             (world[i, :3], per_scale * scale[i, 0]) for i in range(len(blocks)) if blocks.part[i] in _GLYPH_PARTS
         ]
     centers, radii = np.stack([center for center, _ in glyphs]), np.array([radius for _, radius in glyphs])
-    bones = []  # (centre, axis, length, half thickness): a stick is a cylinder, a limb a box at its wide end
-    for mesh, per_scale in (("cylinders", 1.0), ("boxes", 0.5)):
-        blocks, (world, scale) = getattr(skeleton, mesh), placed[mesh]
-        axes = _rotations(world[:, 3:])[:, :, 2]
-        bones += [
-            (world[i, :3], axes[i], scale[i, 2], per_scale * scale[i, 0])
-            for i in range(len(blocks))
-            if blocks.part[i] in ("bone", "stick", "rod")
-        ]
+    blocks, (world, scale) = skeleton.cylinders, placed["cylinders"]
+    axes = _rotations(world[:, 3:])[:, :, 2]
+    bones = [  # (centre, axis, length, radius) of each rod or stick
+        (world[i, :3], axes[i], scale[i, 2], scale[i, 0])
+        for i in range(len(blocks))
+        if blocks.part[i] in ("stick", "rod")
+    ]
     assert bones
     joined = np.zeros(len(glyphs), dtype=bool)
     for center, axis, length, half in bones:
-        for sign, width in ((-1.0, half), (1.0, skeleton.taper * half)):
+        for sign in (-1.0, 1.0):
             distance = np.linalg.norm(centers - (center + 0.5 * sign * length * axis), axis=1)
             inside = distance < 0.5 * radii  # the bone's cap is in these glyphs
-            assert (width <= radii[inside] + 1e-12).all(), (center, width, radii[inside])
-            joined |= inside | ((distance <= 1.3 * radii) & (width > 0.8 * radii))  # a wider limb on a glyph's side
-    assert joined.sum() >= len(glyphs) - 1  # every glyph but a free-flyer's cube inside its hull holds a bone end
-
-
-def test_g1_maximal_limbs_are_bodies_from_their_links() -> None:
-    """A maximal limb takes its width from its link: a thigh wider than its shin, an upper arm than its forearm,
-    and each wider than the medium skeleton's rod along it."""
-    model, spheres = _g1()
-    maximal, medium = build_skeleton(model, MAXIMAL, spheres=spheres), build_skeleton(model, MEDIUM, spheres=spheres)
-
-    def width(skeleton: Skeleton, mesh: str, part: str, joint: str) -> float:  # the bone that reaches ``joint``
-        blocks = getattr(skeleton, mesh)
-        owner = model.joint_names.index(f"left_{joint}_joint")
-        return max(
-            s[0] for o, p, s in zip(blocks.owner, blocks.part, blocks.scale, strict=True) if o == owner and p == part
-        )
-
-    limb = {joint: width(maximal, "boxes", "bone", joint) for joint in ("knee", "ankle_pitch", "elbow", "wrist_roll")}
-    assert limb["knee"] > limb["ankle_pitch"] and limb["elbow"] > limb["wrist_roll"]  # thigh, shin; upper arm, forearm
-    for joint, side in limb.items():
-        assert side / 2 > width(medium, "cylinders", "rod", joint), joint  # a box's scale is its side, a rod's radius
+            assert (half <= radii[inside] + 1e-12).all(), (center, half, radii[inside])
+            joined |= inside | ((distance <= 1.3 * radii) & (half > 0.8 * radii))
+    assert joined.sum() >= len(glyphs) - 1  # every glyph but at most one (a free-flyer's cube) holds a bone end
 
 
 def test_g1_minimal_clusters_close_joints_alike_on_both_sides_and_without_geometry() -> None:
@@ -632,14 +515,13 @@ def test_g1_minimal_clusters_close_joints_alike_on_both_sides_and_without_geomet
 
 
 @pytest.mark.parametrize("robot", ["g1", "panda"])
-@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM], ids=["maximal", "medium"])
-def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str, recipe: SkeletonRecipe) -> None:
+def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str) -> None:
     """Every revolute joint draws one drum on its own axis (close joints too: their drums stand apart), slid along
     that axis by at most 1.75 of its radii before the layout shrank it, after a twist joint's collar offset of one
     half length: it never leaves its joint."""
     model, spheres = _ROBOTS[robot]()
     poses = _poses(model)
-    skeleton = build_skeleton(model, recipe, spheres=spheres)
+    skeleton = build_skeleton(model, MEDIUM, spheres=spheres)
     drums = _drums(skeleton, poses)
     revolute = {j for j in range(1, model.njoints) if type(model.joints[j]).__name__ == "JointRevolute"}
     assert set(drums) == revolute
@@ -651,19 +533,6 @@ def test_a_drum_stays_on_its_axis_within_its_length_of_its_joint(robot: str, rec
         np.testing.assert_allclose(offset, along * rotation[:, 2], atol=1e-6)
         radius = half[0] / skeleton.shrinks.get(model.joint_names[joint], 1.0)
         assert abs(along) <= half[2] + 1.75 * radius + 1e-9, (model.joint_names[joint], along, radius)
-
-
-@pytest.mark.parametrize("robot", ["g1", "panda", "mixed"])
-def test_end_blocks_are_no_larger_than_the_root_hull(robot: str) -> None:
-    model, spheres = _ROBOTS[robot]()
-    boxes = build_skeleton(model, MAXIMAL, spheres=spheres).boxes
-    volume = boxes.scale.prod(axis=1)
-    anchor = _anchors(model)
-    roots = {j for j in range(model.njoints) if anchor[j] == 0 or model.parent_joint_ids[anchor[j]] == 0}
-    root = [volume[i] for i, part in enumerate(boxes.part) if part == "hull" and boxes.body[i] in roots]
-    ends = [volume[i] for i, part in enumerate(boxes.part) if part == "end"]
-    assert root and ends
-    assert max(ends) <= max(root)
 
 
 def test_go2_minimal_legs_run_on_to_the_feet() -> None:
@@ -723,32 +592,26 @@ def _described(name: str, *, spheres: bool = False) -> tuple[Model, dict]:
 
 
 def test_g1_layout_does_not_change_with_a_sphere_set() -> None:
-    """A sphere set given to show as the collision overlay leaves the layout alone: the G1's bodies are sized from
-    its collision meshes either way, so its feet stay soles (sized from the spheres they were limbs with toe balls)."""
+    """A sphere set given to show as the collision overlay leaves the layout alone: the G1's glyphs are sized from
+    its collision meshes either way."""
     model, sources = _described("g1", spheres=True)
     plain = {key: value for key, value in sources.items() if key != "spheres"}
-    for recipe in (MAXIMAL, MINIMAL):
+    for recipe in (MEDIUM, MINIMAL):
         first, second = build_skeleton(model, recipe, **plain), build_skeleton(model, recipe, **sources)
         for mesh in ("cylinders", "balls", "boxes"):
             np.testing.assert_array_equal(getattr(first, mesh).local, getattr(second, mesh).local)
             np.testing.assert_array_equal(getattr(first, mesh).scale, getattr(second, mesh).scale)
-    maximal = build_skeleton(model, MAXIMAL, **sources)
-    for side in ("left", "right"):
-        ankle = model.joint_names.index(f"{side}_ankle_roll_joint")
-        blocks = zip(maximal.boxes.part, maximal.boxes.owner, strict=True)
-        assert [part for part, owner in blocks if owner == ankle and part != "bone"] == ["end"]  # one sole
-        assert ankle not in maximal.balls.owner
 
 
 @pytest.mark.parametrize("name", ["g1", "go2"])
-def test_minimal_follows_the_maximal_size_rule_and_draws_the_head(name: str) -> None:
-    """Both styles share one size rule (a reference radius between 2 % and 3 % of the robot's size, the minimal one
-    at ``MINIMAL.size`` of it: the Go2's minimal balls were 3.7 % of its size), and the minimal skeleton draws the
-    trunk's head that the maximal one finds as one ball of the reference radius, rigid in the trunk, on a stick."""
+def test_minimal_follows_the_medium_size_rule_and_draws_the_head(name: str) -> None:
+    """Both styles share one size rule (a reference radius between 2 % and 3 % of the robot's size, each style at
+    its recipe's ``size`` of it: the Go2's minimal balls were 3.7 % of its size), and the minimal skeleton draws the
+    trunk's head that the medium one finds as one ball of its radius, rigid in the trunk, on a stick."""
     model, sources = _described(name)
-    maximal, minimal = build_skeleton(model, MAXIMAL, **sources), build_skeleton(model, MINIMAL, **sources)
-    assert 0.02 <= maximal.radius / maximal.scale <= 0.03 + 1e-12
-    assert minimal.radius == pytest.approx(MINIMAL.size * maximal.radius)
+    medium, minimal = build_skeleton(model, MEDIUM, **sources), build_skeleton(model, MINIMAL, **sources)
+    assert 0.02 <= medium.radius / (MEDIUM.size * medium.scale) <= 0.03 + 1e-12
+    assert minimal.radius == pytest.approx(MINIMAL.size / MEDIUM.size * medium.radius)
     trunk = model.joint_names.index("waist_pitch_joint" if name == "g1" else "root_joint")
     heads = [i for i, owner in enumerate(minimal.balls.owner) if owner == trunk and minimal.balls.anchors[i, 0] < 0]
     assert len(heads) == 1
@@ -763,7 +626,7 @@ def test_minimal_follows_the_maximal_size_rule_and_draws_the_head(name: str) -> 
         assert balls[heads[0], 2] == balls[:, 2].max()
 
 
-@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
+@pytest.mark.parametrize("recipe", [MEDIUM, MINIMAL], ids=["medium", "minimal"])
 def test_place_on_a_clip_equals_place_per_step(recipe: SkeletonRecipe) -> None:
     model, spheres = _g1()
     skeleton = build_skeleton(model, recipe, spheres=spheres)
@@ -788,13 +651,15 @@ def test_recipe_rejects_what_it_cannot_draw() -> None:
     model, _ = _mixed()
     with pytest.raises(UnknownNameError, match="knee"):
         build_skeleton(model, SkeletonRecipe(joint_size={"knee": 2.0}))
+    with pytest.raises(UnknownNameError, match="unknown joint 'base'"):  # a body or frame name colours nothing
+        build_skeleton(model, SkeletonRecipe(color={"base": (1.0, 0.0, 0.0)}))
 
 
-@pytest.mark.parametrize("recipe", [MAXIMAL, MEDIUM, MINIMAL], ids=["maximal", "medium", "minimal"])
+@pytest.mark.parametrize("recipe", [MEDIUM, MINIMAL], ids=["medium", "minimal"])
 @pytest.mark.parametrize("factors", [{"j1": 0.0}, {"j1": 0.5}, {"j3": 2.0}, {"j0": 0.0, "j2": 0.0}], ids=str)
 def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRecipe, factors: dict) -> None:
     """A factor scales one glyph after the size rules, so the glyphs after it keep theirs (a 2 at the tip wins over
-    the narrowing towards it), and a glyph of factor 0 goes while every bone and stick stays."""
+    the narrowing towards it), and a glyph of factor 0 goes while every rod and stick stays."""
     model, _ = _synthetic("arm")
     mesh, glyph = ("cylinders", "drum") if recipe.glyphs == "kind" else ("balls", "ball")
 
@@ -807,10 +672,8 @@ def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRe
         return {int(owner): float(scale[0]) for owner, scale in drawn}
 
     def bones(skeleton: Skeleton) -> list[tuple[str, int]]:
-        rows = [(name, getattr(skeleton, name)) for name in ("cylinders", "boxes")]
-        return sorted(
-            (name, int(o)) for name, b in rows for o, p in zip(b.owner, b.part) if p in ("bone", "stick", "rod")
-        )
+        blocks = skeleton.cylinders
+        return sorted(("cylinders", int(o)) for o, p in zip(blocks.owner, blocks.part) if p in ("stick", "rod"))
 
     plain = build_skeleton(model, recipe)
     sized = build_skeleton(model, replace(recipe, joint_size=factors))
@@ -822,7 +685,7 @@ def test_joint_size_scales_its_own_glyph_and_the_bones_run_on(recipe: SkeletonRe
 
 @pytest.mark.parametrize("name", [*_SYNTHETIC, "mixed", "g1", "panda"])
 def test_every_block_line_and_bound_is_finite(name: str) -> None:
-    """The skeleton styles of the presets and of recipes that hide every glyph, with limit arcs, sides and every hull, place
+    """The skeleton styles of the presets and of recipes that hide every glyph, with limit arcs and sides, place
     finite blocks and lines and give finite bounds at two configurations: a hidden leaf whose centre of mass is on
     its joint gave a NaN end block and a NaN camera."""
     if name in _SYNTHETIC:
@@ -836,16 +699,12 @@ def test_every_block_line_and_bound_is_finite(name: str) -> None:
     hidden = dict.fromkeys(moving, 0.0)
     velocity = torch.randn(model.nv, generator=torch.Generator().manual_seed(0), dtype=model.q_neutral.dtype)
     q = torch.stack([model.q_neutral, br.kinematics.integrate(model, model.q_neutral, velocity)])
-    for maximal, medium, minimal in (
-        (MAXIMAL, MEDIUM, MINIMAL),
-        (
-            replace(MAXIMAL, limits=True, sides=True, hulls="all", joint_size=hidden),
-            replace(MEDIUM, limits=True, sides=True, joint_size=hidden),
-            replace(MINIMAL, joint_size=hidden),
-        ),
+    for medium, minimal in (
+        (MEDIUM, MINIMAL),
+        (replace(MEDIUM, limits=True, sides=True, joint_size=hidden), replace(MINIMAL, joint_size=hidden)),
     ):
-        visual = RobotVisual(model, q, geometry=geometry, root=root, maximal=maximal, medium=medium, minimal=minimal)
-        for style in ("minimal", "medium", "maximal"):
+        visual = RobotVisual(model, q, geometry=geometry, root=root, medium=medium, minimal=minimal)
+        for style in ("minimal", "medium"):
             skeleton = visual._skeleton(style)
             for mesh, (world, scale) in skeleton.place(visual._poses).items():
                 assert np.isfinite(world).all() and np.isfinite(scale).all(), (style, mesh)
@@ -860,7 +719,7 @@ def test_a_joint_on_the_world_keeps_its_parent_side_in_the_world(name: str, stil
     fixed base: what the layout makes rigid in the parent (a slider's rail, a drum and its faces, a limit arc) stays
     put while the joint moves, and the ticks turn with their joints."""
     model, _ = _synthetic(name)
-    skeleton = build_skeleton(model, replace(MAXIMAL, limits=True))
+    skeleton = build_skeleton(model, replace(MEDIUM, limits=True))
     poses = _poses(model, torch.tensor([[-0.5, 0.0], [0.5, 1.0]], dtype=model.q_neutral.dtype))
     rider, blocks = model.joint_names.index("rider"), skeleton.cylinders
     world = skeleton.place(poses)["cylinders"][0]
@@ -877,36 +736,12 @@ def test_a_joint_on_the_world_keeps_its_parent_side_in_the_world(name: str, stil
 
 def test_a_thin_placeholder_shape_does_not_shrink_a_leaf_glyph_to_nothing() -> None:
     """A leaf glyph is capped by the body it moves, but a 2 mm placeholder box (Tiago's actuated finger joints carry
-    them) leaves it at 0.2 reference radii, not 1.25 times 1 mm. On rods, as nothing else sizes it there: a maximal
-    drum is at least as wide as the limb that reaches it."""
+    them) leaves it at 0.2 reference radii, not 1.25 times 1 mm."""
     model, geometry = _synthetic("thin_tip")
     skeleton = build_skeleton(model, MEDIUM, geometry=geometry)
     blocks, tip = skeleton.cylinders, model.joint_names.index("j3")
     drum = next(i for i, (owner, part) in enumerate(zip(blocks.owner, blocks.part)) if owner == tip and part == "drum")
     assert blocks.scale[drum, 0] == pytest.approx(0.2 * skeleton.radius)
-
-
-def test_a_fixed_base_that_carries_one_joint_shrinks_towards_it_and_keeps_its_bones_inside() -> None:
-    """A Shadow hand's forearm would dwarf the hand: a fixed base that carries one joint reaches at most 4 of that
-    joint's glyph radii from its centre (an arm's stand, about 3, keeps its box), shrunk towards the joint, which stays
-    on the box; the bones in the base's frame stay inside it, so no spine sticks out behind."""
-    model, geometry = _synthetic("forearm")
-    skeleton = build_skeleton(model, MAXIMAL, geometry=geometry)
-    boxes, drums, wrist = skeleton.boxes, skeleton.cylinders, model.joint_names.index("wrist")
-    drum = next(i for i, (owner, part) in enumerate(zip(drums.owner, drums.part)) if owner == wrist and part == "drum")
-    hull = boxes.part.index("hull")
-    rotation, center, half = _rotations(boxes.local[[hull], 3:])[0], boxes.local[hull, :3], boxes.scale[hull] / 2
-    assert half.max() <= 4.0 * drums.scale[drum, 0] * (1 + 1e-6)
-
-    def inside(point: np.ndarray) -> bool:
-        return bool(np.all(np.abs(rotation.T @ (point - center)) <= half + 1e-6))  # float32 blocks
-
-    assert inside(np.array([0.0, 0.0, 0.23]))  # the wrist, in the base's frame
-    bones = [i for i, part in enumerate(boxes.part) if part == "bone" and boxes.body[i] == boxes.body[hull]]
-    assert len(bones) == 2  # the base's spine and the wrist's bone
-    for i in bones:
-        axis = _rotations(boxes.local[[i], 3:])[0][:, 2] * boxes.scale[i, 2] / 2
-        assert inside(boxes.local[i, :3] - axis) and inside(boxes.local[i, :3] + axis)
 
 
 @pytest.mark.parametrize(("name", "size"), [("box", np.sqrt(0.1**2 + 0.2**2 + 0.3**2)), ("gantry", np.sqrt(3 * 0.06))])
@@ -915,20 +750,20 @@ def test_a_robot_whose_joints_share_one_point_takes_its_size_from_its_bodies(nam
     diagonal of its geometry's box and of its inertia boxes (sides of 0.245 m for an inertia of 0.01 kg m2 about each
     axis of 1 kg), not a default 1 m."""
     model, geometry = _synthetic(name)
-    assert build_skeleton(model, MAXIMAL, geometry=geometry).scale == pytest.approx(size)
+    assert build_skeleton(model, MEDIUM, geometry=geometry).scale == pytest.approx(size)
 
 
 def test_colors_shade_each_part_and_tint_the_sides() -> None:
     model, spheres = _g1()
     hue = (0.2, 0.6, 0.4)
-    plain = build_skeleton(model, MAXIMAL, spheres=spheres)
+    plain = build_skeleton(model, MEDIUM, spheres=spheres)
     colors = plain.colors(hue, LIGHT)
-    parts, boxes = np.array(plain.cylinders.part), np.array(plain.boxes.part)
+    parts = np.array(plain.cylinders.part)
     np.testing.assert_allclose(
         colors["cylinders"][parts == "drum"], np.broadcast_to(LIGHT.shade(hue, "joint"), ((parts == "drum").sum(), 3))
     )
     np.testing.assert_allclose(colors["cylinders"][parts == "face"][0], LIGHT.shade(hue, "face"), atol=1e-6)
-    np.testing.assert_allclose(colors["boxes"][boxes == "hull"][0], LIGHT.shade(hue, "bone"), atol=1e-6)
+    np.testing.assert_allclose(colors["cylinders"][parts == "rod"][0], LIGHT.shade(hue, "bone"), atol=1e-6)
     red = (1.0, 0.0, 0.0)
     sided = build_skeleton(model, SkeletonRecipe(sides=True, color={"left_knee_joint": red}), spheres=spheres)
     drums = {}  # a glyph's colour per joint: its drum or its ball
@@ -942,40 +777,24 @@ def test_colors_shade_each_part_and_tint_the_sides() -> None:
     np.testing.assert_allclose(drums["waist_yaw_joint"], LIGHT.shade(hue, "joint"), atol=1e-6)
 
 
-_AUTO = {("hull", "base"), ("end", "l3")}  # the boxed arm's trunk, then its last link's limb
-
-
-@pytest.mark.parametrize(
-    ("hulls", "body_hull", "expected"),
-    [
-        ("auto", {}, _AUTO),
-        ("all", {}, _AUTO | {("hull", "l0"), ("hull", "l1"), ("hull", "l2")}),
-        ("none", {}, {("cap", "l3")}),
-        ("auto", {"l1": True}, _AUTO | {("hull", "l1")}),
-        ("none", {"l1": True}, {("hull", "l1"), ("cap", "l3")}),
-        ("auto", {"base": False, "l3": False}, set()),
-    ],
-)
-def test_hulls_and_body_hull_choose_the_bodies_drawn(hulls: str, body_hull: dict, expected: set) -> None:
-    """``hulls`` gives a trunk to the root and the branching bodies (``"all"``: also a body with one child joint, the
-    links) and an end to the leaf, ``"none"`` neither (the chain's rod ends in a round cap); ``body_hull`` then adds or
-    removes one body."""
+def test_a_chain_on_rods_ends_in_a_round_cap_and_no_body_draws_a_block() -> None:
+    """The boxed arm draws its glyphs, its rods and one round cap at the end of its chain, on its last link."""
     model, geometry = _synthetic("boxed_arm")
-    skeleton = build_skeleton(model, replace(MAXIMAL, hulls=hulls, body_hull=body_hull), geometry=geometry)
+    skeleton = build_skeleton(model, MEDIUM, geometry=geometry)
     drawn = {
         (part, model.body_names[body])
         for blocks in (skeleton.boxes, skeleton.balls)
         for part, body in zip(blocks.part, blocks.body, strict=True)
-        if part in ("hull", "end", "cap")
+        if part not in _GLYPH_PARTS
     }
-    assert drawn == expected
+    assert drawn == {("cap", "l3")}
 
 
 def test_a_limit_arc_spans_its_joint_s_limits_and_its_tick_sits_at_the_joint_s_angle() -> None:
     """Each bounded revolute joint gets 24 segments rigid in its parent, round the joint's axis about its drum's
     centre, from its lower to its upper limit, and a tick rigid in its child at the joint's angle."""
     model, _ = _synthetic("arm")
-    skeleton = build_skeleton(model, replace(MAXIMAL, limits=True))
+    skeleton = build_skeleton(model, replace(MEDIUM, limits=True))
     q = torch.tensor([0.3, -1.0, 1.1, -0.6], dtype=model.q_neutral.dtype)  # each within pi of both limits
     poses = _poses(model, q)
     lines, drums, anchor = skeleton.lines(poses), _drums(skeleton, poses), _anchors(model)

@@ -552,17 +552,17 @@ def test_a_shared_dropdown_offers_only_what_the_layers_still_there_offer() -> No
             on_change = chosen[self.name].append
             sidebar.dropdown("Robot", "Style", options=self.styles, value=self.styles[0], on_change=on_change)
 
-    with_meshes, skeleton = Robot("meshes", ("meshes", "minimal", "maximal")), Robot("skeleton", ("minimal", "maximal"))
+    with_meshes, skeleton = Robot("meshes", ("meshes", "minimal", "medium")), Robot("skeleton", ("minimal", "medium"))
     sidebar.build(with_meshes)  # type: ignore[arg-type]
     sidebar.build(skeleton)  # type: ignore[arg-type]
     style = server.gui.control("Style")
-    assert style.options == ("meshes", "minimal", "maximal") and style.value == "meshes"
+    assert style.options == ("meshes", "minimal", "medium") and style.value == "meshes"
     sidebar.remove(with_meshes)  # type: ignore[arg-type]
-    assert style.options == ("minimal", "maximal") and style.value == "minimal"
+    assert style.options == ("minimal", "medium") and style.value == "minimal"
     assert chosen == {"meshes": [], "skeleton": []}
-    style.value = "maximal"
+    style.value = "medium"
     style.fire(None)
-    assert chosen["skeleton"] == ["maximal"]
+    assert chosen["skeleton"] == ["medium"]
 
 
 class _Styled(Layer):
@@ -588,23 +588,23 @@ class _Styled(Layer):
 
 
 def test_removing_or_replacing_a_layer_never_restyles_the_others() -> None:
-    """R1's probe: a G1 with meshes beside a Panda at "maximal"; removing the G1 left the Panda "minimal", and a robot
+    """R1's probe: a G1 with meshes beside a Panda at "medium"; removing the G1 left the Panda "minimal", and a robot
     built with ``style="medium"`` that replaced the G1 came up "minimal"."""
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)
-    styles = ("minimal", "medium", "maximal")
+    styles = ("minimal", "medium")
     g1 = viewer.add(_Styled("g1", ("meshes", *styles), "meshes"))
-    panda = viewer.add(_Styled("panda", styles, "maximal"))
+    panda = viewer.add(_Styled("panda", styles, "medium"))
     style = server.gui.control("Style")
     viewer.remove(g1)
-    assert panda.style == "maximal" and panda.chosen == []
+    assert panda.style == "medium" and panda.chosen == []
     assert "meshes" not in style.options and style.value in style.options
     g1 = viewer.add(_Styled("g1", ("meshes", *styles), "meshes"))
     style.value = "meshes"  # a choice in the browser: the robots that have it follow
     style.fire(None)
     new = _Styled("panda2", styles, "medium")
     viewer.replace(g1, new)
-    assert new.style == "medium" and new.chosen == [] and panda.style == "maximal"
+    assert new.style == "medium" and new.chosen == [] and panda.style == "medium"
     assert "meshes" not in style.options and style.value in style.options
 
 

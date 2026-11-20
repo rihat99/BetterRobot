@@ -127,8 +127,8 @@ class Theme:
 
     def shade(self, hue: RGB, role: Literal["joint", "face", "body", "bone", "stick"], *, side: int = 0) -> RGB:
         """``hue`` as a part of ``role`` draws it: ``joint`` 10 % towards black, ``face`` 32 % towards black (drum
-        faces), ``body`` the hue itself (meshes), ``bone`` 45 % towards white (the bodies of the maximal skeleton,
-        the rods of the medium one), ``stick`` 10 % towards white (the sticks of the minimal skeleton). A part on the
+        faces), ``body`` the hue itself (meshes), ``bone`` 45 % towards white (the rods of the medium skeleton),
+        ``stick`` 10 % towards white (the sticks of the minimal skeleton). A part on the
         left (``side=1``) takes the hue 35 % towards white first, one on the right (``side=-1``) 25 % towards black
         (``SkeletonRecipe(sides=True)``). A ``hue`` that is not three numbers raises ``ShapeError``."""
         if role not in _SHADE_MIX or side not in _SIDE_MIX:

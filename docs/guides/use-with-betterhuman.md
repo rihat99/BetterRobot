@@ -46,7 +46,7 @@ print(br.center_of_mass(identity.model, state.kinematics)[:, 1])          # dyna
 
 The viewer needs nothing from BetterHuman: a body is a `RobotVisual` of its model with a `Skin`, the surface at
 rest with one weight per model joint. `RobotVisual(model, q, skin=skin)` draws the surface skinned in the browser as
-its `"meshes"` style, and the same clip as the `"minimal"`, `"medium"` or `"maximal"` skeleton. A family's weights
+its `"meshes"` style, and the same clip as the `"minimal"` or `"medium"` skeleton. A family's weights
 name its own joints, so they are scattered into the model's joint columns by `joint_ids`; `rest_vertices` are the
 surface at the model's neutral configuration, the `Skin`'s default `bind`.
 
@@ -118,7 +118,7 @@ body.set_style("minimal")                          # the body's skeleton; the si
 print(body.styles, viewer.timeline.nsteps)
 ```
 ```output
-('meshes', 'minimal', 'medium', 'maximal') 60
+('meshes', 'minimal', 'medium') 60
 ```
 
 The body takes the first of the theme's hues no other robot has; `RobotVisual(..., hue=(r, g, b))` gives it a colour

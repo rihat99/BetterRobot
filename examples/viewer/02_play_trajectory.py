@@ -79,10 +79,10 @@ def main() -> None:
     viewer = Viewer(fps=1.0 / DT, server=FakeServer() if args.check else None)
     geometry = br.io.load_geometry(URDF, model)
     robot = viewer.add(
-        RobotVisual(model, q, geometry=geometry, root=URDF, style="maximal", frames=[FRAME], joint_values=load,
+        RobotVisual(model, q, geometry=geometry, root=URDF, style="medium", frames=[FRAME], joint_values=load,
                     value_range=(0.0, 0.3))  # orange at 30 % of the effort limit
     )  # fmt: skip
-    viewer.add(RobotVisual(model, q[-1], name="goal", style="maximal", hue=robot.hue, opacity=0.35))  # a ghost
+    viewer.add(RobotVisual(model, q[-1], name="goal", style="medium", hue=robot.hue, opacity=0.35))  # a ghost
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
     viewer.add_plot("torque", tau.numpy(), labels=moving)
     if args.check:
