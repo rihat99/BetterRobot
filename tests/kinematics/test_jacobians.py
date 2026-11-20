@@ -1,7 +1,4 @@
-"""Tests for kinematics Jacobians — shape checks and analytic vs finite diff.
-
-See ``docs/concepts/kinematics-and-jacobians.md``.
-"""
+"""Tests for kinematics Jacobians — shape checks and analytic vs finite diff."""
 
 from __future__ import annotations
 

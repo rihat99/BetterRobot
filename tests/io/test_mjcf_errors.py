@@ -1,5 +1,5 @@
 """``parse_mjcf`` loads the passive rigid tree: what the tree cannot express raises ``ModelError``, what lies
-outside it is ignored by rule (``docs/concepts/io.md``)."""
+outside it is ignored by rule (``io.load`` lists both)."""
 
 from __future__ import annotations
 

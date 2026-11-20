@@ -24,7 +24,7 @@ changes the page first.
 - MJCF beyond the passive rigid tree: actuators, tendons, sensors, contact settings, joint springs, keyframes,
   cameras, lights and simulation options other than gravity are ignored by rule; what lies inside the rigid tree
   but cannot be expressed (a body with two joints, a limited ball joint, an equality other than a linear coupling of
-  two joints) raises `ModelError` ([Robot descriptions](../concepts/io.md)).
+  two joints) raises `ModelError` ([Robot descriptions](../model-and-io.md)).
 - Downloading robot descriptions or keeping a registry of them; `robot_descriptions` serves the examples.
 - Kinematic Hessians as functions: autograd gives them.
 

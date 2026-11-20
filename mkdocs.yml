@@ -2,9 +2,15 @@ site_name: BetterRobot
 site_description: PyTorch-native, batched, differentiable kinematics, dynamics, optimisation and visualisation.
 docs_dir: docs
 strict: true
-# The rule chapters stay in the repository for the contract tests and the agents; the site does not list them.
+# Pages kept for the tests and the agents (the rule chapters, the codemap, the glossary, the effects table, the
+# roadmap and the migration page) build but stay out of the navigation.
 not_in_nav: |
   /contracts/
+  /concepts/architecture.md
+  /reference/effects.md
+  /reference/glossary.md
+  /reference/migration-0.3.0.md
+  /reference/roadmap.md
 validation:
   anchors: warn  # with strict, a link to a missing heading fails the build
 

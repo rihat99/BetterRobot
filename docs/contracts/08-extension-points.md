@@ -2,7 +2,7 @@
 
 The library grows by adding *to* fixed seams, not by editing their consumers. There are five seams: terms
 (plain functions), joint kinds and loaders (subclasses of an abstract base; parser functions), the public surface
-(names without `_`), the optimizer's linear sink (below), and collision `distance_fn` obstacles (below). A new seam is the owner's decision. The how-to lives in [Extend BetterRobot](../guides/extend.md).
+(names without `_`), the optimizer's linear sink (below), and collision `distance_fn` obstacles (below). A new seam is the owner's decision.
 
 ## C-EXT-1 Terms are plain functions (MUST)
 

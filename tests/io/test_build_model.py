@@ -1,4 +1,4 @@
-"""Tests for ``build_model``: an IR becomes a frozen ``Model`` (``docs/concepts/io.md``)."""
+"""Tests for ``build_model``: an IR becomes a frozen ``Model``."""
 
 from __future__ import annotations
 

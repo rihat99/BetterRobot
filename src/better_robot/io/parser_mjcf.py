@@ -14,7 +14,7 @@ A body carries at most one joint (a chain of joints in one body needs a body per
 attached by a fixed joint named after the body; geoms of the world body are scenery, not robot geometry, and are
 not read; a world-body site is a frame on ``"universe"``. A linear two-joint ``<equality><joint>`` becomes a mimic
 joint. The scope is the passive rigid tree; what the parser ignores by rule and what raises is listed in
-``docs/concepts/io.md``. ``mujoco`` is imported here only (extra ``mjcf``).
+``src/better_robot/io/__init__.py::load``. ``mujoco`` is imported here only (extra ``mjcf``).
 """
 
 from __future__ import annotations

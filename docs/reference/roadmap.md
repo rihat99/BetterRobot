@@ -25,7 +25,7 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
   `UnknownNameError` ([C-ERR-2](../contracts/06-validation-errors.md)).
 - `io.parse` returns the IR, where composition lives; URDF/MJCF joint
   damping and armature reach the model; MJCF loads through MuJoCo's compiler
-  within the scope [model loading](../concepts/io.md) lists.
+  within the scope [model loading](../model-and-io.md) lists.
   `OptionalDependencyError` names a missing optional package and its install command
   ([dependencies and layering](../contracts/07-dependencies-layering.md)).
 - The SE(3) vocabulary placement / pose / transform
@@ -35,7 +35,7 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
   a warning when a `time=` problem falls back to dense, the normal-equation
   sink seam, and equality and inequality terms named in `solve_constrained`
   ([extension points](../contracts/08-extension-points.md),
-  [optimization](../concepts/optimization.md)).
+  [optimization](../optim-and-terms.md)).
 - Compile-safe placement caches with `fullgraph=True` tests for FK, RNEA and
   CRBA; the derivatives contract; the
   documented `_memo` keys ([C-STATE-4](../contracts/03-state-mutability.md));
@@ -43,12 +43,12 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
 - Geometry is a value beside the model: `model.Geometry`, read by
   `io.load_geometry`;
   `self_collision_pairs(..., ignore=)`, `RobotSpheres.to()`, batched sphere
-  offsets and the SDF outside-grid rule ([collision](../concepts/collision.md)).
+  offsets and the SDF outside-grid rule ([collision](../collision.md)).
 - Viewer: optional per-layer sample `times` on one integer-step timeline
   ([C-NAME-4](../contracts/01-naming.md)), `Viewer.on_pointer` /
   `clear_pointer`, the picking helper `viewer.tools.picking.nearest_on_ray`,
   viser as the only backend with `server.gui` as the studio API
-  ([viewer](../concepts/viewer.md)).
+  ([viewer](../viewer.md)).
 
 ## Complete explicit-raise inventory
 
@@ -103,7 +103,7 @@ The following surfaces are live:
   optimization; and
 - URDF, MJCF, and programmatic model construction (`ModelBuilder`).
 
-The [API reference](api/better_robot.md) is the exact signature source.
+The docstrings are the exact signature source.
 
 ## Plan by theme
 

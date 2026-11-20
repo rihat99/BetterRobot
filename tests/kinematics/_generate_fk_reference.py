@@ -13,8 +13,6 @@ differ between runs.
 Run from the repository root (``tests.support`` must import):
 
     PYTHONPATH=. uv run python tests/kinematics/_generate_fk_reference.py
-
-See ``docs/reference/tests.md``.
 """
 
 from __future__ import annotations

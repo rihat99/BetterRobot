@@ -23,8 +23,7 @@ uv run python benchmarks/run.py --counters-only              # the counter gate,
 
 While editing a package, run its folder beside the fast tier (`uv run pytest tests/kinematics -q`, about 10 s).
 `.pre-commit-config.yaml` runs ruff and the fast tier before a commit and the full tier before a push, once
-installed (its header says how). `docs/guides/run-the-tests.md` explains the tiers; `docs/reference/tests.md` says
-what each group of tests guards.
+installed (its header says how).
 
 ## What the tiers need
 
@@ -43,8 +42,8 @@ what each group of tests guards.
 Never skip, xfail, loosen a tolerance or delete an assertion to get green; report the number instead. Gate data (a
 tolerance, a counter threshold, the edge table) changes only in a commit of its own that says why.
 
-- Pinocchio parity, `tests/parity/pinocchio/`: 188 tests, each comparison under its own tolerance (the typical
-  ones are in `docs/reference/tests.md`); MuJoCo parity, `tests/parity/mujoco/`: 21 tests.
+- Pinocchio parity, `tests/parity/pinocchio/`: 188 tests, each comparison under its own tolerance; MuJoCo
+  parity, `tests/parity/mujoco/`: 21 tests.
 - Counters: graph breaks, recompiles, operators and host syncs of the counter rows never exceed
   `benchmarks/thresholds/torch-2.13.0.json` (rule C-PERF-3, `tests/contract/test_compile_counters.py`).
 - Ratchets in `tests/contract/ratchets/` only shrink, and an entry leaves in the commit that fixes it

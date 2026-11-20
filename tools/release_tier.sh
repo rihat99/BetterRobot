@@ -3,7 +3,7 @@
 # first failure. Run by hand before a tag, from any directory:
 #     bash tools/release_tier.sh --gpu <index>
 # <index> is the nvidia-smi (PCI bus) index of a free GPU; the run fails before its first test when torch cannot use
-# it. docs/guides/run-the-tests.md lists the three tiers.
+# it.
 set -euo pipefail
 
 if [[ $# -ne 2 || $1 != --gpu ]]; then
