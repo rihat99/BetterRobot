@@ -130,7 +130,7 @@ ShapeError
 
 ## Public API is what `__all__` lists
 
-The root namespace is deliberately small (decision record 0019). `better_robot.__all__` lists the twelve
+The root namespace is deliberately small. `better_robot.__all__` lists the twelve
 subpackages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`, `collision`, `io`, `optim`, `terms`,
 `viewer`, `testing`) and the fourteen names a first script needs: `load`, `Model`, `ModelBuilder`, `JointFreeFlyer`,
 `forward_kinematics`, `KinematicState`, `frame_jacobian`, `joint_jacobian`, `inverse_dynamics`, `mass_matrix`,
@@ -139,8 +139,7 @@ subpackages (`exceptions`, `lie`, `spatial`, `model`, `kinematics`, `dynamics`, 
 
 Everything else is public only under its package name and only if that package's `__all__` lists it, for
 example `better_robot.lie.so3` or `better_robot.optim.solve`. Names with a leading underscore, or missing
-from `__all__`, can change without a deprecation. The [API reference](../reference/api/better_robot.md)
-documents each package's `__all__`.
+from `__all__`, can change without a deprecation. Each name's docstring documents it.
 
 ```python
 print("forward_kinematics" in br.__all__, "frame_jacobian_time_variation" in br.__all__)
@@ -163,7 +162,7 @@ this page disagree, the rule wins and this page has a bug.
 
 ## Where next
 
-- [Model and state](model-and-state.md): the two objects every function takes.
-- [Lie groups and spatial algebra](lie-and-spatial.md): the conventions `lie` and `spatial` fix.
+- [Model and state](../model-and-io.md): the two objects every function takes.
+- [Lie groups and spatial algebra](../lie-and-spatial.md): the conventions `lie` and `spatial` fix.
 - [Design contracts](../contracts/00-index.md): the full rule list with its checks.
 - [Roadmap](../reference/roadmap.md): what landed in this version and what comes next, per theme.

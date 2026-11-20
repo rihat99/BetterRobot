@@ -1,4 +1,4 @@
-"""MJCF kinematics parity. Oracle: MuJoCo (``mujoco.MjModel`` and ``mj_kinematics``), record 0036.
+"""MJCF kinematics parity. Oracle: MuJoCo (``mujoco.MjModel`` and ``mj_kinematics``).
 
 Body poses, site frames, geometry, joint limits and the neutral configuration of a model loaded through
 ``parse_mjcf`` match MuJoCo's own kinematics on ``cases.xml`` (body ``pos``/``quat``, ``euler`` and ``axisangle``

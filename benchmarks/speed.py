@@ -11,7 +11,7 @@ Usage (from the repository root; on CPU pin one core whose SMT sibling is idle; 
 Robots, from ``tests/fixtures/robots``: ``panda`` (fixed base, nq = nv = 8: seven arm joints and one finger coordinate
 the other finger mimics), ``panda7`` (the same with both fingers fixed: the 7-dof arm frax ships) and ``g1``
 (free-flyer root, nq 36, nv 35, for every function). Modes: ``eager``, ``compile`` and ``reduce-overhead`` (CUDA
-default); ``adapt`` is the one adapter from a mode to a callable: the library's ``kinematics.compiled`` (record 0053),
+default); ``adapt`` is the one adapter from a mode to a callable: the library's ``kinematics.compiled``,
 or ``torch.compile`` for a solve, whose loop breaks the graph, and for a library version without that entry point.
 
 Functions. A call does what a user's call does and returns what it computes, so compiled code cannot drop it:
@@ -168,7 +168,7 @@ FIXED_MALLOC = {"MALLOC_MMAP_THRESHOLD_": "134217728", "MALLOC_TRIM_THRESHOLD_":
 MODES = ("eager", "compile", "reduce-overhead")
 SOLVES = ("solve_ik", "solve_ik_multistart", "solve_ik_constrained")
 ADAPTERS = ("kinematics.compiled", "torch.compile", "solve_ik(step=)")
-COMPILED = getattr(br.kinematics, "compiled", None)  # None in a library version before record 0053
+COMPILED = getattr(br.kinematics, "compiled", None)  # None in a library version without it
 SEEDS = "seeds" in inspect.signature(br.solve_ik).parameters  # False before batched seeds; then also no step=
 COMPILE_MODES = {"compile": "default", "reduce-overhead": "reduce-overhead"}
 MULTISTART = (32, 16)  # (seeds, iterations) of solve_ik_multistart: success 1.000 Panda, 0.991 G1 (I1 measurement)

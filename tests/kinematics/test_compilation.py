@@ -121,7 +121,7 @@ def test_the_supported_calls_compile_equal_to_eager(case: str):
         for name, reference in expected.items():
             if model.dtype == torch.float32:
                 # Fused kernels round in another order: float32 results differ from eager by about 1e-7 of their
-                # largest entry (a 177 N base weight: 3e-5 N), forward dynamics by up to 1e-4 (record 0053).
+                # largest entry (a 177 N base weight: 3e-5 N), forward dynamics by up to 1e-4.
                 scale = 1e-3 if name == "forward_dynamics" else 1e-5
                 tolerance = {"rtol": 0.0, "atol": scale * float(reference.abs().max())}
             else:

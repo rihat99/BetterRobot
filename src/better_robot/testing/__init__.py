@@ -1,4 +1,4 @@
-"""Checks shared by BetterRobot's and BetterHuman's test suites (decision records 0013 and 0035).
+"""Checks shared by BetterRobot's and BetterHuman's test suites.
 
 ``imported_packages`` walks every import of a package for its edge-table test; ``dead_citations`` resolves every
 repository path cited in tracked text (principle 7.8); ``check_joint_model`` checks a joint kind against the

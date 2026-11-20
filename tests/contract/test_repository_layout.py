@@ -1,5 +1,5 @@
 """The repository's tree: its top-level entries, a tests folder per src package, no tracked symlink or large file, no
-ghost directory (principles 9.1, 9.2, 9.3, 9.6; record 0039).
+ghost directory (principles 9.1, 9.2, 9.3, 9.6).
 
 Each kind of file has one home, so a second home fails here. A tracked symlink over an ignored directory replaces
 that directory on checkout, and a large file weighs on every clone forever: a file that truly cannot shrink goes in
@@ -17,7 +17,7 @@ REPO = Path(__file__).resolve().parents[2]
 PACKAGE = "src/better_robot"
 LIMIT = 1024 * 1024
 LARGE_ON_PURPOSE: dict[str, str] = {}
-# Principle 9.1's set without `.github/`: this major has no CI (record 0033). `agent_notes/` is ignored whole.
+# Principle 9.1's set without `.github/`: this major has no CI. `agent_notes/` is ignored whole.
 TOP_LEVEL = {
     ".claude",
     ".gitignore",
@@ -45,7 +45,7 @@ SUITES = {
     "examples": "every example, headless",
     "benchmarks": "the smoke test of benchmarks/speed.py",
     "support": "fixtures and helpers that only these tests import, never collected",
-    "fixtures": "the tracked test robots with their licences (record 0039)",
+    "fixtures": "the tracked test robots with their licences",
 }
 
 

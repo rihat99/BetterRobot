@@ -1,5 +1,5 @@
 """No test skips or xfails, whatever spells it: the plugin ``better_robot.testing.no_skips`` fails each one
-(principle 6.5, record 0033).
+(principle 6.5).
 
 A test that needs what the fast and full tiers lack (a GPU) carries the ``cuda`` marker, which deselects it there; a
 missing oracle, fixture or browser is an error. The hooks read the test reports, so an aliased ``pytest``, a

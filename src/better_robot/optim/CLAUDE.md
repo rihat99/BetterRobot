@@ -42,7 +42,7 @@ robot terms live in `better_robot.terms`. Each invariant names its enforcer; `[r
 - An `equality` or `inequality` term is a row of the steps of `SequentialQP` and `track` (one `_program` builds
   both), never part of `loss`; other solvers refuse an active one. `State.x` is the last iterate within `tolerance`;
   iterate, `normal`, `rows` in `State.extra`. Merit price, Nielsen factor, radius, stop rule and `track`'s reserve
-  and scale-back are measured (records 0055, 0057); row count fixed. `tests/optim/test_constraints.py`, `tests/optim/test_track.py`.
+  and scale-back are measured; row count fixed. `tests/optim/test_constraints.py`, `tests/optim/test_track.py`.
 - Every class here is abstract or `@final`. `tests/contract/test_abstract_or_final.py`.
 - Every entry that takes `x` (`run`, hence `solve`; the `Problem` evaluation methods; `check_jacobian`) checks it
   once with `evaluation.checked_values`: one `(B, *event)` tensor per variable, so `x` never overrides data.
@@ -53,7 +53,7 @@ robot terms live in `better_robot.terms`. Each invariant names its enforcer; `[r
   `constrained` read a `Problem` through its public fields (`cached_values`, `manifolds`, `slices()`, ...).
   The band layout is memoised by `functools.lru_cache` on the problem's structure (C-STATE-4).
   `tests/optim/test_problem.py::test_each_private_name_is_used_only_by_the_module_that_defines_it`.
-- Every error is a class of the error tree in `better_robot.exceptions` (record 0020), never a builtin
+- Every error is a class of the error tree in `better_robot.exceptions`, never a builtin
   `ValueError` and never `NotImplementedError`. `tests/contract/test_error_tree.py`,
   `tests/contract/test_roadmap_stub_inventory.py`.
 - A new Jacobian route or linear-solver path is compared against `Problem(dense=True)` and row-by-row autodiff in

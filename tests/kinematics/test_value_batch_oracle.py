@@ -1,4 +1,4 @@
-"""Batched model values ``I...`` broadcast against the configuration batch ``B...`` (record 0028, C3).
+"""Batched model values ``I...`` broadcast against the configuration batch ``B...`` (C3).
 
 The oracle is the scalar loop: one unbatched model per identity, one configuration per row, compared with the
 batched pass at every index of ``broadcast(B..., I...)``.

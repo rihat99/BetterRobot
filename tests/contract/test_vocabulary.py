@@ -6,9 +6,9 @@
   ``tests/contract/ratchets/vocabulary.json`` the parked ones (``name`` to reason); it only shrinks.
 - 3.5: an acronym is written in capitals inside CapWords (``IRModel``, ``LBFGS``), never ``IrModel``.
 - 3.8: no module is named ``utils``, ``common``, ``misc`` or ``helpers``.
-- 3.9: every word of every public name, method, field and parameter is in ``docs/reference/glossary.md``
-  (decision record 0027): a term or an everyday word as ``better_robot.testing.glossary`` reads the page, which
-  BetterHuman's test reads too. A term may span several words of a name, and a plural word matches its singular.
+- 3.9: every word of every public name, method, field and parameter is in ``docs/reference/glossary.md``:
+  a term or an everyday word as ``better_robot.testing.glossary`` reads the page, which BetterHuman's test reads
+  too. A term may span several words of a name, and a plural word matches its singular.
 """
 
 from __future__ import annotations

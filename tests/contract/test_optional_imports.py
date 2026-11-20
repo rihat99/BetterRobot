@@ -83,7 +83,7 @@ def test_the_root_imports_without_the_optional_packages() -> None:
     """``import better_robot`` and ``better_robot.Viewer`` work with every optional package and yourdfpy blocked.
 
     A fresh interpreter blocks each one (a ``None`` entry in ``sys.modules`` makes its import raise), so an eager
-    import anywhere under the root fails here, and none of them is loaded afterwards (principle 1.7, record 0019).
+    import anywhere under the root fails here, and none of them is loaded afterwards (principle 1.7).
     """
     blocked = ["viser", "mujoco", "trimesh", "PIL", "yourdfpy"]
     script = (

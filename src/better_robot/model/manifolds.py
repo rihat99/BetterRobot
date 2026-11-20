@@ -2,7 +2,7 @@
 
 Each `JointManifold` is the pair ``integrate`` (the retraction ``q ⊕ v``) and ``difference`` (its inverse ``q1 ⊖ q0``)
 on coordinates of fixed width ``nq`` and tangents of width ``nv``, written once here and shared by every joint kind
-on that manifold (record 0013). Every map is the true group exponential or logarithm of its group, so the tangent is
+on that manifold. Every map is the true group exponential or logarithm of its group, so the tangent is
 the twist of the joint's motion subspace: ``d/dt placement(integrate(q, t v))`` at ``t = 0`` equals ``S(q) v``.
 
 - ``FIXED``: no coordinate at all (fixed joints); ``integrate`` and ``difference`` return the empty slice.

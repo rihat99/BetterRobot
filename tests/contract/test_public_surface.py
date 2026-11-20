@@ -1,4 +1,4 @@
-"""The public surface is what the ``__all__`` tree lists (principle 1.6; records 0019, 0024 and 0035; C-API-4, C-API-5).
+"""The public surface is what the ``__all__`` tree lists (principle 1.6; C-API-4, C-API-5).
 
 The root ``__all__`` is exactly its twelve subpackages and fourteen first-level names. Walking the tree
 (``better_robot.testing.public_objects``: the root, each listed name, the listed modules recursively) every listed
@@ -57,7 +57,7 @@ MODULES = {path: module for path, module in PUBLIC.items() if inspect.ismodule(m
 
 
 def test_root_lists_exactly_the_decided_names() -> None:
-    """Record 0019: the twelve subpackages, then the fourteen first-level names, in that order."""
+    """The twelve subpackages, then the fourteen first-level names, in that order."""
     assert br.__all__ == SUBPACKAGES + FIRST_LEVEL
 
 
@@ -75,7 +75,7 @@ def test_every_all_lists_each_name_once() -> None:
 
 
 def test_no_module_is_named_like_a_function_its_package_lists() -> None:
-    """``kinematics.forward_kinematics`` is a function, never also a module (record 0023 rename rule)."""
+    """``kinematics.forward_kinematics`` is a function, never also a module."""
     shadowed = [
         f"{path}.{info.name}"
         for path, module in MODULES.items()
@@ -131,12 +131,12 @@ def _first_level_through_a_subpackage(source: str) -> list[str]:
 
 
 def test_docs_and_examples_take_first_level_names_from_the_root() -> None:
-    """A reader meets ``br.forward_kinematics``, never also ``br.kinematics.forward_kinematics`` (record 0019).
+    """A reader meets ``br.forward_kinematics``, never also ``br.kinematics.forward_kinematics``.
 
     Reads the syntax tree of every example and of every page's ``python`` fences, joined in order as they run:
     ``ImportFrom`` names, multi-line ones included, and attribute chains over any binding of a subpackage
     (``br.terms``, ``from better_robot import kinematics``, ``import better_robot.dynamics as dyn``). Contract pages
-    show library-internal imports and accepted records never change, so ``docs/contracts`` and the changelog are not
+    show library-internal imports and the changelog tells history, so ``docs/contracts`` and the changelog are not
     read.
     """
     sources = {path: (REPO / path).read_text() for path in _tracked("examples/*.py")}
@@ -153,13 +153,13 @@ def test_docs_and_examples_take_first_level_names_from_the_root() -> None:
 
 
 def test_testing_is_listed_and_documented() -> None:
-    """Record 0035: the shared test helpers are a documented public module."""
+    """The shared test helpers are a documented public module."""
     assert "better_robot.testing" in MODULES
     assert all((inspect.getdoc(PUBLIC[f"better_robot.testing.{name}"]) or "").strip() for name in br.testing.__all__)
 
 
 def test_fake_server_is_defined_once() -> None:
-    """Record 0035: one stand-in viser server; a second copy is the duplicate the record removed."""
+    """One stand-in viser server, shipped in ``testing``; a second copy is a duplicate."""
     defining = [
         path for path in _tracked("*.py") if re.search(r"^\s*class FakeServer\b", (REPO / path).read_text(), re.M)
     ]

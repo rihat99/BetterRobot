@@ -54,7 +54,7 @@ that 0.3.0 renames or removes, one table row each.
   viewer runs, and `update(q)` shows new configurations, `(T, nq)` of the clip's length or `(nq,)` at every step.
   A robot takes the first of the theme's hues that no other
   robot of the viewer is drawn in, so one that replaces another keeps its hue; `RobotVisual.hue` is the colour it
-  is drawn in, and `style`, `collision` and `frames` what it shows (record 0058). A `hue` outside `[0, 1]`, a
+  is drawn in, and `style`, `collision` and `frames` what it shows. A `hue` outside `[0, 1]`, a
   collision switch that is not a bool, a string for `frames` and strings for `opacity`, `joint_values` or
   `value_range` raise `ArgumentError` naming the argument.
 - `RobotVisual(opacity=)` and `RobotVisual.set_opacity`: every style drawn see-through, a ghost of a target or a
@@ -112,6 +112,10 @@ that 0.3.0 renames or removes, one table row each.
   `vertices_in_sphere` and `vertices_in_rect`; `PoseGizmo` and `CameraFrustum` have a `repr`.
 
 ### Changed
+- The documentation is ten short pages: the idea, install and quickstart, and one page per module group with
+  runnable examples. The getting-started, guide, concept and API reference pages and the decision records are
+  removed; the contract chapters, the glossary, the migration page, the codemap, the effects table and the roadmap
+  stay in the repository, out of the site's navigation. The release procedure is the `release` agent skill.
 - `Viewer.add(layers, *, tags=None, pose=, times=, valid=)` takes one layer or an iterable of layers and returns
   its argument; `tags` replaces `group`, also in `Viewer.add_plot`. `Viewer.set_visible(target, visible)` renames
   its first parameter.
@@ -136,7 +140,7 @@ that 0.3.0 renames or removes, one table row each.
   background is the page's, so a dark theme records a dark clip. `gpu=<nvidia-smi index>` draws on that GPU
   through Vulkan and raises `ArgumentError` when Chromium does not; `gpu=None` draws on the CPU (SwiftShader).
   A 1920x1080 Panda clip of 300 frames takes 42 s on the CPU and 5 s on a GPU, where screenshots took 2.6 to 5 s
-  per frame (`docs/guides/record-a-video.md`).
+  per frame.
 - `Viewer.record` finds ffmpeg through `$BETTER_ROBOT_FFMPEG` (was `$FFMPEG`) or the `PATH`.
 - The `viewer` extra pins `viser>=1.1.1,<1.2`: `Viewer.record` drives the client of viser 1.1, and a test names
   the viser version when the internals it uses change. On viser 1.1.1 a connected browser goes blank when a skinned
@@ -264,7 +268,7 @@ that 0.3.0 renames or removes, one table row each.
 - `SkinnedMeshLayer` names `weights` and `bone_poses` apart, each with the shape it needs: a `RobotVisual`'s `Skin`
   with one weight column per joint of the body instead of per model joint raised an error about bone poses the
   caller never passed.
-- [Use with BetterHuman](../guides/use-with-betterhuman.md) names BetterHuman's actual API (`HumanModel`,
+- Use with BetterHuman names BetterHuman's actual API (`HumanModel`,
   `Identity.forward(q, streams=)`, the `vertices` property, `joint_translations`) and shows a body in BetterRobot's
   viewer: `RobotVisual(identity.model, q, skin=Skin(...))` with the weights scattered by `joint_ids`, beside a G1
   through a tag pose, recorded to mp4; its viewer fences run in the docs tests on a stand-in body.
@@ -277,23 +281,23 @@ that 0.3.0 renames or removes, one table row each.
   `"equality"` and `"inequality"`, and `Term.lower` and `Term.upper` carry the bounds. A constraint term is no part
   of the loss. `optim.SequentialQP(damping=, gain=0.5, tolerance=1e-4, gradient_tolerance=, step_tolerance=)` holds
   them: each step is one `solve_qp` program (the damped Gauss-Newton model under the linearized constraint terms
-  and the box of the bounds), scaled back to a step radius and taken where it lowers an L1 merit (record 0055).
+  and the box of the bounds), scaled back to a step radius and taken where it lowers an L1 merit.
   `State.x` is the last iterate within `tolerance` of every bound, the iterate is `State.extra["iterate"]`, and the
-  `violation` diagnostic reports the distance of `State.x` per step (record 0056). `tolerance` must be above 0;
+  `violation` diagnostic reports the distance of `State.x` per step. `tolerance` must be above 0;
   `State.extra["radius"]` is new and a warm key with `damping`, `growth` and `qp`. A constraint term's weight is
   a number at least 0 (0 switches the term off, a negative number raises `ArgumentError`) or a tensor whose entry 0
   switches its row off. The other solvers, `solve_constrained` and `solve_layer` raise `ArgumentError` on a problem
-  with an active constraint term ([Constrained inverse kinematics](../guides/constrained-ik.md)).
+  with an active constraint term (Constrained inverse kinematics).
 - `optim.track(problem, x, *, step, warm=None, gain=0.5, damping=1e-3, iterations=20) -> (x, QPSolution)`: one
   step of differential inverse kinematics, one warm `solve_qp` program of `iterations` per call: the Gauss-Newton
   model of the cost terms with `damping` on the identity, under the rows of `SequentialQP` at `gain` and the box of
   the bounds at the same gain (a discrete barrier), each step entry within the required `step`. The step is taken:
   the program holds each row with a reserve, and its step is clamped to the box, moved back onto the rows it
   leaves and scaled back where that is not enough. The targets move between calls through `Problem.with_(data=)`;
-  the solution is the warm start of the next call (record 0057; [Track moving targets](../guides/track-targets.md)).
+  the solution is the warm start of the next call (Track moving targets).
 - `optim.solve_qp(hessian, gradient, *, rows, lower, upper, iterations=20, weight=100.0, warm=None) -> QPSolution`:
   one warm-startable step towards the minimisers of a batch of quadratic programs with two-sided linear rows, by a
-  fixed number of ADMM steps and one active-set step, in float64, with no host read (record 0054). Accuracy comes
+  fixed number of ADMM steps and one active-set step, in float64, with no host read. Accuracy comes
   from repeated warm calls, not from `iterations`. The rows are L1-elastic: a row gives way once its multiplier
   would pass a cap, `weight` (a positive Python number) times the larger of `|g|∞` and the largest diagonal entry
   of `H`. `QPSolution` has `x`, `dual`, `primal_residual`, `dual_residual`, `penalty` and `exact` (the mask of the
@@ -366,12 +370,12 @@ that 0.3.0 renames or removes, one table row each.
 - `testing.glossary`: `read()` returns the terms and everyday words of BetterRobot's glossary page, which ships in
   the package, and `read(page)` those of another page; `words`, `entry` and `spelling` check a name against them.
 - `tests/contract/public_api.json`, the tracked public API, kept by `tools/api_snapshot.py`.
-- [Release a version](../guides/release.md): the release checklist, from the public-API diff to the downstream pins.
+- Release a version: the release checklist, from the public-API diff to the downstream pins.
 - `examples/viewer/05_avoid_joint_limits.py` to `09_avoid_self_collision.py`: the five behaviours of `optim.track`
   (joint limits, singular poses, floor, obstacle, self-collision) live in the viewer, a dragged target tracked one
   call per tick with a switch between the rows, a cost term and off; the floor, obstacle and self-collision demos
   also run the G1 (`--robot g1`). Each records its scripted path (`--record`); the clips are in
-  [Try the avoidance demos](../guides/avoidance-demos.md).
+  Try the avoidance demos.
 - `terms.manipulability(model, *, frame, threshold, hinge=True)`: a hinge on Yoshikawa's manipulability of a frame's
   position Jacobian that pushes away from singular configurations below `threshold`, with an analytic Jacobian;
   `hinge=False` gives the plain `threshold - w`, the row of an inequality term.
@@ -383,8 +387,7 @@ that 0.3.0 renames or removes, one table row each.
   pair, for pairs that sit closer than the common margin in the rest pose.
 - `kinematics.compiled(fn, *, mode="default" | "reduce-overhead")`: an opt-in `torch.compile` of a function that
   calls the library, one graph family per grad mode and argument kind, each compiled on its second call; under
-  `"reduce-overhead"` (CUDA graphs) each result is the caller's own (record
-  [0053](../contracts/decisions/0053-compiled-entry-point.md)). A compiled call reads the model's memoised values
+  `"reduce-overhead"` (CUDA graphs) each result is the caller's own. A compiled call reads the model's memoised values
   instead of deriving them again, and small batched products compile to fused kernels: at batch 4096 on one CPU
   core (float32) the compiled FK runs 5.2 times faster than this release's eager on the Panda arm and 3.7 times on
   the G1 humanoid, inverse dynamics 4.0 and 3.3 times.
@@ -488,24 +491,23 @@ that 0.3.0 renames or removes, one table row each.
   half a unit of its last digit; `py`, `pycon`, `~~~python`, four-backtick, braced (`{ .python }`) and capitalised
   (`Python`) fences, a blank `data-reason`, a printing fence without an output fence and a fence that exits early
   are reported.
-- The contributing pages are gone: [extending](../guides/extend.md) and [running the tests](../guides/run-the-tests.md)
-  are guides, and [the test suite](tests.md) is reference.
+- The contributing pages are gone: extending and running the tests
+  are guides, and the test suite is reference.
 - `benchmarks/run.py` is the counter gate: the full tier fails when a graph break, recompile, operator or host sync
   of its counter rows (forward kinematics, Jacobian, RNEA, CRBA, ABA, `solve_ik`) exceeds
   `benchmarks/thresholds/torch-<version>.json` (`tests/contract/test_compile_counters.py`).
   `benchmarks/speed.py` records wall time, never gated: kinematics, dynamics and IK functions on Panda, a 7-dof
   Panda and G1, CPU and CUDA, eager and cold-compiled, forward and backward, batch 1 to 65536, with IK iterations and
   success rates over 1024 targets, Pinocchio rows and a table, with spreads, against an earlier run or another
-  library's timings ([benchmark and profile](../guides/benchmark-and-profile.md)).
+  library's timings (benchmark and profile).
 - The hooks in `.pre-commit-config.yaml` run through `uv run --locked`: ruff check, ruff format --check and the fast
   tier before a commit, the full tier before a push. The release tier is one command,
-  `bash tools/release_tier.sh --gpu <index>` ([running the tests](../guides/run-the-tests.md)).
+  `bash tools/release_tier.sh --gpu <index>` (running the tests).
 - `terms.sphere_clearance` and `terms.self_clearance` have analytic Jacobians (the distance gradient at each sphere
   centre times `kinematics.point_jacobian`), 5-47x cheaper to linearize than autodiff at batch 64 to 1024 on one
   CPU core (Panda, float64), and their hinge is C1: `gap² / (2 margin)` inside the margin band, `gap - margin / 2`
   beyond it, so a soft clearance settles deeper inside the margin than with the 0.2 hinge at the same weight.
-  A `distance_fn` keeps entry `s` on centre `s` and runs under `torch.func` (record
-  [0051](../contracts/decisions/0051-distance-functions-for-the-analytic-jacobian.md)); any other function takes
+  A `distance_fn` keeps entry `s` on centre `s` and runs under `torch.func`; any other function takes
   the autodiff route through `optim.TermFn(fn=term.fn, reads=term.reads)`.
 - `Problem.linearize` raises `ShapeError` naming `window=1` when an analytic Jacobian block does not have the term's
   shape, as when a per-knot term (`frame_pose`, the clearance terms) reads a time variable without `window=`.

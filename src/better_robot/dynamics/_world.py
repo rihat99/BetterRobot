@@ -19,7 +19,7 @@ mimic joints the projected equations are the only correct form.
 
 The world geometry (`KinematicState.world_geometry`) is the state's column table (about the world origin) moved to a
 reference origin with one cross product, with the joint rotations and origins; kinematics memoises it on the state,
-keyed by grad mode, so dynamics calls on one state (`forward_dynamics` makes two) derive it once (record 0041). All
+keyed by grad mode, so dynamics calls on one state (`forward_dynamics` makes two) derive it once. All
 world quantities are taken about that origin, the first joint's position in each
 sample, so lever arms stay of the robot's size and float32 accuracy does not degrade far from the world origin (G1 at
 100 m: mass matrix within 4.8e-6 of float64).
@@ -160,9 +160,9 @@ class WorldKinematics:
 def world_kinematics(model: Model, state: KinematicState) -> WorldKinematics:
     """World-frame quantities of ``state`` about each sample's first joint.
 
-    The geometry is the state's `KinematicState.world_geometry`, memoised on the state by kinematics (record 0041).
-    The inertias come from ``model`` on every call (their ``6x6`` form memoised on the model by grad mode,
-    record 0040); a batched model's inertias are broadcast to the flattened batch.
+    The geometry is the state's `KinematicState.world_geometry`, memoised on the state by kinematics.
+    The inertias come from ``model`` on every call (their ``6x6`` form memoised on the model by grad mode);
+    a batched model's inertias are broadcast to the flattened batch.
     """
     batch = tuple(state.q.shape[:-1])
     columns, rotations, translations, origin = state.world_geometry

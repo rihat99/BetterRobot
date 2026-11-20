@@ -38,12 +38,11 @@ two as for a batch of seven).
 ## C-PERF-5 The library compiles only on request and ships no custom kernel (MUST)
 
 Compilation is the caller's choice. The one place that calls `torch.compile` is `kinematics.compiled`, which the
-caller calls (record [0053](decisions/0053-compiled-entry-point.md)); nothing compiles at import, no library function
+caller calls; nothing compiles at import, no library function
 is decorated with `torch.compile`, and no module names `torch._dynamo` or `torch._inductor`, whose settings and
 decomposition tables are process-wide, `torch.compiler` beyond `is_compiling` and `assume_constant_result`,
 `torch.jit` or `torch.library`. The public kinematics and dynamics trace as one graph when compiled
-(`tests/kinematics/test_fk_compile.py`, `tests/kinematics/test_compilation.py`). Torch is the only implementation
-(record [0001](decisions/0001-torch-only.md)): no C++ extension, Triton, Numba or CuPy kernel.
+(`tests/kinematics/test_fk_compile.py`, `tests/kinematics/test_compilation.py`). Torch is the only implementation: no C++ extension, Triton, Numba or CuPy kernel.
 
 Enforcement: `tests/contract/test_performance_rules.py::test_only_the_entry_point_compiles_and_nothing_builds_a_kernel`.
 
@@ -52,7 +51,7 @@ Enforcement: `tests/contract/test_performance_rules.py::test_only_the_entry_poin
 `benchmarks/run.py --counters-only` measures, on CPU, the graph breaks, recompiles, top-level operators and
 host-syncing operators of every hot entry point and compares them with `benchmarks/thresholds/torch-<version>.json`;
 a counter above its threshold fails. Wall time is a measurement, not a gate: an optimisation shows
-`benchmarks/speed.py` before and after in its review ([Benchmark and profile](../guides/benchmark-and-profile.md)).
+`benchmarks/speed.py` before and after in its review.
 `C-PERF-4` ("Measure before optimising") is retired and its ID is not reused.
 
 Enforcement: `tests/contract/test_compile_counters.py`.

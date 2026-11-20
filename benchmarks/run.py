@@ -9,7 +9,7 @@ Usage (from the repository root)::
 Wall time across functions, robots, compile modes and batch sizes, with Pinocchio and other references, is
 ``benchmarks/speed.py``.
 
-Counter rows (principle 5.8; record 0011) are fixed functions on the tracked Panda and G1 (``tests/fixtures/robots``):
+Counter rows (principle 5.8) are fixed functions on the tracked Panda and G1 (``tests/fixtures/robots``):
 ``fk_joints/{panda,g1}/B{1,1024}`` (``forward_kinematics(model, q).joint_transforms``), ``ik/panda/B64``
 (``solve_ik`` to 64 ``panda_hand`` poses, 5 seeds, fixed generators; it also records ``success_fraction`` and
 ``worst_position_error_m``), ``ik_constrained/panda/B64`` (20 steps of ``SequentialQP`` to the same poses with an
@@ -63,7 +63,7 @@ from torch.profiler import ProfilerActivity, profile
 import better_robot as br
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-ROBOTS = REPO_ROOT / "tests" / "fixtures" / "robots"  # the tracked test robots (record 0039): offline, one file each
+ROBOTS = REPO_ROOT / "tests" / "fixtures" / "robots"  # the tracked test robots: offline, one file each
 URDFS = {"panda": ROBOTS / "panda" / "panda.urdf", "g1": ROBOTS / "g1" / "g1_29dof.urdf"}
 THRESHOLDS = REPO_ROOT / "benchmarks" / "thresholds" / f"torch-{torch.__version__.split('+')[0]}.json"
 DTYPE = torch.float32

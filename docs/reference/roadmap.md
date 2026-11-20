@@ -9,7 +9,7 @@ operations that still raise `NotImplementedError`, and a plan per theme.
 Each theme table lists one *brick* (a self-contained piece of work) per row,
 why it is wanted, what must exist first, and when it is planned:
 
-- **now**: landed in this version (listed below, with the contract or ADR that
+- **now**: landed in this version (listed below, with the contract that
   records it);
 - **next**: the following version; the design is settled;
 - **later**: wanted, but waits for its prerequisite or a real in-tree caller;
@@ -25,8 +25,7 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
   `UnknownNameError` ([C-ERR-2](../contracts/06-validation-errors.md)).
 - `io.parse` returns the IR, where composition lives; URDF/MJCF joint
   damping and armature reach the model; MJCF loads through MuJoCo's compiler
-  within the scope [model loading](../concepts/io.md) lists
-  ([ADR 0036](../contracts/decisions/0036-mjcf-compile-through-mujoco.md)).
+  within the scope [model loading](../model-and-io.md) lists.
   `OptionalDependencyError` names a missing optional package and its install command
   ([dependencies and layering](../contracts/07-dependencies-layering.md)).
 - The SE(3) vocabulary placement / pose / transform
@@ -36,22 +35,20 @@ so a brick may change a public signature; the [changelog](changelog.md) records 
   a warning when a `time=` problem falls back to dense, the normal-equation
   sink seam, and equality and inequality terms named in `solve_constrained`
   ([extension points](../contracts/08-extension-points.md),
-  [optimization](../concepts/optimization.md)).
+  [optimization](../optim-and-terms.md)).
 - Compile-safe placement caches with `fullgraph=True` tests for FK, RNEA and
-  CRBA; the derivatives contract
-  ([ADR 0007](../contracts/decisions/0007-derivatives-contract.md)); the
+  CRBA; the derivatives contract; the
   documented `_memo` keys ([C-STATE-4](../contracts/03-state-mutability.md));
   the `to_euler` gimbal-lock fix; a benchmark smoke test.
 - Geometry is a value beside the model: `model.Geometry`, read by
-  `io.load_geometry` ([ADR 0016](../contracts/decisions/0016-geometry-out-of-model.md));
+  `io.load_geometry`;
   `self_collision_pairs(..., ignore=)`, `RobotSpheres.to()`, batched sphere
-  offsets and the SDF outside-grid rule ([collision](../concepts/collision.md)).
+  offsets and the SDF outside-grid rule ([collision](../collision.md)).
 - Viewer: optional per-layer sample `times` on one integer-step timeline
   ([C-NAME-4](../contracts/01-naming.md)), `Viewer.on_pointer` /
   `clear_pointer`, the picking helper `viewer.tools.picking.nearest_on_ray`,
   viser as the only backend with `server.gui` as the studio API
-  ([ADR 0004](../contracts/decisions/0004-viser-viewer.md),
-  [viewer](../concepts/viewer.md)).
+  ([viewer](../viewer.md)).
 
 ## Complete explicit-raise inventory
 
@@ -106,7 +103,7 @@ The following surfaces are live:
   optimization; and
 - URDF, MJCF, and programmatic model construction (`ModelBuilder`).
 
-The [API reference](api/better_robot.md) is the exact signature source.
+The docstrings are the exact signature source.
 
 ## Plan by theme
 
@@ -128,7 +125,7 @@ The [API reference](api/better_robot.md) is the exact signature source.
 
 | Brick | Why | Prerequisite | When |
 |---|---|---|---|
-| `<quantity>_derivatives` through autograd | trajectory optimization, DDP | ADR 0007 (now) | next |
+| `<quantity>_derivatives` through autograd | trajectory optimization, DDP | the derivatives contract (now) | next |
 | Energy, Coriolis matrix, centre-of-mass velocity and acceleration, `compute_minverse`, centroidal derivatives | controllers, human dynamics | none | next |
 | Named model-parameter accessors such as link mass | identification, editing | none | next |
 | Contact Jacobians, including offset contact points with their `r × f` moment | legged robots, human contact | contact frames on the model | next |
@@ -165,7 +162,7 @@ BetterHuman as extensions; BetterRobot stays generic.
 | `record` fits its camera to each step's bounding box, as `aim` does, not to every mesh vertex | recording robot clips without a `camera=` (two G1 clips of 100 steps took over 9 minutes in the fit) | none | next |
 | Video panel with reprojection, synced through per-layer `times` | video reconstruction | per-layer `times` (now) | later |
 
-viser stays the only backend ([ADR 0004](../contracts/decisions/0004-viser-viewer.md)); no own three.js client is planned.
+viser stays the only backend; no own three.js client is planned.
 
 ### Model building and tools
 

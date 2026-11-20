@@ -1,6 +1,6 @@
 """Opt-in compilation of library calls: `compiled`, the one place the library calls ``torch.compile`` (C-PERF-5).
 
-Eager stays the default; a caller who repeats a call asks for a compiled one (record 0053). The wrapper handles what
+Eager stays the default; a caller who repeats a call asks for a compiled one. The wrapper handles what
 measurement found to go wrong when a library call is handed to ``torch.compile`` directly:
 
 - Plans and memoised model values built inside the trace. A model's first call builds its plans; traced, that

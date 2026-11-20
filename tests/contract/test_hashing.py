@@ -1,4 +1,4 @@
-"""Equality and hashing (decision record 0010): a ``Model`` compares by identity; ``structure_key`` compares the
+"""Equality and hashing: a ``Model`` compares by identity; ``structure_key`` compares the
 static fields, so two builds of one description share a key and a model with scaled links keeps it. Three
 topologies: the Panda (fixed base), the G1 (free flyer) and the branching tree (free flyer plus spherical joints)."""
 

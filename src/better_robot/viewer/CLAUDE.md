@@ -1,6 +1,6 @@
 # viewer/ traps
 
-The design is `docs/concepts/viewer.md`; read it first.
+The user's page is `docs/viewer.md`; the design is in the module docstrings.
 
 - Public callables take at most two positional parameters (a layer: its name and main array); the rest are
   keyword-only.

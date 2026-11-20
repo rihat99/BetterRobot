@@ -2,7 +2,7 @@
 
 The library follows the Pinocchio split: a *model* (static topology plus differentiable parameter tensors) and
 a *state* (the result of one query). Both are values, not objects with a lifecycle: you build them, pass them
-around, and build new ones instead of changing them. See ADR [0002](decisions/0002-immutable-fk-state.md).
+around, and build new ones instead of changing them.
 
 ## C-STATE-1 Model and state dataclasses are frozen (MUST)
 
@@ -10,7 +10,7 @@ around, and build new ones instead of changing them. See ADR [0002](decisions/00
 `@dataclass(frozen=True)`. Derived quantities are computed by
 functions or cached properties, never by assignment after construction. The tensor fields are read-only after
 construction too (the freeze is shallow): an in-place write and `requires_grad_()` on a model tensor are edits a
-user must not make; build a new model with `with_values` (record [0040](decisions/0040-model-value-memo.md)).
+user must not make; build a new model with `with_values`.
 
 ```python { .no-run }
 # good  (src/better_robot/kinematics/forward.py)
@@ -69,8 +69,7 @@ keeps its private names to `problem.py` (`FUNCTOOLS_CACHES` of `tests/contract/t
 `KinematicState._memo`
 (`src/better_robot/kinematics/forward.py::KinematicState`) is a private memo dict inside the frozen
 state, keyed by `(name, mode)`, written only by `KinematicState._memoised` and bypassed under `torch.compile` (where
-`Model._value` is read, never written: record [0053](decisions/0053-compiled-entry-point.md)); `mode` is the grad mode, or `"inference"` under `torch.inference_mode` (record
-[0052](decisions/0052-memo-under-inference-mode.md)), so a value made under `torch.no_grad` never serves a
+`Model._value` is read, never written); `mode` is the grad mode, or `"inference"` under `torch.inference_mode`, so a value made under `torch.no_grad` never serves a
 differentiable call and an inference tensor never reaches autograd. Its allowed names, each derived only from the
 state's own `joint_transforms` and its model, are:
 
@@ -80,7 +79,7 @@ state's own `joint_transforms` and its model, are:
 | `"joint_poses"` | `KinematicState.joint_poses` | `(B..., njoints, 7)` world poses |
 | `"frame_poses"` | `KinematicState.frame_poses` | `(B..., nframes, 7)` world poses |
 | `"jacobian_columns"` | `KinematicState.jacobian_columns` | `(B..., 6, nv_full)` world Jacobian column table |
-| `"world_geometry"` | `KinematicState.world_geometry` (record 0041) | `(N, 6, nv_full)` columns, joint rotations, translations and origin about the first joint |
+| `"world_geometry"` | `KinematicState.world_geometry` | `(N, 6, nv_full)` columns, joint rotations, translations and origin about the first joint |
 
 A new name is added to this table in the same change that writes it. The model-side cache is `Model._plans`:
 constant tensors derived from the static fields, keyed by kind, dtype and device, and shared by every
@@ -88,7 +87,7 @@ constant tensors derived from the static fields, keyed by kind, dtype and device
 model of its line alive, with that model's tensors and value memo). `Model._memo` holds
 values derived from the tensor fields (the placement matrices and the packed spatial inertias), keyed by kind,
 mode and the tensor fields' `requires_grad` flags and written only when the value carries no autograd graph, so
-nothing on the model is keyed by a tensor's `_version` (decision records 0011, 0040, 0042 and 0052).
+nothing on the model is keyed by a tensor's `_version`.
 
 Enforcement: `tests/contract/test_caches.py`; `[review]`.
 
@@ -100,8 +99,7 @@ returns `(x, data)` instead of writing into the problem's data. Per-call changes
 `Problem.with_(data=..., weights=..., free=...)` (`src/better_robot/optim/problem.py::Problem.with_`), which returns a
 new problem sharing the terms and leaves the original untouched, so two solves with different weights can run from
 one problem. That new problem is sealed, as are the views `run`, `solve_constrained` and `solve_layer` hand to
-callbacks: registering on a sealed problem raises `ArgumentError` (record
-[0047](decisions/0047-problem-registration-and-sealed-views.md)).
+callbacks: registering on a sealed problem raises `ArgumentError`.
 
 Enforcement: `tests/optim/test_problem.py::test_problem_is_immutable`,
 `tests/optim/test_problem.py::test_callbacks_cannot_register_on_the_views_run_hands_them`.

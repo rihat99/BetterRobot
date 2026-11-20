@@ -1,4 +1,4 @@
-"""Only the decided packages exist, and raw kernels stay private (C-API-5, decision records 0013 and 0019).
+"""Only the decided packages exist, and raw kernels stay private (C-API-5).
 
 The top level of ``src/better_robot`` holds exactly the subpackages the root ``__all__`` lists
 (``test_public_surface.py`` pins that list) and private ``_name`` modules: a new public package needs a decision

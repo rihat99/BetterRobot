@@ -1,4 +1,4 @@
-"""The contract of a joint kind, checked on one instance (record 0013): shapes, the identity at ``neutral``, the
+"""The contract of a joint kind, checked on one instance: shapes, the identity at ``neutral``, the
 manifold round trip and the motion subspace against finite differences of the placement."""
 
 from __future__ import annotations

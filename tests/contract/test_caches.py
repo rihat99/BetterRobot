@@ -1,4 +1,4 @@
-"""Caches and plans (decision records 0011 and 0040).
+"""Caches and plans.
 
 ``Model._plans``, ``Model._memo`` and ``KinematicState._memo`` are the only caches: all are ``init=False``, never
 copied by ``dataclasses.replace``, written by one function each (``Model._plan``, ``Model._value``,
@@ -109,7 +109,7 @@ def test_state_memo_is_keyed_by_grad_mode() -> None:
 
 
 def test_values_with_a_graph_are_never_memoised() -> None:
-    """Placements with a graph are converted per call, so each differentiable call owns its graph (record 0040)."""
+    """Placements with a graph are converted per call, so each differentiable call owns its graph."""
     model = load(panda_urdf(), dtype=torch.float64)
     placements = model.joint_placements.clone().requires_grad_()
     model = model.with_values(joint_placements=placements)
@@ -155,7 +155,7 @@ def test_a_leaf_stepped_in_place_is_not_seen() -> None:
 def test_inference_mode_values_are_served_only_under_inference_mode() -> None:
     """A value made under inference mode, even inside ``torch.enable_grad`` (grad mode reports on, autograd records
     nothing), is an inference tensor kept under its own key: inference-mode calls reuse it, and a later autograd call
-    gets a fresh value and its gradient (record 0052)."""
+    gets a fresh value and its gradient."""
     model = load(panda_urdf(), dtype=torch.float64)
     q = model.q_neutral
     with torch.inference_mode(), torch.enable_grad():
@@ -171,8 +171,7 @@ def test_inference_mode_values_are_served_only_under_inference_mode() -> None:
 
 def test_a_compiled_call_reads_the_model_memo_and_writes_nothing() -> None:
     """Under ``torch.compile`` the model memo is read under the grad mode, so the folded FK map an eager call stored
-    enters the graph as an input instead of being derived in every compiled call, and nothing is written
-    (record 0053)."""
+    enters the graph as an input instead of being derived in every compiled call, and nothing is written."""
     model = load(panda_urdf(), dtype=torch.float64)
     q = model.q_neutral.expand(2, -1)
     inputs: list[torch.Tensor] = []
@@ -192,7 +191,7 @@ def test_a_compiled_call_reads_the_model_memo_and_writes_nothing() -> None:
 
 def test_state_memo_keeps_inference_mode_values_apart() -> None:
     """A state read under ``inference_mode`` with ``enable_grad`` (grad mode reports on) stores its values under the
-    inference key only, so a later autograd call of the same state gets the gradient of a fresh state (record 0052)."""
+    inference key only, so a later autograd call of the same state gets the gradient of a fresh state."""
     model = load(panda_urdf(), dtype=torch.float64)
 
     def gradient(read_under_inference_mode: bool) -> torch.Tensor:

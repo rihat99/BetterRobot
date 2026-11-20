@@ -539,7 +539,7 @@ def build_model(
     device: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> Model:
-    """The frozen ``Model`` of ``ir``, built on ``device`` in ``dtype`` (record 0015).
+    """The frozen ``Model`` of ``ir``, built on ``device`` in ``dtype``.
 
     The root body is the child of the one IR joint whose parent is ``"world"``, else the one body no joint moves
     (or ``ir.root_body``); ``root_joint`` replaces the joint that holds it under the universe (a ``JointFixed``

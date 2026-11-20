@@ -1,4 +1,4 @@
-"""``Model`` is one flat frozen record (decision records 0009, 0016).
+"""``Model`` is one flat frozen record.
 
 The class docstring table is the field contract: every dataclass field appears there as ``static`` or ``tensor``,
 the tensor fields hold tensors and the static ones do not, no field is geometry, and no property forwards to a
@@ -45,7 +45,7 @@ def test_every_field_is_in_the_docstring_table_with_its_kind(panda: Model) -> No
 
 
 def test_no_field_is_geometry(panda: Model) -> None:
-    """Meshes and shapes live outside the model (record 0016)."""
+    """Meshes and shapes live outside the model."""
     names = {f.name for f in dataclasses.fields(Model)}
     assert not {name for name in names if any(word in name for word in ("geom", "mesh", "visual", "collision"))}
     assert not any(dataclasses.is_dataclass(getattr(panda, name)) for name in names)

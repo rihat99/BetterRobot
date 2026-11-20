@@ -2,7 +2,7 @@
 
 The library grows by adding *to* fixed seams, not by editing their consumers. There are five seams: terms
 (plain functions), joint kinds and loaders (subclasses of an abstract base; parser functions), the public surface
-(names without `_`), the optimizer's linear sink (below), and collision `distance_fn` obstacles (below). A new seam needs an ADR. The how-to lives in [Extend BetterRobot](../guides/extend.md).
+(names without `_`), the optimizer's linear sink (below), and collision `distance_fn` obstacles (below). A new seam is the owner's decision.
 
 ## C-EXT-1 Terms are plain functions (MUST)
 
@@ -10,7 +10,7 @@ A *term* is a plain function (`src/better_robot/optim/problem.py::TermFn`) whose
 `Problem` entries it reads and which returns residuals `(..., r)`. Robot-specific terms are *factories* in
 `terms`: a function that takes the model and options and returns a `TermFn` closing over them. Terms carry
 no state and are never subclasses; `src/better_robot/optim/problem.py::Term` is the record `Problem` keeps per
-registered term, not a base class for users. See ADR [0003](decisions/0003-terms-plain-functions.md).
+registered term, not a base class for users.
 
 ```python { .no-run }
 # good  (src/better_robot/terms/robot.py::frame_pose)
@@ -27,12 +27,11 @@ no registry); `[review]`.
 
 ## C-EXT-2 Joint kinds subclass the abstract `JointModel`; loaders are functions (MUST)
 
-A joint kind is a final frozen dataclass under `src/better_robot/model/joints/base.py::JointModel` (record
-[0013](decisions/0013-joint-kinds.md)): it declares `nq`, `nv`, `manifold` and `axis` and implements `placement`,
+A joint kind is a final frozen dataclass under `src/better_robot/model/joints/base.py::JointModel`: it declares `nq`, `nv`, `manifold` and `axis` and implements `placement`,
 `motion_subspace`, `neutral` and `random`; the abstract methods make a missing member fail where the kind is
 defined, not at a distant dispatch. Every class in `model.joints` and `model.manifolds` is abstract or `@final`:
 kinds are data, not a hierarchy. There is no joint registry: the kind is passed to `ModelBuilder.add_joint(kind=)`
-and the built model keeps that object (record [0025](decisions/0025-extension-model.md)). Consumers that need a
+and the built model keeps that object. Consumers that need a
 kind's class (`src/better_robot/kinematics/_fk.py`, the viewer's markers) test the final classes; any other kind takes the
 generic path through `placement`. A new file format is a function returning `IRModel`, passed to `io.build_model`; there is no
 parser registry (`tests/contract/test_extension_points.py`).
@@ -83,7 +82,7 @@ Enforcement: `tests/contract/test_versioning.py::test_src_emits_no_deprecation_w
 - Viewer layer: subclass `src/better_robot/viewer/layer.py::Layer`; implement `build(scene, root)` and `set_step(step)`;
   override `build_gui` (its sidebar controls), `apply_theme`, `bounds` and `dispose` only when needed.
 - Package: add its row to `ALLOWED` in `tests/contract/test_layer_dependencies.py` and the package to the diagram
-  in `07`; this needs an ADR (`00-index`, "When to write an ADR").
+  in `07`; this is the owner's decision (`00-index`, "Changes the owner decides").
 
 Enforcement: `tests/contract/test_layer_dependencies.py`; `[review]`.
 
@@ -115,12 +114,12 @@ Enforcement: `tests/contract/test_extension_points.py::test_normal_equations_com
 type is a function `distance_fn(centers: (B..., S, 3), radii: (S,)) -> (B..., S)` or `(B..., S, K)` (signed
 distance, positive outside, differentiable in `centers`), usually a closure over a `collision.sphere_*`
 primitive. The term's analytic Jacobian pulls back through `distance_fn` alone, so the function also meets two
-requirements (record [0051](decisions/0051-distance-functions-for-the-analytic-jacobian.md)): entry `s` depends on
+requirements: entry `s` depends on
 centre `s` only, and `torch.func` can transform it (a `torch.autograd.Function` defines `setup_context`). A
 function that breaks either, such as an external kernel written as an old-style `autograd.Function` or a distance
 to a shape the spheres span together, keeps the term through autodiff: register
 `optim.TermFn(fn=term.fn, reads=term.reads)` in its place. The term and the solvers never change for a new shape.
-Robot geometry beyond spheres and closest points follow record [0016](decisions/0016-geometry-out-of-model.md).
+Robot geometry beyond spheres and closest points stays in `Geometry`, a value beside `Model`.
 
 ```python { .no-run }
 # good: a new shape is a new function

@@ -1,7 +1,5 @@
 """Tests for forward kinematics — the dtypes and state shapes it refuses (its values:
 ``tests/kinematics/test_fk_contracts.py`` and Pinocchio parity).
-
-See ``docs/concepts/kinematics-and-jacobians.md``.
 """
 
 from __future__ import annotations

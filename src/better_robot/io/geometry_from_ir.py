@@ -1,4 +1,4 @@
-"""``build_geometry(ir, model)``: the ``Geometry`` of a parsed description for the model built from it (record 0016)."""
+"""``build_geometry(ir, model)``: the ``Geometry`` of a parsed description for the model built from it."""
 
 from __future__ import annotations
 

@@ -121,7 +121,7 @@ class KinematicState:
 
         ``(columns (N, 6, nv_full), rotations (N, njoints, 3, 3), translations (N, njoints, 3), origin (N, 3))``
         with the batch flattened to ``N``; ``origin`` is joint 1's position and ``translations`` are relative to it,
-        so float32 lever arms stay of the robot's size far from the world origin. Built on first use (record 0041).
+        so float32 lever arms stay of the robot's size far from the world origin. Built on first use.
         """
         return self._memoised(
             "world_geometry", lambda: geometry_about_first_joint(self.joint_transforms, self.jacobian_columns)
@@ -132,8 +132,8 @@ class KinematicState:
 
         ``mode`` is the grad mode, or ``"inference"`` under ``torch.inference_mode``, as in `Model._value`: an
         inference tensor is served only under inference mode, where autograd records nothing even inside
-        ``enable_grad``, never to a later autograd call of the same state (record 0052). Under ``torch.compile`` the
-        derivation is traced into the graph instead (Dynamo cannot trace the inference-mode check) (record 0040).
+        ``enable_grad``, never to a later autograd call of the same state. Under ``torch.compile`` the
+        derivation is traced into the graph instead (Dynamo cannot trace the inference-mode check).
         """
         if torch.compiler.is_compiling():
             return derive()

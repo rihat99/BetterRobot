@@ -1,6 +1,6 @@
-"""C-EXT (record 0025): every extension point is a base class or a plain function, so ``src/better_robot`` defines
+"""C-EXT: every extension point is a base class or a plain function, so ``src/better_robot`` defines
 no ``register_*`` function and no module-level mutable registry, a module-level dict, list or set that a function
-of the module writes into (record 0038 removed the last one, ``io.register_parser``). C-EXT-7: the normal equations
+of the module writes into. C-EXT-7: the normal equations
 come from a sink, whose ``add``/``finish`` seam every sink shares."""
 
 from __future__ import annotations

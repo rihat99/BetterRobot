@@ -2,7 +2,7 @@
 
 ``parse(path)`` reads a URDF or MJCF file into the editable ``IRModel``; ``build_model(ir)`` turns an IR (parsed or
 written with ``ModelBuilder``) into the frozen ``Model``; ``load(path)`` is both. ``load_geometry(path, model)``
-reads the shapes of the same description. See ``docs/concepts/io.md``.
+reads the shapes of the same description.
 """
 
 from __future__ import annotations
@@ -65,14 +65,14 @@ def load(
 
     An MJCF file loads as its passive rigid tree (bodies, joints, inertias, limits, damping, armature, geoms, sites,
     gravity). Actuators, tendons, sensors, contact settings, joint springs and ``frictionloss``, keyframes, cameras,
-    lights and materials are ignored by rule (``docs/concepts/io.md`` lists them); a feature of the tree that the
+    lights and materials are ignored by rule; a feature of the tree that the
     model cannot express (a cone limit, a non-linear or non-joint ``<equality>``) raises ``ModelError``.
     """
     return build_model(parse(path, format=format), root_joint=root_joint, device=device, dtype=dtype)
 
 
 def load_geometry(path: str | Path, model: Model) -> Geometry:
-    """The ``Geometry`` of the description at ``path`` for ``model``, which ``load(path)`` built (record 0016)."""
+    """The ``Geometry`` of the description at ``path`` for ``model``, which ``load(path)`` built."""
     return build_geometry(parse(path), model)
 
 

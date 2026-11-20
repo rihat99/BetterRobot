@@ -1,13 +1,15 @@
 ---
 name: add-joint-kind
-description: Add a built-in joint kind to BetterRobot, a JointModel subclass under src/better_robot/model/joints/. Use when a task adds a joint type to the library itself; a kind that lives in user code needs only docs/guides/extend.md.
+description: Add a built-in joint kind to BetterRobot, a JointModel subclass under src/better_robot/model/joints/. Use when a task adds a joint type to the library itself; a kind that lives in user code needs only its subclass and better_robot.testing.check_joint_model.
 ---
 
 # Add a built-in joint kind
 
-A joint kind is a final frozen dataclass under the abstract `JointModel` (record 0013, rule C-EXT-2 in
-`docs/contracts/08-extension-points.md`). Its members and the `check_joint_model` contract are in
-`docs/guides/extend.md`, section "A joint kind"; `src/better_robot/model/joints/helical.py` is a complete example.
+A joint kind is a final frozen dataclass under the abstract `JointModel` (rule C-EXT-2 in
+`docs/contracts/08-extension-points.md`). Its members are in the docstring of
+`src/better_robot/model/joints/base.py::JointModel`, its contract in that of
+`src/better_robot/testing/joints.py::check_joint_model`; `src/better_robot/model/joints/helical.py` is a complete
+example.
 
 1. Write `src/better_robot/model/joints/<kind>.py`: `@final @dataclass(frozen=True) class Joint<Kind>(JointModel)`
    with `nq`, `nv`, `manifold` (one of `src/better_robot/model/manifolds.py`, or a new one there) and `axis`, and
@@ -29,7 +31,6 @@ A joint kind is a final frozen dataclass under the abstract `JointModel` (record
    when Pinocchio has the joint.
 6. Public surface, in the same change: a builder in `tests/contract/test_repr.py`, every new word in
    `docs/reference/glossary.md`, the `q` layout line appended to `docs/contracts/coupling-standard.md` and
-   `tests/contract/coupling_standard_lines.txt`, its row in `docs/concepts/joints-bodies-frames.md`, an `Added`
-   entry in `docs/reference/changelog.md`, then `uv run python tools/api_snapshot.py --write`.
+   `tests/contract/coupling_standard_lines.txt`, an `Added` entry in `docs/reference/changelog.md`, then `uv run python tools/api_snapshot.py --write`.
 7. Check: the fast tier, then
    `uv run pytest tests/model tests/io tests/kinematics tests/dynamics tests/viewer tests/parity -q`.

@@ -1,4 +1,4 @@
-"""Tests for ``build_model``: an IR becomes a frozen ``Model`` (``docs/concepts/io.md``)."""
+"""Tests for ``build_model``: an IR becomes a frozen ``Model``."""
 
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ def test_a_root_joint_that_replaces_the_world_joint_keeps_only_its_placement():
 @final
 @dataclass(frozen=True)
 class _Ball(JointModel):
-    """An out-of-tree ball joint: a kind on the ROTATION manifold that ``io`` does not know (record 0025)."""
+    """An out-of-tree ball joint: a kind on the ROTATION manifold that ``io`` does not know."""
 
     nq: ClassVar[int] = 4
     nv: ClassVar[int] = 3
@@ -509,7 +509,7 @@ def test_a_pose_off_unit_norm_is_the_callers_error(monkeypatch, enabled, where, 
     """A joint ``origin`` or frame ``placement`` that is not a ``(7,)`` pose with a unit quaternion raises
     ``ModelError`` naming it, whatever the internal-checks switch says (it once raised a "library bug" with the
     switch on and built a non-unit placement with it off)."""
-    # Private on purpose: record 0021's switch has no public name, and this error must not depend on it.
+    # Private on purpose: the internal-checks switch has no public name, and this error must not depend on it.
     monkeypatch.setattr("better_robot._internal_checks.ENABLED", enabled)
     given = torch.tensor(pose, dtype=torch.float32)
     builder = ModelBuilder("arm")

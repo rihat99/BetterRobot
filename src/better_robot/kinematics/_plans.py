@@ -1,4 +1,4 @@
-"""Static schedules of the kinematics kernels, pure functions of a model's static fields (record 0011).
+"""Static schedules of the kinematics kernels, pure functions of a model's static fields.
 
 A plan fixes the structure of a computation so that only tensor values vary (principle 5.5): the FK plan holds
 the per-joint feature map and the tree levels, the Jacobian plan the column owners, subspace columns and support

@@ -1,4 +1,4 @@
-"""Public passes validate each tensor input once, at their boundary, and trust the attached model (record 0021).
+"""Public passes validate each tensor input once, at their boundary, and trust the attached model.
 
 Every entry point of ``_public_ops`` passes each floating tensor argument to ``check_tensor`` (alone or through
 ``check_tensors``) exactly once, under its parameter name, and nothing else: a Jacobian or dynamics call reads its

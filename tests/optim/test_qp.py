@@ -190,13 +190,13 @@ def test_a_long_stretch_of_rows_in_conflict_stays_bounded_and_lets_go(kind: str,
     """Warm calls through rows in conflict keep a bounded step; ten calls after the rows can hold, every step is right.
 
     No step wrong by more than 1e-3 is flagged exact on the way. With hard rows the multipliers and the carried penalty grew through the stretch: steps of 47 against a box of
-    0.3, and afterwards wrong steps that reported both residuals under 1e-4 (review of record 0054).
+    0.3, and afterwards wrong steps that reported both residuals under 1e-4 (found in review).
     """
     solution = None
     for call in range(stretch):
         H, g, rows, lower, upper = _conflict(kind, call, conflict=True)
         solution = solve_qp(H, g, rows=rows, lower=lower, upper=upper, warm=solution)
-        # An elastic minimiser may leave the box (by up to 1.76 in the second review of record 0054): one box row
+        # An elastic minimiser may leave the box (by up to 1.76 in review): one box row
         # gives way where both rows can then hold.
         assert solution.x.abs().max().item() < 2.0
         assert (solution.dual.abs() <= _cap(H, g) * (1 + 1e-12)).all()
@@ -215,8 +215,8 @@ def test_a_long_stretch_of_rows_in_conflict_stays_bounded_and_lets_go(kind: str,
 def test_a_warm_call_at_the_elastic_minimiser_of_rows_in_conflict_stays_there() -> None:
     """Twenty warm calls put every element on its elastic minimiser, certified here; one more call leaves it there.
 
-    A warm start that pulled the rows inside their bounds moved 78 of 512 such minimisers by up to 0.27 (second
-    review of record 0054), so some elements never settled.
+    A warm start that pulled the rows inside their bounds moved 78 of 512 such minimisers by up to 0.27 (found in
+    review), so some elements never settled.
     """
     problem = _conflict("fixed", 0, conflict=True)
     H, g, rows, lower, upper = problem
@@ -237,7 +237,7 @@ def test_an_exact_element_is_a_minimiser_where_the_curvature_is_weak() -> None:
 
     The active-set step used to cut a multiplier of the wrong sign to zero and keep its point where the gradient
     left was under 1e-6 of its largest term. In these 52 calls, 8 kept points had a gradient up to 2.6e-6 and sat
-    3.7e-3 to 5.8e-2 from the minimiser, along a curvature of 5e-6 (second review of record 0054). Such a point is
+    3.7e-3 to 5.8e-2 from the minimiser, along a curvature of 5e-6 (found in review). Such a point is
     now refused; the gradient of a kept one is the floor of the solve, 1e-9 of the step.
     """
     generator = torch.Generator().manual_seed(3)
@@ -275,7 +275,7 @@ def test_the_weight_follows_the_scale_of_the_objective(factor: float) -> None:
     """Scaling ``H`` and ``g`` scales the multipliers and leaves ``x``, where rows give way and where they hold.
 
     Under one fixed cap of 1e3, rows in conflict let go slowly at a hundredth of the objective (498 of 512
-    problems wrong ten calls later) and feasible rows gave way at a thousand times it (second review of record 0054).
+    problems wrong ten calls later) and feasible rows gave way at a thousand times it (found in review).
     """
     H, g, rows, lower, upper = problem = _conflict("fixed", 0, conflict=True, batch=16)
     base, scaled = _repeat(problem, 20), _repeat((H * factor, g * factor, rows, lower, upper), 20)

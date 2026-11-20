@@ -92,7 +92,7 @@ The `q` and `v` layout of each kind is in the [coupling standard](../contracts/c
 | **placement** | A pose expressed in the parent frame, as a 7-vector: the model constants `joint_placements` and `frame_placements`, and a joint kind's q-dependent `JointModel.placement(q)`. |
 | **transform** | A world pose written as a rigid `(..., 3, 4)` matrix `[R | p]` (`frame_transforms`). As a verb, re-expressing a quantity in another frame (`spatial.transform_force`, `transform_motion`, `transform_inertia`). |
 | **affine** | A `(..., 3, 4)` matrix that may scale or shear as well as rotate and translate. BetterRobot has none; BetterHuman's skinning uses them. |
-| **world** | The fixed frame that every pose is expressed in (`world_geometry`, `world_points`). |
+| **world** | The fixed frame that every pose is expressed in (`world_geometry`). |
 | **rotation** | A 3D rotation: a unit quaternion `(..., 4)` in poses and `lie.so3`, a matrix `R (..., 3, 3)` in `frame_rotations` and `box_rotation`. |
 | **quaternion, rotation quaternion** | Four numbers `[qx, qy, qz, qw]`, scalar last, of unit norm: a 3D rotation without the singularities of three angles. |
 | **quaternion double cover** | A quaternion and its negation represent the same rotation. |
@@ -120,7 +120,7 @@ The `q` and `v` layout of each kind is in the [coupling standard](../contracts/c
 | **Euclidean** | A flat space, where a step is an addition (`optim.Euclidean`; `kinematics.euclidean_columns`, the coordinates of joints that integrate by addition). |
 | **closed manifold** | A triangle mesh without boundary: every edge is shared by exactly two faces (`spatial.validate_closed_manifold`). |
 
-For a visual and mathematical introduction, see [Poses and twists](../concepts/lie-and-spatial.md).
+For a visual and mathematical introduction, see [Poses and twists](../lie-and-spatial.md).
 
 ## Kinematics and derivatives
 
@@ -141,7 +141,7 @@ For a visual and mathematical introduction, see [Poses and twists](../concepts/l
 | **LOCAL_WORLD_ALIGNED, LWA** | A twist measured at the frame origin but expressed in world axes. BetterRobot's default frame-Jacobian convention. |
 | **manipulability, threshold** | Yoshikawa's measure `sqrt(det(J Jᵀ))` of a frame's position Jacobian `J`: zero at a singular configuration, where the frame cannot move in some direction. `terms.manipulability(frame=, threshold=)` pushes only while it is below `threshold`. |
 
-See [Kinematics and Jacobians](../concepts/kinematics-and-jacobians.md) for when BetterRobot uses each
+See [Kinematics and Jacobians](../kinematics.md) for when BetterRobot uses each
 derivative method.
 
 ## Dynamics
@@ -205,7 +205,7 @@ derivative method.
 | **temporal structure** | A trajectory problem in which each residual touches only nearby time steps. |
 | **block-banded matrix** | Storage for a temporal linear system whose nonzero blocks stay near the diagonal. |
 
-See [Optimisation](../concepts/optimization.md) for the complete problem and solver model.
+See [Optimisation](../optim-and-terms.md) for the complete problem and solver model.
 
 ## Batching and tensors
 
@@ -220,7 +220,7 @@ See [Optimisation](../concepts/optimization.md) for the complete problem and sol
 | **device** | Where a tensor lives, such as the CPU or one CUDA GPU. |
 | **dtype** | The tensor's numeric type, such as `torch.float32` or `torch.float64`. |
 | **compute pass** | One complete operation over the robot, such as FK or RNEA. |
-| **compiled** | A call turned by `torch.compile` into one graph of fused kernels, made on request by `kinematics.compiled` (record [0053](../contracts/decisions/0053-compiled-entry-point.md)); eager, the default, runs each torch operator as it comes. |
+| **compiled** | A call turned by `torch.compile` into one graph of fused kernels, made on request by `kinematics.compiled`; eager, the default, runs each torch operator as it comes. |
 
 ## Geometry and collision
 

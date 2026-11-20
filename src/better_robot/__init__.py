@@ -1,6 +1,6 @@
 """``better_robot``: batched robot kinematics, dynamics and nonlinear least squares in PyTorch.
 
-The root lists its twelve subpackages and the fourteen names a first script needs (decision record 0019); every
+The root lists its twelve subpackages and the fourteen names a first script needs; every
 other public name is reached as ``better_robot.<package>.<name>``. Importing the root imports no optional package:
 ``Viewer`` loads viser when it starts a server. ``__version__`` is the installed distribution's version.
 """

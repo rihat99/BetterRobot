@@ -21,8 +21,7 @@ from ._ratchet_sites import REPO, compare, site
 
 CODES = "N,D1,ANN001,SLF001"
 RATCHET = Path(__file__).parent / "ratchets" / "ruff.json"
-#: Record 0041 took the state's world geometry off this side door; the model memo keeps it by design (records 0011,
-#: 0040, 0042): a plan or value is derived by the package that uses it, which ``model`` may not import (edge table),
+#: The state's world geometry does not use this side door; the model memo keeps it by design: a plan or value is derived by the package that uses it, which ``model`` may not import (edge table),
 #: and stored through the memo's one writer.
 MODEL_MEMO = "kinematics and dynamics fill the model's memo through its one writer, Model._plan / Model._value"
 #: Private names shared inside one module or one class: optim's rule is that a private name is used only by the module

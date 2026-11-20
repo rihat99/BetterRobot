@@ -1,4 +1,4 @@
-"""Every tracked test robot ships its licence and its provenance (decision record 0039)."""
+"""Every tracked test robot ships its licence and its provenance."""
 
 from __future__ import annotations
 

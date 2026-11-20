@@ -2,6 +2,15 @@ site_name: BetterRobot
 site_description: PyTorch-native, batched, differentiable kinematics, dynamics, optimisation and visualisation.
 docs_dir: docs
 strict: true
+# Pages kept for the tests and the agents (the rule chapters, the codemap, the glossary, the effects table, the
+# roadmap and the migration page) build but stay out of the navigation.
+not_in_nav: |
+  /contracts/
+  /concepts/architecture.md
+  /reference/effects.md
+  /reference/glossary.md
+  /reference/migration-0.3.0.md
+  /reference/roadmap.md
 validation:
   anchors: warn  # with strict, a link to a missing heading fails the build
 
@@ -95,129 +104,14 @@ plugins:
 
 nav:
   - Home: index.md
-  - Getting started:
-      - getting-started/installation.md
-      - getting-started/first-model.md
-      - getting-started/forward-kinematics.md
-      - getting-started/inverse-kinematics.md
-      - getting-started/floating-base.md
-      - getting-started/trajectories.md
-      - getting-started/gpu-and-batching.md
-      - getting-started/visualize.md
-  - Concepts:
-      - concepts/architecture.md
-      - concepts/model-and-state.md
-      - concepts/joints-bodies-frames.md
-      - concepts/lie-and-spatial.md
-      - concepts/kinematics-and-jacobians.md
-      - concepts/dynamics.md
-      - concepts/optimization.md
-      - concepts/time-and-structure.md
-      - concepts/collision.md
-      - concepts/viewer.md
-      - concepts/io.md
-  - Guides:
-      - guides/load-a-robot.md
-      - guides/avoid-collisions.md
-      - guides/record-a-video.md
-      - guides/write-a-term.md
-      - guides/own-the-loop.md
-      - guides/hard-constraints.md
-      - guides/constrained-ik.md
-      - guides/track-targets.md
-      - guides/avoidance-demos.md
-      - guides/fit-a-clip.md
-      - guides/differentiate.md
-      - guides/benchmark-and-profile.md
-      - guides/use-with-betterhuman.md
-      - guides/extend.md
-      - guides/run-the-tests.md
-      - guides/release.md
-  - Reference:
-      - API:
-          - better_robot: reference/api/better_robot.md
-          - model: reference/api/model.md
-          - io: reference/api/io.md
-          - lie: reference/api/lie.md
-          - spatial: reference/api/spatial.md
-          - kinematics: reference/api/kinematics.md
-          - dynamics: reference/api/dynamics.md
-          - collision: reference/api/collision.md
-          - optim: reference/api/optim.md
-          - terms: reference/api/terms.md
-          - viewer: reference/api/viewer.md
-          - testing: reference/api/testing.md
-          - exceptions: reference/api/exceptions.md
-      - reference/effects.md
-      - reference/tests.md
-      - reference/glossary.md
-      - reference/changelog.md
-      - reference/migration-0.3.0.md
-      - reference/roadmap.md
-  - Contracts:
-      - Index: contracts/00-index.md
-      - Scope: contracts/scope.md
-      - Public surface: contracts/public-surface.md
-      - Coupling standard: contracts/coupling-standard.md
-      - Naming: contracts/01-naming.md
-      - Tensors: contracts/02-tensors.md
-      - State and mutability: contracts/03-state-mutability.md
-      - Differentiability: contracts/04-differentiability.md
-      - API shape: contracts/05-api-shape.md
-      - Validation and errors: contracts/06-validation-errors.md
-      - Dependencies and layering: contracts/07-dependencies-layering.md
-      - Extension points: contracts/08-extension-points.md
-      - Performance: contracts/09-performance.md
-      - Docs and tests: contracts/10-docs-tests.md
-      - Decisions:
-          - Index: contracts/decisions/index.md
-          - 0001 Torch only: contracts/decisions/0001-torch-only.md
-          - 0002 Immutable FK state: contracts/decisions/0002-immutable-fk-state.md
-          - 0003 Terms as functions: contracts/decisions/0003-terms-plain-functions.md
-          - 0004 viser viewer: contracts/decisions/0004-viser-viewer.md
-          - 0005 nq and nv: contracts/decisions/0005-nq-nv.md
-          - 0006 Serialization: contracts/decisions/0006-serialization.md
-          - 0007 Derivatives contract: contracts/decisions/0007-derivatives-contract.md
-          - 0008 Geometry brick: contracts/decisions/0008-geometry-brick.md
-          - 0009 Model flat frozen record: contracts/decisions/0009-model-flat-frozen-record.md
-          - 0010 Equality and hashing: contracts/decisions/0010-equality-and-hashing.md
-          - 0011 Caches and plans: contracts/decisions/0011-caches-and-plans.md
-          - 0012 One joint order: contracts/decisions/0012-one-joint-order.md
-          - 0013 Joint kinds: contracts/decisions/0013-joint-kinds.md
-          - 0014 Tensor functions for lie and spatial: contracts/decisions/0014-tensor-functions-for-lie-and-spatial.md
-          - 0015 io entry points: contracts/decisions/0015-io-entry-points.md
-          - 0016 Geometry out of model: contracts/decisions/0016-geometry-out-of-model.md
-          - 0017 optim API: contracts/decisions/0017-optim-api.md
-          - 0018 Frame names: contracts/decisions/0018-frame-names.md
-          - 0019 Root namespace: contracts/decisions/0019-root-namespace.md
-          - 0020 Error tree: contracts/decisions/0020-error-tree.md
-          - 0021 Validation ladder: contracts/decisions/0021-validation-ladder.md
-          - 0022 Viewer boundary: contracts/decisions/0022-viewer-boundary.md
-          - 0023 Naming sweep: contracts/decisions/0023-naming-sweep.md
-          - 0024 Surface trim: contracts/decisions/0024-surface-trim.md
-          - 0025 Extension model: contracts/decisions/0025-extension-model.md
-          - 0026 Coupling standard page: contracts/decisions/0026-coupling-standard-page.md
-          - 0027 Shared vocabulary: contracts/decisions/0027-shared-vocabulary.md
-          - 0028 Batch axes: contracts/decisions/0028-batch-axes.md
-          - 0029 Frames and identifiers: contracts/decisions/0029-frames-and-identifiers.md
-          - 0030 Formats in the standard: contracts/decisions/0030-formats-in-the-standard.md
-          - 0031 Error vocabulary across the stack: contracts/decisions/0031-error-vocabulary-across-the-stack.md
-          - 0032 BR serialization non-goal: contracts/decisions/0032-br-serialization-non-goal.md
-          - 0033 Test tiers: contracts/decisions/0033-test-tiers.md
-          - 0034 Python 3.12: contracts/decisions/0034-python-312.md
-          - 0035 Shared testing module: contracts/decisions/0035-shared-testing-module.md
-          - 0036 MJCF compile through MuJoCo: contracts/decisions/0036-mjcf-compile-through-mujoco.md
-          - 0037 URDF typed adapter: contracts/decisions/0037-urdf-typed-adapter.md
-          - 0038 Remove downloader and registry: contracts/decisions/0038-remove-downloader-and-registry.md
-          - 0039 Test robot fixtures: contracts/decisions/0039-test-robot-fixtures.md
-          - 0040 Model value memo: contracts/decisions/0040-model-value-memo.md
-          - 0041 World geometry on the state: contracts/decisions/0041-world-geometry-on-the-state.md
-          - 0042 Memo keys and shared plans: contracts/decisions/0042-memo-keys-and-shared-plans.md
-          - 0043 Constant motion subspace: contracts/decisions/0043-constant-motion-subspace.md
-          - 0044 Inertia layout: contracts/decisions/0044-inertia-layout-and-rotational-inertia.md
-          - 0045 Attached shapes: contracts/decisions/0045-attached-shapes.md
-          - 0046 Test tier selection: contracts/decisions/0046-test-tier-selection.md
-          - 0047 Problem registration: contracts/decisions/0047-problem-registration-and-sealed-views.md
-          - 0048 Viewer pointer and layers: contracts/decisions/0048-viewer-pointer-and-layer-ownership.md
-          - 0049 Collision imports lie: contracts/decisions/0049-collision-imports-lie.md
-          - 0050 Testing imports optim: contracts/decisions/0050-testing-imports-optim.md
+  - Install and quickstart: install.md
+  - Modules:
+      - Model and io: model-and-io.md
+      - Lie and spatial: lie-and-spatial.md
+      - Kinematics: kinematics.md
+      - Dynamics: dynamics.md
+      - Optimization and terms: optim-and-terms.md
+      - Collision: collision.md
+      - Viewer: viewer.md
+      - Errors and testing: errors-and-testing.md
+  - Changelog: reference/changelog.md

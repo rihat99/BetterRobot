@@ -1,4 +1,4 @@
-"""C-EXT-2 (record 0013): every class in ``src`` is abstract or ``@final``, except the entries of the ratchet
+"""C-EXT-2: every class in ``src`` is abstract or ``@final``, except the entries of the ratchet
 ``tests/contract/ratchets/abstract_or_final.json`` (classes whose design is still open; it only shrinks),
 and every exported joint kind is a frozen dataclass under ``JointModel``."""
 

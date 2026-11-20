@@ -1,4 +1,4 @@
-"""A URDF with every shape kind round-trips into ``Geometry`` (record 0016); the builder attaches the capsule."""
+"""A URDF with every shape kind round-trips into ``Geometry``; the builder attaches the capsule."""
 
 from __future__ import annotations
 
