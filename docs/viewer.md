@@ -19,7 +19,7 @@ The names you will use:
 A robot draws in one of three styles: `"meshes"` (the robot's own mesh files), `"medium"` (a skeleton with one
 glyph per joint on thin rods) and `"minimal"` (a stick figure). The skeleton styles need only the model.
 
-![One G1 in the three styles, left to right: meshes, the minimal skeleton and the medium skeleton.](images/robot_styles.png){ width="960" }
+![One G1 in the three styles, left to right: meshes, the minimal skeleton and the medium skeleton.](images/robot_styles.png){ width="650" }
 
 ## Show a robot
 
