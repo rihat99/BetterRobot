@@ -25,7 +25,7 @@ that 0.3.0 renames or removes, one table row each.
   (over at most 32 sampled steps, by default 32 samples of each layer's clip; `Viewer.aim(fov=)`). Until `aim` is
   called, the viewer aims the camera after each `add`; it keeps each sample's boxes until `redraw`, `show()` or
   `set_visible` (a step change, playback and a longer timeline keep them) and fits the boxes without listing their
-  corners, so the sixteenth G1 added takes about what the first does (80 and 59 ms, maximal style, 300 steps, also
+  corners, so the sixteenth G1 added takes about what the first does (78 and 57 ms, medium style, 300 steps, also
   with a step shown between adds or while playing; the sixteenth took 1.7 to 2.5 s).
 - `Layer.redraw()` and `Viewer.redraw(target)` push the current step again after a layer's arrays changed in place;
   `Layer.viewer` is the viewer the layer was added to.
@@ -44,10 +44,9 @@ that 0.3.0 renames or removes, one table row each.
   and its clients have a camera and notifications; its plain and skinned meshes take `cast_shadow` and
   `receive_shadow`. It keeps a copy of each array it is sent, as viser serialises one, so a test sees an edit in
   place only after the push that sends it.
-- `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, medium, maximal, hue,
-  opacity, joint_values, value_range, collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
-  the style `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"`, `"medium"` or `"maximal"`
-  (skeletons), with a collision overlay (the sphere set, else the collision shapes, a pale see-through shell over any
+- `viewer.RobotVisual(model, q, *, name, geometry, root, spheres, skin, style, minimal, medium, hue, opacity,
+  joint_values, value_range, collision, frames, tags)`: a robot as one layer. It runs forward kinematics over `q (nq,)` or `(T, nq)` and draws
+  the style `"meshes"` (the display shapes of a `Geometry`, or a `Skin`), `"minimal"` or `"medium"` (skeletons), with a collision overlay (the sphere set, else the collision shapes, a pale see-through shell over any
   style, 0.2 % of the robot's size off the shapes so that it shows no stripes where it meets the meshes) and frame
   triads. Each part is built the first time
   it is shown, not while its robot is hidden, and `robot.set_visible(True)` shows the viewer's step, as
@@ -68,37 +67,28 @@ that 0.3.0 renames or removes, one table row each.
   `Theme.ramp` over the range, clamped (a minimal ball takes the value of the largest magnitude among its joints; a
   NaN, the universe, a free base and the `"meshes"` style show none). A step writes one more array to each node that
   holds a glyph: on the G1 one more message, 0.2 to 0.4 kB and 0.12 to 0.15 ms per step, and no node.
-- `viewer.SkeletonRecipe` with the presets `viewer.MAXIMAL` (a glyph per joint kind, slim tapered limbs as wide as
-  their link up to the size its mass gives, trunks for the bodies that branch, a fixed base that carries one joint
-  at most 4 of that joint's glyph radii from its centre (a Shadow hand's forearm no larger than the hand) and short
-  of the collars that stand on it (an iiwa's base joint), and
-  where a chain ends a sole, a
-  finger block or a limb that tapers to the end of its body, with no ball at its tip, in two tones; no ball but a
-  spherical joint's among the drums (a planar joint is a thin plate in its plane, a translation joint a block), and a
-  head only above a trunk; a drum never thinner than a limb it joins, both its faces standing out of it (a Go2's
-  knee, a UR5e's joints, a Panda's base collar); no joint glyph goes inside another: one that would touch a glyph
-  nearer the root slides along its own axis until it clears, at most 1.75 of its radii, else it shrinks down to 0.7
-  and slides less, else it slides farther at 0.7, so the joints of a hip stand as a short staggered stack of drums;
-  one that clears at no size down to a tenth of its own is not drawn), `viewer.MEDIUM` (the same glyphs, laid out
-  by the same rules, on
-  thin pale rods instead of bodies, a rod on to the end of each chain closed by a round cap of its width, and a drum
-  at most 0.35 of its shortest rod and at least 2.5 rod radii, a rod no thicker than 1 / 2.5 of its drums:
-  `hulls="none"` with `glyphs="kind"`, `bones=0.35`, `size=0.7`) and
-  `viewer.MINIMAL` (one
+- `viewer.SkeletonRecipe` with the presets `viewer.MEDIUM` (the defaults: a glyph per joint kind on thin pale rods,
+  a rod on to the end of each chain closed by a round cap of its width, in two tones; no ball but a spherical
+  joint's among the drums (a planar joint is a thin plate in its plane, a translation joint a block), and a head
+  only above a trunk; no joint glyph goes inside another: one that would touch a glyph nearer the root slides along
+  its own axis until it clears, at most 1.75 of its radii, else it shrinks down to 0.7 and slides less, else it
+  slides farther at 0.7, so the joints of a hip stand as a short staggered stack of drums; one that clears at no
+  size down to a tenth of its own is not drawn; a drum at most 0.35 of its shortest rod and at least 2.5 rod radii,
+  a rod no thicker than 1 / 2.5 of its drums: `glyphs="kind"`, `bones=0.35`, `size=0.7`) and `viewer.MINIMAL` (one
   ball per cluster of close joints, sticks between, a trunk's head as a small ball on a stick, and from each leaf
   joint a stick on to the far end of its body with a small ball, so a quadruped stands on its feet and a humanoid
   has feet and hands; the styles share one size rule, a glyph as large as the mass it carries, 26 mm times the
   cube root of its subtree's mass in kg, kept under 1.2 of a reference radius between 2 % and 3 % of the robot's
-  size and over 0.65 of it for a joint glyph (0.5 for a ball of `MINIMAL`; a finger on an arm at most twice its mass
-  size), so a chain narrows towards its tip and a wrist, an ankle or a knee still reads as a motor, and size bodies
-  from the collision shapes before a sphere set,
-  leaving out with a warning a collision mesh file that cannot be read): `glyphs` (`"kind"` or `"ball"`), `bones`
-  (0.6 of the glyph radius by default), `hulls`, `limits`, `cluster`, `twists`, `sides`, `size`, `joint_size`,
-  `body_hull` and `color`; a `bones`, `cluster` or `joint_size` below 0, a `size` not above 0, or any of them not
-  finite raises `ArgumentError`. A skeleton is three batched nodes. `Theme.shade` takes the role `bone` for
-  the maximal skeleton's pale bodies and the medium one's rods.
+  size and over 0.875 of it for a joint glyph (0.5 for a ball of `MINIMAL`; a finger on an arm at most twice its
+  mass size), so a chain narrows towards its tip and a wrist, an ankle or a knee still reads as a motor, and size
+  leaf glyphs, heads and chain ends from the collision shapes before a sphere set, leaving out with a warning a
+  collision mesh file that cannot be read): `glyphs` (`"kind"` or `"ball"`), `bones`, `limits`, `cluster`,
+  `twists`, `sides`, `size`, `joint_size` and `color` (by joint name; a name the model's joints lack raises
+  `UnknownNameError`); a `bones`, `cluster` or `joint_size` below 0, a `size` not above 0, or any of them not
+  finite raises `ArgumentError`. A skeleton is three batched nodes. `Theme.shade` takes the role `bone` for the
+  medium skeleton's rods.
 - `FramesLayer(scales=)`: one factor per frame `(F,)` on the length and thickness of its axes, an array that follows
-  the array rule; `RobotVisual`'s triads take the glyph radius of their joint in the maximal skeleton, so a finger's triad
+  the array rule; `RobotVisual`'s triads take the glyph radius of their joint in the medium skeleton, so a finger's triad
   is a finger's size, where one length for all drew a hand's fingers as a bed of spikes. A scale that is not a
   positive, finite number raises `ArgumentError`.
 - `viewer.Skin(vertices, faces, *, weights, bind=None)`: a skinned surface a `RobotVisual` shows as its meshes.
@@ -114,7 +104,7 @@ that 0.3.0 renames or removes, one table row each.
   one colour or a list of `(N_t, 3)` colours; a step without points hides the cloud.
 - `testing.FakeServer.scene.add_glb`, and `testing.FakeServer.get_host()` (loopback), as viser's server has.
 - `examples/viewer/00_showcase.py`: one page that shows eight robots (G1, H1, Go2, Spot, Panda, UR5e, Shadow hand,
-  Tiago; those in the `robot_descriptions` cache) as meshes or as the minimal, medium or maximal skeleton, with the
+  Tiago; those in the `robot_descriptions` cache) as meshes or as the minimal or medium skeleton, with the
   collision overlay, the frame triads, the light or dark theme and a calm loop that moves every joint within its
   limits; a robot is built the first time it is picked.
 - `better_robot.viewer.tools` is in the public tree (`viewer.__all__`): the API snapshot, the keyword-only and

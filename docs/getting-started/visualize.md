@@ -4,7 +4,7 @@ You open the browser viewer, show the Panda moving along a trajectory, step thro
 video through a headless browser. This page needs the `viewer` and `meshes` extras (see [Install](installation.md)).
 
 <figure markdown="span"><video autoplay loop muted playsinline preload="metadata" poster="../../clips/viewer_layers.png" width="960"><source src="../../clips/viewer_layers.webm" type="video/webm"></video>
-<figcaption>One <code>RobotVisual</code> six ways: meshes, the minimal, medium and maximal skeletons, the maximal one with joint frames, and the medium one under the collision glass, switched with <code>set_style</code>, <code>set_frames</code> and <code>set_collision</code>.</figcaption></figure>
+<figcaption>One <code>RobotVisual</code> four ways: meshes, the minimal and medium skeletons, the medium one with joint frames and under the collision glass, switched with <code>set_style</code>, <code>set_frames</code> and <code>set_collision</code>.</figcaption></figure>
 
 ## Make a clip to show
 
@@ -48,8 +48,8 @@ print(viewer.url, len(viewer.layers), robot.style)
 http://127.0.0.1:8080 2 meshes
 ```
 
-The sidebar's Robot section switches the robot between its meshes and three skeleton styles (`"minimal"`,
-`"medium"`, `"maximal"`) and overlays its collision shapes, and `robot.set_style("medium")` or
+The sidebar's Robot section switches the robot between its meshes and two skeleton styles (`"minimal"`,
+`"medium"`) and overlays its collision shapes, and `robot.set_style("medium")` or
 `robot.set_collision(True)` does the same from code.
 
 ## Step through the timeline
@@ -74,7 +74,7 @@ To show a new clip of the same length, for example after each solver step, call 
 pass, then the robot redraws itself. Here a second robot, drawn as a skeleton, plays the clip backwards:
 
 ```python
-live = viewer.add(RobotVisual(model, clip, name="panda_live", style="maximal"), tags="live")
+live = viewer.add(RobotVisual(model, clip, name="panda_live", style="medium"), tags="live")
 live.update(clip.flip(0))
 ```
 
