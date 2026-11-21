@@ -506,10 +506,16 @@ def test_ground_tilts_to_a_normal_through_an_origin_and_fills() -> None:
         GroundLayer(normal=(0.0, 0.0, 0.0))
 
 
-def test_serve_stops_playback_when_serving_ends() -> None:
-    """Ctrl-C ends viser's serve; a playback thread left running dies inside torch at exit (SIGABRT)."""
-    viewer = Viewer(server=FakeServer())  # the stand-in's serve returns at once
+def test_serve_returns_on_ctrl_c_and_stops_playback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ctrl-C ends viser's serve, which returns; a playback thread left running dies inside torch at exit (SIGABRT)."""
+    server = FakeServer()
+    viewer = Viewer(server=server)
     viewer.add([_skeleton(10)])
+
+    def ctrl_c() -> None:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(server, "sleep_forever", ctrl_c)
     viewer.serve()
     assert not viewer.timeline.playing
 
