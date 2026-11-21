@@ -690,10 +690,12 @@ class Viewer:
             self._sync_layers_section()
 
     def serve(self) -> None:
-        """Play the timeline (a no-op for a single step) and serve the page until interrupted, then pause."""
+        """Play the timeline (a no-op for a single step) and serve the page until Ctrl-C, then pause and return."""
         self.timeline.play()
         try:
             self.server.sleep_forever()
+        except KeyboardInterrupt:
+            pass  # Ctrl-C is the documented way out, not an error: no traceback, no exit status 130
         finally:
             # A playback thread still running at interpreter exit dies inside torch and aborts the process.
             self.timeline.pause()

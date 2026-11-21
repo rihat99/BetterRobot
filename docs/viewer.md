@@ -44,7 +44,8 @@ print(robot.style, viewer.timeline.nsteps)
 meshes 30
 ```
 
-Open the printed `viewer.url` in a browser to see it. In a script, end with `viewer.serve()` so the page stays up:
+Open the printed `viewer.url` in a browser to see it. In a script, end with `viewer.serve()` so the page stays up;
+Ctrl-C pauses playback and `serve` returns, so the script ends without a traceback:
 
 ```python { .no-run data-reason="blocks until Ctrl-C" }
 viewer.serve()
