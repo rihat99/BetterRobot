@@ -85,16 +85,19 @@ class _Blocks(Layer):
     """The nodes of one skeleton: a batched node per unit mesh in use and a line node for limit arcs.
 
     With ``values`` ``(T, njoints)`` a step also colours the joint glyphs, one write of colours to each node that
-    holds one (``_paint``), or with ``sized`` scales them up to ``growth`` times, one write of scales (``_grown``).
+    holds one (``_paint``), or with ``sized`` scales them from ``low`` to ``high`` times their size, the ends of
+    ``growth`` (a factor ``f`` is ``(1, f)``), one write of scales (``_grown``).
     """
 
     def __init__(
         self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float,
-        values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False, growth: float,
+        values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False,
+        growth: float | tuple[float, float],
     ) -> None:  # fmt: skip
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
-        self.values, self.value_range, self.sized, self.growth = values, value_range, sized, growth
+        self.values, self.value_range, self.sized = values, value_range, sized
+        self.growth = growth if isinstance(growth, tuple) else (1.0, growth)
         self._store_opacity(opacity)
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
@@ -164,13 +167,14 @@ class _Blocks(Layer):
             self._nodes[mesh].batched_colors = linear_uint8(colors)
 
     def _grown(self, mesh: str, scale: np.ndarray, values: np.ndarray | None) -> np.ndarray:
-        """The scales ``(N, 3)`` of ``mesh`` at a step, each glyph grown from its size at the low end of the value
-        range to ``growth`` times it at the high end, by the value ``_paint`` would colour it by."""
+        """The scales ``(N, 3)`` of ``mesh`` at a step, each glyph from ``low`` times its size at the low end of the
+        value range to ``high`` times it at the high end (``growth``), by the value ``_paint`` would colour it by."""
         grown = np.array(np.broadcast_to(scale, (len(getattr(self.skeleton, mesh)), 3)), dtype=np.float32)
         if values is not None:
             rows = self._ends[mesh][0]
             share, valued = self._shares(mesh, values)
-            grown[rows[valued]] *= 1.0 + (self.growth - 1.0) * share[valued]
+            low, high = self.growth
+            grown[rows[valued]] *= low + (high - low) * share[valued]
         return grown
 
     def _shares(self, mesh: str, values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -347,8 +351,8 @@ class RobotVisual(Layer):
         (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
         kept as a read-only ``(T, njoints)`` view of it. ``values_as="size"`` shows the values as the glyphs' size
         instead, each from its own size at ``low`` to the recipe's ``growth`` times it (twice by default) at ``high``,
-        in the robot's colours; ``"color"`` as colours; ``None`` keeps the way in use. A step then costs one write of
-        scales to each node that holds a glyph.
+        or with a pair ``growth`` from its first factor to its second, in the robot's colours; ``"color"`` as colours;
+        ``None`` keeps the way in use. A step then costs one write of scales to each node that holds a glyph.
 
         Values of another shape raise ``ShapeError``, a ``values_as`` other than these ``ArgumentError``, values that are not numbers (strings) and a ``value_range`` that
         is not two finite numbers, low below high, ``ArgumentError``.

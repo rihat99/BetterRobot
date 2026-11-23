@@ -628,7 +628,7 @@
   "better_robot.viewer.Sidebar.section": "function(self, name: 'str') -> 'Any'",
   "better_robot.viewer.Sidebar.set_value": "function(self, section: 'str', label: 'str', *, value: 'Any') -> 'None'",
   "better_robot.viewer.Sidebar.slider": "function(self, section: 'str', label: 'str', *, low: 'float', high: 'float', step: 'float', value: 'float', on_change: 'Callable[[float], None]') -> 'Any'",
-  "better_robot.viewer.SkeletonRecipe": "class(object)(*, glyphs: \"Literal['kind', 'ball']\" = 'kind', bones: 'float' = 0.35, limits: 'bool' = False, cluster: 'float' = 0.0, twists: 'bool' = True, sides: 'bool' = False, size: 'float' = 0.7, joint_size: 'Mapping[str, float]' = <factory>, joint_radius: 'float | Mapping[str, float] | None' = None, bodies: 'bool' = True, color: 'Mapping[str, RGB]' = <factory>, growth: 'float' = 2.0) -> None",
+  "better_robot.viewer.SkeletonRecipe": "class(object)(*, glyphs: \"Literal['kind', 'ball']\" = 'kind', bones: 'float' = 0.35, limits: 'bool' = False, cluster: 'float' = 0.0, twists: 'bool' = True, sides: 'bool' = False, size: 'float' = 0.7, joint_size: 'Mapping[str, float]' = <factory>, joint_radius: 'float | Mapping[str, float] | None' = None, bodies: 'bool' = True, color: 'Mapping[str, RGB]' = <factory>, growth: 'float | tuple[float, float]' = 2.0) -> None",
   "better_robot.viewer.SkeletonRecipe.bodies": "value: bool",
   "better_robot.viewer.SkeletonRecipe.bones": "value: float",
   "better_robot.viewer.SkeletonRecipe.cluster": "value: float",
