@@ -818,6 +818,32 @@ def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_nod
         robot.set_joint_values(values, value_range=(0.0, 1.0, 2.0))  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize("growth", [2.0, 1.4])
+def test_joint_values_as_size_grow_a_glyph_to_the_recipe_growth_at_the_top_of_the_range(growth: float) -> None:
+    """With values shown as size, the knee's glyph keeps its size at the low end of the range and is the recipe's
+    ``growth`` times it at the high end and beyond (clamped); the other glyphs keep theirs. A growth below 1 is
+    refused."""
+    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
+    knee = model.joint_names.index("left_knee_joint")
+    values = np.full((2, model.njoints), np.nan, dtype=np.float32)
+    values[:, knee] = (0.0, 5.0)
+    q = model.q_neutral.repeat(2, 1)
+    options = {"joint_values": values, "value_range": (0.0, 2.0), "values_as": "size"}
+    robot, server, viewer = _g1_visual(q, medium=replace(MEDIUM, growth=growth), **options)
+    node = "/g1_29dof/g1_29dof/medium/cylinders"
+    viewer.show(0)
+    low = np.array(server.scene.nodes[node].batched_scales)
+    viewer.show(1)
+    blocks = robot._skeleton("medium").cylinders
+    knees = [i for i, owner in enumerate(blocks.owner) if owner == knee and blocks.part[i] in ("drum", "face")]
+    assert knees
+    expected = low.copy()
+    expected[knees] *= growth
+    np.testing.assert_allclose(server.scene.nodes[node].batched_scales, expected, rtol=1e-6)
+    with pytest.raises(ArgumentError, match="growth"):
+        replace(MEDIUM, growth=0.5)
+
+
 @pytest.mark.parametrize("style", ["minimal", "medium"])
 def test_robot_visual_stick_figure_writes_lengths_to_the_stick_node_only(style: str) -> None:
     _, server, viewer = _g1_visual(style=style)

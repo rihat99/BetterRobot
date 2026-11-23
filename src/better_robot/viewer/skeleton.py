@@ -139,6 +139,9 @@ class SkeletonRecipe:
         each joint to its parent joint and stops at the last joint of a chain, the plain joint tree.
     color
         Joint name to the colour of its glyph, in place of the robot's hue.
+    growth
+        With joint values shown as size (``RobotVisual(values_as="size")``), a glyph's radius at the top of the value
+        range over its own, which it keeps at the bottom; a finite factor of at least 1.
     """
 
     glyphs: Literal["kind", "ball"] = "kind"
@@ -152,6 +155,7 @@ class SkeletonRecipe:
     joint_radius: float | Mapping[str, float] | None = None
     bodies: bool = True
     color: Mapping[str, RGB] = field(default_factory=dict)
+    growth: float = 2.0
 
     def __post_init__(self) -> None:
         """Raise ``ArgumentError`` for an unknown ``glyphs`` word or a size out of range or not finite."""
@@ -173,6 +177,8 @@ class SkeletonRecipe:
             raise ArgumentError(
                 f"joint_radius must be a finite radius above 0 or a mapping of them, got {self.joint_radius!r}"
             )
+        if not (isinstance(self.growth, Real) and 1.0 <= self.growth < math.inf):
+            raise ArgumentError(f"growth must be a finite factor of at least 1, got {self.growth!r}")
 
 
 MEDIUM = SkeletonRecipe()
