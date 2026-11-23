@@ -25,7 +25,8 @@ class Timeline:
     clock, so slow pushes drop steps instead of slowing playback; ``speed`` and ``loop`` take
     effect while it plays, and a step set meanwhile (the slider) becomes where playback goes on.
     The thread advances under ``lock`` (the viewer passes its own), which it never waits for
-    without looking whether playback stopped, so ``pause`` is safe while holding it.
+    without looking whether playback stopped, so ``pause`` is safe while holding it. With ``play_button`` set before
+    the sidebar is built, Play is a button that reads Play or Pause instead of a checkbox.
     """
 
     def __init__(
@@ -37,6 +38,7 @@ class Timeline:
         self.fps = fps
         self.loop = loop
         self.speed = 1.0
+        self.play_button = False
         self._step = 0
         self._callbacks: list[Callable[[int], None]] = []
         self._playing = threading.Event()
@@ -160,9 +162,15 @@ class Timeline:
     def build_gui(self, sidebar: Sidebar) -> None:
         """Play, Step, Speed and Loop in the sidebar's Timeline section; like every sidebar control they run under the
         viewer's lock, so none of them waits for the playback thread."""
-        self._gui_play = sidebar.checkbox(
-            "Timeline", "Play", value=self.playing, on_change=lambda value: self.play() if value else self._halt()
-        )
+        if self.play_button:
+            self._gui_play = sidebar.button(
+                "Timeline", "Play", on_click=lambda: self._halt() if self.playing else self.play()
+            )
+            self._sync_play_button()
+        else:
+            self._gui_play = sidebar.checkbox(
+                "Timeline", "Play", value=self.playing, on_change=lambda value: self.play() if value else self._halt()
+            )
         self._gui_slider = sidebar.slider(
             "Timeline", "Step", low=0, high=self.nsteps - 1, step=1, value=self._step, on_change=self._on_slider
         )
@@ -181,5 +189,11 @@ class Timeline:
             self.step = int(value)
 
     def _sync_play_button(self) -> None:
-        if self._gui_play is not None and self._gui_play.value != self.playing:
+        if self._gui_play is None:
+            return
+        if self.play_button:
+            label = "Pause" if self.playing else "Play"
+            if self._gui_play.label != label:
+                self._gui_play.label = label
+        elif self._gui_play.value != self.playing:
             self._gui_play.value = self.playing

@@ -70,8 +70,9 @@ print(len(viewer.layers))
 A `SkeletonRecipe` passed as `medium=` or `minimal=` changes a style: `joint_radius` sets the radius of the joint
 glyphs in metres, one for every joint or by joint name, and `bodies=False` draws the plain joint tree, each joint
 joined to its parent and nothing past the last joint of a chain. `joint_values` colours the joints by a value per
-step, or with `values_as="size"` sizes them. `viewer.sidebar.order(names)` puts sections of the sidebar first, and
-`PointsLayer.set_point_size` resizes a cloud while the page is open.
+step, or with `values_as="size"` sizes them. `viewer.sidebar.order(names)` puts sections of the sidebar first,
+`PointsLayer.set_point_size` resizes a cloud while the page is open, and `viewer.timeline.play_button = True`, set
+before the Timeline section appears, makes Play a button that reads Play or Pause instead of a checkbox.
 
 ## Record a video
 
