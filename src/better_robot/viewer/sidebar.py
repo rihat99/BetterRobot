@@ -40,7 +40,7 @@ class Sidebar:
     ``(section, label)``.
 
     A section appears with its first control: Timeline, Robot, Layers, Plots, Images, then the sections an
-    application creates in creation order, Info last. Asking again for a ``(section, label)`` that exists returns the
+    application creates in creation order, Info last; ``order`` puts sections of its choice first. Asking again for a ``(section, label)`` that exists returns the
     same control and adds the callback to it, so one "Style" dropdown drives every robot; a control and its section
     go when the last layer that asked for them is removed. Every callback runs under the viewer's lock. A ``BetterRobotError``
     raised in one becomes a red notification in the browser and the control returns to its previous value; any other
@@ -56,6 +56,7 @@ class Sidebar:
         self._controls: dict[tuple[str, str], _Control] = {}
         self._owner = 0  # who asks for controls: id() of the layer whose build_gui runs, 0 for the application
         self._created = 0  # application sections created so far: the order of the next one
+        self._first: dict[str, float] = {}  # the places ``order`` gave, before every other section
 
     @override
     def __repr__(self) -> str:
@@ -66,13 +67,22 @@ class Sidebar:
         controls added through ``gui``."""
         section = self._sections.get(name)
         if section is None:
-            order = _ORDER.get(name)
+            order = self._first.get(name, _ORDER.get(name))
             if order is None:
                 order = _APPLICATION_ORDER + self._created
                 self._created += 1
             section = self._sections[name] = _Section(self.gui.add_folder(name, order=order))
         section.owners.add(self._owner)
         return section.folder
+
+    def order(self, names: Sequence[str]) -> None:
+        """Put the sections ``names`` first, in this order, now and whenever one of them is made again; the other
+        sections keep their order after them."""
+        with self._lock:
+            self._first = {name: float(place - len(names)) for place, name in enumerate(names)}
+            for name, place in self._first.items():
+                if name in self._sections:
+                    self._sections[name].folder.order = place
 
     def checkbox(self, section: str, label: str, *, value: bool, on_change: Callable[[bool], None]) -> Any:
         """A checkbox; ``on_change(value)`` runs when it is switched."""

@@ -60,6 +60,12 @@ class PointsLayer(Layer):
     def bounds(self, step: int) -> Bounds | None:
         return box(self.points[step] if self.counts is None else self.points[step, : self.counts[step]])
 
+    def set_point_size(self, point_size: float) -> None:
+        """Draw the points at ``point_size``, live and after a rebuild."""
+        self.point_size = point_size
+        if self._cloud is not None:
+            self._cloud.point_size = point_size
+
     @override
     def set_step(self, step: int) -> None:
         self._cloud.points = self.points[step]

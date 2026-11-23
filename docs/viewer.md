@@ -67,6 +67,12 @@ print(len(viewer.layers))
 2
 ```
 
+A `SkeletonRecipe` passed as `medium=` or `minimal=` changes a style: `joint_radius` sets the radius of the joint
+glyphs in metres, one for every joint or by joint name, and `bodies=False` draws the plain joint tree, each joint
+joined to its parent and nothing past the last joint of a chain. `joint_values` colours the joints by a value per
+step, or with `values_as="size"` sizes them. `viewer.sidebar.order(names)` puts sections of the sidebar first, and
+`PointsLayer.set_point_size` resizes a cloud while the page is open.
+
 ## Record a video
 
 ```python { .no-run data-reason="records through a headless Chromium; tests/viewer/test_record.py runs record" }

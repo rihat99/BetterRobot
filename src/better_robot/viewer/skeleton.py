@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from numbers import Real
 from typing import Literal, final
 
 import numpy as np
@@ -128,6 +129,14 @@ class SkeletonRecipe:
         glyph only: 0 hides it and the rods run on through its place, and the glyphs after it keep their size. The
         factor wins over the layout's narrowing towards the tips, so above 1 a glyph may be wider than the one
         before it. A ball of ``glyphs="ball"`` takes the mean factor of the joints it stands for.
+    joint_radius
+        The radius in metres of every joint's glyph, or of the joints named, in place of the layout's size rules; a
+        glyph of its kind keeps it where it meets another. ``joint_size`` still multiplies it; ``None`` keeps the
+        layout's sizes.
+    bodies
+        ``True`` lays the sticks along the robot's bodies: two or more child joints hang from a hub (a left and right
+        pair from a bar), a chain runs on to the end of its last body and a trunk shows its head. ``False`` joins
+        each joint to its parent joint and stops at the last joint of a chain, the plain joint tree.
     color
         Joint name to the colour of its glyph, in place of the robot's hue.
     """
@@ -140,6 +149,8 @@ class SkeletonRecipe:
     sides: bool = False
     size: float = 0.7
     joint_size: Mapping[str, float] = field(default_factory=dict)
+    joint_radius: float | Mapping[str, float] | None = None
+    bodies: bool = True
     color: Mapping[str, RGB] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -156,6 +167,11 @@ class SkeletonRecipe:
             raise ArgumentError(
                 f"bones, cluster and joint_size must be finite and at least 0, size finite and above 0, got bones={self.bones}, "
                 f"cluster={self.cluster}, size={self.size}, joint_size={dict(self.joint_size)}"
+            )
+        radii = self.joint_radius.values() if isinstance(self.joint_radius, Mapping) else (self.joint_radius,)
+        if self.joint_radius is not None and not all(isinstance(r, Real) and 0.0 < r < math.inf for r in radii):
+            raise ArgumentError(
+                f"joint_radius must be a finite radius above 0 or a mapping of them, got {self.joint_radius!r}"
             )
 
 
@@ -298,7 +314,8 @@ def build_skeleton(
     file, or ``None`` to leave it out), the ``spheres`` on its frames, its inertia. A name of ``recipe`` that the
     model does not have raises ``UnknownNameError``.
     """
-    for name in (*recipe.joint_size, *recipe.color):
+    given = recipe.joint_radius
+    for name in (*recipe.joint_size, *recipe.color, *(given if isinstance(given, Mapping) else ())):
         if name not in model.joint_names:
             raise UnknownNameError("joint", name, valid=model.joint_names)
     tree = _tree(model)
@@ -307,6 +324,7 @@ def build_skeleton(
     factor = {j: recipe.joint_size.get(model.joint_names[j], 1.0) for j in tree.glyphs}
     rows = _Rows(tree, recipe)
     if recipe.glyphs == "ball":
+        tree = _given(tree, recipe)
         _stick_figure(tree, recipe, rows, clouds, factor=factor)
         return rows.pack(slides={}, shrinks={}, radii=tree.radius)
     # on rods, a row of close drums (a wrist) keeps rod between them
@@ -315,13 +333,16 @@ def build_skeleton(
     radius = {
         j: r if tree.kind[j] != "revolute" else max(min(r, spaced[j]), min(r, least)) for j, r in tree.radius.items()
     }
-    tree = replace(tree, radius=radius)
+    tree = _given(replace(tree, radius=radius), recipe)
     # joint_size scales a glyph after the size rules, so the glyphs after it keep theirs
     drawn = replace(tree, radius={j: factor[j] * tree.radius[j] for j in tree.glyphs})
     hidden = {j for j in tree.glyphs if _mimic(tree, j) or drawn.radius[j] <= 0.0}
     if not recipe.twists:
         hidden |= {j for j, after in tree.children.items() if j and len(after) == 1 and _twists(tree, j, after)}
     slide, shrink = _solve(drawn, hidden, clouds)
+    if given is not None:  # a given radius is drawn as given, also where glyphs meet
+        named = given if isinstance(given, Mapping) else model.joint_names
+        shrink = {j: 1.0 if model.joint_names[j] in named else k for j, k in shrink.items()}
     reach = {j: 0.0 if j in hidden else shrink[j] * drawn.radius[j] for j in tree.glyphs}
     ends = {j: max(shrink[j], _LEAST) * tree.radius[j] for j in tree.glyphs}  # a chain's end is sized by it: never 0
     _stick_figure(tree, recipe, rows, clouds, factor=factor, glyphs=(slide, reach, ends))
@@ -475,6 +496,15 @@ def _sizes(tree: _Tree, recipe: SkeletonRecipe, clouds: Mapping[int, list[_Cloud
         if kind[j] in ("spherical", "planar", "translation", "other") and tree.bones(j):  # glyphs that cannot slide
             radius[j] = min(radius[j], _FIXED_CAP * min(tree.bones(j)))
     return replace(tree, radius=radius)
+
+
+def _given(tree: _Tree, recipe: SkeletonRecipe) -> _Tree:
+    """``tree`` with the radii of ``recipe.joint_radius`` in place of the layout's."""
+    given, names = recipe.joint_radius, tree.model.joint_names
+    if given is None:
+        return tree
+    sized = given if isinstance(given, Mapping) else dict.fromkeys(names, given)
+    return replace(tree, radius={j: float(sized.get(names[j], r)) for j, r in tree.radius.items()})
 
 
 def _leaf_caps(tree: _Tree, clouds: Mapping[int, list[_Cloud]], *, kind: bool) -> _Tree:
@@ -1051,7 +1081,7 @@ def _stick_figure(
     root body and drawn as a cube. A ball is at most 0.4 of its shortest stick, and a stick never thicker than the
     balls it joins (a rod beside glyphs: than 1 / 2.5 of them). A leaf joint gets a stick on to the end of its body
     (``_knob``) and a small ball there, rigid in its frame: a foot stands on the ground, a hand and a finger have their length. A trunk's
-    head (``_heads``) is a ball as small as a joint's on a stick from the trunk. Then a ball takes the mean
+    head (``_heads``) is a ball as small as a joint's on a stick from the trunk; neither without ``recipe.bodies``. Then a ball takes the mean
     ``factor`` (``joint_size``) of its joints; a ball of factor 0, or of mimic joints only (``_mimic``), is not
     drawn, and its sticks keep their thickness.
 
@@ -1077,9 +1107,9 @@ def _stick_figure(
             rows.anchor({j: 1.0 / len(joints) for j in joints}, where) if rigid is None else rows.point(rigid, where)
         )
     tip = "knob" if glyphs is None else "head"  # beside drums a head is pale: a ball there is no joint
-    heads = _heads(tree, recipe, rows, clouds, part=tip)
-    crowned = _crowns(tree, clouds, heads)
-    sticks = _sticks(tree, rows, heads, members=members, cluster=cluster, anchor=anchor)
+    heads = _heads(tree, recipe, rows, clouds, part=tip) if recipe.bodies else {}
+    crowned = _crowns(tree, clouds, heads) if recipe.bodies else {}
+    sticks = _sticks(tree, rows, heads, members=members, cluster=cluster, anchor=anchor, bodies=recipe.bodies)
     ends: dict[int, list[float]] = {}
     for start, end, _ in sticks if glyphs is None else ():  # a glyph is sized by the slide rule instead
         length = float(np.linalg.norm(rows.where[end] - rows.where[start]))
@@ -1087,7 +1117,7 @@ def _stick_figure(
             ends.setdefault(a, []).append(length)
     drawn = {anchor[c]: min(radius[c], _FIXED_CAP * min(ends.get(anchor[c], [np.inf]))) for c in radius}
     capped: set[int] = set()
-    for j in (j for j in tree.glyphs if not tree.children[j]):
+    for j in (j for j in tree.glyphs if not tree.children[j] and recipe.bodies):
         a = anchor[cluster[j]]
         knob = _knob(tree, recipe, rows, j, clouds.get(j, []), start=a, radius=drawn[a], part=tip, head=j in crowned)
         capped |= {end for _, end, _ in knob} if glyphs is not None and j not in crowned else set()
@@ -1173,7 +1203,7 @@ def _knob(
 
 def _sticks(
     tree: _Tree, rows: _Rows, heads: Mapping[int, _Head], *,
-    members: Mapping[int, list[int]], cluster: Mapping[int, int], anchor: Mapping[int, int],
+    members: Mapping[int, list[int]], cluster: Mapping[int, int], anchor: Mapping[int, int], bodies: bool,
 ) -> list[tuple[int, int, int]]:  # fmt: skip
     """The sticks of the stick figure as ``(anchor, anchor, joint whose side tints it)``.
 
@@ -1181,7 +1211,8 @@ def _sticks(
     joins them through a hub that is rigid in the group, the mean of its child joints; a left and right pair of
     them hangs from a bar whose middle joins the hub, so a quadruped has a spine and two shoulder bars and a pelvis
     a hip bar, not a star of sticks from the hub. A fixed base gets a cube at the root body's origin and a stick up
-    to each first ball; a head hangs from its group's hub, else from its group's ball.
+    to each first ball; a head hangs from its group's hub, else from its group's ball. Without ``bodies`` no group
+    has a hub: its balls hang from its own.
     """
     origin = tree.origin
 
@@ -1207,7 +1238,7 @@ def _sticks(
                 )
             if root != joint:  # else the first joint moves the root body itself: nothing is below it
                 sticks.append((bases[root], anchor[c], joint))
-        if group and len(first) >= 2:
+        if group and len(first) >= 2 and bodies:
             where = np.mean([origin[joint] for joint in first.values()], axis=0)
             hub = hubs[group] = rows.point(group, where)
             sticks.append((anchor[own], hub, group))
