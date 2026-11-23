@@ -61,6 +61,7 @@ _TRIAD_OVER_MESHES = 1.75
 #: 8 cm off the ground, these vertices within a few millimetres of the mesh's lowest point.
 _AROUND = unit_ball(8, 16)[0].astype(np.float64)
 _GLASS = 0.002  # the collision glass stands this share of the robot's size off its shapes: clear of the meshes
+_GROW = 2.0  # with values shown as size, a glyph grows to this many times its size at the top of the value range
 
 
 @final
@@ -85,16 +86,16 @@ class _Blocks(Layer):
     """The nodes of one skeleton: a batched node per unit mesh in use and a line node for limit arcs.
 
     With ``values`` ``(T, njoints)`` a step also colours the joint glyphs, one write of colours to each node that
-    holds one (``_paint``).
+    holds one (``_paint``), or with ``sized`` scales them, one write of scales (``_grown``).
     """
 
     def __init__(
         self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float,
-        values: np.ndarray | None, value_range: tuple[float, float],
+        values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False,
     ) -> None:  # fmt: skip
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
-        self.values, self.value_range = values, value_range
+        self.values, self.value_range, self.sized = values, value_range, sized
         self._store_opacity(opacity)
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
@@ -127,16 +128,19 @@ class _Blocks(Layer):
     @override
     def set_step(self, step: int) -> None:
         self._step = step
+        values = None if self.values is None else self.values[step]
         for mesh, (world, scale) in self.skeleton.place(self.poses[step]).items():
             if mesh in self._nodes:
                 self._nodes[mesh].batched_positions = world[:, :3]
                 self._nodes[mesh].batched_wxyzs = world[:, [6, 3, 4, 5]]
-                if mesh == "cylinders" and (self.skeleton.cylinders.anchors[:, 0] >= 0).any():  # sticks stretch
+                if self.sized and mesh in self._ends:
+                    self._nodes[mesh].batched_scales = self._grown(mesh, scale, values)
+                elif mesh == "cylinders" and (self.skeleton.cylinders.anchors[:, 0] >= 0).any():  # sticks stretch
                     self._nodes[mesh].batched_scales = scale.astype(np.float32)
         if self._lines is not None:
             self._lines.points = self.skeleton.lines(self.poses[step])
-        if self.values is not None:
-            self._paint(self.values[step])
+        if values is not None and not self.sized:
+            self._paint(values)
 
     def _shade(self) -> dict[str, np.ndarray]:
         """The colours ``(N, 3)`` of every block in the shades of the hue, kept with, per unit mesh, its glyphs: their
@@ -154,15 +158,30 @@ class _Blocks(Layer):
     def _paint(self, values: np.ndarray) -> None:
         """Colour each glyph by its joint's value in ``values (njoints,)``, a ball of the minimal skeleton by the value
         of the largest magnitude among its joints; a glyph without a value (NaN) keeps its colour."""
-        low, high = self.value_range
-        for mesh, (rows, joints, ends) in self._ends.items():
-            picked = np.where(joints, values, np.nan)  # (n, njoints)
-            picked = picked[np.arange(len(rows)), np.nan_to_num(np.abs(picked), nan=-1.0).argmax(axis=1)]
-            share = np.clip((picked - low) / (high - low), 0.0, 1.0)[:, None]
-            valued = ~np.isnan(picked)
+        for mesh, (rows, _, ends) in self._ends.items():
+            share, valued = self._shares(mesh, values)
             colors = self._colors[mesh].copy()
             colors[rows[valued]] = ends[valued, 0] + share[valued] * (ends[valued, 1] - ends[valued, 0])
             self._nodes[mesh].batched_colors = linear_uint8(colors)
+
+    def _grown(self, mesh: str, scale: np.ndarray, values: np.ndarray | None) -> np.ndarray:
+        """The scales ``(N, 3)`` of ``mesh`` at a step, each glyph grown from its size at the low end of the value
+        range to ``_GROW`` times it at the high end, by the value ``_paint`` would colour it by."""
+        grown = np.array(np.broadcast_to(scale, (len(getattr(self.skeleton, mesh)), 3)), dtype=np.float32)
+        if values is not None:
+            rows = self._ends[mesh][0]
+            share, valued = self._shares(mesh, values)
+            grown[rows[valued]] *= 1.0 + (_GROW - 1.0) * share[valued]
+        return grown
+
+    def _shares(self, mesh: str, values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Per glyph of ``mesh``, where its value lies in the value range, ``(n, 1)`` in ``[0, 1]``, and whether it has
+        one, ``(n,)``."""
+        low, high = self.value_range
+        rows, joints, _ = self._ends[mesh]
+        picked = np.where(joints, values, np.nan)  # (n, njoints)
+        picked = picked[np.arange(len(rows)), np.nan_to_num(np.abs(picked), nan=-1.0).argmax(axis=1)]
+        return np.clip((picked - low) / (high - low), 0.0, 1.0)[:, None], ~np.isnan(picked)
 
     @override
     def set_opacity(self, opacity: float) -> None:
@@ -176,7 +195,7 @@ class _Blocks(Layer):
             node.batched_colors = linear_uint8(colors[mesh])
         if self._lines is not None:
             self._lines.colors = linear_uint8(theme.shade(hue, "face"))
-        if self.values is not None:
+        if self.values is not None and not self.sized:
             self._paint(self.values[self._step])
 
 
@@ -203,7 +222,7 @@ class RobotVisual(Layer):
     it); below 1 it casts and catches no shadow, a mesh file with its own colours or texture keeps them at that
     opacity, and the overlay and the triads keep their own look. ``joint_values`` colours the joint glyphs of the
     skeleton styles at each step through the theme's ``ramp`` over ``value_range``, such as a joint's load
-    (``set_joint_values``).
+    (``set_joint_values``); with ``values_as="size"`` they size the glyphs instead.
     """
 
     def __init__(
@@ -223,6 +242,7 @@ class RobotVisual(Layer):
         opacity: float = 1.0,
         joint_values: torch.Tensor | np.ndarray | None = None,
         value_range: tuple[float, float] = (0.0, 1.0),
+        values_as: Literal["color", "size"] = "color",
         collision: bool = False,
         frames: bool | Sequence[int | str] = False,
         tags: Sequence[str] = (),
@@ -262,7 +282,8 @@ class RobotVisual(Layer):
         self._parts: dict[str, tuple[Any, list[Layer]]] = {}  # part -> (its frame node, its layers)
         self.joint_values: np.ndarray | None = None
         self.value_range = (0.0, 1.0)
-        self.set_joint_values(joint_values, value_range=value_range)
+        self.values_as: Literal["color", "size"] = "color"
+        self.set_joint_values(joint_values, value_range=value_range, values_as=values_as)
         self.set_collision(collision)
         self.set_frames(frames)
 
@@ -309,7 +330,11 @@ class RobotVisual(Layer):
                 self.set_step(self._step)
 
     def set_joint_values(
-        self, values: torch.Tensor | np.ndarray | None, *, value_range: tuple[float, float] | None = None
+        self,
+        values: torch.Tensor | np.ndarray | None,
+        *,
+        value_range: tuple[float, float] | None = None,
+        values_as: Literal["color", "size"] | None = None,
     ) -> None:
         """Colour the joint glyphs of the skeleton styles by ``values (T, njoints)`` or ``(njoints,)``, one per model
         joint and step, such as each joint's load ``|tau| / effort limit``: ``T`` is the visual's, and the joints run in
@@ -321,9 +346,11 @@ class RobotVisual(Layer):
         no joint, so it shows no value. ``values=None`` takes the values away. A step costs one more write, of the
         colours, to each skeleton node that holds a glyph. ``(T, njoints)`` float32 values are kept without a copy
         (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
-        kept as a read-only ``(T, njoints)`` view of it.
+        kept as a read-only ``(T, njoints)`` view of it. ``values_as="size"`` shows the values as the glyphs' size
+        instead, each from its own size at ``low`` to twice it at ``high``, in the robot's colours; ``"color"`` as
+        colours; ``None`` keeps the way in use. A step then costs one write of scales to each node that holds a glyph.
 
-        Values of another shape raise ``ShapeError``, values that are not numbers (strings) and a ``value_range`` that
+        Values of another shape raise ``ShapeError``, a ``values_as`` other than these ``ArgumentError``, values that are not numbers (strings) and a ``value_range`` that
         is not two finite numbers, low below high, ``ArgumentError``.
         """
         if value_range is not None:
@@ -348,6 +375,8 @@ class RobotVisual(Layer):
                     f"universe included) and step, got {values.shape}"
                 )
         with self._lock():
+            if values_as is not None:
+                self._show_values_as(values_as)
             self.joint_values = values
             self.value_range = self.value_range if value_range is None else value_range
             for part in _SKELETONS:
@@ -360,6 +389,16 @@ class RobotVisual(Layer):
                 self.redraw()
             elif self._scene is not None:
                 self.set_step(self._step)
+
+    def _show_values_as(self, values_as: Literal["color", "size"]) -> None:
+        """Show the joint values as ``values_as``: a change drops the skeleton styles, built again when shown."""
+        if values_as not in ("color", "size"):
+            raise ArgumentError(f"values_as must be 'color' or 'size', got {values_as!r}")
+        if values_as != self.values_as:
+            self.values_as = values_as
+            for part in _SKELETONS:
+                self._drop(part)
+            self._apply()
 
     def _lock(self) -> Any:
         return self.viewer.lock if self.viewer is not None else nullcontext()
@@ -416,7 +455,7 @@ class RobotVisual(Layer):
             return [
                 _Blocks(
                     part, self._skeleton(part), self._poses, self.hue, self._theme, opacity=self.opacity,
-                    values=self.joint_values, value_range=self.value_range,
+                    values=self.joint_values, value_range=self.value_range, sized=self.values_as == "size",
                 )
             ]  # fmt: skip
         if part == "meshes" and self.skin is not None:

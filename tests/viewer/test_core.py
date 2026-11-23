@@ -190,6 +190,24 @@ def test_timeline_controls_run_under_the_viewer_lock_without_waiting_for_playbac
     viewer.timeline.pause()  # outside the lock it waits for the thread to end
 
 
+def test_play_as_a_button_reads_play_or_pause() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server)
+    viewer.timeline.play_button = True
+    viewer.add(_skeleton(1000))
+    play = server.gui.control("Play")
+    assert play.kind == "GuiButtonHandle" and play.label == "Play"
+    with viewer.lock:  # under the lock, as every sidebar callback: pausing must not wait for the thread
+        play.fire()
+        assert viewer.timeline.playing and play.label == "Pause"
+        play.fire()
+    assert not viewer.timeline.playing and play.label == "Play"
+    viewer.timeline.play()  # started from code, the button follows
+    assert play.label == "Pause"
+    viewer.timeline.pause()
+    assert play.label == "Play"
+
+
 def test_a_sidebar_button_may_change_the_fps_while_playing() -> None:
     viewer = Viewer(server=FakeServer(), ground=False)
     viewer.add(PointsLayer("cloud", np.zeros((300, 10, 3))))
