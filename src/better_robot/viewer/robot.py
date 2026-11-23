@@ -61,7 +61,6 @@ _TRIAD_OVER_MESHES = 1.75
 #: 8 cm off the ground, these vertices within a few millimetres of the mesh's lowest point.
 _AROUND = unit_ball(8, 16)[0].astype(np.float64)
 _GLASS = 0.002  # the collision glass stands this share of the robot's size off its shapes: clear of the meshes
-_GROW = 2.0  # with values shown as size, a glyph grows to this many times its size at the top of the value range
 
 
 @final
@@ -86,16 +85,16 @@ class _Blocks(Layer):
     """The nodes of one skeleton: a batched node per unit mesh in use and a line node for limit arcs.
 
     With ``values`` ``(T, njoints)`` a step also colours the joint glyphs, one write of colours to each node that
-    holds one (``_paint``), or with ``sized`` scales them, one write of scales (``_grown``).
+    holds one (``_paint``), or with ``sized`` scales them up to ``growth`` times, one write of scales (``_grown``).
     """
 
     def __init__(
         self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float,
-        values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False,
+        values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False, growth: float,
     ) -> None:  # fmt: skip
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
-        self.values, self.value_range, self.sized = values, value_range, sized
+        self.values, self.value_range, self.sized, self.growth = values, value_range, sized, growth
         self._store_opacity(opacity)
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
@@ -166,12 +165,12 @@ class _Blocks(Layer):
 
     def _grown(self, mesh: str, scale: np.ndarray, values: np.ndarray | None) -> np.ndarray:
         """The scales ``(N, 3)`` of ``mesh`` at a step, each glyph grown from its size at the low end of the value
-        range to ``_GROW`` times it at the high end, by the value ``_paint`` would colour it by."""
+        range to ``growth`` times it at the high end, by the value ``_paint`` would colour it by."""
         grown = np.array(np.broadcast_to(scale, (len(getattr(self.skeleton, mesh)), 3)), dtype=np.float32)
         if values is not None:
             rows = self._ends[mesh][0]
             share, valued = self._shares(mesh, values)
-            grown[rows[valued]] *= 1.0 + (_GROW - 1.0) * share[valued]
+            grown[rows[valued]] *= 1.0 + (self.growth - 1.0) * share[valued]
         return grown
 
     def _shares(self, mesh: str, values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -347,8 +346,9 @@ class RobotVisual(Layer):
         colours, to each skeleton node that holds a glyph. ``(T, njoints)`` float32 values are kept without a copy
         (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
         kept as a read-only ``(T, njoints)`` view of it. ``values_as="size"`` shows the values as the glyphs' size
-        instead, each from its own size at ``low`` to twice it at ``high``, in the robot's colours; ``"color"`` as
-        colours; ``None`` keeps the way in use. A step then costs one write of scales to each node that holds a glyph.
+        instead, each from its own size at ``low`` to the recipe's ``growth`` times it (twice by default) at ``high``,
+        in the robot's colours; ``"color"`` as colours; ``None`` keeps the way in use. A step then costs one write of
+        scales to each node that holds a glyph.
 
         Values of another shape raise ``ShapeError``, a ``values_as`` other than these ``ArgumentError``, values that are not numbers (strings) and a ``value_range`` that
         is not two finite numbers, low below high, ``ArgumentError``.
@@ -456,6 +456,7 @@ class RobotVisual(Layer):
                 _Blocks(
                     part, self._skeleton(part), self._poses, self.hue, self._theme, opacity=self.opacity,
                     values=self.joint_values, value_range=self.value_range, sized=self.values_as == "size",
+                    growth=self._recipes[part].growth,
                 )
             ]  # fmt: skip
         if part == "meshes" and self.skin is not None:

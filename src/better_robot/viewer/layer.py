@@ -187,8 +187,9 @@ class Layer(ABC):
         raise ArgumentError(f"{type(self).__name__} {self.name!r} draws no surface to fade; set_opacity is for meshes")
 
     def dispose(self) -> None:
-        """Remove every tracked handle from the scene."""
-        for handle in self._handles:
+        """Remove every tracked handle from the scene, the last tracked first: a child node goes before its parent,
+        which would take it along, and viser warns of a node removed twice."""
+        for handle in reversed(self._handles):
             handle.remove()
         self._handles.clear()
 
