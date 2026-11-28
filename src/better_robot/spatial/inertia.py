@@ -18,9 +18,10 @@ from numbers import Real
 
 import torch
 
-from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
+from ..exceptions import ArgumentError, ShapeError
 from ..lie.tangents import hat_so3_raw
 from ..lie._checks import broadcast_batch, check_tensor, check_tensors
+from .mesh import _check_face_table
 
 
 def inertia_matrix(inertia: torch.Tensor) -> torch.Tensor:
@@ -255,16 +256,7 @@ def _check_mesh_structure(vertices: torch.Tensor, faces: torch.Tensor) -> None:
         raise ShapeError(f"vertices must have shape (..., V, 3), got {tuple(vertices.shape)}")
     if vertices.shape[-2] < 4:
         raise ShapeError("vertices must contain at least four points")
-    if not isinstance(faces, torch.Tensor):
-        raise TypeError(f"faces must be a torch.Tensor, got {type(faces).__name__}")
-    if faces.dtype not in (torch.int32, torch.int64):
-        raise DtypeMismatchError(f"faces.dtype={faces.dtype} is not torch.int32 or torch.int64; pass faces.long()")
-    if faces.ndim != 2 or faces.shape[-1] != 3 or faces.shape[0] == 0:
-        raise ShapeError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
-    if faces.device != vertices.device:
-        raise DeviceMismatchError(
-            f"faces.device={faces.device} != vertices.device={vertices.device}; pass faces.to({vertices.device})"
-        )
+    _check_face_table(faces, device=vertices.device)
 
 
 def _density_tensor(density: float | torch.Tensor, vertices: torch.Tensor) -> torch.Tensor:

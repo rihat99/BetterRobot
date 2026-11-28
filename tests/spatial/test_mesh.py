@@ -147,7 +147,9 @@ def test_non_manifold_edge_raises_naming_edges() -> None:
 @pytest.mark.parametrize(
     ("check", "faces", "error", "match"),
     [
-        pytest.param(validate_closed_manifold, [[0, 1, 2]], TypeError, "int32 or torch.int64", id="not_a_tensor"),
+        pytest.param(
+            validate_closed_manifold, [[0, 1, 2]], TypeError, "faces must be a torch.Tensor", id="not_a_tensor"
+        ),
         pytest.param(
             validate_closed_manifold,
             torch.zeros((4, 3), dtype=torch.float32),

@@ -14,9 +14,10 @@ from typing import final, override
 import torch
 
 from ..kinematics import KinematicState
+from ..lie._checks import check_index_tensor
 from ..model.model import Model
 from .distance import capsule_capsule_raw
-from .robot_spheres import _check_attached, _check_pairs
+from .robot_spheres import _check_attached
 
 
 @final
@@ -84,7 +85,7 @@ def self_capsule_distances(capsules: RobotCapsules, state: KinematicState, *, pa
 
     Raises as `self_distances`.
     """
-    _check_pairs(pairs, capsules.frame_ids.device)
+    check_index_tensor("pairs", pairs, shape=("P", 2), device=capsules.frame_ids.device, owner="capsules")
     starts, ends = capsules.segments(state)
     first, second = pairs[:, 0], pairs[:, 1]
     return capsule_capsule_raw(

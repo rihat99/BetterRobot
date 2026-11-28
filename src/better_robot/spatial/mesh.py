@@ -14,20 +14,19 @@ from __future__ import annotations
 
 import torch
 
-from ..exceptions import ArgumentError, DtypeMismatchError, ShapeError
-from ..lie._checks import check_tensors
+from ..exceptions import ArgumentError, ShapeError
+from ..lie._checks import check_index_tensor, check_tensors
 
 _MAX_REPORTED_EDGES = 5
 
 
-def _check_face_table(faces: torch.Tensor) -> None:
-    """Validate that ``faces`` is a non-empty integer ``(F, 3)`` triangle table."""
-    if not isinstance(faces, torch.Tensor):
-        raise TypeError(f"faces must be a torch.int32 or torch.int64 tensor, got {type(faces).__name__}")
-    if faces.dtype not in (torch.int32, torch.int64):
-        raise DtypeMismatchError(f"faces.dtype={faces.dtype} is not torch.int32 or torch.int64; pass faces.long()")
-    if faces.ndim != 2 or faces.shape[-1] != 3 or faces.shape[0] == 0:
-        raise ShapeError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
+def _check_face_table(faces: torch.Tensor, *, device: torch.device | None = None) -> None:
+    """Raise unless ``faces`` is a non-empty integer ``(F, 3)`` triangle table, on ``device`` (the vertices') if given."""
+    check_index_tensor(
+        "faces", faces, shape=("F", 3), dtypes=(torch.int32, torch.int64), device=device, owner="vertices"
+    )
+    if faces.shape[0] == 0:
+        raise ShapeError("faces must have non-empty shape (F, 3), got (0, 3)")
 
 
 def _undirected_edges(faces: torch.Tensor) -> torch.Tensor:

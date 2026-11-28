@@ -19,7 +19,7 @@ import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ModelError, ShapeError
 from ..kinematics import KinematicState
-from ..lie._checks import check_tensor
+from ..lie._checks import check_index_tensor, check_tensor
 from ..model.model import Model
 from .distance import sphere_sphere_raw
 
@@ -53,7 +53,7 @@ class RobotSpheres:
 
     def __post_init__(self) -> None:
         """Check the three tables' types, dtypes, devices and shapes (one id, offset and radius per sphere)."""
-        _check_frame_ids(self.frame_ids)
+        check_index_tensor("frame_ids", self.frame_ids, shape=("S",))
         count = self.frame_ids.shape[0]
         check_tensor("offsets", self.offsets, shape=(count, 3), device=self.frame_ids.device, owner="frame_ids")
         check_tensor(
@@ -215,7 +215,7 @@ def self_distances(spheres: RobotSpheres, state: KinematicState, *, pairs: torch
     """Signed distances ``(B..., P)`` between the sphere pairs ``pairs: (P, 2)``. Raises as `RobotSpheres.centers`, and
     ``ShapeError``/``DtypeMismatchError``/``DeviceMismatchError`` for ``pairs`` that is not a ``(P, 2)`` long tensor
     on the spheres' device."""
-    _check_pairs(pairs, spheres.frame_ids.device)
+    check_index_tensor("pairs", pairs, shape=("P", 2), device=spheres.frame_ids.device, owner="spheres")
     centers = spheres.centers(state)
     first, second = pairs[:, 0], pairs[:, 1]
     try:  # as in centers: torch's range error (CPU) translated, no per-call read of the indices
@@ -239,25 +239,3 @@ def _check_attached(name: str, values: torch.Tensor, state: KinematicState) -> N
         raise DeviceMismatchError(
             f"{name}.device={values.device} != state.device={device}; pass {name}.to(device={device})"
         )
-
-
-def _check_frame_ids(frame_ids: object) -> None:
-    """Raise unless ``frame_ids`` is a ``(S,)`` long tensor."""
-    if not isinstance(frame_ids, torch.Tensor):
-        raise TypeError(f"frame_ids must be a torch.Tensor, got {type(frame_ids).__name__}")
-    if frame_ids.dtype != torch.long:
-        raise DtypeMismatchError(f"frame_ids.dtype={frame_ids.dtype} is not torch.int64; pass frame_ids.long()")
-    if frame_ids.ndim != 1:
-        raise ShapeError(f"frame_ids must have shape (S,), one frame id per sphere, got {tuple(frame_ids.shape)}")
-
-
-def _check_pairs(pairs: object, device: torch.device) -> None:
-    """Raise unless ``pairs`` is a ``(P, 2)`` long tensor on ``device``."""
-    if not isinstance(pairs, torch.Tensor):
-        raise TypeError(f"pairs must be a torch.Tensor, got {type(pairs).__name__}")
-    if pairs.dtype != torch.long:
-        raise DtypeMismatchError(f"pairs.dtype={pairs.dtype} is not torch.int64; pass pairs.long()")
-    if pairs.ndim != 2 or pairs.shape[-1] != 2:
-        raise ShapeError(f"pairs must have shape (P, 2), got {tuple(pairs.shape)}")
-    if pairs.device != device:
-        raise DeviceMismatchError(f"pairs.device={pairs.device} != spheres.device={device}; pass pairs.to({device})")
