@@ -253,7 +253,7 @@ def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> 
     skeleton, nodes = robot._skeleton(style), server.scene.nodes
     shown = {}  # mesh -> at steps 0 (as built) and 1: positions (N, 3), rotations (N, 3, 3), scales (N, 3)
     for mesh in ("cylinders", "balls", "boxes"):
-        node, blocks = nodes[f"/g1_29dof/g1_29dof/{style}/{mesh}"], getattr(skeleton, mesh)
+        node, blocks = nodes[f"/g1_29dof/g1_29dof/{style}/{mesh}"], skeleton.blocks[mesh]
         shown[mesh] = [
             tuple(read(f"batched_{key}") for key in ("positions", "wxyzs", "scales"))
             for read in (node.props.__getitem__, partial(_positions, node))
@@ -270,7 +270,7 @@ def test_robot_visual_turns_its_skeleton_with_forward_kinematics(style: str) -> 
         ]
         np.testing.assert_allclose(local[1][0], local[0][0], atol=1e-5, err_msg=mesh)
         np.testing.assert_allclose(local[1][1], local[0][1], atol=1e-5, err_msg=mesh)
-    blocks, rotation = skeleton.cylinders, shown["cylinders"][1][1]
+    blocks, rotation = skeleton.blocks["cylinders"], shown["cylinders"][1][1]
     if style != "minimal":
         drums = [i for i, part in enumerate(blocks.part) if part == "drum"]
         axes = [joints[1][j] @ np.asarray(model.joints[j].axis) for j in blocks.owner[drums]]
@@ -754,7 +754,7 @@ def test_a_collision_mesh_that_does_not_load_raises_for_the_overlay_and_the_skel
     for mesh in ("cylinders", "balls", "boxes"):
         for array in ("local", "scale"):
             np.testing.assert_array_equal(
-                getattr(getattr(robot._skeleton("medium"), mesh), array), getattr(getattr(inertia, mesh), array)
+                getattr(robot._skeleton("medium").blocks[mesh], array), getattr(inertia.blocks[mesh], array)
             )
     with pytest.raises(ModelError, match=words):
         robot.set_collision(visible=True)
@@ -791,7 +791,7 @@ def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_nod
     assert sorted(set(server.scene.log) - set(plain_server.scene.log)) == [(node, "batched_colors")]
     assert len(server.scene.log) == len(plain_server.scene.log) + 1
 
-    blocks = getattr(robot._skeleton(style), node.rsplit("/", 1)[-1])
+    blocks = robot._skeleton(style).blocks[node.rsplit("/", 1)[-1]]
     knees = [i for i, owner in enumerate(blocks.owner) if owner == knee and blocks.part[i] in ("drum", "face", "ball")]
     painted, hue = server.scene.nodes[node].batched_colors, plain_server.scene.nodes[node].props["batched_colors"]
     assert np.flatnonzero((painted != hue).any(axis=1)).tolist() == knees
@@ -834,7 +834,7 @@ def test_joint_values_as_size_grow_a_glyph_to_the_recipe_growth_at_the_top_of_th
     viewer.show(0)
     low = np.array(server.scene.nodes[node].batched_scales)
     viewer.show(1)
-    blocks = robot._skeleton("medium").cylinders
+    blocks = robot._skeleton("medium").blocks["cylinders"]
     knees = [i for i, owner in enumerate(blocks.owner) if owner == knee and blocks.part[i] in ("drum", "face")]
     assert knees
     expected = low.copy()
@@ -860,10 +860,10 @@ def test_joint_values_as_size_with_a_growth_pair_shrink_a_glyph_at_the_low_end_a
     plain = skeleton.place(robot._poses[0])["cylinders"][1].astype(np.float32)
     knees = [
         i
-        for i, owner in enumerate(skeleton.cylinders.owner)
-        if owner == knee and skeleton.cylinders.part[i] in ("drum", "face")
+        for i, owner in enumerate(skeleton.blocks["cylinders"].owner)
+        if owner == knee and skeleton.blocks["cylinders"].part[i] in ("drum", "face")
     ]
-    assert knees and "rod" in skeleton.cylinders.part
+    assert knees and "rod" in skeleton.blocks["cylinders"].part
     for step, factor in ((0, 0.5), (1, 1.4)):
         viewer.show(step)
         expected = plain.copy()

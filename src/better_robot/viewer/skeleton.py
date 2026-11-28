@@ -230,9 +230,7 @@ class Skeleton:
     scale: float
     radius: float
     radii: np.ndarray  # (njoints,)
-    cylinders: Blocks
-    balls: Blocks
-    boxes: Blocks
+    blocks: Mapping[str, Blocks]  # per unit mesh: "cylinders", "balls" and "boxes", in that order
     points_body: np.ndarray  # (P,) the joint each anchor point is rigid in
     points_local: np.ndarray  # (P, 3)
     weights: np.ndarray  # (K, P): anchor k is the weighted mean of the points
@@ -253,12 +251,11 @@ class Skeleton:
             local = torch.from_numpy(self.points_local).to(poses.dtype)
             points = se3.act(poses[..., self.points_body, :], local).numpy()
             anchors = self.weights.astype(points.dtype) @ points  # (..., K, 3)
-        meshes: list[Blocks] = [getattr(self, name) for name in _MESHES]
-        body = np.concatenate([blocks.body for blocks in meshes])
-        local = torch.from_numpy(np.concatenate([blocks.local for blocks in meshes])).to(poses.dtype)
+        body = np.concatenate([blocks.body for blocks in self.blocks.values()])
+        local = torch.from_numpy(np.concatenate([blocks.local for blocks in self.blocks.values()])).to(poses.dtype)
         every = se3.compose(poses[..., body, :], local).numpy()  # one composition for every block
         placed, first = {}, 0
-        for name, blocks in zip(_MESHES, meshes, strict=True):
+        for name, blocks in self.blocks.items():
             world, first = every[..., first : first + len(blocks), :], first + len(blocks)
             scale = blocks.scale
             moving = blocks.anchors[:, 0] >= 0
@@ -286,7 +283,7 @@ class Skeleton:
         shade of a drum's faces. A stick or rod, a rail, a head, a knob, a cap and the cube of a free base draw no
         joint.
         """
-        blocks: Blocks = getattr(self, mesh)
+        blocks = self.blocks[mesh]
         rows = np.array([i for i, part in enumerate(blocks.part) if part in _JOINT_PARTS], dtype=np.int64)
         joints = np.zeros((len(rows), njoints), dtype=bool)
         for k, i in enumerate(rows):
@@ -299,8 +296,7 @@ class Skeleton:
         """Colours ``(N, 3)`` in ``[0, 1]`` of every block: ``theme.shade`` of ``hue`` for its part and side, or the
         recipe's colour for it (a drum face takes that colour's shade)."""
         colors = {}
-        for name in _MESHES:
-            blocks: Blocks = getattr(self, name)
+        for name, blocks in self.blocks.items():
             rows = np.zeros((len(blocks), 3), dtype=np.float32)
             for i, (part, side, own) in enumerate(zip(blocks.part, blocks.side, blocks.color, strict=True)):
                 role = _ROLE[part]
@@ -980,7 +976,7 @@ class _Rows:
             scale=tree.scale,
             radius=tree.reference,
             radii=np.array([radii.get(group, tree.reference) for group in tree.anchor]),
-            **packed,
+            blocks=packed,
             points_body=np.array([body for body, _ in self.points], dtype=np.int64),
             points_local=np.stack([local for _, local in self.points]),
             weights=weights,

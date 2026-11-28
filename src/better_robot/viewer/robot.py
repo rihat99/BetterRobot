@@ -137,7 +137,7 @@ class _Blocks(Layer):
                 self._nodes[mesh].batched_wxyzs = world[:, [6, 3, 4, 5]]
                 if self.sized and mesh in self._ends:
                     self._nodes[mesh].batched_scales = self._grown(mesh, scale, values)
-                elif mesh == "cylinders" and (self.skeleton.cylinders.anchors[:, 0] >= 0).any():  # sticks stretch
+                elif mesh == "cylinders" and (self.skeleton.blocks[mesh].anchors[:, 0] >= 0).any():  # sticks stretch
                     self._nodes[mesh].batched_scales = scale.astype(np.float32)
         if self._lines is not None:
             self._lines.points = self.skeleton.lines(self.poses[step])
@@ -169,7 +169,7 @@ class _Blocks(Layer):
     def _grown(self, mesh: str, scale: np.ndarray, values: np.ndarray | None) -> np.ndarray:
         """The scales ``(N, 3)`` of ``mesh`` at a step, each glyph from ``low`` times its size at the low end of the
         value range to ``high`` times it at the high end (``growth``), by the value ``_paint`` would colour it by."""
-        grown = np.array(np.broadcast_to(scale, (len(getattr(self.skeleton, mesh)), 3)), dtype=np.float32)
+        grown = np.array(np.broadcast_to(scale, (len(self.skeleton.blocks[mesh]), 3)), dtype=np.float32)
         if values is not None:
             rows = self._ends[mesh][0]
             share, valued = self._shares(mesh, values)
@@ -741,8 +741,8 @@ class RobotVisual(Layer):
             point_bodies=point_bodies,
             skeleton=skeleton,
             keep={
-                mesh: np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
-                for mesh in ("cylinders", "balls", "boxes")
+                mesh: np.array([anchor[body] not in covered for body in blocks.body], dtype=bool)
+                for mesh, blocks in skeleton.blocks.items()
             },
             skin=skin,
         )
@@ -896,9 +896,8 @@ def _shape_spec(
         visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look, but not
         kind = None if visual is None else visual.kind  # trimesh's grey stand-in for a missing material file (black)
         textured = kind == "texture" and hash(visual.material) != hash(empty_material())
-        varied = textured or (
-            kind in ("vertex", "face") and len(np.unique(np.asarray(getattr(visual, f"{kind}_colors")), axis=0)) > 1
-        )
+        colors = visual.vertex_colors if kind == "vertex" else visual.face_colors if kind == "face" else None
+        varied = textured or (colors is not None and len(np.unique(np.asarray(colors), axis=0)) > 1)
         source = mesh if own_colors and varied else None
     elif isinstance(shape, Box):
         mesh = trimesh.creation.box(extents=shape.size)
