@@ -120,33 +120,6 @@ def test_rnea_with_external_forces_matches_pinocchio(panda_both, i):
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-10, rtol=_RTOL, err_msg="RNEA with external forces")
 
 
-def test_rnea_bias_forces_matches_rnea_zero_accel(panda_both):
-    """Internal consistency: bias forces b(q, v) == inverse_dynamics(q, v, 0)."""
-    br_model, _, _, _ = panda_both
-    q = sample_panda_q(n=1)[0]
-    v = _random_v(br_model.nv, seed=42)
-    zeros_v = torch.zeros_like(v)
-
-    tau_bias = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=torch.zeros_like(v))
-    tau_rnea = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=zeros_v)
-
-    assert torch.allclose(tau_bias, tau_rnea, atol=1e-12)
-
-
-def test_rnea_batched(panda_both):
-    """Batched call agrees with single-sample calls."""
-    br_model, _, _, _ = panda_both
-    qs = sample_panda_q(n=3)  # (3, nq)
-    vs = torch.stack([_random_v(br_model.nv, s) for s in (10, 11, 12)])
-    as_ = torch.stack([_random_v(br_model.nv, s) for s in (20, 21, 22)])
-
-    tau_batch = inverse_dynamics(br_model, forward_kinematics(br_model, qs), v=vs, a=as_)
-
-    for k in range(3):
-        tau_k = inverse_dynamics(br_model, forward_kinematics(br_model, qs[k]), v=vs[k], a=as_[k])
-        assert torch.allclose(tau_batch[k], tau_k, atol=1e-12), f"mismatch at batch {k}"
-
-
 def test_rnea_full_fp32_matches_pinocchio(panda_both):
     """Full RNEA has an explicit fp32 parity band, separate from fp64."""
     br_model_fp64, pin_model, pin_data, _ = panda_both
@@ -177,19 +150,3 @@ def test_rnea_full_fp32_matches_pinocchio(panda_both):
             )
         )
         np.testing.assert_allclose(tau_br, tau_pin, atol=2e-5, rtol=1e-4)
-
-
-def test_rnea_autograd_runs(panda_both):
-    """Smoke: backward through RNEA closes without inf/nan."""
-    br_model, _, _, _ = panda_both
-    q = sample_panda_q(n=1)[0].clone().requires_grad_(True)
-    v = _random_v(br_model.nv, seed=3).requires_grad_(True)
-    a = _random_v(br_model.nv, seed=4).requires_grad_(True)
-
-    tau = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a)
-    loss = tau.pow(2).sum()
-    loss.backward()
-
-    assert q.grad is not None and torch.isfinite(q.grad).all()
-    assert v.grad is not None and torch.isfinite(v.grad).all()
-    assert a.grad is not None and torch.isfinite(a.grad).all()

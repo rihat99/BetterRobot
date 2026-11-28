@@ -17,7 +17,6 @@ The oracle file is tracked; a missing ``fk_reference.npz`` fails the test.
 
 from __future__ import annotations
 
-import dataclasses
 import functools
 from pathlib import Path
 
@@ -26,9 +25,7 @@ import pytest
 import torch
 
 import better_robot as br
-from better_robot.io import build_model, parse_urdf
 from tests.kinematics import _generate_fk_reference as generator
-from tests.support.robots import g1_urdf, panda_urdf
 
 REF_PATH = Path(__file__).parent / "fk_reference.npz"
 
@@ -49,27 +46,6 @@ def _sign_align_poses(actual: np.ndarray, reference: np.ndarray) -> np.ndarray:
     return aligned
 
 
-def _load_panda():
-    # The frozen oracle predates reduced mimic coordinates and contains two
-    # independent finger entries. Keep it as an explicit full-space algorithm
-    # regression; constrained behavior has dedicated reduced-map tests.
-    ir = parse_urdf(panda_urdf())
-    ir.joints = [
-        dataclasses.replace(
-            joint,
-            mimic_source=None,
-            mimic_multiplier=1.0,
-            mimic_offset=0.0,
-        )
-        for joint in ir.joints
-    ]
-    return build_model(ir, dtype=torch.float64)
-
-
-def _load_g1():
-    return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
-
-
 @pytest.fixture(scope="module")
 def reference():
     return np.load(REF_PATH)
@@ -88,9 +64,9 @@ def test_oracle_provenance_matches_its_generator(reference) -> None:
     assert functools.reduce(getattr, path, br) is br.forward_kinematics
 
 
-@pytest.mark.parametrize("name,loader", [("panda", _load_panda), ("g1", _load_g1)])
-def test_fk_matches_oracle(name, loader, reference) -> None:
-    model = loader()
+@pytest.mark.parametrize("name", generator.ROBOTS)
+def test_fk_matches_oracle(name, reference) -> None:
+    model = generator.ROBOTS[name]()
     qs = torch.from_numpy(reference[f"{name}_q"])
     expected_joints = reference[f"{name}_joint_pose_world"]
     expected_frames = reference[f"{name}_frame_pose_world"]

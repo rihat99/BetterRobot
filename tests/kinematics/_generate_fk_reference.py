@@ -17,7 +17,6 @@ Run from the repository root (``tests.support`` must import):
 
 from __future__ import annotations
 
-import dataclasses
 import datetime as _dt
 from pathlib import Path
 
@@ -25,8 +24,7 @@ import numpy as np
 import torch
 
 import better_robot as br
-from better_robot.io import build_model, parse_urdf
-from tests.support.robots import g1_urdf, panda_urdf
+from tests.support.robots import g1_urdf, panda_without_mimic
 
 ORACLE_VERSION = "5"
 GENERATION_SEED = 0
@@ -34,25 +32,13 @@ GENERATED_WITH = "better_robot.forward_kinematics"
 N_CONFIGS = 32  # keep small — < 200 KB total
 
 
-def _panda():
-    # Keep the historical oracle in full coordinates. Public Panda loading now
-    # reduces the gripper mimic target, while test_fk_regression deliberately
-    # strips that metadata to preserve this algorithm-regression fixture.
-    ir = parse_urdf(panda_urdf())
-    ir.joints = [
-        dataclasses.replace(
-            joint,
-            mimic_source=None,
-            mimic_multiplier=1.0,
-            mimic_offset=0.0,
-        )
-        for joint in ir.joints
-    ]
-    return build_model(ir, dtype=torch.float64)
-
-
-def _g1():
+def _g1() -> br.Model:
     return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
+
+
+#: The robots of the oracle, by the prefix of their arrays. The Panda keeps its two finger coordinates independent,
+#: because the oracle predates reduced mimic coordinates.
+ROBOTS = {"panda": panda_without_mimic, "g1": _g1}
 
 
 def _sample_qs(model, n: int, *, seed: int) -> torch.Tensor:
@@ -76,7 +62,7 @@ def main() -> None:
     out_path = Path(__file__).parent / "fk_reference.npz"
     payload: dict[str, np.ndarray] = {}
 
-    for name, build_fn in (("panda", _panda), ("g1", _g1)):
+    for name, build_fn in ROBOTS.items():
         model = build_fn()
         qs = _sample_qs(model, N_CONFIGS, seed=GENERATION_SEED)
         joint_poses = []
@@ -95,7 +81,7 @@ def main() -> None:
             f"generation_seed={GENERATION_SEED}",
             f"generated_with={GENERATED_WITH}",
             "fk_dtype=float64",
-            f"generated_at={_dt.datetime.utcnow().strftime('%Y-%m-%d')}",
+            f"generated_at={_dt.datetime.now(_dt.UTC).strftime('%Y-%m-%d')}",
         ]
     )
 

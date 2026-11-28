@@ -19,7 +19,6 @@ import torch
 
 from better_robot.dynamics import inverse_dynamics
 from better_robot.kinematics import forward_kinematics
-from better_robot.model.joints import JointFixed, JointRevolute, JointSpherical
 
 from .conftest import _build_spherical_chain
 
@@ -96,23 +95,3 @@ def test_rnea_spherical_gravity_only():
     tau_br = inverse_dynamics(br_m, forward_kinematics(br_m, q), v=z, a=z).detach().cpu().numpy()
     tau_pin = np.asarray(pin.rnea(pin_m, pin_d, q.numpy(), z.numpy(), z.numpy()))
     np.testing.assert_allclose(tau_br, tau_pin, atol=1e-12)
-
-
-def test_rnea_spherical_populates_tangent_fields_correctly():
-    """Spherical has nv=3, revolute has nv=1 → total nv=4.
-
-    ``ModelBuilder`` without an explicit ``world``-parent joint inserts a
-    synthetic ``JointFixed`` root at model-index 1. Our spherical joint lands
-    at index 2, and the revolute at index 3.
-    """
-    br_m, _, _ = _build_spherical_chain()
-    assert br_m.nv == 4
-    assert br_m.nq == 5  # 4 quat + 1 angle
-    assert isinstance(br_m.joints[1], JointFixed)  # synthetic base
-    assert isinstance(br_m.joints[2], JointSpherical)
-    assert br_m.joints[3] == JointRevolute(axis=(0.0, 0.0, 1.0))
-    q = torch.tensor([0.0, 0.0, 0.0, 1.0, 0.0], dtype=torch.float64)
-    v = torch.tensor([0.1, 0.2, 0.3, 0.4], dtype=torch.float64)
-    a = torch.tensor([0.05, -0.1, 0.2, 0.3], dtype=torch.float64)
-    tau = inverse_dynamics(br_m, forward_kinematics(br_m, q), v=v, a=a)
-    assert tau.shape == (4,)

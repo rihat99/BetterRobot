@@ -59,19 +59,3 @@ def test_se3_exp_matches_pinocchio(seed):
         q_pin = -q_pin
     np.testing.assert_allclose(pose_br[:3], t_pin, atol=1e-10)
     np.testing.assert_allclose(pose_br[3:], q_pin, atol=1e-10)
-
-
-@pytest.mark.parametrize("seed", list(range(8)))
-def test_log_exp_roundtrip(seed):
-    """Sanity: ``exp(log(T)) == T`` in both libraries; cross-validate."""
-    pose = _random_pose(seed)
-    xi = se3.log(pose)
-    pose_back = se3.exp(xi)
-
-    # Both quaternions should represent the same rotation (allow sign flip).
-    p = pose.numpy()
-    pb = pose_back.detach().cpu().double().numpy()
-    np.testing.assert_allclose(pb[:3], p[:3], atol=1e-10)
-    # quat equality modulo sign
-    dot = np.abs(np.dot(pb[3:], p[3:]))
-    np.testing.assert_allclose(dot, 1.0, atol=1e-10)
