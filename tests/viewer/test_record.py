@@ -12,7 +12,6 @@ import json
 import math
 import os
 import shutil
-import socket
 import subprocess
 import threading
 import time
@@ -40,6 +39,7 @@ from better_robot.viewer import (
 )
 from better_robot.viewer import record as recorder
 from better_robot.viewer.theme import rgb_uint8
+from tests.support.ports import free_port
 
 # Six steps, six colours whose bright channels tell the step apart even after lighting and compression.
 _STEP_COLORS = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 0, 1], [0, 1, 1]], dtype=np.float32)
@@ -220,9 +220,7 @@ def test_the_page_reaches_a_server_bound_to_every_interface_through_loopback() -
 def test_a_page_that_does_not_load_names_its_address_not_the_viser_version(tmp_path: Path) -> None:
     """The unbracketed IPv6 address made Chromium show an error page, and record blamed the client internals of the
     viser version after a minute."""
-    with socket.socket() as closed:  # a port nothing listens on
-        closed.bind(("127.0.0.1", 0))
-        port = closed.getsockname()[1]
+    port = free_port()  # nothing listens on it
     viewer = Viewer(server=FakeServer(port=port), ground=False)
     viewer.add(PointsLayer("p", np.zeros((1, 3))))
     started = time.monotonic()
@@ -244,9 +242,7 @@ def test_a_page_between_two_documents_is_polled_again(tmp_path: Path, monkeypatc
         return send(page, method, **params)
 
     monkeypatch.setattr(recorder._Page, "_send", refuse_once)
-    with socket.socket() as closed:  # a port nothing listens on
-        closed.bind(("127.0.0.1", 0))
-        port = closed.getsockname()[1]
+    port = free_port()  # nothing listens on it
     viewer = Viewer(server=FakeServer(port=port), ground=False)
     viewer.add(PointsLayer("p", np.zeros((1, 3))))
     with pytest.raises(ArgumentError, match=rf"could not load the viewer's page from http://127.0.0.1:{port}"):
@@ -270,9 +266,7 @@ def test_a_page_devtools_keeps_refusing_names_devtools_answer_not_the_viser_vers
     clock = iter(range(1_000_000))  # a second per reading: the wait's 60 s pass at once
     monkeypatch.setattr(recorder._Page, "_send", refuse)
     monkeypatch.setattr(recorder, "time", SimpleNamespace(monotonic=lambda: float(next(clock)), sleep=lambda _: None))
-    with socket.socket() as closed:  # a port nothing listens on
-        closed.bind(("127.0.0.1", 0))
-        port = closed.getsockname()[1]
+    port = free_port()  # nothing listens on it
     viewer = Viewer(server=FakeServer(port=port), ground=False)
     viewer.add(PointsLayer("p", np.zeros((1, 3))))
     with pytest.raises(ArgumentError, match="evaluated for 60 s: Runtime.evaluate: Session with given id") as error:
@@ -330,10 +324,7 @@ _DECODE = r"""
 
 def _ball_viewer(theme: Theme) -> Viewer:
     """A real viewer whose ball at the origin takes the colour of the step (a per-step property, not a pose)."""
-    with socket.socket() as sock:  # a free port
-        sock.bind(("127.0.0.1", 0))
-        port = sock.getsockname()[1]
-    viewer = Viewer(port=port, theme=theme)
+    viewer = Viewer(port=free_port(), theme=theme)
     colors = _STEP_COLORS[:, None, :]  # (T, 1, 3)
     viewer.add([SpheresLayer("ball", np.zeros((6, 1, 3)), radii=np.array([0.6]), colors=colors, opacity=1.0)])
     return viewer
@@ -393,10 +384,7 @@ def test_every_primitive_draws_the_srgb_colour_it_was_given(tmp_path: Path) -> N
     import trimesh  # noqa: PLC0415 - viser's own dependency
 
     color = (0.2, 0.45, 0.85)
-    with socket.socket() as sock:  # a free port
-        sock.bind(("127.0.0.1", 0))
-        port = sock.getsockname()[1]
-    viewer = Viewer(port=port, ground=False)
+    viewer = Viewer(port=free_port(), ground=False)
     quad = np.array([[-0.3, 0, -0.3], [0.3, 0, -0.3], [0.3, 0, 0.3], [-0.3, 0, 0.3]], dtype=np.float32)
     faces = np.array([[0, 1, 2], [0, 2, 3]])
     ball = trimesh.creation.icosphere(subdivisions=4, radius=0.3)

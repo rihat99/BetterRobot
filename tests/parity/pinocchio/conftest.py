@@ -6,7 +6,6 @@ oracle side never runs through `better_robot.lie` (principle 6.3).
 
 from __future__ import annotations
 
-import dataclasses
 import numpy as np
 import pinocchio as pin
 import pytest
@@ -14,8 +13,8 @@ import torch
 from scipy.spatial.transform import Rotation as Rot
 
 import better_robot as br
-from better_robot.io import ModelBuilder, build_model, parse_urdf
-from tests.support.robots import g1_urdf, panda_urdf
+from better_robot.io import ModelBuilder, build_model
+from tests.support.robots import g1_urdf, panda_urdf, panda_without_mimic
 
 
 def pose_to_se3(pose: torch.Tensor) -> "pin.SE3":
@@ -51,21 +50,9 @@ def panda_both():
         br_model, pin_model, pin_data, frame_map
         where frame_map[br_frame_name] = pin_frame_id
     """
-    # Pinocchio's default URDF loader leaves mimic coordinates independent.
-    # Make the BR side explicitly unconstrained too, preserving this suite as
-    # a full-space recursion oracle. Dedicated mimic tests assert G-projected
-    # kinematics and dynamics instead of claiming default-loader parity.
-    ir = parse_urdf(panda_urdf())
-    ir.joints = [
-        dataclasses.replace(
-            joint,
-            mimic_source=None,
-            mimic_multiplier=1.0,
-            mimic_offset=0.0,
-        )
-        for joint in ir.joints
-    ]
-    br_model = build_model(ir, dtype=torch.float64)
+    # Pinocchio's default URDF loader leaves mimic coordinates independent; the BR side drops them too, so this suite
+    # is a full-space recursion oracle. Dedicated mimic tests assert the reduced kinematics and dynamics.
+    br_model = panda_without_mimic()
     pin_model = pin.buildModelFromUrdf(str(panda_urdf()))
     pin_data = pin_model.createData()
 
