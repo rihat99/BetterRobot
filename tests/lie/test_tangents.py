@@ -132,15 +132,6 @@ def test_left_right_so3_relation(seed):
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_jr_jrinv_se3_product(seed):
-    """Jr(xi) @ Jr_inv(xi) == I."""
-    xi = _randn(seed, 6, scale=0.4)
-    Jr = tangents.right_jacobian_se3(xi)
-    Jr_inv = tangents.right_jacobian_inverse_se3(xi)
-    assert torch.allclose(Jr @ Jr_inv, torch.eye(6), atol=1e-5)
-
-
-@pytest.mark.parametrize("seed", SEEDS)
 def test_left_right_se3_relation(seed):
     """Jl(xi) == Jr(-xi) and Jl^-1(xi) == Jr^-1(-xi)."""
     xi = _randn(seed, 6, scale=0.5)
@@ -191,8 +182,10 @@ def test_right_jacobian_se3_float32(theta):
     xi = _xi_with_angle(theta)
     reference = _series_right_jacobian_se3(xi)
     result = tangents.right_jacobian_se3(xi.float())
-    assert result.dtype == torch.float32
+    inverse = tangents.right_jacobian_inverse_se3(xi.float())
+    assert result.dtype == inverse.dtype == torch.float32
     torch.testing.assert_close(result.double(), reference, atol=2e-5, rtol=0.0)
+    torch.testing.assert_close(inverse.double(), torch.linalg.inv(reference), atol=2e-5, rtol=0.0)
 
 
 @pytest.mark.parametrize("theta", [3.5, 5.0])

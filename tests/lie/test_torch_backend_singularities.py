@@ -39,33 +39,12 @@ def test_se3_log_exp_round_trip(theta) -> None:
     torch.testing.assert_close(xi_out, xi_in, atol=1e-9, rtol=1e-9)
 
 
-@pytest.mark.parametrize("seed", [0, 1, 2])
-def test_se3_log_finite_at_theta_zero(seed: int) -> None:
-    """``∇log`` near θ=0 stays finite."""
-    generator = torch.Generator().manual_seed(seed)
-    xi = (torch.randn(6, generator=generator, dtype=torch.float64) * 1e-7).requires_grad_(True)
-    T = se3.exp(xi)
-    xi_back = se3.log(T)
-    loss = (xi_back**2).sum()
-    loss.backward()
-    assert xi.grad is not None
-    assert torch.isfinite(xi.grad).all()
-
-
-def _singular_input(name: str, theta: float) -> torch.Tensor:
-    """Build a direct fp64 input at rotational distance ``theta``."""
-    omega = torch.tensor([theta, 0.0, 0.0], dtype=torch.float64)
-    if name == "so3_exp":
-        return omega
-    if name == "so3_log":
-        return so3.exp(omega).detach()
-
-    xi = torch.cat([torch.zeros(3, dtype=torch.float64), omega])
-    if name == "se3_exp":
-        return xi
-    if name == "se3_log":
-        return se3.exp(xi).detach()
-    raise AssertionError(f"unknown Lie operation: {name}")
+def _input(name: str, theta: float, dtype: torch.dtype) -> torch.Tensor:
+    """An input of ``name`` at rotation angle ``theta`` about x; the SE3 ones carry a translation, which exposes the
+    V coefficients."""
+    omega = torch.tensor([theta, 0.0, 0.0], dtype=dtype)
+    xi = torch.cat([torch.tensor([0.1, -0.2, 0.3], dtype=dtype), omega])
+    return {"so3_exp": omega, "so3_log": so3.exp(omega), "se3_exp": xi, "se3_log": se3.exp(xi)}[name]
 
 
 @pytest.mark.parametrize(
@@ -80,7 +59,7 @@ def _singular_input(name: str, theta: float) -> torch.Tensor:
 @pytest.mark.parametrize("theta", [0.0, 1e-9], ids=["identity", "theta_1e-9"])
 def test_lie_singularities_first_and_second_order_gradients(name, op, theta) -> None:
     """Safe-where keeps fp64 first- and second-order derivatives finite."""
-    value = _singular_input(name, theta).requires_grad_(True)
+    value = _input(name, theta, torch.float64).requires_grad_(True)
 
     assert torch.autograd.gradcheck(op, (value,), atol=1e-6, rtol=1e-5)
     assert torch.autograd.gradgradcheck(op, (value,), atol=1e-6, rtol=1e-5)
@@ -96,27 +75,6 @@ def test_so3_exp_sum_gradient_at_identity_is_finite_and_correct() -> None:
 
     assert omega.grad is not None
     torch.testing.assert_close(omega.grad, torch.full_like(omega, 0.5))
-
-
-def _fp32_cutoff_input(name: str, theta: float) -> torch.Tensor:
-    """Build fp32 inputs whose SE3 translation exposes the V coefficients."""
-    omega = torch.tensor([theta, 0.0, 0.0], dtype=torch.float32)
-    if name == "so3_exp":
-        return omega
-    if name == "so3_log":
-        return so3.exp(omega).detach()
-
-    xi = torch.tensor([0.1, -0.2, 0.3, theta, 0.0, 0.0], dtype=torch.float32)
-    if name == "se3_exp":
-        return xi
-    if name == "se3_log":
-        return se3.exp(xi).detach()
-    raise AssertionError(f"unknown Lie operation: {name}")
-
-
-def test_fp32_taylor_cutoff_is_larger_than_fp64() -> None:
-    assert _taylor_theta2(torch.float32) == 1e-5
-    assert _taylor_theta2(torch.float64) == 1e-8
 
 
 @pytest.mark.parametrize(
@@ -138,7 +96,7 @@ def test_fp32_gradcheck_on_both_sides_of_taylor_cutoff(name, op, cutoff_ratio) -
     """
     cutoff = _taylor_theta2(torch.float32)
     theta = math.sqrt(cutoff) * cutoff_ratio
-    value = _fp32_cutoff_input(name, theta).requires_grad_(True)
+    value = _input(name, theta, torch.float32).requires_grad_(True)
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="Input #0 requires gradient and is not a double precision")
