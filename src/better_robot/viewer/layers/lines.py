@@ -9,7 +9,7 @@ import numpy as np
 
 from ...exceptions import ShapeError
 from ..layer import Bounds, Layer, as_frames, box
-from ..theme import LIGHT, RGB, Theme, linear_uint8
+from ..theme import LIGHT, RGB, Theme, linear_uint8, step_colors
 
 
 @final
@@ -34,14 +34,8 @@ class LinesLayer(Layer):
             raise ShapeError(f"points must be (N, 2, 3) or (T, N, 2, 3) segments, got {self.points.shape}")
         super().__init__(name, self.points.shape[0], tags=tags)
         n_segments = self.points.shape[1]
-        self._colors: np.ndarray | None = None  # uint8 (N, 3) or (T, N, 3); None follows the theme
-        if colors is not None:
-            given = np.asarray(colors, dtype=np.float32)
-            self._colors = linear_uint8(given, (n_segments,)) if given.ndim <= 2 else linear_uint8(given)
-            if self._colors.ndim == 3 and self._colors.shape != (*self.points.shape[:2], 3):
-                raise ShapeError(
-                    f"per-step colors must be (T, N, 3) = {self.points.shape[:2]} + (3,), got {given.shape}"
-                )
+        # uint8 (N, 3) or (T, N, 3); None follows the theme
+        self._colors = None if colors is None else step_colors(colors, self.points.shape[:2], convert=linear_uint8)
         self.width = width
         self._ink = linear_uint8(LIGHT.text, (n_segments,))  # the theme's text colour, set by ``apply_theme``
         self._lines: Any = None

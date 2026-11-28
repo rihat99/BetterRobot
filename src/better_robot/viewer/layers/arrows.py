@@ -8,7 +8,7 @@ import numpy as np
 
 from ...exceptions import ShapeError
 from ..layer import Bounds, Layer, as_frames, box
-from ..theme import RGB, linear_uint8
+from ..theme import RGB, linear_uint8, step_colors
 
 
 @final
@@ -45,11 +45,8 @@ class ArrowsLayer(Layer):
         super().__init__(name, self.origins.shape[0])
         self.shaft_radius, self.head_radius, self.head_length = shaft_radius, head_radius, head_length
         self.min_length = min_length
-        n_arrows = self._elements = self.origins.shape[1]
-        colors = np.asarray(colors, dtype=np.float32)
-        self._colors = linear_uint8(colors, (n_arrows,)) if colors.ndim <= 2 else linear_uint8(colors)
-        if self._colors.ndim == 3 and self._colors.shape != self.origins.shape:
-            raise ShapeError(f"per-step colors must be (T, N, 3) = {self.origins.shape}, got {self._colors.shape}")
+        self._elements = self.origins.shape[1]
+        self._colors = step_colors(colors, self.origins.shape[:2], convert=linear_uint8)
         self._arrows: Any = None
 
     @override

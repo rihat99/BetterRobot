@@ -16,7 +16,7 @@ import viser
 import better_robot as br
 from better_robot.testing import FakeServer
 from better_robot.exceptions import ArgumentError
-from better_robot.testing.fake_server import FakeClient, FakeGui, FakeHandle, FakeScene
+from better_robot.testing.fake_server import FakeClient, FakeGui, FakeScene
 from better_robot.viewer import (
     DARK,
     ArrowsLayer,
@@ -101,11 +101,6 @@ def test_the_stand_in_theme_takes_no_parameter_viser_deprecates() -> None:
     assert "control_layout" not in inspect.signature(FakeGui.configure_theme).parameters
 
 
-@pytest.mark.slow
-def test_a_tab_group_adds_tabs_like_viser() -> None:
-    _assert_binds_like(FakeHandle.add_tab, viser.GuiTabGroupHandle.add_tab, "FakeHandle.add_tab")
-
-
 def _drive_the_sidebar(viewer: Viewer) -> None:
     """Each kind of sidebar control, and a refused change that turns into a notification."""
 
@@ -151,13 +146,6 @@ def test_the_controls_an_app_adds_read_back_their_initial_values() -> None:
     assert gui.add_text("Pose name", initial_value="pose").value == "pose"
     assert gui.add_number("Density", initial_value=985.0).value == 985.0
     assert gui.add_markdown("**smpl**").content == "**smpl**"
-    tabs = gui.add_tab_group()
-    with tabs.add_tab("Body") as tab:
-        gui.add_button("Save pose")
-    assert tabs.tabs == [tab] and tab.name == "Body"
-    tab.remove()
-    with pytest.raises(AttributeError, match="this GuiTabHandle was removed"):
-        tab.label = "Shape"
 
 
 @pytest.mark.slow
@@ -213,22 +201,17 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
     viewer.set_fps(10.0)
     viewer.remove("v")
     viewer.serve()
-    tabs = server.gui.add_tab_group()  # the GUI calls of an app built on the viewer (BetterHuman's studio)
-    with tabs.add_tab("Model"):
-        server.gui.add_dropdown("Family", options=("smpl", "mhr"), initial_value="smpl").value = "mhr"
-        server.gui.add_dropdown("Gender", options=("neutral",), initial_value="neutral", disabled=True).disabled = False
-        server.gui.add_slider("LOD", min=0, max=2, step=1, initial_value=0, disabled=False).disabled = True
-        server.gui.add_text("Pose name", initial_value="pose").value = "pose 2"
-        server.gui.add_number("Density", initial_value=985.0).value = 1000.0
-        server.gui.add_markdown("").content = "**smpl**"
-    tabs.remove()
+    # the GUI calls of an app built on the viewer (BetterHuman's studio)
+    server.gui.add_dropdown("Family", options=("smpl", "mhr"), initial_value="smpl").value = "mhr"
+    server.gui.add_dropdown("Gender", options=("neutral",), initial_value="neutral", disabled=True).disabled = False
+    server.gui.add_slider("LOD", min=0, max=2, step=1, initial_value=0, disabled=False).disabled = True
+    server.gui.add_text("Pose name", initial_value="pose").value = "pose 2"
+    server.gui.add_number("Density", initial_value=985.0).value = 1000.0
+    server.gui.add_markdown("").content = "**smpl**"
 
     handles = [*server.scene.nodes.values(), *server.gui.controls, server.initial_camera, server.clients[0].camera]
     handles += [bone for handle in server.scene.nodes.values() for bone in handle.__dict__.get("bones", ())]
-    handles += [
-        server.gui.main_panel,
-        *(tab for handle in server.gui.controls for tab in handle.__dict__.get("tabs", ())),
-    ]
+    handles.append(server.gui.main_panel)
     used = set()
     for handle in handles:
         real = getattr(viser, handle.kind)
@@ -241,5 +224,5 @@ def test_every_handle_attribute_and_method_the_viewer_uses_exists_on_viser() -> 
             used.add(f"{handle.kind}.{method}()")
             assert callable(getattr(real, method, None)), f"the viewer calls {method}() on a {handle.kind}"
     assert {"MeshSkinnedBoneHandle.wxyz", "GuiFolderHandle.__enter__()", "TransformControlsHandle.on_update()"} <= used
-    assert {"GuiTabGroupHandle.add_tab()", "GuiTabHandle.__enter__()", "GuiMarkdownHandle.content"} <= used
+    assert "GuiMarkdownHandle.content" in used
     assert {"GuiDropdownHandle.disabled", "GuiSliderHandle.disabled"} <= used

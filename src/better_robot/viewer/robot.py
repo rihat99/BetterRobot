@@ -86,18 +86,18 @@ class _Blocks(Layer):
 
     With ``values`` ``(T, njoints)`` a step also colours the joint glyphs, one write of colours to each node that
     holds one (``_paint``), or with ``sized`` scales them from ``low`` to ``high`` times their size, the ends of
-    ``growth`` (a factor ``f`` is ``(1, f)``), one write of scales (``_grown``).
+    ``growth``, one write of scales (``_grown``).
     """
 
     def __init__(
         self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float,
         values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False,
-        growth: float | tuple[float, float],
+        growth: tuple[float, float],
     ) -> None:  # fmt: skip
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
         self.values, self.value_range, self.sized = values, value_range, sized
-        self.growth = growth if isinstance(growth, tuple) else (1.0, growth)
+        self.growth = growth
         self._store_opacity(opacity)
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
@@ -137,7 +137,7 @@ class _Blocks(Layer):
                 self._nodes[mesh].batched_wxyzs = world[:, [6, 3, 4, 5]]
                 if self.sized and mesh in self._ends:
                     self._nodes[mesh].batched_scales = self._grown(mesh, scale, values)
-                elif mesh == "cylinders" and (self.skeleton.cylinders.anchors[:, 0] >= 0).any():  # sticks stretch
+                elif mesh == "cylinders" and (self.skeleton.blocks[mesh].anchors[:, 0] >= 0).any():  # sticks stretch
                     self._nodes[mesh].batched_scales = scale.astype(np.float32)
         if self._lines is not None:
             self._lines.points = self.skeleton.lines(self.poses[step])
@@ -169,7 +169,7 @@ class _Blocks(Layer):
     def _grown(self, mesh: str, scale: np.ndarray, values: np.ndarray | None) -> np.ndarray:
         """The scales ``(N, 3)`` of ``mesh`` at a step, each glyph from ``low`` times its size at the low end of the
         value range to ``high`` times it at the high end (``growth``), by the value ``_paint`` would colour it by."""
-        grown = np.array(np.broadcast_to(scale, (len(getattr(self.skeleton, mesh)), 3)), dtype=np.float32)
+        grown = np.array(np.broadcast_to(scale, (len(self.skeleton.blocks[mesh]), 3)), dtype=np.float32)
         if values is not None:
             rows = self._ends[mesh][0]
             share, valued = self._shares(mesh, values)
@@ -350,8 +350,8 @@ class RobotVisual(Layer):
         colours, to each skeleton node that holds a glyph. ``(T, njoints)`` float32 values are kept without a copy
         (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
         kept as a read-only ``(T, njoints)`` view of it. ``values_as="size"`` shows the values as the glyphs' size
-        instead, each from its own size at ``low`` to the recipe's ``growth`` times it (twice by default) at ``high``,
-        or with a pair ``growth`` from its first factor to its second, in the robot's colours; ``"color"`` as colours;
+        instead, from the first factor of the recipe's ``growth`` times a glyph's size at ``low`` to the second at
+        ``high`` (1 and 2 by default), in the robot's colours; ``"color"`` as colours;
         ``None`` keeps the way in use. A step then costs one write of scales to each node that holds a glyph.
 
         Values of another shape raise ``ShapeError``, a ``values_as`` other than these ``ArgumentError``, values that are not numbers (strings) and a ``value_range`` that
@@ -741,8 +741,8 @@ class RobotVisual(Layer):
             point_bodies=point_bodies,
             skeleton=skeleton,
             keep={
-                mesh: np.array([anchor[body] not in covered for body in getattr(skeleton, mesh).body], dtype=bool)
-                for mesh in ("cylinders", "balls", "boxes")
+                mesh: np.array([anchor[body] not in covered for body in blocks.body], dtype=bool)
+                for mesh, blocks in skeleton.blocks.items()
             },
             skin=skin,
         )
@@ -896,9 +896,8 @@ def _shape_spec(
         visual = mesh.visual  # a texture or more than one vertex or face colour: the mesh keeps its own look, but not
         kind = None if visual is None else visual.kind  # trimesh's grey stand-in for a missing material file (black)
         textured = kind == "texture" and hash(visual.material) != hash(empty_material())
-        varied = textured or (
-            kind in ("vertex", "face") and len(np.unique(np.asarray(getattr(visual, f"{kind}_colors")), axis=0)) > 1
-        )
+        colors = visual.vertex_colors if kind == "vertex" else visual.face_colors if kind == "face" else None
+        varied = textured or (colors is not None and len(np.unique(np.asarray(colors), axis=0)) > 1)
         source = mesh if own_colors and varied else None
     elif isinstance(shape, Box):
         mesh = trimesh.creation.box(extents=shape.size)

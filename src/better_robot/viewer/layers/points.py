@@ -9,7 +9,7 @@ import numpy as np
 
 from ...exceptions import ShapeError
 from ..layer import Bounds, Layer, as_frames, box
-from ..theme import RGB, rgb_uint8
+from ..theme import RGB, rgb_uint8, step_colors
 
 
 @final
@@ -36,8 +36,7 @@ class PointsLayer(Layer):
             points, colors, self.counts = _pad(points, colors)
         self.points = as_frames(points, 2, name="points", width=3)
         super().__init__(name, self.points.shape[0])
-        colors = np.asarray(colors, dtype=np.float32)
-        self._colors = rgb_uint8(colors, (self.points.shape[1],)) if colors.ndim <= 2 else rgb_uint8(colors)
+        self._colors = step_colors(colors, self.points.shape[:2], convert=rgb_uint8)
         self.point_size = point_size
         self.point_shape = point_shape
         self._cloud: Any = None

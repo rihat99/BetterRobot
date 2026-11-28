@@ -11,7 +11,7 @@ import torch
 from ...exceptions import ArgumentError, ShapeError
 from ...lie import se3, so3
 from ..layer import Bounds, Layer, as_frames, as_triangles, box
-from ..theme import RGB, linear_uint8, rgb_uint8
+from ..theme import RGB, linear_uint8, rgb_uint8, step_colors
 
 #: The most colours a deforming ``MeshLayer`` takes: one scene node per colour.
 _MAX_COLOURS = 64
@@ -282,10 +282,7 @@ class SpheresLayer(Layer):
         self.radii = np.ascontiguousarray(radii, dtype=np.float32)
         if self.radii.shape != (self.centers.shape[1],):
             raise ShapeError(f"radii must be (S,) = ({self.centers.shape[1]},), one per sphere, got {self.radii.shape}")
-        colors = np.asarray(colors, dtype=np.float32)
-        self._colors = linear_uint8(colors, (self.centers.shape[1],)) if colors.ndim <= 2 else linear_uint8(colors)
-        if self._colors.ndim == 3 and self._colors.shape != self.centers.shape:
-            raise ShapeError(f"per-step colors must be (T, S, 3) = {self.centers.shape}, got {self._colors.shape}")
+        self._colors = step_colors(colors, self.centers.shape[:2], convert=linear_uint8)
         self._store_opacity(opacity)
         self._elements = self.centers.shape[1]
         self._spheres: Any = None

@@ -1,7 +1,7 @@
 """``FakeServer``: the shipped stand-in for ``viser.ViserServer``.
 
 No sockets and no viser import. Each viser call the viewer makes, and each GUI call of an app built on it
-(BetterHuman's studio: dropdowns, text and number fields, markdown, tabs), is declared here by name with viser's
+(BetterHuman's studio: dropdowns, text and number fields, markdown), is declared here by name with viser's
 parameter names and defaults (the parameters those callers pass; the full test tier binds every method against
 viser's), and returns a ``FakeHandle`` that records the call's arguments and later attribute writes; a control reads
 back the value it was given. So ``Viewer(server=FakeServer())`` builds, pushes and tears down a scene in a test or an
@@ -34,8 +34,7 @@ class FakeHandle:
     the methods called on it (``calls``). An array is copied when it is sent, at the call or a write, as viser
     serialises it then: a later edit of the sender's array reaches the handle only through another write. A write after ``remove()`` raises ``AttributeError``, as viser refuses it
     (with a ``RuntimeError``) and a frozen dataclass refuses any write.
-    ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered. A tab
-    group's ``add_tab`` keeps its tabs in ``tabs``.
+    ``fire(event)`` plays the browser: it calls every callback that ``on_update`` or ``on_click`` registered.
     """
 
     scene: FakeScene | None
@@ -95,20 +94,13 @@ class FakeHandle:
         """viser's placement of a panel (the main one: ``gui.main_panel``) docked at the right edge."""
         self.calls.append("dock_right")
 
-    def add_tab(self, label: str) -> FakeHandle:
-        """viser's tab of a tab group: a ``GuiTabHandle``, a context manager for the controls in the tab."""
-        self.calls.append("add_tab")
-        tab = FakeHandle(None, "GuiTabHandle", label, {})
-        self.__dict__.setdefault("tabs", []).append(tab)
-        return tab
-
     def __enter__(self) -> FakeHandle:
-        """Enter a folder or a tab: the controls added inside it belong to it on viser."""
+        """Enter a folder: the controls added inside it belong to it on viser."""
         self.calls.append("__enter__")
         return self
 
     def __exit__(self, *exc: object) -> None:
-        """Leave the folder or tab."""
+        """Leave the folder."""
         pass
 
 
@@ -124,8 +116,6 @@ class FakeScene:
         self.pointers: list[tuple[str, Callable[[Any], None]]] = []
         self.up_direction: Any = None
         self.background: Any = None  # the last ``set_background_image`` image
-        self.default_lights: tuple[bool, bool] | None = None  # (enabled, cast_shadow) of the last configuration
-        self.environment: dict[str, Any] | None = None  # the last ``configure_environment_map`` arguments
 
     def _node(self, kind: str, arguments: dict[str, Any]) -> FakeHandle:
         """A scene node from a method's ``locals()``: position, orientation and visibility readable as on viser."""
@@ -197,22 +187,6 @@ class FakeScene:
         """viser's instanced mesh, one copy per pose: a ``BatchedMeshHandle``."""
         return self._node("BatchedMeshHandle", locals())
 
-    def add_camera_frustum(
-        self,
-        name: str,
-        fov: float,
-        aspect: float,
-        *,
-        scale: float = 0.3,
-        color: Any = (20, 20, 20),
-        image: Any = None,
-        wxyz: Any = _IDENTITY,
-        position: Any = _ORIGIN,
-        visible: bool = True,
-    ) -> FakeHandle:
-        """viser's camera frustum, with an optional image: a ``CameraFrustumHandle``."""
-        return self._node("CameraFrustumHandle", locals())
-
     def add_grid(
         self,
         name: str,
@@ -253,47 +227,6 @@ class FakeScene:
     ) -> FakeHandle:
         """viser's image placed in the scene, ``render_width`` by ``render_height`` metres: an ``ImageHandle``."""
         return self._node("ImageHandle", locals())
-
-    def add_light_ambient(
-        self,
-        name: str,
-        *,
-        color: Any = (255, 255, 255),
-        intensity: float = 1.0,
-        wxyz: Any = _IDENTITY,
-        position: Any = _ORIGIN,
-        visible: bool = True,
-    ) -> FakeHandle:
-        """viser's ambient light: an ``AmbientLightHandle``."""
-        return self._node("AmbientLightHandle", locals())
-
-    def add_light_directional(
-        self,
-        name: str,
-        *,
-        color: Any = (255, 255, 255),
-        intensity: float = 1.0,
-        cast_shadow: bool = False,
-        wxyz: Any = _IDENTITY,
-        position: Any = _ORIGIN,
-        visible: bool = True,
-    ) -> FakeHandle:
-        """viser's directional light, shining from ``position`` towards the origin: a ``DirectionalLightHandle``."""
-        return self._node("DirectionalLightHandle", locals())
-
-    def add_light_hemisphere(
-        self,
-        name: str,
-        *,
-        sky_color: Any = (255, 255, 255),
-        ground_color: Any = (255, 255, 255),
-        intensity: float = 1.0,
-        wxyz: Any = _IDENTITY,
-        position: Any = _ORIGIN,
-        visible: bool = True,
-    ) -> FakeHandle:
-        """viser's hemisphere light: a ``HemisphereLightHandle``."""
-        return self._node("HemisphereLightHandle", locals())
 
     def add_line_segments(
         self,
@@ -368,12 +301,6 @@ class FakeScene:
         """viser's binary glTF asset: a ``GlbHandle``."""
         return self._node("GlbHandle", locals())
 
-    def add_mesh_trimesh(
-        self, name: str, mesh: Any, *, wxyz: Any = _IDENTITY, position: Any = _ORIGIN, visible: bool = True
-    ) -> FakeHandle:
-        """viser's mesh from a ``trimesh.Trimesh``: a ``MeshHandle``."""
-        return self._node("MeshHandle", locals())
-
     def add_point_cloud(
         self,
         name: str,
@@ -404,20 +331,6 @@ class FakeScene:
     ) -> FakeHandle:
         """viser's transform gizmo: a ``TransformControlsHandle``."""
         return self._node("TransformControlsHandle", locals())
-
-    def configure_default_lights(self, enabled: bool = True, cast_shadow: bool = True) -> None:  # noqa: FBT001, FBT002 - viser's signature
-        """Keep ``(enabled, cast_shadow)`` in ``default_lights``."""
-        self.default_lights = (enabled, cast_shadow)
-
-    def configure_environment_map(
-        self,
-        hdri: str | None = "warehouse",
-        *,
-        background: bool = False,
-        environment_intensity: float = 1.0,
-    ) -> None:
-        """Keep the arguments in ``environment``."""
-        self.environment = {"hdri": hdri, "background": background, "environment_intensity": environment_intensity}
 
     def set_background_image(self, image: Any, format: str = "auto") -> None:  # noqa: A002 - viser's parameter name
         """Keep ``image`` in ``background``."""
@@ -490,12 +403,6 @@ class FakeGui:
     def add_button(self, label: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
         """viser's button: a ``GuiButtonHandle``."""
         return self._control("GuiButtonHandle", label, locals())
-
-    def add_button_group(
-        self, label: str, options: Sequence[str], *, visible: bool = True, order: float | None = None
-    ) -> FakeHandle:
-        """viser's row of buttons: a ``GuiButtonGroupHandle`` whose value is the last option clicked."""
-        return self._control("GuiButtonGroupHandle", label, locals(), value=options[0])
 
     def add_checkbox(
         self,
@@ -583,10 +490,6 @@ class FakeGui:
     def add_markdown(self, content: str, *, order: float | None = None, visible: bool = True) -> FakeHandle:
         """viser's markdown panel: a ``GuiMarkdownHandle`` whose ``content`` reads back."""
         return self._control("GuiMarkdownHandle", "markdown", locals(), content=content)
-
-    def add_tab_group(self, *, order: float | None = None, visible: bool = True) -> FakeHandle:
-        """viser's tab group: a ``GuiTabGroupHandle``; its ``add_tab(label)`` adds a tab."""
-        return self._control("GuiTabGroupHandle", "tab_group", locals())
 
     def configure_theme(
         self,

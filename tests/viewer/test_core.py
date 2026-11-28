@@ -13,7 +13,7 @@ import torch
 
 from better_robot.lie import so3
 from better_robot.viewer.layer import Layer
-from better_robot.viewer import ArrowsLayer, FramesLayer, GroundLayer, PointsLayer
+from better_robot.viewer import ArrowsLayer, FramesLayer, GroundLayer, PlotPanel, PointsLayer
 from better_robot.viewer.layers.image import ImagePanel
 from better_robot.viewer.layers.mesh import MeshLayer, MeshSpec, RigidMeshLayer, SpheresLayer
 from better_robot.viewer.layers.skinned import SkinnedMeshLayer
@@ -417,16 +417,24 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
         ArrowsLayer("bad", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
 
+@pytest.mark.parametrize("colors", [np.zeros((2, 5, 3)), np.zeros((4, 7, 3))], ids=["steps", "points"])
+def test_points_refuse_per_step_colours_of_another_shape(colors: np.ndarray) -> None:
+    """PointsLayer took per-step colours of any ``(T', N', 3)``, then failed or drew wrong colours at a later step;
+    the other layers with per-step colours refused them."""
+    with pytest.raises(ShapeError, match="per-step colors"):
+        PointsLayer("bad", np.zeros((4, 5, 3)), colors=colors)
+
+
 def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)
-    panel = viewer.add_plot("tau", np.random.default_rng(0).normal(size=(20, 3)), labels=["a", "b", "c"])
+    panel = viewer.add(PlotPanel("tau", np.random.default_rng(0).normal(size=(20, 3)), labels=["a", "b", "c"]))
     plot = next(control for control in server.gui.controls if control.kind == "GuiUplotHandle")
     assert len(plot.props["data"]) == 4 and plot.props["data"][0][-1] == pytest.approx(19 / 30)
     viewer.show(7)
     assert plot.series[1]["points"]["filter"] == (7,) and plot.series[1]["label"] == "a"
     assert panel.nsteps == 20 and viewer.timeline.nsteps == 20
-    viewer.remove("plots")
+    viewer.remove(panel)
     assert plot.removed
 
 
@@ -465,8 +473,7 @@ def test_theme_shades_run_from_dark_drum_faces_to_pale_bones_with_bodies_in_the_
 
 def test_the_theme_leaves_visers_lights_alone_and_the_ground_takes_its_shadow() -> None:
     server = FakeServer()
-    viewer = Viewer(server=server)
-    assert server.scene.default_lights is None and server.scene.environment is None  # viser's own lighting
+    viewer = Viewer(server=server)  # the stand-in has no light or environment-map call: one would raise here
     assert not [name for name, node in server.scene.nodes.items() if "Light" in node.kind]
     grid = server.scene.nodes["/ground/ground/grid"].props
     assert grid["infinite_grid"] and grid["shadow_opacity"] == LIGHT.shadow
@@ -648,7 +655,7 @@ def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_se
     assert boxes() == {} and "Layers" not in [c.name for c in server.gui.controls]  # one tag: nothing to toggle
     arm, hand = _skeleton(10, "arm"), PointsLayer("hand", np.zeros((1, 3)))
     viewer.add([arm, hand], tags="robot")
-    viewer.add_plot("torque", np.zeros((10, 2)))  # a chart in the sidebar has nothing to hide in the scene
+    viewer.add(PlotPanel("torque", np.zeros((10, 2))))  # a chart in the sidebar has nothing to hide in the scene
     assert list(boxes()) == ["Skel", "Robot"]
     assert [control.name for control in server.gui.controls].count("Layers") == 1
     viewer.set_visible(arm, False)
