@@ -162,7 +162,7 @@ _BAD_ROBOT_INPUT: list[tuple[Callable[[], object], type[Exception], str]] = [
 def test_the_robot_surface_refuses_bad_input_naming_the_argument(
     call: Callable[[], object], error: type[Exception], match: str
 ) -> None:
-    """R2 m4: a string where a switch or numbers belong, a colour outside [0, 1], a ramp of one colour and frame
+    """A string where a switch or numbers belong, a colour outside [0, 1], a ramp of one colour and frame
     scales that are not positive were accepted, read letter by letter or met a builtin error later."""
     with pytest.raises(error, match=match):
         call()

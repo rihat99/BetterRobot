@@ -39,7 +39,7 @@ def test_gizmo_reports_poses_in_xyzw_order_and_fires_callbacks() -> None:
     np.testing.assert_allclose(seen[-1], [4.0, 5.0, 6.0, 0.0, 0.0, 0.0, 1.0])
     gizmo.pose = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     np.testing.assert_allclose(handle.wxyz, [0.0, 1.0, 0.0, 0.0])
-    with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):  # R1: the setter took any shape
+    with pytest.raises(ShapeError, match=r"pose must be \(7,\)"):  # the setter took any shape
         gizmo.pose = [1.0, 2.0, 3.0]
     np.testing.assert_allclose(handle.position, [0.0, 0.0, 0.0])
 
@@ -160,7 +160,7 @@ def test_a_camera_frustum_is_a_pose_in_the_library_order_also_from_a_browser_cam
 
 
 def test_picking_on_a_placed_tag_takes_the_viewer_pose_of_that_tag() -> None:
-    """R1's probe: a world click ray at vertex 0 as drawn, on a layer whose tag is turned a quarter about +z, picked
+    """A world click ray at vertex 0 as drawn, on a layer whose tag is turned a quarter about +z, picked
     vertex 1 from the layer's own arrays."""
     viewer = Viewer(server=FakeServer(), ground=False)
     turn = [0.0, 0.0, np.sin(np.pi / 4), np.cos(np.pi / 4)]
@@ -169,7 +169,7 @@ def test_picking_on_a_placed_tag_takes_the_viewer_pose_of_that_tag() -> None:
     np.testing.assert_allclose(pose, [0.0, 0.0, 0.0, *turn])
     drawn = np.array([0.0, 1.0, 0.0])  # where vertex 0 appears in the world
     origin = np.array([0.0, 1.0, 5.0])
-    assert nearest_on_ray(layer.points[0], origin, direction=drawn - origin, radius=0.05) == 1  # as R1 found it
+    assert nearest_on_ray(layer.points[0], origin, direction=drawn - origin, radius=0.05) == 1  # the bug's pick
     assert nearest_on_ray(layer.points[0], origin, direction=drawn - origin, radius=0.05, pose=pose) == 0
     # A triangle on the plane x = 1 of the layer, drawn on the plane y = 1; a ray along -y meets it only when placed.
     triangle, faces = np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 0.0, 1.0]]), np.array([[0, 1, 2]])

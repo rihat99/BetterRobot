@@ -74,7 +74,7 @@ def test_a_server_passed_in_gives_its_own_address() -> None:
         viewer = Viewer(server=server)
         assert (viewer.host, viewer.port) == ("127.0.0.1", server.get_port())
         assert viewer.url == f"http://127.0.0.1:{server.get_port()}"
-        for given in (dict(port=8080), dict(host="10.0.0.1"), dict(host="127.0.0.1", port=9999)):  # R1: were dropped
+        for given in (dict(port=8080), dict(host="10.0.0.1"), dict(host="127.0.0.1", port=9999)):  # were dropped
             with pytest.raises(ArgumentError, match="a server passed in listens where it was made"):
                 Viewer(server=server, **given)
     finally:

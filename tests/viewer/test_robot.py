@@ -144,7 +144,7 @@ def test_a_mesh_file_whose_material_file_is_missing_takes_the_shapes_colour(tmp_
 
 def test_load_meshes_refuses_a_model_for_the_geometry_and_a_collision_that_is_not_a_bool() -> None:
     """A ``Model`` in place of its ``Geometry`` raised the builtin ``AttributeError`` of a missing ``shapes``, and
-    ``collision="yes"`` matched no shape and returned ``[]`` (R1 n4): both are the library's ``ArgumentError``."""
+    ``collision="yes"`` matched no shape and returned ``[]``: both are the library's ``ArgumentError``."""
     model = br.load(panda_urdf())
     geometry = br.io.load_geometry(panda_urdf(), model)
     with pytest.raises(ArgumentError, match="takes a Geometry.*got Model"):
@@ -323,7 +323,7 @@ def test_a_hidden_robot_builds_a_part_switched_on_only_when_it_is_shown() -> Non
 
 def test_a_robot_shown_by_its_own_switch_shows_the_viewers_step() -> None:
     """``robot.set_visible(True)`` catches the robot up to the step the viewer moved to while it was hidden, as
-    ``Viewer.set_visible`` does (R2 m1: its skeleton, overlay and triads stayed at the step they were hidden at)."""
+    ``Viewer.set_visible`` does (its skeleton, overlay and triads stayed at the step they were hidden at)."""
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     velocity = torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
     q = torch.stack([br.kinematics.integrate(model, model.q_neutral, k * velocity) for k in range(3)])
@@ -507,7 +507,7 @@ def test_a_ghost_robot_draws_every_style_see_through_and_without_shadows() -> No
 def test_a_ghost_keeps_the_own_colours_and_texture_of_its_mesh_files_see_through(tmp_path: Path) -> None:
     """A mesh file with its own texture or colours (a Panda's, a Go2's) is sent as a GLB whose material takes the
     ghost's opacity, blended, with the texture and the colours kept and no shadow; opaque again, it is the file's
-    own GLB with shadows (R2 M1: such a robot stayed solid)."""
+    own GLB with shadows (such a robot stayed solid)."""
     import json  # noqa: PLC0415 - one test reads a GLB's JSON chunk
 
     import trimesh  # noqa: PLC0415 - optional dependency of the viewer

@@ -201,7 +201,7 @@ def test_a_sidebar_button_records_while_playing(monkeypatch: pytest.MonkeyPatch,
 
 
 def test_the_page_reaches_a_server_bound_to_every_interface_through_loopback() -> None:
-    """R1's probe: a server on IPv6 loopback gave ``url == "http://::1:8125"``, which no browser opens."""
+    """A server on IPv6 loopback gave ``url == "http://::1:8125"``, which no browser opens."""
     cases = {
         "0.0.0.0": ("http://0.0.0.0:8123", "http://127.0.0.1:8123"),
         "localhost": ("http://localhost:8123", "http://localhost:8123"),
@@ -255,7 +255,7 @@ def test_a_page_devtools_keeps_refusing_names_devtools_answer_not_the_viser_vers
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A DevTools that refuses every evaluation (a dead session) was reported after a minute as a viser version
-    without the client internals record drives (R2 m2): at the deadline the error is DevTools' last answer."""
+    without the client internals record drives: at the deadline the error is DevTools' last answer."""
     send = recorder._Page._send
 
     def refuse(page: object, method: str, **params: object) -> dict:
