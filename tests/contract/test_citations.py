@@ -7,8 +7,8 @@ citation is always dead. The dead citations that exist today sit in ``tests/cont
 (``"<file>: <citation>"`` to the reason); the ratchet only shrinks, and the fix that resolves a citation removes its
 entry. Permanent exceptions: the resolver's and the edge walker's test cases and this module's own exception list. A
 docs page tells no history: no plan code, no "no longer", no "was moved".
-Tracked text also names no code of the plan that wrote it (a work package, lane, ruling or phase), which nothing in
-the repository defines.
+Tracked text also names no code of the plan that wrote it (a work package, lane, ruling, phase, review round or audit
+finding), which nothing in the repository defines.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ EXEMPT_FILES: dict[str, str] = {
 }
 PLAN_CODE = re.compile(
     r"\bwp/[A-Z]|\blane [A-D]\b|\bR-\d+\b|\(P-\d+\)|\bP\d+-D\d+\b|\bPhase \d+ pass|\bowning WP\b|\bwork package\b"
+    r"|\bR\d+'s\b|\bAUDIT_\w+|\bN-\d|\([AC]\d+\)|\bT\d\.\d\b"
 )
 TEXT_SUFFIXES = (".md", ".py", ".toml", ".yml", ".yaml", ".json")
 
