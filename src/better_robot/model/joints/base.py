@@ -77,7 +77,9 @@ def _axis_column(axis: torch.Tensor, batch: torch.Size, *, row: int) -> torch.Te
 
 def _uniform(generator: torch.Generator, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
     """A draw uniform inside ``[lower, upper]``, of their shape and dtype, on their device."""
-    return lower + (upper - lower) * torch.rand_like(lower, generator=generator)
+    return lower + (upper - lower) * torch.rand(
+        lower.shape, generator=generator, dtype=lower.dtype, device=lower.device
+    )
 
 
 __all__ = ["JointModel"]
