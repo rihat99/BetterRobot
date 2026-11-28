@@ -42,6 +42,21 @@ def factored_solve(factor: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     )
 
 
+def _usable_step(
+    delta: torch.Tensor,
+    solved: torch.Tensor,
+    dtype: torch.dtype,
+    lower: torch.Tensor | None,
+    upper: torch.Tensor | None,
+) -> torch.Tensor:
+    """``delta: (B, N)`` as a solve returns it: 0 for a problem whose factorization failed (``solved: (B,)`` false) or
+    whose step is not finite (a rejected step for LM), in ``dtype``, inside the step box ``lower, upper: (B, N)``."""
+    ok = solved.unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
+    delta = torch.where(ok, delta, 0.0).to(dtype)
+    delta = delta if lower is None else torch.maximum(delta, lower)
+    return delta if upper is None else torch.minimum(delta, upper)
+
+
 @final
 @dataclass(frozen=True)
 class Normal:
@@ -89,11 +104,7 @@ class Normal:
         scale, scaled = unit_diagonal(self.H.double(), damping, floor)
         factor, info = torch.linalg.cholesky_ex(scaled)
         delta = factored_solve(factor, -(g * scale).unsqueeze(-1)).squeeze(-1) * scale
-        ok = (info == 0).unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
-        delta = torch.where(ok, delta, 0.0).to(self.g.dtype)
-        if self.lower is not None:
-            delta = torch.minimum(torch.maximum(delta, self.lower), self.upper)
-        return delta
+        return _usable_step(delta, info == 0, self.g.dtype, self.lower, self.upper)
 
     def predicted_decrease(self, delta: torch.Tensor) -> torch.Tensor:
         """Loss decrease the quadratic model predicts for ``delta: (B, N)``. Returns ``(B,)``."""
@@ -184,11 +195,7 @@ class BandedNormal:
         scale, factorization, failed = self._factor(damping, floor)
         rhs = -self._to_band(g.double()) * scale
         delta = self._from_band(self._substitute(factorization, rhs.unsqueeze(-1)).squeeze(-1) * scale)
-        ok = ~failed.unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
-        delta = torch.where(ok, delta, torch.zeros_like(delta)).to(self.g.dtype)
-        if self.lower is not None:
-            delta = torch.minimum(torch.maximum(delta, self.lower), self.upper_bound)
-        return delta
+        return _usable_step(delta, ~failed, self.g.dtype, self.lower, self.upper_bound)
 
     def _factor(self, damping: torch.Tensor | float, floor: float):
         """Block Cholesky of the scaled, damped matrix. Returns ``(scale (B, K, S), factorization, failed (B,))``."""
@@ -312,11 +319,7 @@ class ArrowNormal:
         delta = g.new_zeros(g.shape)
         delta = delta.index_copy(1, layout.time_columns, self.band._from_band(time))
         delta = delta.index_copy(1, layout.shared_columns, shared.squeeze(-1) * scale_shared)
-        ok = ~(failed | (info != 0)).unsqueeze(-1) & torch.isfinite(delta).all(dim=-1, keepdim=True)
-        delta = torch.where(ok, delta, torch.zeros_like(delta)).to(self.g.dtype)
-        if self.lower is not None:
-            delta = torch.minimum(torch.maximum(delta, self.lower), self.upper)
-        return delta
+        return _usable_step(delta, ~(failed | (info != 0)), self.g.dtype, self.lower, self.upper)
 
     def predicted_decrease(self, delta: torch.Tensor) -> torch.Tensor:
         """Loss decrease the quadratic model predicts for ``delta: (B, N)``. Returns ``(B,)``."""

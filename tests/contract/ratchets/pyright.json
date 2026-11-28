@@ -72,20 +72,12 @@
     "reason": "BandLayout.time_columns / shared_columns is Optional on the type and set whenever this code runs (an ArrowNormal always has a layout with shared columns); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
   },
   "src/better_robot/optim/linear.py::ArrowNormal.solve reportArgumentType": {
-    "count": 3,
-    "reason": "BandLayout.time_columns / shared_columns, and `upper` is Optional on the type and set whenever this code runs (set together with `lower`, checked just above); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
+    "count": 2,
+    "reason": "BandLayout.time_columns / shared_columns is Optional on the type and set whenever this code runs (an ArrowNormal always has a layout with shared columns); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
   },
   "src/better_robot/optim/linear.py::ArrowSink.__init__ reportOptionalMemberAccess": {
     "count": 2,
     "reason": "BandLayout.shared_columns is Optional on the type and set whenever this code runs (an ArrowSink is built only for a layout with shared columns); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
-  },
-  "src/better_robot/optim/linear.py::BandedNormal.solve reportArgumentType": {
-    "count": 1,
-    "reason": "`upper` is Optional on the type and set whenever this code runs (set together with `lower`, checked just above); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
-  },
-  "src/better_robot/optim/linear.py::Normal.solve reportArgumentType": {
-    "count": 1,
-    "reason": "`upper` is Optional on the type and set whenever this code runs (set together with `lower`, checked just above); the fix splits the type (a variant without the field), a change of optim's structure for the checker alone"
   },
   "src/better_robot/optim/linearization.py::_analytic_pieces reportOptionalCall": {
     "count": 1,

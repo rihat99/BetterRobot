@@ -103,6 +103,17 @@ def test_same_problem_under_adam_gauss_newton_and_lm_with_active_bound():
     torch.testing.assert_close(adam.x["x"], lm.x["x"], atol=1e-4, rtol=0.0)
 
 
+def test_a_step_box_with_one_side_clamps_that_side():
+    """``Normal(..., upper=)`` without ``lower=`` ignored its bound, and ``lower=`` alone raised a TypeError."""
+    identity, g = torch.eye(2, dtype=torch.float64)[None], torch.tensor([[-4.0, 4.0]], dtype=torch.float64)
+    one = torch.ones(1, 2, dtype=torch.float64)
+    # Oracle: the step of an identity H is -g (to the 1e-9 damping floor), clamped on the given side only.
+    upper_only = optim.Normal(identity, g, upper=one).solve()
+    lower_only = optim.Normal(identity, g, lower=-one).solve()
+    torch.testing.assert_close(upper_only, torch.tensor([[1.0, -4.0]], dtype=torch.float64))
+    torch.testing.assert_close(lower_only, torch.tensor([[4.0, -1.0]], dtype=torch.float64))
+
+
 def test_unknown_read_fails_at_registration():
     problem = optim.Problem({"x": torch.zeros(2, 3)})
     with pytest.raises(KeyError, match="typo"):
