@@ -882,6 +882,8 @@ def test_aim_refuses_look_from_beside_an_azimuth_on_the_up_axis_or_of_another_sh
         viewer.aim(look_from=(2.0, 2.0, 9.0))  # straight above the middle: no side to look from
     with pytest.raises(ArgumentError, match="finite"):
         viewer.aim(look_from=(np.nan, 0.0, 0.0))
+    with pytest.raises(ArgumentError, match="finite"):
+        viewer.aim(look_from=(np.inf, 0.0, 0.0))  # hypot(nan, inf) is inf: the distance test alone lets it through
     with pytest.raises(ShapeError, match=r"look_from must be a point \(3,\)"):
         viewer.aim(look_from=(1.0, 2.0))
     before = server.initial_camera.look_at.copy()

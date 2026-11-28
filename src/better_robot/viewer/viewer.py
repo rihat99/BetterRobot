@@ -566,6 +566,8 @@ class Viewer:
             look_from = np.asarray(look_from, dtype=np.float64)
             if look_from.shape != (3,):
                 raise ShapeError(f"look_from must be a point (3,), got {look_from.shape}")
+            if not np.isfinite(look_from).all():
+                raise ArgumentError(f"look_from must be a finite point, got {look_from.tolist()}")
         azimuth = _AZIMUTH if azimuth is None else azimuth
         with self.lock:
             position, look_at = self._framing(steps, azimuth, elevation, fov, look_from=look_from)
