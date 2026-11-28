@@ -149,26 +149,7 @@ class Model:
     @property
     def structure_key(self) -> tuple:
         """Hashable value of the static fields: two models with equal keys share every plan and index table."""
-        return (
-            self.name,
-            self.joint_names,
-            self.body_names,
-            self.frame_names,
-            self.joints,
-            self.parent_joint_ids,
-            self.frame_parent_joint_ids,
-            self.nqs,
-            self.nvs,
-            self.idx_qs,
-            self.idx_vs,
-            self.nqs_full,
-            self.nvs_full,
-            self.idx_qs_full,
-            self.idx_vs_full,
-            self.mimic_source_ids,
-            self.mimic_multipliers,
-            self.mimic_offsets,
-        )
+        return tuple(getattr(self, name) for name in _STATIC_FIELDS)
 
     @override
     def __repr__(self) -> str:
@@ -351,7 +332,7 @@ _STATIC_FIELDS = tuple(
 
 
 def _flatten(model: Model) -> tuple[list[torch.Tensor], tuple]:
-    return [getattr(model, name) for name in _TENSOR_FIELDS], tuple(getattr(model, name) for name in _STATIC_FIELDS)
+    return [getattr(model, name) for name in _TENSOR_FIELDS], model.structure_key
 
 
 def _unflatten(leaves: Iterable[torch.Tensor], context: tuple) -> Model:
