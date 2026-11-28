@@ -167,6 +167,13 @@ def _xi_with_angle(theta: float, batch: int = 16) -> torch.Tensor:
     return torch.cat([translation, theta * axis], dim=-1)
 
 
+def test_right_jacobian_se3_small_angle():
+    """At ``xi = 0``, ``Jr_SE3`` is the identity."""
+    xi = torch.zeros(6, dtype=torch.float64)
+    eye = torch.eye(6, dtype=torch.float64)
+    torch.testing.assert_close(tangents.right_jacobian_se3(xi), eye, atol=1e-10, rtol=1e-7)
+
+
 @pytest.mark.parametrize("theta", [1e-7, 1e-3, 0.19, 0.21, 1.0, 2.0, 3.0, math.pi, 4.5])
 def test_right_jacobian_se3_exact_at_any_angle(theta):
     xi = _xi_with_angle(theta)
