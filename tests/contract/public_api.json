@@ -226,7 +226,7 @@
   "better_robot.lie.tangents.right_jacobian_so3": "function(omega: 'torch.Tensor') -> 'torch.Tensor'",
   "better_robot.lie.tangents.vee_se3": "function(X: 'torch.Tensor') -> 'torch.Tensor'",
   "better_robot.lie.tangents.vee_so3": "function(W: 'torch.Tensor') -> 'torch.Tensor'",
-  "better_robot.lie.umeyama": "function(source: 'torch.Tensor', target: 'torch.Tensor', *, weights: 'torch.Tensor | None' = None, estimate_scale: 'bool' = True) -> 'tuple[torch.Tensor, torch.Tensor, torch.Tensor]'",
+  "better_robot.lie.umeyama": "function(source: 'torch.Tensor', target: 'torch.Tensor', *, weights: 'torch.Tensor | None' = None, estimate_scale: 'bool' = True, check_values: 'bool' = False) -> 'tuple[torch.Tensor, torch.Tensor, torch.Tensor]'",
   "better_robot.load": "function(path: 'str | Path', *, format: \"Literal['urdf', 'mjcf'] | None\" = None, root_joint: 'JointModel | None' = None, device: 'torch.device | None' = None, dtype: 'torch.dtype' = torch.float32) -> 'Model'",
   "better_robot.mass_matrix": "function(model: 'Model', state: 'KinematicState') -> 'torch.Tensor'",
   "better_robot.model": "module",

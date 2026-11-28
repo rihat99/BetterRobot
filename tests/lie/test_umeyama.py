@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.exceptions import DeviceMismatchError, DtypeMismatchError
+from better_robot.exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError
 from better_robot.lie import so3, umeyama
 
 
@@ -166,8 +166,8 @@ def test_umeyama_rejects_nonfinite_point_inputs(input_name: str, nonfinite: floa
     value = source if input_name == "source" else target
     value[0, 0] = nonfinite
 
-    with pytest.raises(ValueError, match="source and target must contain only finite values"):
-        umeyama(source, target)
+    with pytest.raises(ArgumentError, match="source and target must contain only finite values"):
+        umeyama(source, target, check_values=True)
 
 
 @pytest.mark.parametrize("nonfinite", [torch.nan, torch.inf, -torch.inf])
@@ -176,5 +176,22 @@ def test_umeyama_rejects_nonfinite_weights(nonfinite: float) -> None:
     weights = torch.ones(5)
     weights[0] = nonfinite
 
-    with pytest.raises(ValueError, match="weights must be finite and non-negative"):
-        umeyama(source, source.clone(), weights=weights)
+    with pytest.raises(ArgumentError, match="weights must be finite and non-negative"):
+        umeyama(source, source.clone(), weights=weights, check_values=True)
+
+
+def test_umeyama_rejects_zero_weights_and_a_point_set_without_spread_when_asked() -> None:
+    source = torch.randn((5, 3), generator=torch.Generator().manual_seed(7))
+    with pytest.raises(ArgumentError, match="weights must have a positive sum"):
+        umeyama(source, source.clone(), weights=torch.zeros(5), check_values=True)
+    with pytest.raises(ArgumentError, match="source point set has zero weighted variance"):
+        umeyama(source[:1].expand(5, 3), source, check_values=True)
+
+
+def test_umeyama_reads_values_only_when_asked() -> None:
+    """Negative weights normalize to a valid fit unchecked, and raise with ``check_values=True``."""
+    source = torch.randn((5, 3), generator=torch.Generator().manual_seed(7), dtype=torch.float64)
+    weights = -torch.ones(5, dtype=torch.float64)
+    torch.testing.assert_close(umeyama(source, source.clone(), weights=weights)[1], torch.eye(3, dtype=torch.float64))
+    with pytest.raises(ArgumentError, match="weights must be finite and non-negative"):
+        umeyama(source, source.clone(), weights=weights, check_values=True)
