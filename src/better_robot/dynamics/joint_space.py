@@ -1,9 +1,11 @@
 """Joint-space dynamics of a `KinematicState`: the torques of an acceleration (`inverse_dynamics`), the mass
-matrix, and the accelerations of torques (`forward_dynamics`)."""
+matrix, the accelerations of torques (`forward_dynamics`), and world forces at frames as the external wrenches both
+take (`contact_wrenches`)."""
 
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 
 import torch
 
@@ -113,4 +115,31 @@ def forward_dynamics(
     return torch.where((info == 0).unsqueeze(-1), ddq, torch.nan)
 
 
-__all__ = ["forward_dynamics", "inverse_dynamics", "mass_matrix"]
+def contact_wrenches(
+    model: Model, state: KinematicState, *, forces: torch.Tensor, frames: Sequence[int | str]
+) -> torch.Tensor:
+    """``external_forces (B..., njoints, 6)`` of world ``forces (B..., C, 3)`` pushing at the origins of the ``C``
+    frames ``frames`` (ids or names), for `inverse_dynamics` and `forward_dynamics`.
+
+    Each force becomes a wrench ``[force, torque]`` on the body of its frame's parent joint, expressed in that joint's
+    frame as ``external_forces`` reads it; forces on frames of one joint add up. ``forces`` broadcasts to the state's
+    batch ``B...``. Raises ``UnknownNameError`` for a frame the model does not have, and as `inverse_dynamics` for
+    ``forces`` that are not a tensor of the model's dtype and device ending in ``(C, 3)``.
+    """
+    check_state(model, state)
+    batch, event = tuple(state.q.shape[:-1]), (len(frames), 3)
+    check_tensor("forces", forces, shape=event, dtype=model.dtype, device=model.device)
+    forces = expand_batch("forces", forces, batch, event)
+    ids = [model.frame_id(frame) for frame in frames]
+    frame_ids = torch.as_tensor(ids, dtype=torch.long, device=forces.device)
+    parents = torch.as_tensor([model.frame_parent_joint_ids[i] for i in ids], dtype=torch.long, device=forces.device)
+    joint = state.joint_transforms[..., parents, :, :]  # (B..., C, 3, 4)
+    lever = state.frame_translations[..., frame_ids, :] - joint[..., 3]
+    rotation = joint[..., :3]
+    linear = (rotation.mT @ forces[..., None]).squeeze(-1)
+    angular = (rotation.mT @ torch.linalg.cross(lever, forces)[..., None]).squeeze(-1)
+    wrenches = forces.new_zeros((*batch, model.njoints, 6))
+    return wrenches.index_add(-2, parents, torch.cat((linear, angular), dim=-1))
+
+
+__all__ = ["contact_wrenches", "forward_dynamics", "inverse_dynamics", "mass_matrix"]

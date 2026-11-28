@@ -96,6 +96,7 @@
   "better_robot.dynamics.center_of_mass": "function(model: 'Model', state: 'KinematicState') -> 'torch.Tensor'",
   "better_robot.dynamics.centroidal_map": "function(model: 'Model', state: 'KinematicState') -> 'torch.Tensor'",
   "better_robot.dynamics.centroidal_momentum": "function(model: 'Model', state: 'KinematicState', *, v: 'torch.Tensor') -> 'torch.Tensor'",
+  "better_robot.dynamics.contact_wrenches": "function(model: 'Model', state: 'KinematicState', *, forces: 'torch.Tensor', frames: 'Sequence[int | str]') -> 'torch.Tensor'",
   "better_robot.dynamics.forward_dynamics": "function(model: 'Model', state: 'KinematicState', *, v: 'torch.Tensor', tau: 'torch.Tensor', external_forces: 'torch.Tensor | None' = None) -> 'torch.Tensor'",
   "better_robot.dynamics.inverse_dynamics": "function(model: 'Model', state: 'KinematicState', *, v: 'torch.Tensor', a: 'torch.Tensor', external_forces: 'torch.Tensor | None' = None) -> 'torch.Tensor'",
   "better_robot.dynamics.mass_matrix": "function(model: 'Model', state: 'KinematicState') -> 'torch.Tensor'",

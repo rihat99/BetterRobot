@@ -125,6 +125,17 @@ def test_public_dynamics_reaches_q_and_body_inertias(
     _assert_gradients(entry(model, q, velocity, acceleration, torque), q, inertias)
 
 
+def test_contact_wrenches_reach_q_forces_and_placements(panda) -> None:
+    q = _configuration(panda).requires_grad_()
+    model, joint_placements = _placement_model(panda)
+    frame_placements = torch.zeros_like(model.frame_placements, requires_grad=True)
+    model = model.with_values(frame_placements=model.frame_placements + frame_placements)
+    forces = torch.tensor([[1.0, -2.0, 3.0]], dtype=torch.float64, requires_grad=True)
+    state = br.forward_kinematics(model, q)
+    wrenches = br.dynamics.contact_wrenches(model, state, forces=forces, frames=[_hand_frame(model)])
+    _assert_gradients(wrenches, q, forces, joint_placements, frame_placements)
+
+
 def test_integrate_and_difference_reach_q(panda) -> None:
     step = torch.linspace(0.01, 0.04, panda.nv, dtype=torch.float64)
 

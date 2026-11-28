@@ -73,6 +73,11 @@ def _kinematic_cases(dtype: torch.dtype, device: torch.device, scale: float) -> 
         "centroidal_map": (dynamics.centroidal_map, (model, state), {}),
         "centroidal_momentum": (dynamics.centroidal_momentum, (model, state), {"v": v}),
         "center_of_mass": (dynamics.center_of_mass, (model, state), {}),
+        "contact_wrenches": (
+            dynamics.contact_wrenches,
+            (model, state),
+            {"forces": tensor(1.0, 0.0, -2.0, 0.5, 0.3, 0.1).reshape(2, 3), "frames": [frame, "link1"]},
+        ),
         "integrate": (kinematics.integrate, (model, q, v), {}),
         "difference": (kinematics.difference, (model, q, a), {}),
         "full_configuration": (kinematics.full_configuration, (model, q), {}),
