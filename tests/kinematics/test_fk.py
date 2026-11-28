@@ -4,41 +4,18 @@
 
 from __future__ import annotations
 
-import math
-
 import pytest
 import torch
 
 from better_robot.exceptions import DtypeMismatchError, ShapeError
 from better_robot.io import build_model, load
-from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import KinematicState, forward_kinematics
-from tests.support.robots import panda_urdf
-
-
-def _id7() -> torch.Tensor:
-    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-
-
-def _simple_arm():
-    b = ModelBuilder("arm")
-    b.add_body("base", mass=0.5)
-    b.add_body("link1", mass=1.0)
-    b.add_revolute(
-        "j1",
-        axis=(0.0, 0.0, 1.0),
-        parent="base",
-        child="link1",
-        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
-        lower=-math.pi,
-        upper=math.pi,
-    )
-    return build_model(b.finalize())
+from tests.support.robots import one_revolute_arm_ir, panda_urdf
 
 
 @pytest.fixture(scope="module")
 def arm():
-    return _simple_arm()
+    return build_model(one_revolute_arm_ir())
 
 
 # ── shape checks ─────────────────────────────────────────────────────────────
@@ -56,7 +33,8 @@ def test_fk_rejects_model_query_dtype_mismatch(arm):
 
 
 def test_a_hand_built_state_with_the_wrong_shapes_fails_at_construction() -> None:
-    """The review built a state whose tables did not fit the model; frame_jacobian then raised a raw IndexError."""
+    """A hand-built state whose tables do not fit the model fails here, not later in frame_jacobian with a raw
+    IndexError."""
     model = load(panda_urdf())
     state = forward_kinematics(model, model.q_neutral.expand(2, -1))
     tables = {"q": state.q, "joint_transforms": state.joint_transforms}

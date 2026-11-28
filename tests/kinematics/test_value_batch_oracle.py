@@ -22,6 +22,7 @@ from better_robot.kinematics import (
     joint_jacobian_time_variation,
     point_jacobian,
 )
+from tests.support.value_batch import assert_value_batched_matches_loop
 
 
 def _pose(x: float = 0.0, y: float = 0.0) -> torch.Tensor:
@@ -71,7 +72,7 @@ def _outputs(model, state, v: torch.Tensor, shared: torch.Tensor, points: torch.
     )
 
 
-def test_identity_batch_broadcasts_against_the_configuration_batch(value_batch_loop_oracle) -> None:
+def test_identity_batch_broadcasts_against_the_configuration_batch() -> None:
     """``I = (2,)`` against ``B = (3, 1)`` gives the state batch ``(3, 2)``; every index equals the scalar loop."""
     model = _model()
     placements, frames = _identities(model, 2)
@@ -94,10 +95,10 @@ def test_identity_batch_broadcasts_against_the_configuration_batch(value_batch_l
         state = forward_kinematics(scalar, q[row, 0])
         return _outputs(scalar, state, v[row, 0], shared, points[row, identity])
 
-    value_batch_loop_oracle(batched_call, loop_call, execution_batch_shape=(3, 2), rtol=0.0, atol=0.0)
+    assert_value_batched_matches_loop(batched_call, loop_call, execution_batch_shape=(3, 2), rtol=0.0, atol=0.0)
 
 
-def test_time_variations_broadcast_v_against_the_state_batch(value_batch_loop_oracle) -> None:
+def test_time_variations_broadcast_v_against_the_state_batch() -> None:
     """``v`` of batch ``(3, 2)`` against a state of batch ``(3, 1)`` (C-TENS-2, both ways): J̇ is linear in ``v``, so
     several velocities per configuration are well defined; every index equals the scalar loop."""
     model = _model()
@@ -116,7 +117,7 @@ def test_time_variations_broadcast_v_against_the_state_batch(value_batch_loop_or
         row, velocity = index
         return variations(forward_kinematics(model, q[row, 0]), v[row, velocity])
 
-    value_batch_loop_oracle(
+    assert_value_batched_matches_loop(
         lambda: variations(forward_kinematics(model, q), v), loop_call, execution_batch_shape=(3, 2), rtol=0.0, atol=0.0
     )
 

@@ -16,6 +16,7 @@ from better_robot.exceptions import ShapeError
 from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import forward_kinematics
+from tests.support.value_batch import assert_value_batched_matches_loop
 
 
 def _pose(x: float = 0.0) -> torch.Tensor:
@@ -68,10 +69,7 @@ def test_centroidal_map_and_momentum_shapes() -> None:
 
 
 @pytest.mark.parametrize("batch_shape", ((3,), (2, 2)))
-def test_batched_inertias_match_scalar_dynamics_loop(
-    value_batch_loop_oracle,
-    batch_shape: tuple[int, ...],
-) -> None:
+def test_batched_inertias_match_scalar_dynamics_loop(batch_shape: tuple[int, ...]) -> None:
     model = _model()
     inertias = _inertia_batch(model, batch_shape)
     rebound = model.with_values(body_inertias=inertias)
@@ -92,7 +90,7 @@ def test_batched_inertias_match_scalar_dynamics_loop(
             centroidal_momentum(current_model, state, v=v),
         )
 
-    value_batch_loop_oracle(
+    assert_value_batched_matches_loop(
         lambda: evaluate(rebound),
         lambda index: evaluate(model.with_values(body_inertias=inertias[index])),
         execution_batch_shape=batch_shape,

@@ -14,27 +14,7 @@ from better_robot.model import JointFreeFlyer
 from better_robot.kinematics import forward_kinematics
 from better_robot.terms import frame_pose
 from better_robot.kinematics import frame_jacobian, integrate, joint_jacobian, point_jacobian
-from tests.support.robots import g1_urdf, panda_urdf
-
-
-def _id7() -> torch.Tensor:
-    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-
-
-def _simple_arm_model():
-    b = ModelBuilder("arm")
-    b.add_body("base", mass=0.5)
-    b.add_body("link1", mass=1.0)
-    b.add_revolute(
-        "j1",
-        axis=(0.0, 0.0, 1.0),
-        parent="base",
-        child="link1",
-        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
-        lower=-math.pi,
-        upper=math.pi,
-    )
-    return build_model(b.finalize())
+from tests.support.robots import g1_urdf, one_revolute_arm_ir
 
 
 def _chain_model():
@@ -65,7 +45,7 @@ def _chain_model():
 
 @pytest.fixture(scope="module")
 def arm():
-    return _simple_arm_model()
+    return build_model(one_revolute_arm_ir())
 
 
 @pytest.fixture(scope="module")
@@ -177,16 +157,6 @@ def test_analytic_vs_finite_diff_chain_j1(chain):
     q[1] = -0.4
     frame_id = chain.frame_id("l2")
     _analytic_vs_finite_diff(chain, q, frame_id)
-
-
-# ── panda Jacobian check ──────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="module")
-def panda_model():
-    from better_robot.io import load  # noqa: PLC0415
-
-    return load(panda_urdf())
 
 
 def test_point_jacobian_matches_finite_differences_on_a_floating_base():
