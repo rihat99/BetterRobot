@@ -20,7 +20,7 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from ..lie.tangents import hat_so3_raw
-from ..lie._checks import broadcast_batch, check_tensor, check_tensors
+from ..lie.checks import broadcast_batch, check_tensor, check_tensors
 from .mesh import _check_face_table
 
 

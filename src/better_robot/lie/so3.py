@@ -13,7 +13,7 @@ import math
 
 import torch
 
-from ._checks import check_tensor, check_tensors
+from .checks import check_tensor, check_tensors
 
 
 # ``1 - cos(theta)`` loses significance much earlier in fp32 than fp64.

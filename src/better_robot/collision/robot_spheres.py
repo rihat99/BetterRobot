@@ -19,7 +19,7 @@ import torch
 
 from ..exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ModelError, ShapeError
 from ..kinematics import KinematicState
-from ..lie._checks import check_index_tensor, check_tensor
+from ..lie.checks import check_index_tensor, check_tensor
 from ..model.model import Model
 from .distance import sphere_sphere_raw
 

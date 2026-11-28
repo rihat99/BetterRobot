@@ -9,7 +9,7 @@ from __future__ import annotations
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
-from ._checks import check_broadcast, check_tensor
+from .checks import check_broadcast, check_tensor
 
 
 def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:

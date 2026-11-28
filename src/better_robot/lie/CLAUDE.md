@@ -13,7 +13,7 @@ Each module opens with its conventions; the layouts other repositories read are 
   ```
   The cutoffs are on `theta²` and depend on the dtype (`_taylor_theta2`); fp64 `gradcheck` and `gradgradcheck` at
   and near identity guard the public exp, log and right Jacobians (`tests/lie/test_torch_backend_gradcheck.py`).
-- Every public function checks its tensor inputs with `_checks.py` (the library's one validator) and, when an
+- Every public function checks its tensor inputs with `checks.py` (the library's one validator) and, when an
   in-library caller needs it, calls an unchecked `<name>_raw` twin. `kinematics`, `dynamics`, `spatial`, `model`
   and `io` call the `_raw` twins on inputs their own boundary checked. A new public function goes in the module's
   `__all__` and in `tests/lie/test_boundary.py`.

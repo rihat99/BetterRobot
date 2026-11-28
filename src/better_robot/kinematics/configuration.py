@@ -18,7 +18,7 @@ from typing import final
 import torch
 
 from ..exceptions import ShapeError
-from ..lie._checks import broadcast_batch, check_tensor
+from ..lie.checks import broadcast_batch, check_tensor
 from ..model.manifolds import EUCLIDEAN, JointManifold
 from ..model.model import Model
 

@@ -213,12 +213,13 @@ See [Optimisation](../optim-and-terms.md) for the complete problem and solver mo
 |---|---|
 | **PyTorch, torch** | The tensor library BetterRobot runs on, and its only implementation. |
 | **event shape** | Trailing axes that describe one value, such as `(nq,)` or `(6, nv)`. |
-| **batch shape, `B...`** | Any leading axes that represent independent evaluations. |
+| **batch, batch shape, `B...`** | Any leading axes that represent independent evaluations. |
 | **model batch, `I...`** | Optional leading axes of a model's tensor values (`joint_placements (I..., njoints, 7)`): robots with one topology. A state's batch is `broadcast(B..., I...)`. |
 | **batching** | Evaluate many independent inputs in one tensor call instead of a Python loop. |
-| **broadcasting** | Reuse a size-one or missing batch axis across a compatible larger batch, following PyTorch rules. |
+| **broadcast, broadcasting** | Reuse a size-one or missing batch axis across a compatible larger batch, following PyTorch rules. |
 | **device** | Where a tensor lives, such as the CPU or one CUDA GPU. |
 | **dtype** | The tensor's numeric type, such as `torch.float32` or `torch.float64`. |
+| **tensor** | A `torch.Tensor`, the library's only array type; `lie.checks` validates each one a public function receives. |
 | **compute pass** | One complete operation over the robot, such as FK or RNEA. |
 | **compiled** | A call turned by `torch.compile` into one graph of fused kernels, made on request by `kinematics.compiled`; eager, the default, runs each torch operator as it comes. |
 
@@ -338,7 +339,7 @@ flat, floor, folder, forever, format, fraction, free, from, generator, get, grap
 height, high, history, hit, host, identity, ignore, image, imported, in, index, inequality, install, inverse, iteration,
 keep, key, label, layout, length, light, limit, line, linearize, load, lock, loop, low, lower, masked, mass, match,
 matrix, mesh, mismatch, mode, multiplier, name, nearest, new, no, norm, normalize, object, of, offset, old, on, opacity,
-option, optional, order, orient, other, outer, output, package, page, pair, panel, parse, path, pause, penalty,
+option, optional, order, orient, other, outer, output, owner, package, page, pair, panel, parse, path, pause, penalty,
 permutation, pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii,
 radius, ramp, random, range, read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run,
 save, scalar, scale, scene, scheduler, search, section, segment, serializer, series, server, set, shading, shadow,

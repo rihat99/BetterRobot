@@ -18,7 +18,7 @@ import torch
 from .. import _internal_checks
 from ..exceptions import ModelError
 from ..lie import se3
-from ..lie._checks import check_dtype
+from ..lie.checks import check_dtype
 from ..model.joints import JointFixed, JointHelical, JointModel, JointPrismatic, JointRevolute
 from ..model.manifolds import CIRCLE, PLANE, RIGID, ROTATION, JointManifold
 from ..model.model import Model

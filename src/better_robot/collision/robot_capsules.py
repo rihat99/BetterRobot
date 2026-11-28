@@ -14,7 +14,7 @@ from typing import final, override
 import torch
 
 from ..kinematics import KinematicState
-from ..lie._checks import check_index_tensor
+from ..lie.checks import check_index_tensor
 from ..model.model import Model
 from .distance import capsule_capsule_raw
 from .robot_spheres import _check_attached

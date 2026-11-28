@@ -18,7 +18,7 @@ The field table is the `Model` class docstring (`model.py`); the plan sharing be
   are derived.
 - Constant tensors derived from the static fields are plans, built once per dtype and device by
   `Model._plan(kind, build, *, dtype=, device=)`; no other cache exists (`tests/contract/test_caches.py`).
-- Every public boundary checks each tensor input once with `src/better_robot/lie/_checks.py::check_tensor` (a dtype
+- Every public boundary checks each tensor input once with `src/better_robot/lie/checks.py::check_tensor` (a dtype
   or device other than the model's raises) and aligns its batch with `batch_shape` and `expand_batch`; raw passes
   trust the result (`tests/contract/test_boundary_validation_count.py`).
 - Joint 0 is the zero-DOF universe; a floating base is joint 1, a `JointFreeFlyer`. Index order is topological

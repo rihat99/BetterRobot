@@ -1,6 +1,6 @@
 """Batch alignment of public tensor inputs with the model's value batch ``I...``.
 
-Every public boundary checks each tensor input once with the one validator, `lie._checks.check_tensor`
+Every public boundary checks each tensor input once with the one validator, `lie.checks.check_tensor`
 (contract 06), then aligns it here with `batch_shape` / `expand_batch`. Raw passes below trust the result.
 """
 
@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from ..exceptions import ShapeError
-from ..lie._checks import broadcast_batch
+from ..lie.checks import broadcast_batch
 
 if TYPE_CHECKING:
     from .model import Model

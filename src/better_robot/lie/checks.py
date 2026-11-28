@@ -1,7 +1,9 @@
 """The one input validator of the library (contract 06, C-ERR-1).
 
 The boundaries of `lie`, `spatial`, `model`, `kinematics`, `dynamics`, `collision`, `io` and `terms` call it. It reads
-types, shapes, dtypes and devices, never tensor values.
+types, shapes, dtypes and devices, never tensor values. Public, so that a library built on BetterRobot checks its
+inputs with the same rules and messages instead of a copy; `check_tensors` and `broadcast_batch` serve the library's
+own boundaries and stay out of ``__all__``.
 """
 
 from __future__ import annotations
@@ -112,8 +114,8 @@ def broadcast_batch(*batches: tuple[int, ...]) -> tuple[int, ...]:
     return tuple(result)
 
 
-def check_broadcast(**batches: tuple[int, ...]) -> None:
-    """``ShapeError`` naming two arguments whose batch axes ``name=shape`` do not broadcast together."""
+def check_broadcast(**batches: tuple[int, ...]) -> tuple[int, ...]:
+    """The shape the batch axes ``name=shape`` broadcast to; ``ShapeError`` naming two arguments whose axes do not."""
     named = list(batches.items())
     for index, (name, batch) in enumerate(named):
         for earlier, earlier_batch in named[:index]:
@@ -122,3 +124,7 @@ def check_broadcast(**batches: tuple[int, ...]) -> None:
                     f"{earlier} has batch axes {tuple(earlier_batch)} and {name} {tuple(batch)}, which do not "
                     "broadcast; give both the same leading axes (size 1 repeats)"
                 )
+    return broadcast_batch(*batches.values())
+
+
+__all__ = ["check_broadcast", "check_dtype", "check_index_tensor", "check_tensor"]

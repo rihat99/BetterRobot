@@ -11,7 +11,7 @@ import torch
 
 from ..exceptions import DeviceMismatchError, DtypeMismatchError, ModelError, QuaternionNormError, ShapeError
 from ..lie import so3
-from ..lie._checks import check_tensor
+from ..lie.checks import check_tensor
 from ..model._checks import batch_shape, expand_batch
 from ..model.model import Model
 from ._fk import joint_map, world_frames, world_transforms

@@ -15,7 +15,7 @@ from __future__ import annotations
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
-from ..lie._checks import check_index_tensor, check_tensors
+from ..lie.checks import check_index_tensor, check_tensors
 
 _MAX_REPORTED_EDGES = 5
 
