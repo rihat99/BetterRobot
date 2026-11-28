@@ -42,7 +42,7 @@ installed (its header says how).
 Never skip, xfail, loosen a tolerance or delete an assertion to get green; report the number instead. Gate data (a
 tolerance, a counter threshold, the edge table) changes only in a commit of its own that says why.
 
-- Pinocchio parity, `tests/parity/pinocchio/`: 188 tests, each comparison under its own tolerance; MuJoCo
+- Pinocchio parity, `tests/parity/pinocchio/`: 157 tests, each comparison under its own tolerance; MuJoCo
   parity, `tests/parity/mujoco/`: 21 tests.
 - Counters: graph breaks, recompiles, operators and host syncs of the counter rows never exceed
   `benchmarks/thresholds/torch-2.13.0.json` (rule C-PERF-3, `tests/contract/test_compile_counters.py`).

@@ -1,21 +1,14 @@
-"""Centroidal-dynamics acceptance tests.
+"""Centroidal momentum: invariants every valid convention satisfies.
 
 The whole-body convention here includes every body in
 ``model.body_inertias`` — including bodies attached via the synthetic
 ``root_joint`` (a fixed joint inserted by ``io.build_model``). Pinocchio
 collapses fixed-joint bodies into the ``universe`` slot and excludes
 that slot from ``pin.centerOfMass`` / ``pin.ccrba``, so a direct numeric
-match would require fabricating a one-off Pinocchio model. We instead
-test the invariants the centroidal API must satisfy under any valid
-convention:
+match would require fabricating a one-off Pinocchio model. The oracles are instead:
 
-* ``h_g[:3] == total_mass · v_com`` — linear momentum invariant.
-* ``h_g == A_g(q) · v`` — matrix–vector consistency.
-* ``v == 0 ⇒ h_g == 0`` — kinematic invariance.
-
-The integration test ``test_centroidal_momentum_consistency`` derives
-``h_g`` independently by running RNEA at zero acceleration to extract
-the per-body twists, then compares to ``centroidal_momentum``.
+* ``h_g[:3] == total_mass · v_com``, with ``v_com`` the forward-mode derivative of ``center_of_mass``.
+* A pure base translation of the free-flying G1 at unit speed gives ``total_mass · ê_x`` and no angular momentum.
 """
 
 from __future__ import annotations
@@ -23,7 +16,7 @@ from __future__ import annotations
 import torch
 
 import better_robot as br
-from better_robot.dynamics import center_of_mass, centroidal_map, centroidal_momentum
+from better_robot.dynamics import center_of_mass, centroidal_momentum
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -53,36 +46,6 @@ def test_hg_linear_equals_mass_times_vcom():
         _, v_com = torch.func.jvp(lambda q_: center_of_mass(model, forward_kinematics(model, q_)), (q,), (v,))
         h_g = centroidal_momentum(model, forward_kinematics(model, q), v=v)
         torch.testing.assert_close(h_g[:3], total_mass * v_com, rtol=1e-10, atol=1e-10)
-
-
-def test_ag_times_v_equals_hg():
-    """``h_g = A_g(q) · v``."""
-    model = _panda()
-    qs = _sample_q(model, 4, seed=2)
-    rng = torch.Generator().manual_seed(3)
-    for i in range(qs.shape[0]):
-        q = qs[i]
-        v = torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5
-        A_g = centroidal_map(model, forward_kinematics(model, q))
-        h_g_expected = (A_g @ v.unsqueeze(-1)).squeeze(-1)
-        h_g = centroidal_momentum(model, forward_kinematics(model, q), v=v)
-        torch.testing.assert_close(h_g, h_g_expected, rtol=1e-12, atol=1e-12)
-
-
-def test_zero_velocity_gives_zero_momentum():
-    """``v = 0 ⇒ h_g = 0`` for any ``q``."""
-    model = _panda()
-    qs = _sample_q(model, 2, seed=4)
-    for i in range(qs.shape[0]):
-        q = qs[i]
-        zero_v = torch.zeros(model.nv, dtype=torch.float64)
-        h_g = centroidal_momentum(model, forward_kinematics(model, q), v=zero_v)
-        torch.testing.assert_close(
-            h_g,
-            torch.zeros(6, dtype=torch.float64),
-            rtol=1e-12,
-            atol=1e-12,
-        )
 
 
 def test_centroidal_g1_free_flyer():

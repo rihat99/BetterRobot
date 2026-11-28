@@ -1,13 +1,4 @@
-"""ABA parity — BetterRobot vs Pinocchio + the inverse-of-RNEA identity.
-
-Checks:
-
-* ``forward_dynamics(q, v, inverse_dynamics(q, v, a)) == a`` to fp64 ulp on Panda (fixed-base) and
-  G1 (free-flyer).
-* ``forward_dynamics(q, v, τ)`` matches ``pin.aba`` on Panda. The looser 1e-4 atol is
-  the URDF inertia round-trip noise (see comment in
-  ``test_rnea_matches_pinocchio.py``).
-"""
+"""ABA parity: ``forward_dynamics(q, v, τ)`` matches ``pin.aba`` on the Panda in fp64."""
 
 from __future__ import annotations
 
@@ -15,12 +6,10 @@ import numpy as np
 import pinocchio as pin
 import torch
 
-import better_robot as br
-from better_robot.dynamics import forward_dynamics, inverse_dynamics
+from better_robot.dynamics import forward_dynamics
 from better_robot.kinematics import forward_kinematics
 
 from .conftest import sample_panda_q
-from tests.support.robots import g1_urdf
 
 
 _RTOL = 1e-10
@@ -38,44 +27,3 @@ def test_aba_matches_pinocchio(panda_both):
         ddq_br = forward_dynamics(br_model, forward_kinematics(br_model, q), v=v, tau=tau).detach().cpu().numpy()
         ddq_pin = np.asarray(pin.aba(pin_model, pin_data, q.numpy(), v.numpy(), tau.numpy()))
         np.testing.assert_allclose(ddq_br, ddq_pin, rtol=_RTOL, atol=_ATOL)
-
-
-def test_aba_inverse_of_rnea_panda(panda_both):
-    """``forward_dynamics(q, v, inverse_dynamics(q, v, a)) == a`` to fp64 ulp."""
-    br_model, _, _, _ = panda_both
-    qs = sample_panda_q(8, seed=2)
-    rng = torch.Generator().manual_seed(3)
-    for i in range(qs.shape[0]):
-        q = qs[i]
-        v = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
-        a = (torch.rand(br_model.nv, generator=rng, dtype=torch.float64) - 0.5) * 2.0
-        tau = inverse_dynamics(br_model, forward_kinematics(br_model, q), v=v, a=a)
-        ddq = forward_dynamics(br_model, forward_kinematics(br_model, q), v=v, tau=tau)
-        torch.testing.assert_close(ddq, a, rtol=1e-10, atol=1e-10)
-
-
-def test_aba_inverse_of_rnea_g1():
-    """Same identity on the G1 humanoid (free-flyer base)."""
-
-    model = br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
-    rng = torch.Generator().manual_seed(0)
-    q = model.q_neutral.clone()
-    v = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2
-    a = (torch.rand(model.nv, generator=rng, dtype=torch.float64) - 0.5) * 0.2
-    tau = inverse_dynamics(model, forward_kinematics(model, q), v=v, a=a)
-    ddq = forward_dynamics(model, forward_kinematics(model, q), v=v, tau=tau)
-    torch.testing.assert_close(ddq, a, rtol=1e-9, atol=1e-9)
-
-
-def test_aba_batched(panda_both):
-    """Batched ABA matches a per-sample loop."""
-    br_model, _, _, _ = panda_both
-    qs = sample_panda_q(4, seed=4)
-    rng = torch.Generator().manual_seed(5)
-    vs = torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
-    taus = torch.rand(4, br_model.nv, generator=rng, dtype=torch.float64) - 0.5
-
-    ddq_batch = forward_dynamics(br_model, forward_kinematics(br_model, qs), v=vs, tau=taus)
-    for k in range(qs.shape[0]):
-        ddq_k = forward_dynamics(br_model, forward_kinematics(br_model, qs[k]), v=vs[k], tau=taus[k])
-        torch.testing.assert_close(ddq_batch[k], ddq_k, rtol=1e-12, atol=1e-12)

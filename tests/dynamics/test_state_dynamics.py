@@ -1,4 +1,9 @@
-"""Dynamics on ``KinematicState``: consistency between the three functions and autograd."""
+"""Dynamics on ``KinematicState``: consistency between the three functions and autograd.
+
+Oracles: each function against another (forward dynamics inverts inverse dynamics, the mass matrix is the acceleration
+Jacobian of inverse dynamics and its inverse the torque Jacobian of forward dynamics) and autograd against finite
+differences (``gradcheck``).
+"""
 
 from __future__ import annotations
 
@@ -8,12 +13,17 @@ import torch
 import better_robot as br
 from better_robot.dynamics import centroidal_map, forward_dynamics, inverse_dynamics, mass_matrix
 from better_robot.kinematics import forward_kinematics
-from tests.support.robots import g1_urdf
+from tests.support.robots import g1_urdf, panda_urdf
 
 
 @pytest.fixture(scope="module")
 def g1() -> br.Model:
     return br.load(g1_urdf(), root_joint=br.model.JointFreeFlyer(), dtype=torch.float64)
+
+
+@pytest.fixture(scope="module")
+def panda() -> br.Model:
+    return br.load(panda_urdf(), dtype=torch.float64)
 
 
 def _inputs(model: br.Model, batch: tuple[int, ...], seed: int = 0):
@@ -82,6 +92,33 @@ def test_inverse_dynamics_gradcheck_through_the_state(g1: br.Model) -> None:
     # q is a point on the free-flyer manifold; gradcheck perturbs it in the ambient space, which
     # is fine for finite differences of a smooth map.
     assert torch.autograd.gradcheck(function, (q.requires_grad_(), v.requires_grad_(), a.requires_grad_()))
+
+
+def test_forward_dynamics_gradcheck_through_the_state(panda: br.Model) -> None:
+    rng = torch.Generator().manual_seed(1)
+    q = (torch.rand(panda.nq, generator=rng, dtype=torch.float64) * 0.2).requires_grad_(True)
+    v = (torch.rand(panda.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
+    tau = (torch.rand(panda.nv, generator=rng, dtype=torch.float64) * 0.1).requires_grad_(True)
+
+    def f(q_, v_, tau_):
+        return forward_dynamics(panda, forward_kinematics(panda, q_), v=v_, tau=tau_)
+
+    assert torch.autograd.gradcheck(f, (q, v, tau), eps=1e-6, atol=1e-4, rtol=1e-3)
+
+
+def test_the_torque_jacobian_of_forward_dynamics_is_the_inverse_mass_matrix(panda: br.Model) -> None:
+    rng = torch.Generator().manual_seed(3)
+    q = torch.rand(panda.nq, generator=rng, dtype=torch.float64) * 0.2
+    v = torch.rand(panda.nv, generator=rng, dtype=torch.float64) * 0.1
+    tau = torch.rand(panda.nv, generator=rng, dtype=torch.float64) * 0.1
+
+    da_dtau = torch.autograd.functional.jacobian(
+        lambda torque: forward_dynamics(panda, forward_kinematics(panda, q), v=v, tau=torque),
+        tau,
+    )
+    M = mass_matrix(panda, forward_kinematics(panda, q))
+    M_inv = torch.linalg.inv(M)
+    torch.testing.assert_close(da_dtau, M_inv, rtol=1e-9, atol=1e-9)
 
 
 def test_float32_accuracy_does_not_depend_on_distance_from_the_world_origin(g1: br.Model) -> None:
