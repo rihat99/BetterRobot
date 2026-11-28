@@ -101,4 +101,21 @@ print(f"goal error {float((reached[:3] - goal[:3]).norm()):.1e} m")
 goal error 1.4e-05 m
 ```
 
+## Hard constraints
+
+A residual only pulls toward zero; a constraint must hold. `optim` holds constraints in two ways, and each wins
+somewhere:
+
+| | `optim.SequentialQP` and `optim.track` | `optim.solve_constrained` |
+|---|---|---|
+| The constraints | `problem.equality` and `problem.inequality` terms | residual terms named in `equalities=` and `inequalities=` (`<= 0`) |
+| When they hold | at every step, to first order: they are the rows of each step's quadratic program | as its rounds of whole solves converge (augmented Lagrangian) |
+| Solvers | itself; `track` takes one step per call, for moving targets | any: Levenberg-Marquardt, Gauss-Newton, L-BFGS, `TorchOptim` |
+| A trajectory (`time=`) | dense normal equations only (`dense=True`) | keeps the banded solve, linear in the number of knots |
+
+Take `SequentialQP` unless the solver must be first-order or the problem is a long trajectory.
+`examples/05_hard_constraints.py` and `examples/06_obstacle_trajectory.py` use `solve_constrained`; the viewer
+examples from `examples/viewer/06_avoid_singularity.py` to `examples/viewer/09_avoid_self_collision.py` hold
+inequality rows with `track`.
+
 See also: [Collision](collision.md) for residuals that keep the robot clear of obstacles.

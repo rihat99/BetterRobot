@@ -94,6 +94,12 @@ def solve_constrained(
     ``Result.history["violation"]`` is ``(rounds, B)``. The rounds run without a graph, so
     ``Result.x`` is detached and no gradient reaches the problem's tensors (C-DIFF-1);
     ``solve_layer`` is the differentiable solve, and it takes no constraints.
+
+    It wins where `SequentialQP` cannot run: with a first-order solver (`LBFGS`, `TorchOptim`), and on a ``time=``
+    problem, whose banded normal equations it keeps, so a constrained trajectory costs time linear in its knots.
+    Elsewhere prefer `SequentialQP` with ``Problem.equality`` and ``Problem.inequality`` terms: it holds the
+    constraints at every step instead of as its rounds of whole solves converge, and `track` takes one such step per
+    call; both need dense normal equations.
     """
     names = [*equalities, *inequalities]
     if not names:
