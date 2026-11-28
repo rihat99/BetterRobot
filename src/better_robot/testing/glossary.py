@@ -31,18 +31,8 @@ _WORD = re.compile(r"[A-Z]+\d*(?=[A-Z][a-z])|[A-Z]+\d*(?![a-z])|[A-Z][a-z\d]*|[a
 
 
 def read(page: Path | None = None) -> tuple[set[str], list[str]]:
-    """The terms and the everyday words of a glossary page, both lower case.
-
-    Parameters
-    ----------
-    page
-        A glossary page in Markdown; BetterRobot's own page when ``None``.
-
-    Returns
-    -------
-    tuple[set[str], list[str]]
-        The terms, without punctuation, and the everyday words in the order the page lists them.
-    """
+    """``(terms, everyday)`` of a glossary ``page`` in Markdown, BetterRobot's own page when ``None``: the terms, lower
+    case and without punctuation, and the everyday words, lower case, in the order the page lists them."""
     source = _page() if page is None else page
     terms: set[str] = set()
     everyday: list[str] = []

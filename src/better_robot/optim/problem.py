@@ -392,19 +392,12 @@ class Problem:
     def evaluate(
         self, x: Values | None = None
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor], dict[str, dict[str, Any]]]:
-        """Total loss, the loss of every active term and the terms' ``info``, from one evaluation.
+        """``(loss, terms, info)`` from one evaluation: the total ``loss (B,)``, differentiable with respect to ``x`` and
+        the sum of ``terms`` in registration order; ``terms``, ``{name: (B,)}``, the weighted loss of every active
+        term; ``info``, ``{name: info}``, for the active terms that returned one.
 
         A term may return ``(value, info)`` instead of ``value``: ``info`` is a dict of diagnostics (counts,
         inlier ratios) kept beside the loss and never differentiated; its tensors are detached.
-
-        Returns
-        -------
-        loss : Tensor, shape (B,)
-            Differentiable w.r.t. ``x``; the sum of ``terms`` in registration order.
-        terms : dict[str, Tensor]
-            ``{name: (B,)}`` weighted loss of every active term.
-        info : dict[str, dict]
-            ``{name: info}`` for the active terms that returned one.
         """
         return evaluate(self, x)
 

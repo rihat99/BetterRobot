@@ -25,17 +25,10 @@ _BANNED_MODULES = {"utils", "common", "misc", "helpers"}
 
 
 def public_objects(package: str) -> dict[str, object]:
-    """Map every dotted path of ``package``'s ``__all__`` tree to the object it names, the package included.
+    """Map every dotted path of ``package``'s ``__all__`` tree to the object it names, the package included, in walk
+    order: a module before what it lists, a class before its members.
 
-    Parameters
-    ----------
-    package
-        An importable package, ``"better_robot"``. Every listed module needs an ``__all__``.
-
-    Returns
-    -------
-    dict[str, object]
-        Dotted path to object, in walk order: a module before what it lists, a class before its members.
+    ``package`` is importable (``"better_robot"``), and every module it lists has an ``__all__``.
     """
     module = importlib.import_module(package)
     found: dict[str, object] = {package: module}
@@ -44,19 +37,12 @@ def public_objects(package: str) -> dict[str, object]:
 
 
 def public_api(package: str) -> dict[str, str]:
-    """Describe every path of ``package``'s ``__all__`` tree in one line: the snapshot the API tools compare.
+    """Describe every path of the importable ``package``'s ``__all__`` tree in one line: the snapshot the API tools
+    compare.
 
-    Parameters
-    ----------
-    package
-        An importable package, ``"better_robot"``.
-
-    Returns
-    -------
-    dict[str, str]
-        Dotted path to ``"module"``, ``"class(<bases>)<constructor signature>"`` (no signature when the
-        constructor is a builtin's), ``"function(<signature>)"`` (a method's signature starts at ``self``),
-        ``"staticmethod(...)"``, ``"classmethod(...)"``, ``"property"`` or ``"value: <type name>"``.
+    A path maps to ``"module"``, ``"class(<bases>)<constructor signature>"`` (no signature when the constructor is a
+    builtin's), ``"function(<signature>)"`` (a method's signature starts at ``self``), ``"staticmethod(...)"``,
+    ``"classmethod(...)"``, ``"property"`` or ``"value: <type name>"``.
     """
     return {path: _describe(value) for path, value in public_objects(package).items()}
 
