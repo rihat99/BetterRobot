@@ -77,19 +77,14 @@ def default_offsets_tensor(height: float) -> torch.Tensor:
     )
 
 
-def make_branching_tree_body(
-    height: float = 1.75,
-    mass: float = 70.0,
-    *,
-    name: str = "branching_tree",
-    joint_offsets: torch.Tensor | None = None,
-) -> IRModel:
+def make_branching_tree_body(height: float = 1.75, mass: float = 70.0) -> IRModel:
     """Build the branching-tree ``IRModel``: the root joint ``root`` (free flyer) and 23 spherical joints.
 
-    ``joint_offsets (24, 3)`` are the joints' translations in their parents' frames; ``mass`` is spread evenly.
+    The joints' translations in their parents' frames are ``default_offsets_tensor(height)``; ``mass`` is spread
+    evenly.
     """
-    offsets = joint_offsets if joint_offsets is not None else default_offsets_tensor(height)
-    builder = ModelBuilder(name)
+    offsets = default_offsets_tensor(height)
+    builder = ModelBuilder("branching_tree")
     for joint_name in JOINT_NAMES:
         builder.add_body(joint_name, mass=mass / 24.0)
     builder.add_free_flyer_root("root", child=JOINT_NAMES[0], origin=se3.from_translation(offsets[0]))
@@ -103,18 +98,6 @@ def make_branching_tree_body(
     return builder.finalize()
 
 
-def make_branching_tree_model(
-    height: float = 1.75,
-    mass: float = 70.0,
-    *,
-    name: str = "branching_tree",
-    joint_offsets: torch.Tensor | None = None,
-    device: torch.device | str | None = None,
-    dtype: torch.dtype = torch.float32,
-) -> Model:
-    """Build the branching-tree frozen ``Model``. See :func:`make_branching_tree_body`."""
-    return build_model(
-        make_branching_tree_body(height, mass, name=name, joint_offsets=joint_offsets),
-        device=device,
-        dtype=dtype,
-    )
+def make_branching_tree_model() -> Model:
+    """Build the branching-tree frozen ``Model`` in float32. See :func:`make_branching_tree_body`."""
+    return build_model(make_branching_tree_body())
