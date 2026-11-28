@@ -1,8 +1,7 @@
 """Contracts for the batched forward-kinematics pass behind ``forward_kinematics``.
 
-Parity against a hand-computed chain, the canonical-sign quaternion property,
-``torch.func`` (jacrev/jacfwd) agreement on a mixed-kind model, batched
-joint-placement forward + gradient, and ``torch.compile`` parity.
+Parity against a hand-computed chain, the canonical-sign quaternion property and
+``torch.func`` (jacrev/jacfwd) agreement on a mixed-kind model.
 
 All tests are float32 with loose tolerances (the library's target precision).
 """
@@ -112,33 +111,3 @@ def test_matrix_fk_jacrev_equals_jacfwd_on_mixed_kinds() -> None:
     reverse = torch.func.jacrev(scalar)(q)
     forward = torch.func.jacfwd(scalar)(q)
     torch.testing.assert_close(reverse, forward, atol=1e-4, rtol=1e-4)
-
-
-def test_matrix_fk_batched_joint_placements_forward_and_grad() -> None:
-    """Per-element joint placements run batched and stay differentiable."""
-    model = _mixed_kind_model()
-    njoints = model.njoints
-    batch = 4
-    q = _random_config(model, batch=(batch,), scale=0.6, seed=7)
-
-    # Per-element translation offsets keep placement quaternions unit-valid.
-    offsets = torch.zeros(batch, njoints, 7)
-    offsets[..., 0] = torch.linspace(0.0, 0.15, batch).unsqueeze(-1)
-    batched_placements = model.joint_placements.unsqueeze(0) + offsets
-
-    placements = batched_placements.detach().clone().requires_grad_()
-    result = forward_kinematics(model.with_values(joint_placements=placements), q)
-    assert result.joint_poses.shape == (batch, njoints, 7)
-
-    gradient = torch.autograd.grad(result.joint_poses.sum(), placements)[0]
-    assert gradient.shape == (batch, njoints, 7)
-    assert torch.isfinite(gradient).all()
-
-    for index in range(batch):
-        element = forward_kinematics(model.with_values(joint_placements=batched_placements[index]), q[index])
-        torch.testing.assert_close(
-            result.joint_poses[index],
-            element.joint_poses,
-            atol=1e-5,
-            rtol=1e-5,
-        )

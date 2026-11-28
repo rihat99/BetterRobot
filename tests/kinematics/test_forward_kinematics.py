@@ -63,18 +63,6 @@ def test_state_is_differentiable_in_model_values_and_under_torch_func():
     jacobian = kinematics.frame_jacobian(model, kinematics.forward_kinematics(model, q), frame=hand)
     torch.testing.assert_close(by_q.permute(1, 0, 2), jacobian[:, :3, :], atol=1e-12, rtol=0.0)
 
-    # Batched model values: one set of placements and frames per configuration.
-    scale = torch.tensor([1.0, 1.3], dtype=torch.float64)[:, None, None]
-    batched = model.with_values(
-        joint_placements=torch.cat(
-            [model.joint_placements[None, :, :3] * scale, model.joint_placements[None, :, 3:].expand(2, -1, -1)], -1
-        ),
-        frame_placements=model.frame_placements[None].expand(2, -1, -1),
-    )
-    state = kinematics.forward_kinematics(batched, q)
-    torch.testing.assert_close(state.frame_translations, state.frame_poses[..., :3], atol=1e-14, rtol=0.0)
-    assert float((state.frame_translations[1] - state.frame_translations[0]).abs().max()) > 0.05
-
 
 def test_unaligned_axis_moved_placement_and_inference_mode_first_call():
     """An unaligned joint axis gives orthonormal rotations equal to the pose quaternions; a first call in inference

@@ -59,15 +59,6 @@ def _inertia_batch(model, batch_shape: tuple[int, ...]) -> torch.Tensor:
     return inertias
 
 
-def test_centroidal_map_and_momentum_shapes() -> None:
-    model = _model()
-    state = forward_kinematics(model, model.q_neutral)
-    velocity = torch.zeros(model.nv, dtype=model.q_neutral.dtype)
-
-    assert centroidal_map(model, state).shape == (6, model.nv)
-    assert centroidal_momentum(model, state, v=velocity).shape == (6,)
-
-
 @pytest.mark.parametrize("batch_shape", ((3,), (2, 2)))
 def test_batched_inertias_match_scalar_dynamics_loop(batch_shape: tuple[int, ...]) -> None:
     model = _model()

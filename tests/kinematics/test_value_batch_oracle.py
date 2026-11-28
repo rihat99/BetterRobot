@@ -1,4 +1,4 @@
-"""Batched model values ``I...`` broadcast against the configuration batch ``B...`` (C3).
+"""Batched model values ``I...`` broadcast against the configuration batch ``B...``, and gradients reach them.
 
 The oracle is the scalar loop: one unbatched model per identity, one configuration per row, compared with the
 batched pass at every index of ``broadcast(B..., I...)``.
@@ -72,11 +72,15 @@ def _outputs(model, state, v: torch.Tensor, shared: torch.Tensor, points: torch.
     )
 
 
-def test_identity_batch_broadcasts_against_the_configuration_batch() -> None:
-    """``I = (2,)`` against ``B = (3, 1)`` gives the state batch ``(3, 2)``; every index equals the scalar loop."""
+@pytest.mark.parametrize("fields", [("joint_placements", "frame_placements"), ("frame_placements",)])
+def test_identity_batch_broadcasts_against_the_configuration_batch(fields: tuple[str, ...]) -> None:
+    """``I = (2,)`` against ``B = (3, 1)`` gives the state batch ``(3, 2)``; every index equals the scalar loop. A
+    batch on the frame placements alone still sets the state batch, and the frame Jacobians read its rows."""
     model = _model()
     placements, frames = _identities(model, 2)
-    batched = model.with_values(joint_placements=placements, frame_placements=frames)
+    values = {"joint_placements": placements, "frame_placements": frames}
+    values = {name: values[name] for name in fields}
+    batched = model.with_values(**values)
     generator = torch.Generator().manual_seed(0)
     q = torch.rand(3, 1, model.nq, generator=generator, dtype=torch.float64) - 0.5
     v = torch.randn(3, 1, model.nv, generator=generator, dtype=torch.float64)
@@ -91,7 +95,7 @@ def test_identity_batch_broadcasts_against_the_configuration_batch() -> None:
 
     def loop_call(index: tuple[int, ...]):
         row, identity = index
-        scalar = model.with_values(joint_placements=placements[identity], frame_placements=frames[identity])
+        scalar = model.with_values(**{name: value[identity] for name, value in values.items()})
         state = forward_kinematics(scalar, q[row, 0])
         return _outputs(scalar, state, v[row, 0], shared, points[row, identity])
 
@@ -120,6 +124,17 @@ def test_time_variations_broadcast_v_against_the_state_batch() -> None:
     assert_value_batched_matches_loop(
         lambda: variations(forward_kinematics(model, q), v), loop_call, execution_batch_shape=(3, 2), rtol=0.0, atol=0.0
     )
+
+
+def test_batched_joint_placement_autograd_reaches_leaf() -> None:
+    """Batched placements are applied by their own product in forward kinematics (unbatched ones fold into the joint
+    map), so their gradient is checked apart from C-DIFF-1's unbatched one."""
+    model = _model()
+    delta = torch.zeros(2, model.njoints, 7, dtype=torch.float64, requires_grad=True)
+    state = forward_kinematics(model.with_values(joint_placements=model.joint_placements + delta), model.q_neutral)
+    state.joint_poses[..., 2, :3].square().sum().backward()
+    assert torch.isfinite(delta.grad).all()
+    assert delta.grad.abs().sum() > 0
 
 
 def test_non_broadcastable_batches_raise() -> None:
