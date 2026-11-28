@@ -24,8 +24,8 @@ pose = parent_pose @ joint_pose     # which frames? cannot be checked by eye
 ```
 
 Enforcement: `tests/contract/test_ruff_ratchets.py` runs ruff's `N` rules on every other package (N806 and N803 are *ignored* for these four,
-per-file ignores in `pyproject.toml`, and N806 for `optim`); `[review]` checks that the frames in the name match the
-frames in the formula.
+per-file ignores in `pyproject.toml`), and lists `optim`'s three `H` sites in its `PERMANENT`; `[review]` checks that
+the frames in the name match the frames in the formula.
 
 ## C-NAME-2 Descriptive names in the public API (MUST)
 

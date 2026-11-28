@@ -122,7 +122,11 @@ def test_a_description_that_is_not_one_tree_names_the_culprit(tmp_path: Path, bo
 
 @pytest.mark.parametrize(
     ("links", "found"),
-    [(("base", "tip", "stray"), "['base', 'stray']"), (("stray", "base", "tip"), "['stray', 'base']")],
+    [
+        (("base", "tip", "stray"), "['base', 'stray']"),
+        (("stray", "base", "tip"), "['stray', 'base']"),
+        (("world", "base", "tip"), "['world', 'base']"),  # a "world" link is the universe only when a joint leaves it
+    ],
 )
 def test_a_stray_link_is_named_wherever_the_file_lists_it(tmp_path: Path, links: tuple[str, ...], found: str) -> None:
     """A link no joint moves besides the root fails the build, and ``load`` names the file although ``build_model``,

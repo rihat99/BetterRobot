@@ -91,6 +91,7 @@ per problem, naming the path or the name and the fix, so a contract test asserts
 `testing.repository.layout_problems` and `agent_file_problems` check a repository's layout and agent files,
 `testing.naming_problems` and `testing.glossary.unknown_words` its public names, and `testing.snapshot_differences`
 its public API against the snapshot that `python -m better_robot.testing.api_snapshot` writes. `testing.bench`
-counts operators and host syncs, times a call and checks a benchmark runner's counters against their thresholds.
+counts operators and host syncs, times a call and checks a benchmark runner's counters against their thresholds;
+its timing, load and context readers need Linux and raise elsewhere.
 
 See also: [Model and io](model-and-io.md) for the joint kinds that ship.

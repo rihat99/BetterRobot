@@ -97,7 +97,6 @@ ignore = ["E501", "PLR0913", "PLR2004"]
 "examples/**" = ["ANN201", "T201"]
 "benchmarks/**" = ["T201"]  # scripts that report on stdout, as the examples do
 "src/better_robot/{lie,spatial,kinematics,dynamics}/**" = ["N803", "N806"]  # monogram names in math code, C-NAME-1
-"src/better_robot/optim/**" = ["N806"]  # H, the matrix of the normal equations, as the math writes it, C-NAME-1
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"  # C-DOC-1; it documents __init__ in the class docstring, so D107 is off
@@ -111,6 +110,8 @@ convention = "numpy"  # C-DOC-1; it documents __init__ in the class docstring, s
 "torch.manual_seed".msg = "C-DEP-3: no process-wide RNG seeding inside the library; take a generator"
 "torch.set_num_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
 "torch.set_num_interop_threads".msg = "C-DEP-3: no process-wide thread settings inside the library"
+"torch.rand_like".msg = "takes generator= only from torch 2.9, above the torch>=2.4 floor; use torch.rand(x.shape, generator=generator, dtype=x.dtype, device=x.device)"
+"torch.randn_like".msg = "takes generator= only from torch 2.9, above the torch>=2.4 floor; use torch.randn(x.shape, generator=generator, dtype=x.dtype, device=x.device)"
 "torch.jit.script".msg = "deprecated in torch 2.13; the pytest filter ignoring its DeprecationWarning holds only while no code here calls it"
 "torch.jit.script_method".msg = "deprecated in torch 2.13; the pytest filter ignoring its DeprecationWarning holds only while no code here calls it"
 "torch._prims_common.check".msg = "deprecated in torch 2.13; the pytest filter ignoring its FutureWarning holds only while no code here calls it"

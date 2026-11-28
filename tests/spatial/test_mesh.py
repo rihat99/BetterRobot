@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from better_robot.exceptions import DtypeMismatchError
+from better_robot.exceptions import DtypeMismatchError, ShapeError
 from better_robot.spatial import inertia_of_mesh, orient_faces_by_component
 from tests.support.meshes import box_mesh
 
@@ -155,3 +155,15 @@ def test_by_component_validates_its_vertices() -> None:
         orient_faces_by_component(torch.zeros((8, 3), dtype=torch.int64), faces)
     with pytest.raises(ValueError, match=r"shape \(V, 3\)"):
         orient_faces_by_component(torch.zeros((2, 8, 3), dtype=torch.float32), faces)
+
+
+@pytest.mark.parametrize(
+    ("face_table", "error"),
+    [(lambda faces: faces.float(), DtypeMismatchError), (lambda faces: faces[:0], ShapeError)],
+    ids=["float", "empty"],
+)
+def test_by_component_validates_its_faces(face_table, error: type) -> None:
+    """A float table would be cast without a word, and an empty one fails inside torch, without the face check."""
+    vertices, faces = box_mesh(torch.float32)
+    with pytest.raises(error, match="faces"):
+        orient_faces_by_component(vertices, face_table(faces))

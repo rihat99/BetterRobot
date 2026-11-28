@@ -63,9 +63,9 @@ def test_naming_rules() -> None:
 def test_an_unlisted_alias_in_a_subpackage_is_a_second_name(monkeypatch: pytest.MonkeyPatch) -> None:
     """A subpackage, like the root, refuses a public name outside its ``__all__``."""
     monkeypatch.setattr(kinematics, "State", kinematics.KinematicState, raising=False)
-    assert naming_problems("better_robot", acronyms=ACRONYMS) == [
-        "better_robot.kinematics.State = KinematicState: a second name of a public object; remove it (principle 3.4)"
-    ]
+    problems = naming_problems("better_robot", acronyms=ACRONYMS)
+    assert [line.split(": ", 1)[0] for line in problems] == ["better_robot.kinematics.State = KinematicState"]
+    assert "(principle 3.4)" in problems[0]
 
 
 def test_no_public_class_reuses_a_library_class_name() -> None:

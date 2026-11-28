@@ -1,12 +1,13 @@
 """Ruff's contract rules that still have open sites in ``src`` run here as shrink-only ratchets.
 
 ``N`` (C-NAME-2; ``pyproject.toml`` turns N803 and N806 off in ``lie``, ``spatial``, ``kinematics`` and ``dynamics``,
-and N806 in ``optim``, whose locals use monogram names, C-NAME-1), ``D1`` under the numpy convention (C-DOC-1),
-``ANN001`` (C-TEST-2) and ``SLF001`` (C-EXT-3; it also keeps every module off another object's private attributes,
-the no-probing rule for ``_`` names). Today's sites sit in ``tests/contract/ratchets/ruff.json`` (``"path::symbol CODE"`` to the count of sites
-and the reason); the ratchet only shrinks, and the fix that clears a site lowers its count or removes its entry. The rules join ``select`` in
-``pyproject.toml`` when their ratchet is empty. ``PERMANENT`` holds the sites that are design, not debt (key to its
-count and the reason); a site beyond its count is new.
+whose locals use monogram names, C-NAME-1), ``D1`` under the numpy convention (C-DOC-1), ``ANN001`` (C-TEST-2) and
+``SLF001`` (C-EXT-3; it also keeps every module off another object's private attributes, the no-probing rule for
+``_`` names). Open sites sit in ``tests/contract/ratchets/ruff.json`` (``"path::symbol CODE"`` to the count of sites
+and the reason); the ratchet only shrinks, and the fix that clears a site lowers its count or removes its entry. The rules
+run here on ``src`` only, not in ``select`` in ``pyproject.toml``, which lints the tests and examples too.
+``PERMANENT`` holds the sites that are design, not debt (key to its count and the reason), such as ``optim``'s matrix
+of the normal equations ``H`` (C-NAME-1); a site beyond its count is new.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ MODEL_MEMO = "kinematics and dynamics fill the model's memo through its one writ
 #: that defines it (``tests/optim/test_problem.py::test_each_private_name_is_used_only_by_the_module_that_defines_it``).
 SAME_MODULE = "ArrowNormal factors and reorders its time band through the BandedNormal it holds, a class of its module"
 SAME_CLASS = "a Problem method fills the private registries of the copy it made (copy.copy(self)), a Problem"
+NORMAL_MATRIX = "the matrix of the normal equations, H (H_a, H_b: two of them), as its math writes it; C-NAME-1"
 PERMANENT: dict[str, tuple[int, str]] = {
     "src/better_robot/dynamics/_world.py::dynamics_plan SLF001": (1, MODEL_MEMO),
     "src/better_robot/dynamics/_world.py::world_kinematics SLF001": (1, MODEL_MEMO),
@@ -40,6 +42,8 @@ PERMANENT: dict[str, tuple[int, str]] = {
     "src/better_robot/optim/linear.py::ArrowNormal.masked SLF001": (1, SAME_MODULE),
     "src/better_robot/optim/linear.py::ArrowNormal.predicted_decrease SLF001": (1, SAME_MODULE),
     "src/better_robot/optim/linear.py::ArrowNormal.solve SLF001": (4, SAME_MODULE),
+    "src/better_robot/optim/linear.py::Normal.masked N806": (1, NORMAL_MATRIX),
+    "src/better_robot/optim/linearization.py::check_jacobian N806": (2, NORMAL_MATRIX),
     "src/better_robot/optim/problem.py::Problem._copy SLF001": (3, SAME_CLASS),
     "src/better_robot/optim/problem.py::Problem.with_ SLF001": (4, SAME_CLASS),
 }

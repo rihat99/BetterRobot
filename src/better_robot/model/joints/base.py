@@ -62,7 +62,10 @@ def check_axis(axis: object) -> None:
     if not (isinstance(axis, tuple) and len(axis) == 3) or not all(
         isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c) for c in axis
     ):
-        raise ArgumentError(f"axis must be a tuple of three finite floats, got {axis!r}; pass tuple(axis)")
+        raise ArgumentError(
+            f"axis must be a tuple of three finite floats, got {axis!r}; convert a list, array or tensor with "
+            "tuple(float(c) for c in axis)"
+        )
     norm = math.sqrt(sum(c * c for c in axis))
     if abs(norm - 1.0) > 1e-6:
         raise ArgumentError(f"axis {axis!r} has norm {norm:.8g}; pass a unit axis (divide by its norm)")
@@ -77,7 +80,9 @@ def _axis_column(axis: torch.Tensor, batch: torch.Size, *, row: int) -> torch.Te
 
 def _uniform(generator: torch.Generator, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
     """A draw uniform inside ``[lower, upper]``, of their shape and dtype, on their device."""
-    return lower + (upper - lower) * torch.rand_like(lower, generator=generator)
+    return lower + (upper - lower) * torch.rand(
+        lower.shape, generator=generator, dtype=lower.dtype, device=lower.device
+    )
 
 
 __all__ = ["JointModel"]
