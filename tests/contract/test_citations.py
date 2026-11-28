@@ -25,7 +25,6 @@ CITATION_RATCHET: dict[str, str] = json.loads((Path(__file__).parent / "ratchets
 EXEMPT_FILES: dict[str, str] = {
     "tests/testing/test_citations.py": "its cases write dead citations into a tmp_path repository on purpose",
     "tests/testing/test_import_edges.py": "its cases write package files into tmp_path, named relative to the package",
-    "tests/testing/test_repository.py": "its cases write repository files into tmp_path, named relative to that root",
     "tests/contract/test_citations.py": "its docstring spells a plan-code path as an example of what it rejects",
 }
 PLAN_CODE = re.compile(
