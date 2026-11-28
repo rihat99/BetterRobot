@@ -123,10 +123,6 @@ class Timeline:
         if thread is not None and thread is not threading.current_thread():
             thread.join()
 
-    def toggle(self) -> None:
-        """Pause when playing, play otherwise."""
-        self.pause() if self.playing else self.play()
-
     def _halt(self) -> None:
         """Stop playback without waiting: the playback thread sees it at its next tick and ends."""
         self._playing.clear()
