@@ -104,45 +104,31 @@ _JOINT_PARTS = ("drum", "face", "sleeve", "ball", "plate", "block", "marker")
 class SkeletonRecipe:
     """How a robot's skeleton is drawn; ``MEDIUM`` (the defaults) and ``MINIMAL`` are the two presets.
 
-    Parameters
-    ----------
-    glyphs
-        ``"kind"`` draws one glyph per joint kind joined by rods, ``"ball"`` one ball per cluster of close joints
-        joined by sticks: a stick figure, whose sticks run on from the last joint of a chain to the end of its body
-        (to a small ball there with ``"ball"``, else to a round cap of the rod's width), and whose trunks draw only
-        their heads, as balls.
-    bones
-        Radius of a rod or stick over the reference glyph radius; 0 draws none.
-    limits
-        Draw the limit arc of each bounded revolute joint, with a tick at the current angle (``glyphs="kind"``).
-    cluster
-        Joints closer than ``cluster`` times the robot's size share one ball (``glyphs="ball"``; a glyph of its kind
-        is always its joint's own).
-    twists
-        ``False`` draws no glyph for a lone joint whose axis runs along its limb; the rod runs through.
-    sides
-        Tint the left side of the robot lighter and the right side darker.
-    size
-        Multiplies every glyph radius.
-    joint_size
-        Joint name to a multiplier of its glyph's radius, applied after the layout's size rules, so it changes that
-        glyph only: 0 hides it and the rods run on through its place, and the glyphs after it keep their size. The
-        factor wins over the layout's narrowing towards the tips, so above 1 a glyph may be wider than the one
-        before it. A ball of ``glyphs="ball"`` takes the mean factor of the joints it stands for.
-    joint_radius
-        The radius in metres of every joint's glyph, or of the joints named, in place of the layout's size rules; a
-        glyph of its kind keeps it where it meets another. ``joint_size`` still multiplies it; ``None`` keeps the
-        layout's sizes.
-    bodies
-        ``True`` lays the sticks along the robot's bodies: two or more child joints hang from a hub (a left and right
-        pair from a bar), a chain runs on to the end of its last body and a trunk shows its head. ``False`` joins
-        each joint to its parent joint and stops at the last joint of a chain, the plain joint tree.
-    color
-        Joint name to the colour of its glyph, in place of the robot's hue.
-    growth
-        With joint values shown as size (``RobotVisual(values_as="size")``), a glyph's radius at the bottom and at the
-        top of the value range over its own, a pair ``(low, high)`` of finite factors, ``0 < low <= high``. Only the
-        glyph changes size: the rods and sticks keep the thickness of the skeleton without values.
+    ``glyphs="kind"`` draws one glyph per joint kind joined by rods, ``"ball"`` one ball per cluster of close joints
+    joined by sticks: a stick figure, whose sticks run on from the last joint of a chain to the end of its body (to a
+    small ball there with ``"ball"``, else to a round cap of the rod's width), and whose trunks draw only their heads,
+    as balls. ``bones`` is the radius of a rod or stick over the reference glyph radius; 0 draws none. ``limits``
+    draws the limit arc of each bounded revolute joint, with a tick at the current angle (``glyphs="kind"``). Joints
+    closer than ``cluster`` times the robot's size share one ball (``glyphs="ball"``; a glyph of its kind is always its
+    joint's own). ``twists=False`` draws no glyph for a lone joint whose axis runs along its limb; the rod runs
+    through. ``sides`` tints the left side of the robot lighter and the right side darker. ``size`` multiplies every
+    glyph radius.
+
+    ``joint_size`` maps a joint name to a multiplier of its glyph's radius, applied after the layout's size rules, so
+    it changes that glyph only: 0 hides it and the rods run on through its place, and the glyphs after it keep their
+    size. The factor wins over the layout's narrowing towards the tips, so above 1 a glyph may be wider than the one
+    before it; a ball of ``glyphs="ball"`` takes the mean factor of the joints it stands for. ``joint_radius`` is the
+    radius in metres of every joint's glyph, or of the joints named, in place of the layout's size rules; a glyph of
+    its kind keeps it where it meets another, ``joint_size`` still multiplies it, and ``None`` keeps the layout's
+    sizes. ``bodies=True`` lays the sticks along the robot's bodies: two or more child joints hang from a hub (a left
+    and right pair from a bar), a chain runs on to the end of its last body and a trunk shows its head; ``False``
+    joins each joint to its parent joint and stops at the last joint of a chain, the plain joint tree. ``color`` maps
+    a joint name to the colour of its glyph, in place of the robot's hue.
+
+    ``growth`` is the pair ``(low, high)`` of finite factors, ``0 < low <= high``, of a glyph's radius at the bottom
+    and at the top of the value range over its own, with joint values shown as size
+    (``RobotVisual(values_as="size")``). Only the glyph changes size: the rods and sticks keep the thickness of the
+    skeleton without values.
     """
 
     glyphs: Literal["kind", "ball"] = "kind"
