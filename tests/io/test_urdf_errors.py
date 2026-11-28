@@ -111,11 +111,6 @@ def test_malformed_xml_names_file_and_line(tmp_path: Path, cut: float | None, li
             "two <joint> elements are named 'j'; rename one",
             id="duplicate_joint",
         ),
-        pytest.param(
-            '<link name="stray"/><joint name="j" type="fixed"><parent link="base"/><child link="tip"/></joint>',
-            "2 links are no joint's child ['base', 'stray']; a URDF tree has one root link",
-            id="stray_link",
-        ),
     ],
 )
 def test_a_description_that_is_not_one_tree_names_the_culprit(tmp_path: Path, body: str, message: str) -> None:
@@ -124,11 +119,19 @@ def test_a_description_that_is_not_one_tree_names_the_culprit(tmp_path: Path, bo
         parse_urdf(path)
 
 
-def test_a_stray_link_listed_first_is_named_too(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("links", "found"),
+    [(("base", "tip", "stray"), "['base', 'stray']"), (("stray", "base", "tip"), "['stray', 'base']")],
+)
+def test_a_stray_link_is_named_wherever_the_file_lists_it(tmp_path: Path, links: tuple[str, ...], found: str) -> None:
+    """A link no joint moves besides the root fails the build (``build_model`` owns the one-tree check)."""
     joint = '<joint name="j" type="fixed"><parent link="base"/><child link="tip"/></joint>'
-    path = _write(tmp_path, f'<robot name="r"><link name="stray"/><link name="base"/><link name="tip"/>{joint}</robot>')
-    with pytest.raises(ModelError, match=re.escape("2 links are no joint's child ['stray', 'base']")):
-        parse_urdf(path)
+    elements = "".join(f'<link name="{link}"/>' for link in links)
+    path = _write(tmp_path, f'<robot name="r">{elements}{joint}</robot>')
+    with pytest.raises(
+        ModelError, match=re.escape(f"expected exactly one root body (a body no joint moves), found 2: {found}")
+    ):
+        load(path)
 
 
 def test_lower_above_upper_raises_in_the_limits_stage(tmp_path: Path) -> None:

@@ -21,11 +21,8 @@ from tests.support.robots import g1_urdf, panda_urdf
 # ── parse_urdf unit tests ────────────────────────────────────────────────────
 
 
-def test_parse_urdf_root_body_has_no_incoming_joint():
-    path = panda_urdf()
-    ir = parse_urdf(path)
-    child_bodies = {j.child_body for j in ir.joints}
-    assert ir.root_body not in child_bodies
+def test_the_root_body_is_the_link_no_joint_moves(panda_model):
+    assert panda_model.body_names[1] == "panda_link0"  # the Panda URDF's base link
 
 
 # ── build_model integration tests ────────────────────────────────────────────

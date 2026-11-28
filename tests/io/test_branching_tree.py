@@ -40,8 +40,6 @@ def test_branching_ir_directly():
     assert len(ir.bodies) == 24
     # 24 joints: 1 free_flyer (world→root) + 23 spherical
     assert len(ir.joints) == 24
-    # root_body is "j0" — world is only a sentinel, not a real body
-    assert ir.root_body == "j0"
 
 
 def test_branching_custom_height():

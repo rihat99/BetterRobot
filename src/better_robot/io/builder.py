@@ -260,19 +260,13 @@ class ModelBuilder:
         return self.add_joint(name, kind=JointFreeFlyer(), parent="world", child=child, origin=origin)
 
     def finalize(self) -> IRModel:
-        """The ``IRModel`` of everything added; its root body is the one no joint moves (exactly one, or ``ModelError``)."""
-        # A joint from "world" does not make its child a moved body: that body is the root.
-        children = {joint.child_body for joint in self._joints if joint.parent_body != "world"}
-        roots = [body.name for body in self._bodies if body.name not in children]
-        if len(roots) != 1:
-            raise ModelError(f"expected exactly one root body (a body no joint moves), found {len(roots)}: {roots}")
+        """The ``IRModel`` of everything added; ``build_model`` checks that it is one tree."""
         ir = IRModel(
             name=self._name,
             bodies=list(self._bodies),
             joints=list(self._joints),
             frames=list(self._frames),
             shapes=list(self._shapes),
-            root_body=roots[0],
         )
         if self._gravity is not None:
             ir.gravity = torch.cat((self._gravity, torch.zeros(3, dtype=torch.float64)))

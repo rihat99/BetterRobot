@@ -212,17 +212,4 @@ def parse_urdf(path: str | Path) -> IRModel:
     shapes = [shape for link in robot.links for shape in _shapes(link, materials, path)]
     links = {link.name for link in robot.links}
     joints = [_joint(joint, links, path) for joint in robot.joints]
-    children = {joint.child_body for joint in joints}
-    roots = [link.name for link in robot.links if link.name not in children]
-    if len(roots) != 1:
-        raise ModelError(
-            f"{path}: {len(roots)} links are no joint's child {roots}; a URDF tree has one root link: connect or "
-            "remove the others"
-        )
-    return IRModel(
-        name=robot.name,
-        bodies=bodies,
-        joints=joints,
-        shapes=shapes,
-        root_body=roots[0],
-    )
+    return IRModel(name=robot.name, bodies=bodies, joints=joints, shapes=shapes)

@@ -121,13 +121,22 @@ class _MimicReduction:
 
 
 def _root(ir: IRModel, root_joint: JointModel | None) -> _Root:
-    """The root body and its joint: the IR joint from ``"world"`` when there is one, else a fixed ``root_joint``."""
+    """The root body and its joint: the child of the IR joint from ``"world"`` when there is one, else the one body
+    no joint moves under a fixed ``root_joint``. Every other body must be moved by a joint."""
     world = [index for index, joint in enumerate(ir.joints) if joint.parent_body == _WORLD_SENTINEL]
     if len(world) > 1:
         names = [ir.joints[index].name for index in world]
         raise ModelError(f"Multiple joints with parent_body='world' is not supported; found: {names}")
+    moved = {joint.child_body for joint in ir.joints}
+    # A URDF's own "world" link is the universe, which no joint moves.
+    unmoved = [body.name for body in ir.bodies if body.name not in moved and body.name != _WORLD_SENTINEL]
     if world:
         ir_joint = ir.joints[world[0]]
+        if unmoved:
+            raise ModelError(
+                f"bodies {unmoved} are moved by no joint, and the joint {ir_joint.name!r} from 'world' holds the root "
+                f"{ir_joint.child_body!r}; connect or remove them"
+            )
         return _Root(
             body=ir_joint.child_body,
             joint=root_joint if root_joint is not None else ir_joint.joint,
@@ -135,19 +144,13 @@ def _root(ir: IRModel, root_joint: JointModel | None) -> _Root:
             ir_joint=ir_joint,
             regular=tuple(index for index in range(len(ir.joints)) if index != world[0]),
         )
-    body_names = [body.name for body in ir.bodies]
-    if ir.root_body:
-        if ir.root_body not in body_names:
-            raise ModelError(f"root_body {ir.root_body!r} not found in IR bodies")
-        body = ir.root_body
-    else:
-        children = {joint.child_body for joint in ir.joints}
-        candidates = [name for name in body_names if name not in children]
-        if len(candidates) != 1:
-            raise ModelError(f"Expected exactly 1 root body, found {len(candidates)}: {candidates}")
-        body = candidates[0]
+    if len(unmoved) != 1:
+        raise ModelError(
+            f"expected exactly one root body (a body no joint moves), found {len(unmoved)}: {unmoved}; connect or "
+            "remove the others"
+        )
     return _Root(
-        body=body,
+        body=unmoved[0],
         joint=root_joint if root_joint is not None else JointFixed(),
         name="root_joint",
         ir_joint=None,
@@ -510,9 +513,9 @@ def build_model(
 ) -> Model:
     """The frozen ``Model`` of ``ir``, built on ``device`` in ``dtype``.
 
-    The root body is the child of the one IR joint whose parent is ``"world"``, else the one body no joint moves
-    (or ``ir.root_body``); ``root_joint`` replaces the joint that holds it under the universe (a ``JointFixed``
-    when the description wrote none). Joints follow the description's order wherever it is topological; a body is
+    The root body is the child of the one IR joint whose parent is ``"world"``, else the one body no joint moves;
+    every other body must be moved by a joint. ``root_joint`` replaces the joint that holds the root under the
+    universe (a ``JointFixed`` when the description wrote none). Joints follow the description's order wherever it is topological; a body is
     named by the joint that moves it and gets a frame of its own name. The neutral configuration is clamped into
     the limits. A description that cannot be a robot raises ``ModelError``, a joint ``origin`` or frame
     ``placement`` that is not a ``(7,)`` pose with a unit quaternion among them; a ``dtype`` other than float32 or
