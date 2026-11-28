@@ -128,8 +128,11 @@ def _root(ir: IRModel, root_joint: JointModel | None) -> _Root:
         names = [ir.joints[index].name for index in world]
         raise ModelError(f"Multiple joints with parent_body='world' is not supported; found: {names}")
     moved = {joint.child_body for joint in ir.joints}
-    # A URDF's own "world" link is the universe, which no joint moves.
-    unmoved = [body.name for body in ir.bodies if body.name not in moved and body.name != _WORLD_SENTINEL]
+    # A URDF's own "world" link that a joint leaves is the universe, which no joint moves; without such a joint it is
+    # an ordinary link, so a stray one fails below instead of vanishing.
+    unmoved = [
+        body.name for body in ir.bodies if body.name not in moved and not (world and body.name == _WORLD_SENTINEL)
+    ]
     if world:
         ir_joint = ir.joints[world[0]]
         if unmoved:
