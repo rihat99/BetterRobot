@@ -71,11 +71,6 @@ class Timeline:
         """Whether the playback thread is advancing steps."""
         return self._playing.is_set()
 
-    @property
-    def time(self) -> float:
-        """Time of the current step in seconds."""
-        return self._step / self.fps
-
     def on_step(self, callback: Callable[[int], None]) -> None:
         """Call ``callback(step)`` after every step change."""
         self._callbacks.append(callback)

@@ -21,7 +21,7 @@ class SkinnedMeshLayer(Layer):
 
     ``bind_poses (J, 7)`` are the world bone poses the vertices are given in; a vertex follows
     ``sum_j w_ij * T_j(t) * T_j(bind)^-1``. viser keeps the four largest weights per vertex, so
-    the offline renderer does the same. Poses are xyzw (BetterRobot order). ``bone_poses`` is read at every push; the
+    ``skin`` does the same. Poses are xyzw (BetterRobot order). ``bone_poses`` is read at every push; the
     rest arrays ``vertices``, ``bind_poses`` and ``weights`` are sent once, when the layer is built.
     """
 

@@ -271,7 +271,7 @@ class Skeleton:
         local = torch.from_numpy(self.line_local).to(poses.dtype)
         return se3.act(poses[..., self.line_body, None, :], local).numpy()
 
-    def glyphs(self, mesh: str, njoints: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def glyphs(self, mesh: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """The blocks of ``mesh`` that draw joints: ``(rows (n,), joints (n, njoints) bool, faces (n,) bool)``.
 
         A glyph of its kind (a drum and its faces, a sleeve, a ball, a plate, a block, a marker) stands for its
@@ -279,7 +279,7 @@ class Skeleton:
         shade of a drum's faces. A stick or rod, a rail, a head, a knob, a cap and the cube of a free base draw no
         joint.
         """
-        blocks = self.blocks[mesh]
+        blocks, njoints = self.blocks[mesh], len(self.radii)
         rows = np.array([i for i, part in enumerate(blocks.part) if part in _JOINT_PARTS], dtype=np.int64)
         joints = np.zeros((len(rows), njoints), dtype=bool)
         for k, i in enumerate(rows):
