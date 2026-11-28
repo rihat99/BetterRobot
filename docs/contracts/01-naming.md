@@ -12,7 +12,8 @@ A monogram name encodes *what* quantity, *between which frames*, *expressed in w
 (`Ao` = origin of A). A `J_` prefix names the Jacobian of what follows: `J_V_WB` is the Jacobian of the spatial
 velocity of B in W with respect to the configuration.
 Composition reads left to right: `X_WB = X_WA @ X_AB`. Use these names for locals and private helpers in
-`lie`, `spatial`, `kinematics`, `dynamics` and nowhere else.
+`lie`, `spatial`, `kinematics`, `dynamics` and nowhere else; `optim` names only the matrix of the normal equations
+`H`, as its math does.
 
 ```python { .no-run }
 # good  (illustrative; real entry point: src/better_robot/kinematics/forward.py::forward_kinematics)
@@ -23,7 +24,8 @@ pose = parent_pose @ joint_pose     # which frames? cannot be checked by eye
 ```
 
 Enforcement: `tests/contract/test_ruff_ratchets.py` runs ruff's `N` rules on every other package (N806 and N803 are *ignored* for these four,
-per-file ignores in `pyproject.toml`); `[review]` checks that the frames in the name match the frames in the formula.
+per-file ignores in `pyproject.toml`, and N806 for `optim`); `[review]` checks that the frames in the name match the
+frames in the formula.
 
 ## C-NAME-2 Descriptive names in the public API (MUST)
 
