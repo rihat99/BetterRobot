@@ -26,7 +26,6 @@ from tests.support.robots import panda_urdf
 
 REPO = Path(__file__).resolve().parents[2]
 SRC = REPO / "src" / "better_robot"
-SETATTR_ALLOWED: set[Path] = set()
 CACHE_WRITERS = {
     "_plans": {("src/better_robot/model/model.py", "_plan")},
     "_memo": {
@@ -72,7 +71,8 @@ def test_cache_fields_are_not_constructor_arguments() -> None:
 
 
 def test_replace_starts_with_empty_caches() -> None:
-    """``dataclasses.replace`` on a model or a state never carries a memo over (the stale ``frame_pose`` of N-4)."""
+    """``dataclasses.replace`` on a model or a state never carries a memo over: a state given new joint transforms
+    returned the frame poses memoised for the old ones."""
     model = load(panda_urdf())
     q = model.q_neutral
     state = forward_kinematics(model, q)
@@ -242,8 +242,7 @@ def _violations() -> list[str]:
                 continue
             owner = node.value
             if node.attr == "__setattr__" and isinstance(owner, ast.Name) and owner.id == "object":
-                if file not in SETATTR_ALLOWED:
-                    found.append(f"{relative}:{node.lineno} object.__setattr__")
+                found.append(f"{relative}:{node.lineno} object.__setattr__")
             elif node.attr == "_version":
                 found.append(f"{relative}:{node.lineno} ._version")
             elif node.attr == "_C" and isinstance(owner, ast.Name) and owner.id == "torch":
@@ -297,5 +296,4 @@ def test_functools_caches_are_the_reasoned_ones() -> None:
 
 def test_no_hidden_cache_mechanics_in_src() -> None:
     assert _violations() == []
-    assert all(path.exists() for path in SETATTR_ALLOWED), "drop the exception once the file is gone"
     assert isinstance(torch.zeros(1)._version, int)  # the attribute exists; the library just never reads it

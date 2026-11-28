@@ -162,7 +162,3 @@ def test_review_only_ratchet_has_no_stale_entries() -> None:
     """A rule that gained a test, or was deleted, leaves the ratchet in that commit."""
     stale = sorted(json.loads(REVIEW_ONLY.read_text()).keys() - _review_only())
     assert not stale, f"drop these entries from tests/contract/ratchets/review_only.json: {stale}"
-
-
-if __name__ == "__main__":
-    sys.exit(subprocess.call(["pytest", __file__, "-q"]))

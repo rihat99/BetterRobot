@@ -108,7 +108,7 @@ def test_contract_09_names_the_watched_list() -> None:
     """C-TENS-4 and contract 09 name one scope: the hot paths are the lint's watched directories and files."""
     page = (REPO / "docs" / "contracts" / "09-performance.md").read_text()
     sentence = re.search(r"Hot paths are (.+?);", page, re.DOTALL)
-    assert sentence is not None, "contract 09 no longer defines its hot paths in one 'Hot paths are ...;' sentence"
+    assert sentence is not None, "contract 09 must define its hot paths in one 'Hot paths are ...;' sentence"
     assert set(re.findall(r"`([^`]+)`", sentence[1])) == {*LINT["WATCHED_DIRS"], *LINT["WATCHED_FILES"]}
 
 

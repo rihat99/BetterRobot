@@ -16,7 +16,7 @@ import numpy as np
 import torch
 
 import better_robot as br
-from better_robot import collision, io, optim, terms, viewer
+from better_robot import collision, exceptions, io, optim, terms, viewer
 from better_robot import model as robot_model
 from better_robot.testing import FakeServer, public_objects
 from tests.support.cases import failures
@@ -25,20 +25,7 @@ from tests.support.robots import panda_urdf
 EXCEPTION = "an exception's repr is its message, which contract 06 shapes"
 ABSTRACT = "an abstract base: every concrete subclass is built"
 NO_INSTANCE: dict[str, str] = {
-    **{
-        f"better_robot.exceptions.{name}": EXCEPTION
-        for name in (
-            "BetterRobotError",
-            "ShapeError",
-            "DtypeMismatchError",
-            "DeviceMismatchError",
-            "ArgumentError",
-            "ModelError",
-            "QuaternionNormError",
-            "UnknownNameError",
-            "OptionalDependencyError",
-        )
-    },
+    **{f"better_robot.exceptions.{name}": EXCEPTION for name in exceptions.__all__},
     **{
         path: ABSTRACT
         for path in (
