@@ -818,11 +818,13 @@ def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_nod
         robot.set_joint_values(values, value_range=(0.0, 1.0, 2.0))  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("growth", [2.0, 1.4])
-def test_joint_values_as_size_grow_a_glyph_to_the_recipe_growth_at_the_top_of_the_range(growth: float) -> None:
-    """With values shown as size, the knee's glyph keeps its size at the low end of the range and is the recipe's
-    ``growth`` times it at the high end and beyond (clamped); the other glyphs keep theirs. A growth below 1 is
-    refused."""
+@pytest.mark.parametrize("growth", [(1.0, 2.0), (1.0, 1.4)])
+def test_joint_values_as_size_grow_a_glyph_to_the_recipe_growth_at_the_top_of_the_range(
+    growth: tuple[float, float],
+) -> None:
+    """With values shown as size, the knee's glyph keeps its size at the low end of the range for ``growth=(1, high)``
+    and is ``high`` times it at the high end and beyond (clamped); the other glyphs keep theirs. A single factor is
+    refused: ``growth`` is a pair."""
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     knee = model.joint_names.index("left_knee_joint")
     values = np.full((2, model.njoints), np.nan, dtype=np.float32)
@@ -838,10 +840,10 @@ def test_joint_values_as_size_grow_a_glyph_to_the_recipe_growth_at_the_top_of_th
     knees = [i for i, owner in enumerate(blocks.owner) if owner == knee and blocks.part[i] in ("drum", "face")]
     assert knees
     expected = low.copy()
-    expected[knees] *= growth
+    expected[knees] *= growth[1]
     np.testing.assert_allclose(server.scene.nodes[node].batched_scales, expected, rtol=1e-6)
-    with pytest.raises(ArgumentError, match="growth"):
-        replace(MEDIUM, growth=0.5)
+    with pytest.raises(ArgumentError, match="growth must be a pair"):
+        replace(MEDIUM, growth=2.0)  # pyright: ignore[reportArgumentType]
 
 
 def test_joint_values_as_size_with_a_growth_pair_shrink_a_glyph_at_the_low_end_and_keep_the_rods() -> None:

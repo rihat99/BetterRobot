@@ -86,18 +86,18 @@ class _Blocks(Layer):
 
     With ``values`` ``(T, njoints)`` a step also colours the joint glyphs, one write of colours to each node that
     holds one (``_paint``), or with ``sized`` scales them from ``low`` to ``high`` times their size, the ends of
-    ``growth`` (a factor ``f`` is ``(1, f)``), one write of scales (``_grown``).
+    ``growth``, one write of scales (``_grown``).
     """
 
     def __init__(
         self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float,
         values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False,
-        growth: float | tuple[float, float],
+        growth: tuple[float, float],
     ) -> None:  # fmt: skip
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
         self.values, self.value_range, self.sized = values, value_range, sized
-        self.growth = growth if isinstance(growth, tuple) else (1.0, growth)
+        self.growth = growth
         self._store_opacity(opacity)
         self._nodes: dict[str, Any] = {}
         self._lines: Any = None
@@ -350,8 +350,8 @@ class RobotVisual(Layer):
         colours, to each skeleton node that holds a glyph. ``(T, njoints)`` float32 values are kept without a copy
         (``joint_values``): an edit in place and ``redraw()`` show it; ``(njoints,)`` holds for every step of any clip,
         kept as a read-only ``(T, njoints)`` view of it. ``values_as="size"`` shows the values as the glyphs' size
-        instead, each from its own size at ``low`` to the recipe's ``growth`` times it (twice by default) at ``high``,
-        or with a pair ``growth`` from its first factor to its second, in the robot's colours; ``"color"`` as colours;
+        instead, from the first factor of the recipe's ``growth`` times a glyph's size at ``low`` to the second at
+        ``high`` (1 and 2 by default), in the robot's colours; ``"color"`` as colours;
         ``None`` keeps the way in use. A step then costs one write of scales to each node that holds a glyph.
 
         Values of another shape raise ``ShapeError``, a ``values_as`` other than these ``ArgumentError``, values that are not numbers (strings) and a ``value_range`` that
