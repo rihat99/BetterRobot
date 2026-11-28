@@ -18,6 +18,8 @@ from better_robot.model import (
     Box,
     Geometry,
     JointFixed,
+    JointFreeFlyer,
+    JointHelical,
     JointPlanar,
     JointPrismatic,
     JointRevolute,
@@ -54,17 +56,29 @@ def _mixed() -> tuple[Model, None]:
 
     for name, mass in (("base", 5.0), ("carriage", 1.0), ("upper", 1.0), ("fore", 0.8), ("puck", 0.2)):
         builder.add_body(name, mass=mass, com=torch.tensor([0.1, 0.0, 0.0]), inertia=torch.eye(3) * mass * 0.004)
-    builder.add_free_flyer_root("root_joint", child="base")
-    builder.add_prismatic(
-        "mast", parent="base", child="carriage", axis=(0.0, 0.0, 1.0), origin=at(-0.1, 0.0, 0.2), lower=0.0, upper=0.3,
+    builder.add_joint("root_joint", kind=JointFreeFlyer(), parent="world", child="base")
+    builder.add_joint(
+        "mast",
+        kind=JointPrismatic(axis=(0.0, 0.0, 1.0)),
+        parent="base",
+        child="carriage",
+        origin=at(-0.1, 0.0, 0.2),
+        lower=0.0,
+        upper=0.3,
         effort_limit=200.0,
-    )  # fmt: skip
-    builder.add_spherical("shoulder", parent="carriage", child="upper", origin=at(0.0, 0.0, 0.2))
-    builder.add_revolute(
-        "elbow", parent="upper", child="fore", axis=(0.0, 1.0, 0.0), origin=at(0.3, 0.0, 0.0), lower=-2.0, upper=0.5,
+    )
+    builder.add_joint("shoulder", kind=JointSpherical(), parent="carriage", child="upper", origin=at(0.0, 0.0, 0.2))
+    builder.add_joint(
+        "elbow",
+        kind=JointRevolute(axis=(0.0, 1.0, 0.0)),
+        parent="upper",
+        child="fore",
+        origin=at(0.3, 0.0, 0.0),
+        lower=-2.0,
+        upper=0.5,
         effort_limit=40.0,
-    )  # fmt: skip
-    builder.add_planar("table", parent="base", child="puck", origin=at(0.05, 0.25, 0.1))
+    )
+    builder.add_joint("table", kind=JointPlanar(), parent="base", child="puck", origin=at(0.05, 0.25, 0.1))
     return br.io.build_model(builder.finalize()), None
 
 
@@ -72,18 +86,25 @@ def _at(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> torch.Tensor:
     return torch.tensor([x, y, z, 0.0, 0.0, 0.0, 1.0])
 
 
-_HINGE = {"axis": (0.0, 1.0, 0.0), "lower": -1.5, "upper": 1.5}
+_HINGE = {"kind": JointRevolute(axis=(0.0, 1.0, 0.0)), "lower": -1.5, "upper": 1.5}
 
 
 def _arm(builder: br.io.ModelBuilder, *, thin: bool = False, boxes: bool = False) -> None:
     """A fixed base and four revolute joints 25 cm apart along z, no axis along the line; ``thin``: the leaf's one
     shape is a 2 mm placeholder box; ``boxes``: the base and each link carry a box from their joint to the next."""
     builder.add_body("base", mass=1.0)
-    builder.add_fixed("mount", parent="world", child="base")
+    builder.add_joint("mount", kind=JointFixed(), parent="world", child="base")
     for k, axis in enumerate(((0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))):
         builder.add_body(f"l{k}", mass=1.0)
-        builder.add_revolute(f"j{k}", parent=f"l{k - 1}" if k else "base", child=f"l{k}", axis=axis,
-                             origin=_at(z=0.25), lower=-2.0, upper=2.0)  # fmt: skip
+        builder.add_joint(
+            f"j{k}",
+            kind=JointRevolute(axis=axis),
+            parent=f"l{k - 1}" if k else "base",
+            child=f"l{k}",
+            origin=_at(z=0.25),
+            lower=-2.0,
+            upper=2.0,
+        )
     for body in ("base", "l0", "l1", "l2", "l3") if boxes else ():
         builder.add_shape(body, Box(size=(0.06, 0.06, 0.25), placement=(0, 0, 0.125, 0, 0, 0, 1.0)))
     if thin:
@@ -94,9 +115,9 @@ def _on_world(builder: br.io.ModelBuilder, *, slider: bool) -> None:
     """A hinge or a slider that hangs from the world itself, not from a fixed base, and a hinge on it."""
     builder.add_body("cart", mass=1.0, com=torch.tensor([0.2, 0.0, 0.0]))
     builder.add_body("pole", mass=0.2)
-    add, axis = (builder.add_prismatic, (1.0, 0.0, 0.0)) if slider else (builder.add_revolute, (0.0, 0.0, 1.0))
-    add("rider", parent="world", child="cart", axis=axis, lower=-1.0, upper=1.0)
-    builder.add_revolute("tip", parent="cart", child="pole", origin=_at(z=0.1), **_HINGE)
+    kind = JointPrismatic(axis=(1.0, 0.0, 0.0)) if slider else JointRevolute(axis=(0.0, 0.0, 1.0))
+    builder.add_joint("rider", kind=kind, parent="world", child="cart", lower=-1.0, upper=1.0)
+    builder.add_joint("tip", parent="cart", child="pole", origin=_at(z=0.1), **_HINGE)
 
 
 def _gantry(builder: br.io.ModelBuilder) -> None:
@@ -107,35 +128,56 @@ def _gantry(builder: br.io.ModelBuilder) -> None:
         ("z", "y", (0.0, 0.0, 1.0)),
     ):
         builder.add_body(body, mass=1.0, inertia=0.01 * torch.eye(3))
-        builder.add_prismatic(f"p{body}", parent=parent, child=body, axis=axis, lower=-1.0, upper=1.0)
+        builder.add_joint(f"p{body}", kind=JointPrismatic(axis=axis), parent=parent, child=body, lower=-1.0, upper=1.0)
 
 
 def _planar(builder: br.io.ModelBuilder) -> None:
     """A planar root, then a spherical, a helical, a revolute and a translation joint."""
     for body in ("base", "a", "b", "c", "d"):
         builder.add_body(body, mass=1.0)
-    builder.add_planar("slide", parent="world", child="base")
-    builder.add_spherical("ball", parent="base", child="a", origin=_at(z=0.3))
-    builder.add_helical("screw", parent="a", child="b", axis=(0.0, 0.0, 1.0), pitch=0.01, origin=_at(z=0.3),
-                        lower=-3.0, upper=3.0)  # fmt: skip
-    builder.add_revolute("tip", parent="b", child="c", origin=_at(z=0.3), **_HINGE)
+    builder.add_joint("slide", kind=JointPlanar(), parent="world", child="base")
+    builder.add_joint("ball", kind=JointSpherical(), parent="base", child="a", origin=_at(z=0.3))
+    builder.add_joint(
+        "screw",
+        kind=JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.01),
+        parent="a",
+        child="b",
+        origin=_at(z=0.3),
+        lower=-3.0,
+        upper=3.0,
+    )
+    builder.add_joint("tip", parent="b", child="c", origin=_at(z=0.3), **_HINGE)
     builder.add_joint("shift", kind=JointTranslation(), parent="c", child="d", origin=_at(z=0.3))
 
 
 def _hand(builder: br.io.ModelBuilder) -> None:
     """A floating palm, five fingers of three joints, and a gripper whose second jaw mimics the first."""
     builder.add_body("palm", mass=1.0)
-    builder.add_free_flyer_root(child="palm")
+    builder.add_joint("free_flyer", kind=JointFreeFlyer(), parent="world", child="palm")
     for finger, k in itertools.product(range(5), range(3)):
         builder.add_body(f"f{finger}{k}", mass=0.05)
         origin = _at(0.08, 0.02 * (finger - 2)) if k == 0 else _at(0.03)
-        builder.add_revolute(f"f{finger}{k}_joint", parent=f"f{finger}{k - 1}" if k else "palm", child=f"f{finger}{k}",
-                             origin=origin, axis=(0.0, 1.0, 0.0), lower=0.0, upper=1.5)  # fmt: skip
+        builder.add_joint(
+            f"f{finger}{k}_joint",
+            kind=JointRevolute(axis=(0.0, 1.0, 0.0)),
+            parent=f"f{finger}{k - 1}" if k else "palm",
+            child=f"f{finger}{k}",
+            origin=origin,
+            lower=0.0,
+            upper=1.5,
+        )
     for jaw in ("jaw_a", "jaw_b"):
         builder.add_body(jaw, mass=0.02)
         builder.add_shape(jaw, Box(size=(0.01, 0.01, 0.04), placement=(0, 0, 0.02, 0, 0, 0, 1.0)))
-    builder.add_prismatic("grip", parent="palm", child="jaw_a", axis=(0.0, 1.0, 0.0), origin=_at(-0.05, 0.01),
-                          lower=0.0, upper=0.04)  # fmt: skip
+    builder.add_joint(
+        "grip",
+        kind=JointPrismatic(axis=(0.0, 1.0, 0.0)),
+        parent="palm",
+        child="jaw_a",
+        origin=_at(-0.05, 0.01),
+        lower=0.0,
+        upper=0.04,
+    )
     builder.add_joint("grip_mimic", kind=JointPrismatic(axis=(0.0, 1.0, 0.0)), parent="palm", child="jaw_b",
                       origin=_at(-0.05, -0.01), mimic_source="grip", mimic_multiplier=-1.0)  # fmt: skip
 
@@ -144,15 +186,15 @@ def _fixed(builder: br.io.ModelBuilder) -> None:
     """Nothing moves."""
     builder.add_body("a", mass=1.0)
     builder.add_body("b", mass=1.0)
-    builder.add_fixed("mount", parent="world", child="a")
-    builder.add_fixed("weld", parent="a", child="b", origin=_at(z=0.5))
+    builder.add_joint("mount", kind=JointFixed(), parent="world", child="a")
+    builder.add_joint("weld", kind=JointFixed(), parent="a", child="b", origin=_at(z=0.5))
 
 
 def _box(builder: br.io.ModelBuilder) -> None:
     """A lone floating body."""
     builder.add_body("box", mass=1.0)
     builder.add_shape("box", Box(size=(0.1, 0.2, 0.3), placement=(0, 0, 0, 0, 0, 0, 1.0)))
-    builder.add_free_flyer_root(child="box")
+    builder.add_joint("free_flyer", kind=JointFreeFlyer(), parent="world", child="box")
 
 
 def _servo(builder: br.io.ModelBuilder) -> None:
@@ -160,19 +202,19 @@ def _servo(builder: br.io.ModelBuilder) -> None:
     builder.add_body("case", mass=0.05)
     builder.add_body("horn", mass=0.01)
     builder.add_shape("horn", Box(size=(0.04, 0.008, 0.004), placement=(0.015, 0, 0, 0, 0, 0, 1.0)))
-    builder.add_fixed("mount", parent="world", child="case")
-    builder.add_revolute("spin", parent="case", child="horn", origin=_at(z=0.02), **_HINGE)
+    builder.add_joint("mount", kind=JointFixed(), parent="world", child="case")
+    builder.add_joint("spin", parent="case", child="horn", origin=_at(z=0.02), **_HINGE)
 
 
 def _forearm(builder: br.io.ModelBuilder) -> None:
     """A hand on a fixed forearm as large as a Shadow hand's (15 x 15 x 23 cm), its wrist at the forearm's end."""
     for body in ("forearm", "palm", "finger"):
         builder.add_body(body, mass=1.0)
-    builder.add_fixed("mount", parent="world", child="forearm")
+    builder.add_joint("mount", kind=JointFixed(), parent="world", child="forearm")
     builder.add_shape("forearm", Box(size=(0.15, 0.15, 0.23), placement=(0, 0, 0.115, 0, 0, 0, 1.0)))
-    builder.add_revolute("wrist", parent="forearm", child="palm", origin=_at(z=0.23), **_HINGE)
+    builder.add_joint("wrist", parent="forearm", child="palm", origin=_at(z=0.23), **_HINGE)
     builder.add_shape("palm", Box(size=(0.03, 0.08, 0.1), placement=(0, 0, 0.05, 0, 0, 0, 1.0)))
-    builder.add_revolute("knuckle", parent="palm", child="finger", origin=_at(z=0.1), **_HINGE)
+    builder.add_joint("knuckle", parent="palm", child="finger", origin=_at(z=0.1), **_HINGE)
     builder.add_shape("finger", Box(size=(0.02, 0.02, 0.05), placement=(0, 0, 0.025, 0, 0, 0, 1.0)))
 
 
@@ -180,13 +222,19 @@ def _bust(builder: br.io.ModelBuilder) -> None:
     """A floating chest with two arms and a head on a pan and tilt neck that rises above them."""
     for name in ("chest", "l_arm", "r_arm", "neck", "head"):
         builder.add_body(name, mass=1.0)
-    builder.add_free_flyer_root(child="chest")
+    builder.add_joint("free_flyer", kind=JointFreeFlyer(), parent="world", child="chest")
     builder.add_shape("chest", Box(size=(0.2, 0.4, 0.5), placement=(0, 0, 0, 0, 0, 0, 1.0)))
     for side, y in (("l", 0.25), ("r", -0.25)):
-        builder.add_revolute(f"{side}_shoulder", parent="chest", child=f"{side}_arm", origin=_at(y=y, z=0.2), **_HINGE)
+        builder.add_joint(f"{side}_shoulder", parent="chest", child=f"{side}_arm", origin=_at(y=y, z=0.2), **_HINGE)
         builder.add_shape(f"{side}_arm", Box(size=(0.06, 0.06, 0.3), placement=(0, 0, -0.15, 0, 0, 0, 1.0)))
-    builder.add_revolute("pan", parent="chest", child="neck", origin=_at(z=0.3), **{**_HINGE, "axis": (0.0, 0.0, 1.0)})
-    builder.add_revolute("tilt", parent="neck", child="head", origin=_at(), **_HINGE)
+    builder.add_joint(
+        "pan",
+        parent="chest",
+        child="neck",
+        origin=_at(z=0.3),
+        **{**_HINGE, "kind": JointRevolute(axis=(0.0, 0.0, 1.0))},
+    )
+    builder.add_joint("tilt", parent="neck", child="head", origin=_at(), **_HINGE)
     builder.add_shape("head", Box(size=(0.16, 0.16, 0.18), placement=(0, 0, 0.12, 0, 0, 0, 1.0)))
 
 

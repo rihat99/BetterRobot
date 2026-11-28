@@ -10,13 +10,16 @@ from better_robot.exceptions import QuaternionNormError
 from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import forward_kinematics
+from better_robot.model import JointFreeFlyer, JointRevolute, JointSpherical
 
 
 def _free_flyer():
     builder = ModelBuilder("free_flyer_compile")
     builder.add_body("base", mass=1.0)
-    builder.add_free_flyer_root(
+    builder.add_joint(
         "floating",
+        kind=JointFreeFlyer(),
+        parent="world",
         child="base",
         origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
     )
@@ -39,10 +42,18 @@ def test_quaternion_norm_check_reads_the_full_configuration():
     for name in ("base", "first", "second", "ball_link", "tip"):
         builder.add_body(name, mass=1.0)
     z, y = (0.0, 0.0, 1.0), (0.0, 1.0, 0.0)
-    builder.add_revolute("source", parent="base", child="first", axis=z, lower=-2.0, upper=2.0)
-    builder.add_revolute("target", parent="first", child="second", axis=z, lower=-2.0, upper=2.0, mimic_source="source")
-    builder.add_spherical("ball", parent="second", child="ball_link")
-    builder.add_revolute("wrist", parent="ball_link", child="tip", axis=y, lower=-2.0, upper=2.0)
+    builder.add_joint("source", kind=JointRevolute(axis=z), parent="base", child="first", lower=-2.0, upper=2.0)
+    builder.add_joint(
+        "target",
+        kind=JointRevolute(axis=z),
+        parent="first",
+        child="second",
+        lower=-2.0,
+        upper=2.0,
+        mimic_source="source",
+    )
+    builder.add_joint("ball", kind=JointSpherical(), parent="second", child="ball_link")
+    builder.add_joint("wrist", kind=JointRevolute(axis=y), parent="ball_link", child="tip", lower=-2.0, upper=2.0)
     model = build_model(builder.finalize(), dtype=torch.float64)
     assert (model.nq, model.nq_full) == (6, 7)  # q = [source, qx, qy, qz, qw, wrist]
 

@@ -15,6 +15,7 @@ from better_robot.dynamics import (
 )
 from better_robot.kinematics import forward_kinematics
 from better_robot.io import ModelBuilder, build_model
+from better_robot.model import JointRevolute
 
 # The mimic rule target = -0.5 source + 0.2, written by hand: the twin's configuration is [q, -0.5 q + 0.2] and its
 # tangent EXPANSION @ v, so its Jacobians and torques map to the reduced ones through EXPANSION.
@@ -27,18 +28,18 @@ def _model_pair():
     root = builder.add_body("root", mass=1.0, inertia=inertia)
     first = builder.add_body("first", mass=1.3, com=torch.tensor([0.2, 0.0, 0.0]), inertia=inertia)
     second = builder.add_body("second", mass=0.7, com=torch.tensor([0.25, 0.0, 0.0]), inertia=inertia)
-    builder.add_revolute(
+    builder.add_joint(
         "source",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent=root,
         child=first,
         origin=torch.tensor([0.6, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
         lower=-1.0,
         upper=1.0,
     )
-    builder.add_revolute(
+    builder.add_joint(
         "target",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent=first,
         child=second,
         origin=torch.tensor([0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),

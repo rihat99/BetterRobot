@@ -16,6 +16,7 @@ from better_robot.exceptions import ShapeError
 from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import forward_kinematics
+from better_robot.model import JointRevolute
 from tests.support.value_batch import assert_value_batched_matches_loop
 
 
@@ -32,9 +33,9 @@ def _model(dtype: torch.dtype = torch.float64):
         com=torch.tensor([0.2, 0.0, 0.0]),
         inertia=torch.diag(torch.tensor([0.2, 0.3, 0.4])),
     )
-    builder.add_revolute(
+    builder.add_joint(
         "joint",
-        axis=(0.0, 1.0, 0.0),
+        kind=JointRevolute(axis=(0.0, 1.0, 0.0)),
         parent="base",
         child="link",
         origin=_pose(0.5),

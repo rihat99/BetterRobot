@@ -21,7 +21,7 @@ import torch
 
 import better_robot as br
 from better_robot import kinematics, spatial
-from better_robot.exceptions import BetterRobotError, ShapeError
+from better_robot.exceptions import BetterRobotError, ShapeError, UnknownNameError
 from better_robot.io import ModelBuilder, build_model
 from better_robot.lie import se3, so3
 from better_robot.model import (
@@ -391,15 +391,18 @@ def test_mimic_joints_appear_only_in_the_full_layout() -> None:
 
 @pytest.mark.parametrize("kind", ["joint", "frame", "body"])
 def test_ids_take_an_int_or_a_name_and_check_both(kind: str) -> None:
-    """Every id and every name resolves to the same id; an int outside ``[0, n)`` or an unknown name raises."""
+    """Every id and every name resolves to the same id; an int outside ``[0, n)`` raises, and an unknown name raises
+    ``UnknownNameError``, which lists the valid names."""
     model = _arm()
     resolve, names = getattr(model, f"{kind}_id"), getattr(model, f"{kind}_names")
     assert (
         [resolve(name) for name in names] == [resolve(index) for index in range(len(names))] == list(range(len(names)))
     )
-    for bad in (-1, len(names), "missing"):
+    for bad in (-1, len(names)):
         with pytest.raises(BetterRobotError):
             resolve(bad)
+    with pytest.raises(UnknownNameError):
+        resolve("missing")
 
 
 def test_a_public_boundary_takes_the_id_or_the_name() -> None:

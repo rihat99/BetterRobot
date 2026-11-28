@@ -88,46 +88,19 @@ def _apply_reversal(faces: torch.Tensor, reverse_mask: torch.Tensor) -> torch.Te
 
 
 def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
-    """Best-effort outward reorientation that tolerates imperfect topology.
+    """The face table ``faces: (F, 3)`` rewound so every connected component is consistent and faces outward, on the
+    device and in the dtype of ``faces``; a best effort that tolerates imperfect topology.
 
-    Two triangles sharing an edge are consistently wound when they traverse
-    that shared edge in opposite directions. Authored meshes are often *not*
-    strict closed 2-manifolds — parts stitched at a shared seam with boundary
-    edges, non-manifold T-junctions, or several disconnected shells.
-    Adjacency is built only over edges shared by exactly two faces (boundary
-    and non-manifold edges are ignored, never raised on), so each maximal
-    two-manifold patch becomes a connected component. Every component is first
-    made internally consistent and then flipped, if needed, so its mean-centered
-    signed volume is non-negative — i.e. every component faces outward. Passing
-    the result to ``inertia_of_mesh`` (with the same ``vertices``) then
-    needs no global sign fold and the component volumes add constructively.
-
-    Only the integer face table changes, so the orientation is a one-time
-    precompute from rest geometry and downstream vertex integration stays
-    differentiable.
-
-    Parameters
-    ----------
-    vertices
-        Floating tensor shaped ``(V, 3)`` giving the reference (rest) geometry
-        the face table indexes. It is used only to sign each component's
-        volume; it is mean-centered exactly as ``inertia_of_mesh``
-        centers, so pass the same vertex array to both.
-    faces
-        Integer triangle table shaped ``(F, 3)``.
-
-    Returns
-    -------
-    torch.Tensor
-        A ``(F, 3)`` table on the input ``faces`` device and dtype, with every
-        connected component consistently wound outward.
-
-    Raises
-    ------
-    TypeError, DtypeMismatchError, ShapeError
-        If ``faces`` is not a non-empty integer ``(F, 3)`` tensor or ``vertices``
-        is not a floating ``(V, 3)`` tensor. Boundary and non-manifold edges
-        never raise here.
+    ``vertices: (V, 3)`` is the rest geometry the table indexes, read only to sign each component's volume and
+    mean-centred as ``inertia_of_mesh`` centres it, so pass the same vertices to both; the result then needs no
+    global sign fold there, and the component volumes add up. Two triangles that share an edge agree when they
+    traverse it in opposite directions. Authored meshes are often not closed 2-manifolds (parts stitched at a seam
+    with boundary edges, non-manifold T-junctions, several shells), so faces are linked only across edges that
+    exactly two faces share; each maximal two-manifold patch is a component, made consistent and then flipped if its
+    signed volume is negative. Only the integer table changes, so this is a one-time precompute and the vertex
+    integration downstream stays differentiable. A ``faces`` that is not a non-empty integer ``(F, 3)`` tensor, or
+    ``vertices`` that are not floating ``(V, 3)``, raises ``TypeError``, ``DtypeMismatchError`` or ``ShapeError``;
+    boundary and non-manifold edges never raise.
     """
     _check_face_table(faces)
     check_tensors(vertices=(vertices, (3,)))

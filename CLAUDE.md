@@ -5,20 +5,21 @@ code cannot tell. `AGENTS.md` sends every other agent here; a nested `CLAUDE.md`
 
 ## Commands
 
-From the repository root. Times measured on a shared 384-thread AMD EPYC host at load average 6 to 42.
+From the repository root. Times measured on a shared 384-thread AMD EPYC host at load average 35 to 55 (the release
+tier at 6 to 42).
 
 ```bash
 uv sync --all-extras --all-groups                            # the environment; under a second once installed
-uv run pytest tests/contract -q -m "not slow and not cuda"   # fast tier, about 16 s
-uv run pytest tests -q -m "not cuda"                         # full tier, about 4.5 min
+uv run pytest tests/contract -q -m "not slow and not cuda"   # fast tier, about 18 s
+uv run pytest tests -q -m "not cuda"                         # full tier, about 10 min
 bash tools/release_tier.sh --gpu <index>                     # release tier, about 10 min, on a GPU nobody else uses
-uv run pytest tests/parity -q                                # Pinocchio and MuJoCo parity, about 6 s
-uv run pytest tests/docs -q                                  # every docs snippet against its output, about 100 s
-uv run mkdocs build --strict                                 # the docs site into site/, about 5 s
+uv run pytest tests/parity -q                                # Pinocchio and MuJoCo parity, about 5 s
+uv run pytest tests/docs -q                                  # every docs snippet against its output, about 50 s
+uv run mkdocs build --strict                                 # the docs site into site/, about 2 s
 uv run ruff check . && uv run ruff format --check .          # lint and format, under a second
-uv run python tools/api_snapshot.py --check                  # the public API against its snapshot, about 1.5 s
+uv run python -m better_robot.testing.api_snapshot better_robot tests/contract/public_api.json --check  # about 3 s
 uv run tools/ratchet_counts.py                               # no ratchet grew, under a second
-uv run python benchmarks/run.py --counters-only              # the counter gate, about 50 s
+uv run python benchmarks/run.py --counters-only              # the counter gate, about 4 min
 ```
 
 While editing a package, run its folder beside the fast tier (`uv run pytest tests/kinematics -q`, about 10 s).
@@ -47,11 +48,11 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
 - Counters: graph breaks, recompiles, operators and host syncs of the counter rows never exceed
   `benchmarks/thresholds/torch-2.13.0.json` (rule C-PERF-3, `tests/contract/test_compile_counters.py`).
 - Ratchets in `tests/contract/ratchets/` only shrink, and an entry leaves in the commit that fixes it
-  (`tools/ratchet_counts.py`, `tests/contract/test_ratchet_history.py`). Open today: ruff 4 sites, pyright 53 errors
-  (the `CAP` of `tests/contract/test_pyright_ratchet.py`), keyword_only 6, value_checks 3, vocabulary 3; the other
-  five are empty.
+  (`tools/ratchet_counts.py`, `tests/contract/test_ratchet_history.py`). Open today: pyright 49 errors (the `CAP`
+  of `tests/contract/test_pyright_ratchet.py`), keyword_only 6, value_checks 2, vocabulary 3; the other six are
+  empty.
 - The public API equals `tests/contract/public_api.json` (`tests/contract/test_api_snapshot.py`); an intended change
-  is recorded with `uv run python tools/api_snapshot.py --write`, and the commit message says it.
+  is recorded with the snapshot command above with `--write` in place of `--check`, and the commit message says it.
 - `lie` and `spatial` keep 100 % line and branch coverage (the coverage step of `tools/release_tier.sh`).
 
 ## Absences, each with its enforcer

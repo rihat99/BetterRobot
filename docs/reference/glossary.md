@@ -5,7 +5,7 @@ carries two, its row says so. BetterHuman's glossary links this page and adds on
 
 Every word of every public name, method, field and parameter is on this page: a term in the bold first column of a
 table, or an [everyday word](#everyday-words) at the end. A term may span several words of a name (`free flyer`
-spells `add_free_flyer_root`), and a plural matches its singular.
+spells two words of `JointFreeFlyer`), and a plural matches its singular.
 `tests/contract/test_vocabulary.py::test_glossary_words` checks it; a change that adds a word adds it here.
 
 ## How names are built
@@ -290,6 +290,10 @@ See [Optimisation](../optim-and-terms.md) for the complete problem and solver mo
 | **dead citation** | A repository path cited in tracked text that does not resolve (`testing.dead_citations`). |
 | **snippet** | A Python fence of a docs page; `testing.snippets.check_page` runs each once and compares its output. |
 | **glossary** | This page as data: `testing.glossary.read()` returns its terms and its everyday words, from the copy that ships in the package, so a library built on BetterRobot checks its names against them and against its own page (`read(page)`). |
+| **API snapshot, snapshot** | `tests/contract/public_api.json`: every public path with one line describing it (`testing.public_api`). `testing.snapshot_differences` compares a package with it, and `python -m better_robot.testing.api_snapshot` writes and checks it. |
+| **agent file** | A `CLAUDE.md`, at the root or in a folder: what an agent reads before it works there. `testing.repository.agent_file_problems` checks every agent file of a repository. |
+| **suite** | A folder of `tests/` that is not a package's, such as `contract`, `parity` or `docs` (`testing.repository.layout_problems(suites=)`). |
+| **counter, count** | A count that a benchmark row gates: graph breaks, recompiles, top-level operators and host syncs. `testing.bench.profile_counts` counts the last two, `bench.check_thresholds` compares all four with their thresholds. |
 | **vocabulary** | The words a public name may use: a glossary's terms and everyday words together. `testing.glossary.spelling(name_words, vocabulary)` spells a name with them. |
 
 ## Abbreviations and symbols
@@ -298,6 +302,7 @@ See [Optimisation](../optim-and-terms.md) for the complete problem and solver mo
 |---|---|
 | **`a`, `b`** | The two operands of `compose(a, b)`. As a suffix, the first and second object of a pair (`start_a`, `radius_b`). |
 | **API** | Application programming interface: the public names (`testing.public_api`). |
+| **bench** | Benchmark: `testing.bench` measures the counters and the wall time of a benchmark runner's rows. |
 | **`c`** | A robust kernel's scale (`Cauchy(c=)`, `Tukey(c=)`). |
 | **`dim`** | Dimension: `tangent_dim` is the size of a tangent. |
 | **`dt`** | A time step in seconds. |
@@ -317,7 +322,7 @@ See [Optimisation](../optim-and-terms.md) for the complete problem and solver mo
 | **`q0`, `q1`, `q2`** | Numbered configurations: `difference(model, q0, q1)` goes from `q0` to `q1`, and `q0` starts a solve (`solve_ik(q0=)`). In `so3.slerp(q1, q2, t)`, two unit quaternions. |
 | **`R`** | A rotation matrix `(..., 3, 3)`. |
 | **rect** | Rectangle: the screen box a person drags in viser's rectangle selection (`tools.vertices_in_rect`). |
-| **repo, src** | Repository and source directory (`testing.dead_citations(repo_root)`, `testing.imported_packages(src_root, package)`). |
+| **repo, repository, src** | Repository and source directory (`testing.dead_citations(repo_root)`, `testing.imported_packages(src_root, package)`, `testing.repository`). |
 | **`rho`** | ρ, a robust kernel's loss of a squared residual norm. |
 | **`s`** | Seconds, as a unit suffix (`timeout_s`). |
 | **spec** | Specification: what to draw (`MeshSpec`). |
@@ -330,19 +335,20 @@ See [Optimisation](../optim-and-terms.md) for the complete problem and solver mo
 
 These words keep their ordinary English meaning in public names.
 
-actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, axes, axis, azimuth, band, bone, border, box,
-build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color, column,
-component, constrained, corner, create, cylinder, dark, decrease, delta, dense, density, dependency,
-diagnostics, diagonal, direction, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,
-estimate, evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize,
-flat, floor, folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, growth, half, head,
-height, high, history, hit, host, identity, ignore, image, imported, in, index, inequality, install, inverse, iteration,
-keep, key, label, layout, length, light, limit, line, linearize, load, lock, look, loop, low, lower, masked, mass, match,
-matrix, mesh, mismatch, mode, multiplier, name, nearest, new, no, norm, normalize, object, of, offset, old, on, opacity,
-option, optional, order, orient, other, outer, output, owner, package, page, pair, panel, parse, path, pause, penalty,
-permutation, pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii,
-radius, ramp, random, range, read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run,
-save, scalar, scale, scene, scheduler, search, section, segment, serializer, series, server, set, shading, shadow,
-shaft, show, side, size, skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere,
-squared, start, stop, target, testing, text, theme, time, timeout, to, tolerance, top, unknown, up, update,
-upper, valid, value, vector, vertices, visible, voxel, wait, weight, width, with, word
+acronym, actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, average, axes, axis, azimuth, band,
+bone, border, box, build, button, by, cached, call, callback, camera, cell, center, change, check, checkbox, clear,
+click, client, color, column, component, constrained, context, corner, create, cylinder, dark, decrease, delta, dense,
+density, dependency, diagnostics, diagonal, direction, dispose, done, dropdown, element, elevation, ellipsoid, end,
+entry, equality, error, estimate, evaluate, every, exact, exception, expected, extend, extent, extra, face, factory,
+field, fill, finalize, flat, floor, folder, forever, format, fraction, free, from, generator, get, git, graph, grid,
+ground, growth, half, head, header, height, high, history, hit, host, identity, ignore, image, imported, in, index,
+inequality, install, inverse, iteration, keep, key, label, large, layout, length, level, light, limit, line, linearize,
+load, lock, look, loop, low, lower, masked, mass, match, matrix, mesh, mismatch, mode, multiplier, name, naming, nearest, new,
+no, norm, normalize, object, of, offset, old, on, opacity, option, optional, order, orient, other, outer, output, owner,
+package, page, pair, panel, parse, path, pause, penalty, permutation, pitch, plane, play, playing, plot, point, pointer,
+port, position, predicted, profile, project, public, purpose, radii, radius, ramp, random, range, read, reason, record,
+remove, repeat, replace, resize, restrict, result, rigid, robot, role, run, save, scalar, scale, scene, scheduler,
+search, section, segment, selected, serializer, series, server, set, shading, shadow, shaft, show, side, size, skeleton,
+skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere, squared, start, stop, sync, target,
+testing, text, theme, time, timeout, to, tolerance, top, unknown, up, update, upper, used, valid, value, vector,
+vertices, visible, voxel, wait, wall, weight, width, with, word

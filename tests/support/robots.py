@@ -15,7 +15,7 @@ import torch
 
 from better_robot.io import ModelBuilder, build_model, parse_urdf
 from better_robot.io.ir import IRModel
-from better_robot.model import Model
+from better_robot.model import JointRevolute, Model
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "robots"
 
@@ -50,9 +50,9 @@ def one_revolute_arm_ir() -> IRModel:
     builder = ModelBuilder("arm")
     builder.add_body("base", mass=0.5)
     builder.add_body("link1", mass=1.0)
-    builder.add_revolute(
+    builder.add_joint(
         "j1",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -82,8 +82,22 @@ def two_link_arm(
     builder.add_body("link1", mass=1.0, com=torch.tensor([0.1, 0.0, 0.0]), inertia=inertia)
     builder.add_body("link2", mass=0.7, com=torch.tensor([0.1, 0.0, 0.0]), inertia=inertia)
     origin = torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0])
-    builder.add_revolute("j1", axis=axes[0], parent="base", child="link1", origin=origin, lower=-math.pi, upper=math.pi)
-    builder.add_revolute(
-        "j2", axis=axes[1], parent="link1", child="link2", origin=origin, lower=-math.pi, upper=math.pi
+    builder.add_joint(
+        "j1",
+        kind=JointRevolute(axis=axes[0]),
+        parent="base",
+        child="link1",
+        origin=origin,
+        lower=-math.pi,
+        upper=math.pi,
+    )
+    builder.add_joint(
+        "j2",
+        kind=JointRevolute(axis=axes[1]),
+        parent="link1",
+        child="link2",
+        origin=origin,
+        lower=-math.pi,
+        upper=math.pi,
     )
     return build_model(builder.finalize()).to(device=device, dtype=dtype)

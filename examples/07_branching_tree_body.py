@@ -12,6 +12,7 @@ import argparse
 import torch
 
 import better_robot as br
+from better_robot.model import JointSpherical
 
 
 def make_branching_tree() -> br.Model:
@@ -21,10 +22,11 @@ def make_branching_tree() -> br.Model:
     builder = br.ModelBuilder("branching_tree")
     for name in names:
         builder.add_body(name)
-    builder.add_free_flyer_root("root", child=names[0])
+    builder.add_joint("root", kind=br.JointFreeFlyer(), parent="world", child=names[0])
     for index in range(1, len(names)):
-        builder.add_spherical(
+        builder.add_joint(
             names[index],
+            kind=JointSpherical(),
             parent=names[parents[index]],
             child=names[index],
             origin=torch.tensor([0.0, 0.0, 0.15, 0.0, 0.0, 0.0, 1.0]),

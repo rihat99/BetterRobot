@@ -13,7 +13,7 @@ from better_robot.io.ir import IRModel, IRShape
 from better_robot.io.builder import ModelBuilder
 from better_robot.lie import se3
 from better_robot.model.geometry import Sphere
-from better_robot.model.joints import JointRevolute
+from better_robot.model.joints import JointFixed, JointRevolute
 
 
 def _simple_arm() -> IRModel:
@@ -21,9 +21,9 @@ def _simple_arm() -> IRModel:
     b = ModelBuilder("test_arm")
     b.add_body("base", mass=0.0)
     b.add_body("link1", mass=1.0)
-    b.add_revolute(
+    b.add_joint(
         "j1",
-        axis=(1.0, 0.0, 0.0),
+        kind=JointRevolute(axis=(1.0, 0.0, 0.0)),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
@@ -46,7 +46,7 @@ def test_finalize_emits_the_bodies_and_joints():
 def _add_base_link1_and_j1(b):
     b.add_body("base")
     b.add_body("link1")
-    b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=se3.identity())
+    b.add_joint("j1", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="link1", origin=se3.identity())
 
 
 @pytest.mark.parametrize(
@@ -55,7 +55,9 @@ def _add_base_link1_and_j1(b):
         pytest.param(lambda b: b.add_body("base"), lambda b: b.add_body("base"), "already exists", id="duplicate_body"),
         pytest.param(
             _add_base_link1_and_j1,
-            lambda b: b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=se3.identity()),
+            lambda b: b.add_joint(
+                "j1", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="link1", origin=se3.identity()
+            ),
             "already exists",
             id="duplicate_joint",
         ),
@@ -79,7 +81,7 @@ def test_add_shape():
     b = ModelBuilder("x")
     b.add_body("base")
     b.add_body("link1")
-    b.add_fixed("j1", parent="base", child="link1", origin=se3.identity())
+    b.add_joint("j1", kind=JointFixed(), parent="base", child="link1", origin=se3.identity())
     sphere = Sphere(radius=0.05, placement=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0))
     b.add_shape("link1", sphere)
     b.add_shape("base", sphere, collision=False)

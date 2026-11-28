@@ -1,4 +1,5 @@
-"""Every ``ModelBuilder`` joint path builds a model that runs FK; a bad kind or axis fails at the call."""
+"""Every joint kind, built in or written outside the package, enters ``ModelBuilder.add_joint`` and builds a model that
+runs FK; a kind that is not a ``JointModel`` instance fails at the call."""
 
 from __future__ import annotations
 
@@ -36,67 +37,6 @@ def _assert_fk_runs(model) -> None:
     assert model.upper_position_limit.shape == (model.nq,)
     assert model.velocity_limit.shape == (model.nv,)
     assert model.effort_limit.shape == (model.nv,)
-
-
-def _axis(*xyz: float) -> tuple[float, float, float]:
-    """The axis as the builder stores it: a float32 tensor read back as Python floats."""
-    x, y, z = torch.tensor(xyz).tolist()
-    return (x, y, z)
-
-
-@pytest.mark.parametrize(
-    ("method", "kwargs", "expected"),
-    [
-        pytest.param(
-            "add_revolute",
-            {"axis": torch.tensor([0.7071068, 0.7071068, 0.0])},
-            JointRevolute(axis=_axis(0.7071068, 0.7071068, 0.0)),
-            id="revolute",
-        ),
-        pytest.param(
-            "add_revolute",
-            {"axis": torch.tensor([0.0, 0.0, 1.0]), "unbounded": True},
-            JointRevoluteUnbounded(axis=(0.0, 0.0, 1.0)),
-            id="continuous",
-        ),
-        pytest.param(
-            "add_prismatic",
-            {"axis": torch.tensor([0.7071068, 0.7071068, 0.0])},
-            JointPrismatic(axis=_axis(0.7071068, 0.7071068, 0.0)),
-            id="prismatic",
-        ),
-        pytest.param("add_spherical", {}, JointSpherical(), id="spherical"),
-        pytest.param("add_planar", {}, JointPlanar(), id="planar"),
-        pytest.param(
-            "add_helical",
-            {"axis": torch.tensor([0.0, 0.0, 1.0]), "pitch": 0.25},
-            JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.25),
-            id="helical",
-        ),
-        pytest.param("add_fixed", {}, JointFixed(), id="fixed"),
-    ],
-)
-def test_named_joint_methods_build_and_run_fk(method, kwargs, expected: JointModel):
-    builder = ModelBuilder(method)
-    base = builder.add_body("base")
-    tip = builder.add_body("tip")
-    getattr(builder, method)("joint", parent=base, child=tip, **kwargs)
-
-    model = build_model(builder.finalize())
-
-    assert model.joints[2] == expected
-    _assert_fk_runs(model)
-
-
-def test_add_free_flyer_root_builds_and_runs_fk():
-    builder = ModelBuilder("free_flyer")
-    base = builder.add_body("base")
-    builder.add_free_flyer_root(child=base)
-
-    model = build_model(builder.finalize())
-
-    assert model.joints[1] == JointFreeFlyer()
-    _assert_fk_runs(model)
 
 
 @final

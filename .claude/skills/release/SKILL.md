@@ -12,14 +12,14 @@ yet: the first release is 0.1.0, the version `pyproject.toml` already holds, and
 
 ## Review the public-API diff
 
-`tools/api_snapshot.py --diff` prints the public paths added (`+`), removed (`-`) and changed (`~`) since an older
+`python -m better_robot.testing.api_snapshot ... --diff` prints the public paths added (`+`), removed (`-`) and changed (`~`) since an older
 snapshot. The older snapshot is the last release tag's `tests/contract/public_api.json`; 0.1.0, the first release,
 has none to compare with:
 
 ```bash
 # for the release after 0.1.0
 git show v0.1.0:tests/contract/public_api.json > /tmp/public_api_0.1.0.json
-uv run python tools/api_snapshot.py --diff /tmp/public_api_0.1.0.json
+uv run python -m better_robot.testing.api_snapshot better_robot /tmp/public_api_0.1.0.json --diff
 ```
 
 Every `+` path has a docstring (`tests/contract/test_docstrings.py`), and every `-` or `~` path came with a commit

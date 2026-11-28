@@ -40,7 +40,7 @@ testing           -> exceptions model optim
 | `optim` | robot-agnostic least squares and minimisation over named tensors |
 | `terms` | robot cost terms (poses, limits, collision) and `solve_ik` |
 | `viewer` | interactive 3-D display |
-| `testing` | checks shared with BetterHuman's tests: the snippet runner, the fake viser server, the sweeps |
+| `testing` | checks shared with BetterHuman's tests, runner and tools: the snippet runner, the fake viser server, the sweeps, the repository, naming and API-snapshot checks, the benchmark counters |
 
 What the table rules out, each absence with its check:
 
@@ -65,8 +65,8 @@ import better_robot as br
 
 builder = br.ModelBuilder("two_link")
 builder.add_body("base"); builder.add_body("upper"); builder.add_body("lower")
-builder.add_revolute("shoulder", axis=(0.0, 0.0, 1.0), parent="base", child="upper")
-builder.add_revolute("elbow", axis=(0.0, 0.0, 1.0), parent="upper", child="lower")
+builder.add_joint("shoulder", kind=br.model.JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="upper")
+builder.add_joint("elbow", kind=br.model.JointRevolute(axis=(0.0, 0.0, 1.0)), parent="upper", child="lower")
 model = br.io.build_model(builder.finalize())
 
 q = torch.rand(4, model.nq)                        # a batch of 4 configurations

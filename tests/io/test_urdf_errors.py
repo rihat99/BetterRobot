@@ -12,6 +12,7 @@ from better_robot.io import ModelBuilder, build_model, load, load_geometry
 from better_robot.io.parser_urdf import parse_urdf
 from better_robot.testing import FakeServer
 from better_robot.viewer import RobotVisual, Viewer
+from better_robot.model import JointRevolute
 
 from tests.support.robots import panda_urdf
 
@@ -146,6 +147,6 @@ def test_lower_above_upper_raises_in_the_limits_stage(tmp_path: Path) -> None:
     builder = ModelBuilder("r")
     builder.add_body("base")
     builder.add_body("tip")
-    builder.add_revolute("j", parent="base", child="tip", axis=(0.0, 0.0, 1.0), lower=1.0, upper=-1.0)
+    builder.add_joint("j", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="tip", lower=1.0, upper=-1.0)
     with pytest.raises(ModelError, match=message):
         build_model(builder.finalize())
