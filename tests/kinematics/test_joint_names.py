@@ -1,4 +1,7 @@
-"""Joint ids accept ``int | str`` everywhere a frame id does; unknown names raise ``UnknownNameError``."""
+"""The topology queries take a joint's id or its name; unknown names raise ``UnknownNameError``.
+
+The functions that take a state run with the id and with the name in ``tests/contract/test_identifiers.py``.
+"""
 
 from __future__ import annotations
 
@@ -6,29 +9,14 @@ import pytest
 import torch
 
 from better_robot.exceptions import UnknownNameError
-from better_robot.kinematics import (
-    forward_kinematics,
-    subtree,
-    support,
-    joint_jacobian,
-    joint_jacobian_time_variation,
-)
+from better_robot.kinematics import subtree, support
 from tests.support.robots import two_link_arm
 
 
 def test_joint_names_match_ids() -> None:
     model = two_link_arm(torch.float64)
-    q = torch.tensor([[0.3, -0.7]], dtype=torch.float64)
-    v = torch.tensor([[0.2, 0.5]], dtype=torch.float64)
-    state = forward_kinematics(model, q)
-    joint = model.joint_id("j2")
-    torch.testing.assert_close(joint_jacobian(model, state, joint="j2"), joint_jacobian(model, state, joint=joint))
-    torch.testing.assert_close(
-        joint_jacobian_time_variation(model, state, v=v, joint="j2"),
-        joint_jacobian_time_variation(model, state, v=v, joint=joint),
-    )
     assert subtree(model, joint="j1") == subtree(model, joint=model.joint_id("j1"))
-    assert support(model, joint="j2") == support(model, joint=joint)
+    assert support(model, joint="j2") == support(model, joint=model.joint_id("j2"))
 
 
 @pytest.mark.parametrize("resolver", ["joint_id", "frame_id", "body_id"])
