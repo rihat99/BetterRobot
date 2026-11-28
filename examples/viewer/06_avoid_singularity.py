@@ -15,50 +15,29 @@ shoulder and the elbow there), and shows the Panda without the row
 
 from __future__ import annotations
 
-import argparse
 import math
 import time
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import torch
-from robot_descriptions import panda_description
 
-import better_robot as br
 from better_robot import Viewer, forward_kinematics, lie, optim, terms
-from better_robot.testing import FakeServer
 from better_robot.viewer import RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
-URDF = panda_description.URDF_PATH
-FRAME, READY = "panda_hand", [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
+import avoidance  # beside this file: the command line, robots and scripted run the avoidance demos share
+
+FRAME = "panda_hand"
 THRESHOLD, STEP, TICKS = 0.03, 0.005, 1200  # manipulability (m³ for three position rows), rad per tick, ticks
 REACH, TILT = (0.75, 0.0, -0.3), 0.8  # the scripted target's far point from its start (m), its tilt there (rad)
 FORMS = ("rows", "cost", "off")  # the GUI's choices: the singular poses as a row, as a cost term, or not avoided
 RED, GREY = (0.9, 0.1, 0.1), (0.6, 0.6, 0.65)
 
 
-def run(tick: Callable, form: str, x: dict, path: torch.Tensor) -> tuple[torch.Tensor, float]:
-    """``q (T, nq)`` after one ``tick`` per target of ``path (T, 7)`` from ``x``, and the median tick in seconds."""
-    warm, q, seconds = None, [], []
-    for target in path:
-        began = time.perf_counter()
-        x, warm = tick(form, target[None], x, warm)
-        seconds.append(time.perf_counter() - began)
-        q.append(x["q"][0])
-    return torch.stack(q), float(np.median(seconds))
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="run the scripted path on the stand-in server and exit")
-    parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
-    args = parser.parse_args()
-
-    model = br.load(URDF, dtype=torch.float64)
-    q0 = model.q_neutral.clone()[None]  # (1, nq)
-    q0[0, :7] = torch.tensor(READY)
+    args = avoidance.arguments()
+    model, q0, geometry = avoidance.load("panda")  # q0 (1, nq): the ready pose
     hand = model.frame_id(FRAME)
     start = forward_kinematics(model, q0).frame_poses[:, hand]  # (1, 7)
     singular = terms.manipulability(model, frame=FRAME, threshold=THRESHOLD, hinge=False)
@@ -76,14 +55,13 @@ def main() -> None:
         w = THRESHOLD - singular.fn(state)
         return state.frame_poses[:, [hand], :3].numpy(), w.numpy()
 
-    geometry = br.io.load_geometry(URDF, model)
-    viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
+    viewer = avoidance.viewer(check=args.check)
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)`` and its hand's marker, red below the threshold, under ``group``."""
         point, w = look(q)
         layers = [
-            RobotVisual(model, q, name="robot", geometry=geometry, root=URDF),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=avoidance.URDFS["panda"]),
             SpheresLayer("hand", point, radii=np.array([0.05]), colors=GREY, opacity=0.4),
             SpheresLayer("below the threshold", point, radii=np.array([0.05]), colors=RED, opacity=0.8),
         ]
@@ -100,7 +78,7 @@ def main() -> None:
     position = start[:, :3] + alpha * torch.tensor(REACH, dtype=torch.float64)
     path = torch.cat([position, lie.so3.compose(tilt, start[:, 3:].expand(TICKS, 4))], dim=-1)  # (TICKS, 7)
     for side, form in enumerate(("off", "rows")):
-        q, seconds = run(tick, form, dict(problems[form].variables), path)
+        q, seconds = avoidance.run(tick, form, dict(problems[form].variables), path)
         print(
             f"singular {form:4s}: lowest manipulability {float(look(q)[1].min()):.5f} (threshold {THRESHOLD}), "
             f"tick {1e3 * seconds:.1f} ms (median)"
@@ -110,8 +88,7 @@ def main() -> None:
         target = SpheresLayer("target", path[::12, None, :3].numpy(), radii=np.array([0.02]), colors=(0.1, 0.3, 0.9))
         viewer.add([target], tags=form, pose=offset)
     if args.record:
-        camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
-        print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")
+        avoidance.record(viewer, args.record)
 
 
 def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: dict, start: torch.Tensor) -> None:

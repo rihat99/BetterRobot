@@ -91,8 +91,7 @@ class _Blocks(Layer):
 
     def __init__(
         self, name: str, skeleton: Skeleton, poses: np.ndarray, hue: RGB, theme: Theme, *, opacity: float,
-        values: np.ndarray | None, value_range: tuple[float, float], sized: bool = False,
-        growth: tuple[float, float],
+        values: np.ndarray | None, value_range: tuple[float, float], sized: bool, growth: tuple[float, float],
     ) -> None:  # fmt: skip
         super().__init__(name, poses.shape[0])
         self.skeleton, self.poses, self.hue, self.theme = skeleton, poses, hue, theme
@@ -152,7 +151,7 @@ class _Blocks(Layer):
         ramp = np.array(self.theme.ramp, dtype=np.float32)  # (2, 3)
         dark = np.array([self.theme.shade(end, "face") for end in self.theme.ramp], dtype=np.float32)
         for mesh in self._colors:
-            rows, joints, faces = self.skeleton.glyphs(mesh, self.poses.shape[1])
+            rows, joints, faces = self.skeleton.glyphs(mesh)
             if len(rows):
                 self._ends[mesh] = (rows, joints, np.where(faces[:, None, None], dark, ramp))  # (n, 2, 3)
         return self._colors

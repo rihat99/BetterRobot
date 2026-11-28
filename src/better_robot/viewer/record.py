@@ -462,11 +462,12 @@ def _dri_prime(gpu: int) -> str:
             "pass gpu=None"
         )
     nvidia_smi = shutil.which("nvidia-smi")
-    query = [nvidia_smi or "nvidia-smi", "--query-gpu=pci.bus_id", "--format=csv,noheader", "-i", str(gpu)]
-    run = subprocess.run(query, capture_output=True, text=True, check=False) if nvidia_smi else None
-    if run is None or run.returncode != 0:
-        reason = "nvidia-smi is not on PATH" if run is None else (run.stdout.strip() or run.stderr.strip())
-        raise ArgumentError(f"gpu={gpu} is not reachable: {reason}; pass gpu=None")
+    if nvidia_smi is None:
+        raise ArgumentError(f"gpu={gpu} is not reachable: nvidia-smi is not on PATH; pass gpu=None")
+    query = [nvidia_smi, "--query-gpu=pci.bus_id", "--format=csv,noheader", "-i", str(gpu)]
+    run = subprocess.run(query, capture_output=True, text=True, check=False)
+    if run.returncode != 0:
+        raise ArgumentError(f"gpu={gpu} is not reachable: {run.stdout.strip() or run.stderr.strip()}; pass gpu=None")
     return _prime(run.stdout.strip())
 
 

@@ -16,71 +16,31 @@ without the rows (left) beside the robot with them (right).
 
 from __future__ import annotations
 
-import argparse
-import math
 import time
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import torch
-from robot_descriptions import g1_description, panda_description
 
-import better_robot as br
 from better_robot import Viewer, collision, forward_kinematics, optim, terms
-from better_robot.testing import FakeServer
 from better_robot.viewer import RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
-READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
-ROBOTS = {  # description, IK frames (the first follows the target), step per tick, closest spheres as rows
-    "panda": (panda_description, ("panda_hand",), 0.005, 8),
-    "g1": (
-        g1_description,
-        ("left_rubber_hand", "right_rubber_hand", "left_ankle_roll_link", "right_ankle_roll_link"),
-        0.0063,
-        None,
-    ),
+import avoidance  # beside this file: the command line, robots and scripted run the avoidance demos share
+
+ROBOTS = {  # IK frames (the first follows the target), step per tick, closest spheres as rows
+    "panda": (("panda_hand",), 0.005, 8),
+    "g1": (("left_rubber_hand", "right_rubber_hand", "left_ankle_roll_link", "right_ankle_roll_link"), 0.0063, None),
 }
 RADIUS, MARGIN, GAIN, TICKS, SPEED = 0.06, 0.02, 0.5, 1000, 0.001  # m, m, track's gain, ticks, m per tick
 FORMS = ("rows", "cost", "off")  # the GUI's choices: the obstacle as rows, as a cost term, or ignored
 RED, GREY = (0.9, 0.1, 0.1), (0.45, 0.45, 0.5)
 
 
-def load(robot: str) -> tuple[br.Model, torch.Tensor, br.Geometry]:
-    """The model of ``robot`` (the G1 on a free base), its start ``q0 (1, nq)`` (Panda ready, G1 standing on z = 0)
-    and its geometry."""
-    description, g1 = ROBOTS[robot][0], robot == "g1"
-    model = br.load(description.URDF_PATH, root_joint=br.JointFreeFlyer() if g1 else None, dtype=torch.float64)
-    q0 = model.q_neutral.clone()[None]
-    if g1:
-        q0[0, 2] = 0.793
-    else:
-        q0[0, :7] = torch.tensor(READY)
-    return model, q0, br.io.load_geometry(description.URDF_PATH, model)
-
-
-def run(tick: Callable, form: str, x: dict, sweep: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, float]:
-    """``q (T, nq)`` after one ``tick`` toward ``target (1, 7)`` per obstacle centre of ``sweep (T, 3)`` from ``x``, and
-    the median tick in seconds."""
-    warm, q, seconds = None, [], []
-    for center in sweep:
-        began = time.perf_counter()
-        x, warm = tick(form, target, center, x, warm)
-        seconds.append(time.perf_counter() - began)
-        q.append(x["q"][0])
-    return torch.stack(q), float(np.median(seconds))
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--robot", choices=ROBOTS, default="panda")
-    parser.add_argument("--check", action="store_true", help="run the scripted path on the stand-in server and exit")
-    parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
-    args = parser.parse_args()
-
-    model, q0, geometry = load(args.robot)
-    description, frames, step, closest = ROBOTS[args.robot]
+    args = avoidance.arguments(ROBOTS)
+    model, q0, geometry = avoidance.load(args.robot)
+    frames, step, closest = ROBOTS[args.robot]
     spheres, _ = collision.load_spheres(collision.SPHERE_SETS / f"{args.robot}.json", model)
     start = forward_kinematics(model, q0).frame_poses[:, [model.frame_id(f) for f in frames]]  # (1, F, 7)
     hand = start[0, 0, :3]
@@ -109,7 +69,7 @@ def main() -> None:
         return robot.numpy(), clearance.numpy()
 
     radii = spheres.radii.numpy()
-    viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
+    viewer = avoidance.viewer(check=args.check)
 
     def draw(
         group: str, q: torch.Tensor, centers: torch.Tensor, offset: tuple[float, float, float] = (0, 0, 0)
@@ -118,7 +78,7 @@ def main() -> None:
         (T, 3)``, under ``group``."""
         robot, clearance = look(q, centers)
         layers = [
-            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH, spheres=spheres,
+            RobotVisual(model, q, name="robot", geometry=geometry, root=avoidance.URDFS[args.robot], spheres=spheres,
                         collision=True),  # the Robot section's Collision box shows the spheres
             SpheresLayer("obstacle", centers[:, None].numpy(), radii=np.array([RADIUS]), colors=GREY, opacity=0.9),
             SpheresLayer("inside the margin", robot, radii=radii, colors=RED, opacity=0.8),
@@ -135,9 +95,14 @@ def main() -> None:
     sweep = obstacle[:3] + torch.linspace(0, SPEED * TICKS, TICKS, dtype=torch.float64)[:, None] * torch.tensor(
         [0.0, 1.0, 0.0], dtype=torch.float64
     )  # (TICKS, 3): through the hand
+
+    def hold(form: str, center: torch.Tensor, x: dict, warm: optim.QPSolution | None) -> tuple:
+        """One ``tick`` with the obstacle at ``center (1, 3)`` toward the hand's start: the target holds still."""
+        return tick(form, start[:, 0], center[0], x, warm)
+
     for side, form in enumerate(("off", "rows")):
         obstacle[:3] = sweep[0]
-        q, seconds = run(tick, form, dict(problems[form].variables), sweep, start[:, 0])
+        q, seconds = avoidance.run(hold, form, dict(problems[form].variables), sweep)
         gave_way = (forward_kinematics(model, q).frame_poses[:, model.frame_id(frames[0]), :3] - hand).norm(dim=-1)
         print(
             f"obstacle {form:4s}: closest sphere {1e3 * float(look(q, sweep)[1].min()):+8.3f} mm from it "
@@ -146,8 +111,7 @@ def main() -> None:
         )
         draw(form, q[::10], sweep[::10], (1.2 * side - 0.6, 0.0, 0.0))  # every 10th tick: 2.5 times real time
     if args.record:
-        camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
-        print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")
+        avoidance.record(viewer, args.record)
 
 
 def follow(
