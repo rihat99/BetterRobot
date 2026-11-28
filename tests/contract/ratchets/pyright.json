@@ -88,7 +88,7 @@
     "reason": "false positive: `delta` is built whenever a term needs autodiff, the only case that reads it, a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
   },
   "src/better_robot/optim/linearization.py::_normal_equations reportCallIssue": {
-    "count": 2,
+    "count": 1,
     "reason": "false positive: the same `delta` (torch.autograd.grad's overloads then reject the Optional), a correlation pyright does not track; silencing it takes an assert or a second check that exists only for the checker"
   },
   "src/better_robot/optim/linearization.py::_normal_equations reportOptionalSubscript": {
