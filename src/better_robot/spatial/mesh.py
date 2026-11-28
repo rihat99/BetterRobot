@@ -1,17 +1,13 @@
-"""Face-table topology helpers for closed triangle meshes.
+"""Face-table topology helpers for closed triangle meshes, the companions of ``inertia_of_mesh``.
 
-Companions to ``inertia_of_mesh``. That integrator
-folds a single *global* winding sign but trusts every face to already agree on
-orientation; it silently returns a wrong result for a surface whose faces are
-inconsistently wound. These helpers operate on the **integer face table only**
-— they never touch vertex values, so reorientation is a one-time spawn-time
-precompute and the downstream vertex integration stays fully differentiable.
+``inertia_of_mesh`` folds one global winding sign but trusts every face to agree on orientation, so a surface whose
+faces are wound inconsistently gives a wrong result without an error. These helpers change only the integer face
+table (``orient_faces_by_component`` reads the vertices to sign each component's volume), so reorientation is a
+one-time precompute and the vertex integration downstream stays differentiable.
 
 - ``validate_closed_manifold`` rejects open and non-manifold surfaces.
-- ``orient_faces_consistently`` rewinds each connected component so all its
-  faces agree, replacing the historical ``trimesh.fix_normals`` step.
-
-See ``src/better_robot/spatial/inertia.py``.
+- ``orient_faces_consistently`` rewinds each connected component so all its faces agree.
+- ``orient_faces_by_component`` does the same on imperfect topology and turns each component outward.
 """
 
 from __future__ import annotations
