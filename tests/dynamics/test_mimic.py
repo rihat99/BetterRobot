@@ -6,7 +6,6 @@ import dataclasses
 
 import torch
 
-from better_robot.kinematics.configuration import full_configuration, full_tangent, mimic_plan
 from better_robot.dynamics import (
     centroidal_map,
     centroidal_momentum,
@@ -16,6 +15,10 @@ from better_robot.dynamics import (
 )
 from better_robot.kinematics import forward_kinematics
 from better_robot.io import ModelBuilder, build_model
+
+# The mimic rule target = -0.5 source + 0.2, written by hand: the twin's configuration is [q, -0.5 q + 0.2] and its
+# tangent EXPANSION @ v, so its Jacobians and torques map to the reduced ones through EXPANSION.
+EXPANSION = torch.tensor([[1.0], [-0.5]], dtype=torch.float64)  # (nv_full, nv)
 
 
 def _model_pair():
@@ -61,27 +64,26 @@ def test_rnea_crba_centroidal_and_aba_use_one_reduced_map() -> None:
     q = torch.tensor([[-0.2], [0.3]], dtype=torch.float64)
     v = torch.tensor([[0.1], [-0.15]], dtype=torch.float64)
     acceleration = torch.tensor([[0.25], [-0.3]], dtype=torch.float64)
-    q_full = full_configuration(constrained, q)
-    v_full = full_tangent(constrained, v)
-    acceleration_full = full_tangent(constrained, acceleration)
-    expansion = mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
+    q_full = torch.cat([q, -0.5 * q + 0.2], dim=-1)
+    v_full = v @ EXPANSION.mT
+    acceleration_full = acceleration @ EXPANSION.mT
 
     state = forward_kinematics(constrained, q)
     state_full = forward_kinematics(full, q_full)
     tau = inverse_dynamics(constrained, state, v=v, a=acceleration)
     tau_full = inverse_dynamics(full, state_full, v=v_full, a=acceleration_full)
-    torch.testing.assert_close(tau, tau_full @ expansion, rtol=1e-11, atol=1e-11)
+    torch.testing.assert_close(tau, tau_full @ EXPANSION, rtol=1e-11, atol=1e-11)
 
     mass = mass_matrix(constrained, state)
     mass_full = mass_matrix(full, state_full)
-    expected_mass = expansion.mT @ mass_full @ expansion
+    expected_mass = EXPANSION.mT @ mass_full @ EXPANSION
     torch.testing.assert_close(mass, expected_mass, rtol=1e-11, atol=1e-11)
 
     centroidal = centroidal_map(constrained, state)
     centroidal_full = centroidal_map(full, state_full)
     torch.testing.assert_close(
         centroidal,
-        centroidal_full @ expansion,
+        centroidal_full @ EXPANSION,
         rtol=1e-11,
         atol=1e-11,
     )
@@ -99,15 +101,14 @@ def test_projected_aba_matches_reduced_mass_and_bias_solve() -> None:
     q = torch.tensor([0.25], dtype=torch.float64)
     v = torch.tensor([-0.12], dtype=torch.float64)
     tau = torch.tensor([0.7], dtype=torch.float64)
-    q_full = full_configuration(constrained, q)
-    v_full = full_tangent(constrained, v)
-    expansion = mimic_plan(constrained, dtype=torch.float64, device=torch.device("cpu")).v_expansion
+    q_full = torch.cat([q, -0.5 * q + 0.2], dim=-1)
+    v_full = v @ EXPANSION.mT
 
     state_full = forward_kinematics(full, q_full)
     mass_full = mass_matrix(full, state_full)
     bias_full = inverse_dynamics(full, state_full, v=v_full, a=torch.zeros_like(v_full))
-    reduced_mass = expansion.mT @ mass_full @ expansion
-    reduced_bias = bias_full @ expansion
+    reduced_mass = EXPANSION.mT @ mass_full @ EXPANSION
+    reduced_bias = bias_full @ EXPANSION
     expected = torch.linalg.solve(reduced_mass, (tau - reduced_bias).unsqueeze(-1)).squeeze(-1)
 
     actual = forward_dynamics(constrained, forward_kinematics(constrained, q), v=v, tau=tau)
