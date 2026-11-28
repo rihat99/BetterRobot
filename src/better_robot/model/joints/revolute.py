@@ -9,14 +9,14 @@ import torch
 
 from ...lie import se3
 from ..manifolds import CIRCLE, EUCLIDEAN, JointManifold
-from .base import JointModel, _axis_column, check_axis
+from .base import JointModel, _axis_column, _uniform, check_axis
 
 
 def _random_angle(generator: torch.Generator, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
     """Uniform angle ``(1,)`` in ``[lower, upper]``; a missing limit is replaced by ``-pi`` or ``pi``."""
     lower = torch.where(torch.isfinite(lower), lower, torch.full_like(lower, -torch.pi))
     upper = torch.where(torch.isfinite(upper), upper, torch.full_like(upper, torch.pi))
-    return lower + (upper - lower) * torch.rand(1, generator=generator, dtype=lower.dtype, device=lower.device)
+    return _uniform(generator, lower, upper)
 
 
 @final

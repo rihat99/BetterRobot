@@ -1,7 +1,7 @@
 """The one input validator of the library (contract 06, C-ERR-1).
 
 The boundaries of `lie`, `spatial`, `model`, `kinematics`, `dynamics`, `collision`, `io` and `terms` call it. It reads
-types, trailing shapes, dtypes and devices, never tensor values.
+types, shapes, dtypes and devices, never tensor values.
 """
 
 from __future__ import annotations
@@ -46,6 +46,33 @@ def check_tensor(
         raise ShapeError(f"{name} must have shape (..., {', '.join(map(str, shape))}), got {tuple(value.shape)}")
     if dtype is not None and value.dtype != dtype:
         raise DtypeMismatchError(f"{name}.dtype={value.dtype} != {owner}.dtype={dtype}; pass {name}.to({dtype})")
+    if device is not None and value.device != device:
+        raise DeviceMismatchError(f"{name}.device={value.device} != {owner}.device={device}; pass {name}.to({device})")
+    return value
+
+
+def check_index_tensor(
+    name: str,
+    value: object,
+    *,
+    shape: tuple[int | str, ...],
+    dtypes: tuple[torch.dtype, ...] = (torch.int64,),
+    device: torch.device | None = None,
+    owner: str = "model",
+) -> torch.Tensor:
+    """``value`` once it is an integer tensor in one of ``dtypes`` with exactly the axes ``shape``, where a name stands
+    for any size (``("P", 2)`` is ``(P, 2)``), on ``device`` when it is given (``owner`` names whose it is).
+
+    Raises as `check_tensor`. It reads no value: an index outside its table is the caller's check.
+    """
+    if not isinstance(value, torch.Tensor):
+        raise TypeError(f"{name} must be a torch.Tensor, got {type(value).__name__}")
+    if value.dtype not in dtypes:
+        allowed = " or ".join(map(str, dtypes))
+        raise DtypeMismatchError(f"{name}.dtype={value.dtype} is not {allowed}; pass {name}.long()")
+    if value.ndim != len(shape) or any(isinstance(size, int) and size != got for size, got in zip(shape, value.shape)):
+        layout = ", ".join(map(str, shape)) + ("," if len(shape) == 1 else "")
+        raise ShapeError(f"{name} must have shape ({layout}), got {tuple(value.shape)}")
     if device is not None and value.device != device:
         raise DeviceMismatchError(f"{name}.device={value.device} != {owner}.device={device}; pass {name}.to({device})")
     return value

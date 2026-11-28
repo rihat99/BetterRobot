@@ -1,37 +1,32 @@
-"""Face-table topology helpers for closed triangle meshes.
+"""Face-table topology helpers for closed triangle meshes, the companions of ``inertia_of_mesh``.
 
-Companions to ``inertia_of_mesh``. That integrator
-folds a single *global* winding sign but trusts every face to already agree on
-orientation; it silently returns a wrong result for a surface whose faces are
-inconsistently wound. These helpers operate on the **integer face table only**
-— they never touch vertex values, so reorientation is a one-time spawn-time
-precompute and the downstream vertex integration stays fully differentiable.
+``inertia_of_mesh`` folds one global winding sign but trusts every face to agree on orientation, so a surface whose
+faces are wound inconsistently gives a wrong result without an error. These helpers change only the integer face
+table (``orient_faces_by_component`` reads the vertices to sign each component's volume), so reorientation is a
+one-time precompute and the vertex integration downstream stays differentiable.
 
 - ``validate_closed_manifold`` rejects open and non-manifold surfaces.
-- ``orient_faces_consistently`` rewinds each connected component so all its
-  faces agree, replacing the historical ``trimesh.fix_normals`` step.
-
-See ``src/better_robot/spatial/inertia.py``.
+- ``orient_faces_consistently`` rewinds each connected component so all its faces agree.
+- ``orient_faces_by_component`` does the same on imperfect topology and turns each component outward.
 """
 
 from __future__ import annotations
 
 import torch
 
-from ..exceptions import ArgumentError, DtypeMismatchError, ShapeError
-from ..lie._checks import check_tensors
+from ..exceptions import ArgumentError, ShapeError
+from ..lie._checks import check_index_tensor, check_tensors
 
 _MAX_REPORTED_EDGES = 5
 
 
-def _check_face_table(faces: torch.Tensor) -> None:
-    """Validate that ``faces`` is a non-empty integer ``(F, 3)`` triangle table."""
-    if not isinstance(faces, torch.Tensor):
-        raise TypeError(f"faces must be a torch.int32 or torch.int64 tensor, got {type(faces).__name__}")
-    if faces.dtype not in (torch.int32, torch.int64):
-        raise DtypeMismatchError(f"faces.dtype={faces.dtype} is not torch.int32 or torch.int64; pass faces.long()")
-    if faces.ndim != 2 or faces.shape[-1] != 3 or faces.shape[0] == 0:
-        raise ShapeError(f"faces must have non-empty shape (F, 3), got {tuple(faces.shape)}")
+def _check_face_table(faces: torch.Tensor, *, device: torch.device | None = None) -> None:
+    """Raise unless ``faces`` is a non-empty integer ``(F, 3)`` triangle table, on ``device`` (the vertices') if given."""
+    check_index_tensor(
+        "faces", faces, shape=("F", 3), dtypes=(torch.int32, torch.int64), device=device, owner="vertices"
+    )
+    if faces.shape[0] == 0:
+        raise ShapeError("faces must have non-empty shape (F, 3), got (0, 3)")
 
 
 def _undirected_edges(faces: torch.Tensor) -> torch.Tensor:
