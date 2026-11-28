@@ -849,6 +849,46 @@ def test_aim_frames_the_box_of_the_visible_layers_in_new_and_connected_browsers(
     np.testing.assert_allclose(look_at, [2.5, 2.0, 0.5])
 
 
+@pytest.mark.parametrize(
+    ("up", "point", "side"),
+    [
+        ("+z", (2.0, 10.0, 7.0), (0.0, 1.0, 0.0)),  # from +y: the point's height does not count
+        ("+z", (2.0, 10.0, -3.0), (0.0, 1.0, 0.0)),
+        ("+z", (-6.0, 2.0, 0.5), (-1.0, 0.0, 0.0)),
+        ("+y", (9.0, -4.0, 0.5), (1.0, 0.0, 0.0)),
+    ],
+)
+def test_aim_look_from_looks_from_the_side_of_the_point_at_the_elevation(
+    up: str, point: tuple[float, float, float], side: tuple[float, float, float]
+) -> None:
+    """The box's middle is (2, 2, 0.5): the camera looks at it from the point's side across the up axis, raised by
+    the elevation (worked by hand, not through the azimuth convention)."""
+    theme = Theme(up=up)
+    viewer = Viewer(server=FakeServer(), theme=theme, ground=False)
+    viewer.add(PointsLayer("box", np.array([[1.0, 1.0, 0.0], [3.0, 3.0, 1.0]])))
+    position, look_at = viewer.aim(look_from=point, elevation=0.3)
+    np.testing.assert_allclose(look_at, [2.0, 2.0, 0.5], atol=1e-12)
+    seen_from = np.cos(0.3) * np.array(side) + np.sin(0.3) * np.array(theme.up_vector)
+    np.testing.assert_allclose((position - look_at) / np.linalg.norm(position - look_at), seen_from, atol=1e-12)
+
+
+def test_aim_refuses_look_from_beside_an_azimuth_on_the_up_axis_or_of_another_shape() -> None:
+    server = FakeServer()
+    viewer = Viewer(server=server, ground=False)
+    viewer.add(PointsLayer("box", np.array([[1.0, 1.0, 0.0], [3.0, 3.0, 1.0]])))
+    with pytest.raises(ArgumentError, match="not both"):
+        viewer.aim(azimuth=0.5, look_from=(0.0, 0.0, 0.0))
+    with pytest.raises(ArgumentError, match="off the up axis"):
+        viewer.aim(look_from=(2.0, 2.0, 9.0))  # straight above the middle: no side to look from
+    with pytest.raises(ArgumentError, match="finite"):
+        viewer.aim(look_from=(np.nan, 0.0, 0.0))
+    with pytest.raises(ShapeError, match=r"look_from must be a point \(3,\)"):
+        viewer.aim(look_from=(1.0, 2.0))
+    before = server.initial_camera.look_at.copy()
+    viewer.add(PointsLayer("far", np.full((1, 3), 10.0)))  # a refused aim leaves the automatic aim on
+    assert not np.allclose(server.initial_camera.look_at, before)
+
+
 def test_aim_reads_only_bounds_of_at_most_32_steps_and_skips_invalid_ones() -> None:
     viewer = Viewer(server=FakeServer())
     layer = viewer.add(_Box("box", 100))

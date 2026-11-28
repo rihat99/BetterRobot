@@ -538,35 +538,53 @@ class Viewer:
         self,
         *,
         steps: Sequence[int] | None = None,
-        azimuth: float = _AZIMUTH,
+        azimuth: float | None = None,
         elevation: float = _ELEVATION,
         fov: float = _FOV,
+        look_from: np.ndarray | Sequence[float] | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Point the connected browsers and every new one (viser's initial camera, also "Reset View") at the visible
-        layers, and stop aiming by itself after each ``add``.
+        layers, and stop aiming by itself after each ``add``; return ``(position, look_at)``.
 
-        The view holds the boxes of the visible layers' ``Layer.bounds`` over ``steps`` (at most 32 evenly spaced ones
-        are read; default: the whole clip, at most 32 evenly spaced samples of each layer; samples its ``valid`` hides
-        are skipped), seen from ``azimuth`` and
-        ``elevation`` (radians) about the theme's ``up`` axis: the boxes are centred in the view, at the nearest
-        distance where every corner of every box lies inside 80 % of a 16:9 view's height and width, in the vertical
-        field of view ``fov``; the browsers take ``fov``. Returns ``(position, look_at)``. Under ``+z`` up, azimuth 0
-        looks from ``-y`` (the right side of a robot facing ``+x``, the usual convention) and 90 degrees from ``+x``:
-        the default 60 degrees is a front three-quarter view.
+        The view holds the boxes of the visible layers' ``Layer.bounds`` over ``steps`` (default: the whole clip; at
+        most 32 evenly spaced steps, or samples of each layer, are read, and the samples a layer's ``valid`` hides are
+        skipped): the boxes are centred in the view, at the nearest distance where every corner of every box lies
+        inside 80 % of a 16:9 view's height and width, in the vertical field of view ``fov``; the browsers take
+        ``fov``. The view looks from ``azimuth`` and ``elevation`` (radians) about the theme's ``up`` axis. Under ``+z``
+        up, azimuth 0 looks from ``-y`` (the right side of a robot facing ``+x``, the usual convention) and 90 degrees
+        from ``+x``; ``None`` is 60 degrees, a front three-quarter view. ``look_from`` ``(3,)``, a point in the world
+        such as the camera that filmed a clip, takes the place of ``azimuth``: the view looks from that point's side,
+        its azimuth seen from the middle of the boxes, at ``elevation``. ``look_from`` with ``azimuth``, or one that
+        is not finite or lies on the ``up`` axis through that middle (it has no side), raises ``ArgumentError``, one
+        of another shape ``ShapeError``; the cameras then stay where they are.
         """
         if not 0.0 < fov < math.pi:
             raise ArgumentError(f"fov must lie in (0, pi) radians, got {fov}")
+        if look_from is not None:
+            if azimuth is not None:
+                raise ArgumentError(f"pass azimuth or look_from, not both: look_from sets the azimuth, got {azimuth}")
+            look_from = np.asarray(look_from, dtype=np.float64)
+            if look_from.shape != (3,):
+                raise ShapeError(f"look_from must be a point (3,), got {look_from.shape}")
+        azimuth = _AZIMUTH if azimuth is None else azimuth
         with self.lock:
+            position, look_at = self._framing(steps, azimuth, elevation, fov, look_from=look_from)
             self._aimed = True
-            position, look_at = self._framing(steps, azimuth, elevation, fov)
             self._point_cameras(position, look_at, fov)
         return position, look_at
 
     def _framing(
-        self, steps: Sequence[int] | None, azimuth: float, elevation: float, fov: float, *, remember: bool = False
+        self,
+        steps: Sequence[int] | None,
+        azimuth: float,
+        elevation: float,
+        fov: float,
+        *,
+        look_from: np.ndarray | None = None,
+        remember: bool = False,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """``(position, look_at)`` of ``aim``, without moving a camera; ``remember`` keeps each layer's boxes for the
-        next call (the automatic aim of ``add``)."""
+        """``(position, look_at)`` of ``aim``, without moving a camera; ``look_from`` replaces ``azimuth``, and
+        ``remember`` keeps each layer's boxes for the next call (the automatic aim of ``add``)."""
         if steps is not None and len(steps := list(steps)) > _AIM_STEPS:
             steps = [steps[int(index)] for index in np.linspace(0, len(steps) - 1, _AIM_STEPS).round()]
         lows, highs = [np.empty((0, 3))], [np.empty((0, 3))]
@@ -580,10 +598,19 @@ class Viewer:
         low, high = np.concatenate(lows), np.concatenate(highs)
         if not len(low):  # nothing visible has bounds
             low, high = _EMPTY_SCENE[0][None], _EMPTY_SCENE[1][None]
+        middle = (low.min(axis=0) + high.max(axis=0)) / 2.0
         up = np.asarray(self.theme.up_vector)
         side = np.cross(np.array([0.0, 0.0, 1.0]) if abs(up[2]) < 0.9 else np.array([1.0, 0.0, 0.0]), up)
         side /= np.linalg.norm(side)
         forward = np.cross(up, side)
+        if look_from is not None:
+            across, ahead = float((look_from - middle) @ side), float((look_from - middle) @ forward)
+            if not math.hypot(across, ahead) > 1e-9:  # also NaN
+                raise ArgumentError(
+                    f"look_from must be a finite point off the up axis through the middle {middle.tolist()} of what "
+                    f"aim frames, got {look_from.tolist()}"
+                )
+            azimuth = math.atan2(ahead, across)
         direction = math.cos(elevation) * (math.cos(azimuth) * side + math.sin(azimuth) * forward)
         direction = direction + math.sin(elevation) * up
         right = np.cross(up, direction)
@@ -593,7 +620,6 @@ class Viewer:
         # near corners of that box lie far outside what a thin moving robot covers, and the robot came out half the
         # size. The corners are never listed: over a box of centre c and half extent h, x . w peaks at
         # c . w + h . |w|, so each linear bound below is one product per box.
-        middle = (low.min(axis=0) + high.max(axis=0)) / 2.0
         centre, half = (low + high) / 2.0 - middle, (high - low) / 2.0  # (M, 3), from the middle: one box stays exact
         axes = np.stack([right, screen_up, direction])
         seen, reach = centre @ axes.T, half @ np.abs(axes).T  # (M, 3) along the view's own axes
