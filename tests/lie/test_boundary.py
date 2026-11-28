@@ -1,19 +1,16 @@
 """Every public ``lie`` function checks its tensor inputs at its boundary (principle 2.8, C-ERR-1).
 
 The table lists the trailing shape of each tensor parameter; it must cover ``__all__`` of ``so3``, ``se3`` and
-``tangents`` exactly, so a new public function cannot skip the check unseen.
+``tangents`` exactly, so a new public function cannot skip the check unseen. ``tests/support/boundary.py`` holds the
+checks each entry runs.
 """
 
 from __future__ import annotations
 
 import inspect
 
-import pytest
-import torch
-
-from better_robot.exceptions import DtypeMismatchError, ShapeError
 from better_robot.lie import se3, so3, tangents
-
+from tests.support.boundary import check_boundary
 from tests.support.cases import failures
 
 #: ``module.function`` -> trailing shape of each tensor parameter, in order (``()`` takes any shape).
@@ -71,44 +68,11 @@ def test_the_table_covers_every_public_function() -> None:
     assert public == set(PARAMETERS) | NO_TENSOR_INPUTS
 
 
-def _check_rejects_bad_inputs(qualified: str) -> None:
+def _check(qualified: str) -> None:
     function, shapes = _function(qualified), PARAMETERS[qualified]
-    valid = [torch.zeros(2, *shape) if shape else torch.zeros(2) for shape in shapes]
-    function(*valid)
-    for index, shape in enumerate(shapes):
-
-        def call(bad: object) -> None:
-            function(*valid[:index], bad, *valid[index + 1 :])
-
-        if shape:
-            with pytest.raises(ShapeError, match=r"must have shape \(\.\.\., "):
-                call(torch.zeros(2, *shape[:-1], shape[-1] + 1))
-            with pytest.raises(TypeError, match="must be a torch.Tensor, got list"):
-                call(valid[index].tolist())
-        with pytest.raises(DtypeMismatchError, match="is not float32 or float64"):
-            call(valid[index].to(torch.int64))
-        if index:
-            with pytest.raises(DtypeMismatchError, match=r"\.dtype=torch\.float64 != "):
-                call(valid[index].double())
+    check_boundary(function, dict(zip(inspect.signature(function).parameters, shapes)))
 
 
 def test_public_functions_reject_bad_inputs() -> None:
-    failed = failures(_check_rejects_bad_inputs, sorted(PARAMETERS))
-    assert not failed, "\n".join(failed)
-
-
-def _check_batches_that_do_not_broadcast(qualified: str) -> None:
-    function, shapes = _function(qualified), PARAMETERS[qualified]
-    first, *others = inspect.signature(function).parameters
-    for index, shape in enumerate(shapes[1:], start=1):
-        arguments = [torch.zeros(3, *shapes[0]), *(torch.zeros(3, *other) for other in shapes[1:])]
-        arguments[index] = torch.zeros(4, *shape)
-        with pytest.raises(ShapeError, match=rf"{first} has batch axes \(3,\) and {others[index - 1]} \(4,\), "):
-            function(*arguments)
-
-
-def test_batch_axes_that_do_not_broadcast_raise_naming_both_arguments() -> None:
-    failed = failures(
-        _check_batches_that_do_not_broadcast, sorted(n for n, shapes in PARAMETERS.items() if len(shapes) > 1)
-    )
+    failed = failures(_check, sorted(PARAMETERS))
     assert not failed, "\n".join(failed)
