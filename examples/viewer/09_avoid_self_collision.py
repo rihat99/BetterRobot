@@ -17,27 +17,22 @@ robot without the rows (left) beside the robot with them (right).
 
 from __future__ import annotations
 
-import argparse
 import math
 import time
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import torch
-from robot_descriptions import g1_description, panda_description
 
-import better_robot as br
 from better_robot import Viewer, collision, forward_kinematics, optim, terms
-from better_robot.testing import FakeServer
 from better_robot.viewer import RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
-READY = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
-ROBOTS = {  # description, IK frames (the first follows the target), step per tick, closest pairs as rows, QP iterations
-    "panda": (panda_description, ("panda_hand",), 0.005, 8, 20),
+import avoidance  # beside this file: the command line, robots and scripted run the avoidance demos share
+
+ROBOTS = {  # IK frames (the first follows the target), step per tick, closest pairs as rows, QP iterations
+    "panda": (("panda_hand",), 0.005, 8, 20),
     "g1": (
-        g1_description,
         ("left_rubber_hand", "right_rubber_hand", "left_ankle_roll_link", "right_ankle_roll_link"),
         0.0063,
         64,
@@ -49,39 +44,10 @@ MARGIN, TICKS, RED = 0.02, 800, (0.9, 0.1, 0.1)
 FORMS = ("rows", "cost", "off")  # the GUI's choices: the pairs as rows, as a cost term, or not checked
 
 
-def load(robot: str) -> tuple[br.Model, torch.Tensor, br.Geometry]:
-    """The model of ``robot`` (the G1 on a free base), its start ``q0 (1, nq)`` (Panda ready, G1 standing on z = 0)
-    and its geometry."""
-    description, g1 = ROBOTS[robot][0], robot == "g1"
-    model = br.load(description.URDF_PATH, root_joint=br.JointFreeFlyer() if g1 else None, dtype=torch.float64)
-    q0 = model.q_neutral.clone()[None]
-    if g1:
-        q0[0, 2] = 0.793
-    else:
-        q0[0, :7] = torch.tensor(READY)
-    return model, q0, br.io.load_geometry(description.URDF_PATH, model)
-
-
-def run(tick: Callable, form: str, x: dict, path: torch.Tensor) -> tuple[torch.Tensor, float]:
-    """``q (T, nq)`` after one ``tick`` per target of ``path (T, 7)`` from ``x``, and the median tick in seconds."""
-    warm, q, seconds = None, [], []
-    for target in path:
-        began = time.perf_counter()
-        x, warm = tick(form, target[None], x, warm)
-        seconds.append(time.perf_counter() - began)
-        q.append(x["q"][0])
-    return torch.stack(q), float(np.median(seconds))
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--robot", choices=ROBOTS, default="panda")
-    parser.add_argument("--check", action="store_true", help="run the scripted path on the stand-in server and exit")
-    parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
-    args = parser.parse_args()
-
-    model, q0, geometry = load(args.robot)
-    description, frames, step, closest, iterations = ROBOTS[args.robot]
+    args = avoidance.arguments(ROBOTS)
+    model, q0, geometry = avoidance.load(args.robot)
+    frames, step, closest, iterations = ROBOTS[args.robot]
     spheres, ignore = collision.load_spheres(collision.SPHERE_SETS / f"{args.robot}.json", model)
     pairs = collision.self_collision_pairs(model, spheres, ignore=ignore)  # (P, 2) sphere indices
     apart = collision.self_distances(spheres, forward_kinematics(model, q0), pairs=pairs)[0]  # (P,) at the start
@@ -108,14 +74,14 @@ def main() -> None:
         hits = hits.index_add(1, pairs[:, 0], inside).index_add(1, pairs[:, 1], inside)
         return spheres.centers(state).numpy(), hits.numpy() > 0, clearance.numpy()
 
-    viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
+    viewer = avoidance.viewer(check=args.check)
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)``, its spheres and the ones of a pair inside its margin (red), under ``group``."""
         centers, red, _ = look(q)
         radii = spheres.radii.numpy()
         layers = [
-            RobotVisual(model, q, name="robot", geometry=geometry, root=description.URDF_PATH, spheres=spheres,
+            RobotVisual(model, q, name="robot", geometry=geometry, root=avoidance.URDFS[args.robot], spheres=spheres,
                         collision=True),  # the Robot section's Collision box shows the spheres
             SpheresLayer("inside the margin", centers, radii=radii, colors=RED, opacity=0.8),
         ]  # fmt: skip
@@ -130,7 +96,7 @@ def main() -> None:
     path = start[:, 0].repeat(TICKS, 1)  # (TICKS, 7): into the body and back
     path[:, :3] += alpha * torch.tensor(PATH[args.robot], dtype=torch.float64)
     for side, form in enumerate(("off", "rows")):
-        q, seconds = run(tick, form, dict(problems[form].variables), path)
+        q, seconds = avoidance.run(tick, form, dict(problems[form].variables), path)
         print(
             f"self {form:4s}: deepest pair {1e3 * look(q)[2].min():+8.3f} mm outside its margin ({len(pairs)} pairs, "
             f"margins {1e3 * margin.min():.2f} to {1e3 * MARGIN:.0f} mm), tick {1e3 * seconds:.1f} ms (median)"
@@ -140,8 +106,7 @@ def main() -> None:
         target = SpheresLayer("target", path[::8, None, :3].numpy(), radii=np.array([0.02]), colors=(0.1, 0.3, 0.9))
         viewer.add([target], tags=form, pose=offset)
     if args.record:
-        camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
-        print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")
+        avoidance.record(viewer, args.record)
 
 
 def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: dict, start: torch.Tensor) -> None:

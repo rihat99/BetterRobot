@@ -14,49 +14,28 @@ box (right).
 
 from __future__ import annotations
 
-import argparse
 import math
 import time
 from collections.abc import Callable
-from pathlib import Path
 
 import numpy as np
 import torch
-from robot_descriptions import panda_description
 
-import better_robot as br
 from better_robot import Viewer, forward_kinematics, lie, optim, terms
-from better_robot.testing import FakeServer
 from better_robot.viewer import RobotVisual, SpheresLayer
 from better_robot.viewer.tools import PoseGizmo
 
-URDF = panda_description.URDF_PATH
-FRAME, READY = "panda_hand", [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
+import avoidance  # beside this file: the command line, robots and scripted run the avoidance demos share
+
+FRAME = "panda_hand"
 STEP, TURN, TICKS = 0.02, 4.5, 800  # rad per tick (the box needs no small step), rad, ticks of the scripted path
 FORMS = ("rows", "cost", "off")  # the GUI's choices: the limits as the box, as a cost term, or no limits
 AMBER, RED = (0.95, 0.65, 0.1), (0.9, 0.1, 0.1)
 
 
-def run(tick: Callable, form: str, x: dict, path: torch.Tensor) -> tuple[torch.Tensor, float]:
-    """``q (T, nq)`` after one ``tick`` per target of ``path (T, 7)`` from ``x``, and the median tick in seconds."""
-    warm, q, seconds = None, [], []
-    for target in path:
-        began = time.perf_counter()
-        x, warm = tick(form, target[None], x, warm)
-        seconds.append(time.perf_counter() - began)
-        q.append(x["q"][0])
-    return torch.stack(q), float(np.median(seconds))
-
-
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="run the scripted path on the stand-in server and exit")
-    parser.add_argument("--record", type=Path, help="record the scripted path to this .webm, .gif or .png")
-    args = parser.parse_args()
-
-    model = br.load(URDF, dtype=torch.float64)
-    q0 = model.q_neutral.clone()[None]  # (1, nq)
-    q0[0, :7] = torch.tensor(READY)
+    args = avoidance.arguments()
+    model, q0, geometry = avoidance.load("panda")  # q0 (1, nq): the ready pose
     start = forward_kinematics(model, q0).frame_poses[:, model.frame_id(FRAME)]  # (1, 7)
     lower, upper = model.lower_position_limit, model.upper_position_limit
 
@@ -80,15 +59,14 @@ def main() -> None:
         poses = forward_kinematics(model, q).joint_poses
         return poses[:, 1:8, :3].numpy(), torch.minimum(q - lower, upper - q)[:, :7].numpy()
 
-    geometry = br.io.load_geometry(URDF, model)
-    viewer = Viewer(fps=25.0, server=FakeServer() if args.check else None)
+    viewer = avoidance.viewer(check=args.check)
 
     def draw(group: str, q: torch.Tensor, offset: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> list:
         """The robot at ``q (T, nq)`` and a marker on each joint at (amber) or past (red) its limit, under ``group``."""
         joints, inside = look(q)
         radii = np.full(7, 0.07)
         layers = [
-            RobotVisual(model, q, name="robot", geometry=geometry, root=URDF),
+            RobotVisual(model, q, name="robot", geometry=geometry, root=avoidance.URDFS["panda"]),
             SpheresLayer("at the limit", joints, radii=radii, colors=AMBER, opacity=0.8),
             SpheresLayer("past the limit", joints, radii=radii, colors=RED, opacity=0.8),
         ]
@@ -104,7 +82,7 @@ def main() -> None:
     turns = lie.so3.exp(torch.stack([0 * alpha, 0 * alpha, TURN * alpha], dim=-1))  # (TICKS, 4) about hand z
     path = torch.cat([start[:, :3].expand(TICKS, 3), lie.so3.compose(start[:, 3:], turns)], dim=-1)  # (TICKS, 7)
     for side, form in enumerate(("off", "rows")):
-        q, seconds = run(tick, form, dict(problems[form].variables), path)
+        q, seconds = avoidance.run(tick, form, dict(problems[form].variables), path)
         inside = look(q)[1]
         print(
             f"limits {form:4s}: deepest joint {max(0.0, -inside.min()):.5f} rad past its limit "
@@ -112,8 +90,7 @@ def main() -> None:
         )
         draw(form, q[::8], (0.0, 1.0 * side - 0.5, 0.0))  # every 8th tick: 100 Hz ticks at twice real time
     if args.record:
-        camera = viewer.aim(steps=range(0, viewer.timeline.nsteps, 10))  # record's own fit reads every vertex
-        print(f"recorded {viewer.record(args.record, size=(960, 540), camera=camera)}")
+        avoidance.record(viewer, args.record)
 
 
 def follow(viewer: Viewer, tick: Callable, look: Callable, robot: list, *, x: dict, start: torch.Tensor) -> None:
