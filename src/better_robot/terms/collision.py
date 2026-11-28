@@ -3,7 +3,7 @@
 Residuals are ``margin - distance``, hinged at zero by default so a clear configuration costs nothing. The hinge is
 C1: ``gap² / (2 margin)`` while the gap ``margin - distance`` is below ``margin``, then ``gap - margin / 2``, so the
 Gauss-Newton model does not jump when a contact starts. With ``hinge=False`` the plain ``margin - distance`` is the
-inequality ``<= 0`` for ``better_robot.optim.solve_constrained``.
+row of ``problem.inequality(..., upper=0.0)``, or a residual named in ``optim.solve_constrained(inequalities=)``.
 
 Jacobians are analytic: the gradient of each distance with respect to its sphere centre times
 ``kinematics.point_jacobian``. For ``sphere_clearance`` that gradient is the reverse-mode derivative of

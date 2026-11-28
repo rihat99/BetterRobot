@@ -285,11 +285,6 @@ class Problem:
         without a time axis. The declaration is trusted: a row that reads outside its window
         gives a wrong Jacobian. ``check_jacobian`` tests it.
         """
-        if isinstance(fn, TermFn):
-            reads = reads if reads is not None else fn.reads
-            jacobian = jacobian if jacobian is not None else fn.jacobian
-            window = window if window is not None else fn.window
-            fn = fn.fn
         self._add(name, fn, "residual", weight, kernel, jacobian, reads, window)
 
     def scalar(
@@ -306,10 +301,6 @@ class Problem:
         gradient; its curvature is ignored. A ``TermFn`` brings its ``reads``; it may not carry a
         ``jacobian`` or a ``window``.
         """
-        if isinstance(fn, TermFn):
-            if fn.jacobian is not None or fn.window is not None:
-                raise ArgumentError(f"scalar term {name!r}: a scalar term takes no jacobian or window")
-            fn, reads = fn.fn, reads if reads is not None else fn.reads
         self._add(name, fn, "scalar", weight, None, None, reads, None)
 
     def equality(
@@ -333,7 +324,7 @@ class Problem:
         such a term up. ``reads`` and ``jacobian`` are those of ``residual``; a ``TermFn`` brings its own, and may not
         carry a ``window``.
         """
-        self._add_constraint(name, fn, "equality", weight, jacobian, reads, 0.0, 0.0)
+        self._add(name, fn, "equality", weight, None, jacobian, reads, None, 0.0, 0.0)
 
     def inequality(
         self,
@@ -356,7 +347,7 @@ class Problem:
         """
         if lower is None and upper is None:
             raise ArgumentError(f"inequality term {name!r} needs a bound: give lower=, upper= or both")
-        self._add_constraint(name, fn, "inequality", weight, jacobian, reads, lower, upper)
+        self._add(name, fn, "inequality", weight, None, jacobian, reads, None, lower, upper)
 
     def with_(
         self,
@@ -416,10 +407,6 @@ class Problem:
             ``{name: info}`` for the active terms that returned one.
         """
         return evaluate(self, x)
-
-    def losses(self, x: Values | None = None) -> dict[str, torch.Tensor]:
-        """Loss of every active term. Returns ``{name: (B,)}``."""
-        return evaluate(self, x)[1]
 
     def loss(self, x: Values | None = None) -> torch.Tensor:
         """Total loss per batch element, differentiable w.r.t. ``x``. Returns ``(B,)``."""
@@ -482,7 +469,7 @@ class Problem:
     def _add(
         self,
         name: str,
-        fn: Callable[..., torch.Tensor],
+        fn: Callable[..., torch.Tensor] | TermFn,
         kind: str,
         weight: float | torch.Tensor,
         kernel: RobustKernel | None,
@@ -492,6 +479,18 @@ class Problem:
         lower: float | torch.Tensor | None = None,
         upper: float | torch.Tensor | None = None,
     ) -> None:
+        """Register a term of ``kind``; a keyword given to the public method replaces the ``TermFn`` bundle's."""
+        if isinstance(fn, TermFn):
+            reads = reads if reads is not None else fn.reads
+            jacobian = jacobian if jacobian is not None else fn.jacobian
+            window = window if window is not None else fn.window
+            fn = fn.fn
+        # scalar and the constraint kinds take no such keyword, so a jacobian or window here came with the bundle
+        if kind == "scalar" and (jacobian is not None or window is not None):
+            raise ArgumentError(f"scalar term {name!r}: a scalar term takes no jacobian or window")
+        if kind in CONSTRAINTS and window is not None:
+            raise ArgumentError(f"{kind} term {name!r}: a constraint term takes no window")
+        _require_row_weight(name, kind, weight)
         self._require_unsealed(name)
         if name in self._terms:
             raise ArgumentError(f"a term named {name!r} already exists")
@@ -508,26 +507,6 @@ class Problem:
             lower=lower,
             upper=upper,
         )
-
-    def _add_constraint(
-        self,
-        name: str,
-        fn: Callable[..., torch.Tensor] | TermFn,
-        kind: str,
-        weight: float | torch.Tensor,
-        jacobian: Callable[..., dict[str, torch.Tensor]] | None,
-        reads: tuple[str, ...] | None,
-        lower: float | torch.Tensor | None,
-        upper: float | torch.Tensor | None,
-    ) -> None:
-        if isinstance(fn, TermFn):
-            if fn.window is not None:
-                raise ArgumentError(f"{kind} term {name!r}: a constraint term takes no window")
-            reads = reads if reads is not None else fn.reads
-            jacobian = jacobian if jacobian is not None else fn.jacobian
-            fn = fn.fn
-        _require_row_weight(name, kind, weight)
-        self._add(name, fn, kind, weight, None, jacobian, reads, None, lower, upper)
 
     def _copy(self) -> Problem:
         """A sealed problem sharing this one's tensors, with registries of its own."""

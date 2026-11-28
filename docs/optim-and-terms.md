@@ -46,15 +46,16 @@ print(f"{int((error < 1e-4).sum())} of 32 reached, median error {float(error.med
 ## Add your own residual
 
 `ik_problem` returns the problem before it is solved. A residual is a plain function of the variables; here one
-asks the elbow joint to stay near -1.8 rad. `problem.losses` reports what each residual still costs at the
-solution.
+asks the elbow joint to stay near -1.8 rad. `problem.evaluate` reports the total loss, what each residual still
+costs at the solution, and the diagnostics of the terms that return any.
 
 ```python
 problem = terms.ik_problem(model, {"panda_hand": target}, q0=q0)
 problem.residual("elbow", lambda q: q[:, 3:4] + 1.8, weight=1e-3)
 
 result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
-for name, loss in problem.losses(result.x).items():
+_, losses, _ = problem.evaluate(result.x)
+for name, loss in losses.items():
     print(f"{name}: {float(loss.mean()):.2e}")
 ```
 ```output
@@ -99,5 +100,22 @@ print(f"goal error {float((reached[:3] - goal[:3]).norm()):.1e} m")
 ```output
 goal error 1.4e-05 m
 ```
+
+## Hard constraints
+
+A residual only pulls toward zero; a constraint must hold. `optim` holds constraints in two ways, and each wins
+somewhere:
+
+| | `optim.SequentialQP` and `optim.track` | `optim.solve_constrained` |
+|---|---|---|
+| The constraints | `problem.equality` and `problem.inequality` terms | residual terms named in `equalities=` and `inequalities=` (`<= 0`) |
+| When they hold | at every step, to first order: they are the rows of each step's quadratic program | as its rounds of whole solves converge (augmented Lagrangian) |
+| Solvers | itself; `track` takes one step per call, for moving targets | any: Levenberg-Marquardt, Gauss-Newton, L-BFGS, `TorchOptim` |
+| A trajectory (`time=`) | dense normal equations only (`dense=True`) | keeps the banded solve, linear in the number of knots |
+
+Take `SequentialQP` unless the solver must be first-order or the problem is a long trajectory.
+`examples/05_hard_constraints.py` and `examples/06_obstacle_trajectory.py` use `solve_constrained`; the viewer
+examples from `examples/viewer/06_avoid_singularity.py` to `examples/viewer/09_avoid_self_collision.py` hold
+inequality rows with `track`.
 
 See also: [Collision](collision.md) for residuals that keep the robot clear of obstacles.

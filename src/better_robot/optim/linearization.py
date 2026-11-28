@@ -81,6 +81,15 @@ def _accumulate(
                 sink.add(second.columns, first.columns, product.mT, shared=(second.shared, first.shared))
 
 
+def _batched_jacobian(stacked: torch.Tensor, delta: torch.Tensor, *, retain_graph: bool) -> torch.Tensor:
+    """Jacobian ``(B, M, N)`` of ``stacked: (B, M)`` w.r.t. the tangent step ``delta: (B, N)`` it was traced with;
+    batch elements are independent, so row ``i`` of every element comes from one backward pass."""
+    seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
+    seeds = seeds.unsqueeze(1).expand(-1, stacked.shape[0], -1)
+    (jacobian,) = torch.autograd.grad(stacked, delta, seeds, is_grads_batched=True, retain_graph=retain_graph)
+    return jacobian.permute(1, 0, 2)
+
+
 def _stepped(problem: Problem, x: Values, delta: torch.Tensor) -> dict[str, torch.Tensor]:
     """``x`` stepped along ``delta: (B, N)`` on each variable's manifold, without the bounds clamp, so a derivative
     taken through it is that of the terms alone."""
@@ -155,13 +164,10 @@ def _normal_equations(
             )[0]
         if dense_rows:
             stacked = torch.cat(dense_rows, dim=1)  # (B, M)
-            # Batch elements are independent, so row i of every element comes from one backward pass.
-            seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
-            seeds = seeds.unsqueeze(1).expand(-1, batch, -1)
-            (jacobian,) = torch.autograd.grad(stacked, delta, seeds, is_grads_batched=True)
+            jacobian = _batched_jacobian(stacked, delta, retain_graph=False)
             # Under a time layout the only terms on this route read variables without a time axis.
             columns = torch.arange(size, device=g.device) if layout is None else layout.shared_columns
-            block = jacobian.permute(1, 0, 2)[:, None, :, columns]
+            block = jacobian[:, None, :, columns]
             _accumulate(sink, g, [_Piece(columns[None], block, layout is not None)], stacked.detach()[:, None])
     normal, mask = sink.finish(g), free_mask(problem)
     return (normal if mask is None else normal.masked(mask)), loss, losses, held
@@ -194,11 +200,8 @@ def _rows(problem: Problem, terms: list[Term], evaluation: Evaluation, delta: to
         values.append(flat), blocks.append(block), lowers.append(lower), uppers.append(upper)
     traced = [value for value, block in zip(values, blocks) if block is None]
     if traced and delta is not None:
-        stacked = torch.cat(traced, dim=1)
-        seeds = torch.eye(stacked.shape[1], dtype=stacked.dtype, device=stacked.device)
-        seeds = seeds.unsqueeze(1).expand(-1, batch, -1)
-        (jacobian,) = torch.autograd.grad(stacked, delta, seeds, is_grads_batched=True, retain_graph=True)
-        pieces = iter(jacobian.permute(1, 0, 2).split([value.shape[1] for value in traced], dim=1))
+        jacobian = _batched_jacobian(torch.cat(traced, dim=1), delta, retain_graph=True)
+        pieces = iter(jacobian.split([value.shape[1] for value in traced], dim=1))
         blocks = [next(pieces) if block is None else block for block in blocks]
     jacobian, mask = torch.cat(blocks, dim=1).detach(), free_mask(problem)
     return Rows(

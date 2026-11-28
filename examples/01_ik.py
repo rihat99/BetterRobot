@@ -41,9 +41,8 @@ def main() -> None:
     problem = terms.ik_problem(model, {FRAME: target}, q0=q0)
     problem.residual("elbow", lambda q: q[:, 3:4] + 1.8, weight=1e-3)
     result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
-    print(
-        f"custom term : per-term loss {{{', '.join(f'{k}: {float(v.mean()):.2e}' for k, v in problem.losses(result.x).items())}}}"
-    )
+    _, losses, _ = problem.evaluate(result.x)
+    print(f"custom term : per-term loss {{{', '.join(f'{k}: {float(v.mean()):.2e}' for k, v in losses.items())}}}")
 
     # 3. The same problem under any torch.optim optimizer.
     result = optim.solve(problem, optim.TorchOptim(lambda params: torch.optim.Adam(params, lr=0.05)), iterations=1500)

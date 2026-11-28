@@ -149,7 +149,7 @@ def test_second_order_solvers_report_per_term_losses_at_the_accepted_point(solve
     problem, _ = _counted_problem(with_info=True)
     result = optim.solve(problem, solver, iterations=4)
     terms = result.state.extra["terms"]
-    expected = problem.losses(result.state.x)
+    _, expected, _ = problem.evaluate(result.state.x)
     assert set(terms) == set(expected)
     for name, value in expected.items():
         torch.testing.assert_close(terms[name], value.detach())
