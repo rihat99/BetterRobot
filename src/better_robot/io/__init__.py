@@ -65,9 +65,14 @@ def load(
     An MJCF file loads as its passive rigid tree (bodies, joints, inertias, limits, damping, armature, geoms, sites,
     gravity). Actuators, tendons, sensors, contact settings, joint springs and ``frictionloss``, keyframes, cameras,
     lights and materials are ignored by rule; a feature of the tree that the
-    model cannot express (a cone limit, a non-linear or non-joint ``<equality>``) raises ``ModelError``.
+    model cannot express (a cone limit, a non-linear or non-joint ``<equality>``) raises ``ModelError``. Every
+    ``ModelError`` names the file, including those ``build_model`` raises.
     """
-    return build_model(parse(path, format=format), root_joint=root_joint, device=device, dtype=dtype)
+    ir = parse(path, format=format)
+    try:
+        return build_model(ir, root_joint=root_joint, device=device, dtype=dtype)
+    except ModelError as error:
+        raise ModelError(f"{path}: {error}") from error
 
 
 def build_geometry(ir: IRModel, model: Model) -> Geometry:

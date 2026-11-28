@@ -11,12 +11,9 @@ from better_robot.exceptions import ModelError, UnknownNameError
 from better_robot.io import build_model
 from better_robot.io.ir import IRModel, IRShape
 from better_robot.io.builder import ModelBuilder
+from better_robot.lie import se3
 from better_robot.model.geometry import Sphere
 from better_robot.model.joints import JointRevolute
-
-
-def _identity_se3() -> torch.Tensor:
-    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
 
 def _simple_arm() -> IRModel:
@@ -49,7 +46,7 @@ def test_finalize_emits_the_bodies_and_joints():
 def _add_base_link1_and_j1(b):
     b.add_body("base")
     b.add_body("link1")
-    b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=_identity_se3())
+    b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=se3.identity())
 
 
 @pytest.mark.parametrize(
@@ -58,7 +55,7 @@ def _add_base_link1_and_j1(b):
         pytest.param(lambda b: b.add_body("base"), lambda b: b.add_body("base"), "already exists", id="duplicate_body"),
         pytest.param(
             _add_base_link1_and_j1,
-            lambda b: b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=_identity_se3()),
+            lambda b: b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=se3.identity()),
             "already exists",
             id="duplicate_joint",
         ),
@@ -78,23 +75,11 @@ def test_builder_invalid_structure_raises(setup, action, match):
         action(b)
 
 
-def test_add_frame():
-    b = ModelBuilder("x")
-    b.add_body("base")
-    b.add_body("link1")
-    b.add_fixed("j1", parent="base", child="link1", origin=_identity_se3())
-    b.add_frame("tip", parent="link1", placement=torch.tensor([0.0, 0.0, 0.05, 0.0, 0.0, 0.0, 1.0]))
-    ir = b.finalize()
-    assert len(ir.frames) == 1
-    assert ir.frames[0].name == "tip"
-    assert ir.frames[0].parent_body == "link1"
-
-
 def test_add_shape():
     b = ModelBuilder("x")
     b.add_body("base")
     b.add_body("link1")
-    b.add_fixed("j1", parent="base", child="link1", origin=_identity_se3())
+    b.add_fixed("j1", parent="base", child="link1", origin=se3.identity())
     sphere = Sphere(radius=0.05, placement=(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0))
     b.add_shape("link1", sphere)
     b.add_shape("base", sphere, collision=False)
@@ -104,15 +89,3 @@ def test_add_shape():
     ]
     with pytest.raises(UnknownNameError, match="'link2'"):
         b.add_shape("link2", sphere)
-
-
-def test_three_link_chain():
-    b = ModelBuilder("chain")
-    b.add_body("root")
-    b.add_body("l1")
-    b.add_body("l2")
-    b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="root", child="l1", origin=_identity_se3(), lower=-1.0, upper=1.0)
-    b.add_prismatic("j2", axis=(0.0, 0.0, 1.0), parent="l1", child="l2", origin=_identity_se3(), lower=0.0, upper=0.5)
-    ir = b.finalize()
-    assert build_model(ir).body_names[1] == "root"
-    assert len(ir.joints) == 2

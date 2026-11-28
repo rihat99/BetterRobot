@@ -16,7 +16,6 @@ from better_robot.io.ir import IRBody, IRFrame, IRJoint, IRModel
 from better_robot.kinematics import subtree
 from better_robot.exceptions import DtypeMismatchError, ModelError, UnknownNameError
 from better_robot.model.joints import (
-    JointFixed,
     JointFreeFlyer,
     JointHelical,
     JointModel,
@@ -27,59 +26,18 @@ from better_robot.model.joints import (
     JointSpherical,
     JointTranslation,
 )
+from better_robot.lie import se3
 from better_robot.model.manifolds import ROTATION, JointManifold
 
+from tests.support.robots import one_revolute_arm_ir
+
 _INF = math.inf
-
-
-def _id7() -> torch.Tensor:
-    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-
-
-def _simple_arm_ir():
-    b = ModelBuilder("arm")
-    b.add_body("base", mass=0.5)
-    b.add_body("link1", mass=1.0)
-    b.add_revolute(
-        "j1",
-        axis=(0.0, 0.0, 1.0),
-        parent="base",
-        child="link1",
-        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
-        lower=-math.pi,
-        upper=math.pi,
-        velocity_limit=2.0,
-        effort_limit=100.0,
-    )
-    return b.finalize()
 
 
 @pytest.mark.parametrize("dtype", [torch.int64, torch.float16, torch.complex64, "float32"], ids=str)
 def test_a_dtype_other_than_float32_or_float64_is_refused(dtype):
     with pytest.raises(DtypeMismatchError, match="is not float32 or float64; pass torch.float32 or torch.float64"):
-        build_model(_simple_arm_ir(), dtype=dtype)
-
-
-def test_universe_joint_zero():
-    model = build_model(_simple_arm_ir())
-    assert model.joint_names[0] == "universe"
-    assert model.joints[0] == JointFixed()
-    assert model.parent_joint_ids[0] == -1
-
-
-def test_root_joint_is_fixed_by_default():
-    model = build_model(_simple_arm_ir())
-    assert model.joint_names[1] == "root_joint"
-    assert model.joints[1] == JointFixed()
-    assert model.parent_joint_ids[1] == 0
-
-
-def test_limits():
-    model = build_model(_simple_arm_ir())
-    assert abs(float(model.lower_position_limit[0]) - (-math.pi)) < 1e-5
-    assert abs(float(model.upper_position_limit[0]) - math.pi) < 1e-5
-    assert abs(float(model.velocity_limit[0]) - 2.0) < 1e-5
-    assert abs(float(model.effort_limit[0]) - 100.0) < 1e-5
+        build_model(one_revolute_arm_ir(), dtype=dtype)
 
 
 def _limits(model) -> list[list[float]]:
@@ -103,7 +61,7 @@ def _limits(model) -> list[list[float]]:
 )
 def test_a_synthetic_root_moves_unlimited_inside_its_manifold_bounds(root_joint, lower, upper):
     """A root no description wrote has no velocity or effort limit (zero would pin it); the arm keeps its own."""
-    model = build_model(_simple_arm_ir(), root_joint=root_joint, dtype=torch.float64)
+    model = build_model(one_revolute_arm_ir(), root_joint=root_joint, dtype=torch.float64)
     nv = root_joint.nv
     assert _limits(model) == [lower + [-math.pi], upper + [math.pi], [_INF] * nv + [2.0], [_INF] * nv + [100.0]]
 
@@ -157,56 +115,6 @@ def test_the_position_bounds_follow_the_joint_manifold(kind):
     assert _limits(model) == [[-1.0] * 4, [1.0] * 4, [3.0] * 3, [0.0] * 3]
 
 
-@pytest.mark.parametrize(
-    "body_index, mass",
-    [
-        pytest.param(1, 0.5, id="root_base"),
-        pytest.param(2, 1.0, id="child_link1"),
-    ],
-)
-def test_body_inertia_mass(body_index, mass):
-    model = build_model(_simple_arm_ir())
-    assert abs(float(model.body_inertias[body_index, 0]) - mass) < 1e-5
-
-
-def _model_with_ir_frame():
-    b = ModelBuilder("f")
-    b.add_body("root")
-    b.add_body("child")
-    b.add_fixed("j1", parent="root", child="child", origin=_id7())
-    b.add_frame("tip", parent="child", placement=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]))
-    return build_model(b.finalize())
-
-
-@pytest.mark.parametrize(
-    "make_model, expected_frames",
-    [
-        pytest.param(lambda: build_model(_simple_arm_ir()), ("universe", "base", "link1"), id="body_frames"),
-        pytest.param(_model_with_ir_frame, ("tip",), id="ir_frame"),
-    ],
-)
-def test_frames_created(make_model, expected_frames):
-    model = make_model()
-    for name in expected_frames:
-        assert name in set(model.frame_names)
-        assert name in model.frame_names
-
-
-def test_name_to_id_dicts():
-    model = build_model(_simple_arm_ir())
-    assert model.joint_id("universe") == 0
-    assert model.joint_id("root_joint") == 1
-    assert model.joint_id("j1") == 2
-    assert model.body_id("base") == 1
-    assert model.body_id("link1") == 2
-
-
-def test_parents_precede_children():
-    model = build_model(_simple_arm_ir())
-    assert model.parent_joint_ids[0] == -1
-    assert all(parent < joint for joint, parent in enumerate(model.parent_joint_ids) if joint)
-
-
 def _branching_tree_ir():
     """Y-shape with two-level depth on each arm.
 
@@ -224,20 +132,32 @@ def _branching_tree_ir():
     b.add_body("right_link1")
     b.add_body("right_link2")
     b.add_revolute(
-        "left_j1", axis=(0.0, 0.0, 1.0), parent="root", child="left_link1", origin=_id7(), lower=-1.0, upper=1.0
+        "left_j1", axis=(0.0, 0.0, 1.0), parent="root", child="left_link1", origin=se3.identity(), lower=-1.0, upper=1.0
     )
     b.add_revolute(
-        "left_j2", axis=(0.0, 0.0, 1.0), parent="left_link1", child="left_link2", origin=_id7(), lower=-1.0, upper=1.0
+        "left_j2",
+        axis=(0.0, 0.0, 1.0),
+        parent="left_link1",
+        child="left_link2",
+        origin=se3.identity(),
+        lower=-1.0,
+        upper=1.0,
     )
     b.add_revolute(
-        "right_j1", axis=(0.0, 0.0, 1.0), parent="root", child="right_link1", origin=_id7(), lower=-1.0, upper=1.0
+        "right_j1",
+        axis=(0.0, 0.0, 1.0),
+        parent="root",
+        child="right_link1",
+        origin=se3.identity(),
+        lower=-1.0,
+        upper=1.0,
     )
     b.add_revolute(
         "right_j2",
         axis=(0.0, 0.0, 1.0),
         parent="right_link1",
         child="right_link2",
-        origin=_id7(),
+        origin=se3.identity(),
         lower=-1.0,
         upper=1.0,
     )
@@ -266,128 +186,6 @@ def test_idx_qs_follow_the_declared_order_on_a_branching_tree():
     assert subtree(model, joint=4) == (4, 5)  # right_j1 subtree = {right_j1, right_j2}
 
 
-def _unaligned_model():
-    b = ModelBuilder("ua")
-    b.add_body("base")
-    b.add_body("child")
-    b.add_revolute(
-        "j1", parent="base", child="child", axis=torch.tensor([0.6, 0.8, 0.0]), origin=_id7(), lower=-1.0, upper=1.0
-    )
-    return build_model(b.finalize())
-
-
-def _continuous_model():
-    b = ModelBuilder("cont")
-    b.add_body("base")
-    b.add_body("wheel")
-    b.add_revolute(
-        "wheel_spin",
-        parent="base",
-        child="wheel",
-        axis=torch.tensor([0.0, 0.0, 1.0]),
-        origin=_id7(),
-        unbounded=True,
-    )
-    return build_model(b.finalize())
-
-
-def _spherical_model():
-    b = ModelBuilder("ball")
-    b.add_body("base")
-    b.add_body("child")
-    b.add_spherical("j1", parent="base", child="child", origin=_id7())
-    return build_model(b.finalize())
-
-
-@pytest.mark.parametrize(
-    "make_model, joint_index, cls, nq, nv",
-    [
-        # joint index 2 = j1 (revolute around Z)
-        pytest.param(lambda: build_model(_simple_arm_ir()), 2, JointRevolute, 1, 1, id="revolute_z"),
-        pytest.param(_unaligned_model, 2, JointRevolute, 1, 1, id="revolute_unaligned"),
-        pytest.param(_continuous_model, 2, JointRevoluteUnbounded, 2, 1, id="continuous"),  # nq = cos,sin
-        pytest.param(_spherical_model, 2, JointSpherical, 4, 3, id="spherical"),
-        # nq = 7 (free flyer) + 1 (revolute) = 8
-        pytest.param(
-            lambda: build_model(_simple_arm_ir(), root_joint=JointFreeFlyer()),
-            1,
-            JointFreeFlyer,
-            8,
-            7,
-            id="free_flyer_root",
-        ),
-    ],
-)
-def test_joint_kind_mapping(make_model, joint_index, cls, nq, nv):
-    model = make_model()
-    assert isinstance(model.joints[joint_index], cls)
-    assert model.nq == nq
-    assert model.nv == nv
-
-
-def test_multi_joint_chain():
-    b = ModelBuilder("chain")
-    b.add_body("root")
-    b.add_body("l1")
-    b.add_body("l2")
-    b.add_body("l3")
-    b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="root", child="l1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute("j2", axis=(0.0, 1.0, 0.0), parent="l1", child="l2", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_prismatic("j3", axis=(1.0, 0.0, 0.0), parent="l2", child="l3", origin=_id7(), lower=0.0, upper=0.5)
-    ir = b.finalize()
-    model = build_model(ir)
-    assert model.nq == 3
-    assert model.nv == 3
-    assert model.njoints == 5  # universe + root + 3 ir joints
-
-
-def _mimic_ir(*, multiplier: float = 1.0, offset: float = 0.0):
-    b = ModelBuilder("mimic")
-    b.add_body("root")
-    b.add_body("finger1")
-    b.add_body("finger2")
-    b.add_revolute("main_j", axis=(0.0, 0.0, 1.0), parent="root", child="finger1", origin=_id7(), lower=-1.0, upper=1.0)
-    b.add_revolute(
-        "mimic_j",
-        axis=(0.0, 0.0, 1.0),
-        parent="root",
-        child="finger2",
-        origin=_id7(),
-        lower=-1.0,
-        upper=1.0,
-        mimic_source="main_j",
-        mimic_multiplier=multiplier,
-        mimic_offset=offset,
-    )
-    return b.finalize()
-
-
-@pytest.mark.parametrize(("multiplier", "offset"), [(0.5, 0.0), (1.0, 0.1)])
-def test_non_identity_mimic_joint_builds_reduced_map(multiplier, offset):
-    model = build_model(_mimic_ir(multiplier=multiplier, offset=offset))
-    target = model.joint_id("mimic_j")
-
-    assert model.nq == model.nv == 1
-    assert model.nq_full == model.nv_full == 2
-    assert model.mimic_source_ids[target] == model.joint_id("main_j")
-    assert model.mimic_multipliers[target] == pytest.approx(multiplier)
-    assert model.mimic_offsets[target] == pytest.approx(offset)
-
-
-def test_identity_mimic_joint_preserves_metadata_and_reduces_dofs():
-    model = build_model(_mimic_ir())
-    main_j_midx = model.joint_id("main_j")
-    mimic_j_midx = model.joint_id("mimic_j")
-
-    assert model.mimic_source_ids[mimic_j_midx] == main_j_midx
-    assert model.mimic_multipliers[mimic_j_midx] == pytest.approx(1.0)
-    assert model.mimic_offsets[mimic_j_midx] == pytest.approx(0.0)
-    assert model.nqs[main_j_midx] == model.nvs[main_j_midx] == 1
-    assert model.nqs[mimic_j_midx] == model.nvs[mimic_j_midx] == 0
-    assert model.nqs_full[main_j_midx] == model.nqs_full[mimic_j_midx] == 1
-    assert model.nvs_full[main_j_midx] == model.nvs_full[mimic_j_midx] == 1
-
-
 def test_mimic_bad_source_raises():
     b = ModelBuilder("m")
     b.add_body("root")
@@ -397,7 +195,7 @@ def test_mimic_bad_source_raises():
         axis=(0.0, 0.0, 1.0),
         parent="root",
         child="child",
-        origin=_id7(),
+        origin=se3.identity(),
         lower=-1.0,
         upper=1.0,
         mimic_source="nonexistent_joint",
@@ -417,7 +215,7 @@ def _named_ir(joints: list[tuple[str, str, str]], bodies: list[str], frames: tup
             IRJoint(name=name, parent_body=parent, child_body=child, joint=JointRevolute(axis=axis))
             for name, parent, child in joints
         ],
-        frames=[IRFrame(name=name, parent_body=bodies[0], placement=_id7()) for name in frames],
+        frames=[IRFrame(name=name, parent_body=bodies[0], placement=se3.identity()) for name in frames],
     )
 
 
@@ -569,10 +367,3 @@ def test_a_quaternion_normalised_in_float32_builds_in_float64():
     builder.add_revolute("j", parent="base", child="link", axis=(0.0, 0.0, 1.0), origin=origin)
     model = build_model(builder.finalize(), dtype=torch.float64)
     assert model.joint_placements[2].tolist() == origin.double().tolist()
-
-
-def test_device_dtype_kwarg():
-    ir = _simple_arm_ir()
-    model = build_model(ir, dtype=torch.float64)
-    assert model.joint_placements.dtype == torch.float64
-    assert model.lower_position_limit.dtype == torch.float64

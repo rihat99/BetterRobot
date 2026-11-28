@@ -124,12 +124,13 @@ def test_a_description_that_is_not_one_tree_names_the_culprit(tmp_path: Path, bo
     [(("base", "tip", "stray"), "['base', 'stray']"), (("stray", "base", "tip"), "['stray', 'base']")],
 )
 def test_a_stray_link_is_named_wherever_the_file_lists_it(tmp_path: Path, links: tuple[str, ...], found: str) -> None:
-    """A link no joint moves besides the root fails the build (``build_model`` owns the one-tree check)."""
+    """A link no joint moves besides the root fails the build, and ``load`` names the file although ``build_model``,
+    which owns the one-tree check, never sees it."""
     joint = '<joint name="j" type="fixed"><parent link="base"/><child link="tip"/></joint>'
     elements = "".join(f'<link name="{link}"/>' for link in links)
     path = _write(tmp_path, f'<robot name="r">{elements}{joint}</robot>')
     with pytest.raises(
-        ModelError, match=re.escape(f"expected exactly one root body (a body no joint moves), found 2: {found}")
+        ModelError, match=re.escape(f"{path}: expected exactly one root body (a body no joint moves), found 2: {found}")
     ):
         load(path)
 

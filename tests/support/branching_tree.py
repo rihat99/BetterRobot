@@ -43,50 +43,48 @@ PARENTS: tuple[int, ...] = (
 )
 
 
-def default_offsets_tensor(height: float) -> torch.Tensor:
-    """Arbitrary ``(24, 3)`` per-joint offsets scaled by ``height``."""
-    scale = height / 1.75
+def default_offsets_tensor() -> torch.Tensor:
+    """Arbitrary ``(24, 3)`` per-joint offsets."""
     return torch.tensor(
         [
             [0.0, 0.0, 0.0],
-            [0.0, +0.09 * scale, 0.0],
-            [0.0, -0.09 * scale, 0.0],
-            [0.0, 0.0, 0.08 * scale],
-            [0.0, 0.0, -0.42 * scale],
-            [0.0, 0.0, -0.42 * scale],
-            [0.0, 0.0, 0.13 * scale],
-            [0.0, 0.0, -0.38 * scale],
-            [0.0, 0.0, -0.38 * scale],
-            [0.0, 0.0, 0.13 * scale],
-            [0.12 * scale, 0.0, -0.06 * scale],
-            [0.12 * scale, 0.0, -0.06 * scale],
-            [0.0, 0.0, 0.25 * scale],
-            [0.0, +0.05 * scale, 0.18 * scale],
-            [0.0, -0.05 * scale, 0.18 * scale],
-            [0.0, 0.0, 0.08 * scale],
-            [0.0, +0.15 * scale, 0.0],
-            [0.0, -0.15 * scale, 0.0],
-            [0.0, 0.0, -0.27 * scale],
-            [0.0, 0.0, -0.27 * scale],
-            [0.0, 0.0, -0.24 * scale],
-            [0.0, 0.0, -0.24 * scale],
-            [0.0, 0.0, -0.08 * scale],
-            [0.0, 0.0, -0.08 * scale],
+            [0.0, 0.09, 0.0],
+            [0.0, -0.09, 0.0],
+            [0.0, 0.0, 0.08],
+            [0.0, 0.0, -0.42],
+            [0.0, 0.0, -0.42],
+            [0.0, 0.0, 0.13],
+            [0.0, 0.0, -0.38],
+            [0.0, 0.0, -0.38],
+            [0.0, 0.0, 0.13],
+            [0.12, 0.0, -0.06],
+            [0.12, 0.0, -0.06],
+            [0.0, 0.0, 0.25],
+            [0.0, 0.05, 0.18],
+            [0.0, -0.05, 0.18],
+            [0.0, 0.0, 0.08],
+            [0.0, 0.15, 0.0],
+            [0.0, -0.15, 0.0],
+            [0.0, 0.0, -0.27],
+            [0.0, 0.0, -0.27],
+            [0.0, 0.0, -0.24],
+            [0.0, 0.0, -0.24],
+            [0.0, 0.0, -0.08],
+            [0.0, 0.0, -0.08],
         ],
         dtype=torch.float32,
     )
 
 
-def make_branching_tree_body(height: float = 1.75, mass: float = 70.0) -> IRModel:
+def make_branching_tree_body() -> IRModel:
     """Build the branching-tree ``IRModel``: the root joint ``root`` (free flyer) and 23 spherical joints.
 
-    The joints' translations in their parents' frames are ``default_offsets_tensor(height)``; ``mass`` is spread
-    evenly.
+    The joints' translations in their parents' frames are ``default_offsets_tensor()``; 70 kg are spread evenly.
     """
-    offsets = default_offsets_tensor(height)
+    offsets = default_offsets_tensor()
     builder = ModelBuilder("branching_tree")
     for joint_name in JOINT_NAMES:
-        builder.add_body(joint_name, mass=mass / 24.0)
+        builder.add_body(joint_name, mass=70.0 / 24.0)
     builder.add_free_flyer_root("root", child=JOINT_NAMES[0], origin=se3.from_translation(offsets[0]))
     for index in range(1, len(JOINT_NAMES)):
         builder.add_spherical(

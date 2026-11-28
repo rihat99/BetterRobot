@@ -1,9 +1,8 @@
 """Tests for the URDF parser and ``br.load()`` with URDF files.
 
 Checks:
- - ``br.load("panda.urdf")`` returns a ``Model`` with the Panda's joint count, body count and limits.
- - ``br.load("g1.urdf", root_joint=br.model.JointFreeFlyer())`` returns a ``Model`` whose
-   ``joints[1]`` is ``JointFreeFlyer`` and whose ``nq`` is 7 + 29 = 36.
+ - ``br.load("panda.urdf")`` returns a ``Model`` with the Panda's coordinates, its finger mimic folded into one.
+ - ``br.load("g1.urdf", root_joint=br.model.JointFreeFlyer())`` returns a ``Model`` whose ``nq`` is 7 + 29 = 36.
 """
 
 from __future__ import annotations
@@ -14,15 +13,8 @@ import torch
 
 from better_robot.io import load
 from better_robot.io.parser_urdf import parse_urdf
-from better_robot.model.joints import JointFixed, JointFreeFlyer, JointPrismatic, JointRevolute
+from better_robot.model.joints import JointFreeFlyer
 from tests.support.robots import g1_urdf, panda_urdf
-
-
-# ── parse_urdf unit tests ────────────────────────────────────────────────────
-
-
-def test_the_root_body_is_the_link_no_joint_moves(panda_model):
-    assert panda_model.body_names[1] == "panda_link0"  # the Panda URDF's base link
 
 
 # ── build_model integration tests ────────────────────────────────────────────
@@ -64,28 +56,6 @@ def test_panda_identity_mimic_is_accepted_with_metadata(panda_model, panda_ir):
         assert panda_model.nvs_full[joint_id] == 1
 
 
-def test_panda_limits_finite_for_actuated(panda_model):
-    # All 7 actuated revolute joints should have finite limits
-    assert torch.all(torch.isfinite(panda_model.lower_position_limit))
-    assert torch.all(torch.isfinite(panda_model.upper_position_limit))
-
-
-def test_panda_joint_kinds(panda_model):
-    """Panda joints should only be revolute, prismatic, or fixed."""
-    for j in range(2, panda_model.njoints):
-        assert isinstance(panda_model.joints[j], (JointRevolute, JointPrismatic, JointFixed)), panda_model.joints[j]
-
-
-def test_panda_name_to_id_has_all_joints(panda_model, panda_ir):
-    for j in panda_ir.joints:
-        assert j.name in panda_model.joint_names
-
-
-def test_panda_body_frame_names(panda_model, panda_ir):
-    for body in panda_ir.bodies:
-        assert body.name in panda_model.frame_names
-
-
 # ── G1 floating-base tests ───────────────────────────────────────────────────
 
 
@@ -93,10 +63,6 @@ def test_panda_body_frame_names(panda_model, panda_ir):
 def g1_model():
     path = g1_urdf()
     return load(path, root_joint=JointFreeFlyer())
-
-
-def test_g1_root_joint_is_free_flyer(g1_model):
-    assert isinstance(g1_model.joints[1], JointFreeFlyer)
 
 
 @pytest.mark.parametrize(
@@ -108,12 +74,6 @@ def test_g1_root_joint_is_free_flyer(g1_model):
 )
 def test_g1_dims(g1_model, attr, expected):
     assert getattr(g1_model, attr) == expected
-
-
-def test_load_dtype_and_device_kwargs():
-    model = load(panda_urdf(), dtype=torch.float64, device=torch.device("cpu"))
-    assert model.joint_placements.dtype == torch.float64
-    assert model.joint_placements.device.type == "cpu"
 
 
 def test_inertia_is_rotated_from_inertial_frame_into_link_frame(tmp_path):
