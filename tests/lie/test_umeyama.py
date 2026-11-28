@@ -188,10 +188,9 @@ def test_umeyama_rejects_zero_weights_and_a_point_set_without_spread_when_asked(
         umeyama(source[:1].expand(5, 3), source, check_values=True)
 
 
-def test_umeyama_reads_values_only_when_asked() -> None:
-    """Negative weights normalize to a valid fit unchecked, and raise with ``check_values=True``."""
+def test_umeyama_rejects_negative_weights_when_asked() -> None:
+    """Without ``check_values`` no value is read, which ``tests/contract/test_internal_checks.py`` enforces."""
     source = torch.randn((5, 3), generator=torch.Generator().manual_seed(7), dtype=torch.float64)
     weights = -torch.ones(5, dtype=torch.float64)
-    torch.testing.assert_close(umeyama(source, source.clone(), weights=weights)[1], torch.eye(3, dtype=torch.float64))
     with pytest.raises(ArgumentError, match="weights must be finite and non-negative"):
         umeyama(source, source.clone(), weights=weights, check_values=True)

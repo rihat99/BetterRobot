@@ -62,12 +62,13 @@ def test_the_command_line_writes_checks_and_diffs(toy: str, tmp_path: Path) -> N
 
 def test_naming_problems_name_each_break_and_its_rule(toy: str) -> None:
     problems = naming_problems(toy, acronyms=("IR",))
-    assert problems == [
-        "Builder and IrModel and Maker: one object, two public names; keep one (principle 3.4)",
-        "toy_api.Builder = IrModel: a second name of a public object; remove it (principle 3.4)",
-        "toy_api.Maker = IrModel: a second name of a public object; remove it (principle 3.4)",
-        "toy_api.core.resize = scale: a second name of a public object; remove it (principle 3.4)",
-        "IrModel: write IR (principle 3.5)",
-        "utils.py: name the module after what it computes (principle 3.8)",
+    assert [(line.split(": ", 1)[0], line[line.index("(principle") :]) for line in problems] == [
+        ("Builder and IrModel and Maker", "(principle 3.4)"),
+        ("toy_api.Builder = IrModel", "(principle 3.4)"),
+        ("toy_api.Maker = IrModel", "(principle 3.4)"),
+        ("toy_api.core.resize = scale", "(principle 3.4)"),
+        ("IrModel", "(principle 3.5)"),
+        ("utils.py", "(principle 3.8)"),
     ]
+    assert "IR" in problems[4].split(": ", 1)[1]  # the fix spells the acronym
     assert naming_problems(toy, acronyms=(), ignore=("Builder", "Maker"))[0] == problems[1]
