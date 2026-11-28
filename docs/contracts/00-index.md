@@ -73,7 +73,7 @@ Read the pages in order once; afterwards use the matrix below to find the rule b
 | C-PERF-5 | `tests/contract/test_performance_rules.py::test_only_the_entry_point_compiles_and_nothing_builds_a_kernel` |
 | C-DOC-1 | `tests/contract/test_docstrings.py`, `tests/contract/test_ruff_ratchets.py` |
 | C-DOC-2 | `tests/docs/test_snippets.py` |
-| C-DOC-3 | `tests/contract/test_contract_matrix.py` |
+| C-DOC-3 | `tests/contract/test_contract_matrix.py`, `tests/contract/test_citations.py` |
 | C-DOC-4 | `tests/contract/test_docstrings.py` |
 | C-TEST-1 | `tests/contract/test_no_skips.py`, `[review]` |
 | C-TEST-2 | `[ruff:ANN201]`, `tests/contract/test_ruff_ratchets.py`, `tests/contract/test_pyright_ratchet.py` |

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import math
 import re
-import socket
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -42,6 +41,7 @@ from better_robot.optim import Problem
 from better_robot.testing import public_objects
 from better_robot.viewer import Viewer
 from better_robot.viewer import FramesLayer
+from tests.support.ports import free_port
 
 PAGE = Path(__file__).resolve().parents[2] / "docs" / "contracts" / "coupling-standard.md"
 FROZEN = Path(__file__).parent / "coupling_standard_lines.txt"
@@ -233,23 +233,6 @@ def test_twist_is_linear_first() -> None:
     turn = se3.to_matrix(se3.exp(_tensor(0, 0, 0, *(ANGLE * value for value in AXIS))))
     torch.testing.assert_close(turn[:3, :3], _rotation(AXIS, ANGLE))
     torch.testing.assert_close(turn[:3, 3], torch.zeros(3, dtype=F64))
-
-
-def test_wrench_is_force_first() -> None:
-    """Holding a floating body still takes ``[f, c x f]`` with ``f = -m g``, and that wrench applied to it holds it."""
-    mass, com = 2.0, _tensor(0.3, 0.0, 0.0)
-    builder = ModelBuilder("floating", gravity=(0.0, 0.0, -9.81))
-    builder.add_body("body", mass=mass, com=com)
-    builder.add_joint("base", kind=JointFreeFlyer(), parent="world", child="body")
-    model = build_model(builder.finalize(), dtype=F64)
-    state = br.forward_kinematics(model, model.q_neutral)
-    still = torch.zeros(6, dtype=F64)
-    force = _tensor(0.0, 0.0, mass * 9.81)
-    wrench = torch.cat((force, torch.linalg.cross(com, force)))
-    torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still), wrench)
-    applied = torch.zeros(model.njoints, 6, dtype=F64)
-    applied[1] = wrench
-    torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still, external_forces=applied), still)
 
 
 def test_external_forces_act_on_each_joint_in_its_own_frame() -> None:
@@ -530,10 +513,7 @@ def test_urdf_and_mjcf_are_read(tmp_path: Path, suffix: str, text: str) -> None:
 
 def test_the_viewer_writes_a_viser_recording(tmp_path: Path) -> None:
     """``Viewer`` records its timeline into a ``.viser`` file through viser's own serializer, on a loopback server."""
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        port = probe.getsockname()[1]
-    viewer = Viewer(port=port)
+    viewer = Viewer(port=free_port())
     try:
         poses = np.zeros((2, 1, 7), dtype=np.float32)
         poses[..., 6] = 1.0

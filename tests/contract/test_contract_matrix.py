@@ -3,9 +3,9 @@
 For each `## C-<AREA>-<n>` heading on a page, the paragraph starting with
 `Enforcement:` names its enforcers: test paths (`tests/...py`, optionally
 `::test_name`), ruff codes (`[ruff:CODE,...]`) or `[review]`. The matrix row for
-that rule must carry exactly the same set. Every cited test path must exist
-and every ruff code must be a rule ruff knows, selected and not ignored in
-`pyproject.toml`; no enforcer is
+that rule must carry exactly the same set. Every ruff code must be a rule ruff
+knows, selected and not ignored in `pyproject.toml` (a cited test path or
+`::test_name` resolves under `tests/contract/test_citations.py`); no enforcer is
 `[planned]`. A rule that only `[review]` checks waits in
 `tests/contract/ratchets/review_only.json` (rule id to reason) for a test or
 its deletion; the ratchet only shrinks.
@@ -115,27 +115,14 @@ def test_a_ruff_code_cited_as_an_enforcer_names_a_selected_rule() -> None:
     assert _ruff_code_problem("PLC0415") is None
 
 
-def test_cited_tests_exist_and_ruff_codes_selected() -> None:
+def test_cited_ruff_codes_are_selected() -> None:
     missing: list[str] = []
     for rule, (page, _, para) in _page_rules().items():
-        for path, test in TEST_RE.findall(para):
-            target = ROOT / path
-            if not target.exists():
-                missing.append(f"{page} {rule}: {path} does not exist")
-            elif test and f"def {test}(" not in target.read_text():
-                missing.append(f"{page} {rule}: {path}::{test} not found")
         for codes in RUFF_RE.findall(para):
             for code in codes.split(","):
                 if problem := _ruff_code_problem(code):
                     missing.append(f"{page} {rule}: {problem}")
     assert not missing, "\n".join(missing)
-
-
-def test_matrix_rows_cite_real_paths() -> None:
-    """Row-level check: paths in the matrix exist, ignoring directory-only cites."""
-    text = (CONTRACTS / "00-index.md").read_text().split("## Enforcement matrix", 1)[1]
-    bad = [p for p, _ in TEST_RE.findall(text) if not (ROOT / p).exists()]
-    assert not bad, bad
 
 
 def test_no_enforcer_is_planned() -> None:
@@ -162,7 +149,3 @@ def test_review_only_ratchet_has_no_stale_entries() -> None:
     """A rule that gained a test, or was deleted, leaves the ratchet in that commit."""
     stale = sorted(json.loads(REVIEW_ONLY.read_text()).keys() - _review_only())
     assert not stale, f"drop these entries from tests/contract/ratchets/review_only.json: {stale}"
-
-
-if __name__ == "__main__":
-    sys.exit(subprocess.call(["pytest", __file__, "-q"]))

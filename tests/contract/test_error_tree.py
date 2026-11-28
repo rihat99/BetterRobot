@@ -24,6 +24,7 @@ from better_robot import exceptions as exc
 from better_robot.io import ModelBuilder, build_model, load
 from better_robot.io.model_from_ir import _check_topology_invariants
 from better_robot.kinematics import forward_kinematics
+from tests.support.robots import one_revolute_arm_ir
 
 from ._ratchet_sites import counts
 
@@ -141,19 +142,7 @@ def test_every_form_of_a_builtin_raise_is_found(statement: str, builtin: str) ->
 
 @pytest.fixture(scope="module")
 def arm_model():
-    builder = ModelBuilder("arm")
-    builder.add_body("base", mass=0.5)
-    builder.add_body("link1", mass=1.0)
-    builder.add_revolute(
-        "j1",
-        axis=(0.0, 0.0, 1.0),
-        parent="base",
-        child="link1",
-        origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),
-        lower=-math.pi,
-        upper=math.pi,
-    )
-    return build_model(builder.finalize())
+    return build_model(one_revolute_arm_ir())
 
 
 @pytest.fixture(scope="module")

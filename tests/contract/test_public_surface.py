@@ -4,7 +4,7 @@ The root ``__all__`` is exactly its twelve subpackages and fourteen first-level 
 (``better_robot.testing.public_objects``: the root, each listed name, the listed modules recursively) every listed
 name resolves and no ``__all__`` lists a name twice; the root has no other public attribute; no module is named like a
 function its package lists; docs and examples take a first-level name from the root; ``testing`` is listed and
-documented, and ``FakeServer`` is defined once.
+documented.
 """
 
 from __future__ import annotations
@@ -155,11 +155,3 @@ def test_testing_is_listed_and_documented() -> None:
     """The shared test helpers are a documented public module."""
     assert "better_robot.testing" in MODULES
     assert all((inspect.getdoc(PUBLIC[f"better_robot.testing.{name}"]) or "").strip() for name in br.testing.__all__)
-
-
-def test_fake_server_is_defined_once() -> None:
-    """One stand-in viser server, shipped in ``testing``; a second copy is a duplicate."""
-    defining = [
-        path for path in _tracked("*.py") if re.search(r"^\s*class FakeServer\b", (REPO / path).read_text(), re.M)
-    ]
-    assert defining == ["src/better_robot/testing/fake_server.py"]

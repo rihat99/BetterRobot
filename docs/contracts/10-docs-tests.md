@@ -36,7 +36,8 @@ Enforcement: `tests/docs/test_snippets.py` (runs every snippet in page order and
 Each rule in `docs/contracts/` names a `ruff` code, a test file, or `[review]`. The enforcement matrix in
 `00-index` lists them; a rule whose enforcer file is missing is a ledger item, not a waiver.
 
-Enforcement: `tests/contract/test_contract_matrix.py`.
+Enforcement: `tests/contract/test_contract_matrix.py` (the matrix equals the pages, no enforcer is planned, a cited
+ruff code is selected), `tests/contract/test_citations.py` (a cited test file and `::test` name exist).
 
 ## C-TEST-1 Tests pin contracts and parity; no trivial tests (SHOULD)
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-import math
 from collections.abc import Callable
 from types import ModuleType
 from typing import Any
@@ -19,28 +18,10 @@ from typing import Any
 import torch
 
 from better_robot import dynamics, kinematics, lie, spatial
-from better_robot.io import build_model
-from better_robot.io.builder import ModelBuilder
 from better_robot.lie import se3, so3, tangents
+from tests.support.robots import two_link_arm
 
 Case = tuple[Callable[..., Any], tuple[Any, ...], dict[str, Any]]
-
-
-def two_link_arm(dtype: torch.dtype, device: torch.device):
-    """Two revolute joints with offset masses so ``M(q)`` is positive definite."""
-    builder = ModelBuilder("contract_arm")
-    inertia = 0.01 * torch.eye(3)
-    builder.add_body("base", mass=0.5, inertia=inertia)
-    builder.add_body("link1", mass=1.0, com=torch.tensor([0.1, 0.0, 0.0]), inertia=inertia)
-    builder.add_body("link2", mass=0.7, com=torch.tensor([0.1, 0.0, 0.0]), inertia=inertia)
-    origin = torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0])
-    builder.add_revolute(
-        "j1", axis=(0.0, 0.0, 1.0), parent="base", child="link1", origin=origin, lower=-math.pi, upper=math.pi
-    )
-    builder.add_revolute(
-        "j2", axis=(0.0, 1.0, 0.0), parent="link1", child="link2", origin=origin, lower=-math.pi, upper=math.pi
-    )
-    return build_model(builder.finalize()).to(device=device, dtype=dtype)
 
 
 def tensors_of(obj: Any) -> list[torch.Tensor]:
