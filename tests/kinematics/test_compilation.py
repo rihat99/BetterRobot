@@ -17,6 +17,7 @@ from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import KinematicState, compiled, forward_kinematics, frame_jacobian
 from better_robot.kinematics.compilation import _map_tensors
+from better_robot.model import JointRevolute
 from tests.support.robots import panda_urdf
 
 
@@ -24,8 +25,16 @@ def _free_flyer():
     builder = ModelBuilder("free_flyer_entry_point")
     builder.add_body("base", mass=1.0)
     builder.add_body("arm", mass=0.5)
-    builder.add_free_flyer_root("floating", child="base", origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]))
-    builder.add_revolute("elbow", parent="base", child="arm", axis=(0.0, 0.0, 1.0), lower=-2.0, upper=2.0)
+    builder.add_joint(
+        "floating",
+        kind=JointFreeFlyer(),
+        parent="world",
+        child="base",
+        origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+    )
+    builder.add_joint(
+        "elbow", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="arm", lower=-2.0, upper=2.0
+    )
     return build_model(builder.finalize())
 
 

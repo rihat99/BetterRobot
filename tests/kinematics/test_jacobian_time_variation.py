@@ -26,6 +26,7 @@ from better_robot.kinematics import (
     joint_jacobian,
     joint_jacobian_time_variation,
 )
+from better_robot.model import JointRevolute
 
 _REFERENCES = ("world", "local_world_aligned", "local")
 _FD_DT = 1e-3  # fp32 central-difference step
@@ -43,27 +44,27 @@ def _chain_with_frame():
     b = ModelBuilder("jdot_chain")
     for name in ("root", "l1", "l2", "l3"):
         b.add_body(name)
-    b.add_revolute(
+    b.add_joint(
         "j1",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="root",
         child="l1",
         origin=torch.tensor([0.1, 0.2, 0.5, 0.0, 0.0, 0.0, 1.0]),
         lower=-math.pi,
         upper=math.pi,
     )
-    b.add_revolute(
+    b.add_joint(
         "j2",
-        axis=(0.0, 1.0, 0.0),
+        kind=JointRevolute(axis=(0.0, 1.0, 0.0)),
         parent="l1",
         child="l2",
         origin=torch.tensor([0.3, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]),
         lower=-math.pi,
         upper=math.pi,
     )
-    b.add_revolute(
+    b.add_joint(
         "j3",
-        axis=(1.0, 0.0, 0.0),
+        kind=JointRevolute(axis=(1.0, 0.0, 0.0)),
         parent="l2",
         child="l3",
         origin=torch.tensor([0.0, 0.4, 0.5, 0.0, 0.0, 0.0, 1.0]),

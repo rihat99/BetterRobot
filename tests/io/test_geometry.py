@@ -9,7 +9,7 @@ import pytest
 
 from better_robot.exceptions import UnknownNameError
 from better_robot.io import ModelBuilder, build_geometry, build_model, load, load_geometry
-from better_robot.model import AttachedShape, Box, Capsule, Cylinder, Mesh, Sphere
+from better_robot.model import AttachedShape, Box, Capsule, Cylinder, JointFixed, Mesh, Sphere
 
 IDENTITY = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
 
@@ -66,7 +66,7 @@ def _capsule_arm() -> ModelBuilder:
     builder = ModelBuilder("arm")
     builder.add_body("base")
     builder.add_body("link")
-    builder.add_fixed("j", parent="base", child="link")
+    builder.add_joint("j", kind=JointFixed(), parent="base", child="link")
     builder.add_shape("link", Capsule(radius=0.1, length=0.5, placement=IDENTITY))
     return builder
 

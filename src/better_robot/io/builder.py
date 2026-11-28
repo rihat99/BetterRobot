@@ -1,40 +1,23 @@
 """``ModelBuilder``: a robot written in Python, body by body and joint by joint, as the ``IRModel`` that
 ``build_model`` turns into a ``Model``.
 
-Each ``add_<kind>`` helper takes the data of its kind as keywords and builds the ``JointModel`` there, so a bad axis
-fails at the call, not at the build. ``add_joint`` takes any ``JointModel`` instance, which is how a
-kind written outside the package enters without a registry. A description that cannot be a robot raises
-``ModelError``; a body name not added before raises ``UnknownNameError``.
+``add_joint`` takes any ``JointModel`` instance, built in or written outside the package, so a kind enters without
+a registry, and a bad axis fails where the caller builds the kind, not at the build. A description that cannot be a
+robot raises ``ModelError``; a body name not added before raises ``UnknownNameError``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast, final, override
+from typing import final, override
 
 import torch
 
 from ..exceptions import ArgumentError, ModelError, UnknownNameError
 from ..lie import se3
 from ..model.geometry import Shape
-from ..model.joints import (
-    JointFixed,
-    JointFreeFlyer,
-    JointHelical,
-    JointModel,
-    JointPlanar,
-    JointPrismatic,
-    JointRevolute,
-    JointRevoluteUnbounded,
-    JointSpherical,
-)
+from ..model.joints import JointModel
 from .ir import IRBody, IRFrame, IRJoint, IRModel, IRShape
-
-
-def _axis(axis: Sequence[float] | torch.Tensor) -> tuple[float, float, float]:
-    """``axis`` as the tuple of floats a joint kind stores; the kind checks that it is a unit 3-vector."""
-    # A cast, not an unpack: the kind's ArgumentError names a wrong length, an unpack would raise a raw ValueError.
-    return cast("tuple[float, float, float]", tuple(float(value) for value in axis))
 
 
 @final
@@ -51,7 +34,7 @@ class ModelBuilder:
         builder = ModelBuilder("arm")
         base = builder.add_body("base")
         link = builder.add_body("link", mass=1.2)
-        builder.add_revolute("shoulder", parent=base, child=link, axis=(0.0, 0.0, 1.0), lower=-3.0, upper=3.0)
+        builder.add_joint("shoulder", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent=base, child=link, lower=-3.0)
         model = build_model(builder.finalize())
     """
 
@@ -156,108 +139,6 @@ class ModelBuilder:
             )
         )
         return name
-
-    def add_revolute(
-        self,
-        name: str,
-        *,
-        parent: str,
-        child: str,
-        axis: Sequence[float] | torch.Tensor,
-        origin: torch.Tensor | None = None,
-        lower: float | None = None,
-        upper: float | None = None,
-        velocity_limit: float | None = None,
-        effort_limit: float | None = None,
-        unbounded: bool = False,
-        mimic_source: str | None = None,
-        mimic_multiplier: float = 1.0,
-        mimic_offset: float = 0.0,
-    ) -> str:
-        """Add a revolute joint about the unit ``axis (3,)`` of the joint frame.
-
-        ``unbounded=True`` makes it a continuous joint, which turns without position limits.
-        """
-        kind = JointRevoluteUnbounded(axis=_axis(axis)) if unbounded else JointRevolute(axis=_axis(axis))
-        return self.add_joint(
-            name,
-            kind=kind,
-            parent=parent,
-            child=child,
-            origin=origin,
-            lower=lower,
-            upper=upper,
-            velocity_limit=velocity_limit,
-            effort_limit=effort_limit,
-            mimic_source=mimic_source,
-            mimic_multiplier=mimic_multiplier,
-            mimic_offset=mimic_offset,
-        )
-
-    def add_prismatic(
-        self,
-        name: str,
-        *,
-        parent: str,
-        child: str,
-        axis: Sequence[float] | torch.Tensor,
-        origin: torch.Tensor | None = None,
-        lower: float | None = None,
-        upper: float | None = None,
-        velocity_limit: float | None = None,
-        effort_limit: float | None = None,
-    ) -> str:
-        """Add a prismatic joint along the unit ``axis (3,)`` of the joint frame."""
-        return self.add_joint(
-            name,
-            kind=JointPrismatic(axis=_axis(axis)),
-            parent=parent,
-            child=child,
-            origin=origin,
-            lower=lower,
-            upper=upper,
-            velocity_limit=velocity_limit,
-            effort_limit=effort_limit,
-        )
-
-    def add_helical(
-        self,
-        name: str,
-        *,
-        parent: str,
-        child: str,
-        axis: Sequence[float] | torch.Tensor,
-        pitch: float,
-        origin: torch.Tensor | None = None,
-        lower: float | None = None,
-        upper: float | None = None,
-    ) -> str:
-        """Add a helical joint about and along the unit ``axis (3,)``: ``pitch`` metres of travel per radian."""
-        return self.add_joint(
-            name,
-            kind=JointHelical(axis=_axis(axis), pitch=pitch),
-            parent=parent,
-            child=child,
-            origin=origin,
-            lower=lower,
-            upper=upper,
-        )
-
-    def add_spherical(self, name: str, *, parent: str, child: str, origin: torch.Tensor | None = None) -> str:
-        """Add a spherical joint: three rotations, ``q`` a unit quaternion."""
-        return self.add_joint(name, kind=JointSpherical(), parent=parent, child=child, origin=origin)
-
-    def add_planar(self, name: str, *, parent: str, child: str, origin: torch.Tensor | None = None) -> str:
-        """Add a planar joint: two translations in the joint's xy plane and a rotation about its z axis."""
-        return self.add_joint(name, kind=JointPlanar(), parent=parent, child=child, origin=origin)
-
-    def add_fixed(self, name: str, *, parent: str, child: str, origin: torch.Tensor | None = None) -> str:
-        """Add a fixed joint: ``child`` rigidly placed at ``origin`` in ``parent``."""
-        return self.add_joint(name, kind=JointFixed(), parent=parent, child=child, origin=origin)
-
-    def add_free_flyer_root(self, name: str = "free_flyer", *, child: str, origin: torch.Tensor | None = None) -> str:
-        """Add the free-flyer root joint, world to ``child``: the robot's base floats with six degrees of freedom."""
-        return self.add_joint(name, kind=JointFreeFlyer(), parent="world", child=child, origin=origin)
 
     def finalize(self) -> IRModel:
         """The ``IRModel`` of everything added; ``build_model`` checks that it is one tree."""

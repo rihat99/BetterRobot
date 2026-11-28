@@ -3,6 +3,7 @@
 import torch
 
 import better_robot as br
+from better_robot.model import JointRevolute
 
 
 def build_pendulum() -> br.Model:
@@ -15,9 +16,9 @@ def build_pendulum() -> br.Model:
         com=torch.tensor([0.3, 0.0, 0.0]),
         inertia=torch.diag(torch.tensor([0.2, 0.3, 0.4])),
     )
-    builder.add_revolute(
+    builder.add_joint(
         "shoulder",
-        axis=(0.0, 1.0, 0.0),
+        kind=JointRevolute(axis=(0.0, 1.0, 0.0)),
         parent="base",
         child="link",
         origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),

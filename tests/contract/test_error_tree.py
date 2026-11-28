@@ -23,6 +23,7 @@ import torch
 from better_robot import exceptions as exc
 from better_robot.io import ModelBuilder, build_model, load
 from better_robot.kinematics import forward_kinematics
+from better_robot.model import JointFreeFlyer, JointRevolute
 from tests.support.robots import one_revolute_arm_ir
 
 from ._ratchet_sites import counts
@@ -146,10 +147,16 @@ def free_flyer_model():
     builder = ModelBuilder("floating")
     builder.add_body("base", mass=1.0)
     builder.add_body("link1", mass=0.5)
-    builder.add_free_flyer_root("floating", child="base", origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]))
-    builder.add_revolute(
+    builder.add_joint(
+        "floating",
+        kind=JointFreeFlyer(),
+        parent="world",
+        child="base",
+        origin=torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+    )
+    builder.add_joint(
         "j1",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="base",
         child="link1",
         origin=torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0]),

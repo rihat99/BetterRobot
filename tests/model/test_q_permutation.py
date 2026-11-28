@@ -7,6 +7,7 @@ import torch
 
 from better_robot.exceptions import ArgumentError, UnknownNameError
 from better_robot.io import ModelBuilder, build_model
+from better_robot.model import JointFreeFlyer, JointPlanar, JointRevolute, JointSpherical
 
 
 @pytest.fixture
@@ -16,10 +17,10 @@ def mixed_dof_model():
     ball_link = builder.add_body("ball_link")
     hinge_link = builder.add_body("hinge_link")
     plane_link = builder.add_body("plane_link")
-    builder.add_free_flyer_root("root", child=base)
-    builder.add_spherical("ball", parent=base, child=ball_link)
-    builder.add_revolute("hinge", axis=(0.0, 0.0, 1.0), parent=base, child=hinge_link)
-    builder.add_planar("plane", parent=ball_link, child=plane_link)
+    builder.add_joint("root", kind=JointFreeFlyer(), parent="world", child=base)
+    builder.add_joint("ball", kind=JointSpherical(), parent=base, child=ball_link)
+    builder.add_joint("hinge", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent=base, child=hinge_link)
+    builder.add_joint("plane", kind=JointPlanar(), parent=ball_link, child=plane_link)
     return build_model(builder.finalize())
 
 

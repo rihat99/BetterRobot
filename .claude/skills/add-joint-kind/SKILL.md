@@ -19,16 +19,15 @@ example.
    `src/better_robot/kinematics/_plans.py` reads a kind's class only for the affine fast path (revolute, unbounded
    revolute, prismatic, and the quaternion kinds of `_QUATERNION`, which `check_quaternion_norm=True` covers).
 3. Construction: `build_model` needs no entry (it reads the shape of the limits from the kind's `manifold`), and
-   `ModelBuilder.add_joint(kind=...)` takes any kind. Add a `ModelBuilder.add_<kind>` method in
-   `src/better_robot/io/builder.py` when the kind is common; the URDF or MJCF type that maps to it in
+   `ModelBuilder.add_joint(kind=...)` takes any kind. Add the URDF or MJCF type that maps to it in
    `src/better_robot/io/parser_urdf.py` or `src/better_robot/io/parser_mjcf.py`; the kind in
    `_SUPPORTED_MIMIC_JOINTS` of `src/better_robot/io/model_from_ir.py` when it may be a mimic target.
 4. Viewer: its glyph in `_GLYPHS` of `src/better_robot/viewer/skeleton.py`; without it the skeleton draws the
    joint as a small ball.
 5. Tests: the kind in `KINDS` of `tests/model/test_joints.py` (runs `check_joint_model` in float32 and float64),
-   in the per-kind cases of `tests/contract/test_coupling_standard.py` and `tests/io/test_build_model.py`, in
-   `tests/io/test_builder_kinds.py` for a builder method, and a Pinocchio parity test under `tests/parity/pinocchio/`
-   when Pinocchio has the joint.
+   in the per-kind cases of `tests/contract/test_coupling_standard.py`, `tests/io/test_build_model.py` and
+   `tests/io/test_builder_kinds.py`, and a Pinocchio parity test under `tests/parity/pinocchio/` when Pinocchio has
+   the joint.
 6. Public surface, in the same change: a builder in `tests/contract/test_repr.py`, every new word in
    `docs/reference/glossary.md`, the `q` layout line appended to `docs/contracts/coupling-standard.md` and
    `tests/contract/coupling_standard_lines.txt`, then `uv run python tools/api_snapshot.py --write`.

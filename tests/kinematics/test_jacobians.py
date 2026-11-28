@@ -11,7 +11,7 @@ import torch
 from better_robot.exceptions import DtypeMismatchError
 from better_robot.io.builder import ModelBuilder
 from better_robot.io import build_model
-from better_robot.model import JointFreeFlyer
+from better_robot.model import JointFreeFlyer, JointRevolute
 from better_robot.kinematics import forward_kinematics
 from better_robot.kinematics import frame_jacobian, integrate, joint_jacobian, point_jacobian
 from tests.support.robots import g1_urdf, one_revolute_arm_ir
@@ -22,18 +22,18 @@ def _chain_model():
     b.add_body("root")
     b.add_body("l1")
     b.add_body("l2")
-    b.add_revolute(
+    b.add_joint(
         "j1",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="root",
         child="l1",
         origin=torch.tensor([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]),
         lower=-math.pi,
         upper=math.pi,
     )
-    b.add_revolute(
+    b.add_joint(
         "j2",
-        axis=(0.0, 1.0, 0.0),
+        kind=JointRevolute(axis=(0.0, 1.0, 0.0)),
         parent="l1",
         child="l2",
         origin=torch.tensor([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]),

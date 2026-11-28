@@ -63,7 +63,7 @@ def _page() -> Traversable:
 
 
 def words(name: str) -> list[str]:
-    """An identifier's words, lower case: ``add_free_flyer_root`` is add free flyer root, ``IRModel`` is ir model."""
+    """An identifier's words, lower case: ``free_flyer_root`` is free flyer root, ``IRModel`` is ir model."""
     return [word.lower() for word in _WORD.findall(name)]
 
 

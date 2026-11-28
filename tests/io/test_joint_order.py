@@ -9,6 +9,7 @@ import torch
 
 import better_robot as br
 from better_robot.io import ModelBuilder, build_model
+from better_robot.model import JointRevolute
 
 from tests.support.branching_tree import JOINT_NAMES, make_branching_tree_body
 from tests.support.robots import g1_urdf
@@ -31,10 +32,10 @@ def test_a_child_declared_before_its_parent_is_repaired_deterministically():
     builder = ModelBuilder("kahn")
     for body in ("base", "left", "left_tip", "right", "right_tip"):
         builder.add_body(body)
-    builder.add_revolute("left_tip", axis=(0.0, 0.0, 1.0), parent="left", child="left_tip")
-    builder.add_revolute("right", axis=(0.0, 0.0, 1.0), parent="base", child="right")
-    builder.add_revolute("left", axis=(0.0, 0.0, 1.0), parent="base", child="left")
-    builder.add_revolute("right_tip", axis=(0.0, 0.0, 1.0), parent="right", child="right_tip")
+    builder.add_joint("left_tip", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="left", child="left_tip")
+    builder.add_joint("right", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="right")
+    builder.add_joint("left", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="left")
+    builder.add_joint("right_tip", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="right", child="right_tip")
     model = build_model(builder.finalize())
     assert model.joint_names == ("universe", "root_joint", "right", "left", "left_tip", "right_tip")
 

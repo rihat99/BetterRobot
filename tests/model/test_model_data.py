@@ -9,6 +9,7 @@ from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics import support
 from better_robot.model import (
+    JointFreeFlyer,
     JointHelical,
     JointPlanar,
     JointPrismatic,
@@ -46,14 +47,14 @@ def _make_floating_model(dtype: torch.dtype) -> Model:
     builder = ModelBuilder("floating")
     root = builder.add_body("root")
     link = builder.add_body("link")
-    builder.add_free_flyer_root("root_joint", child=root)
-    builder.add_revolute("spin", axis=(0.0, 0.0, 1.0), parent=root, child=link)
+    builder.add_joint("root_joint", kind=JointFreeFlyer(), parent="world", child=root)
+    builder.add_joint("spin", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent=root, child=link)
     return build_model(builder.finalize()).to(dtype=dtype)
 
 
 def test_random_configuration_follows_model_dtype():
     builder = ModelBuilder("root_only")
-    builder.add_free_flyer_root("root_joint", child=builder.add_body("root"))
+    builder.add_joint("root_joint", kind=JointFreeFlyer(), parent="world", child=builder.add_body("root"))
     model = build_model(builder.finalize()).to(dtype=torch.float64)
     assert model.random_configuration(generator=torch.Generator().manual_seed(0)).dtype == torch.float64
 
@@ -71,7 +72,7 @@ def _every_kind_model() -> Model:
     """A chain with one joint of every kind, limits ``[-0.5, 0.5]``, under a free-flyer root."""
     builder = ModelBuilder("every_kind")
     parent = builder.add_body("root")
-    builder.add_free_flyer_root("root_joint", child=parent)
+    builder.add_joint("root_joint", kind=JointFreeFlyer(), parent="world", child=parent)
     axis = (0.0, 0.0, 1.0)
     kinds = (
         JointRevolute(axis=axis),
@@ -115,7 +116,7 @@ def test_random_configuration_rejects_unlimited_prismatic():
     builder = ModelBuilder("slider")
     base = builder.add_body("base")
     link = builder.add_body("link")
-    builder.add_prismatic("slide", axis=(0.0, 0.0, 1.0), parent=base, child=link)
+    builder.add_joint("slide", kind=JointPrismatic(axis=(0.0, 0.0, 1.0)), parent=base, child=link)
     model = build_model(builder.finalize())
     with pytest.raises(ModelError, match="slide"):
         model.random_configuration(generator=torch.Generator().manual_seed(0))

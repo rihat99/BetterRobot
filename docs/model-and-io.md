@@ -66,7 +66,7 @@ pendulum that swings about `y`:
 builder = br.ModelBuilder("pendulum")
 builder.add_body("base", mass=0.0)
 builder.add_body("link", mass=2.0, com=torch.tensor([0.3, 0.0, 0.0]), inertia=torch.diag(torch.tensor([0.2, 0.3, 0.4])))
-builder.add_revolute("shoulder", axis=(0.0, 1.0, 0.0), parent="base", child="link", lower=-2.0, upper=2.0)
+builder.add_joint("shoulder", kind=br.model.JointRevolute(axis=(0.0, 1.0, 0.0)), parent="base", child="link", lower=-2.0, upper=2.0)
 pendulum = br.io.build_model(builder.finalize(), dtype=torch.float64)
 print(pendulum.nq, pendulum.joint_names)
 ```

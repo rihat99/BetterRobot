@@ -14,6 +14,7 @@ from scipy.spatial.transform import Rotation as Rot
 
 import better_robot as br
 from better_robot.io import ModelBuilder, build_model
+from better_robot.model import JointRevolute, JointSpherical
 from tests.support.robots import g1_urdf, panda_urdf, panda_without_mimic
 
 
@@ -115,10 +116,10 @@ def _build_spherical_chain():
     link1 = b.add_body("link1", mass=mass1, com=com1, inertia=I1)
     link2 = b.add_body("link2", mass=mass2, com=com2, inertia=I2)
     IDENT = torch.tensor([0.0, 0, 0, 0, 0, 0, 1.0])
-    b.add_spherical("j_sph", parent=base, child=link1, origin=IDENT)
-    b.add_revolute(
+    b.add_joint("j_sph", kind=JointSpherical(), parent=base, child=link1, origin=IDENT)
+    b.add_joint(
         "j_rz",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent=link1,
         child=link2,
         origin=torch.cat([rz_offset, torch.tensor([0.0, 0, 0, 1.0])]),

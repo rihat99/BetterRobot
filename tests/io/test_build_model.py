@@ -71,7 +71,9 @@ def test_a_root_joint_that_replaces_the_world_joint_keeps_only_its_placement():
     builder.add_body("base")
     mount = torch.tensor([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
     limits = {"lower": -0.5, "upper": 0.5, "velocity_limit": 1.0, "effort_limit": 1.0}
-    builder.add_revolute("mount", axis=(0.0, 0.0, 1.0), parent="world", child="base", origin=mount, **limits)
+    builder.add_joint(
+        "mount", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="world", child="base", origin=mount, **limits
+    )
 
     model = build_model(builder.finalize(), root_joint=JointSpherical())
 
@@ -131,30 +133,36 @@ def _branching_tree_ir():
     b.add_body("left_link2")
     b.add_body("right_link1")
     b.add_body("right_link2")
-    b.add_revolute(
-        "left_j1", axis=(0.0, 0.0, 1.0), parent="root", child="left_link1", origin=se3.identity(), lower=-1.0, upper=1.0
+    b.add_joint(
+        "left_j1",
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
+        parent="root",
+        child="left_link1",
+        origin=se3.identity(),
+        lower=-1.0,
+        upper=1.0,
     )
-    b.add_revolute(
+    b.add_joint(
         "left_j2",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="left_link1",
         child="left_link2",
         origin=se3.identity(),
         lower=-1.0,
         upper=1.0,
     )
-    b.add_revolute(
+    b.add_joint(
         "right_j1",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="root",
         child="right_link1",
         origin=se3.identity(),
         lower=-1.0,
         upper=1.0,
     )
-    b.add_revolute(
+    b.add_joint(
         "right_j2",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="right_link1",
         child="right_link2",
         origin=se3.identity(),
@@ -190,9 +198,9 @@ def test_mimic_bad_source_raises():
     b = ModelBuilder("m")
     b.add_body("root")
     b.add_body("child")
-    b.add_revolute(
+    b.add_joint(
         "j1",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="root",
         child="child",
         origin=se3.identity(),
@@ -266,7 +274,7 @@ def test_a_builder_joint_names_bodies_added_before(parent, child):
     builder.add_body("base")
     builder.add_body("tip")
     with pytest.raises(UnknownNameError, match=re.escape("unknown body 'nowhere'")):
-        builder.add_revolute("j", parent=parent, child=child, axis=(0.0, 0.0, 1.0))
+        builder.add_joint("j", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent=parent, child=child)
 
 
 def test_an_ir_joint_to_a_missing_body_says_what_to_add():
@@ -347,9 +355,13 @@ def test_a_pose_off_unit_norm_is_the_callers_error(monkeypatch, enabled, where, 
     builder.add_body("base")
     builder.add_body("link")
     if where == "root":
-        builder.add_free_flyer_root("root", child="base", origin=given)
-    builder.add_revolute(
-        "j", parent="base", child="link", axis=(0.0, 0.0, 1.0), origin=given if where == "joint" else None
+        builder.add_joint("root", kind=JointFreeFlyer(), parent="world", child="base", origin=given)
+    builder.add_joint(
+        "j",
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
+        parent="base",
+        child="link",
+        origin=given if where == "joint" else None,
     )
     if where == "frame":
         builder.add_frame("tool", parent="link", placement=given)
@@ -364,6 +376,6 @@ def test_a_quaternion_normalised_in_float32_builds_in_float64():
     builder.add_body("link")
     half = math.sqrt(0.5)
     origin = torch.tensor([0.0, 0.0, 0.1, 0.0, 0.0, half, half], dtype=torch.float32)
-    builder.add_revolute("j", parent="base", child="link", axis=(0.0, 0.0, 1.0), origin=origin)
+    builder.add_joint("j", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="link", origin=origin)
     model = build_model(builder.finalize(), dtype=torch.float64)
     assert model.joint_placements[2].tolist() == origin.double().tolist()

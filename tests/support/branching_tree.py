@@ -11,6 +11,7 @@ import torch
 from better_robot.io import ModelBuilder, build_model
 from better_robot.io.ir import IRModel
 from better_robot.lie import se3
+from better_robot.model import JointFreeFlyer, JointSpherical
 from better_robot.model.model import Model
 
 JOINT_NAMES: tuple[str, ...] = tuple(f"j{index}" for index in range(24))
@@ -85,10 +86,13 @@ def make_branching_tree_body() -> IRModel:
     builder = ModelBuilder("branching_tree")
     for joint_name in JOINT_NAMES:
         builder.add_body(joint_name, mass=70.0 / 24.0)
-    builder.add_free_flyer_root("root", child=JOINT_NAMES[0], origin=se3.from_translation(offsets[0]))
+    builder.add_joint(
+        "root", kind=JointFreeFlyer(), parent="world", child=JOINT_NAMES[0], origin=se3.from_translation(offsets[0])
+    )
     for index in range(1, len(JOINT_NAMES)):
-        builder.add_spherical(
+        builder.add_joint(
             JOINT_NAMES[index],
+            kind=JointSpherical(),
             parent=JOINT_NAMES[PARENTS[index]],
             child=JOINT_NAMES[index],
             origin=se3.from_translation(offsets[index]),

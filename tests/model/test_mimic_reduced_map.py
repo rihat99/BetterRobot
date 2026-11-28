@@ -26,9 +26,9 @@ def _mimic_ir(*, multiplier: float = -2.0, offset: float = 0.25):
     root = builder.add_body("root", mass=1.0, inertia=torch.eye(3))
     source = builder.add_body("source", mass=1.0, inertia=torch.eye(3))
     target = builder.add_body("target", mass=1.0, inertia=torch.eye(3))
-    builder.add_revolute(
+    builder.add_joint(
         "source_joint",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent=root,
         child=source,
         origin=_IDENTITY,
@@ -37,9 +37,9 @@ def _mimic_ir(*, multiplier: float = -2.0, offset: float = 0.25):
         velocity_limit=3.0,
         effort_limit=5.0,
     )
-    builder.add_revolute(
+    builder.add_joint(
         "target_joint",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent=source,
         child=target,
         origin=torch.tensor([0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
@@ -135,10 +135,10 @@ def test_mimic_chains_resolve_to_the_public_root_with_composed_multiplier_and_of
     a = builder.add_body("a")
     b = builder.add_body("b")
     c = builder.add_body("c")
-    builder.add_revolute("a_joint", axis=(0.0, 0.0, 1.0), parent=root, child=a, lower=-2.0, upper=2.0)
-    builder.add_revolute(
+    builder.add_joint("a_joint", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent=root, child=a, lower=-2.0, upper=2.0)
+    builder.add_joint(
         "b_joint",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent=a,
         child=b,
         lower=-10.0,
@@ -147,9 +147,9 @@ def test_mimic_chains_resolve_to_the_public_root_with_composed_multiplier_and_of
         mimic_multiplier=-2.0,
         mimic_offset=0.25,
     )
-    builder.add_revolute(
+    builder.add_joint(
         "c_joint",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent=b,
         child=c,
         lower=-10.0,
@@ -175,8 +175,8 @@ def test_cycles_and_unsupported_manifold_mimics_fail_at_build() -> None:
     root = cycle.add_body("root")
     a = cycle.add_body("a")
     b = cycle.add_body("b")
-    cycle.add_revolute("a_joint", axis=(0.0, 0.0, 1.0), parent=root, child=a, mimic_source="b_joint")
-    cycle.add_revolute("b_joint", axis=(0.0, 0.0, 1.0), parent=root, child=b, mimic_source="a_joint")
+    cycle.add_joint("a_joint", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent=root, child=a, mimic_source="b_joint")
+    cycle.add_joint("b_joint", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent=root, child=b, mimic_source="a_joint")
     with pytest.raises(ModelError, match="cycle"):
         build_model(cycle.finalize())
 

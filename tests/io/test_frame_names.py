@@ -10,6 +10,7 @@ from better_robot.exceptions import ModelError
 from better_robot.io import ModelBuilder, build_model
 from better_robot.io.ir import IRFrame
 from better_robot.lie import se3
+from better_robot.model import JointRevolute
 
 from tests.support.robots import g1_urdf, panda_urdf
 
@@ -28,7 +29,7 @@ def _two_links() -> ModelBuilder:
     builder = ModelBuilder("two_links")
     builder.add_body("base")
     builder.add_body("link")
-    builder.add_revolute("hinge", axis=(0.0, 0.0, 1.0), parent="base", child="link")
+    builder.add_joint("hinge", kind=JointRevolute(axis=(0.0, 0.0, 1.0)), parent="base", child="link")
     return builder
 
 

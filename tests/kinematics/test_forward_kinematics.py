@@ -7,6 +7,7 @@ import better_robot as br
 from better_robot import dynamics, kinematics
 from better_robot.io import ModelBuilder, build_model
 from better_robot.lie import so3
+from better_robot.model import JointRevolute
 from tests.support.robots import panda_urdf
 
 
@@ -70,11 +71,11 @@ def test_unaligned_axis_moved_placement_and_inference_mode_first_call():
     builder = ModelBuilder("axis")
     base = builder.add_body("base", mass=1.0)
     link = builder.add_body("link", mass=1.0)
-    builder.add_revolute(
+    builder.add_joint(
         "joint",
+        kind=JointRevolute(axis=(0.6, 0.8, 0.0)),
         parent=base,
         child=link,
-        axis=torch.tensor([0.6, 0.8, 0.0]),
         origin=torch.tensor([0.1, 0.2, 0.3, 0.0, 0.0, 0.0, 1.0]),
     )
     model = build_model(builder.finalize(), dtype=torch.float64)

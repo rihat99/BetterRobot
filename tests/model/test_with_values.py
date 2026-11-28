@@ -19,6 +19,7 @@ from better_robot.io import build_model
 from better_robot.io.builder import ModelBuilder
 from better_robot.kinematics._plans import fk_plan, jacobian_plan
 from better_robot.kinematics.configuration import manifold_plan, mimic_plan
+from better_robot.model import JointRevolute
 from tests.support.robots import panda_urdf
 
 
@@ -30,9 +31,9 @@ def _model(dtype: torch.dtype = torch.float32):
     builder = ModelBuilder("with_values")
     builder.add_body("base", mass=1.0, inertia=torch.eye(3) * 0.1)
     builder.add_body("link", mass=2.0, com=torch.tensor([0.1, 0.0, 0.0]), inertia=torch.eye(3) * 0.2)
-    builder.add_revolute(
+    builder.add_joint(
         "joint",
-        axis=(0.0, 0.0, 1.0),
+        kind=JointRevolute(axis=(0.0, 0.0, 1.0)),
         parent="base",
         child="link",
         origin=_pose(0.5),

@@ -5,7 +5,7 @@ carries two, its row says so. BetterHuman's glossary links this page and adds on
 
 Every word of every public name, method, field and parameter is on this page: a term in the bold first column of a
 table, or an [everyday word](#everyday-words) at the end. A term may span several words of a name (`free flyer`
-spells `add_free_flyer_root`), and a plural matches its singular.
+spells two words of `JointFreeFlyer`), and a plural matches its singular.
 `tests/contract/test_vocabulary.py::test_glossary_words` checks it; a change that adds a word adds it here.
 
 ## How names are built
