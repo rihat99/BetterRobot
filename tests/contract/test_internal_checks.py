@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import ast
 import os
-import subprocess
-import sys
+import runpy
 from pathlib import Path
 
 import pytest
@@ -162,21 +161,18 @@ def _unguarded() -> dict[str, list[int]]:
     return offenders
 
 
-def test_the_switch_is_read_once_by_its_module() -> None:
-    """Only ``_internal_checks.py`` names the variable, and ``ENABLED`` follows it in a fresh interpreter."""
+def test_the_switch_is_read_once_by_its_module(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only ``_internal_checks.py`` names the variable, and ``ENABLED`` follows it when the module runs afresh."""
     readers = [
         path.relative_to(SRC).as_posix()
         for path in SRC.rglob("*.py")
         if "BETTER_ROBOT_INTERNAL_CHECKS" in path.read_text()
     ]
     assert readers == ["_internal_checks.py"]
-    script = "import better_robot._internal_checks as checks; print(checks.ENABLED)"
-    for value, expected in (("1", "True"), ("", "False")):
-        environment = {**os.environ, "BETTER_ROBOT_INTERNAL_CHECKS": value}
-        result = subprocess.run(
-            [sys.executable, "-c", script], env=environment, capture_output=True, text=True, check=True
-        )
-        assert result.stdout.strip() == expected
+    # The module imports only os and torch, so running its file in this process is a fresh import of it.
+    for value, expected in (("1", True), ("", False)):
+        monkeypatch.setenv("BETTER_ROBOT_INTERNAL_CHECKS", value)
+        assert runpy.run_path(str(SRC / "_internal_checks.py"))["ENABLED"] is expected
 
 
 def test_the_test_tiers_run_with_the_switch_on() -> None:
