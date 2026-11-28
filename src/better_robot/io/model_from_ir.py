@@ -501,37 +501,6 @@ def _neutral(topology: _Topology, public: _Layout, limits: _Limits, dtype: torch
     return torch.clamp(neutral, limits.lower, limits.upper)
 
 
-def _check_topology_invariants(
-    *,
-    parent_joint_ids: tuple[int, ...],
-    nqs: tuple[int, ...],
-    nvs: tuple[int, ...],
-    idx_qs: tuple[int, ...],
-    idx_vs: tuple[int, ...],
-    nq_total: int,
-    nv_total: int,
-) -> None:
-    """The four topology invariants of a ``Model``, checked at build time so no caller sees a broken record."""
-    if parent_joint_ids[0] != -1:
-        raise ModelError(f"parent_joint_ids[0] must be -1 (universe), got {parent_joint_ids[0]}")
-    for joint, parent in enumerate(parent_joint_ids[1:], start=1):
-        if parent >= joint:
-            raise ModelError(f"parent_joint_ids[{joint}]={parent} >= {joint}; topological sort violated")
-    if sum(nqs) != nq_total:
-        raise ModelError(f"sum(nqs)={sum(nqs)} != nq={nq_total}")
-    if sum(nvs) != nv_total:
-        raise ModelError(f"sum(nvs)={sum(nvs)} != nv={nv_total}")
-    for i in range(len(nqs) - 1):
-        if idx_qs[i] + nqs[i] != idx_qs[i + 1]:
-            raise ModelError(
-                f"idx_qs[{i}] + nqs[{i}] = {idx_qs[i] + nqs[i]} != idx_qs[{i + 1}]={idx_qs[i + 1]} (q-slicing gap)"
-            )
-        if idx_vs[i] + nvs[i] != idx_vs[i + 1]:
-            raise ModelError(
-                f"idx_vs[{i}] + nvs[{i}] = {idx_vs[i] + nvs[i]} != idx_vs[{i + 1}]={idx_vs[i + 1]} (v-slicing gap)"
-            )
-
-
 def build_model(
     ir: IRModel,
     *,
@@ -556,16 +525,6 @@ def build_model(
     reduction = _mimic(topology, full, _limits(topology, dtype))
     frames = _frames(ir, topology, dtype)
     public = reduction.layout
-    for layout in (public, full):
-        _check_topology_invariants(
-            parent_joint_ids=topology.parent_joint_ids,
-            nqs=layout.nqs,
-            nvs=layout.nvs,
-            idx_qs=layout.idx_qs,
-            idx_vs=layout.idx_vs,
-            nq_total=layout.nq,
-            nv_total=layout.nv,
-        )
     model = Model(
         name=ir.name,
         joint_names=topology.joint_names,

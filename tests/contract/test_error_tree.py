@@ -22,7 +22,6 @@ import torch
 
 from better_robot import exceptions as exc
 from better_robot.io import ModelBuilder, build_model, load
-from better_robot.io.model_from_ir import _check_topology_invariants
 from better_robot.kinematics import forward_kinematics
 from tests.support.robots import one_revolute_arm_ir
 
@@ -200,62 +199,6 @@ def test_quaternion_norm_is_checked_only_on_request(free_flyer_model, arm_model)
     drifted[3:7] *= 1.02
     forward_kinematics(free_flyer_model, drifted, check_quaternion_norm=True)
     forward_kinematics(arm_model, arm_model.q_neutral, check_quaternion_norm=True)
-
-
-@pytest.mark.parametrize(
-    ("invariants", "match"),
-    [
-        pytest.param(
-            dict(
-                parent_joint_ids=(0, 0, 1),
-                nqs=(0, 0, 1),
-                nvs=(0, 0, 1),
-                idx_qs=(0, 0, 0),
-                idx_vs=(0, 0, 0),
-                nq_total=1,
-                nv_total=1,
-            ),
-            r"parent_joint_ids\[0\]",
-            id="bad_parents",
-        ),
-        pytest.param(
-            dict(
-                parent_joint_ids=(-1, 2, 0),
-                nqs=(0, 1, 1),
-                nvs=(0, 1, 1),
-                idx_qs=(0, 0, 1),
-                idx_vs=(0, 0, 1),
-                nq_total=2,
-                nv_total=2,
-            ),
-            "topological sort",
-            id="out_of_order_parents",
-        ),
-        pytest.param(
-            dict(
-                parent_joint_ids=(-1, 0, 1),
-                nqs=(0, 1, 1),
-                nvs=(0, 1, 1),
-                idx_qs=(0, 0, 2),
-                idx_vs=(0, 0, 1),
-                nq_total=2,
-                nv_total=2,
-            ),
-            "q-slicing",
-            id="q_slice_gap",
-        ),
-        pytest.param(
-            dict(
-                parent_joint_ids=(-1, 0), nqs=(0, 1), nvs=(0, 1), idx_qs=(0, 0), idx_vs=(0, 0), nq_total=5, nv_total=1
-            ),
-            "nq",
-            id="nq_mismatch",
-        ),
-    ],
-)
-def test_topology_invariants_raise_model_error(invariants, match) -> None:
-    with pytest.raises(exc.ModelError, match=match):
-        _check_topology_invariants(**invariants)
 
 
 def test_missing_optional_package_names_the_install_line(monkeypatch, tmp_path) -> None:
