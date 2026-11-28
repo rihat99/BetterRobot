@@ -1,6 +1,1 @@
-{
-  "src/better_robot/lie/alignment.py::_require_tensor_condition SLF001": {
-    "count": 1,
-    "reason": "torch._assert_async is torch's one assert that does not sync the host; it serves umeyama's finite-value scan (value_checks.json), whose opt-in replacement changes umeyama's signature: parked for the owner"
-  }
-}
+{}

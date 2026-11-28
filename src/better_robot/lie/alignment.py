@@ -9,15 +9,14 @@ from __future__ import annotations
 import torch
 
 from ..exceptions import ArgumentError, ShapeError
-from ._checks import check_broadcast, check_tensor
+from .checks import check_broadcast, check_tensor
 
 
-def _require_tensor_condition(condition: torch.Tensor, message: str) -> None:
-    """Reject invalid eager inputs without synchronizing valid CUDA calls."""
-    try:
-        torch._assert_async(condition, message)
-    except RuntimeError as exc:
-        raise ArgumentError(message) from exc
+def _check_values(condition: torch.Tensor, message: str) -> None:
+    """``ArgumentError`` with ``message`` unless every element of ``condition`` holds; it reads values (a host sync), so
+    only ``umeyama(..., check_values=True)`` calls it."""
+    if not bool(condition.all()):  # bench-ok: opt-in check_values
+        raise ArgumentError(message)
 
 
 def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
@@ -32,33 +31,17 @@ def _validate_point_sets(source: torch.Tensor, target: torch.Tensor) -> None:
     if source.shape[-2] < 3:
         raise ShapeError(f"at least 3 points are required, got {source.shape[-2]}")
     check_broadcast(source=source.shape[:-2], target=target.shape[:-2])
-    _require_tensor_condition(
-        torch.isfinite(source).all() & torch.isfinite(target).all(),
-        "source and target must contain only finite values",
-    )
 
 
-def _normalized_fit_weights(
-    source: torch.Tensor,
-    weights: torch.Tensor | None,
-) -> torch.Tensor:
+def _fit_weights(source: torch.Tensor, weights: torch.Tensor | None) -> torch.Tensor:
     weight_shape = source.shape[:-1]
     if weights is None:
-        fit_weights = source.new_ones(weight_shape)
-    else:
-        check_tensor("weights", weights, shape=(), dtype=source.dtype, device=source.device, owner="source")
-        try:
-            fit_weights = torch.broadcast_to(weights, weight_shape)
-        except RuntimeError as exc:
-            raise ShapeError(f"weights must broadcast to {tuple(weight_shape)}, got {tuple(weights.shape)}") from exc
-
-    _require_tensor_condition(
-        torch.isfinite(fit_weights).all() & (fit_weights >= 0).all(),
-        "weights must be finite and non-negative",
-    )
-    weight_sum = fit_weights.sum(dim=-1, keepdim=True)
-    _require_tensor_condition((weight_sum > 0).all(), "weights must have a positive sum")
-    return fit_weights / weight_sum
+        return source.new_ones(weight_shape)
+    check_tensor("weights", weights, shape=(), dtype=source.dtype, device=source.device, owner="source")
+    try:
+        return torch.broadcast_to(weights, weight_shape)
+    except RuntimeError as exc:
+        raise ShapeError(f"weights must broadcast to {tuple(weight_shape)}, got {tuple(weights.shape)}") from exc
 
 
 def umeyama(
@@ -67,6 +50,7 @@ def umeyama(
     *,
     weights: torch.Tensor | None = None,
     estimate_scale: bool = True,
+    check_values: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Fit a proper 3D similarity transform by weighted Umeyama alignment.
 
@@ -79,10 +63,25 @@ def umeyama(
     Returns ``(scale, rotation, translation)`` with shapes ``(...)``,
     ``(..., 3, 3)``, and ``(..., 3)``.  The SVD reflection correction
     guarantees ``det(rotation) = +1``.
+
+    ``check_values=True`` also reads the values, one host sync per check, and
+    raises ``ArgumentError`` for non-finite points, weights that are not finite
+    and non-negative or do not sum to a positive number, and a source with
+    zero weighted variance. It is off by default, like every value check
+    (C-ERR-1): such input then gives non-finite results, or torch's own error
+    from the SVD.
     """
     _validate_point_sets(source, target)
     source, target = torch.broadcast_tensors(source, target)
-    normalized_weights = _normalized_fit_weights(source, weights)
+    fit_weights = _fit_weights(source, weights)
+    weight_sum = fit_weights.sum(dim=-1, keepdim=True)
+    if check_values:
+        _check_values(
+            torch.isfinite(source) & torch.isfinite(target), "source and target must contain only finite values"
+        )
+        _check_values(torch.isfinite(fit_weights) & (fit_weights >= 0), "weights must be finite and non-negative")
+        _check_values(weight_sum > 0, "weights must have a positive sum")
+    normalized_weights = fit_weights / weight_sum
 
     source_mean = (normalized_weights.unsqueeze(-1) * source).sum(dim=-2)
     target_mean = (normalized_weights.unsqueeze(-1) * target).sum(dim=-2)
@@ -109,10 +108,8 @@ def umeyama(
     rotation = (u * correction.unsqueeze(-2)) @ vh
 
     source_variance = (normalized_weights * source_centered.square().sum(dim=-1)).sum(dim=-1)
-    _require_tensor_condition(
-        (source_variance > torch.finfo(source.dtype).eps).all(),
-        "source point set has zero weighted variance",
-    )
+    if check_values:
+        _check_values(source_variance > torch.finfo(source.dtype).eps, "source point set has zero weighted variance")
     if estimate_scale:
         scale = (singular_values * correction).sum(dim=-1) / source_variance
     else:

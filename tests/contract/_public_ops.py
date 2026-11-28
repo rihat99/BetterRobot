@@ -189,8 +189,6 @@ NOT_DRIVEN: dict[str, str] = {
     "se3.identity": _NO_TENSOR,
     "so3.identity": _NO_TENSOR,
     "spatial.orient_faces_by_component": _FACES,
-    "spatial.orient_faces_consistently": _FACES,
-    "spatial.validate_closed_manifold": _FACES,
 }
 
 

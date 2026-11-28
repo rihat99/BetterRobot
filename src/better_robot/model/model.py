@@ -12,7 +12,7 @@ from torch.utils import _pytree
 
 from ..exceptions import ArgumentError, ModelError, ShapeError, UnknownNameError
 from ..lie import se3
-from ..lie._checks import broadcast_batch, check_dtype, check_tensor
+from ..lie.checks import broadcast_batch, check_dtype, check_tensor
 from .joints.base import JointModel
 
 _TENSOR_FIELDS = (

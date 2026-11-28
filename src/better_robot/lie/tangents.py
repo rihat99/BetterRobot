@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import torch
 
-from ._checks import check_tensor
+from .checks import check_tensor
 from .so3 import _taylor_theta2
 
 # ────────────────────────── hat / vee ──────────────────────────────────────

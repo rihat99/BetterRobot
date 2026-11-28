@@ -11,50 +11,12 @@ import torch
 import trimesh
 
 from better_robot.spatial import inertia_of_mesh, rotational_inertia
-
-
-def _box_mesh(
-    size: tuple[float, float, float] = (2.0, 3.0, 4.0),
-    *,
-    dtype: torch.dtype = torch.float64,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    hx, hy, hz = (length / 2.0 for length in size)
-    vertices = torch.tensor(
-        [
-            [-hx, -hy, -hz],
-            [hx, -hy, -hz],
-            [hx, hy, -hz],
-            [-hx, hy, -hz],
-            [-hx, -hy, hz],
-            [hx, -hy, hz],
-            [hx, hy, hz],
-            [-hx, hy, hz],
-        ],
-        dtype=dtype,
-    )
-    faces = torch.tensor(
-        [
-            [0, 2, 1],
-            [0, 3, 2],
-            [4, 5, 6],
-            [4, 6, 7],
-            [0, 1, 5],
-            [0, 5, 4],
-            [3, 7, 6],
-            [3, 6, 2],
-            [0, 4, 7],
-            [0, 7, 3],
-            [1, 2, 6],
-            [1, 6, 5],
-        ],
-        dtype=torch.long,
-    )
-    return vertices, faces
+from tests.support.meshes import box_mesh
 
 
 def test_box_matches_closed_form_with_translation_and_density() -> None:
-    size = (2.0, 3.0, 4.0)
-    vertices, faces = _box_mesh(size)
+    size = (2.0, 3.0, 4.0)  # the box of box_mesh
+    vertices, faces = box_mesh(torch.float64)
     translation = torch.tensor([1000.0, -2000.0, 3000.0], dtype=torch.float64)
     density = 2.5
     inertia = inertia_of_mesh(vertices + translation, faces, density=density)
@@ -75,14 +37,14 @@ def test_box_matches_closed_form_with_translation_and_density() -> None:
 
 
 def test_global_face_winding_is_orientation_invariant() -> None:
-    vertices, faces = _box_mesh()
+    vertices, faces = box_mesh(torch.float64)
     forward = inertia_of_mesh(vertices, faces, density=1.7)
     reversed_winding = inertia_of_mesh(vertices, faces.flip(-1), density=1.7)
     torch.testing.assert_close(reversed_winding, forward, atol=1e-12, rtol=1e-12)
 
 
 def test_multi_axis_batch_and_density_match_per_element_loop() -> None:
-    vertices, faces = _box_mesh(dtype=torch.float32)
+    vertices, faces = box_mesh(torch.float32)
     scales = torch.tensor([[0.7, 1.1, 1.4], [0.9, 1.3, 1.8]], dtype=torch.float32)
     translations = torch.arange(18, dtype=torch.float32).reshape(2, 3, 3) * 0.1
     batched_vertices = vertices.reshape(1, 1, 8, 3) * scales[..., None, None]
@@ -98,7 +60,7 @@ def test_multi_axis_batch_and_density_match_per_element_loop() -> None:
 
 
 def test_number_and_tensor_density_agree_and_default_to_unit_density() -> None:
-    vertices, faces = _box_mesh()
+    vertices, faces = box_mesh(torch.float64)
     torch.testing.assert_close(
         inertia_of_mesh(vertices, faces, density=2),
         inertia_of_mesh(vertices, faces, density=torch.tensor(2.0, dtype=torch.float64)),
@@ -109,7 +71,7 @@ def test_number_and_tensor_density_agree_and_default_to_unit_density() -> None:
 
 
 def test_vertex_and_density_autograd() -> None:
-    vertices, faces = _box_mesh()
+    vertices, faces = box_mesh(torch.float64)
     vertices = vertices.requires_grad_(True)
     density = torch.tensor(1.3, dtype=torch.float64, requires_grad=True)
     inertia = inertia_of_mesh(vertices, faces, density=density)
@@ -124,7 +86,7 @@ def test_vertex_and_density_autograd() -> None:
 
 
 def test_float64_vertex_gradcheck() -> None:
-    vertices, faces = _box_mesh()
+    vertices, faces = box_mesh(torch.float64)
     vertices = vertices + torch.linspace(-0.01, 0.01, vertices.numel(), dtype=torch.float64).reshape_as(vertices)
     vertices.requires_grad_(True)
     assert torch.autograd.gradcheck(
@@ -138,7 +100,7 @@ def test_float64_vertex_gradcheck() -> None:
 
 
 def test_matches_trimesh_reference() -> None:
-    vertices, faces = _box_mesh()
+    vertices, faces = box_mesh(torch.float64)
     reference = trimesh.Trimesh(vertices=vertices.numpy(), faces=faces.numpy(), process=False)
     actual = inertia_of_mesh(vertices, faces)
 
@@ -163,7 +125,7 @@ def test_degenerate_mesh_raises_only_when_checked() -> None:
 
 
 def test_checked_valid_mesh_matches_unchecked() -> None:
-    vertices, faces = _box_mesh()
+    vertices, faces = box_mesh(torch.float64)
     assert torch.equal(inertia_of_mesh(vertices, faces, check_mesh=True), inertia_of_mesh(vertices, faces))
 
 
@@ -183,14 +145,14 @@ def test_checked_valid_mesh_matches_unchecked() -> None:
     ],
 )
 def test_check_mesh_reads_the_values(edit, match: str) -> None:
-    vertices, faces, density = edit(*_box_mesh(), torch.tensor(1.0, dtype=torch.float64))
+    vertices, faces, density = edit(*box_mesh(torch.float64), torch.tensor(1.0, dtype=torch.float64))
     with pytest.raises(ValueError, match=match):
         inertia_of_mesh(vertices, faces, density=density, check_mesh=True)
 
 
 def test_unchecked_call_reads_no_values() -> None:
     """A NaN vertex and a negative density pass through without a host-side check."""
-    vertices, faces = _box_mesh()
+    vertices, faces = box_mesh(torch.float64)
     vertices = vertices.index_fill(0, torch.tensor([0]), torch.nan)
     assert torch.isnan(inertia_of_mesh(vertices, faces, density=-1.0)).any()
 
@@ -231,7 +193,7 @@ def test_unchecked_call_reads_no_values() -> None:
     ],
 )
 def test_structure_is_checked(vertices, faces, density, error: type, match: str) -> None:
-    box_vertices, box_faces = _box_mesh()
+    box_vertices, box_faces = box_mesh(torch.float64)
     with pytest.raises(error, match=match):
         inertia_of_mesh(
             box_vertices if vertices is None else vertices, box_faces if faces is None else faces, density=density

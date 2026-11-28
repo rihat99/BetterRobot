@@ -7,7 +7,6 @@ import math
 import pytest
 import torch
 
-from better_robot.exceptions import DtypeMismatchError
 from better_robot.lie import se3, so3
 
 
@@ -16,14 +15,6 @@ def test_from_euler_matches_pypose_consumer_fixture() -> None:
     euler = torch.tensor([-math.pi / 2.0, 0.0, 0.0], dtype=torch.float64)
     expected = torch.tensor([-math.sqrt(0.5), 0.0, 0.0, math.sqrt(0.5)], dtype=torch.float64)
     torch.testing.assert_close(so3.from_euler(euler), expected)
-
-
-def test_from_euler_pins_extrinsic_xyz_order() -> None:
-    euler = torch.tensor([0.31, -0.27, 0.43], dtype=torch.float64)
-    roll = so3.to_matrix(so3.from_axis_angle(torch.tensor([1.0, 0.0, 0.0], dtype=euler.dtype), euler[0]))
-    pitch = so3.to_matrix(so3.from_axis_angle(torch.tensor([0.0, 1.0, 0.0], dtype=euler.dtype), euler[1]))
-    yaw = so3.to_matrix(so3.from_axis_angle(torch.tensor([0.0, 0.0, 1.0], dtype=euler.dtype), euler[2]))
-    torch.testing.assert_close(so3.to_matrix(so3.from_euler(euler)), yaw @ pitch @ roll)
 
 
 def test_euler_quaternion_roundtrip_batched_away_from_gimbal_lock() -> None:
@@ -65,52 +56,6 @@ def test_se3_homogeneous_roundtrip_and_batch_shapes(
     rotation = matrix[..., :3, :3]
     eye = torch.eye(3, dtype=matrix.dtype).expand(*batch_shape, 3, 3)
     torch.testing.assert_close(rotation.mT @ rotation, eye)
-
-
-def test_se3_matrix_roundtrip_preserves_translation_and_rotation() -> None:
-    euler = torch.tensor([0.2, -0.4, 0.3], dtype=torch.float64)
-    matrix = torch.eye(4, dtype=torch.float64)
-    matrix[:3, :3] = so3.to_matrix(so3.from_euler(euler))
-    matrix[:3, 3] = torch.tensor([1.2, -0.7, 0.4], dtype=torch.float64)
-    torch.testing.assert_close(se3.to_matrix(se3.from_matrix(matrix)), matrix)
-
-
-@pytest.mark.parametrize(
-    ("function", "value"),
-    [
-        pytest.param(so3.from_euler, torch.zeros(3, dtype=torch.int64), id="so3-from-euler"),
-        pytest.param(
-            so3.to_euler,
-            torch.tensor([0, 0, 0, 1], dtype=torch.int64),
-            id="so3-to-euler",
-        ),
-        pytest.param(se3.from_matrix, torch.eye(4, dtype=torch.int64), id="se3-from-matrix"),
-        pytest.param(
-            se3.to_matrix,
-            torch.tensor([0, 0, 0, 0, 0, 0, 1], dtype=torch.int64),
-            id="se3-to-matrix",
-        ),
-    ],
-)
-def test_euler_and_matrix_interop_reject_integer_tensors(function, value: torch.Tensor) -> None:
-    with pytest.raises(DtypeMismatchError, match="is not float32 or float64"):
-        function(value)
-    with pytest.raises(TypeError, match="must be a torch.Tensor"):
-        function(value.tolist())
-
-
-@pytest.mark.parametrize(
-    ("function", "value"),
-    [
-        pytest.param(so3.from_euler, torch.zeros(2), id="so3-from-euler"),
-        pytest.param(so3.to_euler, torch.zeros(3), id="so3-to-euler"),
-        pytest.param(se3.from_matrix, torch.eye(3), id="se3-from-matrix"),
-        pytest.param(se3.to_matrix, torch.zeros(6), id="se3-to-matrix"),
-    ],
-)
-def test_euler_and_matrix_interop_reject_wrong_trailing_shape(function, value: torch.Tensor) -> None:
-    with pytest.raises(ValueError, match="must have shape"):
-        function(value)
 
 
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])

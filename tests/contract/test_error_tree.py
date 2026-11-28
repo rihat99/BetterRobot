@@ -36,8 +36,8 @@ _NOT_A_STATE = "a state that is not a KinematicState is a Python TypeError"
 PLAIN_RAISES: dict[str, tuple[int, str]] = {
     "src/better_robot/collision/robot_spheres.py::_check_attached TypeError": (1, _NOT_A_STATE),
     "src/better_robot/kinematics/forward.py::check_state TypeError": (1, _NOT_A_STATE),
-    "src/better_robot/lie/_checks.py::check_index_tensor TypeError": (1, _NOT_A_TENSOR),
-    "src/better_robot/lie/_checks.py::check_tensor TypeError": (1, _NOT_A_TENSOR),
+    "src/better_robot/lie/checks.py::check_index_tensor TypeError": (1, _NOT_A_TENSOR),
+    "src/better_robot/lie/checks.py::check_tensor TypeError": (1, _NOT_A_TENSOR),
     "src/better_robot/spatial/inertia.py::_density_tensor TypeError": (1, _NOT_A_TENSOR),
 }
 BASES: dict[type, type] = {

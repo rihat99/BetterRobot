@@ -9,12 +9,15 @@ flag that defaults to off, such as `check_quaternion_norm=False` on `forward_kin
 ## C-ERR-1 Validate at public boundaries only (MUST)
 
 Private helpers (`_name`) and the raw tensor passes in `kinematics`/`dynamics` do no checks. Public wrappers
-check each tensor input once with the one validator, `better_robot.lie._checks.check_tensor` (`check_tensors` for
-several tensors on one dtype and device; `lie`, `spatial` and the model boundaries all call it), align batches
-with `better_robot.model._checks`, and nothing else re-checks. The validator accepts float32 and float64 tensors.
+check each tensor input once with the one validator, `better_robot.lie.checks.check_tensor` (`check_tensors` for
+several tensors on one dtype and device; `lie`, `spatial` and the model boundaries all call it; an integer index
+table, such as faces, frame ids or sphere pairs, goes through `check_index_tensor`), align batches with
+`better_robot.model._checks`, and nothing else re-checks. The validator accepts float32 and float64 tensors.
 `check_tensors` also requires the batch axes before each trailing shape to broadcast
-(`src/better_robot/lie/_checks.py::check_broadcast`): a mismatch raises `ShapeError` naming both arguments, not
-torch's `RuntimeError` from inside the computation.
+(`src/better_robot/lie/checks.py::check_broadcast`): a mismatch raises `ShapeError` naming both arguments, not
+torch's `RuntimeError` from inside the computation. `lie.checks` is public (`check_tensor`, `check_index_tensor`,
+`check_dtype`, `check_broadcast`), so a library built on BetterRobot checks its own boundaries with the same rules
+and messages instead of a copy.
 Validation must not read tensor values (no `isfinite`, no `.item()`), because that is a host sync (`02`) and
 breaks `vmap` (`04`).
 

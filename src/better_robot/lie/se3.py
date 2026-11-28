@@ -12,7 +12,7 @@ from __future__ import annotations
 import torch
 
 from . import so3
-from ._checks import check_tensor, check_tensors
+from .checks import check_tensor, check_tensors
 from .so3 import _taylor_theta2
 from .tangents import hat_so3_raw, right_jacobian_so3_raw
 

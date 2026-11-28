@@ -118,7 +118,6 @@ The `q` and `v` layout of each kind is in the [coupling standard](../contracts/c
 | **difference** | The tangent that moves one manifold value to another. `kinematics.difference(model, q0, q1)` returns it for robot configurations. |
 | **manifold** | A space that is locally vector-like but may be curved globally, such as rotations or unit quaternions. An `optim.Manifold` tells a solver how to step a variable on one. |
 | **Euclidean** | A flat space, where a step is an addition (`optim.Euclidean`; `kinematics.euclidean_columns`, the coordinates of joints that integrate by addition). |
-| **closed manifold** | A triangle mesh without boundary: every edge is shared by exactly two faces (`spatial.validate_closed_manifold`). |
 
 For a visual and mathematical introduction, see [Poses and twists](../lie-and-spatial.md).
 
@@ -214,12 +213,13 @@ See [Optimisation](../optim-and-terms.md) for the complete problem and solver mo
 |---|---|
 | **PyTorch, torch** | The tensor library BetterRobot runs on, and its only implementation. |
 | **event shape** | Trailing axes that describe one value, such as `(nq,)` or `(6, nv)`. |
-| **batch shape, `B...`** | Any leading axes that represent independent evaluations. |
+| **batch, batch shape, `B...`** | Any leading axes that represent independent evaluations. |
 | **model batch, `I...`** | Optional leading axes of a model's tensor values (`joint_placements (I..., njoints, 7)`): robots with one topology. A state's batch is `broadcast(B..., I...)`. |
 | **batching** | Evaluate many independent inputs in one tensor call instead of a Python loop. |
-| **broadcasting** | Reuse a size-one or missing batch axis across a compatible larger batch, following PyTorch rules. |
+| **broadcast, broadcasting** | Reuse a size-one or missing batch axis across a compatible larger batch, following PyTorch rules. |
 | **device** | Where a tensor lives, such as the CPU or one CUDA GPU. |
 | **dtype** | The tensor's numeric type, such as `torch.float32` or `torch.float64`. |
+| **tensor** | A `torch.Tensor`, the library's only array type; `lie.checks` validates each one a public function receives. |
 | **compute pass** | One complete operation over the robot, such as FK or RNEA. |
 | **compiled** | A call turned by `torch.compile` into one graph of fused kernels, made on request by `kinematics.compiled`; eager, the default, runs each torch operator as it comes. |
 
@@ -332,17 +332,17 @@ These words keep their ordinary English meaning in public names.
 
 actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, axes, axis, azimuth, band, bone, border, box,
 build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color, column,
-component, consistently, constrained, corner, create, cylinder, dark, decrease, delta, dense, density, dependency,
+component, constrained, corner, create, cylinder, dark, decrease, delta, dense, density, dependency,
 diagnostics, diagonal, direction, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,
 estimate, evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize,
 flat, floor, folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, growth, half, head,
 height, high, history, hit, host, identity, ignore, image, imported, in, index, inequality, install, inverse, iteration,
 keep, key, label, layout, length, light, limit, line, linearize, load, lock, loop, low, lower, masked, mass, match,
 matrix, mesh, mismatch, mode, multiplier, name, nearest, new, no, norm, normalize, object, of, offset, old, on, opacity,
-option, optional, order, orient, other, outer, output, package, page, pair, panel, parse, path, pause, penalty,
+option, optional, order, orient, other, outer, output, owner, package, page, pair, panel, parse, path, pause, penalty,
 permutation, pitch, plane, play, playing, plot, point, pointer, port, position, predicted, project, public, radii,
 radius, ramp, random, range, read, reason, record, remove, replace, resize, restrict, result, rigid, robot, role, run,
 save, scalar, scale, scene, scheduler, search, section, segment, serializer, series, server, set, shading, shadow,
 shaft, show, side, size, skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere,
 squared, start, stop, target, testing, text, theme, time, timeout, to, tolerance, top, unknown, up, update,
-upper, valid, validate, value, vector, vertices, visible, voxel, wait, weight, width, with, word
+upper, valid, value, vector, vertices, visible, voxel, wait, weight, width, with, word

@@ -20,7 +20,7 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from ..lie.tangents import hat_so3_raw
-from ..lie._checks import broadcast_batch, check_tensor, check_tensors
+from ..lie.checks import broadcast_batch, check_tensor, check_tensors
 from .mesh import _check_face_table
 
 
@@ -188,7 +188,7 @@ def inertia_of_mesh(
 
     ``vertices: (..., V, 3)``, with leading axes a batch that stays differentiable; ``faces: (F, 3)`` int32 or int64
     on the device of ``vertices``, shared by the batch, bounding a closed, non-self-intersecting, consistently wound
-    surface (either global winding; `orient_faces_consistently` repairs mixed winding). ``density`` is a number or a
+    surface (either global winding; `orient_faces_by_component` repairs mixed winding). ``density`` is a number or a
     tensor of shape ``()`` or ``vertices.shape[:-2]`` on the dtype and device of ``vertices``; the default 1 gives
     the inertia per unit density, whose mass is the volume. Each face and the origin span a signed tetrahedron whose
     volume, first and second moments are summed in closed form, after the origin moves to the vertex mean to limit

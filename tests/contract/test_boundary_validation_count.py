@@ -17,7 +17,7 @@ import pytest
 import torch
 
 from better_robot import dynamics, kinematics
-from better_robot.lie import _checks
+from better_robot.lie import checks
 
 from ._public_ops import CASE_NAMES, build_case
 
@@ -28,7 +28,7 @@ _CPU = torch.device("cpu")
 def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Names passed to ``check_tensor`` and ``check_tensors`` by any ``better_robot`` module during the test."""
     names: list[str] = []
-    check_tensor, check_tensors = _checks.check_tensor, _checks.check_tensors
+    check_tensor, check_tensors = checks.check_tensor, checks.check_tensors
 
     def counted(name: str, value: object, **kwargs: object) -> torch.Tensor:
         names.append(name)
@@ -39,7 +39,7 @@ def checked_names(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         check_tensors(**tensors)
 
     for name, module in list(sys.modules.items()):
-        if name.startswith("better_robot.") and module is not _checks:
+        if name.startswith("better_robot.") and module is not checks:
             if vars(module).get("check_tensor") is check_tensor:
                 monkeypatch.setattr(module, "check_tensor", counted)
             if vars(module).get("check_tensors") is check_tensors:

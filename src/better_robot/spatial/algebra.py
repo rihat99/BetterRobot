@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 
 from ..lie import so3
-from ..lie._checks import broadcast_batch, check_tensors
+from ..lie.checks import broadcast_batch, check_tensors
 from .inertia import inertia_from_mass_com_raw, rotational_inertia_raw
 
 

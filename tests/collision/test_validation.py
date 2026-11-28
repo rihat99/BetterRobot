@@ -1,5 +1,5 @@
-"""Every public collision function validates its inputs' types, shapes, dtypes and devices (AUDIT_BR finding 2,
-C-ERR-1, C-ERR-2): a typed error naming the fix, never a silent promotion or a raw ``RuntimeError``."""
+"""Every public collision function validates its inputs' types, shapes, dtypes and devices (C-ERR-1, C-ERR-2): a
+typed error naming the fix, never a silent promotion or a raw ``RuntimeError``."""
 
 from __future__ import annotations
 
@@ -9,53 +9,38 @@ import torch
 import better_robot as br
 from better_robot import collision, kinematics
 from better_robot.exceptions import ArgumentError, DeviceMismatchError, DtypeMismatchError, ShapeError
+from tests.support.boundary import check_boundary
+from tests.support.cases import failures
 from tests.support.robots import panda_urdf
 
-
-def _tensor(*shape: int) -> torch.Tensor:
-    return torch.zeros(*shape)
-
-
-#: Each distance function with valid ``(args, kwargs)`` and the name of one ``(..., 3)`` input to corrupt.
+#: Each distance function with the trailing shape of each tensor parameter, in call order, and its other arguments
+#: (``sphere_sdf``'s grid has no batch axes and its origin is one point, so neither takes the default batch).
 DISTANCES = {
-    "sphere_sphere": ((_tensor(4, 3), _tensor(4)), {"center_b": _tensor(4, 3), "radius_b": _tensor(4)}, "center_b"),
-    "sphere_capsule": (
-        (_tensor(4, 3), _tensor(4)),
-        {"start": _tensor(4, 3), "end": torch.ones(4, 3), "capsule_radius": _tensor(4)},
-        "end",
-    ),
+    "sphere_sphere": ({"center_a": (3,), "radius_a": (), "center_b": (3,), "radius_b": ()}, {}),
+    "sphere_capsule": ({"center": (3,), "radius": (), "start": (3,), "end": (3,), "capsule_radius": ()}, {}),
     "capsule_capsule": (
-        (_tensor(4, 3), torch.ones(4, 3)),
-        {"radius_a": _tensor(4), "start_b": _tensor(4, 3), "end_b": torch.ones(4, 3), "radius_b": _tensor(4)},
-        "start_b",
+        {"start_a": (3,), "end_a": (3,), "radius_a": (), "start_b": (3,), "end_b": (3,), "radius_b": ()},
+        {},
     ),
-    "sphere_halfspace": ((_tensor(4, 3), _tensor(4)), {"normal": torch.ones(3), "offset": 0.0}, "normal"),
+    "sphere_halfspace": ({"center": (3,), "radius": (), "normal": (3,)}, {"offset": 0.0}),
     "sphere_box": (
-        (_tensor(4, 3), _tensor(4)),
-        {"box_center": _tensor(3), "box_rotation": torch.eye(3), "half_extents": torch.ones(3)},
-        "half_extents",
+        {"center": (3,), "radius": (), "box_center": (3,), "box_rotation": (3, 3), "half_extents": (3,)},
+        {},
     ),
     "sphere_sdf": (
-        (_tensor(4, 3), _tensor(4)),
-        {"grid": torch.zeros(3, 3, 3), "origin": _tensor(3), "voxel_size": 0.1},
-        "origin",
+        {"center": (3,), "radius": (), "origin": (3,)},
+        {"origin": torch.zeros(3), "grid": torch.zeros(3, 3, 3), "voxel_size": 0.1},
     ),
 }
 
 
-@pytest.mark.parametrize("name", sorted(DISTANCES))
-def test_distance_functions_reject_bad_inputs(name: str) -> None:
-    function = getattr(collision, name)
-    args, kwargs, corrupt = DISTANCES[name]
-    assert function(*args, **kwargs).shape == (4,)
-    with pytest.raises(ShapeError, match=rf"{corrupt} must have shape \(\.\.\., 3\), got"):
-        function(*args, **{**kwargs, corrupt: torch.zeros(4)})
-    with pytest.raises(DtypeMismatchError, match=rf"{corrupt}\.dtype=torch\.float64 != (center|start_a)"):
-        function(*args, **{**kwargs, corrupt: kwargs[corrupt].double()})
-    with pytest.raises(DeviceMismatchError, match=rf"{corrupt}\.device=meta != (center|start_a)"):
-        function(*args, **{**kwargs, corrupt: kwargs[corrupt].to("meta")})
-    with pytest.raises(TypeError, match=r"(center|center_a|start_a) must be a torch\.Tensor, got list"):
-        function(args[0].tolist(), *args[1:], **kwargs)
+def test_distance_functions_reject_bad_inputs() -> None:
+    def check(name: str) -> None:
+        shapes, others = DISTANCES[name]
+        check_boundary(getattr(collision, name), shapes, **others)
+
+    failed = failures(check, DISTANCES)
+    assert not failed, "\n".join(failed)
 
 
 def test_sphere_sphere_rejects_a_four_vector() -> None:
@@ -66,7 +51,9 @@ def test_sphere_sphere_rejects_a_four_vector() -> None:
 
 def test_sphere_sdf_needs_a_three_axis_grid() -> None:
     with pytest.raises(ShapeError, match=r"grid must have shape \(X, Y, Z\)"):
-        collision.sphere_sdf(_tensor(3), torch.zeros(()), grid=torch.zeros(3, 3), origin=_tensor(3), voxel_size=0.1)
+        collision.sphere_sdf(
+            torch.zeros(3), torch.zeros(()), grid=torch.zeros(3, 3), origin=torch.zeros(3), voxel_size=0.1
+        )
 
 
 @pytest.fixture(scope="module")
@@ -124,7 +111,8 @@ def test_pairs_reject_spheres_of_another_model(panda: br.model.Model) -> None:
 
 
 def test_robot_spheres_check_their_tables_at_construction() -> None:
-    """The review's calls: (2, 2) offsets and float ids failed later with raw errors, 3 radii for 2 ids passed."""
+    """A bad table raises at construction, not later with a raw error: float or batched ids, (2, 2) offsets, 3 radii
+    for 2 ids, mixed dtypes or devices."""
     ids, offsets, radii = torch.tensor([1, 2]), torch.zeros(2, 3), torch.ones(2)
     bad_tables = [
         ({"frame_ids": ids.float()}, DtypeMismatchError, r"frame_ids\.dtype=torch\.float32 is not torch\.int64"),
@@ -155,8 +143,8 @@ def test_self_distances_name_indices_outside_their_tables(panda: br.model.Model)
 
 
 def test_full_configuration_validates_q() -> None:
-    """The probes of AUDIT_BR finding 2: float64 ``q`` on a float32 model computed in float64, ``(5,)`` raised a raw
-    ``RuntimeError`` and a list an ``AttributeError``."""
+    """A float64 ``q`` on a float32 model, a ``(5,)`` ``q`` and a list raise typed errors, never a float64 result, a
+    raw ``RuntimeError`` or an ``AttributeError``."""
     model = br.load(panda_urdf())
     with pytest.raises(DtypeMismatchError, match=r"q\.dtype=torch\.float64 != model\.dtype=torch\.float32"):
         kinematics.full_configuration(model, model.q_neutral.double())

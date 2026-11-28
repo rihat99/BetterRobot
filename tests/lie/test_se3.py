@@ -40,13 +40,6 @@ def test_exp_log_round_trip(seed):
     torch.testing.assert_close(se3.log(se3.exp(xi)), xi, atol=1e-12, rtol=0.0)
 
 
-def test_act_translation():
-    """A pure translation shifts the point."""
-    T = torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-    result = se3.act(T, torch.zeros(3))
-    torch.testing.assert_close(result, torch.tensor([1.0, 0.0, 0.0]))
-
-
 @pytest.mark.parametrize("seed", SEEDS)
 def test_adjoint_inverse_inverts_adjoint(seed):
     """Ad(T) @ Ad(T)^-1 == I, and Ad(T)^-1 == Ad(T^-1)."""

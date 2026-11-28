@@ -8,7 +8,7 @@ import torch
 
 from ..exceptions import ArgumentError, ShapeError
 from ..kinematics import euclidean_columns
-from ..lie._checks import check_broadcast, check_tensor
+from ..lie.checks import check_broadcast, check_tensor
 from ..model import Model
 from ..optim import LevenbergMarquardt, Phase, Problem, Result, Solver, State, run
 from .robot import RobotManifold, frame_pose, joint_limits, kinematic_state, rest

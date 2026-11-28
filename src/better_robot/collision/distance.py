@@ -14,7 +14,7 @@ import itertools
 import torch
 
 from ..exceptions import ShapeError
-from ..lie._checks import check_tensor, check_tensors
+from ..lie.checks import check_tensor, check_tensors
 
 
 def _norm(vector: torch.Tensor) -> torch.Tensor:
