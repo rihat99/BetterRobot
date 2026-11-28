@@ -1,23 +1,18 @@
-"""Face-table topology helpers for closed triangle meshes, the companions of ``inertia_of_mesh``.
+"""Face-table orientation for triangle meshes, the companion of ``inertia_of_mesh``.
 
 ``inertia_of_mesh`` folds one global winding sign but trusts every face to agree on orientation, so a surface whose
-faces are wound inconsistently gives a wrong result without an error. These helpers change only the integer face
-table (``orient_faces_by_component`` reads the vertices to sign each component's volume), so reorientation is a
-one-time precompute and the vertex integration downstream stays differentiable.
-
-- ``validate_closed_manifold`` rejects open and non-manifold surfaces.
-- ``orient_faces_consistently`` rewinds each connected component so all its faces agree.
-- ``orient_faces_by_component`` does the same on imperfect topology and turns each component outward.
+faces are wound inconsistently gives a wrong result without an error. ``orient_faces_by_component`` rewinds each
+connected component so its faces agree and turns it outward. It changes only the integer face table (it reads the
+vertices to sign each component's volume), so reorientation is a one-time precompute and the vertex integration
+downstream stays differentiable.
 """
 
 from __future__ import annotations
 
 import torch
 
-from ..exceptions import ArgumentError, ShapeError
+from ..exceptions import ShapeError
 from ..lie.checks import check_index_tensor, check_tensors
-
-_MAX_REPORTED_EDGES = 5
 
 
 def _check_face_table(faces: torch.Tensor, *, device: torch.device | None = None) -> None:
@@ -29,70 +24,12 @@ def _check_face_table(faces: torch.Tensor, *, device: torch.device | None = None
         raise ShapeError("faces must have non-empty shape (F, 3), got (0, 3)")
 
 
-def _undirected_edges(faces: torch.Tensor) -> torch.Tensor:
-    """Return the ``(3F, 2)`` sorted undirected edges of every triangle."""
-    faces_long = faces.to(torch.long)
-    directed = torch.stack(
-        (faces_long[:, [0, 1]], faces_long[:, [1, 2]], faces_long[:, [2, 0]]),
-        dim=1,
-    ).reshape(-1, 2)
-    return directed.sort(dim=-1).values
-
-
-def validate_closed_manifold(faces: torch.Tensor) -> None:
-    """Raise unless ``faces`` bound a closed, 2-manifold triangle surface.
-
-    Every undirected edge of a closed 2-manifold is shared by exactly two
-    triangles. This checks that incidence and reports the offending edges.
-    Multiple disjoint closed components are accepted; each must be closed.
-
-    Parameters
-    ----------
-    faces
-        Integer triangle table shaped ``(F, 3)`` indexing a vertex array. Any
-        device is accepted; the edge-incidence reduction runs in place on it.
-
-    Raises
-    ------
-    TypeError, DtypeMismatchError, ShapeError
-        If ``faces`` is not a tensor, not ``torch.int32`` or ``torch.int64``, or
-        not a non-empty ``(F, 3)`` table.
-    ArgumentError
-        If any undirected edge has an incidence other than two: incidence one
-        marks a boundary edge (open surface) and incidence above two marks a
-        non-manifold edge.
-        The message names a few offending edges.
-    """
-    _check_face_table(faces)
-    edges = _undirected_edges(faces)
-    unique_edges, counts = torch.unique(edges, dim=0, return_counts=True)
-    boundary = counts == 1
-    non_manifold = counts > 2
-    if not bool(boundary.any()) and not bool(non_manifold.any()):  # bench-ok: validation reads the edge counts
-        return
-
-    problems: list[str] = []
-    if bool(boundary.any()):  # bench-ok: validation reads the edge counts
-        sample = unique_edges[boundary][:_MAX_REPORTED_EDGES].tolist()  # bench-ok: the error message
-        problems.append(f"{int(boundary.sum())} boundary edge(s) with one incident face (open surface), e.g. {sample}")
-    if bool(non_manifold.any()):  # bench-ok: validation reads the edge counts
-        sample_edges = unique_edges[non_manifold][:_MAX_REPORTED_EDGES].tolist()  # bench-ok: the error message
-        sample_counts = counts[non_manifold][:_MAX_REPORTED_EDGES].tolist()  # bench-ok: the error message
-        sample = list(zip(sample_edges, sample_counts))
-        problems.append(
-            f"{int(non_manifold.sum())} non-manifold edge(s) shared by more than two faces, "
-            f"e.g. (edge, incidence) {sample}"
-        )
-    raise ArgumentError("faces do not form a closed 2-manifold surface: " + "; ".join(problems))
-
-
 def _build_face_adjacency(face_list: list[list[int]]) -> list[list[tuple[int, int]]]:
     """Face-adjacency graph over edges shared by exactly two faces.
 
     Each undirected edge is grouped; only edges with incidence two produce a
     link. Boundary (incidence 1) and non-manifold (incidence > 2) edges are
-    left out, so the graph is well defined for both the strict manifold path
-    and the best-effort ``orient_faces_by_component`` path. ``weight`` is
+    left out, so the graph is well defined on imperfect topology. ``weight`` is
     the product of the two faces' traversal directions on the shared edge
     (+1 for ``min -> max``, -1 for ``max -> min``).
     """
@@ -113,20 +50,14 @@ def _build_face_adjacency(face_list: list[list[int]]) -> list[list[tuple[int, in
     return adjacency
 
 
-def _orient_components(
-    adjacency: list[list[tuple[int, int]]],
-    face_count: int,
-    *,
-    allow_non_orientable: bool,
-) -> tuple[list[int], list[int]]:
+def _orient_components(adjacency: list[list[tuple[int, int]]], face_count: int) -> tuple[list[int], list[int]]:
     """Assign each face a winding sign and a connected-component label.
 
     ``sign[f]`` is +1 to keep face ``f`` and -1 to reverse it. Consistency
     across a shared edge requires ``sign[g] == -sign[f] * weight``. A closed
     2-manifold can still be *non-orientable* (for example the real projective
     plane), so the walk can meet an already-signed neighbour whose shared edge
-    implies the opposite sign. When ``allow_non_orientable`` is false that
-    contradiction raises; otherwise it is ignored (best effort).
+    implies the opposite sign; it keeps the first sign (best effort).
     """
     sign = [0] * face_count
     component = [-1] * face_count
@@ -140,16 +71,10 @@ def _orient_components(
         while stack:
             current = stack.pop()
             for neighbour, weight in adjacency[current]:
-                expected = -sign[current] * weight
                 if sign[neighbour] == 0:
-                    sign[neighbour] = expected
+                    sign[neighbour] = -sign[current] * weight
                     component[neighbour] = next_component
                     stack.append(neighbour)
-                elif sign[neighbour] != expected and not allow_non_orientable:
-                    raise ArgumentError(
-                        f"surface is non-orientable: faces {current} and {neighbour} impose "
-                        "contradictory winding across their shared edge"
-                    )
         next_component += 1
     return sign, component
 
@@ -162,61 +87,13 @@ def _apply_reversal(faces: torch.Tensor, reverse_mask: torch.Tensor) -> torch.Te
     return oriented
 
 
-def orient_faces_consistently(faces: torch.Tensor) -> torch.Tensor:
-    """Return a face table whose winding is consistent within each component.
-
-    Two triangles sharing an edge are consistently wound when they traverse
-    that shared edge in opposite directions. Starting from one seed face per
-    connected component, this walks the face-adjacency graph over shared edges
-    and reverses any neighbour that would otherwise traverse the shared edge in
-    the same direction. Only the integer vertex order of each row changes, so
-    the result plugs directly into ``inertia_of_mesh``, which then folds
-    the remaining single global winding sign from the enclosed volume.
-
-    The graph walk runs on the host, which is appropriate for a spawn-time
-    precompute; the returned table keeps the input dtype and device.
-
-    Parameters
-    ----------
-    faces
-        Integer triangle table shaped ``(F, 3)`` of a closed 2-manifold
-        surface, as accepted by ``validate_closed_manifold``.
-
-    Returns
-    -------
-    torch.Tensor
-        A ``(F, 3)`` table on the input device and dtype. Each connected
-        component is internally consistent (all faces agree on winding). A
-        single closed surface is exactly what ``inertia_of_mesh``
-        expects; integrate disjoint components separately, because their
-        relative orientation is undetermined by topology alone.
-
-    Raises
-    ------
-    TypeError, DtypeMismatchError, ShapeError
-        If ``faces`` is not a non-empty integer ``(F, 3)`` tensor.
-    ArgumentError
-        If ``faces`` is not a closed 2-manifold surface (see
-        ``validate_closed_manifold``), or if that surface is non-orientable
-        (a consistent winding then does not exist).
-    """
-    _check_face_table(faces)
-    validate_closed_manifold(faces)
-
-    face_list: list[list[int]] = faces.to(torch.long).cpu().tolist()  # bench-ok: face topology, read once per mesh
-    adjacency = _build_face_adjacency(face_list)
-    sign, _ = _orient_components(adjacency, len(face_list), allow_non_orientable=False)
-
-    reverse_mask = torch.tensor([value < 0 for value in sign], device=faces.device)
-    return _apply_reversal(faces, reverse_mask)
-
-
 def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
     """Best-effort outward reorientation that tolerates imperfect topology.
 
-    A companion to ``orient_faces_consistently`` for authored meshes that
-    are *not* strict closed 2-manifolds — parts stitched at a shared seam with
-    boundary edges, non-manifold T-junctions, or several disconnected shells.
+    Two triangles sharing an edge are consistently wound when they traverse
+    that shared edge in opposite directions. Authored meshes are often *not*
+    strict closed 2-manifolds — parts stitched at a shared seam with boundary
+    edges, non-manifold T-junctions, or several disconnected shells.
     Adjacency is built only over edges shared by exactly two faces (boundary
     and non-manifold edges are ignored, never raised on), so each maximal
     two-manifold patch becomes a connected component. Every component is first
@@ -260,7 +137,7 @@ def orient_faces_by_component(vertices: torch.Tensor, faces: torch.Tensor) -> to
     face_list: list[list[int]] = faces.to(torch.long).cpu().tolist()  # bench-ok: face topology, read once per mesh
     face_count = len(face_list)
     adjacency = _build_face_adjacency(face_list)
-    sign, component = _orient_components(adjacency, face_count, allow_non_orientable=True)
+    sign, component = _orient_components(adjacency, face_count)
 
     topo_sign = torch.tensor(sign, device=vertices.device, dtype=vertices.dtype)  # (F,)
     component_id = torch.tensor(component, device=vertices.device)  # (F,)

@@ -1,4 +1,4 @@
-"""Spatial algebra on tensors: twists, wrenches and rigid-body inertias, plus mesh face-table helpers.
+"""Spatial algebra on tensors: twists, wrenches and rigid-body inertias, plus a mesh face-table helper.
 
 - Twist (motion) and wrench (force) ``(..., 6)``: linear first, angular second, the order of the ``lie`` tangents.
   `cross_motion` and `cross_force` are the spatial cross products; `transform_motion`, `transform_force` and
@@ -9,8 +9,7 @@
   about the frame origin and `rotational_inertia` the ``(..., 3, 3)`` matrix about the centre of mass;
   `inertia_from_mass_com`, `inertia_of_sphere`, `inertia_of_box`, `inertia_of_capsule`, `inertia_of_ellipsoid` and
   `inertia_of_mesh` build one.
-- Mesh helpers on the integer face table: `validate_closed_manifold`, `orient_faces_consistently`,
-  `orient_faces_by_component` (inputs for `inertia_of_mesh`).
+- `orient_faces_by_component` rewinds a mesh's integer face table outward, the input `inertia_of_mesh` trusts.
 """
 
 from __future__ import annotations
@@ -26,7 +25,7 @@ from .inertia import (
     inertia_of_sphere,
     rotational_inertia,
 )
-from .mesh import orient_faces_by_component, orient_faces_consistently, validate_closed_manifold
+from .mesh import orient_faces_by_component
 
 __all__ = [
     "cross_motion",
@@ -43,6 +42,4 @@ __all__ = [
     "inertia_of_ellipsoid",
     "inertia_of_mesh",
     "orient_faces_by_component",
-    "orient_faces_consistently",
-    "validate_closed_manifold",
 ]

@@ -118,7 +118,6 @@ The `q` and `v` layout of each kind is in the [coupling standard](../contracts/c
 | **difference** | The tangent that moves one manifold value to another. `kinematics.difference(model, q0, q1)` returns it for robot configurations. |
 | **manifold** | A space that is locally vector-like but may be curved globally, such as rotations or unit quaternions. An `optim.Manifold` tells a solver how to step a variable on one. |
 | **Euclidean** | A flat space, where a step is an addition (`optim.Euclidean`; `kinematics.euclidean_columns`, the coordinates of joints that integrate by addition). |
-| **closed manifold** | A triangle mesh without boundary: every edge is shared by exactly two faces (`spatial.validate_closed_manifold`). |
 
 For a visual and mathematical introduction, see [Poses and twists](../lie-and-spatial.md).
 
@@ -332,7 +331,7 @@ These words keep their ordinary English meaning in public names.
 
 actual, add, aim, angle, apply, argument, arrow, at, atomic, attached, axes, axis, azimuth, band, bone, border, box,
 build, button, by, cached, callback, camera, cell, center, change, check, checkbox, clear, click, client, color, column,
-component, consistently, constrained, corner, create, cylinder, dark, decrease, delta, dense, density, dependency,
+component, constrained, corner, create, cylinder, dark, decrease, delta, dense, density, dependency,
 diagnostics, diagonal, direction, dispose, done, dropdown, element, elevation, ellipsoid, end, entry, equality, error,
 estimate, evaluate, every, exact, exception, expected, extend, extent, extra, face, factory, field, fill, finalize,
 flat, floor, folder, forever, format, fraction, free, from, generator, get, graph, grid, ground, growth, half, head,
@@ -345,4 +344,4 @@ radius, ramp, random, range, read, reason, record, remove, replace, resize, rest
 save, scalar, scale, scene, scheduler, search, section, segment, serializer, series, server, set, shading, shadow,
 shaft, show, side, size, skeleton, skip, sleep, slice, slider, solution, solve, solver, source, spelling, sphere,
 squared, start, stop, target, testing, text, theme, time, timeout, to, tolerance, top, unknown, up, update,
-upper, valid, validate, value, vector, vertices, visible, voxel, wait, weight, width, with, word
+upper, valid, value, vector, vertices, visible, voxel, wait, weight, width, with, word
