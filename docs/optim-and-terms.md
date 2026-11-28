@@ -46,15 +46,16 @@ print(f"{int((error < 1e-4).sum())} of 32 reached, median error {float(error.med
 ## Add your own residual
 
 `ik_problem` returns the problem before it is solved. A residual is a plain function of the variables; here one
-asks the elbow joint to stay near -1.8 rad. `problem.losses` reports what each residual still costs at the
-solution.
+asks the elbow joint to stay near -1.8 rad. `problem.evaluate` reports the total loss, what each residual still
+costs at the solution, and the diagnostics of the terms that return any.
 
 ```python
 problem = terms.ik_problem(model, {"panda_hand": target}, q0=q0)
 problem.residual("elbow", lambda q: q[:, 3:4] + 1.8, weight=1e-3)
 
 result = optim.solve(problem, optim.LevenbergMarquardt(), iterations=100)
-for name, loss in problem.losses(result.x).items():
+_, losses, _ = problem.evaluate(result.x)
+for name, loss in losses.items():
     print(f"{name}: {float(loss.mean()):.2e}")
 ```
 ```output

@@ -417,7 +417,6 @@
   "better_robot.optim.Problem.inequality": "function(self, name: 'str', fn: 'Callable[..., torch.Tensor] | TermFn', *, lower: 'float | torch.Tensor | None' = None, upper: 'float | torch.Tensor | None' = None, weight: 'float | torch.Tensor' = 1.0, reads: 'tuple[str, ...] | None' = None, jacobian: 'Callable[..., dict[str, torch.Tensor]] | None' = None) -> 'None'",
   "better_robot.optim.Problem.linearize": "function(self, x: 'Values | None' = None) -> 'tuple[Normal | BandedNormal | ArrowNormal, torch.Tensor]'",
   "better_robot.optim.Problem.loss": "function(self, x: 'Values | None' = None) -> 'torch.Tensor'",
-  "better_robot.optim.Problem.losses": "function(self, x: 'Values | None' = None) -> 'dict[str, torch.Tensor]'",
   "better_robot.optim.Problem.manifolds": "property",
   "better_robot.optim.Problem.project": "function(self, x: 'Values') -> 'dict[str, torch.Tensor]'",
   "better_robot.optim.Problem.residual": "function(self, name: 'str', fn: 'Callable[..., torch.Tensor] | TermFn', *, weight: 'float | torch.Tensor' = 1.0, kernel: 'RobustKernel | None' = None, reads: 'tuple[str, ...] | None' = None, jacobian: 'Callable[..., dict[str, torch.Tensor]] | None' = None, window: 'int | None' = None) -> 'None'",

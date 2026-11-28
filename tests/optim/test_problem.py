@@ -446,7 +446,7 @@ def test_phase_hooks_scheduler_and_per_knot_free_mask():
             iterations=10,
             free=free,
             on_start=retarget,
-            on_step=lambda view, state: seen.append(view.losses(state.x)["fit"]),
+            on_step=lambda view, state: seen.append(view.evaluate(state.x)[1]["fit"]),
         ),
     ]
     result = optim.run(problem, phases)
@@ -586,7 +586,6 @@ def test_x_holds_one_batch_tensor_per_variable_and_never_overrides_data():
     zeros = torch.zeros(2, 3)
     entries = (
         problem.loss,
-        problem.losses,
         problem.evaluate,
         problem.residuals,
         problem.linearize,

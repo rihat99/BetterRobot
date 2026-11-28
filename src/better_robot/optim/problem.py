@@ -408,10 +408,6 @@ class Problem:
         """
         return evaluate(self, x)
 
-    def losses(self, x: Values | None = None) -> dict[str, torch.Tensor]:
-        """Loss of every active term. Returns ``{name: (B,)}``."""
-        return evaluate(self, x)[1]
-
     def loss(self, x: Values | None = None) -> torch.Tensor:
         """Total loss per batch element, differentiable w.r.t. ``x``. Returns ``(B,)``."""
         return evaluate(self, x)[0]
