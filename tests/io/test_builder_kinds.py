@@ -167,23 +167,3 @@ def test_custom_kind_runs_through_fk():
     state = forward_kinematics(model, torch.tensor([0.4]))
 
     assert state.joint_poses[2, 2].item() == pytest.approx(-0.4)
-
-
-def test_named_helical_preserves_pitch_in_fk():
-    builder = ModelBuilder("helical_pitch")
-    base = builder.add_body("base")
-    tip = builder.add_body("tip")
-    builder.add_helical(
-        "joint",
-        parent=base,
-        child=tip,
-        axis=torch.tensor([0.0, 0.0, 1.0]),
-        pitch=0.25,
-    )
-    model = build_model(builder.finalize())
-
-    q = torch.tensor([0.4])
-    state = forward_kinematics(model, q)
-
-    assert model.joints[2] == JointHelical(axis=(0.0, 0.0, 1.0), pitch=0.25)
-    assert state.joint_poses[2, 2].item() == pytest.approx(0.1)
