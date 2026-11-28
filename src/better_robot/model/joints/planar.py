@@ -8,7 +8,7 @@ from typing import ClassVar, final, override
 import torch
 
 from ..manifolds import PLANE, JointManifold
-from .base import JointModel
+from .base import JointModel, _uniform
 
 
 @final
@@ -45,11 +45,7 @@ class JointPlanar(JointModel):
 
         The result has the limits' dtype and device.
         """
-        x = lower[0] + (upper[0] - lower[0]) * torch.rand(
-            1, generator=generator, dtype=lower.dtype, device=lower.device
-        )
-        y = lower[1] + (upper[1] - lower[1]) * torch.rand(
-            1, generator=generator, dtype=lower.dtype, device=lower.device
-        )
+        x = _uniform(generator, lower[:1], upper[:1])
+        y = _uniform(generator, lower[1:2], upper[1:2])  # a draw of its own, so the random stream is x's then y's
         angle = (torch.rand(1, generator=generator, dtype=lower.dtype, device=lower.device) * 2.0 - 1.0) * torch.pi
         return torch.cat((x, y, torch.cos(angle), torch.sin(angle)))

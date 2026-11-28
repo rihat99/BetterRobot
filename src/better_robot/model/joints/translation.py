@@ -9,7 +9,7 @@ import torch
 
 from ...lie import se3
 from ..manifolds import EUCLIDEAN, JointManifold
-from .base import JointModel
+from .base import JointModel, _uniform
 
 
 @final
@@ -37,4 +37,4 @@ class JointTranslation(JointModel):
 
     @override
     def random(self, generator: torch.Generator, *, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
-        return lower + (upper - lower) * torch.rand(3, generator=generator, dtype=lower.dtype, device=lower.device)
+        return _uniform(generator, lower, upper)
