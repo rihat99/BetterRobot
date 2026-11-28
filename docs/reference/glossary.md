@@ -177,7 +177,7 @@ derivative method.
 | **`Phase`** | One stage of a staged solve: term weight overrides, frozen coordinates, an iteration budget and an optional start hook, run in sequence by `optim.run`. |
 | **cached value** | What `Problem.cached(fn, name=...)` registers and names: a value computed once per evaluation (for example the kinematic state) that every term reading that name shares. |
 | **window** | The number of consecutive knots a time-local term reads. A window of 2 couples knot `t` with `t + 1`. |
-| **normal equations, normal** | `H delta = -g`, the linear system of one Gauss-Newton step, with `H` and `g` from the Jacobian and the weighted residuals (`optim.Normal`). In geometry, a normal is a unit vector perpendicular to a surface (`sphere_halfspace(normal=)`). |
+| **normal equations, normal** | `H delta = -g`, the linear system of one Gauss-Newton step, with `H` and `g` from the Jacobian and the weighted residuals (`optim.Normal`; the name is kept beside `torch.distributions.Normal`, a distribution, because the normal equations are what this one holds). In geometry, a normal is a unit vector perpendicular to a surface (`sphere_halfspace(normal=)`). |
 | **banded normal, arrow normal** | The block-tridiagonal normal equations of a trajectory problem (`BandedNormal`), and the same bordered by variables shared over time (`ArrowNormal`). Both solve in time linear in the number of knots. |
 | **least squares** | Choose variables that make the sum of squared residual entries small. This balances many errors at once. |
 | **quadratic program, QP** | Minimise `½ xᵀH x + gᵀx` subject to linear rows `lower <= rows x <= upper`: the constrained form of one Gauss-Newton step (`optim.solve_qp`). |
@@ -191,11 +191,11 @@ derivative method.
 | **row** | One linear constraint of a quadratic program, `lower <= a · x <= upper`; an equality when both bounds are equal, one-sided when one is infinite. An elastic row (`solve_qp`) gives way once holding it would take a multiplier beyond the cap that `weight` sets. |
 | **primal, dual** | Of a constrained problem: its variables `x`, and the multipliers of its rows. The primal residual is the largest distance of a row from where its multiplier holds it (its violation where the multiplier is zero), the dual residual the largest entry of `H x + g + rowsᵀ dual`. |
 | **robust kernel, kernel** | A function `rho` of a squared residual norm that reduces the influence of large residuals, often to limit outliers. |
-| **Huber, Cauchy, Tukey, Geman-McClure** | The robust kernels of `optim`. Huber is quadratic inside `delta` and linear outside; Cauchy (Lorentzian) grows logarithmically; Geman-McClure is bounded; Tukey's biweight is flat beyond its cutoff `c`, so larger residuals get no weight. |
+| **Huber, Cauchy, Tukey, Geman-McClure** | The robust kernels of `optim`. Huber is quadratic inside `delta` and linear outside; Cauchy (Lorentzian) grows logarithmically; Geman-McClure is bounded; Tukey's biweight is flat beyond its cutoff `c`, so larger residuals get no weight. `optim.Cauchy` keeps the kernel's name beside `torch.distributions.Cauchy`, the distribution it comes from. |
 | **gradient** | The local direction in which a scalar objective increases fastest. |
 | **Gauss-Newton, GN** | A least-squares method that linearizes residuals and solves the resulting local quadratic problem. |
 | **Levenberg-Marquardt, LM** | Gauss-Newton with adjustable damping. Low damping takes a bolder Newton-like step; high damping a more cautious gradient-like step. |
-| **L-BFGS** | Limited-memory BFGS: a quasi-Newton method that keeps a short `history` of steps and gradients (`optim.LBFGS`). |
+| **L-BFGS** | Limited-memory BFGS: a quasi-Newton method that keeps a short `history` of steps and gradients (`optim.LBFGS`, the method's own name; `torch.optim.LBFGS` is the same method behind `torch.optim`'s interface). |
 | **line search, Armijo** | Shrink a step along its direction until the loss decreases enough: the Armijo condition (`LBFGS(armijo=)`). `LBFGS(stop_search=False)` tries every step length instead of stopping at the first that every problem accepts. |
 | **Cholesky factorization** | A fast way to solve a positive-definite symmetric linear system. |
 | **bound** | A lower or upper limit on a Euclidean coordinate. |
