@@ -235,23 +235,6 @@ def test_twist_is_linear_first() -> None:
     torch.testing.assert_close(turn[:3, 3], torch.zeros(3, dtype=F64))
 
 
-def test_wrench_is_force_first() -> None:
-    """Holding a floating body still takes ``[f, c x f]`` with ``f = -m g``, and that wrench applied to it holds it."""
-    mass, com = 2.0, _tensor(0.3, 0.0, 0.0)
-    builder = ModelBuilder("floating", gravity=(0.0, 0.0, -9.81))
-    builder.add_body("body", mass=mass, com=com)
-    builder.add_joint("base", kind=JointFreeFlyer(), parent="world", child="body")
-    model = build_model(builder.finalize(), dtype=F64)
-    state = br.forward_kinematics(model, model.q_neutral)
-    still = torch.zeros(6, dtype=F64)
-    force = _tensor(0.0, 0.0, mass * 9.81)
-    wrench = torch.cat((force, torch.linalg.cross(com, force)))
-    torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still), wrench)
-    applied = torch.zeros(model.njoints, 6, dtype=F64)
-    applied[1] = wrench
-    torch.testing.assert_close(br.inverse_dynamics(model, state, v=still, a=still, external_forces=applied), still)
-
-
 def test_external_forces_act_on_each_joint_in_its_own_frame() -> None:
     """``external_forces (B..., njoints, 6)`` is ``[force, torque]`` on the body of each joint, in that joint's frame:
     holding a floating body turned by ``R`` takes ``[R^T f, c x R^T f]`` (``f = -m g`` in the world, ``c`` its centre

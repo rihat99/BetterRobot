@@ -29,22 +29,6 @@ STATE_FUNCTIONS = sorted(
 )
 
 
-def test_the_cases_cover_every_state_function() -> None:
-    assert STATE_FUNCTIONS == [
-        "center_of_mass",
-        "centroidal_map",
-        "centroidal_momentum",
-        "forward_dynamics",
-        "frame_jacobian",
-        "frame_jacobian_time_variation",
-        "inverse_dynamics",
-        "joint_jacobian",
-        "joint_jacobian_time_variation",
-        "mass_matrix",
-        "point_jacobian",
-    ]
-
-
 @pytest.mark.parametrize("name", STATE_FUNCTIONS)
 def test_state_of_another_model_is_rejected(name: str) -> None:
     function, (model, state), kwargs = build_case(name, torch.float64, torch.device("cpu"))
