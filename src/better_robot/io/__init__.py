@@ -13,10 +13,9 @@ from typing import Callable, Literal
 import torch
 
 from ..exceptions import ModelError
-from ..model.geometry import Geometry
+from ..model.geometry import AttachedShape, Geometry
 from ..model.joints import JointModel
 from ..model.model import Model
-from .geometry_from_ir import build_geometry
 from .model_from_ir import build_model
 from .builder import ModelBuilder
 from .ir import (
@@ -69,6 +68,16 @@ def load(
     model cannot express (a cone limit, a non-linear or non-joint ``<equality>``) raises ``ModelError``.
     """
     return build_model(parse(path, format=format), root_joint=root_joint, device=device, dtype=dtype)
+
+
+def build_geometry(ir: IRModel, model: Model) -> Geometry:
+    """The shapes of ``ir`` attached by body id to ``model``; a body that ``model`` lacks raises ``UnknownNameError``."""
+    return Geometry(
+        shapes=tuple(
+            AttachedShape(body=model.body_id(shape.body), shape=shape.shape, collision=shape.collision)
+            for shape in ir.shapes
+        )
+    )
 
 
 def load_geometry(path: str | Path, model: Model) -> Geometry:
