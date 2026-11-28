@@ -417,6 +417,14 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
         ArrowsLayer("bad", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
 
+@pytest.mark.parametrize("colors", [np.zeros((2, 5, 3)), np.zeros((4, 7, 3))], ids=["steps", "points"])
+def test_points_refuse_per_step_colours_of_another_shape(colors: np.ndarray) -> None:
+    """PointsLayer took per-step colours of any ``(T', N', 3)``, then failed or drew wrong colours at a later step;
+    the other layers with per-step colours refused them."""
+    with pytest.raises(ShapeError, match="per-step colors"):
+        PointsLayer("bad", np.zeros((4, 5, 3)), colors=colors)
+
+
 def test_plot_panel_lives_in_the_gui_and_marks_the_current_frame() -> None:
     server = FakeServer()
     viewer = Viewer(server=server)

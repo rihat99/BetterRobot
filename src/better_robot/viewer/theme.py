@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, final, override
 
@@ -49,6 +50,24 @@ def linear_uint8(color: np.ndarray | RGB, shape: tuple[int, ...] = ()) -> np.nda
     srgb = rgb_uint8(color, shape) / 255.0
     linear = np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4)
     return (linear * 255.0 + 0.5).astype(np.uint8)
+
+
+def step_colors(
+    colors: np.ndarray | RGB | Sequence[np.ndarray],
+    shape: tuple[int, ...],
+    *,
+    convert: Callable[[np.ndarray, tuple[int, ...]], np.ndarray],
+) -> np.ndarray:
+    """The colours of ``shape = (T, N)`` elements as uint8 ``(N, 3)``, the same at every step, from one RGB or
+    ``(N, 3)``, or as ``(T, N, 3)`` from per-step ``(T, N, 3)``: step ``t`` reads ``colors[t]`` when ``ndim == 3``.
+    ``convert`` is ``rgb_uint8`` or ``linear_uint8``, as the viser call reads the colour; another shape raises
+    ``ShapeError``."""
+    given = np.asarray(colors, dtype=np.float32)
+    if given.ndim <= 2:
+        return convert(given, shape[1:])
+    if given.shape != (*shape, 3):
+        raise ShapeError(f"per-step colors must be (T, N, 3) = {(*shape, 3)}, got {given.shape}")
+    return convert(given, shape)
 
 
 def rgb_ints(color: RGB) -> tuple[int, int, int]:
