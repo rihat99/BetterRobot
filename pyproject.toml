@@ -97,7 +97,6 @@ ignore = ["E501", "PLR0913", "PLR2004"]
 "examples/**" = ["ANN201", "T201"]
 "benchmarks/**" = ["T201"]  # scripts that report on stdout, as the examples do
 "src/better_robot/{lie,spatial,kinematics,dynamics}/**" = ["N803", "N806"]  # monogram names in math code, C-NAME-1
-"src/better_robot/optim/**" = ["N806"]  # H, the matrix of the normal equations, as the math writes it, C-NAME-1
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"  # C-DOC-1; it documents __init__ in the class docstring, so D107 is off
