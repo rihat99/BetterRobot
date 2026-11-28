@@ -14,7 +14,7 @@ import torch
 from . import so3
 from ._checks import check_tensor, check_tensors
 from .so3 import _taylor_theta2
-from .tangents import hat_so3_raw
+from .tangents import hat_so3_raw, right_jacobian_so3_raw
 
 
 def identity(
@@ -68,6 +68,9 @@ def log(t: torch.Tensor) -> torch.Tensor:
 
 def log_raw(t: torch.Tensor) -> torch.Tensor:
     """`log` without input checks, for checked inputs: ``(..., 7) → (..., 6)``."""
+    # V(w)^-1 by hand, not tangents.right_jacobian_inverse_so3_raw(-omega) (the same matrix, another algebraic form of
+    # its coefficient): under torch.compile that form moves the state of
+    # tests/terms/test_constrained_ik.py::test_a_compiled_step_equals_the_eager_one past its 1e-9 tolerance.
     t_lin = t[..., :3]
     omega = so3.log_raw(t[..., 3:7])
     theta2 = (omega * omega).sum(dim=-1, keepdim=True)
@@ -97,27 +100,10 @@ def exp(v: torch.Tensor) -> torch.Tensor:
 
 def exp_raw(v: torch.Tensor) -> torch.Tensor:
     """`exp` without input checks, for checked inputs: ``(..., 6) → (..., 7)``."""
-    linear = v[..., :3]
     omega = v[..., 3:6]
-    theta2 = (omega * omega).sum(dim=-1, keepdim=True)
-    use_taylor = theta2 < _taylor_theta2(v.dtype)
-    theta2_safe = torch.where(use_taylor, torch.ones_like(theta2), theta2)
-    theta = theta2_safe.sqrt()
-
-    b_full = (1.0 - torch.cos(theta)) / theta2_safe.clamp(min=1e-30)
-    b_taylor = 0.5 - theta2 / 24.0
-    b = torch.where(use_taylor, b_taylor, b_full)
-
-    c_full = (theta - torch.sin(theta)) / (theta * theta2_safe).clamp(min=1e-30)
-    c_taylor = (1.0 / 6.0) - theta2 / 120.0
-    c = torch.where(use_taylor, c_taylor, c_full)
-
-    W = hat_so3_raw(omega)
-    W2 = W @ W
-    eye3 = torch.eye(3, dtype=v.dtype, device=v.device).expand_as(W)
-    V = eye3 + b.unsqueeze(-1) * W + c.unsqueeze(-1) * W2
-    t_lin = (V @ linear.unsqueeze(-1)).squeeze(-1)
-    return torch.cat([t_lin, so3.exp_raw(omega)], dim=-1)
+    # The translation is V(w) v with V(w) = Jl(w) = Jr(-w), the left Jacobian of the SO(3) exponential.
+    translation = (right_jacobian_so3_raw(-omega) @ v[..., :3].unsqueeze(-1)).squeeze(-1)
+    return torch.cat([translation, so3.exp_raw(omega)], dim=-1)
 
 
 def act(t: torch.Tensor, p: torch.Tensor) -> torch.Tensor:
