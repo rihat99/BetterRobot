@@ -1,6 +1,6 @@
 """C-STATE-1 / C-STATE-2: public dataclasses are frozen.
 
-Every dataclass exported from a public ``__all__`` must be declared
+Every dataclass of the ``__all__`` tree (``better_robot.testing.public_objects``) must be declared
 ``frozen=True``. The exceptions are listed in ``MUTABLE_DATACLASSES`` with
 their reason, and each entry must still name a public mutable dataclass.
 """
@@ -8,24 +8,10 @@ their reason, and each entry must still name a public mutable dataclass.
 from __future__ import annotations
 
 import dataclasses
-import importlib
 import inspect
 
+from better_robot.testing import public_objects
 from tests.support.cases import failures
-
-PACKAGES = [
-    "better_robot",
-    "better_robot.lie",
-    "better_robot.spatial",
-    "better_robot.model",
-    "better_robot.kinematics",
-    "better_robot.dynamics",
-    "better_robot.collision",
-    "better_robot.io",
-    "better_robot.optim",
-    "better_robot.terms",
-    "better_robot.viewer",
-]
 
 MUTABLE_DATACLASSES: dict[str, str] = {
     "better_robot.io.IRBody": "parser IR, filled incrementally while parsing",
@@ -35,18 +21,11 @@ MUTABLE_DATACLASSES: dict[str, str] = {
 }
 
 
-def _public_dataclasses() -> list[tuple[str, type]]:
-    found: list[tuple[str, type]] = []
-    for package in PACKAGES:
-        module = importlib.import_module(package)
-        for name in getattr(module, "__all__", ()):
-            obj = getattr(module, name)
-            if inspect.isclass(obj) and dataclasses.is_dataclass(obj):
-                found.append((f"{package}.{name}", obj))
-    return found
-
-
-DATACLASSES = _public_dataclasses()
+DATACLASSES = [
+    (path, value)
+    for path, value in public_objects("better_robot").items()
+    if inspect.isclass(value) and dataclasses.is_dataclass(value)
+]
 FROZEN = [(qualname, cls) for qualname, cls in DATACLASSES if qualname not in MUTABLE_DATACLASSES]
 
 
