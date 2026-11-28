@@ -1,7 +1,8 @@
 """Test-support: a representative 24-body free-flyer + 23-spherical tree, built with ``ModelBuilder``.
 
 Not shipped API. The bodies and joints share the names ``j0``..``j23``; ``PARENTS`` gives the tree and
-``default_offsets_tensor`` arbitrary offsets, so BR's own suite has a representative free-flyer + spherical model.
+``default_offsets_tensor`` arbitrary offsets, so BetterRobot's own suite has a representative free-flyer + spherical
+model.
 """
 
 from __future__ import annotations
