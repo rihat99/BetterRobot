@@ -62,7 +62,10 @@ def check_axis(axis: object) -> None:
     if not (isinstance(axis, tuple) and len(axis) == 3) or not all(
         isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c) for c in axis
     ):
-        raise ArgumentError(f"axis must be a tuple of three finite floats, got {axis!r}; pass tuple(axis)")
+        raise ArgumentError(
+            f"axis must be a tuple of three finite floats, got {axis!r}; convert a list, array or tensor with "
+            "tuple(float(c) for c in axis)"
+        )
     norm = math.sqrt(sum(c * c for c in axis))
     if abs(norm - 1.0) > 1e-6:
         raise ArgumentError(f"axis {axis!r} has norm {norm:.8g}; pass a unit axis (divide by its norm)")
