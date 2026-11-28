@@ -323,12 +323,6 @@ class Viewer:
                     on_change=lambda visible, tag=tag: self.set_visible(tag, visible),
                 )
 
-    def add_plot(
-        self, name: str, series: np.ndarray, *, labels: list[str] | None = None, tags: str | Sequence[str] = "plots"
-    ) -> PlotPanel:
-        """Sidebar chart of ``series (T, K)`` against time with a marker at the current step."""
-        return self.add(PlotPanel(name, series, labels=labels, fps=self.timeline.fps), tags=tags)
-
     def remove(self, target: Layer | str) -> None:
         """Dispose a layer, or every layer carrying the tag ``target``, with its scene nodes and sidebar controls, and
         fit the timeline to the rest.

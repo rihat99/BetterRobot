@@ -18,7 +18,7 @@ from robot_descriptions import panda_description
 import better_robot as br
 from better_robot import Viewer, forward_kinematics, inverse_dynamics, optim, terms
 from better_robot.testing import FakeServer
-from better_robot.viewer import RobotVisual
+from better_robot.viewer import PlotPanel, RobotVisual
 
 URDF = panda_description.URDF_PATH
 FRAME, KNOTS, DT = "panda_hand", 60, 1.0 / 30.0
@@ -84,7 +84,7 @@ def main() -> None:
     )  # fmt: skip
     viewer.add(RobotVisual(model, q[-1], name="goal", style="medium", hue=robot.hue, opacity=0.35))  # a ghost
     moving = [name for name, nv in zip(model.joint_names, model.nvs) if nv]
-    viewer.add_plot("torque", tau.numpy(), labels=moving)
+    viewer.add(PlotPanel("torque", tau.numpy(), labels=moving, fps=viewer.timeline.fps))
     if args.check:
         for step in range(KNOTS):
             viewer.show(step)
