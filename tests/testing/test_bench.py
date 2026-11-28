@@ -4,10 +4,14 @@ under the header."""
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
+import pytest
 import torch
 
+from better_robot.exceptions import BetterRobotError
 from better_robot.testing import bench
 
 
@@ -43,3 +47,26 @@ def test_a_row_line_sits_under_the_header() -> None:
     line = bench.row_line({"row": "fk/panda/B1", "median_ms": 0.5, "ops": 12})
     assert len(line) == len(bench.HEADER) and line.split() == ["fk/panda/B1", "0.5000", "-", "12", "-", "-", "-"]
     assert bench.wall_time(lambda: None, lambda: None, repeats=3).keys() == {"median_ms", "min_ms", "page_faults"}
+
+
+def test_importing_the_package_needs_no_resource_module() -> None:
+    """Windows has no ``resource`` module, and ``import better_robot.testing`` (``FakeServer``) must not need it."""
+    code = "import sys; sys.modules['resource'] = None; import better_robot.testing"
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
+_PLATFORM_READERS = {
+    "wall_time": lambda: bench.wall_time(lambda: None, lambda: None, repeats=3),
+    "load_average": bench.load_average,
+    "device_name": lambda: bench.device_name(torch.device("cpu")),
+    "context": lambda: bench.context(Path.cwd(), torch.device("cpu"), dtype=torch.float64),
+}
+
+
+@pytest.mark.parametrize("name", _PLATFORM_READERS)
+def test_the_runner_side_refuses_a_platform_without_proc(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    """Off Linux there is no ``/proc``: each reader raises and names the platform it needs, never returns a number."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+    with pytest.raises(BetterRobotError, match=rf"bench\.{name} .*Linux"):
+        _PLATFORM_READERS[name]()

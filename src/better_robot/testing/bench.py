@@ -6,7 +6,9 @@ call these. A counter row has four counters, deterministic for one torch version
 ``torch.compile``, which contract C-PERF-5 keeps out of the library, so each runner counts them itself.
 ``check_thresholds`` compares the four with a thresholds file, the runner's ``--counters-only`` output from a clean
 commit. Wall time (``wall_time``) is recorded, never gated: ``load_average`` sits beside every row and ``context``
-records what ran, on what, under which load.
+records what ran, on what, under which load. ``wall_time``, ``load_average``, ``device_name`` and ``context`` read
+Linux's ``/proc``, ``getrusage`` and CPU affinity, and raise ``BetterRobotError`` on another platform; importing the
+module works on every platform.
 """
 
 from __future__ import annotations
@@ -15,7 +17,6 @@ import datetime
 import json
 import os
 import platform
-import resource
 import shlex
 import statistics
 import subprocess
@@ -27,6 +28,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 import torch
 from torch.profiler import ProfilerActivity, profile
+
+from ..exceptions import BetterRobotError
 
 if TYPE_CHECKING:
     from torch.autograd.profiler_util import EventList
@@ -80,6 +83,9 @@ def profile_counts(call: Callable[[], object]) -> tuple[int, int]:
 def wall_time(call: Callable[[], object], sync: Callable[[], None], *, repeats: int) -> dict[str, float]:
     """``median_ms`` and ``min_ms`` per call and minor ``page_faults`` per call (``getrusage``) of up to ``repeats``
     calls, at least 3, fewer once the row has run 2 s; ``sync`` waits for the device before and after each call."""
+    _require_linux("wall_time")
+    import resource  # noqa: PLC0415 - POSIX only, so importing better_robot.testing works on Windows
+
     samples: list[float] = []
     faults = resource.getrusage(resource.RUSAGE_SELF).ru_minflt
     budget_start = time.perf_counter()
@@ -136,6 +142,7 @@ def git(root: Path, *arguments: str) -> str:
 
 def load_average() -> str:
     """``/proc/loadavg``: the 1, 5 and 15 minute load averages, running/total tasks, last pid."""
+    _require_linux("load_average")
     return Path("/proc/loadavg").read_text().strip()
 
 
@@ -143,6 +150,7 @@ def device_name(device: torch.device) -> str:
     """The GPU's name, or the CPU model from ``/proc/cpuinfo``."""
     if device.type == "cuda":
         return torch.cuda.get_device_name(device)
+    _require_linux("device_name")
     for line in Path("/proc/cpuinfo").read_text().splitlines():
         if line.startswith("model name"):
             return line.split(":", 1)[1].strip()
@@ -152,6 +160,7 @@ def device_name(device: torch.device) -> str:
 def context(root: Path, device: torch.device, *, dtype: torch.dtype) -> dict[str, Any]:
     """The ``meta`` record of a run in the checkout at ``root``: commit, dirty flag, command, torch, Python, device,
     CPU or GPU, threads, affinity, dtype, date and the load average at start; a runner adds its own keys."""
+    _require_linux("context")
     return {
         "commit": git(root, "rev-parse", "--short", "HEAD"),
         "dirty": bool(git(root, "status", "--porcelain")),
@@ -166,6 +175,14 @@ def context(root: Path, device: torch.device, *, dtype: torch.dtype) -> dict[str
         "date": datetime.datetime.now().isoformat(timespec="seconds"),
         "loadavg_start": load_average(),
     }
+
+
+def _require_linux(name: str) -> None:
+    """Raise ``BetterRobotError`` off Linux, where ``name`` cannot read ``/proc``, ``getrusage`` or the affinity."""
+    if sys.platform != "linux":
+        raise BetterRobotError(
+            f"bench.{name} reads Linux's /proc, getrusage or CPU affinity; run the benchmark on Linux, not {sys.platform}"
+        )
 
 
 def row_line(row: dict[str, Any]) -> str:
