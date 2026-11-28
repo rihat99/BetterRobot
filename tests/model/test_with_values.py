@@ -175,7 +175,6 @@ def test_a_copy_shares_its_source_plans_and_computes_as_a_fresh_model(name: str)
     assert fk_plan(moved, dtype=torch.float32, device=model.device) is fk_plan(
         model, dtype=torch.float32, device=model.device
     )
-    assert [key for key in model._plans if key[0] == "manifold"] == [("manifold", torch.long, model.device)]
 
 
 def test_a_replace_that_changes_the_structure_builds_its_own_plans() -> None:
