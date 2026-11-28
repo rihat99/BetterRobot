@@ -92,7 +92,6 @@ class IRModel:
     joints: list[IRJoint]
     frames: list[IRFrame] = field(default_factory=list)
     shapes: list[IRShape] = field(default_factory=list)
-    root_body: str = ""
     gravity: torch.Tensor = field(
         default_factory=lambda: torch.tensor([0.0, 0.0, -9.81, 0.0, 0.0, 0.0], dtype=torch.float64)
     )

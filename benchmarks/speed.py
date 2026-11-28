@@ -11,8 +11,8 @@ Usage (from the repository root; on CPU pin one core whose SMT sibling is idle; 
 Robots, from ``tests/fixtures/robots``: ``panda`` (fixed base, nq = nv = 8: seven arm joints and one finger coordinate
 the other finger mimics), ``panda7`` (the same with both fingers fixed: the 7-dof arm frax ships) and ``g1``
 (free-flyer root, nq 36, nv 35, for every function). Modes: ``eager``, ``compile`` and ``reduce-overhead`` (CUDA
-default); ``adapt`` is the one adapter from a mode to a callable: the library's ``kinematics.compiled``,
-or ``torch.compile`` for a solve, whose loop breaks the graph, and for a library version without that entry point.
+default); ``adapt`` is the one adapter from a mode to a callable: the library's ``kinematics.compiled``, or the
+solve's own ``step=`` hook for a solve, whose loop breaks the graph.
 
 Functions. A call does what a user's call does and returns what it computes, so compiled code cannot drop it:
 ``forward_kinematics`` returns ``forward_kinematics(model, q).joint_transforms``, ``forward_kinematics_frames`` the
@@ -32,24 +32,22 @@ IK, aligned with the frax reference run as far as the two algorithms allow:
   ``POOL`` draws fresh ones;
 - success: every target frame within 1 mm and 0.01 rad, over at least ``POOL`` targets (``success_targets``): a row
   with ``B < POOL`` reports an eager solve of the whole pool, since a solve treats each sample on its own (LM freezes
-  a done element; the restarts draw per sample);
+  a done element; the starts draw per sample);
 - ``ik_step``: one ``LevenbergMarquardt.step`` from ``init(start)`` (frax: one QP step from ``init(start)``, which is
   zeros); ``solve_ik``: the default call, one start (frax: at most 200 steps, stopping at 1e-4 on max |v|);
   ``solve_ik_multistart``: the library's multi-start call, ``MULTISTART`` (``seeds``, ``iterations``): every start of
-  every target in one batch, the best kept; a library before ``seeds=`` runs ``restarts=4``, five starts one after
-  another, each to at most 100 iterations (frax: five samples). Both rows compare a library's own call for one start
+  every target in one batch, the best kept (frax: five samples). Both rows compare a library's own call for one start
   and for several, at its own budget, by time and success;
-- ``iterations``: ``Result.iterations``, the steps every sample of the batch runs, summed over sequential restarts
-  (frax: the median over samples of its own count, summed over the starts); ``seeds``: the starts per target.
+- ``iterations``: ``Result.iterations``, the steps every sample of the batch runs (frax: the median over samples of
+  its own count, summed over the starts); ``seeds``: the starts per target.
 - ``ik_step_constrained``: one ``SequentialQP.step`` from ``init(start)`` of the same problem with clearance rows
   (``CLEARANCE``: an obstacle sphere and the robot's own sphere pairs kept ``MARGIN_M`` apart, the ``closest`` pairs
   as rows; the joint limits are the step's box); ``solve_ik_constrained``: ``CONSTRAINED_ITERATIONS`` such steps
   (``Phase(stop_every=0)``). The start holds every row. A solve row adds ``max_violation_m`` and ``within_1e-4``, the
   largest violation over every row (all sphere pairs) and the share of targets within 1e-4 m; ``success_rate`` counts
   every target, and a target whose configuration breaks a row cannot be reached (G1: almost every target does);
-- compiled solves: a library with ``solve_ik(step=)`` compiles its LM step once per row with ``kinematics.compiled``
-  and passes it (adapter ``solve_ik(step=)``); an older one compiles the whole solve with ``torch.compile``, which
-  breaks the graph at every early-stop read.
+- compiled solves: the LM step is compiled once per row with ``kinematics.compiled`` and passed as
+  ``solve_ik(step=)`` (adapter ``solve_ik(step=)``).
 - ``track``: one ``optim.track`` call of the ``ik_step`` problem (the joint limits are its box, steps of at most
   5 mrad), warm started from the call before (a control loop's steady state; frax's ``ik_step`` is the same tick, cold);
   ``track_constrained``: the same with the clearance rows of ``ik_step_constrained``.
@@ -114,7 +112,6 @@ import contextlib
 import dataclasses
 import datetime
 import gc
-import inspect
 import json
 import math
 import os
@@ -167,29 +164,22 @@ IK_POSITION_M, IK_ROTATION_RAD = 1e-3, 1e-2
 FIXED_MALLOC = {"MALLOC_MMAP_THRESHOLD_": "134217728", "MALLOC_TRIM_THRESHOLD_": "268435456"}
 MODES = ("eager", "compile", "reduce-overhead")
 SOLVES = ("solve_ik", "solve_ik_multistart", "solve_ik_constrained")
-ADAPTERS = ("kinematics.compiled", "torch.compile", "solve_ik(step=)")
-COMPILED = getattr(br.kinematics, "compiled", None)  # None in a library version without it
-SEEDS = "seeds" in inspect.signature(br.solve_ik).parameters  # False before batched seeds; then also no step=
+ADAPTERS = ("kinematics.compiled", "solve_ik(step=)")
 COMPILE_MODES = {"compile": "default", "reduce-overhead": "reduce-overhead"}
 MULTISTART = (32, 16)  # (seeds, iterations) of solve_ik_multistart: success 1.000 Panda, 0.991 G1 (I1 measurement)
 
 
 def adapter(function: str) -> str:
-    """The ``ADAPTERS`` entry that compiles ``function``: the solve's own ``step=`` hook, else ``torch.compile`` for a
-    solve or a library without ``kinematics.compiled``."""
-    if function in SOLVES:
-        return ADAPTERS[2] if SEEDS else ADAPTERS[1]
-    return ADAPTERS[1] if COMPILED is None else ADAPTERS[0]
+    """The ``ADAPTERS`` entry that compiles ``function``: the solve's own ``step=`` hook, else ``kinematics.compiled``."""
+    return ADAPTERS[1] if function in SOLVES else ADAPTERS[0]
 
 
 def adapt(fn: Callable[..., Any], mode: str, compiler: str = ADAPTERS[0]) -> Callable[..., Any]:
     """The callable of ``fn`` in ``mode``: itself, or ``fn`` compiled by ``compiler`` (``adapter``) in that mode; a
     ``solve_ik(step=)`` case compiled its step itself."""
-    if mode == "eager" or compiler == ADAPTERS[2]:
+    if mode == "eager" or compiler == ADAPTERS[1]:
         return fn
-    if compiler == ADAPTERS[1] or COMPILED is None:
-        return torch.compile(fn, mode=None if mode == "compile" else mode)
-    return COMPILED(fn, mode="default" if mode == "compile" else mode)
+    return br.kinematics.compiled(fn, mode="default" if mode == "compile" else mode)
 
 
 def fk_frames(model: br.Model, frame: int, q: torch.Tensor, v: torch.Tensor, a: torch.Tensor) -> tuple:
@@ -327,7 +317,7 @@ def ik_case(
 
         return step, (solver.init(problem, {"q": q0}),), lambda output: {"iterations": 1}
     if worst is not None:
-        hook = COMPILED(solver.step, mode=COMPILE_MODES[mode]) if mode != "eager" else None
+        hook = br.kinematics.compiled(solver.step, mode=COMPILE_MODES[mode]) if mode != "eager" else None
 
         def held(q0: torch.Tensor, *poses: torch.Tensor) -> tuple[torch.Tensor, int]:
             problem = br.terms.ik_problem(model, dict(zip(frames, poses, strict=True)), q0=q0)
@@ -345,24 +335,18 @@ def ik_case(
 
         return held, (q0, *poses), within
     seeds, iterations = MULTISTART if function == "solve_ik_multistart" else (1, None)
-    keywords: dict[str, Any] = {}
-    if SEEDS:
-        keywords |= {"seeds": seeds} | ({"iterations": iterations} if iterations else {})
-        if mode != "eager":
-            keywords["solver"] = solver
-            keywords["step"] = COMPILED(solver.step, mode=COMPILE_MODES[mode])
-    elif function == "solve_ik_multistart":
-        keywords["restarts"] = 4
+    keywords: dict[str, Any] = {"seeds": seeds} | ({"iterations": iterations} if iterations else {})
+    if mode != "eager":
+        keywords["solver"] = solver
+        keywords["step"] = br.kinematics.compiled(solver.step, mode=COMPILE_MODES[mode])
 
     def solve(q0: torch.Tensor, *poses: torch.Tensor) -> tuple[torch.Tensor, int]:
-        many = keywords.get("seeds", 1) > 1 or "restarts" in keywords
-        generator = torch.Generator(device=q0.device).manual_seed(1) if many else None
+        generator = torch.Generator(device=q0.device).manual_seed(1) if seeds > 1 else None
         result = br.solve_ik(model, dict(zip(frames, poses, strict=True)), q0=q0, generator=generator, **keywords)
         return result.x["q"], result.iterations
 
     def report(output: tuple[torch.Tensor, int]) -> dict[str, Any]:
-        starts = keywords.get("seeds", keywords.get("restarts", 0) + 1)
-        return {"iterations": output[1], "seeds": starts} | ik_accuracy(robot, model, output[0], targets)
+        return {"iterations": output[1], "seeds": seeds} | ik_accuracy(robot, model, output[0], targets)
 
     return solve, (q0, *poses), report
 
@@ -632,7 +616,7 @@ def better_robot_rows(
         pool_v, pool_a = (torch.randn(POOL, model.nv, generator=generator, dtype=args.dtype) for _ in range(2))
         start = start_configuration(robot, model)
         draws = start.expand(max(POOL, *args.batches), model.nq).contiguous()
-        ik_q = br.terms.random_start(model, draws, generator=torch.Generator().manual_seed(2))  # restarts draw seed 1
+        ik_q = br.terms.random_start(model, draws, generator=torch.Generator().manual_seed(2))  # starts draw seed 1
         model, start = model.to(device=device), start.to(device)
         stopped: dict[tuple[str, bool, str], str] = {}  # (function, grad, mode) -> why its larger batches are skipped
         for function in args.functions:

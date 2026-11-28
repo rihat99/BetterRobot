@@ -157,6 +157,7 @@ derivative method.
 | **mass matrix** | `M(q) (B..., nv, nv)`, the joint-space inertia that relates acceleration to generalized force. |
 | **bias force** | The velocity-dependent and gravity forces present before any applied generalized force. |
 | **external force** | A wrench applied to a body from outside, `external_forces (B..., njoints, 6)`. |
+| **contact wrench** | The wrench that a world force pushing at a frame's origin applies to the body of the frame's parent joint, in that joint's frame: its row of `external_forces` (`dynamics.contact_wrenches`). |
 | **center of mass, COM** | The mass-weighted average position of the robot's bodies. |
 | **centroidal momentum** | The robot's total linear and angular momentum about its center of mass, `(B..., 6)`. |
 | **centroidal map** | `A_g(q) (B..., 6, nv)`, the matrix with `h_g = A_g v`: centroidal momentum from velocity. |

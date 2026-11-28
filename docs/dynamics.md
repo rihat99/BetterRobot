@@ -11,6 +11,7 @@ The names you will use:
 | `br.inverse_dynamics(model, state, v=, a=)` | the joint torques `(nv,)` for that motion (RNEA) |
 | `br.mass_matrix(model, state)` | the joint-space mass matrix `(nv, nv)` (CRBA) |
 | `br.forward_dynamics(model, state, v=, tau=)` | the accelerations the torques cause (ABA) |
+| `dynamics.contact_wrenches(model, state, forces=, frames=)` | world forces `(C, 3)` at named frames as the `external_forces` of inverse and forward dynamics |
 | `br.center_of_mass(model, state)` | the robot's centre of mass `(3,)` |
 | `dynamics.centroidal_momentum(model, state, v=)` | linear and angular momentum about the centre of mass |
 

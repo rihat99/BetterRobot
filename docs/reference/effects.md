@@ -36,6 +36,7 @@ synchronisation or CUDA yet, so the table has no such columns.
 | `centroidal_map` | yes | yes | yes |  | yes | yes | yes |
 | `centroidal_momentum` | yes | yes | yes | yes | yes | yes | yes |
 | `center_of_mass` | yes | yes | yes |  | yes | yes | yes |
+| `contact_wrenches` | yes | yes | yes | yes | yes | yes | yes |
 | `integrate` | yes | yes | yes | yes | yes |  | yes |
 | `difference` | yes | yes | yes | yes | yes |  | yes |
 | `full_configuration` | yes | yes | yes | yes | yes |  | yes |

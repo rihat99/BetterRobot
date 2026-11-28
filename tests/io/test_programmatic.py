@@ -8,6 +8,7 @@ import pytest
 import torch
 
 from better_robot.exceptions import ModelError, UnknownNameError
+from better_robot.io import build_model
 from better_robot.io.ir import IRModel, IRShape
 from better_robot.io.builder import ModelBuilder
 from better_robot.model.geometry import Sphere
@@ -35,9 +36,8 @@ def _simple_arm() -> IRModel:
     return b.finalize()
 
 
-def test_finalize_emits_the_root_bodies_and_joints():
+def test_finalize_emits_the_bodies_and_joints():
     ir = _simple_arm()
-    assert ir.root_body == "base"
     assert len(ir.bodies) == 2
     assert len(ir.joints) == 1
     j = ir.joints[0]
@@ -64,7 +64,10 @@ def _add_base_link1_and_j1(b):
         ),
         # No joints → 2 root candidates
         pytest.param(
-            lambda b: (b.add_body("a"), b.add_body("b")), lambda b: b.finalize(), "root body", id="multiple_root_bodies"
+            lambda b: (b.add_body("a"), b.add_body("b")),
+            lambda b: build_model(b.finalize()),
+            "root body",
+            id="multiple_root_bodies",
         ),
     ],
 )
@@ -111,5 +114,5 @@ def test_three_link_chain():
     b.add_revolute("j1", axis=(0.0, 0.0, 1.0), parent="root", child="l1", origin=_identity_se3(), lower=-1.0, upper=1.0)
     b.add_prismatic("j2", axis=(0.0, 0.0, 1.0), parent="l1", child="l2", origin=_identity_se3(), lower=0.0, upper=0.5)
     ir = b.finalize()
-    assert ir.root_body == "root"
+    assert build_model(ir).body_names[1] == "root"
     assert len(ir.joints) == 2

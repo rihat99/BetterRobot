@@ -479,6 +479,39 @@ def test_an_ir_joint_to_a_missing_body_says_what_to_add():
         build_model(ir)
 
 
+@pytest.mark.parametrize(
+    ("ir", "message"),
+    [
+        pytest.param(
+            _named_ir([("j", "b0", "b1")], ["b0", "b1", "stray"]),
+            "expected exactly one root body (a body no joint moves), found 2: ['b0', 'stray']; connect or remove",
+            id="two_roots",
+        ),
+        pytest.param(
+            _named_ir([("j", "b1", "b0"), ("k", "b0", "b1")], ["b0", "b1"]),
+            "expected exactly one root body (a body no joint moves), found 0: []",
+            id="no_root",
+        ),
+        pytest.param(
+            _named_ir([("mount", "world", "b0"), ("j", "b0", "b1")], ["b0", "b1", "stray"]),
+            "bodies ['stray'] are moved by no joint, and the joint 'mount' from 'world' holds the root 'b0'",
+            id="stray_beside_a_world_joint",
+        ),
+    ],
+)
+def test_a_body_outside_the_one_tree_raises(ir, message):
+    """Every body but the root is moved by a joint. A stray body beside a joint from ``"world"`` was once dropped
+    from the model without a word."""
+    with pytest.raises(ModelError, match=re.escape(message)):
+        build_model(ir)
+
+
+def test_a_world_link_of_the_description_is_the_universe():
+    """A URDF may name the universe as a link ``world``: it is no body of the model and no second root."""
+    model = build_model(_named_ir([("mount", "world", "base"), ("j", "base", "tip")], ["world", "base", "tip"]))
+    assert model.body_names == ("universe", "base", "tip")
+
+
 def test_an_ir_neutral_is_the_start_clamped_into_the_limits_and_must_fit_the_joint():
     ir = _named_ir([("j", "b0", "b1")], ["b0", "b1"])
     ir.joints[0].lower, ir.joints[0].upper = -1.0, 1.0
