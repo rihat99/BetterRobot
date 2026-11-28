@@ -2,25 +2,24 @@
 
 Every path of the ``__all__`` tree with its kind and signature (``better_robot.testing.public_api``) is tracked, so
 a change to the public surface is a reviewed edit of the snapshot, never a side effect. After an intended change:
-``uv run python tools/api_snapshot.py --check`` lists it, ``--write`` records it, and the commit message says it.
+``uv run python -m better_robot.testing.api_snapshot better_robot tests/contract/public_api.json --check`` lists it,
+``--write`` records it, and the commit message says it.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from better_robot.testing import public_api
+from better_robot.testing import snapshot_differences
 
 SNAPSHOT = Path(__file__).resolve().parent / "public_api.json"
 
 
 def test_public_api_matches_the_snapshot() -> None:
     """A path added, removed or with a changed signature fails until the snapshot records it."""
-    snapshot: dict[str, str] = json.loads(SNAPSHOT.read_text())
-    current = public_api("better_robot")
-    changed = sorted(path for path in snapshot.keys() | current.keys() if snapshot.get(path) != current.get(path))
+    changed = snapshot_differences("better_robot", SNAPSHOT)
     assert not changed, (
-        "the public API differs from tests/contract/public_api.json at these paths; review them with "
-        "`uv run python tools/api_snapshot.py --check`, then record them with `--write`:\n  " + "\n  ".join(changed)
+        "the public API differs from tests/contract/public_api.json; review it with `uv run python -m "
+        "better_robot.testing.api_snapshot better_robot tests/contract/public_api.json --check`, then record it with "
+        "`--write`:\n  " + "\n  ".join(changed)
     )

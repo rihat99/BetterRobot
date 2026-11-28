@@ -134,7 +134,7 @@ from torch._inductor.utils import fresh_cache
 import better_robot as br
 from better_robot.model import JointFixed
 from better_robot.optim import LevenbergMarquardt, Phase, SequentialQP, State
-from run import device_name, git, loadavg  # benchmarks/run.py: the counter gate's context helpers
+from better_robot.testing.bench import device_name, git, load_average
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROBOT_DIR = REPO_ROOT / "tests" / "fixtures" / "robots"
@@ -631,7 +631,7 @@ def better_robot_rows(
                     for mode in args.modes:
                         row: dict[str, Any] = {"library": "better_robot", "function": function, "robot": robot}
                         row |= {"device": device.type, "dtype": str(args.dtype).removeprefix("torch."), "batch": batch}
-                        row |= {"mode": mode, "grad": grad, "nq": model.nq, "nv": model.nv, "loadavg": loadavg()}
+                        row |= {"mode": mode, "grad": grad, "nq": model.nq, "nv": model.nv, "loadavg": load_average()}
                         if (function, grad, mode) in stopped:
                             row["skipped"] = stopped[function, grad, mode]
                         else:
@@ -688,7 +688,7 @@ def pinocchio_rows(args: argparse.Namespace) -> list[dict[str, Any]]:
         }
         for function in (name for name in args.functions if name in calls):
             row = {"library": "pinocchio", "function": function, "robot": robot, "device": "cpu", "dtype": "float64"}
-            row |= {"batch": 1, "mode": "c++", "nq": model.nq, "nv": model.nv, "loadavg": loadavg()}
+            row |= {"batch": 1, "mode": "c++", "nq": model.nq, "nv": model.nv, "loadavg": load_average()}
             calls[function]()
             rows.append(row | time_call(calls[function], lambda: None, args.repeats))
             print_row(rows[-1])
@@ -741,7 +741,7 @@ def run(args: argparse.Namespace) -> None:
         "siblings_busy_start": siblings_busy(cores),
         "malloc_env": {name: os.environ.get(name) for name in FIXED_MALLOC},
         "date": datetime.datetime.now().isoformat(timespec="seconds"),
-        "loadavg_start": loadavg(),
+        "loadavg_start": load_average(),
     }
     if device.type == "cuda":
         meta["gpu_start"] = gpu_state(device)
@@ -759,7 +759,7 @@ def run(args: argparse.Namespace) -> None:
         except ImportError as exc:
             meta["pinocchio"] = f"not measured: {exc}"
     better_robot_rows(args, device, rows, save)
-    meta["loadavg_end"] = loadavg()
+    meta["loadavg_end"] = load_average()
     meta["siblings_busy_end"] = siblings_busy(cores)
     if device.type == "cuda":
         meta["gpu_end"] = gpu_state(device)

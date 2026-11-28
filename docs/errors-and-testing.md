@@ -86,4 +86,11 @@ passed
 The pytest plugin `better_robot.testing.no_skips` turns every skip and xfail into a failure. Add it to
 `pytest_plugins` in your `conftest.py` if you want the same rule.
 
+A library built on BetterRobot can share its repository checks as well, as BetterHuman does. Each returns one line
+per problem, naming the path or the name and the fix, so a contract test asserts that the list is empty:
+`testing.repository.layout_problems` and `agent_file_problems` check a repository's layout and agent files,
+`testing.naming_problems` and `testing.glossary.unknown_words` its public names, and `testing.snapshot_differences`
+its public API against the snapshot that `python -m better_robot.testing.api_snapshot` writes. `testing.bench`
+counts operators and host syncs, times a call and checks a benchmark runner's counters against their thresholds.
+
 See also: [Model and io](model-and-io.md) for the joint kinds that ship.

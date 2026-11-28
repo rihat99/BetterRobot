@@ -16,7 +16,7 @@ uv run pytest tests/parity -q                                # Pinocchio and MuJ
 uv run pytest tests/docs -q                                  # every docs snippet against its output, about 100 s
 uv run mkdocs build --strict                                 # the docs site into site/, about 5 s
 uv run ruff check . && uv run ruff format --check .          # lint and format, under a second
-uv run python tools/api_snapshot.py --check                  # the public API against its snapshot, about 1.5 s
+uv run python -m better_robot.testing.api_snapshot better_robot tests/contract/public_api.json --check  # about 1.5 s
 uv run tools/ratchet_counts.py                               # no ratchet grew, under a second
 uv run python benchmarks/run.py --counters-only              # the counter gate, about 50 s
 ```
@@ -51,7 +51,7 @@ tolerance, a counter threshold, the edge table) changes only in a commit of its 
   (the `CAP` of `tests/contract/test_pyright_ratchet.py`), keyword_only 6, value_checks 3, vocabulary 3; the other
   five are empty.
 - The public API equals `tests/contract/public_api.json` (`tests/contract/test_api_snapshot.py`); an intended change
-  is recorded with `uv run python tools/api_snapshot.py --write`, and the commit message says it.
+  is recorded with the snapshot command above with `--write` in place of `--check`, and the commit message says it.
 - `lie` and `spatial` keep 100 % line and branch coverage (the coverage step of `tools/release_tier.sh`).
 
 ## Absences, each with its enforcer

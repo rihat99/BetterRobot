@@ -40,7 +40,7 @@ testing           -> exceptions model optim
 | `optim` | robot-agnostic least squares and minimisation over named tensors |
 | `terms` | robot cost terms (poses, limits, collision) and `solve_ik` |
 | `viewer` | interactive 3-D display |
-| `testing` | checks shared with BetterHuman's tests: the snippet runner, the fake viser server, the sweeps |
+| `testing` | checks shared with BetterHuman's tests, runner and tools: the snippet runner, the fake viser server, the sweeps, the repository, naming and API-snapshot checks, the benchmark counters |
 
 What the table rules out, each absence with its check:
 

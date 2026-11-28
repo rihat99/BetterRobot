@@ -30,6 +30,7 @@ example.
    the joint.
 6. Public surface, in the same change: a builder in `tests/contract/test_repr.py`, every new word in
    `docs/reference/glossary.md`, the `q` layout line appended to `docs/contracts/coupling-standard.md` and
-   `tests/contract/coupling_standard_lines.txt`, then `uv run python tools/api_snapshot.py --write`.
+   `tests/contract/coupling_standard_lines.txt`, then
+   `uv run python -m better_robot.testing.api_snapshot better_robot tests/contract/public_api.json --write`.
 7. Check: the fast tier, then
    `uv run pytest tests/model tests/io tests/kinematics tests/dynamics tests/viewer tests/parity -q`.

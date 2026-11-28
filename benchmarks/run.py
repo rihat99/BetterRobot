@@ -21,11 +21,13 @@ steps of at most 5 mrad, each warm started from the last; its ``worst_violation_
 one torch version and device: ``graph_breaks`` (``torch._dynamo.explain``), ``recompiles`` (frames compiled when
 ``torch.compile(fn, backend="eager")``, first called at the row's batch, is called at each batch of ``SWEEP``),
 ``ops`` (top-level ``aten::`` operators of one call) and ``host_syncs`` (calls of the operators that make the host
-wait for a CUDA queue, ``SYNC_OPS``). The run exits 1 when a counter row exceeds its threshold in
+wait for a CUDA queue), both from ``better_robot.testing.bench.profile_counts``, which BetterHuman's runner shares;
+the first two need the compiler, which contract C-PERF-5 keeps out of the library, so ``compile_counts`` stays here.
+The run exits 1 when a counter row exceeds its threshold in
 ``benchmarks/thresholds/torch-<version>.json``, has none, or no such file exists for the installed torch; a thresholds
 file is this runner's ``--counters-only`` output from a clean commit, changed only in a commit of its own.
 
-Wall time is the median of up to ``--repeats`` calls (at least 3; fewer once a row passes ``ROW_BUDGET_S``) after one
+Wall time is the median of up to ``--repeats`` calls (at least 3; fewer once a row has run 2 s) after one
 warm-up call, with the minor page faults per call; the counters are taken after it. It is recorded, never gated: the
 load average sits beside every row.
 
@@ -38,15 +40,9 @@ Python, device, CPU, threads, affinity, the allocator variables and the load ave
 from __future__ import annotations
 
 import argparse
-import datetime
 import gc
 import json
 import os
-import platform
-import resource
-import shlex
-import statistics
-import subprocess
 import sys
 import time
 from collections.abc import Callable
@@ -58,19 +54,16 @@ from typing import Any
 import torch
 import torch._dynamo
 from torch._dynamo.utils import counters as dynamo_counters
-from torch.profiler import ProfilerActivity, profile
 
 import better_robot as br
+from better_robot.testing import bench
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROBOTS = REPO_ROOT / "tests" / "fixtures" / "robots"  # the tracked test robots: offline, one file each
 URDFS = {"panda": ROBOTS / "panda" / "panda.urdf", "g1": ROBOTS / "g1" / "g1_29dof.urdf"}
 THRESHOLDS = REPO_ROOT / "benchmarks" / "thresholds" / f"torch-{torch.__version__.split('+')[0]}.json"
 DTYPE = torch.float32
-ROW_BUDGET_S = 2.0
 SWEEP = (1, 2, 3, 64)
-COUNTERS = ("graph_breaks", "recompiles", "ops", "host_syncs")
-SYNC_OPS = frozenset({"aten::_local_scalar_dense", "aten::nonzero"})  # item/bool/float/int of a tensor; mask indexing
 LARGE_BATCH = 1024
 IK_FRAME = "panda_hand"
 IK_SUCCESS_M = 1e-3
@@ -251,30 +244,6 @@ def constrained_ik_case(device: torch.device, *, track: bool = False) -> Case:
     return Case(row, 64, partial(ik, q0, targets), ik, (q0, targets), sweep, report=accuracy)
 
 
-def profile_counts(call: Callable[[], object]) -> tuple[int, int]:
-    """``(ops, host_syncs)`` of one call.
-
-    ``ops`` counts the profiler's ``aten::`` events with no ``aten::`` ancestor: each operator dispatched from Python or
-    from an autograd node, not those nested in another operator (``aten::bmm`` inside ``aten::matmul``). It does not
-    depend on the batch size, so it tracks the Python and dispatch overhead that dominates small batches.
-    ``host_syncs`` counts every ``SYNC_OPS`` event, nested or not (``linalg.cholesky`` checks its result with one).
-    """
-
-    def top_level(event: Any) -> bool:
-        parent = event.cpu_parent
-        while parent is not None:
-            if parent.name.startswith("aten::"):
-                return False
-            parent = parent.cpu_parent
-        return True
-
-    with profile(activities=[ProfilerActivity.CPU]) as prof:
-        call()
-    events = prof.events()
-    ops = sum(1 for event in events if event.name.startswith("aten::") and top_level(event))
-    return ops, sum(1 for event in events if event.name in SYNC_OPS)
-
-
 def compile_counts(fn: Callable[..., Any], args: tuple, sweep: tuple[tuple, ...]) -> tuple[int, int]:
     """``(graph_breaks, recompiles)`` of ``fn`` (module docstring); dynamo state is reset before and after."""
     torch._dynamo.reset()
@@ -298,116 +267,20 @@ def compile_counts(fn: Callable[..., Any], args: tuple, sweep: tuple[tuple, ...]
     return graph_breaks, recompiles
 
 
-def time_ms(call: Callable[[], object], sync: Callable[[], None], repeats: int) -> dict[str, float]:
-    """``median_ms`` and ``min_ms`` per call and minor ``page_faults`` per call (``getrusage``)."""
-    samples: list[float] = []
-    faults = resource.getrusage(resource.RUSAGE_SELF).ru_minflt
-    budget_start = time.perf_counter()
-    while len(samples) < repeats:
-        sync()
-        start = time.perf_counter()
-        call()
-        sync()
-        samples.append((time.perf_counter() - start) * 1e3)
-        # at least 3 samples, except when one call alone exceeds the row budget (slow large-batch rows)
-        enough = len(samples) >= 3 or samples[0] > ROW_BUDGET_S * 1e3
-        if enough and time.perf_counter() - budget_start > ROW_BUDGET_S:
-            break
-    faults = (resource.getrusage(resource.RUSAGE_SELF).ru_minflt - faults) / len(samples)
-    return {"median_ms": statistics.median(samples), "min_ms": min(samples), "page_faults": faults}
-
-
 def measure(case: Case, args: argparse.Namespace, sync: Callable[[], None]) -> dict[str, Any]:
     """One case's row: a warm-up call, wall time unless ``--counters-only``, counters unless ``--timing-only``."""
-    row: dict[str, Any] = {"row": case.row, "batch": case.batch, "loadavg": loadavg()}
+    row: dict[str, Any] = {"row": case.row, "batch": case.batch, "loadavg": bench.load_average()}
     result = case.call()
     if case.report is not None:
         row |= case.report(result)
     if not args.counters_only:
-        row |= time_ms(case.call, sync, args.repeats)
+        row |= bench.wall_time(case.call, sync, repeats=args.repeats)
     if not args.timing_only:
-        row["ops"], row["host_syncs"] = profile_counts(case.call) if case.profiled else (None, None)
+        row["ops"], row["host_syncs"] = bench.profile_counts(case.call) if case.profiled else (None, None)
         if case.fn is not None:
             row["graph_breaks"], row["recompiles"] = compile_counts(case.fn, case.args, case.sweep)
-    print_row(row)
+    print(bench.row_line(row), flush=True)
     return row
-
-
-def check_thresholds(rows: list[dict[str, Any]], selected: set[str] | None) -> list[str]:
-    """Each problem of the counter ``rows`` against ``THRESHOLDS`` (module docstring), as one line naming its fix."""
-    if not THRESHOLDS.exists():
-        return [
-            f"no thresholds for torch {torch.__version__}: on a clean commit run `uv run python benchmarks/run.py "
-            f"--counters-only --out {THRESHOLDS.relative_to(REPO_ROOT)}` and commit that file alone"
-        ]
-    limits = {row["row"]: row for row in json.loads(THRESHOLDS.read_text())["rows"]}
-    measured = {row["row"]: row for row in rows}
-    problems = [
-        f"{key}: has a threshold but was not measured"
-        for key in sorted(limits.keys() - measured.keys())
-        if selected is None or key in selected
-    ]
-    for key, row in sorted(measured.items()):
-        if key not in limits:
-            problems.append(f"{key}: no threshold; measure it on a clean commit and add it in a commit of its own")
-            continue
-        for counter in COUNTERS:
-            limit = limits[key].get(counter)
-            if limit is not None and (row.get(counter) is None or row[counter] > limit):
-                problems.append(f"{key}: {counter} {row.get(counter)} > threshold {limit}")
-    return problems
-
-
-def git(root: Path, *arguments: str) -> str:
-    """Stdout of one git command in the checkout at ``root``."""
-    command = ["git", "-C", str(root), *arguments]
-    return subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
-
-
-def loadavg() -> str:
-    """``/proc/loadavg``: the 1, 5 and 15 minute load averages, running/total tasks, last pid."""
-    return Path("/proc/loadavg").read_text().strip()
-
-
-def device_name(device: torch.device) -> str:
-    """The GPU's name, or the CPU model from ``/proc/cpuinfo``."""
-    if device.type == "cuda":
-        return torch.cuda.get_device_name(device)
-    for line in Path("/proc/cpuinfo").read_text().splitlines():
-        if line.startswith("model name"):
-            return line.split(":", 1)[1].strip()
-    return platform.processor()
-
-
-def context(args: argparse.Namespace, device: torch.device) -> dict[str, Any]:
-    """The ``meta`` record: what ran, on what, under which load."""
-    return {
-        "commit": git(REPO_ROOT, "rev-parse", "--short", "HEAD"),
-        "dirty": bool(git(REPO_ROOT, "status", "--porcelain")),
-        "command": shlex.join(sys.argv),
-        "package_file": os.path.relpath(br.__file__, REPO_ROOT),  # relative: no home directory in a tracked file
-        "torch": torch.__version__,
-        "python": platform.python_version(),
-        "device": args.device,
-        "device_name": device_name(device),
-        "threads": torch.get_num_threads(),
-        "affinity": sorted(os.sched_getaffinity(0)),
-        "dtype": str(DTYPE),
-        "malloc_env": {name: os.environ.get(name) for name in ("MALLOC_MMAP_THRESHOLD_", "MALLOC_TRIM_THRESHOLD_")},
-        "date": datetime.datetime.now().isoformat(timespec="seconds"),
-        "loadavg_start": loadavg(),
-    }
-
-
-def print_row(row: dict[str, Any]) -> None:
-    """One table line: row, median ms, page faults, ops, host syncs, graph breaks, recompiles (``-``: not measured)."""
-
-    def cell(key: str, width: int, spec: str = "") -> str:
-        value = row.get(key)
-        return f"{'-' if value is None else format(value, spec):>{width}}"
-
-    line = f"{row['row']:48} {cell('median_ms', 10, '.4f')} {cell('page_faults', 8, '.0f')} {cell('ops', 7)}"
-    print(f"{line} {cell('host_syncs', 6)} {cell('graph_breaks', 6)} {cell('recompiles', 10)}", flush=True)
 
 
 def parse_args() -> argparse.Namespace:
@@ -434,14 +307,16 @@ def main() -> None:
     torch.set_num_threads(args.threads)  # noqa: TID251 - a benchmark pins its threads so rows compare; C-DEP-3 binds the library
     device = torch.device(args.device)
     sync = (lambda: torch.cuda.synchronize(device)) if device.type == "cuda" else (lambda: None)
-    meta = context(args, device)
+    meta = bench.context(REPO_ROOT, device, dtype=DTYPE)
+    meta["package_file"] = os.path.relpath(br.__file__, REPO_ROOT)  # relative: no home directory in a tracked file
+    meta["malloc_env"] = {name: os.environ.get(name) for name in ("MALLOC_MMAP_THRESHOLD_", "MALLOC_TRIM_THRESHOLD_")}
     started = time.perf_counter()
-    print(f"{'row':48} {'median_ms':>10} {'faults':>8} {'ops':>7} {'syncs':>6} {'breaks':>6} {'recompiles':>10}")
+    print(bench.HEADER)
 
     cases = [case for case in counter_cases(device) if args.rows is None or case.row in args.rows]
     rows = [measure(case, args, sync) for case in cases]
 
-    meta["loadavg_end"] = loadavg()
+    meta["loadavg_end"] = bench.load_average()
     meta["total_s"] = round(time.perf_counter() - started, 1)
     out = args.out or REPO_ROOT / "benchmarks" / "results" / f"{meta['commit']}_{args.device}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -449,7 +324,7 @@ def main() -> None:
     print(f"wrote {out} ({meta['total_s']} s)")
     if args.timing_only:
         return
-    problems = check_thresholds(rows, args.rows)
+    problems = bench.check_thresholds(rows, THRESHOLDS, selected=args.rows)
     print(f"counters against {THRESHOLDS.relative_to(REPO_ROOT)}: {len(problems)} problems")
     for problem in problems:
         print(f"  {problem}")
