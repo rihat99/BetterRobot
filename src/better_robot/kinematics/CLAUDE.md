@@ -40,9 +40,9 @@ The design notes and their numbers live in the module docstrings of `_fk.py`, `_
   every spherical and free-flyer joint. Below the public wrappers everything trusts validated inputs: no
   `.item()`, `bool(tensor)` or Python branch on a value in the hot path
   (`tests/contract/test_hot_path_lint.py`).
-- Public wrappers trace as one graph under `torch.compile(fullgraph=True)`
-  (`tests/kinematics/test_fk_compile.py`): loop over joints and tree levels (Python ints from the plan),
-  never over batch elements.
+- Public wrappers trace as one graph under `torch.compile(fullgraph=True)` (`tests/kinematics/test_compilation.py`
+  and the zero graph breaks of `tests/contract/test_compile_counters.py`): loop over joints and tree levels (Python
+  ints from the plan), never over batch elements.
 - `compiled` (`compilation.py`) is the only `torch.compile` call. Each key (grad and inference
   mode; per argument a tensor's dtype, device, `requires_grad` and axes, a model's name, a string or number outside
   a dataclass, another object's type) has its own `torch.compile` and 8 graphs; its first call, and the first call of

@@ -11,7 +11,8 @@ translation, helical, custom) are evaluated one by one through their own ``place
 tensor. Frames are not computed here: `KinematicState.frame_transforms` derives them from the joints on first use
 (`world_frames`), so dynamics and joint-only callers never pay for them (21-23 % of a batch-4096 FK call). Everything
 stays autograd- and ``torch.func``-safe (jacrev and jacfwd); no host syncs; the public wrapper traces as one graph
-under ``torch.compile(fullgraph=True)`` (``tests/kinematics/test_fk_compile.py``).
+under ``torch.compile(fullgraph=True)``, from a cold plan too (``tests/kinematics/test_fk_compile.py``,
+``tests/kinematics/test_compilation.py``, and the zero graph breaks of ``tests/contract/test_compile_counters.py``).
 
 The ``(njoints, 7)`` and ``(nframes, 7)`` placements are converted to ``4x4`` matrices by `joint_map` and
 `world_frames` and memoised on the model by grad mode: converting per call cost 0.17 ms, 44 % of a
