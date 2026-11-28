@@ -20,17 +20,12 @@ from better_robot.viewer.layer import Layer
 from better_robot.viewer.robot import RobotVisual
 from better_robot.viewer.tools import PoseGizmo
 from better_robot.viewer.viewer import Viewer
+from tests.support.ports import free_port
 from tests.support.robots import g1_urdf
 
 
-def _free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
 def test_fifty_frame_scene_builds_and_pushes_every_frame(tmp_path: Path) -> None:
-    viewer = Viewer(port=_free_port())
+    viewer = Viewer(port=free_port())
     try:
         rng = np.random.default_rng(0)
         joints = rng.normal(size=(50, 24, 3)).astype(np.float32)
@@ -74,12 +69,12 @@ def test_a_server_passed_in_gives_its_own_address() -> None:
     """``Viewer(server=s)`` reports where ``s`` listens, not the default port, which another page may hold."""
     import viser  # noqa: PLC0415 - the optional dependency this test exercises
 
-    server = viser.ViserServer(host="127.0.0.1", port=_free_port(), verbose=False)
+    server = viser.ViserServer(host="127.0.0.1", port=free_port(), verbose=False)
     try:
         viewer = Viewer(server=server)
         assert (viewer.host, viewer.port) == ("127.0.0.1", server.get_port())
         assert viewer.url == f"http://127.0.0.1:{server.get_port()}"
-        for given in (dict(port=8080), dict(host="10.0.0.1"), dict(host="127.0.0.1", port=9999)):  # R1: were dropped
+        for given in (dict(port=8080), dict(host="10.0.0.1"), dict(host="127.0.0.1", port=9999)):  # were dropped
             with pytest.raises(ArgumentError, match="a server passed in listens where it was made"):
                 Viewer(server=server, **given)
     finally:
@@ -98,7 +93,7 @@ class _BrokenPush(Layer):
 
 @pytest.mark.slow
 def test_a_layer_that_fails_on_a_real_server_leaves_the_scene_as_it_was() -> None:
-    viewer = Viewer(port=_free_port(), ground=False)
+    viewer = Viewer(port=free_port(), ground=False)
     try:
         kept = PointsLayer("kept", np.random.default_rng(0).normal(size=(5, 4, 3)))
         viewer.add([kept])
@@ -120,7 +115,7 @@ def test_a_layer_that_fails_on_a_real_server_leaves_the_scene_as_it_was() -> Non
 
 @pytest.mark.slow
 def test_a_pose_gizmo_on_a_real_server_uses_no_deprecated_viser_call() -> None:
-    viewer = Viewer(port=_free_port())
+    viewer = Viewer(port=free_port())
     try:
         gizmo = PoseGizmo(viewer, "target", pose=np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0]))  # warnings are errors
         np.testing.assert_allclose(gizmo.pose, [0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0])
@@ -131,7 +126,7 @@ def test_a_pose_gizmo_on_a_real_server_uses_no_deprecated_viser_call() -> None:
 
 def test_a_switch_from_code_moves_the_shared_control_and_no_other_robot() -> None:
     """On a real server, where viser runs a control's callbacks for a value set from code as for a browser's."""
-    viewer = Viewer(port=_free_port())
+    viewer = Viewer(port=free_port())
     try:
         model = br.load(g1_urdf())
         spheres, _ = collision.load_spheres(collision.SPHERE_SETS / "g1.json", model)

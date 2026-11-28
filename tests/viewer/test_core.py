@@ -117,7 +117,7 @@ def test_set_pose_places_a_tag_after_it_was_added_and_aim_frames_it_turned() -> 
 
 
 def test_a_pose_of_non_finite_or_non_numeric_values_is_refused_and_a_near_unit_quaternion_is_normalised() -> None:
-    """R1's probe: a NaN or inf translation and ``None`` inside were accepted (the camera turned NaN), a string or a
+    """A NaN or inf translation and ``None`` inside were accepted (the camera turned NaN), a string or a
     ragged pose raised numpy's builtin error, and a norm of 1.0009 reached viser as it was."""
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)
@@ -312,7 +312,7 @@ def test_a_layer_draws_its_array_attributes_so_an_edit_in_place_and_a_redraw_upd
 
 
 def test_radii_and_a_static_coloured_mesh_follow_the_array_rule_and_no_layer_keeps_a_strided_view() -> None:
-    """R1's probe: an edit of ``SpheresLayer.radii`` or of a static coloured ``MeshLayer``'s vertices plus a redraw
+    """An edit of ``SpheresLayer.radii`` or of a static coloured ``MeshLayer``'s vertices plus a redraw
     wrote nothing, and ``radii`` and a skin's rest arrays kept a non-contiguous float32 view of the caller's array."""
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)
@@ -412,7 +412,9 @@ def test_spheres_and_arrows_take_per_step_colours() -> None:
     assert not spheres.batched_colors.any()
     static = SpheresLayer("static", np.zeros((3, 2, 3)), radii=np.full(2, 0.05), colors=(0.0, 1.0, 0.0))
     viewer.add([static])
-    assert static._colors.shape == (2, 3)  # one colour stays static: never rewritten per step
+    server.scene.log.clear()
+    viewer.show(1)
+    assert ("/static/static/spheres", "batched_colors") not in server.scene.log  # one colour: never rewritten
     with pytest.raises(ShapeError, match="per-step colors"):
         ArrowsLayer("bad", np.zeros((3, 2, 3)), vectors=np.ones((3, 2, 3)), colors=np.zeros((2, 2, 3)))
 
@@ -619,7 +621,7 @@ class _Styled(Layer):
 
 
 def test_removing_or_replacing_a_layer_never_restyles_the_others() -> None:
-    """R1's probe: a G1 with meshes beside a Panda at "medium"; removing the G1 left the Panda "minimal", and a robot
+    """A G1 with meshes beside a Panda at "medium": removing the G1 left the Panda "minimal", and a robot
     built with ``style="medium"`` that replaced the G1 came up "minimal"."""
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)
@@ -669,7 +671,8 @@ def test_layers_section_has_a_checkbox_per_tag_once_there_are_two_and_follows_se
     viewer.show(4)
     boxes()["Robot"].value = True
     boxes()["Robot"].fire()
-    assert arm.visible and hand.visible and viewer._entry(arm).step == 4
+    assert arm.visible and hand.visible
+    np.testing.assert_array_equal(server.scene.nodes["/robot/arm/spheres"].batched_positions, arm.centers[4])
     folder = server.gui.control("Layers")
     viewer.remove("robot")
     assert boxes() == {} and folder.removed  # one tag left
@@ -690,7 +693,7 @@ def test_replace_puts_the_new_layer_in_the_old_ones_place_and_visibility() -> No
     assert new.visible is False and server.scene.nodes["/human/body2/spheres"].visible is False
     assert viewer.timeline.nsteps == 5  # fitted to the layers now present
     viewer.set_visible(new, True)
-    assert viewer._entry(new).step == 2
+    np.testing.assert_array_equal(server.scene.nodes["/human/body2/spheres"].batched_positions, new.centers[2])
     with pytest.raises(ArgumentError, match="already has a layer named 'cloud'"):
         viewer.replace(new, PointsLayer("cloud", np.zeros((3, 2, 3))))
     with pytest.raises(ArgumentError, match="not in this viewer"):
@@ -897,7 +900,7 @@ def test_adding_a_layer_reads_the_bounds_of_the_others_only_after_they_were_push
 
 
 def test_a_redraw_while_hidden_drops_the_boxes_a_layer_shown_by_its_own_switch_is_framed_by() -> None:
-    """R1's probe: ``layer.set_visible(False)``, an edit, ``redraw()`` and ``layer.set_visible(True)`` left the automatic
+    """``layer.set_visible(False)``, an edit, ``redraw()`` and ``layer.set_visible(True)`` left the automatic
     aim on the old boxes, 13.9 m from a fresh fit."""
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)

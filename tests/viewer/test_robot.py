@@ -144,7 +144,7 @@ def test_a_mesh_file_whose_material_file_is_missing_takes_the_shapes_colour(tmp_
 
 def test_load_meshes_refuses_a_model_for_the_geometry_and_a_collision_that_is_not_a_bool() -> None:
     """A ``Model`` in place of its ``Geometry`` raised the builtin ``AttributeError`` of a missing ``shapes``, and
-    ``collision="yes"`` matched no shape and returned ``[]`` (R1 n4): both are the library's ``ArgumentError``."""
+    ``collision="yes"`` matched no shape and returned ``[]``: both are the library's ``ArgumentError``."""
     model = br.load(panda_urdf())
     geometry = br.io.load_geometry(panda_urdf(), model)
     with pytest.raises(ArgumentError, match="takes a Geometry.*got Model"):
@@ -323,7 +323,7 @@ def test_a_hidden_robot_builds_a_part_switched_on_only_when_it_is_shown() -> Non
 
 def test_a_robot_shown_by_its_own_switch_shows_the_viewers_step() -> None:
     """``robot.set_visible(True)`` catches the robot up to the step the viewer moved to while it was hidden, as
-    ``Viewer.set_visible`` does (R2 m1: its skeleton, overlay and triads stayed at the step they were hidden at)."""
+    ``Viewer.set_visible`` does (its skeleton, overlay and triads stayed at the step they were hidden at)."""
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     velocity = torch.randn(model.nv, generator=torch.Generator().manual_seed(3), dtype=model.q_neutral.dtype)
     q = torch.stack([br.kinematics.integrate(model, model.q_neutral, k * velocity) for k in range(3)])
@@ -507,7 +507,7 @@ def test_a_ghost_robot_draws_every_style_see_through_and_without_shadows() -> No
 def test_a_ghost_keeps_the_own_colours_and_texture_of_its_mesh_files_see_through(tmp_path: Path) -> None:
     """A mesh file with its own texture or colours (a Panda's, a Go2's) is sent as a GLB whose material takes the
     ghost's opacity, blended, with the texture and the colours kept and no shadow; opaque again, it is the file's
-    own GLB with shadows (R2 M1: such a robot stayed solid)."""
+    own GLB with shadows (such a robot stayed solid)."""
     import json  # noqa: PLC0415 - one test reads a GLB's JSON chunk
 
     import trimesh  # noqa: PLC0415 - optional dependency of the viewer
@@ -818,45 +818,17 @@ def test_joint_values_colour_the_joint_glyphs_with_one_more_write_and_no_new_nod
         robot.set_joint_values(values, value_range=(0.0, 1.0, 2.0))  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("growth", [(1.0, 2.0), (1.0, 1.4)])
-def test_joint_values_as_size_grow_a_glyph_to_the_recipe_growth_at_the_top_of_the_range(
-    growth: tuple[float, float],
-) -> None:
-    """With values shown as size, the knee's glyph keeps its size at the low end of the range for ``growth=(1, high)``
-    and is ``high`` times it at the high end and beyond (clamped); the other glyphs keep theirs. A single factor is
-    refused: ``growth`` is a pair."""
-    model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
-    knee = model.joint_names.index("left_knee_joint")
-    values = np.full((2, model.njoints), np.nan, dtype=np.float32)
-    values[:, knee] = (0.0, 5.0)
-    q = model.q_neutral.repeat(2, 1)
-    options = {"joint_values": values, "value_range": (0.0, 2.0), "values_as": "size"}
-    robot, server, viewer = _g1_visual(q, medium=replace(MEDIUM, growth=growth), **options)
-    node = "/g1_29dof/g1_29dof/medium/cylinders"
-    viewer.show(0)
-    low = np.array(server.scene.nodes[node].batched_scales)
-    viewer.show(1)
-    blocks = robot._skeleton("medium").blocks["cylinders"]
-    knees = [i for i, owner in enumerate(blocks.owner) if owner == knee and blocks.part[i] in ("drum", "face")]
-    assert knees
-    expected = low.copy()
-    expected[knees] *= growth[1]
-    np.testing.assert_allclose(server.scene.nodes[node].batched_scales, expected, rtol=1e-6)
-    with pytest.raises(ArgumentError, match="growth must be a pair"):
-        replace(MEDIUM, growth=2.0)  # pyright: ignore[reportArgumentType]
-
-
 def test_joint_values_as_size_with_a_growth_pair_shrink_a_glyph_at_the_low_end_and_keep_the_rods() -> None:
     """``growth=(low, high)``: the knee's glyph is ``low`` times its size at the low end of the range and ``high``
-    times it at the top; every other block, the rods beside it included, keeps its size without values. A pair
-    with low above high is refused."""
+    times it at the top and beyond (clamped); every other block, the rods beside it included, keeps its size without
+    values. A pair with low above high and a single factor are refused: ``growth`` is a pair."""
     model = br.load(g1_urdf(), root_joint=br.JointFreeFlyer())
     knee = model.joint_names.index("left_knee_joint")
-    values = np.full((2, model.njoints), np.nan, dtype=np.float32)
-    values[:, knee] = (0.0, 2.0)
+    values = np.full((3, model.njoints), np.nan, dtype=np.float32)
+    values[:, knee] = (0.0, 2.0, 5.0)
     options = {"joint_values": values, "value_range": (0.0, 2.0), "values_as": "size"}
     robot, server, viewer = _g1_visual(
-        model.q_neutral.repeat(2, 1), medium=replace(MEDIUM, growth=(0.5, 1.4)), **options
+        model.q_neutral.repeat(3, 1), medium=replace(MEDIUM, growth=(0.5, 1.4)), **options
     )
     skeleton = robot._skeleton("medium")
     plain = skeleton.place(robot._poses[0])["cylinders"][1].astype(np.float32)
@@ -866,7 +838,7 @@ def test_joint_values_as_size_with_a_growth_pair_shrink_a_glyph_at_the_low_end_a
         if owner == knee and skeleton.blocks["cylinders"].part[i] in ("drum", "face")
     ]
     assert knees and "rod" in skeleton.blocks["cylinders"].part
-    for step, factor in ((0, 0.5), (1, 1.4)):
+    for step, factor in ((0, 0.5), (1, 1.4), (2, 1.4)):
         viewer.show(step)
         expected = plain.copy()
         expected[knees] *= factor
@@ -875,6 +847,8 @@ def test_joint_values_as_size_with_a_growth_pair_shrink_a_glyph_at_the_low_end_a
         )
     with pytest.raises(ArgumentError, match="growth"):
         replace(MEDIUM, growth=(1.5, 0.5))
+    with pytest.raises(ArgumentError, match="growth must be a pair"):
+        replace(MEDIUM, growth=2.0)  # pyright: ignore[reportArgumentType]
 
 
 @pytest.mark.parametrize("style", ["minimal", "medium"])

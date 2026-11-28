@@ -53,7 +53,7 @@ def test_a_stand_in_handle_refuses_writes_after_remove() -> None:
 
 
 def test_a_stand_in_keeps_a_copy_of_each_array_it_is_sent_as_viser_does() -> None:
-    """R1's probe: the stand-in kept the arrays it was sent by reference, so the array-rule test of test_core passed its
+    """The stand-in kept the arrays it was sent by reference, so the array-rule test of test_core passed its
     points half with the push removed. viser serialises an array when it is sent."""
     server = FakeServer()
     viewer = Viewer(server=server, ground=False)
@@ -96,8 +96,8 @@ def test_every_stand_in_method_binds_like_viser(fake: type, real: type) -> None:
 
 
 def test_the_stand_in_theme_takes_no_parameter_viser_deprecates() -> None:
-    """R1's grep: ``configure_theme(control_layout=)``, which viser 1.1 deprecates for the main panel's placement, stayed
-    on the stand-in although nothing passes it any more."""
+    """``configure_theme(control_layout=)``, which viser 1.1 deprecates for the main panel's placement, stayed
+    on the stand-in although the viewer never passes it."""
     assert "control_layout" not in inspect.signature(FakeGui.configure_theme).parameters
 
 

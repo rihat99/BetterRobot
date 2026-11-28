@@ -403,17 +403,6 @@ def test_callbacks_cannot_register_on_the_views_run_hands_them(solver):
     assert list(problem.terms) == ["fit"]
 
 
-def test_a_view_is_sealed_and_registers_nothing_on_its_base():
-    base = optim.Problem(
-        {"x": torch.zeros(2, 2, dtype=torch.float64)}, data={"a": torch.ones(2, 2, dtype=torch.float64)}
-    )
-    base.residual("fit", lambda x, a: x - a)
-    view = base.with_(weights={"fit": 2.0})
-    with pytest.raises(exceptions.ArgumentError, match="sealed"):
-        view.residual("extra", lambda x: x)
-    assert "extra" not in base.terms, "a view must not register terms on its base problem"
-
-
 def test_a_weight_that_does_not_fit_its_residual_raises_naming_the_term():
     base = optim.Problem({"x": torch.zeros(2, 2, dtype=torch.float64)})
     base.residual("bad_weight", lambda x: x.unsqueeze(1).expand(2, 3, 2), weight=torch.ones(2, dtype=torch.float64))

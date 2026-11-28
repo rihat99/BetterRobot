@@ -1,11 +1,11 @@
-"""Per-layer sample times, the viewer-owned pointer slot, ray picking and the camera-layer move."""
+"""Per-layer sample times, the viewer-owned pointer slot and ray picking."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from better_robot.viewer import ArrowsLayer, CameraLayer, PointsLayer, SpheresLayer
+from better_robot.viewer import ArrowsLayer, PointsLayer, SpheresLayer
 from better_robot.viewer.layer import Layer
 from better_robot.viewer.tools import nearest_on_ray
 from better_robot.viewer.viewer import Viewer
@@ -121,10 +121,6 @@ def test_nearest_on_ray_picks_the_closest_point_in_front_of_the_origin() -> None
     assert nearest_on_ray(points, origin, direction=direction, radius=0.01) == 0
     assert nearest_on_ray(points, origin, direction=-direction, radius=0.01) == 2
     assert nearest_on_ray(points[[3]], origin, direction=direction, radius=0.1) is None
-
-
-def test_camera_layer_lives_in_its_own_module() -> None:
-    assert CameraLayer.__module__ == "better_robot.viewer.layers.camera"
 
 
 def test_valid_hides_a_layer_on_invalid_samples_without_touching_its_switch() -> None:

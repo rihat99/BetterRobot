@@ -3,7 +3,6 @@ the argument and the fix."""
 
 from __future__ import annotations
 
-import socket
 import sys
 from collections.abc import Callable
 
@@ -29,6 +28,7 @@ from better_robot.viewer import (
     Viewer,
 )
 from better_robot.viewer.tools import PoseGizmo
+from tests.support.ports import free_port
 from tests.support.robots import panda_urdf
 
 _POSE = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
@@ -162,7 +162,7 @@ _BAD_ROBOT_INPUT: list[tuple[Callable[[], object], type[Exception], str]] = [
 def test_the_robot_surface_refuses_bad_input_naming_the_argument(
     call: Callable[[], object], error: type[Exception], match: str
 ) -> None:
-    """R2 m4: a string where a switch or numbers belong, a colour outside [0, 1], a ramp of one colour and frame
+    """A string where a switch or numbers belong, a colour outside [0, 1], a ramp of one colour and frame
     scales that are not positive were accepted, read letter by letter or met a builtin error later."""
     with pytest.raises(error, match=match):
         call()
@@ -214,15 +214,9 @@ def test_a_missing_optional_package_raises_its_install_line(monkeypatch: pytest.
                 call()
 
 
-def _free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
 @pytest.mark.slow
 def test_a_skinned_mesh_with_fewer_than_four_bones_builds_on_a_real_server() -> None:
-    viewer = Viewer(port=_free_port())
+    viewer = Viewer(port=free_port())
     try:
         vertices = np.random.default_rng(0).normal(size=(6, 3))
         bind = np.tile(_POSE, (2, 1))

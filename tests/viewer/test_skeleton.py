@@ -381,7 +381,7 @@ def test_medium_draws_a_glyph_per_joint_kind_on_rods(robot: str) -> None:
 def test_a_hinge_is_a_drum_and_a_slider_a_sleeve_never_a_ball(name: str) -> None:
     """With a glyph per joint kind, every revolute joint with a motor of its own is a drum, every prismatic joint
     a sleeve, alone or beside others, a planar joint a thin plate and a translation a block: a ball is the glyph of a
-    spherical joint (the owner on a G1 drawn with balls at its hips: "not acceptable"; R2 m3: a planar base too). The
+    spherical joint (the owner on a G1 drawn with balls at its hips: "not acceptable"; a planar base was one too). The
     only other balls are at most one head per trunk and the round cap of a chain's last rod, no wider than the rod;
     both in the rods' pale shade. A chain's end, a hidden joint and a quadruped's snout draw no ball."""
     if name in _SYNTHETIC:
