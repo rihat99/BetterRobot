@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import math
 import re
-import socket
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -42,6 +41,7 @@ from better_robot.optim import Problem
 from better_robot.testing import public_objects
 from better_robot.viewer import Viewer
 from better_robot.viewer import FramesLayer
+from tests.support.ports import free_port
 
 PAGE = Path(__file__).resolve().parents[2] / "docs" / "contracts" / "coupling-standard.md"
 FROZEN = Path(__file__).parent / "coupling_standard_lines.txt"
@@ -530,10 +530,7 @@ def test_urdf_and_mjcf_are_read(tmp_path: Path, suffix: str, text: str) -> None:
 
 def test_the_viewer_writes_a_viser_recording(tmp_path: Path) -> None:
     """``Viewer`` records its timeline into a ``.viser`` file through viser's own serializer, on a loopback server."""
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        port = probe.getsockname()[1]
-    viewer = Viewer(port=port)
+    viewer = Viewer(port=free_port())
     try:
         poses = np.zeros((2, 1, 7), dtype=np.float32)
         poses[..., 6] = 1.0
